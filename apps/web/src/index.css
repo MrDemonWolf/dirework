@@ -126,3 +126,34 @@
     @apply font-sans;
   }
 }
+
+/* Chat-Task-Tic-style dual-container infinite scroll */
+@keyframes scroll-primary {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(calc(-100% - var(--scroll-gap, 100px)));
+  }
+}
+
+@keyframes scroll-secondary {
+  0% {
+    transform: translateY(calc(100% + var(--scroll-gap, 100px)));
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.animate-scroll-primary {
+  animation: scroll-primary var(--scroll-duration, 20s) linear infinite;
+}
+
+.animate-scroll-secondary {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  animation: scroll-secondary var(--scroll-duration, 20s) linear infinite;
+}
