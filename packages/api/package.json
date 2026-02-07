@@ -1,0 +1,27 @@
+{
+  "name": "@dirework/api",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@dirework/auth": "workspace:*",
+    "@dirework/db": "workspace:*",
+    "@dirework/env": "workspace:*",
+    "@trpc/client": "catalog:",
+    "@trpc/server": "catalog:",
+    "dotenv": "catalog:",
+    "next": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@dirework/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}
