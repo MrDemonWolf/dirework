@@ -1,0 +1,24 @@
+{
+  "name": "@dirework/auth",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@dirework/db": "workspace:*",
+    "@dirework/env": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@dirework/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}
