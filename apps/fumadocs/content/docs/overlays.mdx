@@ -1,0 +1,63 @@
+---
+title: Overlays
+description: How to add Dirework overlays to OBS
+---
+
+Dirework provides two overlays that you add as **Browser Sources** in OBS (or any streaming software that supports browser sources).
+
+## Overlay URLs
+
+After signing in, go to your **Dashboard**. In the **Overlay URLs** card you'll find two URLs:
+
+- **Timer Overlay** — `/overlay/t/{token}`
+- **Task List Overlay** — `/overlay/l/{token}`
+
+Each overlay has a unique token. Click the copy button next to each URL to copy the full URL.
+
+<Callout type="warn">
+  Keep your overlay tokens private. Anyone with the URL can view your overlay. If a token is compromised, click the regenerate button to create a new one.
+</Callout>
+
+## Adding to OBS
+
+1. In OBS, click the **+** button under Sources
+2. Select **Browser**
+3. Name it (e.g. "Dirework Timer" or "Dirework Tasks")
+4. Paste the full overlay URL
+5. Set the dimensions:
+   - **Timer:** 250 x 250 (or match your timer style config)
+   - **Task List:** 400 x 600 (adjust to fit your layout)
+6. **Important:** Check **"Shutdown source when not visible"** (optional but recommended)
+7. Click **OK**
+
+## Timer Overlay
+
+The timer overlay shows:
+- Current phase label (Focus, Break, Long Break, etc.)
+- Countdown timer
+- Cycle count (e.g. 1/4)
+
+The timer is transparent by default so it blends into your stream layout. The display updates in real-time via polling.
+
+## Task List Overlay
+
+The task list overlay shows:
+- Header with "Tasks" title and completion count
+- Scrolling list of viewer tasks with usernames in their Twitch color
+- Checkboxes (or bullets) for task status
+- Completed tasks with strikethrough text
+
+The task list auto-scrolls when the list overflows using a dual-container infinite scroll animation.
+
+## Customization
+
+Both overlays are fully customizable through the dashboard configuration. You can adjust:
+
+- **Timer:** Dimensions, background color/opacity, border radius, font family, font sizes, text color, text outline, phase labels
+- **Task List:** Fonts, header/body backgrounds, border styles, task item styling, username colors, checkbox appearance, scroll speed, and more
+
+Changes to the configuration are reflected in the overlays automatically.
+
+## Transparent Background
+
+The overlays render with a transparent background by default. In OBS, the browser source will show only the timer or task list widget without any background, making it easy to layer over your stream.
