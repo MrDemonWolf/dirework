@@ -1,10 +1,22 @@
 packages:
   - apps/*
   - packages/*
+
 catalog:
+  '@prisma/client': ^7.2.0
+  '@trpc/client': ^11.7.2
+  '@trpc/server': ^11.7.2
+  better-auth: ^1.4.18
   dotenv: ^17.2.2
-  zod: ^4.1.13
+  next: ^16.1.1
   typescript: ^5
-  convex: ^1.31.2
-  better-auth: 1.4.9
-  "@convex-dev/better-auth": ^0.10.9
+  zod: ^4.1.13
+
+ignoredBuiltDependencies:
+  - '@prisma/engines'
+  - esbuild
+  - msw
+  - prisma
+  - sharp
+
+onlyBuiltDependencies: '["prisma", "@prisma/engines", "esbuild", "sharp"]'
