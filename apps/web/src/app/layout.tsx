@@ -3,9 +3,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import "../index.css";
-import Header from "@/components/header";
 import Providers from "@/components/providers";
-import { getToken } from "@/lib/auth-server";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,24 +17,18 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Dirework",
-  description: "Pomodoro timer & task tracker for your Twitch stream",
+  description: "Focus timer for your Twitch stream",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const token = await getToken();
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <Providers initialToken={token}>
-          <div className="grid min-h-svh grid-rows-[auto_1fr]">
-            <Header />
-            <main>{children}</main>
-          </div>
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
