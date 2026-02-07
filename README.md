@@ -1,60 +1,47 @@
-# dirework-temp
+# Dirework
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines Next.js, Convex, and more.
+Self-hosted Pomodoro timer and task list with Twitch chat integration. Streamers login with Twitch, connect a bot account, configure overlays, and add them to OBS. Viewers interact via `!task`, `!done`, `!timer`, and more.
 
-## Features
+## Quick Start
 
-- **TypeScript** - For type safety and improved developer experience
-- **Next.js** - Full-stack React framework
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **shadcn/ui** - Reusable UI components
-- **Convex** - Reactive backend-as-a-service platform
-- **Authentication** - Better-Auth
-- **Turborepo** - Optimized monorepo build system
-
-## Getting Started
-
-First, install the dependencies:
+For full setup instructions including Twitch OAuth configuration, environment variables, and deployment, see the **[Documentation](http://localhost:4000/docs)**.
 
 ```bash
 pnpm install
+pnpm db:start        # Start PostgreSQL (Docker)
+pnpm db:push         # Push schema to database
+pnpm dev             # Start all apps
 ```
 
-## Convex Setup
+- Web app: [http://localhost:3001](http://localhost:3001)
+- Documentation: [http://localhost:4000](http://localhost:4000)
 
-This project uses Convex as a backend. You'll need to set up Convex before running the app:
+## Tech Stack
 
-```bash
-pnpm run dev:setup
-```
-
-Follow the prompts to create a new Convex project and connect it to your application.
-
-Copy environment variables from `packages/backend/.env.local` to `apps/*/.env`.
-
-Then, run the development server:
-
-```bash
-pnpm run dev
-```
-
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
-Your app will connect to the Convex cloud backend automatically.
+| Layer         | Technology                                       |
+| ------------- | ------------------------------------------------ |
+| Frontend      | Next.js (App Router), React, Tailwind, shadcn/ui |
+| Backend       | Next.js API routes + tRPC                        |
+| Auth          | Better Auth (Twitch social provider)             |
+| Database      | PostgreSQL (Docker) + Prisma ORM                 |
+| Chat Bot      | @twurple (runs inside overlay browser sources)   |
+| Documentation | Fumadocs                                         |
+| Monorepo      | Turborepo + pnpm workspaces                      |
 
 ## Project Structure
 
 ```
-dirework-temp/
+dirework/
 ├── apps/
-│   ├── web/         # Frontend application (Next.js)
+│   ├── web/           # Next.js app (frontend + API)
+│   └── fumadocs/      # Documentation site
 ├── packages/
-│   ├── backend/     # Convex backend functions and schema
+│   ├── api/           # tRPC routers + business logic
+│   ├── auth/          # Better Auth configuration
+│   ├── db/            # Prisma schema + client
+│   └── env/           # Environment variable validation
 ```
 
-## Available Scripts
+## License
 
-- `pnpm run dev`: Start all applications in development mode
-- `pnpm run build`: Build all applications
-- `pnpm run dev:web`: Start only the web application
-- `pnpm run dev:setup`: Setup and configure your Convex project
-- `pnpm run check-types`: Check TypeScript types across all apps
+MIT
