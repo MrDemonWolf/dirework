@@ -1,0 +1,11 @@
+{
+  "title": "Docs",
+  "pages": [
+    "index",
+    "getting-started",
+    "twitch-oauth",
+    "environment-variables",
+    "overlays",
+    "chat-commands"
+  ]
+}
