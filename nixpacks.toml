@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["nodejs_22", "openssl"]
+nixPkgs = ["nodejs_24", "openssl"]
 
 [phases.install]
 onlyIncludeFiles = [
@@ -14,13 +14,13 @@ onlyIncludeFiles = [
   "packages/env/package.json",
   "packages/config/package.json",
 ]
-cmds = ["npm install -g corepack@latest && corepack enable && corepack prepare pnpm@10.28.2 --activate && pnpm install --frozen-lockfile --ignore-scripts && pnpm rebuild @prisma/engines esbuild sharp"]
+cmds = ["npm install -g corepack@latest && corepack enable && corepack prepare pnpm --activate && pnpm install --frozen-lockfile --ignore-scripts && pnpm rebuild @prisma/engines esbuild sharp"]
 cacheDirectories = ["/root/.local/share/pnpm/store/v3"]
 
 [phases.build]
 cmds = [
   "NODE_OPTIONS=--experimental-require-module pnpm --filter @dirework/db exec prisma generate",
-  "NODE_OPTIONS=--experimental-require-module pnpm --filter @dirework/db exec prisma db push --skip-generate --accept-data-loss",
+  "NODE_OPTIONS=--experimental-require-module pnpm --filter @dirework/db exec prisma migrate ",
   "pnpm --filter web build",
   "[ -d apps/web/public ] && cp -r apps/web/public apps/web/.next/standalone/apps/web/public || true",
   "cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static",
