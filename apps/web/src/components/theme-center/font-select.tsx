@@ -10,26 +10,26 @@ import {
 import { Label } from "@/components/ui/label";
 
 const fontOptions = [
-  "Inter",
-  "Nunito",
-  "Fredoka One",
-  "Poppins",
+  "Montserrat",
   "Roboto",
+  "Inter",
+  "Poppins",
   "Open Sans",
   "Lato",
-  "Montserrat",
+  "Nunito",
   "Oswald",
   "Raleway",
   "Source Sans 3",
   "Ubuntu",
   "Merriweather",
   "Playfair Display",
-  "Share Tech Mono",
-  "Fira Code",
-  "JetBrains Mono",
   "Space Grotesk",
   "DM Sans",
   "Lexend",
+  "Share Tech Mono",
+  "Fira Code",
+  "JetBrains Mono",
+  "Fredoka One",
 ];
 
 export function FontSelect({
@@ -46,7 +46,7 @@ export function FontSelect({
       <Label className="w-28 shrink-0 text-xs text-muted-foreground">
         {label}
       </Label>
-      <Select value={value} onValueChange={onChange}>
+      <Select value={value} onValueChange={(v) => { if (v) onChange(v); }}>
         <SelectTrigger className="h-8 w-44 text-xs">
           <SelectValue />
         </SelectTrigger>
