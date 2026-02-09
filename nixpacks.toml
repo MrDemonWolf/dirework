@@ -13,4 +13,4 @@ cmds = [
 ]
 
 [start]
-cmd = "node apps/web/.next/standalone/apps/web/server.js"
+cmd = "npx prisma db push --schema packages/db/prisma/schema --skip-generate && node apps/web/.next/standalone/apps/web/server.js"
