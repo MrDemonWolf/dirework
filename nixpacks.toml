@@ -1,0 +1,16 @@
+[phases.setup]
+nixPkgs = ["nodejs_22", "openssl"]
+
+[phases.install]
+cmds = ["corepack enable && pnpm install --frozen-lockfile"]
+
+[phases.build]
+cmds = [
+  "pnpm --filter @dirework/db exec prisma generate",
+  "pnpm --filter web build",
+  "cp -r apps/web/public apps/web/.next/standalone/apps/web/public",
+  "cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static",
+]
+
+[start]
+cmd = "node apps/web/.next/standalone/apps/web/server.js"

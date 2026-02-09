@@ -18,5 +18,3 @@ ignoredBuiltDependencies:
   - msw
   - prisma
   - sharp
-
-onlyBuiltDependencies: '["prisma", "@prisma/engines", "esbuild", "sharp"]'
