@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, RefreshCw, Unplug } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
@@ -15,95 +17,45 @@ import {
 } from "@/components/ui/card";
 import { TaskManager } from "@/components/task-manager";
 import { TimerControls } from "@/components/timer-controls";
-import { TimerDisplay } from "@/components/timer-display";
-import { TaskListDisplay } from "@/components/task-list-display";
 import { trpc } from "@/utils/trpc";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyRecord = Record<string, any>;
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return "Good morning";
+  if (hour >= 12 && hour < 17) return "Good afternoon";
+  if (hour >= 17 && hour < 21) return "Good evening";
+  return "Up late? Let's grind";
+}
 
-const greetings = [
-  "Time to howl through some tasks!",
-  "The pack is waiting — let's get streaming!",
-  "Fangs out, focus on. Let's crush it!",
-  "Run with the pack, one pomodoro at a time.",
-  "Unleash your focus, wolf!",
-  "The den is set — time to grind!",
-  "Ears up, distractions down. Let's go!",
-  "Lead the pack today — start that timer!",
-  "Sharp claws, sharper focus. You got this!",
-  "Awoo! Time to co-work with the pack!",
-];
-
-const defaultTimerDisplayConfig = {
-  dimensions: { width: "180px", height: "180px" },
-  background: { color: "#000000", opacity: 0.5, borderRadius: "50%" },
-  text: { color: "#ffffff", outlineColor: "#000000", outlineSize: "0px", fontFamily: "Inter" },
-  fontSizes: { label: "16px", time: "32px", cycle: "14px" },
-  labels: { work: "Focus", break: "Break", longBreak: "Long Break", starting: "Starting", finished: "Done" },
-  showHours: false,
-};
-
-const defaultTaskDisplayConfig = {
-  display: { showDone: true, showCount: true, useCheckboxes: true, crossOnDone: true, numberOfLines: 2 },
-  fonts: { header: "Inter", body: "Inter" },
-  scroll: { pixelsPerSecond: 0, gapBetweenLoops: 0 },
-  header: {
-    height: "36px",
-    background: { color: "#000000", opacity: 0.9 },
-    border: { color: "#ffffff", width: "1px", radius: "6px 6px 0 0" },
-    fontSize: "14px",
-    fontColor: "#ffffff",
-    padding: "8px",
-  },
-  body: {
-    background: { color: "#000000", opacity: 0.7 },
-    border: { color: "#ffffff", width: "0px", radius: "0 0 6px 6px" },
-    padding: { vertical: "4px", horizontal: "4px" },
-  },
-  task: {
-    background: { color: "#000000", opacity: 0.6 },
-    border: { color: "#000000", width: "0px", radius: "4px" },
-    fontSize: "12px",
-    fontColor: "#ffffff",
-    usernameColor: "#a78bfa",
-    padding: "6px 8px",
-    marginBottom: "3px",
-    maxWidth: "100%",
-    direction: "row",
-  },
-  taskDone: { background: { color: "#000000", opacity: 0.3 }, fontColor: "#bbbbbb" },
-  checkbox: {
-    size: "14px",
-    background: { color: "#000000", opacity: 0 },
-    border: { color: "#ffffff", width: "1px", radius: "2px" },
-    margin: { top: "3px", left: "0px", right: "4px" },
-    tickChar: "\u2714",
-    tickSize: "10px",
-    tickColor: "#22c55e",
-  },
-  bullet: { char: "\u2022", size: "14px", color: "#ffffff", margin: { top: "0px", left: "0px", right: "4px" } },
-};
+function getSubGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return "Ready to crush some tasks today?";
+  if (hour >= 12 && hour < 17) return "Keep the momentum going!";
+  if (hour >= 17 && hour < 21) return "Wrapping up the day's work?";
+  return "Night owl mode activated.";
+}
 
 export default function Dashboard({
   session,
 }: {
   session: typeof authClient.$Infer.Session;
 }) {
-  const today = new Date();
-  const dayIndex = (today.getFullYear() * 366 + today.getMonth() * 31 + today.getDate()) % greetings.length;
-  const greeting = greetings[dayIndex];
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const user = useQuery(trpc.user.me.queryOptions());
-  const config = useQuery(trpc.config.get.queryOptions());
-  const timer = useQuery({
-    ...trpc.timer.get.queryOptions(),
-    refetchInterval: 1000,
-  });
-  const tasks = useQuery({
-    ...trpc.task.list.queryOptions(),
-    refetchInterval: 3000,
-  });
+
+  // Handle bot connection callback params
+  useEffect(() => {
+    const botStatus = searchParams.get("bot");
+    if (botStatus === "connected") {
+      toast.success("Bot account connected successfully!");
+      window.history.replaceState({}, "", "/dashboard");
+    } else if (botStatus === "error") {
+      const reason = searchParams.get("reason") ?? "unknown";
+      toast.error(`Failed to connect bot account: ${reason}`);
+      window.history.replaceState({}, "", "/dashboard");
+    }
+  }, [searchParams]);
 
   const regenerateToken = useMutation({
     ...trpc.user.regenerateOverlayToken.mutationOptions(),
@@ -127,30 +79,18 @@ export default function Dashboard({
     toast.success("Copied to clipboard");
   };
 
-  // Build timer preview state
-  const timerState = timer.data ?? {
-    status: "idle",
-    targetEndTime: null,
-    pausedWithRemaining: null,
-    currentCycle: 1,
-    totalCycles: 4,
-  };
-
-  // Build task preview data
-  const taskList = tasks.data ?? [];
-  const previewTasks = taskList.slice(0, 5).map((t: AnyRecord) => ({
-    id: t.id,
-    authorDisplayName: t.authorDisplayName,
-    authorColor: t.authorColor,
-    text: t.text,
-    status: t.status,
-  }));
+  const timerToken = user.data?.overlayTimerToken;
+  const tasksToken = user.data?.overlayTasksToken;
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Welcome back, {session.user.name}</h1>
-        <p className="text-muted-foreground">{greeting}</p>
+        <h1 className="font-heading text-3xl font-bold" suppressHydrationWarning>
+          {getGreeting()}, {session.user.name}
+        </h1>
+        <p className="text-muted-foreground" suppressHydrationWarning>
+          {getSubGreeting()}
+        </p>
       </div>
 
       <div className="grid gap-6">
@@ -167,30 +107,21 @@ export default function Dashboard({
               </div>
               <div className="flex flex-col items-center gap-2">
                 <span className="text-xs font-medium text-muted-foreground">Preview</span>
-                <div className="flex items-center justify-center rounded-lg border border-dashed border-zinc-700 bg-zinc-900 p-4">
-                  {timerState.status === "idle" ? (
+                <div className="overflow-hidden rounded-lg border border-dashed border-zinc-700 bg-zinc-900">
+                  {timerToken ? (
+                    <iframe
+                      src={`/overlay/t/${timerToken}`}
+                      className="pointer-events-none"
+                      style={{ width: "280px", height: "280px", border: "none", background: "transparent" }}
+                      title="Timer overlay preview"
+                    />
+                  ) : (
                     <div
                       className="flex flex-col items-center justify-center text-zinc-500"
-                      style={{ width: "180px", height: "180px" }}
+                      style={{ width: "280px", height: "280px" }}
                     >
-                      <p className="text-xs">Timer preview</p>
-                      <p className="text-xs text-zinc-600">Start timer to see</p>
+                      <p className="text-xs">Loading preview...</p>
                     </div>
-                  ) : (
-                    <TimerDisplay
-                      config={defaultTimerDisplayConfig}
-                      state={{
-                        status: timerState.status,
-                        targetEndTime: timerState.targetEndTime
-                          ? typeof timerState.targetEndTime === "string"
-                            ? timerState.targetEndTime
-                            : (timerState.targetEndTime as Date).toISOString()
-                          : null,
-                        pausedWithRemaining: timerState.pausedWithRemaining,
-                        currentCycle: timerState.currentCycle,
-                        totalCycles: timerState.totalCycles,
-                      }}
-                    />
                   )}
                 </div>
               </div>
@@ -219,13 +150,22 @@ export default function Dashboard({
               </div>
               <div className="flex flex-col items-center gap-2">
                 <span className="text-xs font-medium text-muted-foreground">Preview</span>
-                <div className="w-full rounded-lg border border-dashed border-zinc-700 bg-zinc-900 p-4 md:w-72">
-                  <div style={{ height: "300px" }}>
-                    <TaskListDisplay
-                      config={defaultTaskDisplayConfig}
-                      tasks={previewTasks}
+                <div className="overflow-hidden rounded-lg border border-dashed border-zinc-700 bg-zinc-900">
+                  {tasksToken ? (
+                    <iframe
+                      src={`/overlay/l/${tasksToken}`}
+                      className="pointer-events-none"
+                      style={{ width: "350px", height: "350px", border: "none", background: "transparent" }}
+                      title="Task list overlay preview"
                     />
-                  </div>
+                  ) : (
+                    <div
+                      className="flex flex-col items-center justify-center text-zinc-500"
+                      style={{ width: "350px", height: "350px" }}
+                    >
+                      <p className="text-xs">Loading preview...</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

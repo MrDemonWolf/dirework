@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { auth } from "@dirework/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -13,5 +15,9 @@ export default async function DashboardPage() {
     redirect("/");
   }
 
-  return <Dashboard session={session} />;
+  return (
+    <Suspense>
+      <Dashboard session={session} />
+    </Suspense>
+  );
 }
