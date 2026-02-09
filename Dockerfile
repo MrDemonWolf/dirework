@@ -32,6 +32,7 @@ RUN cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static
 # Production runner
 FROM node:24-slim AS runner
 RUN apt-get update && apt-get install -y openssl curl && rm -rf /var/lib/apt/lists/*
+RUN npm install -g prisma@7
 WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME="0.0.0.0"
@@ -39,6 +40,9 @@ ENV PORT=3000
 
 COPY --from=build /app/apps/web/.next/standalone ./
 COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=build /app/packages/db/prisma/schema ./packages/db/prisma/schema
+COPY --from=build /app/packages/db/prisma/migrations ./packages/db/prisma/migrations
+COPY docker-entrypoint.sh ./
 
 EXPOSE 3000
-CMD ["node", "apps/web/server.js"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
