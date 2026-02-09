@@ -37,16 +37,17 @@ pnpm db:migrate       # Run Prisma migrations
 
 ## Tech Stack
 
-- **Next.js 16** (App Router) with React 19 and React Compiler enabled
+- **Next.js 16** (App Router) with React 19, React Compiler, and typed routes enabled
 - **Tailwind CSS v4** via `@tailwindcss/postcss`
 - **shadcn/ui** (base-lyra style) with Lucide icons
-- **tRPC v11** with httpBatchLink for type-safe API
+- **tRPC v11** with httpBatchLink and `createTRPCOptionsProxy` for type-safe API
 - **TanStack React Query** for client-side data fetching
 - **TanStack React Form** for form handling
 - **Better Auth** with Twitch social provider (30-day sessions)
 - **Prisma 7** with PostgreSQL 16 (Docker) and `@prisma/adapter-pg`
 - **Sonner** for toast notifications
 - **next-themes** for dark/light mode
+- **Google Fonts** — Montserrat (headings/timer) + Roboto (body text)
 - **Fumadocs** with Orama search for documentation
 - **TypeScript 5** in strict mode everywhere
 
@@ -57,7 +58,8 @@ pnpm db:migrate       # Run Prisma migrations
 The web app uses `@/` mapping to `apps/web/src/`:
 - `@/components` — React components
 - `@/components/ui` — shadcn/ui primitives
-- `@/lib` — utilities (auth-client, cn helper)
+- `@/components/theme-center` — Theme Center editor components
+- `@/lib` — utilities (auth-client, cn helper, config-types, deep-merge, theme-presets)
 - `@/utils` — tRPC client setup
 
 Internal packages are imported as `@dirework/api`, `@dirework/auth`, `@dirework/db`, `@dirework/env`.
@@ -69,6 +71,23 @@ Internal packages are imported as `@dirework/api`, `@dirework/auth`, `@dirework/
 - Server components only for auth checks and data loading (e.g., `dashboard/page.tsx`)
 - Styling via Tailwind utility classes + CSS variables for theming
 - Class merging with `clsx` + `tailwind-merge` via `cn()` helper
+- Components using `useSearchParams` must be wrapped in `<Suspense>` in their parent server component
+
+### Next.js Typed Routes
+
+Next.js typed routes are enabled. When using `Link` with dynamic `href` from arrays/objects, use `as const` on literal route strings to preserve the type:
+```tsx
+const navItems = [
+  { href: "/dashboard" as const, label: "Dashboard" },
+];
+// <Link href={item.href}> works because href is a string literal type
+```
+
+### Fonts
+
+- **Montserrat** — used for headings (`font-heading` CSS class / `--font-heading` variable) and timer display text
+- **Roboto** — used for body text (`font-sans` / `--font-roboto` variable)
+- Loaded via `next/font/google` in root layout; overlay layout loads via Google Fonts CDN `<link>` tag
 
 ### API Layer (tRPC)
 
@@ -99,11 +118,44 @@ Key conventions:
 
 - Better Auth handles Twitch OAuth login
 - Bot account connection is a separate OAuth flow via `/api/bot/authorize` → `/api/bot/callback`
+- Bot callback includes error reason in redirect query params for user-facing toast notifications
 - Overlay access uses UUID tokens (no auth needed), regenerable per user
 
 ### Overlay System
 
 Public routes at `/overlay/t/[token]` (timer) and `/overlay/l/[token]` (task list). Transparent backgrounds for OBS browser sources. Poll via React Query refetch intervals (1-2 seconds).
+
+Timer overlay supports two progress ring shapes:
+- **Circle** — standard SVG `<circle>` with `strokeDasharray`/`strokeDashoffset`
+- **Rounded rectangle (squircle)** — SVG `<rect>` with configurable `borderRadius`, macOS-style (default 22%)
+
+Overlays use saved user config (deep-merged with defaults) for styling. Config is fetched via `trpc.overlay.*` public procedures.
+
+### Theme Center (`/dashboard/styles`)
+
+Two-column layout: editor (left) + live preview (right).
+
+Key files:
+- `src/lib/config-types.ts` — TypeScript interfaces for `TimerStylesConfig` and `TaskStylesConfig`
+- `src/lib/deep-merge.ts` — Generic deep merge utility for merging saved config with defaults
+- `src/lib/theme-presets.ts` — 11 theme presets + default style objects
+- `src/components/theme-center/` — All editor components (ThemeBrowser, ThemeCard, TimerStyleEditor, TaskStyleEditor, ColorInput, FontSelect, SectionGroup, StylePreviewPanel)
+- `src/app/(app)/dashboard/styles/` — Page and client component
+
+Theme presets (11 total): Default, Liquid Glass Light, Liquid Glass Dark, Neon Cyberpunk, Cozy Cottage, Ocean Depths, Sakura, Retro Terminal, Minimal Light, Sunset, Twitch Purple.
+
+Data flow:
+1. Load saved config via `trpc.config.get`
+2. Deep-merge with defaults into working state
+3. Theme "Apply" or editor changes update working state (instant preview)
+4. "Save" calls existing `config.updateTimerStyles` + `config.updateTaskStyles` mutations
+5. No database schema changes needed
+
+### Dashboard
+
+- Time-of-day greetings (morning/afternoon/evening/night) with `suppressHydrationWarning`
+- Overlay previews use iframes pointing to actual overlay pages (`/overlay/t/[token]` and `/overlay/l/[token]`)
+- Bot connection feedback via URL search params (`?bot=connected` or `?bot=error&reason=...`) with toast notifications
 
 ## Git Workflow
 
