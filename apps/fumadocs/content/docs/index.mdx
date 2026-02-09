@@ -1,24 +1,58 @@
 ---
-title: Dirework
-description: Self-hosted Pomodoro timer and task list with Twitch chat integration
+title: Dirework Documentation
+description: Everything you need to set up and use Dirework
 ---
 
-Dirework is a self-hosted Pomodoro timer and task list designed for Twitch co-working and body-doubling streams. Streamers login with Twitch, connect a bot account, configure OBS overlays, and their viewers can interact via chat commands.
+Dirework is a self-hosted Pomodoro timer and task list for Twitch co-working and body-doubling streams. Streamers sign in with Twitch, connect a bot account, configure OBS overlays, and their viewers interact via chat commands.
 
-## Features
+This documentation covers everything from initial setup to production deployment.
 
-- Pomodoro timer with configurable work/break durations
-- Task list where viewers can add and manage tasks via chat
-- OBS browser source overlays for timer and task list
-- Twitch bot integration for chat commands
-- Fully customizable overlay styling
-- Single-user per instance (self-hosted)
-
-## Quick Start
+## Setup
 
 <Cards>
-  <Card title="Getting Started" href="/docs/getting-started" />
-  <Card title="Twitch OAuth Setup" href="/docs/twitch-oauth" />
-  <Card title="Environment Variables" href="/docs/environment-variables" />
-  <Card title="Chat Commands" href="/docs/chat-commands" />
+  <Card
+    title="Getting Started"
+    description="Clone, install, configure, and run Dirework locally in minutes."
+    href="/docs/getting-started"
+  />
+  <Card
+    title="Twitch OAuth Setup"
+    description="Create a Twitch application and configure OAuth redirect URLs."
+    href="/docs/twitch-oauth"
+  />
+  <Card
+    title="Environment Variables"
+    description="Full reference for all required and optional environment variables."
+    href="/docs/environment-variables"
+  />
+</Cards>
+
+## Usage
+
+<Cards>
+  <Card
+    title="OBS Overlays"
+    description="Add the timer and task list overlays to OBS as browser sources."
+    href="/docs/overlays"
+  />
+  <Card
+    title="Chat Commands"
+    description="All Twitch chat commands for tasks, timer, and moderation."
+    href="/docs/chat-commands"
+  />
+</Cards>
+
+## Operations
+
+<Cards>
+  <Card
+    title="Deployment"
+    description="Deploy Dirework to production with Docker, a VPS, or any Node.js host."
+    href="/docs/deployment"
+  />
+  <Card
+    title="Troubleshooting"
+    description="Common issues and solutions for setup, auth, overlays, and more."
+    href="/docs/troubleshooting"
+  />
 </Cards>
