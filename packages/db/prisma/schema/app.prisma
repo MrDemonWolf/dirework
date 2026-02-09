@@ -1,0 +1,67 @@
+model BotAccount {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  twitchId     String
+  username     String
+  displayName  String
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  scopes       String[] @default(["chat:read", "chat:edit"])
+
+  @@map("bot_account")
+}
+
+model Task {
+  id                String    @id @default(cuid())
+  ownerId           String
+  owner             User      @relation("TaskOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Task author (viewer who created the task)
+  authorTwitchId    String
+  authorUsername    String
+  authorDisplayName String
+  authorColor       String?
+
+  // Task content
+  text              String
+  status            String   @default("pending") // "pending" | "done"
+  priority          Int      @default(1)          // 0 = broadcaster (top), 1 = viewer
+  order             Int
+
+  createdAt         DateTime  @default(now())
+  completedAt       DateTime?
+
+  @@index([ownerId, status])
+  @@index([ownerId, priority, order])
+  @@index([ownerId, authorTwitchId])
+  @@map("task")
+}
+
+model TimerState {
+  id                  String    @id @default(cuid())
+  userId              String    @unique
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status              String    @default("idle") // "idle" | "starting" | "work" | "break" | "longBreak" | "paused" | "finished"
+  targetEndTime       DateTime?
+  pausedWithRemaining Int?      // milliseconds remaining when paused
+  currentCycle        Int       @default(1)
+  totalCycles         Int       @default(4)
+
+  @@map("timer_state")
+}
+
+model Config {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timer          Json     // Timer config object
+  timerStyles    Json     // Timer CSS values
+  taskStyles     Json     // Task list CSS values
+  messages       Json     // Bot response messages
+  commandAliases Json     @default("{}")
+  updatedAt      DateTime @updatedAt
+
+  @@map("config")
+}

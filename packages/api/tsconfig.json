@@ -1,0 +1,6 @@
+{
+  "extends": "@dirework/config/tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist"
+  }
+}

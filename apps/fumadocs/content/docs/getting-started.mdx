@@ -1,0 +1,88 @@
+---
+title: Getting Started
+description: How to self-host Dirework
+---
+
+## Prerequisites
+
+- [Node.js](https://nodejs.org/) v20+
+- [pnpm](https://pnpm.io/) v10+
+- [Docker](https://www.docker.com/) (for PostgreSQL)
+- A [Twitch Developer Application](/docs/twitch-oauth)
+
+## 1. Clone the repository
+
+```bash
+git clone https://github.com/mrdemonwolf/dirework.git
+cd dirework
+```
+
+## 2. Install dependencies
+
+```bash
+pnpm install
+```
+
+## 3. Configure environment variables
+
+Create a `.env` file in `apps/web/`:
+
+```bash
+# Database
+DATABASE_URL="postgresql://postgres:password@localhost:5432/dirework"
+
+# Better Auth
+BETTER_AUTH_SECRET="<generate-a-random-32-char-string>"
+BETTER_AUTH_URL="http://localhost:3001"
+CORS_ORIGIN="http://localhost:3001"
+
+# Twitch OAuth (from dev.twitch.tv)
+TWITCH_CLIENT_ID="<your_client_id>"
+TWITCH_CLIENT_SECRET="<your_client_secret>"
+
+# User allowlist (comma-separated Twitch user IDs, empty = allow all)
+ALLOWED_TWITCH_IDS=""
+```
+
+You can generate a secret with:
+
+```bash
+openssl rand -base64 32
+```
+
+See [Environment Variables](/docs/environment-variables) for a full reference.
+
+## 4. Start the database
+
+```bash
+pnpm db:start
+```
+
+This starts a PostgreSQL container via Docker Compose.
+
+## 5. Push the database schema
+
+```bash
+pnpm db:push
+```
+
+## 6. Start the development server
+
+```bash
+pnpm dev
+```
+
+This starts all apps via Turborepo:
+
+- **Web app:** [http://localhost:3001](http://localhost:3001)
+- **Documentation:** [http://localhost:4000](http://localhost:4000)
+
+## 7. Sign in
+
+Open the web app and click **Sign in with Twitch**. You'll be redirected to Twitch to authorize the application. Make sure you've [set up your Twitch OAuth application](/docs/twitch-oauth) first.
+
+## Next steps
+
+- [Set up Twitch OAuth](/docs/twitch-oauth) if you haven't already
+- [Add overlays to OBS](/docs/overlays)
+- [Learn the chat commands](/docs/chat-commands)

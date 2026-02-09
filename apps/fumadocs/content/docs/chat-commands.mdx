@@ -1,0 +1,62 @@
+---
+title: Chat Commands
+description: All available Twitch chat commands
+---
+
+Once you've connected a [bot account](/docs/twitch-oauth#connect-a-bot-account), viewers can interact with Dirework through Twitch chat commands.
+
+## Task Commands (All Viewers)
+
+| Command | Description |
+| --- | --- |
+| `!task <text>` | Add a new task (viewers can have multiple tasks) |
+| `!done` | Mark your oldest pending task as done |
+| `!done <number>` | Mark a specific task by number as done |
+| `!edit <text>` | Edit your oldest pending task |
+| `!edit <number> <text>` | Edit a specific task by number |
+| `!remove` | Remove your oldest pending task |
+| `!remove <number>` | Remove a specific task by number |
+| `!check` | Show your current tasks |
+| `!check @user` | Show another user's tasks |
+
+## Task Commands (Broadcaster / Mods)
+
+| Command | Description |
+| --- | --- |
+| `!clear` | Clear all tasks from the list |
+| `!cleardone` | Clear all completed tasks |
+| `!adel @user` | Remove all tasks from a specific user |
+
+## Timer Commands
+
+| Command | Description |
+| --- | --- |
+| `!timer start` | Start the timer with default settings |
+| `!timer <minutes>` | Start a timer with a specific duration (e.g. `!timer 25`) |
+| `!timer pause` | Pause the timer |
+| `!timer resume` | Resume the timer |
+| `!timer skip` | Skip the current session |
+| `!timer goal <num>` | Set the number of pomodoro cycles |
+| `!time` | Show remaining time |
+| `!eta` | Show when the timer ends (local time) |
+
+## Task Priority
+
+Tasks created by the broadcaster (stream owner) are pinned to the top of the list. Viewer tasks appear below in the order they were added.
+
+## Bot Responses
+
+The bot responds to commands with configurable messages. Default responses include:
+
+| Event | Default Message |
+| --- | --- |
+| Task added | `@{user}, task added!` |
+| Task done | `@{user}, task marked done!` |
+| Task edited | `@{user}, task updated!` |
+| Task removed | `@{user}, task removed!` |
+| No tasks | `@{user}, you have no tasks.` |
+| Timer started | `Timer started! {duration} minutes` |
+| Timer paused | `Timer paused.` |
+| Timer resumed | `Timer resumed!` |
+
+These messages can be customized through the dashboard configuration.
