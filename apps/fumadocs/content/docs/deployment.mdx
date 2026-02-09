@@ -1,0 +1,227 @@
+---
+title: Deployment
+description: Deploy Dirework to production
+---
+
+This guide covers deploying Dirework to a production environment. Dirework is a Next.js application backed by PostgreSQL, so it can run anywhere that supports Node.js.
+
+## Prerequisites
+
+- A server or hosting platform that supports Node.js 20+
+- A production PostgreSQL database
+- A domain name (for Twitch OAuth redirect URLs)
+- Your Twitch application credentials
+
+## Environment Variables
+
+Set all required environment variables for production:
+
+```bash
+DATABASE_URL="postgresql://user:password@host:5432/dirework"
+BETTER_AUTH_SECRET="<generate-with-openssl-rand-base64-32>"
+BETTER_AUTH_URL="https://your-domain.com"
+CORS_ORIGIN="https://your-domain.com"
+TWITCH_CLIENT_ID="<your_client_id>"
+TWITCH_CLIENT_SECRET="<your_client_secret>"
+NODE_ENV="production"
+
+# Optional: restrict login to specific Twitch accounts
+ALLOWED_TWITCH_IDS=""
+```
+
+<Callout type="warn">
+  Use a strong, unique `BETTER_AUTH_SECRET` in production. Generate one with `openssl rand -base64 32`. Never reuse your development secret.
+</Callout>
+
+## Update Twitch Redirect URLs
+
+In the [Twitch Developer Console](https://dev.twitch.tv/console/apps), add your production redirect URLs:
+
+```
+https://your-domain.com/api/auth/callback/twitch
+https://your-domain.com/api/bot/callback
+```
+
+You can keep the localhost URLs alongside the production ones for local development.
+
+## Build
+
+Build the web application from the repository root:
+
+```bash
+pnpm install
+pnpm build
+```
+
+This runs Turborepo to build all packages and the Next.js app. The output is in `apps/web/.next/`.
+
+## Option 1: VPS / Bare Metal
+
+### Setup
+
+1. Clone the repository on your server:
+
+   ```bash
+   git clone https://github.com/mrdemonwolf/dirework.git
+   cd dirework
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   pnpm install
+   ```
+
+3. Create and configure `apps/web/.env` with your production values.
+
+4. Set up PostgreSQL. You can use the included Docker Compose or connect to an external database:
+
+   ```bash
+   # Using included Docker Compose
+   pnpm db:start
+
+   # Or point DATABASE_URL to your external PostgreSQL instance
+   ```
+
+5. Push the database schema:
+
+   ```bash
+   pnpm db:push
+   ```
+
+6. Build the application:
+
+   ```bash
+   pnpm build
+   ```
+
+7. Start the production server:
+
+   ```bash
+   cd apps/web
+   pnpm start
+   ```
+
+   The app runs on port 3001 by default.
+
+### Reverse Proxy
+
+Use Nginx or Caddy to proxy traffic to the Node.js server and handle HTTPS.
+
+**Nginx example:**
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name your-domain.com;
+
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+**Caddy example:**
+
+```
+your-domain.com {
+    reverse_proxy 127.0.0.1:3001
+}
+```
+
+Caddy handles HTTPS certificates automatically.
+
+### Process Manager
+
+Use a process manager to keep the app running:
+
+```bash
+# Using PM2
+npm install -g pm2
+cd apps/web
+pm2 start "pnpm start" --name dirework
+pm2 save
+pm2 startup
+```
+
+## Option 2: Docker
+
+You can containerize Dirework with a Dockerfile. Here's a basic example:
+
+```dockerfile
+FROM node:20-slim AS base
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
+COPY . .
+RUN pnpm install --frozen-lockfile
+RUN pnpm build
+
+WORKDIR /app/apps/web
+EXPOSE 3001
+CMD ["pnpm", "start"]
+```
+
+Build and run:
+
+```bash
+docker build -t dirework .
+docker run -d \
+  --name dirework \
+  -p 3001:3001 \
+  --env-file apps/web/.env \
+  dirework
+```
+
+<Callout type="info">
+  If using Docker for both the app and PostgreSQL, make sure they share a Docker network so the app can reach the database.
+</Callout>
+
+## Database
+
+### Production PostgreSQL
+
+For production, use a managed PostgreSQL service or a dedicated PostgreSQL server instead of the development Docker container:
+
+- **Managed services:** Neon, Supabase, Railway, AWS RDS, DigitalOcean Managed Databases
+- **Self-hosted:** Install PostgreSQL directly or use Docker with a persistent volume
+
+Update `DATABASE_URL` to point to your production database.
+
+### Migrations
+
+After updating Dirework, push any schema changes:
+
+```bash
+pnpm db:push
+```
+
+## Documentation Site
+
+The documentation site (`apps/fumadocs`) is a static site that can be deployed separately:
+
+```bash
+cd apps/fumadocs
+pnpm build
+```
+
+The static output is in `apps/fumadocs/out/`. Deploy it to any static hosting service (GitHub Pages, Netlify, Vercel, Cloudflare Pages, etc.).
+
+## Checklist
+
+Before going live, verify:
+
+- [ ] `BETTER_AUTH_SECRET` is a strong, unique value
+- [ ] `BETTER_AUTH_URL` and `CORS_ORIGIN` match your production domain
+- [ ] Twitch redirect URLs are added for your production domain
+- [ ] PostgreSQL is accessible and schema is pushed
+- [ ] HTTPS is configured (required for Twitch OAuth)
+- [ ] `ALLOWED_TWITCH_IDS` is set if you want to restrict access
+- [ ] Application starts and you can sign in with Twitch

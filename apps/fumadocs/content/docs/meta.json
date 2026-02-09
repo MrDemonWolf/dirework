@@ -6,6 +6,8 @@
     "twitch-oauth",
     "environment-variables",
     "overlays",
-    "chat-commands"
+    "chat-commands",
+    "deployment",
+    "troubleshooting"
   ]
 }
