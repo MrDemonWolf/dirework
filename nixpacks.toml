@@ -6,7 +6,7 @@ cmds = ["npm install -g corepack@latest && corepack enable && corepack prepare p
 
 [phases.build]
 cmds = [
-  "pnpm --filter @dirework/db exec prisma generate",
+  "NODE_OPTIONS=--experimental-require-module pnpm --filter @dirework/db exec prisma generate",
   "pnpm --filter web build",
   "cp -r apps/web/public apps/web/.next/standalone/apps/web/public",
   "cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static",
