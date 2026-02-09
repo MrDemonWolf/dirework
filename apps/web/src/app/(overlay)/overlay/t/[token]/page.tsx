@@ -3,6 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 
+import { deepMerge } from "@/lib/deep-merge";
+import { defaultTimerStyles } from "@/lib/theme-presets";
 import { TimerDisplay } from "@/components/timer-display";
 import { trpc } from "@/utils/trpc";
 
@@ -10,26 +12,6 @@ const POLL_INTERVAL = 1000;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRecord = Record<string, any>;
-
-const defaultTimerConfig = {
-  dimensions: { width: "250px", height: "250px" },
-  background: { color: "#000000", opacity: 0.5, borderRadius: "50%" },
-  text: {
-    color: "#ffffff",
-    outlineColor: "#000000",
-    outlineSize: "0px",
-    fontFamily: "Inter",
-  },
-  fontSizes: { label: "24px", time: "48px", cycle: "20px" },
-  labels: {
-    work: "Focus",
-    break: "Break",
-    longBreak: "Long Break",
-    starting: "Starting",
-    finished: "Done",
-  },
-  showHours: false,
-};
 
 const defaultTimerState = {
   status: "idle",
@@ -57,13 +39,21 @@ export default function TimerOverlayPage() {
   const tc = ((data?.config?.timer as AnyRecord) ?? {}) as AnyRecord;
   const ts = ((data?.config?.timerStyles as AnyRecord) ?? {}) as AnyRecord;
 
+  const mergedStyles = deepMerge(defaultTimerStyles, ts);
   const displayConfig = {
-    dimensions: ts.dimensions ?? defaultTimerConfig.dimensions,
-    background: ts.background ?? defaultTimerConfig.background,
-    text: ts.text ?? defaultTimerConfig.text,
-    fontSizes: ts.fontSizes ?? defaultTimerConfig.fontSizes,
-    labels: tc.labels ?? defaultTimerConfig.labels,
-    showHours: tc.showHours ?? defaultTimerConfig.showHours,
+    dimensions: mergedStyles.dimensions as { width: string; height: string },
+    background: mergedStyles.background as { color: string; opacity: number; borderRadius: string },
+    ring: mergedStyles.ring as { enabled: boolean; trackColor: string; trackOpacity: number; fillColor: string; fillOpacity: number; width: number; gap: number },
+    text: mergedStyles.text as { color: string; outlineColor: string; outlineSize: string; fontFamily: string },
+    fontSizes: mergedStyles.fontSizes as { label: string; time: string; cycle: string },
+    labels: (tc.labels ?? {
+      work: "Focus",
+      break: "Break",
+      longBreak: "Long Break",
+      starting: "Starting",
+      finished: "Done",
+    }) as Record<string, string>,
+    showHours: (tc.showHours ?? false) as boolean,
   };
 
   return (
