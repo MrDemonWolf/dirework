@@ -31,7 +31,7 @@ RUN cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static
 
 # Production runner
 FROM node:24-slim AS runner
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y openssl curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME="0.0.0.0"
