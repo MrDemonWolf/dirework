@@ -47,7 +47,7 @@ pnpm db:watch         # Watch database changes
 - **TanStack React Query** for client-side data fetching
 - **TanStack React Form** for form handling
 - **Better Auth** with Twitch social provider (30-day sessions)
-- **Prisma 7** with PostgreSQL 16 (Docker) and `@prisma/adapter-pg`
+- **Prisma 7** with PostgreSQL 17 (Docker) and `@prisma/adapter-pg`
 - **Sonner** for toast notifications
 - **next-themes** for dark/light mode
 - **Google Fonts** — Montserrat (headings/timer) + Roboto (body text)
@@ -160,6 +160,18 @@ Data flow:
 - Overlay previews use iframes pointing to actual overlay pages (`/overlay/t/[token]` and `/overlay/l/[token]`)
 - Bot connection feedback via URL search params (`?bot=connected` or `?bot=error&reason=...`) with toast notifications
 
+## Deployment
+
+Deployed via **Coolify** using **Nixpacks** build pack. Config in `nixpacks.toml`.
+
+- Next.js uses `output: "standalone"` for containerized deployment
+- `SKIP_ENV_VALIDATION=true` is set at build time to bypass t3-env validation (runtime secrets aren't available during build)
+- Nixpacks build: install deps → generate Prisma client → build Next.js → copy static assets
+- Start command: `node apps/web/.next/standalone/apps/web/server.js`
+- PostgreSQL 17 Alpine as a separate Coolify service
+- Instance-specific notes live in `coolify.md` (gitignored)
+- Environment variable reference in `.env.example`
+
 ## Git Workflow
 
 - `main` — production branch
@@ -178,6 +190,7 @@ Defined in `packages/env/src/server.ts`. Required:
 Optional:
 - `ALLOWED_TWITCH_IDS` — comma-separated allowlist (empty = allow all)
 - `NODE_ENV` — development/production/test
+- `SKIP_ENV_VALIDATION` — set to `"true"` during CI/build to skip env validation
 
 ## README Convention
 
