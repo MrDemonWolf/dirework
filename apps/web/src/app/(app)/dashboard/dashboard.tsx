@@ -22,6 +22,19 @@ import { trpc } from "@/utils/trpc";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRecord = Record<string, any>;
 
+const greetings = [
+  "Time to howl through some tasks!",
+  "The pack is waiting — let's get streaming!",
+  "Fangs out, focus on. Let's crush it!",
+  "Run with the pack, one pomodoro at a time.",
+  "Unleash your focus, wolf!",
+  "The den is set — time to grind!",
+  "Ears up, distractions down. Let's go!",
+  "Lead the pack today — start that timer!",
+  "Sharp claws, sharper focus. You got this!",
+  "Awoo! Time to co-work with the pack!",
+];
+
 const defaultTimerDisplayConfig = {
   dimensions: { width: "180px", height: "180px" },
   background: { color: "#000000", opacity: 0.5, borderRadius: "50%" },
@@ -77,6 +90,9 @@ export default function Dashboard({
 }: {
   session: typeof authClient.$Infer.Session;
 }) {
+  const today = new Date();
+  const dayIndex = (today.getFullYear() * 366 + today.getMonth() * 31 + today.getDate()) % greetings.length;
+  const greeting = greetings[dayIndex];
   const queryClient = useQueryClient();
   const user = useQuery(trpc.user.me.queryOptions());
   const config = useQuery(trpc.config.get.queryOptions());
@@ -133,8 +149,8 @@ export default function Dashboard({
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome, {session.user.name}</p>
+        <h1 className="text-3xl font-bold">Welcome back, {session.user.name}</h1>
+        <p className="text-muted-foreground">{greeting}</p>
       </div>
 
       <div className="grid gap-6">
@@ -149,31 +165,34 @@ export default function Dashboard({
               <div className="flex-1">
                 <TimerControls />
               </div>
-              <div className="flex items-center justify-center rounded-lg bg-zinc-900 p-4">
-                {timerState.status === "idle" ? (
-                  <div
-                    className="flex flex-col items-center justify-center text-zinc-500"
-                    style={{ width: "180px", height: "180px" }}
-                  >
-                    <p className="text-xs">Timer preview</p>
-                    <p className="text-xs text-zinc-600">Start timer to see</p>
-                  </div>
-                ) : (
-                  <TimerDisplay
-                    config={defaultTimerDisplayConfig}
-                    state={{
-                      status: timerState.status,
-                      targetEndTime: timerState.targetEndTime
-                        ? typeof timerState.targetEndTime === "string"
-                          ? timerState.targetEndTime
-                          : (timerState.targetEndTime as Date).toISOString()
-                        : null,
-                      pausedWithRemaining: timerState.pausedWithRemaining,
-                      currentCycle: timerState.currentCycle,
-                      totalCycles: timerState.totalCycles,
-                    }}
-                  />
-                )}
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground">Preview</span>
+                <div className="flex items-center justify-center rounded-lg border border-dashed border-zinc-700 bg-zinc-900 p-4">
+                  {timerState.status === "idle" ? (
+                    <div
+                      className="flex flex-col items-center justify-center text-zinc-500"
+                      style={{ width: "180px", height: "180px" }}
+                    >
+                      <p className="text-xs">Timer preview</p>
+                      <p className="text-xs text-zinc-600">Start timer to see</p>
+                    </div>
+                  ) : (
+                    <TimerDisplay
+                      config={defaultTimerDisplayConfig}
+                      state={{
+                        status: timerState.status,
+                        targetEndTime: timerState.targetEndTime
+                          ? typeof timerState.targetEndTime === "string"
+                            ? timerState.targetEndTime
+                            : (timerState.targetEndTime as Date).toISOString()
+                          : null,
+                        pausedWithRemaining: timerState.pausedWithRemaining,
+                        currentCycle: timerState.currentCycle,
+                        totalCycles: timerState.totalCycles,
+                      }}
+                    />
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>
@@ -198,12 +217,15 @@ export default function Dashboard({
                   <p className="text-sm text-muted-foreground">Loading...</p>
                 )}
               </div>
-              <div className="w-full rounded-lg bg-zinc-900 p-4 md:w-72">
-                <div style={{ height: "300px" }}>
-                  <TaskListDisplay
-                    config={defaultTaskDisplayConfig}
-                    tasks={previewTasks}
-                  />
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground">Preview</span>
+                <div className="w-full rounded-lg border border-dashed border-zinc-700 bg-zinc-900 p-4 md:w-72">
+                  <div style={{ height: "300px" }}>
+                    <TaskListDisplay
+                      config={defaultTaskDisplayConfig}
+                      tasks={previewTasks}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
