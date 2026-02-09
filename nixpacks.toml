@@ -1,8 +1,8 @@
 [phases.setup]
-nixPkgs = ["nodejs_22", "openssl"]
+nixPkgs = ["nodejs_24", "openssl"]
 
 [phases.install]
-cmds = ["npm install -g corepack@latest && corepack enable && corepack prepare pnpm@10.28.2 --activate && pnpm install --frozen-lockfile --ignore-scripts && pnpm rebuild @prisma/engines esbuild sharp"]
+cmds = ["npm install -g corepack@latest && corepack enable && corepack prepare pnpm@10.28.2 --activate && pnpm install --frozen-lockfile"]
 
 [phases.build]
 cmds = [
