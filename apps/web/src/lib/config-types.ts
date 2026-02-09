@@ -1,6 +1,15 @@
 export interface TimerStylesConfig {
   dimensions: { width: string; height: string };
   background: { color: string; opacity: number; borderRadius: string };
+  ring: {
+    enabled: boolean;
+    trackColor: string;
+    trackOpacity: number;
+    fillColor: string;
+    fillOpacity: number;
+    width: number;
+    gap: number;
+  };
   text: {
     color: string;
     outlineColor: string;
