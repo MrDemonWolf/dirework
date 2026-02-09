@@ -4,6 +4,7 @@ import type { TimerStylesConfig } from "@/lib/config-types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { ColorInput } from "./color-input";
 import { FontSelect } from "./font-select";
 import { SectionGroup } from "./section-group";
@@ -56,7 +57,7 @@ export function TimerStyleEditor({
           <Label className="w-28 shrink-0 text-xs text-muted-foreground">Opacity</Label>
           <Slider
             value={[styles.background.opacity * 100]}
-            onValueChange={(v: number[]) => update("background", { opacity: v[0] / 100 })}
+            onValueChange={(v) => update("background", { opacity: (Array.isArray(v) ? v[0] : v) / 100 })}
             min={0}
             max={100}
             className="w-32"
@@ -72,6 +73,79 @@ export function TimerStyleEditor({
             onChange={(e) => update("background", { borderRadius: e.target.value })}
             className="h-8 w-24 text-xs"
           />
+        </div>
+      </SectionGroup>
+
+      <SectionGroup title="Progress Ring">
+        <div className="flex items-center justify-between">
+          <Label className="text-xs text-muted-foreground">Enabled</Label>
+          <Switch
+            checked={styles.ring.enabled}
+            onCheckedChange={(v) => update("ring", { enabled: v as boolean })}
+            size="sm"
+          />
+        </div>
+        <ColorInput
+          label="Fill Color"
+          value={styles.ring.fillColor}
+          onChange={(v) => update("ring", { fillColor: v })}
+        />
+        <div className="flex items-center gap-2">
+          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Fill Opacity</Label>
+          <Slider
+            value={[styles.ring.fillOpacity * 100]}
+            onValueChange={(v) => update("ring", { fillOpacity: (Array.isArray(v) ? v[0] : v) / 100 })}
+            min={0}
+            max={100}
+            className="w-32"
+          />
+          <span className="w-10 text-right text-xs text-muted-foreground">
+            {Math.round(styles.ring.fillOpacity * 100)}%
+          </span>
+        </div>
+        <ColorInput
+          label="Track Color"
+          value={styles.ring.trackColor}
+          onChange={(v) => update("ring", { trackColor: v })}
+        />
+        <div className="flex items-center gap-2">
+          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Track Opacity</Label>
+          <Slider
+            value={[styles.ring.trackOpacity * 100]}
+            onValueChange={(v) => update("ring", { trackOpacity: (Array.isArray(v) ? v[0] : v) / 100 })}
+            min={0}
+            max={100}
+            className="w-32"
+          />
+          <span className="w-10 text-right text-xs text-muted-foreground">
+            {Math.round(styles.ring.trackOpacity * 100)}%
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Width</Label>
+          <Slider
+            value={[styles.ring.width]}
+            onValueChange={(v) => update("ring", { width: Array.isArray(v) ? v[0] : v })}
+            min={2}
+            max={20}
+            className="w-32"
+          />
+          <span className="w-10 text-right text-xs text-muted-foreground">
+            {styles.ring.width}px
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Gap</Label>
+          <Slider
+            value={[styles.ring.gap]}
+            onValueChange={(v) => update("ring", { gap: Array.isArray(v) ? v[0] : v })}
+            min={0}
+            max={20}
+            className="w-32"
+          />
+          <span className="w-10 text-right text-xs text-muted-foreground">
+            {styles.ring.gap}px
+          </span>
         </div>
       </SectionGroup>
 

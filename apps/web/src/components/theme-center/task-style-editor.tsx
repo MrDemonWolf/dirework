@@ -66,7 +66,7 @@ export function TaskStyleEditor({
           <Label className="w-28 shrink-0 text-xs text-muted-foreground">Max Lines</Label>
           <Slider
             value={[styles.display.numberOfLines]}
-            onValueChange={(v: number[]) => updateNested(["display", "numberOfLines"], v[0])}
+            onValueChange={(v) => updateNested(["display", "numberOfLines"], Array.isArray(v) ? v[0] : v)}
             min={1}
             max={5}
             className="w-32"
@@ -108,7 +108,7 @@ export function TaskStyleEditor({
           <Label className="w-28 shrink-0 text-xs text-muted-foreground">BG Opacity</Label>
           <Slider
             value={[styles.header.background.opacity * 100]}
-            onValueChange={(v: number[]) => updateNested(["header", "background", "opacity"], v[0] / 100)}
+            onValueChange={(v) => updateNested(["header", "background", "opacity"], (Array.isArray(v) ? v[0] : v) / 100)}
             min={0}
             max={100}
             className="w-32"
@@ -163,7 +163,7 @@ export function TaskStyleEditor({
           <Label className="w-28 shrink-0 text-xs text-muted-foreground">BG Opacity</Label>
           <Slider
             value={[styles.body.background.opacity * 100]}
-            onValueChange={(v: number[]) => updateNested(["body", "background", "opacity"], v[0] / 100)}
+            onValueChange={(v) => updateNested(["body", "background", "opacity"], (Array.isArray(v) ? v[0] : v) / 100)}
             min={0}
             max={100}
             className="w-32"
@@ -205,7 +205,7 @@ export function TaskStyleEditor({
           <Label className="w-28 shrink-0 text-xs text-muted-foreground">BG Opacity</Label>
           <Slider
             value={[styles.task.background.opacity * 100]}
-            onValueChange={(v: number[]) => updateNested(["task", "background", "opacity"], v[0] / 100)}
+            onValueChange={(v) => updateNested(["task", "background", "opacity"], (Array.isArray(v) ? v[0] : v) / 100)}
             min={0}
             max={100}
             className="w-32"
@@ -273,7 +273,7 @@ export function TaskStyleEditor({
           <Label className="w-28 shrink-0 text-xs text-muted-foreground">BG Opacity</Label>
           <Slider
             value={[styles.taskDone.background.opacity * 100]}
-            onValueChange={(v: number[]) => updateNested(["taskDone", "background", "opacity"], v[0] / 100)}
+            onValueChange={(v) => updateNested(["taskDone", "background", "opacity"], (Array.isArray(v) ? v[0] : v) / 100)}
             min={0}
             max={100}
             className="w-32"
@@ -323,7 +323,7 @@ export function TaskStyleEditor({
           <Label className="w-28 shrink-0 text-xs text-muted-foreground">Speed (px/s)</Label>
           <Slider
             value={[styles.scroll.pixelsPerSecond]}
-            onValueChange={(v: number[]) => updateNested(["scroll", "pixelsPerSecond"], v[0])}
+            onValueChange={(v) => updateNested(["scroll", "pixelsPerSecond"], Array.isArray(v) ? v[0] : v)}
             min={0}
             max={200}
             className="w-32"
@@ -336,7 +336,7 @@ export function TaskStyleEditor({
           <Label className="w-28 shrink-0 text-xs text-muted-foreground">Loop Gap (px)</Label>
           <Slider
             value={[styles.scroll.gapBetweenLoops]}
-            onValueChange={(v: number[]) => updateNested(["scroll", "gapBetweenLoops"], v[0])}
+            onValueChange={(v) => updateNested(["scroll", "gapBetweenLoops"], Array.isArray(v) ? v[0] : v)}
             min={0}
             max={300}
             className="w-32"

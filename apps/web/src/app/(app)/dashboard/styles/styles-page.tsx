@@ -37,13 +37,14 @@ export default function StylesPage() {
   // Once config loads, merge saved values with defaults
   useEffect(() => {
     if (config.data) {
+      const configData = config.data as AnyRecord;
       const mergedTimer = deepMerge(
         defaultTimerStyles,
-        (config.data.timerStyles as AnyRecord) ?? {},
+        (configData.timerStyles as AnyRecord) ?? {},
       ) as unknown as TimerStylesConfig;
       const mergedTask = deepMerge(
         defaultTaskStyles,
-        (config.data.taskStyles as AnyRecord) ?? {},
+        (configData.taskStyles as AnyRecord) ?? {},
       ) as unknown as TaskStylesConfig;
 
       setTimerStyles(mergedTimer);
@@ -102,14 +103,12 @@ export default function StylesPage() {
 
   const handleSave = useCallback(async () => {
     try {
-      await Promise.all([
-        updateTimerMutation.mutateAsync({
-          timerStyles: timerStyles as unknown as AnyRecord,
-        }),
-        updateTaskMutation.mutateAsync({
-          taskStyles: taskStyles as unknown as AnyRecord,
-        }),
-      ]);
+      await updateTimerMutation.mutateAsync({
+        timerStyles: timerStyles as unknown as AnyRecord,
+      });
+      await updateTaskMutation.mutateAsync({
+        taskStyles: taskStyles as unknown as AnyRecord,
+      });
       setSavedTimerStyles(timerStyles);
       setSavedTaskStyles(taskStyles);
       setHasUnsaved(false);
