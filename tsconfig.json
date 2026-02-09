@@ -1,0 +1,3 @@
+{
+  "extends": "@dirework/config/tsconfig.base.json"
+}

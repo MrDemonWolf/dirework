@@ -1,0 +1,29 @@
+import { auth } from "@dirework/auth";
+import { env } from "@dirework/env/server";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+
+export async function GET() {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    redirect("/?error=not_authenticated");
+  }
+
+  const state = Buffer.from(
+    JSON.stringify({ userId: session.user.id }),
+  ).toString("base64url");
+
+  const params = new URLSearchParams({
+    client_id: env.TWITCH_CLIENT_ID,
+    redirect_uri: `${env.BETTER_AUTH_URL}/api/bot/callback`,
+    response_type: "code",
+    scope: "chat:read chat:edit",
+    force_verify: "true",
+    state,
+  });
+
+  redirect(`https://id.twitch.tv/oauth2/authorize?${params}`);
+}

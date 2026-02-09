@@ -1,0 +1,39 @@
+{
+  "name": "dirework",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "check-types": "turbo check-types",
+    "dev:native": "turbo -F native dev",
+    "dev:web": "turbo -F web dev",
+    "db:push": "turbo -F @dirework/db db:push",
+    "db:studio": "turbo -F @dirework/db db:studio",
+    "db:generate": "turbo -F @dirework/db db:generate",
+    "db:migrate": "turbo -F @dirework/db db:migrate",
+    "db:start": "turbo -F @dirework/db db:start",
+    "db:watch": "turbo -F @dirework/db db:watch",
+    "db:stop": "turbo -F @dirework/db db:stop",
+    "db:down": "turbo -F @dirework/db db:down"
+  },
+  "dependencies": {
+    "@dirework/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@dirework/config": "workspace:*",
+    "@types/node": "^22.13.14",
+    "turbo": "^2.6.3",
+    "typescript": "catalog:"
+  },
+  "packageManager": "pnpm@10.28.2",
+  "pnpm": {
+    "onlyBuiltDependencies": ["prisma", "@prisma/engines", "esbuild", "sharp"]
+  }
+}
