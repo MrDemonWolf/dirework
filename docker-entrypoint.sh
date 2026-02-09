@@ -2,7 +2,7 @@
 set -e
 
 echo "Running database migrations..."
-prisma migrate deploy --schema /app/packages/db/prisma/schema --url "$DATABASE_URL"
+prisma migrate deploy --schema /app/packages/db/prisma/schema
 echo "Migrations complete."
 
 echo "Starting application..."
