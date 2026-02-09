@@ -2,14 +2,18 @@ import prisma from "@dirework/db";
 import { env } from "@dirework/env/server";
 import { type NextRequest, NextResponse } from "next/server";
 
+function errorRedirect(request: NextRequest, reason: string) {
+  return NextResponse.redirect(
+    new URL(`/dashboard?bot=error&reason=${encodeURIComponent(reason)}`, request.url),
+  );
+}
+
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
 
   if (!code || !state) {
-    return NextResponse.redirect(
-      new URL("/dashboard?bot=error", request.url),
-    );
+    return errorRedirect(request, "Missing code or state from Twitch");
   }
 
   let userId: string;
@@ -19,9 +23,7 @@ export async function GET(request: NextRequest) {
     );
     userId = decoded.userId;
   } catch {
-    return NextResponse.redirect(
-      new URL("/dashboard?bot=error", request.url),
-    );
+    return errorRedirect(request, "Invalid state parameter");
   }
 
   // Exchange code for tokens
@@ -38,9 +40,9 @@ export async function GET(request: NextRequest) {
   });
 
   if (!tokenRes.ok) {
-    return NextResponse.redirect(
-      new URL("/dashboard?bot=error", request.url),
-    );
+    const body = await tokenRes.text().catch(() => "");
+    console.error("Twitch token exchange failed:", tokenRes.status, body);
+    return errorRedirect(request, "Token exchange failed — check redirect URI matches Twitch app");
   }
 
   const tokens = await tokenRes.json();
@@ -54,36 +56,43 @@ export async function GET(request: NextRequest) {
   });
 
   if (!userRes.ok) {
-    return NextResponse.redirect(
-      new URL("/dashboard?bot=error", request.url),
-    );
+    return errorRedirect(request, "Failed to fetch bot user info from Twitch");
   }
 
   const {
     data: [botUser],
   } = await userRes.json();
 
+  if (!botUser) {
+    return errorRedirect(request, "No user data returned from Twitch");
+  }
+
   // Upsert bot account
-  await prisma.botAccount.upsert({
-    where: { userId },
-    update: {
-      twitchId: botUser.id,
-      username: botUser.login,
-      displayName: botUser.display_name,
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
-      expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-    },
-    create: {
-      userId,
-      twitchId: botUser.id,
-      username: botUser.login,
-      displayName: botUser.display_name,
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
-      expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-    },
-  });
+  try {
+    await prisma.botAccount.upsert({
+      where: { userId },
+      update: {
+        twitchId: botUser.id,
+        username: botUser.login,
+        displayName: botUser.display_name,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+      },
+      create: {
+        userId,
+        twitchId: botUser.id,
+        username: botUser.login,
+        displayName: botUser.display_name,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+      },
+    });
+  } catch (err) {
+    console.error("Failed to save bot account:", err);
+    return errorRedirect(request, "Database error saving bot account");
+  }
 
   return NextResponse.redirect(
     new URL("/dashboard?bot=connected", request.url),

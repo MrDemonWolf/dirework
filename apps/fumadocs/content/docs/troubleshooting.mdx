@@ -1,0 +1,121 @@
+---
+title: Troubleshooting
+description: Common issues and solutions
+---
+
+## Setup Issues
+
+### `pnpm install` fails
+
+Make sure you're using **pnpm v10+** and **Node.js v20+**:
+
+```bash
+node --version   # Should be v20 or higher
+pnpm --version   # Should be v10 or higher
+```
+
+If you have an older version, update Node.js via [nvm](https://github.com/nvm-sh/nvm) or the [official installer](https://nodejs.org/) and update pnpm with `corepack enable && corepack prepare pnpm@latest --activate`.
+
+### `pnpm db:start` fails
+
+This command starts PostgreSQL via Docker Compose. Common issues:
+
+- **Docker not running:** Make sure Docker Desktop (or the Docker daemon) is running.
+- **Port 5432 in use:** Another PostgreSQL instance may be using the port. Stop it or change the port in `packages/db/docker-compose.yml`.
+- **Permission errors:** On Linux, you may need to add your user to the `docker` group: `sudo usermod -aG docker $USER`, then log out and back in.
+
+### `pnpm db:push` fails
+
+- **Database not running:** Run `pnpm db:start` first.
+- **Wrong DATABASE_URL:** Make sure `DATABASE_URL` in `apps/web/.env` matches your PostgreSQL connection string. The default is `postgresql://postgres:password@localhost:5432/dirework`.
+
+## Authentication Issues
+
+### "Invalid redirect URI" from Twitch
+
+Your Twitch application's redirect URLs don't match the ones Dirework is using. Make sure you've added both URLs in the [Twitch Developer Console](https://dev.twitch.tv/console/apps):
+
+```
+http://localhost:3001/api/auth/callback/twitch
+http://localhost:3001/api/bot/callback
+```
+
+For production, add your domain-based URLs too. See [Twitch OAuth Setup](/docs/twitch-oauth) for details.
+
+### Can't sign in / redirects back to login
+
+- Check that `BETTER_AUTH_URL` matches the URL you're accessing the app from (e.g., `http://localhost:3001`).
+- Check that `CORS_ORIGIN` matches as well.
+- Make sure your Twitch application's **Client Type** is set to **Confidential**.
+- If using `ALLOWED_TWITCH_IDS`, make sure your Twitch user ID is in the list.
+
+### Bot account won't connect
+
+- You need to sign in to a **different** Twitch account when connecting the bot. The bot account cannot be the same as the streamer account.
+- Make sure the second redirect URL (`/api/bot/callback`) is registered in your Twitch application.
+
+## Overlay Issues
+
+### Overlay shows a blank page
+
+- Make sure the timer or task list has been used at least once. The timer overlay is blank when idle (by default it shows a placeholder).
+- Check that the overlay URL is correct. Copy it from the **Overlay URLs** card in the dashboard.
+- Try opening the overlay URL directly in your browser to see if it loads.
+
+### Overlay not updating in OBS
+
+- OBS browser sources cache aggressively. Right-click the source and click **Refresh cache of current page**.
+- Make sure **"Shutdown source when not visible"** is checked in the browser source settings so it reloads when you switch scenes.
+- The timer overlay polls every 1 second and the task list every 2 seconds. There may be a slight delay.
+
+### Overlay has a white/colored background in OBS
+
+The overlays are designed to be transparent. In OBS browser source settings, make sure **Custom CSS** is not overriding the background. The default CSS should be fine — just leave it empty or at the OBS default.
+
+## Chat Bot Issues
+
+### Bot not responding to commands
+
+- Make sure you've [connected a bot account](/docs/twitch-oauth#connect-a-bot-account) in the dashboard.
+- The bot runs inside the overlay browser sources. If the overlays are not active in OBS (or the browser source is shut down), the bot won't be listening.
+- Make sure at least one overlay (timer or task list) is active as a browser source in OBS.
+
+### Commands work but messages aren't sent
+
+- The bot account needs `chat:read` and `chat:edit` scopes. If you connected the bot before these scopes were required, disconnect and reconnect it.
+- Check that the bot account isn't banned or timed out in your channel.
+
+## Development Issues
+
+### TypeScript errors after pulling changes
+
+Regenerate the Prisma client and check types:
+
+```bash
+pnpm db:generate
+pnpm check-types
+```
+
+### Changes to Prisma schema not reflected
+
+After modifying the schema files in `packages/db/prisma/schema/`, push the changes:
+
+```bash
+pnpm db:push
+pnpm db:generate
+```
+
+### Port already in use
+
+The web app runs on port 3001 and docs on port 4000. If these ports are in use:
+
+- Find what's using the port: `lsof -i :3001`
+- Kill the process or change the port in the respective `package.json` scripts.
+
+## Still stuck?
+
+If your issue isn't covered here:
+
+- Check the [GitHub Issues](https://github.com/mrdemonwolf/dirework/issues) for known bugs
+- Open a new issue with details about your environment and the error you're seeing
+- Join the [Discord](https://mrdwolf.com/discord) for community help

@@ -1,12 +1,10 @@
-import { Suspense } from "react";
-
 import { auth } from "@dirework/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import Dashboard from "./dashboard";
+import StylesPage from "./styles-page";
 
-export default async function DashboardPage() {
+export default async function StylesRoute() {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -15,9 +13,5 @@ export default async function DashboardPage() {
     redirect("/");
   }
 
-  return (
-    <Suspense>
-      <Dashboard session={session} />
-    </Suspense>
-  );
+  return <StylesPage />;
 }
