@@ -1,104 +1,226 @@
 ---
-title: Twitch OAuth Setup
-description: How to create a Twitch application and configure OAuth
+title: Twitch Integration Setup
+description: Complete guide to setting up Twitch OAuth, bot account, and all integrations
 ---
 
-Dirework uses Twitch OAuth for two purposes:
+This guide walks you through every step of setting up Twitch integration for Dirework — from creating the Twitch application to connecting your bot account.
 
-1. **User login** — Streamers sign in with their Twitch account
-2. **Bot account** — A separate Twitch account used for chat commands
+## Overview
 
-## Create a Twitch Application
+Dirework uses Twitch OAuth for two things:
 
-1. Go to the [Twitch Developer Console](https://dev.twitch.tv/console/apps)
-2. Click **Register Your Application**
-3. Fill in the details:
-   - **Name:** Choose any name (e.g. "Dirework")
-   - **OAuth Redirect URLs:** Add both of these:
-     ```
-     http://localhost:3001/api/auth/callback/twitch
-     http://localhost:3001/api/bot/callback
-     ```
-   - **Category:** Choose "Broadcasting Suite" or "Other"
-   - **Client Type:** Confidential
-4. Click **Create**
-5. Copy the **Client ID** from the application page
-6. Click **New Secret** to generate a **Client Secret** and copy it
+1. **Streamer login** — You sign in with your main Twitch account
+2. **Bot account** — A separate Twitch account that reads and sends chat messages
+
+Both use the **same** Twitch application, but different redirect URLs.
+
+---
+
+## Step 1: Create a Twitch Application
+
+1. Go to the [Twitch Developer Console](https://dev.twitch.tv/console)
+2. Log in with your **main Twitch account** (the streamer account)
+3. Click **Applications** in the left sidebar
+4. Click **Register Your Application**
+
+### Fill in the application details
+
+| Field | Value |
+| --- | --- |
+| **Name** | `Dirework` (or any name you want) |
+| **OAuth Redirect URLs** | See below |
+| **Category** | Broadcasting Suite |
+| **Client Type** | Confidential |
+
+### Add redirect URLs
+
+You need to add **two** redirect URLs. Click the **+ Add** button for each:
+
+**For local development:**
+```
+http://localhost:3001/api/auth/callback/twitch
+http://localhost:3001/api/bot/callback
+```
+
+**For production** (add these too if you plan to deploy):
+```
+https://your-domain.com/api/auth/callback/twitch
+https://your-domain.com/api/bot/callback
+```
 
 <Callout type="warn">
-  The client secret is only shown once. Copy it immediately and store it safely.
+  The redirect URLs must match **exactly** — including the protocol (`http` vs `https`), port number, and path. A mismatch will cause "Invalid redirect URI" errors.
 </Callout>
 
-## Add credentials to your environment
+5. Click **Create**
 
-In your `apps/web/.env` file:
+### Copy your credentials
+
+After creating the app:
+
+1. You'll see the **Client ID** on the application page — copy it
+2. Click **New Secret** to generate a **Client Secret**
+3. **Copy the secret immediately** — it's only shown once
+
+<Callout type="warn">
+  If you lose the client secret, you'll need to generate a new one by clicking **New Secret** again. This will invalidate the old secret.
+</Callout>
+
+---
+
+## Step 2: Configure Environment Variables
+
+Create or edit your `apps/web/.env` file and add the Twitch credentials:
 
 ```bash
-TWITCH_CLIENT_ID="<your_client_id>"
-TWITCH_CLIENT_SECRET="<your_client_secret>"
+# Twitch OAuth (from dev.twitch.tv)
+TWITCH_CLIENT_ID="paste_your_client_id_here"
+TWITCH_CLIENT_SECRET="paste_your_client_secret_here"
 ```
 
-## Redirect URLs explained
+Your complete `.env` should look like this:
 
-Dirework requires **two** redirect URLs on your Twitch application:
+```bash
+# Database
+DATABASE_URL="postgresql://postgres:password@localhost:5432/dirework"
 
-| URL | Purpose |
+# Better Auth
+BETTER_AUTH_SECRET="generate-a-random-32-character-string"
+BETTER_AUTH_URL="http://localhost:3001"
+CORS_ORIGIN="http://localhost:3001"
+
+# Twitch OAuth
+TWITCH_CLIENT_ID="abc123def456..."
+TWITCH_CLIENT_SECRET="xyz789..."
+
+# Optional: restrict who can log in
+ALLOWED_TWITCH_IDS=""
+```
+
+Generate a strong secret with:
+
+```bash
+openssl rand -base64 32
+```
+
+<Callout>
+  `BETTER_AUTH_URL` must match the origin you used in your Twitch redirect URLs. For local dev, that's `http://localhost:3001`.
+</Callout>
+
+---
+
+## Step 3: Sign In
+
+1. Start the app with `pnpm dev`
+2. Open [http://localhost:3001](http://localhost:3001)
+3. Click **Sign In** in the top-right corner
+4. You'll be redirected to Twitch — authorize the app with your **streamer account**
+5. After authorizing, you'll land on the dashboard
+
+If sign-in fails, check:
+- Your `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` are correct
+- The redirect URL `http://localhost:3001/api/auth/callback/twitch` is in your Twitch app
+- `BETTER_AUTH_URL` is set to `http://localhost:3001`
+
+---
+
+## Step 4: Create a Bot Account on Twitch
+
+The bot account is a **separate Twitch account** that sends messages in your chat. You cannot use the same account for both streamer login and bot.
+
+### Create the bot account
+
+1. Open a **private/incognito browser window** (so you don't get logged out of your main account)
+2. Go to [twitch.tv](https://www.twitch.tv)
+3. Click **Sign Up** and create a new account
+   - Choose a name like `YourNameBot` or `DireworkBot`
+   - You'll need a different email address
+4. Complete the account setup (verify email, etc.)
+
+<Callout>
+  Twitch allows multiple accounts. The bot account is just a regular Twitch account that Dirework uses to send chat messages.
+</Callout>
+
+### Make the bot a moderator (recommended)
+
+In your **main streamer account's** chat, type:
+
+```
+/mod YourBotUsername
+```
+
+This prevents the bot from being rate-limited when sending messages.
+
+---
+
+## Step 5: Connect the Bot Account
+
+1. Go to your Dirework dashboard at [http://localhost:3001/dashboard](http://localhost:3001/dashboard)
+2. Find the **Bot Account** card
+3. Click **Connect Bot Account**
+4. You'll be redirected to Twitch — **sign in with the bot account** (not your streamer account)
+5. Authorize the app
+6. You'll be redirected back to the dashboard with a success message
+
+The bot will have `chat:read` and `chat:edit` permissions — enough to read messages and respond to commands.
+
+### If connection fails
+
+Common issues:
+
+| Error | Solution |
 | --- | --- |
-| `{BETTER_AUTH_URL}/api/auth/callback/twitch` | User login via Better Auth |
-| `{BETTER_AUTH_URL}/api/bot/callback` | Bot account OAuth callback |
+| Token exchange failed | Check that `http://localhost:3001/api/bot/callback` is in your Twitch app's redirect URLs |
+| Redirected to home page | Make sure you're logged in to Dirework first |
+| No error but nothing happened | Check the browser console and server logs for details |
+| "Invalid redirect URI" on Twitch | The redirect URL in your Twitch app doesn't match exactly — check for trailing slashes, wrong port, or http vs https |
 
-For local development, `BETTER_AUTH_URL` is `http://localhost:3001`.
+<Callout type="warn">
+  The most common issue is a **redirect URL mismatch**. The URL `{BETTER_AUTH_URL}/api/bot/callback` must exactly match one of the redirect URLs in your Twitch Developer Console app.
+</Callout>
 
-For production, replace with your domain (e.g. `https://dirework.example.com`).
+---
 
-## Production redirect URLs
+## Step 6: Set Up OBS Overlays
 
-When deploying to production, update the redirect URLs in the Twitch Developer Console to match your domain:
+After signing in, your dashboard shows **Overlay URLs**:
 
-```
-https://dirework.example.com/api/auth/callback/twitch
-https://dirework.example.com/api/bot/callback
-```
+1. Copy the **Timer Overlay** URL
+2. In OBS, add a **Browser Source**
+3. Paste the URL as: `http://localhost:3001/overlay/t/YOUR_TOKEN`
+4. Set width to `400` and height to `400`
+5. Check **"Shutdown source when not visible"**
+6. Repeat for the **Task List Overlay** URL
 
-Also update `BETTER_AUTH_URL` and `CORS_ORIGIN` in your environment to match.
+See the [Overlays guide](/docs/overlays) for more details.
 
-## Connect a Bot Account
+---
 
-After signing in to Dirework:
+## Redirect URLs Reference
 
-1. Go to your **Dashboard**
-2. In the **Bot Account** card, click **Connect Bot Account**
-3. You'll be redirected to Twitch to authorize a bot account
-4. Sign in with the Twitch account you want to use as the bot (this should be a **different account** from your streamer account)
-5. After authorizing, you'll be redirected back to the dashboard
+| URL Pattern | Purpose | When it's used |
+| --- | --- | --- |
+| `{BETTER_AUTH_URL}/api/auth/callback/twitch` | Streamer login | When you click "Sign In" |
+| `{BETTER_AUTH_URL}/api/bot/callback` | Bot account connection | When you click "Connect Bot Account" |
 
-The bot account needs `chat:read` and `chat:edit` scopes to read and send messages in your Twitch chat.
+For local development, `BETTER_AUTH_URL` = `http://localhost:3001`
 
-## Find your Twitch User ID
+For production, replace with your domain (e.g., `https://dirework.example.com`)
 
-If you want to restrict who can log in using `ALLOWED_TWITCH_IDS`, you'll need your Twitch user ID.
+---
 
-### Option 1: Twitch API
+## Restrict Access (Optional)
 
-Visit this URL in your browser (replace `YOUR_USERNAME`):
+If you want to limit who can log in to your Dirework instance:
 
-```
-https://www.twitch.tv/YOUR_USERNAME
-```
+### Find your Twitch User ID
 
-Then use the Twitch API to look up the ID. You can use a tool like [streamscharts.com/tools/convert-username](https://streamscharts.com/tools/convert-username) to convert a Twitch username to a user ID.
+Use one of these tools to convert your Twitch username to a numeric ID:
 
-### Option 2: Third-party lookup
-
-Use one of these tools:
 - [streamscharts.com/tools/convert-username](https://streamscharts.com/tools/convert-username)
 - [twitchinsights.net/checkuser](https://twitchinsights.net/checkuser)
 
-Enter your Twitch username and it will show your numeric user ID.
-
-### Using the ID
-
-Add your Twitch user ID to the `ALLOWED_TWITCH_IDS` environment variable:
+### Set the allowlist
 
 ```bash
 # Single user
@@ -107,6 +229,20 @@ ALLOWED_TWITCH_IDS="123456789"
 # Multiple users (comma-separated)
 ALLOWED_TWITCH_IDS="123456789,987654321"
 
-# Allow everyone (leave empty)
+# Allow everyone (leave empty or omit)
 ALLOWED_TWITCH_IDS=""
 ```
+
+---
+
+## Production Checklist
+
+When deploying to production, make sure to:
+
+- [ ] Update `BETTER_AUTH_URL` to your production domain
+- [ ] Update `CORS_ORIGIN` to your production domain
+- [ ] Add production redirect URLs to your Twitch app:
+  - `https://your-domain.com/api/auth/callback/twitch`
+  - `https://your-domain.com/api/bot/callback`
+- [ ] Use `https://` (not `http://`) for all production URLs
+- [ ] Set `ALLOWED_TWITCH_IDS` to restrict access if needed
