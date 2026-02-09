@@ -1,0 +1,228 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, RotateCcw, Save } from "lucide-react";
+import { toast } from "sonner";
+
+import type { TimerStylesConfig, TaskStylesConfig, ThemePreset } from "@/lib/config-types";
+import { deepMerge } from "@/lib/deep-merge";
+import { defaultTimerStyles, defaultTaskStyles, themePresets } from "@/lib/theme-presets";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ThemeBrowser } from "@/components/theme-center/theme-browser";
+import { TimerStyleEditor } from "@/components/theme-center/timer-style-editor";
+import { TaskStyleEditor } from "@/components/theme-center/task-style-editor";
+import { StylePreviewPanel } from "@/components/theme-center/style-preview-panel";
+import { trpc } from "@/utils/trpc";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyRecord = Record<string, any>;
+
+export default function StylesPage() {
+  const queryClient = useQueryClient();
+  const config = useQuery(trpc.config.get.queryOptions());
+
+  // Working state — what the user sees and edits
+  const [timerStyles, setTimerStyles] = useState<TimerStylesConfig>(defaultTimerStyles);
+  const [taskStyles, setTaskStyles] = useState<TaskStylesConfig>(defaultTaskStyles);
+  const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
+  const [hasUnsaved, setHasUnsaved] = useState(false);
+
+  // Saved state — what's persisted in the database
+  const [savedTimerStyles, setSavedTimerStyles] = useState<TimerStylesConfig>(defaultTimerStyles);
+  const [savedTaskStyles, setSavedTaskStyles] = useState<TaskStylesConfig>(defaultTaskStyles);
+
+  // Once config loads, merge saved values with defaults
+  useEffect(() => {
+    if (config.data) {
+      const mergedTimer = deepMerge(
+        defaultTimerStyles,
+        (config.data.timerStyles as AnyRecord) ?? {},
+      ) as unknown as TimerStylesConfig;
+      const mergedTask = deepMerge(
+        defaultTaskStyles,
+        (config.data.taskStyles as AnyRecord) ?? {},
+      ) as unknown as TaskStylesConfig;
+
+      setTimerStyles(mergedTimer);
+      setTaskStyles(mergedTask);
+      setSavedTimerStyles(mergedTimer);
+      setSavedTaskStyles(mergedTask);
+
+      // Try to detect which preset matches the saved config
+      const matchedPreset = detectMatchingPreset(mergedTimer, mergedTask);
+      setActiveThemeId(matchedPreset);
+    }
+  }, [config.data]);
+
+  const updateTimerMutation = useMutation({
+    ...trpc.config.updateTimerStyles.mutationOptions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
+    },
+  });
+
+  const updateTaskMutation = useMutation({
+    ...trpc.config.updateTaskStyles.mutationOptions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
+    },
+  });
+
+  const isSaving = updateTimerMutation.isPending || updateTaskMutation.isPending;
+
+  const handleTimerChange = useCallback((newStyles: TimerStylesConfig) => {
+    setTimerStyles(newStyles);
+    setHasUnsaved(true);
+    setActiveThemeId(null);
+  }, []);
+
+  const handleTaskChange = useCallback((newStyles: TaskStylesConfig) => {
+    setTaskStyles(newStyles);
+    setHasUnsaved(true);
+    setActiveThemeId(null);
+  }, []);
+
+  const handleApplyTheme = useCallback((theme: ThemePreset) => {
+    setTimerStyles(theme.timerStyles);
+    setTaskStyles(theme.taskStyles);
+    setActiveThemeId(theme.id);
+    setHasUnsaved(true);
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setTimerStyles(savedTimerStyles);
+    setTaskStyles(savedTaskStyles);
+    setHasUnsaved(false);
+    const matchedPreset = detectMatchingPreset(savedTimerStyles, savedTaskStyles);
+    setActiveThemeId(matchedPreset);
+  }, [savedTimerStyles, savedTaskStyles]);
+
+  const handleSave = useCallback(async () => {
+    try {
+      await Promise.all([
+        updateTimerMutation.mutateAsync({
+          timerStyles: timerStyles as unknown as AnyRecord,
+        }),
+        updateTaskMutation.mutateAsync({
+          taskStyles: taskStyles as unknown as AnyRecord,
+        }),
+      ]);
+      setSavedTimerStyles(timerStyles);
+      setSavedTaskStyles(taskStyles);
+      setHasUnsaved(false);
+      toast.success("Styles saved successfully");
+    } catch {
+      toast.error("Failed to save styles");
+    }
+  }, [timerStyles, taskStyles, updateTimerMutation, updateTaskMutation]);
+
+  if (config.isLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto max-w-6xl px-4 py-8">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">Theme Center</h1>
+        <p className="text-sm text-muted-foreground">
+          Browse preset themes or customize your overlay styles
+        </p>
+      </div>
+
+      {/* Theme Browser */}
+      <div className="mb-6">
+        <ThemeBrowser activeThemeId={activeThemeId} onApply={handleApplyTheme} />
+      </div>
+
+      <Separator className="mb-6" />
+
+      {/* Editor + Preview */}
+      <div className="flex flex-col gap-6 lg:flex-row">
+        {/* Editor Column */}
+        <div className="w-full min-w-0 lg:w-96 lg:shrink-0">
+          <Tabs defaultValue="timer">
+            <TabsList>
+              <TabsTrigger value="timer">Timer</TabsTrigger>
+              <TabsTrigger value="tasks">Tasks</TabsTrigger>
+            </TabsList>
+            <TabsContent value="timer">
+              <div className="max-h-[600px] overflow-y-auto pr-1">
+                <TimerStyleEditor
+                  styles={timerStyles}
+                  onChange={handleTimerChange}
+                />
+              </div>
+            </TabsContent>
+            <TabsContent value="tasks">
+              <div className="max-h-[600px] overflow-y-auto pr-1">
+                <TaskStyleEditor
+                  styles={taskStyles}
+                  onChange={handleTaskChange}
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Preview Column */}
+        <div className="flex-1">
+          <StylePreviewPanel
+            timerStyles={timerStyles}
+            taskStyles={taskStyles}
+          />
+        </div>
+      </div>
+
+      {/* Save / Reset Bar */}
+      <Separator className="my-6" />
+      <div className="flex items-center justify-between">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleReset}
+          disabled={!hasUnsaved || isSaving}
+        >
+          <RotateCcw className="mr-1.5 size-3.5" />
+          Reset
+        </Button>
+        <Button
+          size="sm"
+          onClick={handleSave}
+          disabled={!hasUnsaved || isSaving}
+        >
+          {isSaving ? (
+            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+          ) : (
+            <Save className="mr-1.5 size-3.5" />
+          )}
+          Save Changes
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function detectMatchingPreset(
+  timerStyles: TimerStylesConfig,
+  taskStyles: TaskStylesConfig,
+): string | null {
+  const timerJson = JSON.stringify(timerStyles);
+  const taskJson = JSON.stringify(taskStyles);
+
+  for (const preset of themePresets) {
+    if (
+      JSON.stringify(preset.timerStyles) === timerJson &&
+      JSON.stringify(preset.taskStyles) === taskJson
+    ) {
+      return preset.id;
+    }
+  }
+  return null;
+}
