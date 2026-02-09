@@ -2,7 +2,20 @@
 nixPkgs = ["nodejs_22", "openssl"]
 
 [phases.install]
+onlyIncludeFiles = [
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+  "apps/web/package.json",
+  "apps/fumadocs/package.json",
+  "packages/api/package.json",
+  "packages/auth/package.json",
+  "packages/db/package.json",
+  "packages/env/package.json",
+  "packages/config/package.json",
+]
 cmds = ["npm install -g corepack@latest && corepack enable && corepack prepare pnpm@10.28.2 --activate && pnpm install --frozen-lockfile --ignore-scripts && pnpm rebuild @prisma/engines esbuild sharp"]
+cacheDirectories = ["/root/.local/share/pnpm/store/v3"]
 
 [phases.build]
 cmds = [
@@ -13,4 +26,4 @@ cmds = [
 ]
 
 [start]
-cmd = "npx prisma db push --schema packages/db/prisma/schema --skip-generate && node apps/web/.next/standalone/apps/web/server.js"
+cmd = "/app/node_modules/.bin/prisma db push --schema /app/packages/db/prisma/schema --skip-generate && node /app/apps/web/.next/standalone/apps/web/server.js"
