@@ -2,7 +2,7 @@
 set -e
 
 echo "Running database migrations..."
-prisma migrate deploy --schema /app/packages/db/prisma/schema
+prisma migrate deploy --config /app/packages/db/prisma.docker.config.ts
 echo "Migrations complete."
 
 echo "Starting application..."
