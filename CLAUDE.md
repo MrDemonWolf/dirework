@@ -27,12 +27,15 @@ pnpm dev              # Start all apps (web + docs)
 pnpm build            # Build all apps for production
 pnpm check-types      # TypeScript type checking across all packages
 pnpm dev:web          # Web app only
+pnpm dev:native       # Native app only
 pnpm db:start         # Start PostgreSQL via Docker
 pnpm db:stop          # Stop PostgreSQL
+pnpm db:down          # Tear down database completely
 pnpm db:push          # Push Prisma schema to database
 pnpm db:generate      # Regenerate Prisma client
 pnpm db:studio        # Open Prisma Studio
 pnpm db:migrate       # Run Prisma migrations
+pnpm db:watch         # Watch database changes
 ```
 
 ## Tech Stack
@@ -175,3 +178,7 @@ Defined in `packages/env/src/server.ts`. Required:
 Optional:
 - `ALLOWED_TWITCH_IDS` — comma-separated allowlist (empty = allow all)
 - `NODE_ENV` — development/production/test
+
+## README Convention
+
+The README follows the MrDemonWolf format (see `mrdemonwolf/fluffboost` for reference). Section order: Title with tagline, Description, Features, Getting Started, Usage, Tech Stack, Development (Prerequisites, Setup, Scripts, Code Quality), Project Structure, License badge, Contact, Footer. No emojis. Bold feature names. Aligned tables. Code blocks with language tags.
