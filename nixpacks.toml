@@ -20,10 +20,11 @@ cacheDirectories = ["/root/.local/share/pnpm/store/v3"]
 [phases.build]
 cmds = [
   "NODE_OPTIONS=--experimental-require-module pnpm --filter @dirework/db exec prisma generate",
+  "NODE_OPTIONS=--experimental-require-module pnpm --filter @dirework/db exec prisma db push --skip-generate --accept-data-loss",
   "pnpm --filter web build",
   "[ -d apps/web/public ] && cp -r apps/web/public apps/web/.next/standalone/apps/web/public || true",
   "cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static",
 ]
 
 [start]
-cmd = "/app/node_modules/.bin/prisma db push --schema /app/packages/db/prisma/schema --skip-generate && node /app/apps/web/.next/standalone/apps/web/server.js"
+cmd = "node apps/web/.next/standalone/apps/web/server.js"
