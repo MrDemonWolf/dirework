@@ -1,0 +1,16 @@
+node_modules
+.next
+.turbo
+.git
+.gitignore
+.DS_Store
+*.log
+.env
+.env*.local
+coolify.md
+.alchemy
+coverage
+.nyc_output
+.cache
+tmp
+temp
