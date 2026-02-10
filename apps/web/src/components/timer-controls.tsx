@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pause, Play, SkipForward, Square } from "lucide-react";
+import {
+  Pause,
+  Play,
+  Settings,
+  SkipForward,
+  Square,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +41,7 @@ function formatTime(ms: number): string {
 function statusLabel(status: string): string {
   switch (status) {
     case "idle":
-      return "Idle";
+      return "Ready";
     case "starting":
       return "Starting";
     case "work":
@@ -53,6 +59,22 @@ function statusLabel(status: string): string {
   }
 }
 
+function statusColor(status: string): string {
+  switch (status) {
+    case "work":
+      return "text-primary";
+    case "break":
+    case "longBreak":
+      return "text-emerald-500";
+    case "paused":
+      return "text-amber-500";
+    case "finished":
+      return "text-primary";
+    default:
+      return "text-muted-foreground";
+  }
+}
+
 export function TimerControls() {
   const queryClient = useQueryClient();
   const [cycles, setCycles] = useState(4);
@@ -62,6 +84,7 @@ export function TimerControls() {
   const [longBreakMin, setLongBreakMin] = useState(15);
   const [longBreakInterval, setLongBreakInterval] = useState(4);
   const [configLoaded, setConfigLoaded] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const timer = useQuery({
     ...trpc.timer.get.queryOptions(),
@@ -137,6 +160,7 @@ export function TimerControls() {
   const state = timer.data;
   const status = state?.status ?? "idle";
   const isIdle = status === "idle" || status === "finished";
+  const isPaused = status === "paused";
 
   // Countdown tick
   useEffect(() => {
@@ -159,150 +183,174 @@ export function TimerControls() {
     return () => clearInterval(interval);
   }, [state?.targetEndTime, state?.pausedWithRemaining]);
 
-  const isPaused = status === "paused";
+  // Display time: show configured work duration when idle, otherwise countdown
+  const displayTime = isIdle
+    ? formatTime(minutesToMs(workMin))
+    : remaining !== null
+      ? formatTime(remaining)
+      : "--:--";
 
   return (
-    <div className="space-y-4">
-      {/* Timer display */}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">
-            {statusLabel(status)}
-          </p>
-          <p className="text-3xl font-bold tabular-nums">
-            {remaining !== null ? formatTime(remaining) : "--:--"}
-          </p>
-        </div>
-        {state && status !== "idle" && (
-          <p className="text-sm text-muted-foreground">
-            Cycle {state.currentCycle}/{state.totalCycles}
-          </p>
-        )}
-      </div>
+    <div className="flex flex-col items-center gap-5">
+      {/* Phase label */}
+      <p className={`text-sm font-semibold uppercase tracking-widest ${statusColor(status)}`}>
+        {statusLabel(status)}
+      </p>
 
-      {/* Timer settings (only when idle) */}
-      {isIdle && (
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Work (min)</Label>
-            <Input
-              type="number"
-              min={1}
-              max={120}
-              value={workMin}
-              onChange={(e) => setWorkMin(Number(e.target.value))}
-              onBlur={() => saveConfig({ workDuration: minutesToMs(workMin) })}
-              className="h-8"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Break (min)</Label>
-            <Input
-              type="number"
-              min={1}
-              max={60}
-              value={breakMin}
-              onChange={(e) => setBreakMin(Number(e.target.value))}
-              onBlur={() => saveConfig({ breakDuration: minutesToMs(breakMin) })}
-              className="h-8"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Long break (min)</Label>
-            <Input
-              type="number"
-              min={1}
-              max={60}
-              value={longBreakMin}
-              onChange={(e) => setLongBreakMin(Number(e.target.value))}
-              onBlur={() => saveConfig({ longBreakDuration: minutesToMs(longBreakMin) })}
-              className="h-8"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Long break every</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min={2}
-                max={20}
-                value={longBreakInterval}
-                onChange={(e) => setLongBreakInterval(Number(e.target.value))}
-                onBlur={() => saveConfig({ longBreakInterval })}
-                className="h-8"
-              />
-              <span className="text-xs text-muted-foreground">cycles</span>
-            </div>
-          </div>
-        </div>
+      {/* Countdown display */}
+      <p className="font-heading text-6xl font-bold tabular-nums tracking-tight">
+        {displayTime}
+      </p>
+
+      {/* Cycle counter */}
+      {state && !isIdle ? (
+        <p className="text-sm text-muted-foreground">
+          Pomo {state.currentCycle} / {state.totalCycles}
+        </p>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          {cycles} {cycles === 1 ? "pomo" : "pomos"} &middot; {workMin}m work &middot; {breakMin}m break
+        </p>
       )}
 
       {/* Controls */}
       <div className="flex items-center gap-2">
         {isIdle ? (
           <>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min={1}
-                max={99}
-                value={cycles}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setCycles(val);
-                }}
-                onBlur={() => saveConfig({ defaultCycles: cycles })}
-                className="w-16"
-              />
-              <span className="text-xs text-muted-foreground">cycles</span>
-            </div>
             <Button
+              size="lg"
               onClick={() => start.mutate({ totalCycles: cycles })}
               disabled={start.isPending}
+              className="gap-2 px-6"
             >
-              <Play className="size-3.5" />
+              <Play className="size-4" />
               Start
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowSettings(!showSettings)}
+              title="Timer settings"
+            >
+              <Settings className="size-4" />
             </Button>
           </>
         ) : (
           <>
             {isPaused ? (
               <Button
+                size="lg"
                 onClick={() => resume.mutate()}
                 disabled={resume.isPending}
+                className="gap-2 px-6"
               >
-                <Play className="size-3.5" />
+                <Play className="size-4" />
                 Resume
               </Button>
             ) : (
               <Button
                 variant="outline"
+                size="lg"
                 onClick={() => pause.mutate()}
                 disabled={pause.isPending}
+                className="gap-2 px-6"
               >
-                <Pause className="size-3.5" />
+                <Pause className="size-4" />
                 Pause
               </Button>
             )}
             <Button
               variant="outline"
+              size="icon"
               onClick={() => skip.mutate()}
               disabled={skip.isPending}
+              title="Skip phase"
             >
-              <SkipForward className="size-3.5" />
-              Skip
+              <SkipForward className="size-4" />
             </Button>
             <Button
               variant="destructive"
+              size="icon"
               onClick={() => reset.mutate()}
               disabled={reset.isPending}
+              title="Stop timer"
             >
-              <Square className="size-3.5" />
-              Stop
+              <Square className="size-4" />
             </Button>
           </>
         )}
       </div>
+
+      {/* Settings panel (only when idle + toggled) */}
+      {isIdle && showSettings && (
+        <div className="w-full max-w-xs space-y-3 rounded-xl border border-border/50 bg-card/50 p-4 backdrop-blur-lg">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Work (min)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={120}
+                value={workMin}
+                onChange={(e) => setWorkMin(Number(e.target.value))}
+                onBlur={() => saveConfig({ workDuration: minutesToMs(workMin) })}
+                className="h-8"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Break (min)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={60}
+                value={breakMin}
+                onChange={(e) => setBreakMin(Number(e.target.value))}
+                onBlur={() => saveConfig({ breakDuration: minutesToMs(breakMin) })}
+                className="h-8"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Long break (min)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={60}
+                value={longBreakMin}
+                onChange={(e) => setLongBreakMin(Number(e.target.value))}
+                onBlur={() => saveConfig({ longBreakDuration: minutesToMs(longBreakMin) })}
+                className="h-8"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Long break every</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={2}
+                  max={20}
+                  value={longBreakInterval}
+                  onChange={(e) => setLongBreakInterval(Number(e.target.value))}
+                  onBlur={() => saveConfig({ longBreakInterval })}
+                  className="h-8"
+                />
+                <span className="shrink-0 text-xs text-muted-foreground">cycles</span>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Pomos</Label>
+            <Input
+              type="number"
+              min={1}
+              max={99}
+              value={cycles}
+              onChange={(e) => setCycles(Number(e.target.value))}
+              onBlur={() => saveConfig({ defaultCycles: cycles })}
+              className="h-8"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

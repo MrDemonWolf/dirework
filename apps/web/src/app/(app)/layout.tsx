@@ -9,7 +9,7 @@ export default function AppLayout({
     <div className="grid min-h-svh grid-rows-[auto_1fr_auto]">
       <Header />
       {children}
-      <footer className="border-t border-border/40 py-4 text-center text-xs text-muted-foreground">
+      <footer className="border-t border-border/40 py-4 text-center text-xs text-muted-foreground" suppressHydrationWarning>
         &copy; {new Date().getFullYear()} DireWork by{" "}
         <a
           href="https://www.mrdemonwolf.com"
