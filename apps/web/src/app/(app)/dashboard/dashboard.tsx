@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, RefreshCw, Unplug } from "lucide-react";
+import { Copy, Eye, EyeOff, RefreshCw, Unplug } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
@@ -10,6 +10,7 @@ import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -79,6 +80,9 @@ export default function Dashboard({
     toast.success("Copied to clipboard");
   };
 
+  const [showTimerPreview, setShowTimerPreview] = useState(false);
+  const [showTasksPreview, setShowTasksPreview] = useState(false);
+
   const timerToken = user.data?.overlayTimerToken;
   const tasksToken = user.data?.overlayTasksToken;
 
@@ -99,32 +103,45 @@ export default function Dashboard({
           <CardHeader>
             <CardTitle>Timer</CardTitle>
             <CardDescription>Control your Pomodoro timer and see the overlay preview</CardDescription>
+            <CardAction>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowTimerPreview((v) => !v)}
+                className="gap-1.5 text-xs text-muted-foreground"
+              >
+                {showTimerPreview ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                Preview
+              </Button>
+            </CardAction>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col items-center gap-6 md:flex-row md:items-center">
               <div className="flex-1">
                 <TimerControls />
               </div>
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-xs font-medium text-muted-foreground">Preview</span>
-                <div className="overflow-hidden rounded-xl border border-dashed border-border bg-card">
-                  {timerToken ? (
-                    <iframe
-                      src={`/overlay/t/${timerToken}`}
-                      className="pointer-events-none"
-                      style={{ width: "280px", height: "280px", border: "none", background: "transparent" }}
-                      title="Timer overlay preview"
-                    />
-                  ) : (
-                    <div
-                      className="flex flex-col items-center justify-center text-muted-foreground"
-                      style={{ width: "280px", height: "280px" }}
-                    >
-                      <p className="text-xs">Loading preview...</p>
-                    </div>
-                  )}
+              {showTimerPreview && (
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">Preview</span>
+                  <div className="overflow-hidden rounded-xl border border-dashed border-border bg-card">
+                    {timerToken ? (
+                      <iframe
+                        src={`/overlay/t/${timerToken}`}
+                        className="pointer-events-none"
+                        style={{ width: "280px", height: "280px", border: "none", background: "transparent" }}
+                        title="Timer overlay preview"
+                      />
+                    ) : (
+                      <div
+                        className="flex flex-col items-center justify-center text-muted-foreground"
+                        style={{ width: "280px", height: "280px" }}
+                      >
+                        <p className="text-xs">Loading preview...</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -134,6 +151,17 @@ export default function Dashboard({
           <CardHeader>
             <CardTitle>Tasks</CardTitle>
             <CardDescription>Manage tasks and see the overlay preview</CardDescription>
+            <CardAction>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowTasksPreview((v) => !v)}
+                className="gap-1.5 text-xs text-muted-foreground"
+              >
+                {showTasksPreview ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                Preview
+              </Button>
+            </CardAction>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-6 md:flex-row md:items-start">
@@ -148,26 +176,28 @@ export default function Dashboard({
                   <p className="text-sm text-muted-foreground">Loading...</p>
                 )}
               </div>
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-xs font-medium text-muted-foreground">Preview</span>
-                <div className="overflow-hidden rounded-lg border border-dashed border-border bg-card">
-                  {tasksToken ? (
-                    <iframe
-                      src={`/overlay/l/${tasksToken}`}
-                      className="pointer-events-none"
-                      style={{ width: "350px", height: "350px", border: "none", background: "transparent" }}
-                      title="Task list overlay preview"
-                    />
-                  ) : (
-                    <div
-                      className="flex flex-col items-center justify-center text-muted-foreground"
-                      style={{ width: "350px", height: "350px" }}
-                    >
-                      <p className="text-xs">Loading preview...</p>
-                    </div>
-                  )}
+              {showTasksPreview && (
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">Preview</span>
+                  <div className="overflow-hidden rounded-lg border border-dashed border-border bg-card">
+                    {tasksToken ? (
+                      <iframe
+                        src={`/overlay/l/${tasksToken}`}
+                        className="pointer-events-none"
+                        style={{ width: "350px", height: "350px", border: "none", background: "transparent" }}
+                        title="Task list overlay preview"
+                      />
+                    ) : (
+                      <div
+                        className="flex flex-col items-center justify-center text-muted-foreground"
+                        style={{ width: "350px", height: "350px" }}
+                      >
+                        <p className="text-xs">Loading preview...</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
