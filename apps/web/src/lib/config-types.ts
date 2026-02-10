@@ -74,6 +74,19 @@ export interface TaskStylesConfig {
   };
 }
 
+export interface MessagesConfig {
+  taskAdded: string;
+  taskDone: string;
+  taskEdited: string;
+  taskRemoved: string;
+  noTasks: string;
+  timerStarted: string;
+  timerPaused: string;
+  timerResumed: string;
+}
+
+export type CommandAliasesConfig = Record<string, string>;
+
 export interface ThemePreset {
   id: string;
   name: string;
