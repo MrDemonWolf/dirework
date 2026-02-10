@@ -10,12 +10,21 @@ export default function AppLayout({
       <Header />
       {children}
       <footer className="border-t border-border/40 py-4 text-center text-xs text-muted-foreground" suppressHydrationWarning>
-        &copy; {new Date().getFullYear()} DireWork by{" "}
+        &copy; {new Date().getFullYear()}{" "}
+        <a
+          href="https://github.com/mrdemonwolf/dirework"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium transition-colors hover:text-foreground"
+        >
+          DireWork
+        </a>{" "}
+        by{" "}
         <a
           href="https://www.mrdemonwolf.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="underline underline-offset-2 transition-colors hover:text-foreground"
+          className="font-medium transition-colors hover:text-foreground"
         >
           MrDemonWolf, Inc.
         </a>
