@@ -164,6 +164,19 @@ This prevents the bot from being rate-limited when sending messages.
 
 The bot will have `chat:read` and `chat:edit` permissions — enough to read messages and respond to commands.
 
+### OAuth Scopes
+
+Dirework requests specific OAuth scopes for each connection type:
+
+| Connection | Scopes | Purpose |
+| --- | --- | --- |
+| **Streamer login** | `openid`, `user:read:email` | Authentication, profile info |
+| **Bot account** | `chat:read`, `chat:edit` | Read chat messages, send bot responses |
+
+<Callout>
+  You don't need to configure scopes manually — Dirework requests them automatically during the OAuth flow. The scopes are minimal by design: only what's needed for the bot to read and write chat messages.
+</Callout>
+
 ### If connection fails
 
 Common issues:

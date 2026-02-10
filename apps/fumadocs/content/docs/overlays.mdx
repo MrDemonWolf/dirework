@@ -23,7 +23,7 @@ Each overlay has a unique token. Click the copy button next to each URL to copy 
 1. In OBS, click the **+** button under Sources
 2. Select **Browser**
 3. Name it (e.g. "Dirework Timer" or "Dirework Tasks")
-4. Paste the full overlay URL
+4. Paste the full overlay URL (e.g. `http://localhost:3001/overlay/t/YOUR_TOKEN`)
 5. Set the dimensions:
    - **Timer:** 250 x 250 (or match your timer style config)
    - **Task List:** 400 x 600 (adjust to fit your layout)
@@ -33,11 +33,19 @@ Each overlay has a unique token. Click the copy button next to each URL to copy 
 ## Timer Overlay
 
 The timer overlay shows:
-- Current phase label (Focus, Break, Long Break, etc.)
-- Countdown timer
+- Current phase label (Starting, Focus, Break, Long Break, Done)
+- Countdown timer with configurable font
 - Cycle count (e.g. 1/4)
+- Progress ring (circle or rounded rectangle shape)
 
-The timer is transparent by default so it blends into your stream layout. The display updates in real-time via polling.
+The timer automatically transitions through phases: starting (5s countdown) → work → break → work → ... → finished. No manual intervention needed once started.
+
+### Progress Ring Shapes
+
+The timer supports two progress ring shapes:
+
+- **Circle** — Standard circular ring using SVG `<circle>`
+- **Rounded Rectangle (Squircle)** — macOS-style rounded rectangle using SVG `<rect>` with configurable border radius (default 22%)
 
 ## Task List Overlay
 
@@ -49,15 +57,64 @@ The task list overlay shows:
 
 The task list auto-scrolls when the list overflows using a dual-container infinite scroll animation.
 
-## Customization
+## Dashboard Preview
 
-Both overlays are fully customizable through the dashboard configuration. You can adjust:
+The dashboard includes live preview iframes for both overlays. Use the **Preview** toggle button on each card to show or hide the preview. Previews are hidden by default to keep the page fast.
 
-- **Timer:** Dimensions, background color/opacity, border radius, font family, font sizes, text color, text outline, phase labels
-- **Task List:** Fonts, header/body backgrounds, border styles, task item styling, username colors, checkbox appearance, scroll speed, and more
+## Customization with Theme Center
 
-Changes to the configuration are reflected in the overlays automatically.
+Both overlays are fully customizable through the **Theme Center** at `/dashboard/styles`. This is a visual editor with a live preview panel.
+
+### Timer Overlay Settings
+
+| Category | Options |
+| --- | --- |
+| **Dimensions** | Width, height |
+| **Background** | Color, opacity, border radius |
+| **Progress Ring** | Enabled/disabled, track color, fill color, track/fill opacity, width, gap, shape (circle/rounded rect) |
+| **Text** | Color, outline color, outline size, font family |
+| **Font Sizes** | Phase label, countdown time, cycle count |
+| **Labels** | Custom text for each phase (Focus, Break, Long Break, Starting, Done) |
+
+### Task List Overlay Settings
+
+| Category | Options |
+| --- | --- |
+| **Display** | Show completed tasks, show count, use checkboxes, strikethrough on done, number of visible lines |
+| **Fonts** | Header font, body font |
+| **Scroll** | Pixels per second, gap between scroll loops |
+| **Header** | Height, background color/opacity, border color/width/radius, font size, font color, padding |
+| **Body** | Background color/opacity, border color/width/radius, padding |
+| **Task Items** | Background color/opacity, border, font size, font color, username color, padding, margin, max width, layout direction |
+| **Done State** | Background color/opacity, font color |
+| **Checkboxes** | Size, background, border, margin, tick character, tick size, tick color |
+| **Bullets** | Character, size, color, margin |
+
+### Theme Presets
+
+The Theme Center includes 11 built-in presets to get you started:
+
+1. **Default** — Clean dark style
+2. **Liquid Glass Light** — Translucent light glass
+3. **Liquid Glass Dark** — Translucent dark glass
+4. **Neon Cyberpunk** — Bright neon on dark
+5. **Cozy Cottage** — Warm earth tones
+6. **Ocean Depths** — Deep blue aquatic
+7. **Sakura** — Japanese cherry blossom pink
+8. **Retro Terminal** — Green-on-black terminal
+9. **Minimal Light** — Clean white minimal
+10. **Sunset** — Warm orange/red gradient
+11. **Twitch Purple** — Twitch brand colors
+
+Apply a preset as a starting point, then customize individual settings to match your stream.
 
 ## Transparent Background
 
 The overlays render with a transparent background by default. In OBS, the browser source will show only the timer or task list widget without any background, making it easy to layer over your stream.
+
+## Real-Time Updates
+
+- **Timer overlay** polls the server every 1 second
+- **Task list overlay** polls every 2 seconds
+
+Changes made on the dashboard (starting/pausing timer, adding tasks, etc.) appear in the overlay within 1-2 seconds.
