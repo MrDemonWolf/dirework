@@ -5,5 +5,6 @@ export function baseOptions(): BaseLayoutProps {
     nav: {
       title: "Dirework",
     },
+    githubUrl: "https://github.com/mrdemonwolf/dirework",
   };
 }
