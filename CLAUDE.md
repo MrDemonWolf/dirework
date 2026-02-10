@@ -139,7 +139,7 @@ Overlays use saved user config (deep-merged with defaults) for styling. Config i
 Two-column layout: editor (left) + live preview (right).
 
 Key files:
-- `src/lib/config-types.ts` — TypeScript interfaces for `TimerStylesConfig` and `TaskStylesConfig`
+- `src/lib/config-types.ts` — TypeScript interfaces for `TimerStylesConfig`, `TaskStylesConfig`, `MessagesConfig`, `CommandAliasesConfig`
 - `src/lib/deep-merge.ts` — Generic deep merge utility for merging saved config with defaults
 - `src/lib/theme-presets.ts` — 11 theme presets + default style objects
 - `src/components/theme-center/` — All editor components (ThemeBrowser, ThemeCard, TimerStyleEditor, TaskStyleEditor, ColorInput, FontSelect, SectionGroup, StylePreviewPanel)
@@ -160,17 +160,42 @@ Data flow:
 - Overlay previews use iframes pointing to actual overlay pages (`/overlay/t/[token]` and `/overlay/l/[token]`)
 - Bot connection feedback via URL search params (`?bot=connected` or `?bot=error&reason=...`) with toast notifications
 
+### Bot Settings (`/dashboard/bot`)
+
+- Bot settings page with message editor and command alias editor
+- Components in `src/components/bot-settings/` (message-editor, command-alias-editor)
+- Bot callback redirects use `env.BETTER_AUTH_URL` instead of `request.url` for correct behavior behind reverse proxies
+
+### Hydration Safety
+
+- Components depending on client-only state (e.g., `next-themes` resolved theme) must use a `mounted` state pattern to avoid hydration mismatches
+- Render a placeholder during SSR, swap to real content after `useEffect` mount
+- When using controlled components (e.g., Base UI Switch), always pass the controlled prop (e.g., `checked={false}`) even in the pre-mount placeholder to avoid uncontrolled-to-controlled warnings
+
 ## Deployment
 
-Deployed via **Coolify** using **Nixpacks** build pack. Config in `nixpacks.toml`.
+### Web App (Coolify)
+
+Deployed via **Coolify** using **Dockerfile**. Config in `Dockerfile` + `docker-entrypoint.sh`.
 
 - Next.js uses `output: "standalone"` for containerized deployment
 - `SKIP_ENV_VALIDATION=true` is set at build time to bypass t3-env validation (runtime secrets aren't available during build)
-- Nixpacks build: install deps → generate Prisma client → build Next.js → copy static assets
+- Docker build: install deps → generate Prisma client → build Next.js → copy static assets
 - Start command: `node apps/web/.next/standalone/apps/web/server.js`
 - PostgreSQL 17 Alpine as a separate Coolify service
 - Instance-specific notes live in `coolify.md` (gitignored)
 - Environment variable reference in `.env.example`
+
+### Documentation (GitHub Pages)
+
+Deployed via **GitHub Actions** to **GitHub Pages**. Workflow in `.github/workflows/deploy-docs-to-pages.yml`.
+
+- Triggers on push to `main` branch
+- Fumadocs uses `output: "export"` for static site generation
+- `basePath` is set dynamically via `NEXT_PUBLIC_BASE_PATH` env var from `actions/configure-pages` (resolves to `/dirework` for GitHub Pages subpath)
+- Workflow: install deps → build fumadocs → upload to GitHub Pages
+- Uses ocean (blue) color preset (`fumadocs-ui/css/ocean.css`)
+- GitHub link in nav bar via `githubUrl` in shared layout options
 
 ## Git Workflow
 
@@ -191,6 +216,14 @@ Optional:
 - `ALLOWED_TWITCH_IDS` — comma-separated allowlist (empty = allow all)
 - `NODE_ENV` — development/production/test
 - `SKIP_ENV_VALIDATION` — set to `"true"` during CI/build to skip env validation
+
+## Footer Convention
+
+Both the web app and docs site use the same footer format:
+`© {year} DireWork by MrDemonWolf, Inc.` — both names are links (no underline, font-medium, hover highlight). "DireWork" links to the GitHub repo, "MrDemonWolf, Inc." links to mrdemonwolf.com.
+
+- Web app: inline in `apps/web/src/app/(app)/layout.tsx`
+- Docs: shared `Footer` component in `apps/fumadocs/src/components/footer.tsx`, rendered from root layout
 
 ## README Convention
 
