@@ -327,11 +327,11 @@ export function TimerControls() {
   if (isIdle) {
     return (
       <div className="flex flex-col items-center gap-6 md:flex-row md:items-center md:gap-8">
-        <div className="order-2 md:order-1 w-44 shrink-0">
-          {settingsPanel}
-        </div>
-        <div className="order-1 md:order-2 flex-1">
+        <div className="order-1 flex-1">
           {timerDisplay}
+        </div>
+        <div className="order-2 w-44 shrink-0">
+          {settingsPanel}
         </div>
       </div>
     );
