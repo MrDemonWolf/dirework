@@ -72,6 +72,38 @@ For production, add your domain-based URLs too. See [Twitch OAuth Setup](/docs/t
 
 The overlays are designed to be transparent. In OBS browser source settings, make sure **Custom CSS** is not overriding the background. The default CSS should be fine — just leave it empty or at the OBS default.
 
+## Timer Issues
+
+### Timer stuck at 0:00 / not transitioning
+
+The timer relies on the dashboard or overlay page being open to trigger phase transitions. If no client is polling the timer state, the transition won't happen.
+
+- Make sure the dashboard page or at least one overlay (timer) is open in a browser
+- The timer overlay polls every 1 second — transitions happen automatically when the countdown reaches 0
+- If the timer is stuck, try clicking **Stop** (square button) and starting a new session
+
+### Timer starts but only counts down 5 seconds
+
+This is the **starting phase** — a 5-second countdown before the work phase begins. After the starting countdown reaches 0, the timer automatically transitions to the work phase (25 minutes by default). If it doesn't transition, see the issue above.
+
+### Timer settings not saving
+
+Timer duration settings (work, break, long break, interval, pomos) are saved when you click out of the input field (on blur). Make sure to:
+
+1. Change the value in the input
+2. Click somewhere else or tab out of the field
+3. The value is saved to the server automatically
+
+Settings are only editable when the timer is idle or finished. They're disabled during an active session.
+
+### Timer doesn't use my configured duration
+
+If you changed the work duration (e.g. to 50 minutes) but the timer still uses 25 minutes:
+
+- Make sure you saved the setting (click out of the input field)
+- Stop any running timer session with the stop button
+- Start a new session — the timer reads durations from the database when starting
+
 ## Chat Bot Issues
 
 ### Bot not responding to commands

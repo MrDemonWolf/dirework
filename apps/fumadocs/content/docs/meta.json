@@ -2,6 +2,7 @@
   "title": "Docs",
   "pages": [
     "index",
+    "features",
     "getting-started",
     "twitch-oauth",
     "environment-variables",
