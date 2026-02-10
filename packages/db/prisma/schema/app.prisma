@@ -46,6 +46,7 @@ model TimerState {
   status              String    @default("idle") // "idle" | "starting" | "work" | "break" | "longBreak" | "paused" | "finished"
   targetEndTime       DateTime?
   pausedWithRemaining Int?      // milliseconds remaining when paused
+  pausedFromStatus    String?   // status before pausing, so resume restores correctly
   currentCycle        Int       @default(1)
   totalCycles         Int       @default(4)
 
