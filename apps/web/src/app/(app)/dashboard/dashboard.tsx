@@ -101,8 +101,8 @@ export default function Dashboard({
             <CardDescription>Control your Pomodoro timer and see the overlay preview</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col items-center gap-6 md:flex-row md:items-start">
-              <div className="flex-1 py-4">
+            <div className="flex flex-col items-center gap-6 md:flex-row md:items-center">
+              <div className="flex-1">
                 <TimerControls />
               </div>
               <div className="flex flex-col items-center gap-2">
