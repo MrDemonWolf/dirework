@@ -2,9 +2,9 @@ import prisma from "@dirework/db";
 import { env } from "@dirework/env/server";
 import { type NextRequest, NextResponse } from "next/server";
 
-function errorRedirect(request: NextRequest, reason: string) {
+function errorRedirect(_request: NextRequest, reason: string) {
   return NextResponse.redirect(
-    new URL(`/dashboard?bot=error&reason=${encodeURIComponent(reason)}`, request.url),
+    new URL(`/dashboard?bot=error&reason=${encodeURIComponent(reason)}`, env.BETTER_AUTH_URL),
   );
 }
 
@@ -95,6 +95,6 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.redirect(
-    new URL("/dashboard?bot=connected", request.url),
+    new URL("/dashboard?bot=connected", env.BETTER_AUTH_URL),
   );
 }
