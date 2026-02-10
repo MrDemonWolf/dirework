@@ -16,7 +16,7 @@ export function ModeToggle() {
     return (
       <div className="flex items-center gap-2">
         <Sun className="h-4 w-4 text-muted-foreground" />
-        <Switch size="sm" disabled />
+        <Switch size="sm" checked={false} disabled />
         <Moon className="h-4 w-4 text-muted-foreground" />
       </div>
     );
