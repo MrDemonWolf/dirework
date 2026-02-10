@@ -122,7 +122,7 @@ export default function Dashboard({
               </div>
               <div className="flex flex-col items-center gap-2">
                 <span className="text-xs font-medium text-muted-foreground">Preview</span>
-                <div className="overflow-hidden rounded-xl border border-dashed border-border bg-card" style={{ width: "280px", height: "280px" }}>
+                <div className="overflow-hidden rounded-xl border border-dashed border-border/30 bg-card/50" style={{ width: "280px", height: "280px" }}>
                   {showTimerPreview && timerToken ? (
                     <iframe
                       src={`/overlay/t/${timerToken}`}
@@ -169,7 +169,7 @@ export default function Dashboard({
               </div>
               <div className="flex flex-col items-center gap-2">
                 <span className="text-xs font-medium text-muted-foreground">Preview</span>
-                <div className="overflow-hidden rounded-lg border border-dashed border-border bg-card" style={{ width: "350px", height: "350px" }}>
+                <div className="overflow-hidden rounded-lg border border-dashed border-border/30 bg-card/50" style={{ width: "350px", height: "350px" }}>
                   {showTasksPreview && tasksToken ? (
                     <iframe
                       src={`/overlay/l/${tasksToken}`}
