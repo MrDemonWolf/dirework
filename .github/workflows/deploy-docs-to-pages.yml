@@ -28,6 +28,8 @@ jobs:
 
       - name: Build docs
         working-directory: apps/fumadocs
+        env:
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
         run: pnpm run build
 
       - uses: actions/upload-pages-artifact@v4

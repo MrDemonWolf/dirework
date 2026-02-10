@@ -1,0 +1,103 @@
+---
+title: Features
+description: Everything Dirework can do for your co-working stream
+---
+
+Dirework is a self-hosted Pomodoro timer and task list built specifically for Twitch co-working and body-doubling streams. Here's everything it includes.
+
+## Pomodoro Timer
+
+A full-featured Pomodoro timer with automatic phase transitions.
+
+- **Configurable durations** — Set work, break, and long break durations (in minutes) from the dashboard
+- **Long break intervals** — Automatically triggers a long break every N cycles (configurable)
+- **Cycle tracking** — Set the number of pomos per session (1-99)
+- **Automatic phase transitions** — Timer moves through starting, work, break, long break, and finished phases automatically
+- **Pause and resume** — Pause mid-session and resume exactly where you left off (remembers which phase you were in)
+- **Skip phase** — Skip the current phase to advance to the next one
+- **5-second starting countdown** — Brief countdown before work begins so you can get ready
+- **Real-time OBS overlay** — Circular or rounded-rectangle progress ring with countdown, phase label, and cycle count
+
+## Task List
+
+A viewer-interactive task list managed through Twitch chat.
+
+- **Chat commands** — Viewers add, edit, complete, and remove tasks with simple commands like `!task`, `!done`, `!edit`, `!remove`
+- **Multiple tasks per viewer** — Each viewer can have multiple tasks, numbered for easy reference
+- **Task priority** — Broadcaster tasks are pinned to the top, viewer tasks below in order
+- **Broadcaster controls** — Clear all tasks, clear completed tasks, or remove a specific user's tasks
+- **Real-time OBS overlay** — Scrolling task list with usernames in Twitch chat colors, checkboxes, and strikethrough for completed tasks
+- **Auto-scroll** — Infinite scroll animation when the list overflows the display area
+
+## Theme Center
+
+A visual editor for customizing your overlays, available at `/dashboard/styles`.
+
+- **11 built-in theme presets** — Default, Liquid Glass Light, Liquid Glass Dark, Neon Cyberpunk, Cozy Cottage, Ocean Depths, Sakura, Retro Terminal, Minimal Light, Sunset, Twitch Purple
+- **Timer overlay editor** — Customize dimensions, background (color, opacity, border radius), progress ring (track/fill colors, width, gap), text (color, outline, font family), font sizes (label, time, cycle), and phase labels
+- **Task list overlay editor** — Customize header, body, task items, done state, checkboxes, bullets, fonts, scroll speed, and more
+- **Live preview** — See changes instantly in the preview panel before saving
+- **Progress ring shapes** — Choose between circle and rounded rectangle (squircle) ring styles
+- **Per-property control** — Every color, size, opacity, font, and spacing value is individually configurable
+
+## Twitch Chat Bot
+
+Connect a separate Twitch bot account to handle chat commands.
+
+- **Task commands** — `!task`, `!done`, `!edit`, `!remove`, `!check` for all viewers
+- **Timer commands** — `!timer start`, `!timer pause`, `!timer resume`, `!timer skip`, `!time`, `!eta`
+- **Moderator commands** — `!clear`, `!cleardone`, `!adel @user` for broadcasters and mods
+- **Customizable bot messages** — Configure response templates for every command
+- **Command aliases** — Create custom aliases for any command
+- **Separate bot account** — Uses its own Twitch account so messages come from the bot, not you
+
+## OBS Overlays
+
+Two transparent browser source overlays designed for OBS and streaming software.
+
+- **Timer overlay** — Shows phase label, countdown, and cycle count with a configurable progress ring
+- **Task list overlay** — Shows task list with viewer usernames, checkboxes, and auto-scroll
+- **Transparent backgrounds** — Overlays render with no background, layering cleanly over your stream
+- **Unique tokens** — Each overlay has a private token URL; regenerate if compromised
+- **Real-time updates** — Overlays poll the server every 1-2 seconds for instant updates
+- **Toggle previews** — Dashboard previews can be toggled on/off to avoid slow page loads
+
+## Dashboard
+
+A single-page control center for your stream.
+
+- **Timer controls** — Start, pause, resume, skip, and stop the timer with inline duration settings
+- **Task manager** — Add, complete, edit, and remove tasks directly from the dashboard
+- **Overlay previews** — Live iframe previews of both overlays (toggleable)
+- **Overlay URLs** — Copy overlay URLs for OBS with one click; regenerate tokens if needed
+- **Bot management** — Connect, view status, and disconnect your bot account
+- **Time-of-day greetings** — Personalized greetings based on the time of day
+
+## UI and Design
+
+- **macOS Liquid Glass theme** — Translucent backgrounds, backdrop blur, and rounded corners inspired by macOS
+- **Blue accent theme** — Blue primary and accent colors throughout the interface
+- **Dark and light mode** — Toggle between themes with a simple switch in the header
+- **Responsive layout** — Works on desktop and mobile
+- **Glass-effect header** — Frosted glass navbar with backdrop blur and saturation
+
+## Self-Hosted and Single-User
+
+- **Single-user per instance** — Each streamer runs their own Dirework instance
+- **Full data ownership** — Your data stays on your server
+- **PostgreSQL backend** — Reliable, battle-tested database
+- **Deploy anywhere** — VPS, Docker, Coolify, Railway, or any Node.js host
+- **Static docs site** — Documentation builds as a static site, deployable separately
+
+## Tech Stack
+
+| Layer | Technology |
+| --- | --- |
+| **Framework** | Next.js 16 (App Router, React 19, React Compiler) |
+| **Styling** | Tailwind CSS v4, shadcn/ui components |
+| **API** | tRPC v11 with TanStack React Query |
+| **Auth** | Better Auth with Twitch OAuth |
+| **Database** | Prisma 7 with PostgreSQL 17 |
+| **Fonts** | Montserrat (headings/timer) + Roboto (body) |
+| **Docs** | Fumadocs with Orama search |
+| **Build** | Turborepo + pnpm workspaces |

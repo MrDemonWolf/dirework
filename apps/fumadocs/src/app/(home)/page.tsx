@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { Timer, ListTodo, Tv, MessageSquare, Settings, Shield } from "lucide-react";
+import { Timer, ListTodo, Tv, MessageSquare, Palette, Settings, Shield, Sparkles } from "lucide-react";
 
 const features = [
   {
     icon: Timer,
     title: "Pomodoro Timer",
     description:
-      "Configurable work/break durations with cycle tracking, visible as a real-time OBS overlay.",
+      "Configurable work/break/long break durations with automatic phase transitions and cycle tracking.",
   },
   {
     icon: ListTodo,
@@ -24,19 +24,31 @@ const features = [
     icon: Tv,
     title: "OBS Overlays",
     description:
-      "Transparent browser source overlays for timer and task list with fully customizable styling.",
+      "Transparent browser source overlays with real-time updates. Circle or squircle progress rings.",
+  },
+  {
+    icon: Palette,
+    title: "Theme Center",
+    description:
+      "Visual editor with 11 presets. Customize every color, font, size, and spacing for both overlays.",
   },
   {
     icon: Settings,
     title: "Dashboard",
     description:
-      "Control timer, manage tasks, preview overlays, and configure everything from one page.",
+      "Control timer, manage tasks, toggle overlay previews, and configure everything from one page.",
   },
   {
     icon: Shield,
     title: "Self-Hosted",
     description:
       "Single-user per instance. Deploy on your own server and keep full control of your data.",
+  },
+  {
+    icon: Sparkles,
+    title: "Liquid Glass UI",
+    description:
+      "macOS-inspired translucent theme with backdrop blur, blue accents, and dark/light mode toggle.",
   },
 ];
 
@@ -72,7 +84,7 @@ export default function HomePage() {
       <section className="border-t border-fd-border px-4 py-16">
         <div className="mx-auto max-w-5xl">
           <h2 className="mb-10 text-center text-2xl font-bold">Features</h2>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {features.map((feature) => (
               <div
                 key={feature.title}
