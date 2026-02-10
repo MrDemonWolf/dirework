@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Palette } from "lucide-react";
+import { Bot, LayoutDashboard, Palette } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
@@ -12,6 +12,7 @@ import UserMenu from "./user-menu";
 const navItems = [
   { href: "/dashboard" as const, label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/styles" as const, label: "Styles", icon: Palette },
+  { href: "/dashboard/bot" as const, label: "Bot", icon: Bot },
 ];
 
 export default function Header() {
@@ -19,7 +20,7 @@ export default function Header() {
   const { data: session } = authClient.useSession();
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-border/40 bg-background/60 backdrop-blur-2xl backdrop-saturate-150">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
         <div className="flex items-center gap-8">
           <Link
