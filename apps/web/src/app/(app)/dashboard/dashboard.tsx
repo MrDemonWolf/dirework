@@ -79,6 +79,7 @@ export default function Dashboard({
     toast.success("Copied to clipboard");
   };
 
+  const timerToken = user.data?.overlayTimerToken;
   const tasksToken = user.data?.overlayTasksToken;
 
   return (
@@ -100,8 +101,30 @@ export default function Dashboard({
             <CardDescription>Control your Pomodoro timer and see the overlay preview</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="py-4">
-              <TimerControls />
+            <div className="flex flex-col items-center gap-6 md:flex-row md:items-start">
+              <div className="flex-1 py-4">
+                <TimerControls />
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground">Preview</span>
+                <div className="overflow-hidden rounded-xl border border-dashed border-border bg-card">
+                  {timerToken ? (
+                    <iframe
+                      src={`/overlay/t/${timerToken}`}
+                      className="pointer-events-none"
+                      style={{ width: "280px", height: "280px", border: "none", background: "transparent" }}
+                      title="Timer overlay preview"
+                    />
+                  ) : (
+                    <div
+                      className="flex flex-col items-center justify-center text-muted-foreground"
+                      style={{ width: "280px", height: "280px" }}
+                    >
+                      <p className="text-xs">Loading preview...</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
