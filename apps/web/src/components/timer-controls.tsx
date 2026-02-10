@@ -2,13 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Pause,
-  Play,
-  Settings,
-  SkipForward,
-  Square,
-} from "lucide-react";
+import { Pause, Play, SkipForward, Square } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,7 +78,6 @@ export function TimerControls() {
   const [longBreakMin, setLongBreakMin] = useState(15);
   const [longBreakInterval, setLongBreakInterval] = useState(4);
   const [configLoaded, setConfigLoaded] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
 
   const timer = useQuery({
     ...trpc.timer.get.queryOptions(),
@@ -226,14 +219,6 @@ export function TimerControls() {
               <Play className="size-4" />
               Start
             </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setShowSettings(!showSettings)}
-              title="Timer settings"
-            >
-              <Settings className="size-4" />
-            </Button>
           </>
         ) : (
           <>
@@ -281,61 +266,56 @@ export function TimerControls() {
         )}
       </div>
 
-      {/* Settings panel (only when idle + toggled) */}
-      {isIdle && showSettings && (
-        <div className="w-full max-w-xs space-y-3 rounded-xl border border-border/50 bg-card/50 p-4 backdrop-blur-lg">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Work (min)</Label>
-              <Input
-                type="number"
-                min={1}
-                max={120}
-                value={workMin}
-                onChange={(e) => setWorkMin(Number(e.target.value))}
-                onBlur={() => saveConfig({ workDuration: minutesToMs(workMin) })}
-                className="h-8"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Break (min)</Label>
-              <Input
-                type="number"
-                min={1}
-                max={60}
-                value={breakMin}
-                onChange={(e) => setBreakMin(Number(e.target.value))}
-                onBlur={() => saveConfig({ breakDuration: minutesToMs(breakMin) })}
-                className="h-8"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Long break (min)</Label>
-              <Input
-                type="number"
-                min={1}
-                max={60}
-                value={longBreakMin}
-                onChange={(e) => setLongBreakMin(Number(e.target.value))}
-                onBlur={() => saveConfig({ longBreakDuration: minutesToMs(longBreakMin) })}
-                className="h-8"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Long break every</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  min={2}
-                  max={20}
-                  value={longBreakInterval}
-                  onChange={(e) => setLongBreakInterval(Number(e.target.value))}
-                  onBlur={() => saveConfig({ longBreakInterval })}
-                  className="h-8"
-                />
-                <span className="shrink-0 text-xs text-muted-foreground">cycles</span>
-              </div>
-            </div>
+      {/* Settings (visible when idle) */}
+      {isIdle && (
+        <div className="grid w-full max-w-xs grid-cols-5 gap-2">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Work</Label>
+            <Input
+              type="number"
+              min={1}
+              max={120}
+              value={workMin}
+              onChange={(e) => setWorkMin(Number(e.target.value))}
+              onBlur={() => saveConfig({ workDuration: minutesToMs(workMin) })}
+              className="h-8"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Break</Label>
+            <Input
+              type="number"
+              min={1}
+              max={60}
+              value={breakMin}
+              onChange={(e) => setBreakMin(Number(e.target.value))}
+              onBlur={() => saveConfig({ breakDuration: minutesToMs(breakMin) })}
+              className="h-8"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Long</Label>
+            <Input
+              type="number"
+              min={1}
+              max={60}
+              value={longBreakMin}
+              onChange={(e) => setLongBreakMin(Number(e.target.value))}
+              onBlur={() => saveConfig({ longBreakDuration: minutesToMs(longBreakMin) })}
+              className="h-8"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Every</Label>
+            <Input
+              type="number"
+              min={2}
+              max={20}
+              value={longBreakInterval}
+              onChange={(e) => setLongBreakInterval(Number(e.target.value))}
+              onBlur={() => saveConfig({ longBreakInterval })}
+              className="h-8"
+            />
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Pomos</Label>
