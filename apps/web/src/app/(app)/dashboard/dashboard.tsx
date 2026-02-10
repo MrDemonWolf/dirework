@@ -120,28 +120,19 @@ export default function Dashboard({
               <div className="flex-1">
                 <TimerControls />
               </div>
-              {showTimerPreview && (
-                <div className="flex flex-col items-center gap-2">
-                  <span className="text-xs font-medium text-muted-foreground">Preview</span>
-                  <div className="overflow-hidden rounded-xl border border-dashed border-border bg-card">
-                    {timerToken ? (
-                      <iframe
-                        src={`/overlay/t/${timerToken}`}
-                        className="pointer-events-none"
-                        style={{ width: "280px", height: "280px", border: "none", background: "transparent" }}
-                        title="Timer overlay preview"
-                      />
-                    ) : (
-                      <div
-                        className="flex flex-col items-center justify-center text-muted-foreground"
-                        style={{ width: "280px", height: "280px" }}
-                      >
-                        <p className="text-xs">Loading preview...</p>
-                      </div>
-                    )}
-                  </div>
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground">Preview</span>
+                <div className="overflow-hidden rounded-xl border border-dashed border-border bg-card" style={{ width: "280px", height: "280px" }}>
+                  {showTimerPreview && timerToken ? (
+                    <iframe
+                      src={`/overlay/t/${timerToken}`}
+                      className="pointer-events-none"
+                      style={{ width: "280px", height: "280px", border: "none", background: "transparent" }}
+                      title="Timer overlay preview"
+                    />
+                  ) : null}
                 </div>
-              )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -176,28 +167,19 @@ export default function Dashboard({
                   <p className="text-sm text-muted-foreground">Loading...</p>
                 )}
               </div>
-              {showTasksPreview && (
-                <div className="flex flex-col items-center gap-2">
-                  <span className="text-xs font-medium text-muted-foreground">Preview</span>
-                  <div className="overflow-hidden rounded-lg border border-dashed border-border bg-card">
-                    {tasksToken ? (
-                      <iframe
-                        src={`/overlay/l/${tasksToken}`}
-                        className="pointer-events-none"
-                        style={{ width: "350px", height: "350px", border: "none", background: "transparent" }}
-                        title="Task list overlay preview"
-                      />
-                    ) : (
-                      <div
-                        className="flex flex-col items-center justify-center text-muted-foreground"
-                        style={{ width: "350px", height: "350px" }}
-                      >
-                        <p className="text-xs">Loading preview...</p>
-                      </div>
-                    )}
-                  </div>
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground">Preview</span>
+                <div className="overflow-hidden rounded-lg border border-dashed border-border bg-card" style={{ width: "350px", height: "350px" }}>
+                  {showTasksPreview && tasksToken ? (
+                    <iframe
+                      src={`/overlay/l/${tasksToken}`}
+                      className="pointer-events-none"
+                      style={{ width: "350px", height: "350px", border: "none", background: "transparent" }}
+                      title="Task list overlay preview"
+                    />
+                  ) : null}
                 </div>
-              )}
+              </div>
             </div>
           </CardContent>
         </Card>
