@@ -2,11 +2,28 @@
 
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pause, Play, RotateCcw, SkipForward, Square } from "lucide-react";
+import { Pause, Play, SkipForward, Square } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { trpc } from "@/utils/trpc";
+
+const DEFAULT_TIMER_CONFIG = {
+  workDuration: 25 * 60 * 1000,
+  breakDuration: 5 * 60 * 1000,
+  longBreakDuration: 15 * 60 * 1000,
+  longBreakInterval: 4,
+  defaultCycles: 4,
+};
+
+function msToMinutes(ms: number): number {
+  return Math.round(ms / 60000);
+}
+
+function minutesToMs(min: number): number {
+  return min * 60000;
+}
 
 function formatTime(ms: number): string {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
@@ -40,11 +57,53 @@ export function TimerControls() {
   const queryClient = useQueryClient();
   const [cycles, setCycles] = useState(4);
   const [remaining, setRemaining] = useState<number | null>(null);
+  const [workMin, setWorkMin] = useState(25);
+  const [breakMin, setBreakMin] = useState(5);
+  const [longBreakMin, setLongBreakMin] = useState(15);
+  const [longBreakInterval, setLongBreakInterval] = useState(4);
+  const [configLoaded, setConfigLoaded] = useState(false);
 
   const timer = useQuery({
     ...trpc.timer.get.queryOptions(),
     refetchInterval: 2000,
   });
+
+  const config = useQuery(trpc.config.get.queryOptions());
+
+  const updateTimerConfig = useMutation({
+    ...trpc.config.updateTimer.mutationOptions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
+    },
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  type AnyRecord = Record<string, any>;
+
+  // Initialize local state from config
+  useEffect(() => {
+    if (!config.data || configLoaded) return;
+    const configData = config.data as AnyRecord;
+    const tc = (configData.timer ?? {}) as Record<string, number>;
+    setWorkMin(msToMinutes(tc.workDuration ?? DEFAULT_TIMER_CONFIG.workDuration));
+    setBreakMin(msToMinutes(tc.breakDuration ?? DEFAULT_TIMER_CONFIG.breakDuration));
+    setLongBreakMin(msToMinutes(tc.longBreakDuration ?? DEFAULT_TIMER_CONFIG.longBreakDuration));
+    setLongBreakInterval(tc.longBreakInterval ?? DEFAULT_TIMER_CONFIG.longBreakInterval);
+    setCycles(tc.defaultCycles ?? DEFAULT_TIMER_CONFIG.defaultCycles);
+    setConfigLoaded(true);
+    // @ts-expect-error -- Prisma Json field causes deep type instantiation in deps
+  }, [config.data, configLoaded]);
+
+  const saveConfig = (overrides: Partial<typeof DEFAULT_TIMER_CONFIG>) => {
+    const configData = config.data as AnyRecord | undefined;
+    const current = (configData?.timer ?? {}) as AnyRecord;
+    updateTimerConfig.mutate({
+      timer: {
+        ...current,
+        ...overrides,
+      },
+    });
+  };
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: trpc.timer.get.queryKey() });
@@ -77,8 +136,7 @@ export function TimerControls() {
 
   const state = timer.data;
   const status = state?.status ?? "idle";
-  const isRunning = ["starting", "work", "break", "longBreak"].includes(status);
-  const isPaused = status === "paused";
+  const isIdle = status === "idle" || status === "finished";
 
   // Countdown tick
   useEffect(() => {
@@ -101,6 +159,8 @@ export function TimerControls() {
     return () => clearInterval(interval);
   }, [state?.targetEndTime, state?.pausedWithRemaining]);
 
+  const isPaused = status === "paused";
+
   return (
     <div className="space-y-4">
       {/* Timer display */}
@@ -120,9 +180,66 @@ export function TimerControls() {
         )}
       </div>
 
+      {/* Timer settings (only when idle) */}
+      {isIdle && (
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Work (min)</Label>
+            <Input
+              type="number"
+              min={1}
+              max={120}
+              value={workMin}
+              onChange={(e) => setWorkMin(Number(e.target.value))}
+              onBlur={() => saveConfig({ workDuration: minutesToMs(workMin) })}
+              className="h-8"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Break (min)</Label>
+            <Input
+              type="number"
+              min={1}
+              max={60}
+              value={breakMin}
+              onChange={(e) => setBreakMin(Number(e.target.value))}
+              onBlur={() => saveConfig({ breakDuration: minutesToMs(breakMin) })}
+              className="h-8"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Long break (min)</Label>
+            <Input
+              type="number"
+              min={1}
+              max={60}
+              value={longBreakMin}
+              onChange={(e) => setLongBreakMin(Number(e.target.value))}
+              onBlur={() => saveConfig({ longBreakDuration: minutesToMs(longBreakMin) })}
+              className="h-8"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Long break every</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={2}
+                max={20}
+                value={longBreakInterval}
+                onChange={(e) => setLongBreakInterval(Number(e.target.value))}
+                onBlur={() => saveConfig({ longBreakInterval })}
+                className="h-8"
+              />
+              <span className="text-xs text-muted-foreground">cycles</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Controls */}
       <div className="flex items-center gap-2">
-        {status === "idle" || status === "finished" ? (
+        {isIdle ? (
           <>
             <div className="flex items-center gap-2">
               <Input
@@ -130,7 +247,11 @@ export function TimerControls() {
                 min={1}
                 max={99}
                 value={cycles}
-                onChange={(e) => setCycles(Number(e.target.value))}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setCycles(val);
+                }}
+                onBlur={() => saveConfig({ defaultCycles: cycles })}
                 className="w-16"
               />
               <span className="text-xs text-muted-foreground">cycles</span>

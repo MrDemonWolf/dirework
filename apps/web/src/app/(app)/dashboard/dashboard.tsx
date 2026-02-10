@@ -107,7 +107,7 @@ export default function Dashboard({
               </div>
               <div className="flex flex-col items-center gap-2">
                 <span className="text-xs font-medium text-muted-foreground">Preview</span>
-                <div className="overflow-hidden rounded-lg border border-dashed border-zinc-700 bg-zinc-900">
+                <div className="overflow-hidden rounded-lg border border-dashed border-border bg-card">
                   {timerToken ? (
                     <iframe
                       src={`/overlay/t/${timerToken}`}
@@ -117,7 +117,7 @@ export default function Dashboard({
                     />
                   ) : (
                     <div
-                      className="flex flex-col items-center justify-center text-zinc-500"
+                      className="flex flex-col items-center justify-center text-muted-foreground"
                       style={{ width: "280px", height: "280px" }}
                     >
                       <p className="text-xs">Loading preview...</p>
@@ -150,7 +150,7 @@ export default function Dashboard({
               </div>
               <div className="flex flex-col items-center gap-2">
                 <span className="text-xs font-medium text-muted-foreground">Preview</span>
-                <div className="overflow-hidden rounded-lg border border-dashed border-zinc-700 bg-zinc-900">
+                <div className="overflow-hidden rounded-lg border border-dashed border-border bg-card">
                   {tasksToken ? (
                     <iframe
                       src={`/overlay/l/${tasksToken}`}
@@ -160,7 +160,7 @@ export default function Dashboard({
                     />
                   ) : (
                     <div
-                      className="flex flex-col items-center justify-center text-zinc-500"
+                      className="flex flex-col items-center justify-center text-muted-foreground"
                       style={{ width: "350px", height: "350px" }}
                     >
                       <p className="text-xs">Loading preview...</p>
@@ -285,7 +285,7 @@ export default function Dashboard({
                   </p>
                   <a
                     href="/api/bot/authorize"
-                    className="inline-flex h-8 items-center gap-1.5 rounded bg-[#9146FF] px-3 text-xs font-medium text-white hover:bg-[#7c3ae6]"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#9146FF] px-3 text-xs font-medium text-white hover:bg-[#7c3ae6]"
                   >
                     Connect Bot Account
                   </a>
