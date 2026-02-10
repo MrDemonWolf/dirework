@@ -42,6 +42,7 @@ COPY --from=build /app/apps/web/.next/standalone ./
 COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=build /app/packages/db/prisma/schema ./packages/db/prisma/schema
 COPY --from=build /app/packages/db/prisma/migrations ./packages/db/prisma/migrations
+COPY --from=build /app/packages/db/prisma.docker.config.ts ./packages/db/prisma.docker.config.ts
 COPY docker-entrypoint.sh ./
 
 EXPOSE 3000

@@ -53,7 +53,7 @@ export default function UserMenu() {
             referrerPolicy="no-referrer"
           />
         ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#9146FF] text-xs font-bold text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
             {session.user.name?.charAt(0).toUpperCase()}
           </div>
         )}
