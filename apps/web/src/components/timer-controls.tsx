@@ -2,15 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pause, Play, SkipForward, Square } from "lucide-react";
+import { Info, Pause, Play, SkipForward, Square } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/utils/trpc";
 
-const DEFAULT_TIMER_CONFIG = {
+const DEFAULT_TIMER_VALUES = {
   workDuration: 25 * 60 * 1000,
   breakDuration: 5 * 60 * 1000,
   longBreakDuration: 15 * 60 * 1000,
@@ -93,52 +94,42 @@ export function TimerControls() {
 
   const config = useQuery(trpc.config.get.queryOptions());
 
-  // Extract phase labels from config columns (fall back to defaults)
-  const configLabels: Record<string, string> = config.data
+  // Extract phase labels from timerConfig (fall back to defaults)
+  const configLabels: Record<string, string> = config.data?.timerConfig?.labels
     ? {
-        idle: config.data.labelIdle,
-        starting: config.data.labelStarting,
-        work: config.data.labelWork,
-        break: config.data.labelBreak,
-        longBreak: config.data.labelLongBreak,
-        paused: config.data.labelPaused,
-        finished: config.data.labelFinished,
+        idle: config.data.timerConfig.labels.idle,
+        starting: config.data.timerConfig.labels.starting,
+        work: config.data.timerConfig.labels.work,
+        break: config.data.timerConfig.labels.break,
+        longBreak: config.data.timerConfig.labels.longBreak,
+        paused: config.data.timerConfig.labels.paused,
+        finished: config.data.timerConfig.labels.finished,
       }
     : DEFAULT_LABELS;
 
   const updateTimerConfig = useMutation({
-    ...trpc.config.updateTimer.mutationOptions(),
+    ...trpc.config.updateTimerConfig.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
     },
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  type AnyRecord = Record<string, any>;
-
   // Initialize local state from config
   useEffect(() => {
     if (!config.data || configLoaded) return;
-    const configData = config.data as AnyRecord;
-    const tc = (configData.timer ?? {}) as Record<string, number>;
-    setWorkMin(msToMinutes(tc.workDuration ?? DEFAULT_TIMER_CONFIG.workDuration));
-    setBreakMin(msToMinutes(tc.breakDuration ?? DEFAULT_TIMER_CONFIG.breakDuration));
-    setLongBreakMin(msToMinutes(tc.longBreakDuration ?? DEFAULT_TIMER_CONFIG.longBreakDuration));
-    setLongBreakInterval(tc.longBreakInterval ?? DEFAULT_TIMER_CONFIG.longBreakInterval);
-    setCycles(tc.defaultCycles ?? DEFAULT_TIMER_CONFIG.defaultCycles);
+    const tc = config.data.timerConfig;
+    if (tc) {
+      setWorkMin(msToMinutes(tc.workDuration));
+      setBreakMin(msToMinutes(tc.breakDuration));
+      setLongBreakMin(msToMinutes(tc.longBreakDuration));
+      setLongBreakInterval(tc.longBreakInterval);
+      setCycles(tc.defaultCycles);
+    }
     setConfigLoaded(true);
-    // @ts-expect-error -- Prisma Json fields cause deep type instantiation in dependency array
   }, [config.data, configLoaded]);
 
-  const saveConfig = (overrides: Partial<typeof DEFAULT_TIMER_CONFIG>) => {
-    const configData = config.data as AnyRecord | undefined;
-    const current = (configData?.timer ?? {}) as AnyRecord;
-    updateTimerConfig.mutate({
-      timer: {
-        ...current,
-        ...overrides,
-      },
-    });
+  const saveConfig = (overrides: Partial<typeof DEFAULT_TIMER_VALUES>) => {
+    updateTimerConfig.mutate(overrides);
   };
 
   const invalidate = () => {
@@ -303,7 +294,13 @@ export function TimerControls() {
       <div className="order-2 w-44 shrink-0">
         <div className="grid grid-cols-2 gap-x-3 gap-y-2">
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Work (min)</Label>
+            <Tooltip>
+              <TooltipTrigger render={<Label className="inline-flex items-center gap-1 text-xs text-muted-foreground" />}>
+                Work (min)
+                <Info className="size-3 text-muted-foreground/60" />
+              </TooltipTrigger>
+              <TooltipContent>Duration of each focus session in minutes</TooltipContent>
+            </Tooltip>
             <Input
               type="number"
               min={1}
@@ -316,7 +313,13 @@ export function TimerControls() {
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Break (min)</Label>
+            <Tooltip>
+              <TooltipTrigger render={<Label className="inline-flex items-center gap-1 text-xs text-muted-foreground" />}>
+                Break (min)
+                <Info className="size-3 text-muted-foreground/60" />
+              </TooltipTrigger>
+              <TooltipContent>Duration of short breaks between focus sessions</TooltipContent>
+            </Tooltip>
             <Input
               type="number"
               min={1}
@@ -329,7 +332,13 @@ export function TimerControls() {
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Long break</Label>
+            <Tooltip>
+              <TooltipTrigger render={<Label className="inline-flex items-center gap-1 text-xs text-muted-foreground" />}>
+                Long break
+                <Info className="size-3 text-muted-foreground/60" />
+              </TooltipTrigger>
+              <TooltipContent>Duration of the extended break in minutes</TooltipContent>
+            </Tooltip>
             <Input
               type="number"
               min={1}
@@ -342,7 +351,13 @@ export function TimerControls() {
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Every (cycles)</Label>
+            <Tooltip>
+              <TooltipTrigger render={<Label className="inline-flex items-center gap-1 text-xs text-muted-foreground" />}>
+                Every (cycles)
+                <Info className="size-3 text-muted-foreground/60" />
+              </TooltipTrigger>
+              <TooltipContent>Take a long break after this many focus sessions</TooltipContent>
+            </Tooltip>
             <Input
               type="number"
               min={2}
@@ -355,7 +370,13 @@ export function TimerControls() {
             />
           </div>
           <div className="col-span-2 space-y-1">
-            <Label className="text-xs text-muted-foreground">Pomos</Label>
+            <Tooltip>
+              <TooltipTrigger render={<Label className="inline-flex items-center gap-1 text-xs text-muted-foreground" />}>
+                Pomos
+                <Info className="size-3 text-muted-foreground/60" />
+              </TooltipTrigger>
+              <TooltipContent>Total number of focus sessions (pomodoros) in this run</TooltipContent>
+            </Tooltip>
             <Input
               type="number"
               min={1}
