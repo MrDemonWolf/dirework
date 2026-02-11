@@ -1,118 +1,180 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  extractTaskMessages,
-  extractTimerMessages,
-  extractPhaseLabels,
+import type {
+  TimerStylesConfig,
+  TaskStylesConfig,
+  TimerConfigData,
+  BotConfigData,
+  TaskMessagesConfig,
+  TimerMessagesConfig,
+  PhaseLabelsConfig,
+  AppConfig,
+  ThemePreset,
 } from "../config-types";
 
-describe("extractTaskMessages", () => {
-  it("should extract all 18 task message fields from flat config", () => {
-    const config = {
-      msgTaskAdded: "a",
-      msgNoTaskAdded: "b",
-      msgNoTaskContent: "c",
-      msgNoTaskToEdit: "d",
-      msgTaskEdited: "e",
-      msgTaskRemoved: "f",
-      msgTaskNext: "g",
-      msgAdminDeleteTasks: "h",
-      msgTaskDone: "i",
-      msgTaskCheck: "j",
-      msgTaskCheckUser: "k",
-      msgNoTask: "l",
-      msgNoTaskOther: "m",
-      msgNotMod: "n",
-      msgClearedAll: "o",
-      msgClearedDone: "p",
-      msgNextNoContent: "q",
-      msgHelp: "r",
-    };
+/**
+ * These tests verify the config type interfaces are structurally correct
+ * by creating conforming objects and checking key shapes.
+ * Runtime extraction logic (buildTimerConfig, buildBotConfig, etc.) is
+ * tested in packages/api/src/routers/__tests__/config.test.ts.
+ */
 
-    const result = extractTaskMessages(config);
+describe("TimerStylesConfig shape", () => {
+  const config: TimerStylesConfig = {
+    dimensions: { width: "280px", height: "280px" },
+    background: { color: "#1a1a1a", opacity: 0.95, borderRadius: "22%" },
+    ring: {
+      enabled: true,
+      trackColor: "#333",
+      trackOpacity: 0.6,
+      fillColor: "#fff",
+      fillOpacity: 1,
+      width: 6,
+      gap: 8,
+    },
+    text: { color: "#fff", outlineColor: "#000", outlineSize: "0px", fontFamily: "Montserrat" },
+    fontSizes: { label: "13px", time: "48px", cycle: "12px" },
+  };
 
-    expect(result.taskAdded).toBe("a");
-    expect(result.noTaskAdded).toBe("b");
-    expect(result.noTaskContent).toBe("c");
-    expect(result.noTaskToEdit).toBe("d");
-    expect(result.taskEdited).toBe("e");
-    expect(result.taskRemoved).toBe("f");
-    expect(result.taskNext).toBe("g");
-    expect(result.adminDeleteTasks).toBe("h");
-    expect(result.taskDone).toBe("i");
-    expect(result.taskCheck).toBe("j");
-    expect(result.taskCheckUser).toBe("k");
-    expect(result.noTask).toBe("l");
-    expect(result.noTaskOther).toBe("m");
-    expect(result.notMod).toBe("n");
-    expect(result.clearedAll).toBe("o");
-    expect(result.clearedDone).toBe("p");
-    expect(result.nextNoContent).toBe("q");
-    expect(result.help).toBe("r");
-    expect(Object.keys(result)).toHaveLength(18);
+  it("should have all top-level groups", () => {
+    expect(Object.keys(config)).toEqual(
+      expect.arrayContaining(["dimensions", "background", "ring", "text", "fontSizes"]),
+    );
+  });
+
+  it("should have ring with enabled boolean", () => {
+    expect(typeof config.ring.enabled).toBe("boolean");
   });
 });
 
-describe("extractTimerMessages", () => {
-  it("should extract all 14 timer message fields from flat config", () => {
-    const config = {
-      msgWorkMsg: "a",
-      msgBreakMsg: "b",
-      msgLongBreakMsg: "c",
-      msgWorkRemindMsg: "d",
-      msgNotRunning: "e",
-      msgStreamStarting: "f",
-      msgWrongCommand: "g",
-      msgTimerRunning: "h",
-      msgCommandSuccess: "i",
-      msgCycleWrong: "j",
-      msgGoalWrong: "k",
-      msgFinishResponse: "l",
-      msgAlreadyStarting: "m",
-      msgEta: "n",
-    };
+describe("TaskStylesConfig shape", () => {
+  const config: TaskStylesConfig = {
+    display: { showDone: true, showCount: true, useCheckboxes: true, crossOnDone: true, numberOfLines: 2 },
+    fonts: { header: "Montserrat", body: "Roboto" },
+    scroll: { enabled: true, pixelsPerSecond: 70, gapBetweenLoops: 100 },
+    header: {
+      height: "45px",
+      background: { color: "#1a1a1a", opacity: 0.95 },
+      border: { color: "#333", width: "1px", radius: "10px 10px 0 0" },
+      fontSize: "18px",
+      fontColor: "#fff",
+      padding: "0 14px",
+    },
+    body: {
+      background: { color: "#1a1a1a", opacity: 0.9 },
+      border: { color: "#333", width: "1px", radius: "0 0 10px 10px" },
+      padding: { vertical: "8px", horizontal: "8px" },
+    },
+    task: {
+      background: { color: "#2a2a2a", opacity: 0.8 },
+      border: { color: "#444", width: "1px", radius: "8px" },
+      fontSize: "15px",
+      fontColor: "#e0e0e0",
+      usernameColor: "#fff",
+      padding: "8px 10px",
+      marginBottom: "4px",
+      maxWidth: "100%",
+    },
+    taskDone: { background: { color: "#1a1a1a", opacity: 0.6 }, fontColor: "#888" },
+    checkbox: {
+      size: "18px",
+      background: { color: "transparent", opacity: 0 },
+      border: { color: "#666", width: "2px", radius: "4px" },
+      margin: { top: "1px", left: "0px", right: "8px" },
+      tickChar: "✓",
+      tickSize: "12px",
+      tickColor: "#4ade80",
+    },
+    bullet: {
+      char: "•",
+      size: "16px",
+      color: "#888",
+      margin: { top: "0px", left: "2px", right: "8px" },
+    },
+  };
 
-    const result = extractTimerMessages(config);
+  it("should have scroll.enabled field", () => {
+    expect(typeof config.scroll.enabled).toBe("boolean");
+  });
 
-    expect(result.workMsg).toBe("a");
-    expect(result.breakMsg).toBe("b");
-    expect(result.longBreakMsg).toBe("c");
-    expect(result.workRemindMsg).toBe("d");
-    expect(result.notRunning).toBe("e");
-    expect(result.streamStarting).toBe("f");
-    expect(result.wrongCommand).toBe("g");
-    expect(result.timerRunning).toBe("h");
-    expect(result.commandSuccess).toBe("i");
-    expect(result.cycleWrong).toBe("j");
-    expect(result.goalWrong).toBe("k");
-    expect(result.finishResponse).toBe("l");
-    expect(result.alreadyStarting).toBe("m");
-    expect(result.eta).toBe("n");
-    expect(Object.keys(result)).toHaveLength(14);
+  it("should not have task.direction field", () => {
+    expect(config.task).not.toHaveProperty("direction");
+  });
+
+  it("should have all top-level groups", () => {
+    expect(Object.keys(config)).toEqual(
+      expect.arrayContaining([
+        "display", "fonts", "scroll", "header", "body", "task", "taskDone", "checkbox", "bullet",
+      ]),
+    );
+  });
+
+  it("should have body padding with vertical and horizontal", () => {
+    expect(config.body.padding).toEqual({ vertical: "8px", horizontal: "8px" });
+  });
+
+  it("should have checkbox background and border details", () => {
+    expect(config.checkbox.background).toHaveProperty("color");
+    expect(config.checkbox.background).toHaveProperty("opacity");
+    expect(config.checkbox.border).toHaveProperty("width");
+    expect(config.checkbox.border).toHaveProperty("radius");
   });
 });
 
-describe("extractPhaseLabels", () => {
-  it("should extract all 7 phase label fields from flat config", () => {
-    const config = {
-      labelIdle: "Ready",
-      labelStarting: "Starting",
-      labelWork: "Focus",
-      labelBreak: "Break",
-      labelLongBreak: "Long Break",
-      labelPaused: "Paused",
-      labelFinished: "Done",
+describe("AppConfig shape", () => {
+  it("should compose all four sub-configs", () => {
+    const config: AppConfig = {
+      timerConfig: {
+        workDuration: 1500000,
+        breakDuration: 300000,
+        longBreakDuration: 900000,
+        longBreakInterval: 4,
+        startingDuration: 5000,
+        defaultCycles: 4,
+        showHours: false,
+        noLastBreak: true,
+        labels: {
+          idle: "Ready",
+          starting: "Starting",
+          work: "Focus",
+          break: "Break",
+          longBreak: "Long Break",
+          paused: "Paused",
+          finished: "Done",
+        },
+      },
+      timerStyles: {
+        dimensions: { width: "280px", height: "280px" },
+        background: { color: "#1a1a1a", opacity: 0.95, borderRadius: "22%" },
+        ring: { enabled: true, trackColor: "#333", trackOpacity: 0.6, fillColor: "#fff", fillOpacity: 1, width: 6, gap: 8 },
+        text: { color: "#fff", outlineColor: "#000", outlineSize: "0px", fontFamily: "Montserrat" },
+        fontSizes: { label: "13px", time: "48px", cycle: "12px" },
+      },
+      taskStyles: {
+        display: { showDone: true, showCount: true, useCheckboxes: true, crossOnDone: true, numberOfLines: 2 },
+        fonts: { header: "Montserrat", body: "Roboto" },
+        scroll: { enabled: true, pixelsPerSecond: 70, gapBetweenLoops: 100 },
+        header: { height: "45px", background: { color: "#1a1a1a", opacity: 0.95 }, border: { color: "#333", width: "1px", radius: "10px 10px 0 0" }, fontSize: "18px", fontColor: "#fff", padding: "0 14px" },
+        body: { background: { color: "#1a1a1a", opacity: 0.9 }, border: { color: "#333", width: "1px", radius: "0 0 10px 10px" }, padding: { vertical: "8px", horizontal: "8px" } },
+        task: { background: { color: "#2a2a2a", opacity: 0.8 }, border: { color: "#444", width: "1px", radius: "8px" }, fontSize: "15px", fontColor: "#e0e0e0", usernameColor: "#fff", padding: "8px 10px", marginBottom: "4px", maxWidth: "100%" },
+        taskDone: { background: { color: "#1a1a1a", opacity: 0.6 }, fontColor: "#888" },
+        checkbox: { size: "18px", background: { color: "transparent", opacity: 0 }, border: { color: "#666", width: "2px", radius: "4px" }, margin: { top: "1px", left: "0px", right: "8px" }, tickChar: "✓", tickSize: "12px", tickColor: "#4ade80" },
+        bullet: { char: "•", size: "16px", color: "#888", margin: { top: "0px", left: "2px", right: "8px" } },
+      },
+      botConfig: {
+        taskCommandsEnabled: true,
+        timerCommandsEnabled: true,
+        commandAliases: {},
+        task: { taskAdded: "", noTaskAdded: "", noTaskContent: "", noTaskToEdit: "", taskEdited: "", taskRemoved: "", taskNext: "", adminDeleteTasks: "", taskDone: "", taskCheck: "", taskCheckUser: "", noTask: "", noTaskOther: "", notMod: "", clearedAll: "", clearedDone: "", nextNoContent: "", help: "" },
+        timer: { workMsg: "", breakMsg: "", longBreakMsg: "", workRemindMsg: "", notRunning: "", streamStarting: "", wrongCommand: "", timerRunning: "", commandSuccess: "", cycleWrong: "", goalWrong: "", finishResponse: "", alreadyStarting: "", eta: "" },
+      },
     };
 
-    const result = extractPhaseLabels(config);
-
-    expect(result.idle).toBe("Ready");
-    expect(result.starting).toBe("Starting");
-    expect(result.work).toBe("Focus");
-    expect(result.break).toBe("Break");
-    expect(result.longBreak).toBe("Long Break");
-    expect(result.paused).toBe("Paused");
-    expect(result.finished).toBe("Done");
-    expect(Object.keys(result)).toHaveLength(7);
+    expect(Object.keys(config)).toEqual(
+      expect.arrayContaining(["timerConfig", "timerStyles", "taskStyles", "botConfig"]),
+    );
+    expect(Object.keys(config.botConfig.task)).toHaveLength(18);
+    expect(Object.keys(config.botConfig.timer)).toHaveLength(14);
+    expect(Object.keys(config.timerConfig.labels)).toHaveLength(7);
   });
 });
