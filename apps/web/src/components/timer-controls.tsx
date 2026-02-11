@@ -2,11 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pause, Play, SkipForward, Square } from "lucide-react";
+import { Pause, Play, Settings, SkipForward, Square } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 import { trpc } from "@/utils/trpc";
 
 const DEFAULT_TIMER_CONFIG = {
@@ -58,6 +64,22 @@ function statusColor(status: string): string {
   }
 }
 
+function CycleDots({ current, total }: { current: number; total: number }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      {Array.from({ length: total }).map((_, i) => (
+        <div
+          key={i}
+          className={cn(
+            "size-2 rounded-full transition-colors",
+            i < current ? "bg-primary" : "bg-muted-foreground/30",
+          )}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function TimerControls() {
   const queryClient = useQueryClient();
   const [cycles, setCycles] = useState(4);
@@ -67,6 +89,7 @@ export function TimerControls() {
   const [longBreakMin, setLongBreakMin] = useState(15);
   const [longBreakInterval, setLongBreakInterval] = useState(4);
   const [configLoaded, setConfigLoaded] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const transitioningRef = useRef(false);
 
   const timer = useQuery({
@@ -168,7 +191,6 @@ export function TimerControls() {
   const status = state?.status ?? "idle";
   const isIdle = status === "idle" || status === "finished";
   const isPaused = status === "paused";
-  const isRunning = !isIdle && !isPaused;
 
   // Countdown tick + auto-transition
   useEffect(() => {
@@ -210,151 +232,159 @@ export function TimerControls() {
       : "--:--";
 
   return (
-    <div className="flex flex-col items-center gap-6 md:flex-row md:items-center md:gap-8">
-      <div className="order-1 flex-1">
-        <div className="flex flex-col items-center gap-4">
-          <p className={`text-sm font-semibold uppercase tracking-widest ${statusColor(status)}`}>
-            {configLabels[status] ?? DEFAULT_LABELS[status] ?? status}
+    <div className="flex flex-col items-center gap-6">
+      <div className="flex flex-col items-center gap-4">
+        <p className={`text-sm font-semibold uppercase tracking-widest ${statusColor(status)}`}>
+          {configLabels[status] ?? DEFAULT_LABELS[status] ?? status}
+        </p>
+        <p className="font-heading text-7xl font-bold tabular-nums tracking-tight md:text-8xl">
+          {displayTime}
+        </p>
+        {state && !isIdle ? (
+          <CycleDots current={state.currentCycle} total={state.totalCycles} />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {cycles} {cycles === 1 ? "pomo" : "pomos"} &middot; {workMin}m work &middot; {breakMin}m break
           </p>
-          <p className="font-heading text-6xl font-bold tabular-nums tracking-tight">
-            {displayTime}
-          </p>
-          {state && !isIdle ? (
-            <p className="text-sm text-muted-foreground">
-              Pomo {state.currentCycle} / {state.totalCycles}
-            </p>
+        )}
+        <div className="flex items-center gap-2">
+          {isIdle ? (
+            <Button
+              size="lg"
+              onClick={() => start.mutate({ totalCycles: cycles })}
+              disabled={start.isPending}
+              className="gap-2 px-6"
+            >
+              <Play className="size-4" />
+              Start
+            </Button>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              {cycles} {cycles === 1 ? "pomo" : "pomos"} &middot; {workMin}m work &middot; {breakMin}m break
-            </p>
-          )}
-          <div className="flex items-center gap-2">
-            {isIdle ? (
-              <Button
-                size="lg"
-                onClick={() => start.mutate({ totalCycles: cycles })}
-                disabled={start.isPending}
-                className="gap-2 px-6"
-              >
-                <Play className="size-4" />
-                Start
-              </Button>
-            ) : (
-              <>
-                {isPaused ? (
-                  <Button
-                    size="lg"
-                    onClick={() => resume.mutate()}
-                    disabled={resume.isPending}
-                    className="gap-2 px-6"
-                  >
-                    <Play className="size-4" />
-                    Resume
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={() => pause.mutate()}
-                    disabled={pause.isPending}
-                    className="gap-2 px-6"
-                  >
-                    <Pause className="size-4" />
-                    Pause
-                  </Button>
-                )}
+            <>
+              {isPaused ? (
+                <Button
+                  size="lg"
+                  onClick={() => resume.mutate()}
+                  disabled={resume.isPending}
+                  className="gap-2 px-6"
+                >
+                  <Play className="size-4" />
+                  Resume
+                </Button>
+              ) : (
                 <Button
                   variant="outline"
-                  size="icon"
-                  onClick={() => skip.mutate()}
-                  disabled={skip.isPending}
-                  title="Skip phase"
+                  size="lg"
+                  onClick={() => pause.mutate()}
+                  disabled={pause.isPending}
+                  className="gap-2 px-6"
                 >
-                  <SkipForward className="size-4" />
+                  <Pause className="size-4" />
+                  Pause
                 </Button>
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  onClick={() => reset.mutate()}
-                  disabled={reset.isPending}
-                  title="Stop timer"
-                >
-                  <Square className="size-4" />
-                </Button>
-              </>
-            )}
-          </div>
+              )}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => skip.mutate()}
+                disabled={skip.isPending}
+                title="Skip phase"
+              >
+                <SkipForward className="size-4" />
+              </Button>
+              <Button
+                variant="destructive"
+                size="icon"
+                onClick={() => reset.mutate()}
+                disabled={reset.isPending}
+                title="Stop timer"
+              >
+                <Square className="size-4" />
+              </Button>
+            </>
+          )}
         </div>
       </div>
-      <div className="order-2 w-44 shrink-0">
-        <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Work (min)</Label>
-            <Input
-              type="number"
-              min={1}
-              max={120}
-              value={workMin}
-              onChange={(e) => setWorkMin(Number(e.target.value))}
-              onBlur={() => saveConfig({ workDuration: minutesToMs(workMin) })}
-              disabled={!isIdle}
-              className="h-8"
-            />
+
+      {/* Collapsible settings */}
+      <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <CollapsibleTrigger
+          render={
+            <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
+              <Settings className="size-3.5" />
+              Settings
+            </Button>
+          }
+        />
+        <CollapsibleContent>
+          <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-3">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Work (min)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={120}
+                value={workMin}
+                onChange={(e) => setWorkMin(Number(e.target.value))}
+                onBlur={() => saveConfig({ workDuration: minutesToMs(workMin) })}
+                disabled={!isIdle}
+                className="h-8"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Break (min)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={60}
+                value={breakMin}
+                onChange={(e) => setBreakMin(Number(e.target.value))}
+                onBlur={() => saveConfig({ breakDuration: minutesToMs(breakMin) })}
+                disabled={!isIdle}
+                className="h-8"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Long break</Label>
+              <Input
+                type="number"
+                min={1}
+                max={60}
+                value={longBreakMin}
+                onChange={(e) => setLongBreakMin(Number(e.target.value))}
+                onBlur={() => saveConfig({ longBreakDuration: minutesToMs(longBreakMin) })}
+                disabled={!isIdle}
+                className="h-8"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Every (cycles)</Label>
+              <Input
+                type="number"
+                min={2}
+                max={20}
+                value={longBreakInterval}
+                onChange={(e) => setLongBreakInterval(Number(e.target.value))}
+                onBlur={() => saveConfig({ longBreakInterval })}
+                disabled={!isIdle}
+                className="h-8"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Pomos</Label>
+              <Input
+                type="number"
+                min={1}
+                max={99}
+                value={cycles}
+                onChange={(e) => setCycles(Number(e.target.value))}
+                onBlur={() => saveConfig({ defaultCycles: cycles })}
+                disabled={!isIdle}
+                className="h-8"
+              />
+            </div>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Break (min)</Label>
-            <Input
-              type="number"
-              min={1}
-              max={60}
-              value={breakMin}
-              onChange={(e) => setBreakMin(Number(e.target.value))}
-              onBlur={() => saveConfig({ breakDuration: minutesToMs(breakMin) })}
-              disabled={!isIdle}
-              className="h-8"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Long break</Label>
-            <Input
-              type="number"
-              min={1}
-              max={60}
-              value={longBreakMin}
-              onChange={(e) => setLongBreakMin(Number(e.target.value))}
-              onBlur={() => saveConfig({ longBreakDuration: minutesToMs(longBreakMin) })}
-              disabled={!isIdle}
-              className="h-8"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Every (cycles)</Label>
-            <Input
-              type="number"
-              min={2}
-              max={20}
-              value={longBreakInterval}
-              onChange={(e) => setLongBreakInterval(Number(e.target.value))}
-              onBlur={() => saveConfig({ longBreakInterval })}
-              disabled={!isIdle}
-              className="h-8"
-            />
-          </div>
-          <div className="col-span-2 space-y-1">
-            <Label className="text-xs text-muted-foreground">Pomos</Label>
-            <Input
-              type="number"
-              min={1}
-              max={99}
-              value={cycles}
-              onChange={(e) => setCycles(Number(e.target.value))}
-              onBlur={() => saveConfig({ defaultCycles: cycles })}
-              disabled={!isIdle}
-              className="h-8"
-            />
-          </div>
-        </div>
-      </div>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }
