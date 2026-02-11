@@ -135,6 +135,8 @@ Timer overlay supports two progress ring shapes:
 
 Overlays use saved user config (deep-merged with defaults) for styling. Config is fetched via `trpc.overlay.*` public procedures.
 
+Task list overlay groups tasks by author — each author gets a styled card container with a tinted header row showing their name and done/total count. Individual tasks render inside the container. Grouping uses `authorTwitchId` (falls back to `authorDisplayName`). Component: `src/components/task-list-display.tsx`.
+
 ### Theme Center (`/dashboard/styles`)
 
 Two-column layout: editor (left) + live preview (right).
@@ -160,6 +162,7 @@ Data flow:
 - Time-of-day greetings (morning/afternoon/evening/night) with `suppressHydrationWarning`
 - Overlay previews use iframes pointing to actual overlay pages (`/overlay/t/[token]` and `/overlay/l/[token]`)
 - Bot connection feedback via URL search params (`?bot=connected` or `?bot=error&reason=...`) with toast notifications
+- Task manager groups tasks by author with per-author pending/done counts. Component: `src/components/task-manager.tsx`
 
 ### Bot Settings (`/dashboard/bot`)
 
