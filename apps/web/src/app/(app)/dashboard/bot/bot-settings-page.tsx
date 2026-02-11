@@ -13,6 +13,7 @@ import type {
   CommandAliasesConfig,
 } from "@/lib/config-types";
 import { extractTaskMessages, extractTimerMessages, extractPhaseLabels } from "@/lib/config-types";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { TaskMessageEditor, TimerMessageEditor } from "@/components/bot-settings/message-editor";
 import { CommandAliasEditor } from "@/components/bot-settings/command-alias-editor";
@@ -79,6 +81,43 @@ const defaultPhaseLabels: PhaseLabelsConfig = {
 };
 
 const defaultCommandAliases: CommandAliasesConfig = {};
+
+function BotSettingsSkeleton() {
+  return (
+    <div className="container mx-auto max-w-2xl px-4 py-8">
+      <div className="mb-6 space-y-2">
+        <Skeleton className="h-7 w-36" />
+        <Skeleton className="h-4 w-72" />
+      </div>
+      <div className="space-y-6">
+        {/* Bot account card skeleton */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="h-4 w-56" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-8 w-40" />
+          </CardContent>
+        </Card>
+        <Separator />
+        {/* Section skeletons */}
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-3 w-48" />
+              </div>
+              <Skeleton className="h-5 w-10" />
+            </div>
+            <Skeleton className="h-24 w-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function BotSettingsPage() {
   const queryClient = useQueryClient();
@@ -251,15 +290,11 @@ export default function BotSettingsPage() {
   ]);
 
   if (config.isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <BotSettingsSkeleton />;
   }
 
   return (
-    <div className="container mx-auto max-w-2xl px-4 py-8">
+    <div className={cn("container mx-auto max-w-2xl px-4 py-8", hasUnsaved && "pb-24")}>
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Bot Settings</h1>
         <p className="text-sm text-muted-foreground">
@@ -394,31 +429,37 @@ export default function BotSettingsPage() {
         />
       </div>
 
-      {/* Save / Reset Bar */}
-      <Separator className="my-6" />
-      <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleReset}
-          disabled={!hasUnsaved || isSaving}
-        >
-          <RotateCcw className="mr-1.5 size-3.5" />
-          Reset
-        </Button>
-        <Button
-          size="sm"
-          onClick={handleSave}
-          disabled={!hasUnsaved || isSaving}
-        >
-          {isSaving ? (
-            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-          ) : (
-            <Save className="mr-1.5 size-3.5" />
-          )}
-          Save Changes
-        </Button>
-      </div>
+      {/* Sticky Save / Reset Bar */}
+      {hasUnsaved && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/80 backdrop-blur-2xl">
+          <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
+            <p className="text-sm text-muted-foreground">You have unsaved changes</p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReset}
+                disabled={isSaving}
+              >
+                <RotateCcw className="mr-1.5 size-3.5" />
+                Reset
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSave}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                ) : (
+                  <Save className="mr-1.5 size-3.5" />
+                )}
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
