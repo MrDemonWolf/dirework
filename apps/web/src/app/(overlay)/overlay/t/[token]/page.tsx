@@ -1,17 +1,11 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useSubscription } from "@trpc/tanstack-react-query";
 import { useParams } from "next/navigation";
 
-import { deepMerge } from "@/lib/deep-merge";
 import { defaultTimerStyles } from "@/lib/theme-presets";
 import { TimerDisplay } from "@/components/timer-display";
 import { trpc } from "@/utils/trpc";
-
-const POLL_INTERVAL = 1000;
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyRecord = Record<string, any>;
 
 const defaultTimerState = {
   status: "idle",
@@ -21,41 +15,34 @@ const defaultTimerState = {
   totalCycles: 4,
 };
 
+const defaultLabels: Record<string, string> = {
+  idle: "Ready",
+  starting: "Starting",
+  work: "Focus",
+  break: "Break",
+  longBreak: "Long Break",
+  paused: "Paused",
+  finished: "Done",
+};
+
 export default function TimerOverlayPage() {
   const { token } = useParams<{ token: string }>();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, isLoading } = useQuery({
-    ...(trpc.overlay.getTimerState.queryOptions({ token }) as any),
-    refetchInterval: POLL_INTERVAL,
-  }) as {
-    isLoading: boolean;
-    data: { timerState: AnyRecord | null; config: AnyRecord | null } | null | undefined;
-  };
+  const { data, status } = useSubscription({
+    ...trpc.overlay.onTimerState.subscriptionOptions({ token }),
+    enabled: true,
+  });
 
-  if (isLoading) return null;
+  if (status === "connecting" || status === "idle") return null;
 
   const timerState = data?.timerState ?? defaultTimerState;
-  const tc = ((data?.config?.timer as AnyRecord) ?? {}) as AnyRecord;
-  const ts = ((data?.config?.timerStyles as AnyRecord) ?? {}) as AnyRecord;
+  const timerStyles = data?.timerStyles ?? defaultTimerStyles;
+  const timerConfig = data?.timerConfig;
 
-  const mergedStyles = deepMerge(defaultTimerStyles, ts);
   const displayConfig = {
-    dimensions: mergedStyles.dimensions as { width: string; height: string },
-    background: mergedStyles.background as { color: string; opacity: number; borderRadius: string },
-    ring: mergedStyles.ring as { enabled: boolean; trackColor: string; trackOpacity: number; fillColor: string; fillOpacity: number; width: number; gap: number },
-    text: mergedStyles.text as { color: string; outlineColor: string; outlineSize: string; fontFamily: string },
-    fontSizes: mergedStyles.fontSizes as { label: string; time: string; cycle: string },
-    labels: {
-      idle: (data?.config?.labelIdle as string) ?? "Ready",
-      starting: (data?.config?.labelStarting as string) ?? "Starting",
-      work: (data?.config?.labelWork as string) ?? "Focus",
-      break: (data?.config?.labelBreak as string) ?? "Break",
-      longBreak: (data?.config?.labelLongBreak as string) ?? "Long Break",
-      paused: (data?.config?.labelPaused as string) ?? "Paused",
-      finished: (data?.config?.labelFinished as string) ?? "Done",
-    } as Record<string, string>,
-    showHours: (tc.showHours ?? false) as boolean,
+    ...timerStyles,
+    labels: timerConfig?.labels ?? defaultLabels,
+    showHours: timerConfig?.showHours ?? false,
   };
 
   return (
