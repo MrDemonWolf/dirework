@@ -53,19 +53,175 @@ model TimerState {
   @@map("timer_state")
 }
 
-model Config {
-  id             String   @id @default(cuid())
-  userId         String   @unique
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  timer          Json     // Timer config object
-  timerStyles    Json     // Timer CSS values
-  taskStyles     Json     // Task list CSS values
-  commandAliases Json     @default("{}")
-  updatedAt      DateTime @updatedAt
+// ── Timer Config ─────────────────────────────────────────────────────────────
+// Timer durations, cycles, behavior flags, and phase labels
+model TimerConfig {
+  id                String  @id @default(cuid())
+  userId            String  @unique
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Durations (milliseconds)
+  workDuration      Int     @default(1500000)  @map("work_duration")       // 25 min
+  breakDuration     Int     @default(300000)   @map("break_duration")      // 5 min
+  longBreakDuration Int     @default(900000)   @map("long_break_duration") // 15 min
+  longBreakInterval Int     @default(4)        @map("long_break_interval")
+  startingDuration  Int     @default(5000)     @map("starting_duration")
+  defaultCycles     Int     @default(4)        @map("default_cycles")
+
+  // Behavior
+  showHours         Boolean @default(false) @map("show_hours")
+  noLastBreak       Boolean @default(true)  @map("no_last_break")
+
+  // Phase labels (shown on timer overlay)
+  labelIdle         String  @default("Ready")      @map("label_idle")
+  labelStarting     String  @default("Starting")   @map("label_starting")
+  labelWork         String  @default("Focus")      @map("label_work")
+  labelBreak        String  @default("Break")      @map("label_break")
+  labelLongBreak    String  @default("Long Break") @map("label_long_break")
+  labelPaused       String  @default("Paused")     @map("label_paused")
+  labelFinished     String  @default("Done")       @map("label_finished")
+
+  @@map("timer_config")
+}
+
+// ── Timer Style ──────────────────────────────────────────────────────────────
+// Timer overlay appearance — dimensions, ring, colors, fonts
+model TimerStyle {
+  id                String  @id @default(cuid())
+  userId            String  @unique
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Dimensions
+  width             String  @default("250px")
+  height            String  @default("250px")
+
+  // Background
+  bgColor           String  @default("#1c1c1e")  @map("bg_color")
+  bgOpacity         Float   @default(0.85)       @map("bg_opacity")
+  bgBorderRadius    String  @default("22%")      @map("bg_border_radius")
+
+  // Progress ring
+  ringEnabled       Boolean @default(true)       @map("ring_enabled")
+  ringTrackColor    String  @default("#ffffff")  @map("ring_track_color")
+  ringTrackOpacity  Float   @default(0.1)        @map("ring_track_opacity")
+  ringFillColor     String  @default("#34c759")  @map("ring_fill_color")
+  ringFillOpacity   Float   @default(1.0)        @map("ring_fill_opacity")
+  ringWidth         Int     @default(8)          @map("ring_width")
+  ringGap           Int     @default(6)          @map("ring_gap")
+
+  // Text
+  textColor         String  @default("#ffffff")     @map("text_color")
+  textOutlineColor  String  @default("#000000")     @map("text_outline_color")
+  textOutlineSize   String  @default("0px")         @map("text_outline_size")
+  textFontFamily    String  @default("Montserrat")  @map("text_font_family")
+
+  // Font sizes
+  fontSizeLabel     String  @default("18px")  @map("font_size_label")
+  fontSizeTime      String  @default("48px")  @map("font_size_time")
+  fontSizeCycle     String  @default("16px")  @map("font_size_cycle")
+
+  @@map("timer_style")
+}
+
+// ── Task Style ───────────────────────────────────────────────────────────────
+// Task list overlay appearance — header, body, items, checkboxes
+model TaskStyle {
+  id                     String  @id @default(cuid())
+  userId                 String  @unique
+  user                   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Display
+  displayShowDone        Boolean @default(true)   @map("display_show_done")
+  displayShowCount       Boolean @default(true)   @map("display_show_count")
+  displayUseCheckboxes   Boolean @default(true)   @map("display_use_checkboxes")
+  displayCrossOnDone     Boolean @default(true)   @map("display_cross_on_done")
+  displayNumberOfLines   Int     @default(2)      @map("display_number_of_lines")
+
+  // Fonts
+  fontHeader             String  @default("Montserrat") @map("font_header")
+  fontBody               String  @default("Roboto")     @map("font_body")
+
+  // Scroll
+  scrollEnabled          Boolean @default(true)  @map("scroll_enabled")
+  scrollPixelsPerSecond  Int     @default(70)    @map("scroll_pixels_per_second")
+  scrollGapBetweenLoops  Int     @default(100)   @map("scroll_gap_between_loops")
+
+  // Header
+  headerHeight           String  @default("52px")              @map("header_height")
+  headerBgColor          String  @default("#1c1c1e")           @map("header_bg_color")
+  headerBgOpacity        Float   @default(0.95)                @map("header_bg_opacity")
+  headerBorderColor      String  @default("#3a3a3c")           @map("header_border_color")
+  headerBorderWidth      String  @default("1px")               @map("header_border_width")
+  headerBorderRadius     String  @default("12px 12px 0 0")     @map("header_border_radius")
+  headerFontSize         String  @default("24px")              @map("header_font_size")
+  headerFontColor        String  @default("#ffffff")           @map("header_font_color")
+  headerPadding          String  @default("12px 16px")         @map("header_padding")
+
+  // Body
+  bodyBgColor            String  @default("#1c1c1e")           @map("body_bg_color")
+  bodyBgOpacity          Float   @default(0.85)                @map("body_bg_opacity")
+  bodyBorderColor        String  @default("#3a3a3c")           @map("body_border_color")
+  bodyBorderWidth        String  @default("1px")               @map("body_border_width")
+  bodyBorderRadius       String  @default("0 0 12px 12px")     @map("body_border_radius")
+  bodyPaddingVertical    String  @default("6px")               @map("body_padding_vertical")
+  bodyPaddingHorizontal  String  @default("6px")               @map("body_padding_horizontal")
+
+  // Task item
+  taskBgColor            String  @default("#2c2c2e")           @map("task_bg_color")
+  taskBgOpacity          Float   @default(0.9)                 @map("task_bg_opacity")
+  taskBorderColor        String  @default("#3a3a3c")           @map("task_border_color")
+  taskBorderWidth        String  @default("0px")               @map("task_border_width")
+  taskBorderRadius       String  @default("10px")              @map("task_border_radius")
+  taskFontSize           String  @default("22px")              @map("task_font_size")
+  taskFontColor          String  @default("#f5f5f7")           @map("task_font_color")
+  taskUsernameColor      String  @default("#bf5af2")           @map("task_username_color")
+  taskPadding            String  @default("10px 14px")         @map("task_padding")
+  taskMarginBottom       String  @default("4px")               @map("task_margin_bottom")
+  taskMaxWidth           String  @default("100%")              @map("task_max_width")
+
+  // Task done state
+  taskDoneBgColor        String  @default("#1c1c1e")           @map("task_done_bg_color")
+  taskDoneBgOpacity      Float   @default(0.5)                 @map("task_done_bg_opacity")
+  taskDoneFontColor      String  @default("#8e8e93")           @map("task_done_font_color")
+
+  // Checkbox
+  checkboxSize           String  @default("20px")              @map("checkbox_size")
+  checkboxBgColor        String  @default("#000000")           @map("checkbox_bg_color")
+  checkboxBgOpacity      Float   @default(0)                   @map("checkbox_bg_opacity")
+  checkboxBorderColor    String  @default("#636366")           @map("checkbox_border_color")
+  checkboxBorderWidth    String  @default("2px")               @map("checkbox_border_width")
+  checkboxBorderRadius   String  @default("6px")               @map("checkbox_border_radius")
+  checkboxMarginTop      String  @default("4px")               @map("checkbox_margin_top")
+  checkboxMarginLeft     String  @default("2px")               @map("checkbox_margin_left")
+  checkboxMarginRight    String  @default("8px")               @map("checkbox_margin_right")
+  checkboxTickChar       String  @default("\u2714")            @map("checkbox_tick_char")
+  checkboxTickSize       String  @default("14px")              @map("checkbox_tick_size")
+  checkboxTickColor      String  @default("#34c759")           @map("checkbox_tick_color")
+
+  // Bullet
+  bulletChar             String  @default("\u2022")            @map("bullet_char")
+  bulletSize             String  @default("20px")              @map("bullet_size")
+  bulletColor            String  @default("#8e8e93")           @map("bullet_color")
+  bulletMarginTop        String  @default("0px")               @map("bullet_margin_top")
+  bulletMarginLeft       String  @default("2px")               @map("bullet_margin_left")
+  bulletMarginRight      String  @default("8px")               @map("bullet_margin_right")
+
+  @@map("task_style")
+}
+
+// ── Bot Config ───────────────────────────────────────────────────────────────
+// Bot toggles, messages, and command aliases
+model BotConfig {
+  id                   String  @id @default(cuid())
+  userId               String  @unique
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Command toggles
   taskCommandsEnabled  Boolean @default(true)  @map("task_commands_enabled")
   timerCommandsEnabled Boolean @default(true)  @map("timer_commands_enabled")
+
+  // Command aliases (dynamic user-defined map — stays as Json)
+  commandAliases       Json    @default("{}") @map("command_aliases")
 
   // Task messages
   msgTaskAdded        String @default("Awooo! The task \"{task}\" has been added to the pack, {user}!")        @map("msg_task_added")
@@ -103,14 +259,5 @@ model Config {
   msgAlreadyStarting  String @default("The pack is already moving or the timer is running!")                  @map("msg_already_starting")
   msgEta              String @default("The hunt will end at {time}")                                          @map("msg_eta")
 
-  // Phase labels (shown on timer overlay)
-  labelIdle      String @default("Ready")      @map("label_idle")
-  labelStarting  String @default("Starting")   @map("label_starting")
-  labelWork      String @default("Focus")      @map("label_work")
-  labelBreak     String @default("Break")      @map("label_break")
-  labelLongBreak String @default("Long Break") @map("label_long_break")
-  labelPaused    String @default("Paused")     @map("label_paused")
-  labelFinished  String @default("Done")       @map("label_finished")
-
-  @@map("config")
+  @@map("bot_config")
 }
