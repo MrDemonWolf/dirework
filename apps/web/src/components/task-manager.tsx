@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Trash2, X } from "lucide-react";
+import { Check, ListTodo, Trash2 } from "lucide-react";
 
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/utils/trpc";
@@ -92,9 +93,16 @@ export function TaskManager({
 
       {/* Stats + bulk actions */}
       <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
-          {pendingCount} pending, {doneCount} done
-        </p>
+        <div className="flex items-center gap-2">
+          <span className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+            {pendingCount} pending
+          </span>
+          {doneCount > 0 && (
+            <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs text-primary">
+              {doneCount} done
+            </span>
+          )}
+        </div>
         <div className="flex gap-1">
           {doneCount > 0 && (
             <Button
@@ -122,50 +130,72 @@ export function TaskManager({
       {/* Task list */}
       <div className="space-y-1">
         {taskList.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">
-            No tasks yet. Add one above or use !task in chat.
-          </p>
+          <div className="flex flex-col items-center gap-3 py-8">
+            <div className="rounded-full bg-muted p-3">
+              <ListTodo className="size-6 text-muted-foreground" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-medium">No tasks yet</p>
+              <p className="text-xs text-muted-foreground">
+                Add one above or use <code className="rounded bg-muted px-1">!task</code> in chat
+              </p>
+            </div>
+          </div>
         ) : (
           taskList.map((task) => {
             const isDone = task.status === "done";
             return (
               <div
                 key={task.id}
-                className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/50"
+                className={cn(
+                  "group flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-muted/50",
+                  isDone && "opacity-60",
+                )}
               >
-                <span
-                  className="text-xs font-medium"
-                  style={{ color: task.authorColor || undefined }}
-                >
-                  {task.authorDisplayName}
-                </span>
-                <span
-                  className={`flex-1 truncate text-xs ${isDone ? "text-muted-foreground line-through" : ""}`}
-                >
-                  {task.text}
-                </span>
-                <div className="flex shrink-0 gap-0.5">
-                  {!isDone && (
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => markDone.mutate({ id: task.id })}
-                      disabled={markDone.isPending}
-                      title="Mark done"
-                    >
-                      <Check className="size-3" />
-                    </Button>
+                {/* Checkbox */}
+                <button
+                  type="button"
+                  onClick={() => !isDone && markDone.mutate({ id: task.id })}
+                  disabled={isDone || markDone.isPending}
+                  className={cn(
+                    "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                    isDone
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-muted-foreground/40 hover:border-primary",
                   )}
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => removeTask.mutate({ id: task.id })}
-                    disabled={removeTask.isPending}
-                    title="Remove"
+                >
+                  {isDone && <Check className="size-3" />}
+                </button>
+
+                {/* Content */}
+                <div className="min-w-0 flex-1">
+                  <span
+                    className="text-xs font-medium"
+                    style={{ color: task.authorColor || undefined }}
                   >
-                    <X className="size-3" />
-                  </Button>
+                    {task.authorDisplayName}
+                  </span>
+                  <p
+                    className={cn(
+                      "truncate text-sm",
+                      isDone && "text-muted-foreground line-through",
+                    )}
+                  >
+                    {task.text}
+                  </p>
                 </div>
+
+                {/* Remove button (hover reveal) */}
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => removeTask.mutate({ id: task.id })}
+                  disabled={removeTask.isPending}
+                  title="Remove"
+                  className="opacity-0 transition-opacity group-hover:opacity-100"
+                >
+                  <Trash2 className="size-3" />
+                </Button>
               </div>
             );
           })
