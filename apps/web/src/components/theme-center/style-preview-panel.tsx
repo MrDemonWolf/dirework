@@ -1,13 +1,17 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import { Pause, Play } from "lucide-react";
+
 import type { TimerStylesConfig, TaskStylesConfig } from "@/lib/config-types";
+import { Button } from "@/components/ui/button";
 import { TimerDisplay } from "@/components/timer-display";
 import { TaskListDisplay } from "@/components/task-list-display";
 
 const MOCK_DURATION = 25 * 60 * 1000; // 25 minutes
 
 // Use pausedWithRemaining to avoid hydration mismatch from Date.now()
-const mockTimerState = {
+const mockTimerStatePaused = {
   status: "work",
   targetEndTime: null,
   pausedWithRemaining: 15 * 60 * 1000, // 15 minutes remaining
@@ -45,15 +49,85 @@ export function StylePreviewPanel({
   timerStyles: TimerStylesConfig;
   taskStyles: TaskStylesConfig;
 }) {
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [remaining, setRemaining] = useState(15 * 60 * 1000);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Clean up interval on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
+
+  // Start/stop the countdown simulation
+  useEffect(() => {
+    if (timerRunning) {
+      intervalRef.current = setInterval(() => {
+        setRemaining((prev) => {
+          if (prev <= 0) {
+            // Reset to simulate looping
+            return MOCK_DURATION;
+          }
+          return prev - 100;
+        });
+      }, 100);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [timerRunning]);
+
+  const timerState = timerRunning
+    ? {
+        status: "work",
+        targetEndTime: null,
+        pausedWithRemaining: remaining,
+        currentCycle: 2,
+        totalCycles: 4,
+      }
+    : mockTimerStatePaused;
+
   return (
     <div className="flex flex-col gap-6">
       {/* Timer Preview */}
       <div>
-        <p className="mb-2 text-xs font-medium text-muted-foreground">Timer Preview</p>
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-xs font-medium text-muted-foreground">Timer Preview</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 gap-1 px-2 text-xs"
+            onClick={() => {
+              if (!timerRunning) setRemaining(15 * 60 * 1000);
+              setTimerRunning(!timerRunning);
+            }}
+          >
+            {timerRunning ? (
+              <>
+                <Pause className="size-3" />
+                Pause
+              </>
+            ) : (
+              <>
+                <Play className="size-3" />
+                Animate
+              </>
+            )}
+          </Button>
+        </div>
         <div className="flex items-center justify-center rounded-lg border border-dashed border-zinc-700 bg-zinc-900/80 p-6">
           <TimerDisplay
             config={timerPreviewConfig(timerStyles)}
-            state={mockTimerState}
+            state={timerState}
             totalDuration={MOCK_DURATION}
           />
         </div>

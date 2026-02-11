@@ -151,6 +151,14 @@ export function TaskStyleEditor({
           value={styles.header.fontColor}
           onChange={(v) => updateNested(["header", "fontColor"], v)}
         />
+        <div className="flex items-center gap-2">
+          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Padding</Label>
+          <Input
+            value={styles.header.padding}
+            onChange={(e) => updateNested(["header", "padding"], e.target.value)}
+            className="h-8 w-24 text-xs"
+          />
+        </div>
       </SectionGroup>
 
       <SectionGroup title="Body" defaultOpen={false}>
@@ -190,6 +198,22 @@ export function TaskStyleEditor({
           <Input
             value={styles.body.border.radius}
             onChange={(e) => updateNested(["body", "border", "radius"], e.target.value)}
+            className="h-8 w-24 text-xs"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Pad Vertical</Label>
+          <Input
+            value={styles.body.padding.vertical}
+            onChange={(e) => updateNested(["body", "padding", "vertical"], e.target.value)}
+            className="h-8 w-24 text-xs"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Pad Horizontal</Label>
+          <Input
+            value={styles.body.padding.horizontal}
+            onChange={(e) => updateNested(["body", "padding", "horizontal"], e.target.value)}
             className="h-8 w-24 text-xs"
           />
         </div>
@@ -261,6 +285,14 @@ export function TaskStyleEditor({
             className="h-8 w-24 text-xs"
           />
         </div>
+        <div className="flex items-center gap-2">
+          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Max Width</Label>
+          <Input
+            value={styles.task.maxWidth}
+            onChange={(e) => updateNested(["task", "maxWidth"], e.target.value)}
+            className="h-8 w-24 text-xs"
+          />
+        </div>
       </SectionGroup>
 
       <SectionGroup title="Done State" defaultOpen={false}>
@@ -299,15 +331,57 @@ export function TaskStyleEditor({
           />
         </div>
         <ColorInput
+          label="Background"
+          value={styles.checkbox.background.color}
+          onChange={(v) => updateNested(["checkbox", "background", "color"], v)}
+        />
+        <div className="flex items-center gap-2">
+          <Label className="w-28 shrink-0 text-xs text-muted-foreground">BG Opacity</Label>
+          <Slider
+            value={[styles.checkbox.background.opacity * 100]}
+            onValueChange={(v) => updateNested(["checkbox", "background", "opacity"], (Array.isArray(v) ? v[0] : v) / 100)}
+            min={0}
+            max={100}
+            className="w-32"
+          />
+          <span className="w-10 text-right text-xs text-muted-foreground">
+            {Math.round(styles.checkbox.background.opacity * 100)}%
+          </span>
+        </div>
+        <ColorInput
           label="Border Color"
           value={styles.checkbox.border.color}
           onChange={(v) => updateNested(["checkbox", "border", "color"], v)}
         />
         <div className="flex items-center gap-2">
+          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Border Width</Label>
+          <Input
+            value={styles.checkbox.border.width}
+            onChange={(e) => updateNested(["checkbox", "border", "width"], e.target.value)}
+            className="h-8 w-24 text-xs"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Border Radius</Label>
+          <Input
+            value={styles.checkbox.border.radius}
+            onChange={(e) => updateNested(["checkbox", "border", "radius"], e.target.value)}
+            className="h-8 w-24 text-xs"
+          />
+        </div>
+        <div className="flex items-center gap-2">
           <Label className="w-28 shrink-0 text-xs text-muted-foreground">Tick Character</Label>
           <Input
             value={styles.checkbox.tickChar}
             onChange={(e) => updateNested(["checkbox", "tickChar"], e.target.value)}
+            className="h-8 w-24 text-xs"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Tick Size</Label>
+          <Input
+            value={styles.checkbox.tickSize}
+            onChange={(e) => updateNested(["checkbox", "tickSize"], e.target.value)}
             className="h-8 w-24 text-xs"
           />
         </div>
@@ -318,7 +392,65 @@ export function TaskStyleEditor({
         />
       </SectionGroup>
 
+      {!styles.display.useCheckboxes && (
+        <SectionGroup title="Bullet" defaultOpen={false}>
+          <div className="flex items-center gap-2">
+            <Label className="w-28 shrink-0 text-xs text-muted-foreground">Character</Label>
+            <Input
+              value={styles.bullet.char}
+              onChange={(e) => updateNested(["bullet", "char"], e.target.value)}
+              className="h-8 w-24 text-xs"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Label className="w-28 shrink-0 text-xs text-muted-foreground">Size</Label>
+            <Input
+              value={styles.bullet.size}
+              onChange={(e) => updateNested(["bullet", "size"], e.target.value)}
+              className="h-8 w-24 text-xs"
+            />
+          </div>
+          <ColorInput
+            label="Color"
+            value={styles.bullet.color}
+            onChange={(v) => updateNested(["bullet", "color"], v)}
+          />
+          <div className="flex items-center gap-2">
+            <Label className="w-28 shrink-0 text-xs text-muted-foreground">Margin Top</Label>
+            <Input
+              value={styles.bullet.margin.top}
+              onChange={(e) => updateNested(["bullet", "margin", "top"], e.target.value)}
+              className="h-8 w-24 text-xs"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Label className="w-28 shrink-0 text-xs text-muted-foreground">Margin Left</Label>
+            <Input
+              value={styles.bullet.margin.left}
+              onChange={(e) => updateNested(["bullet", "margin", "left"], e.target.value)}
+              className="h-8 w-24 text-xs"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Label className="w-28 shrink-0 text-xs text-muted-foreground">Margin Right</Label>
+            <Input
+              value={styles.bullet.margin.right}
+              onChange={(e) => updateNested(["bullet", "margin", "right"], e.target.value)}
+              className="h-8 w-24 text-xs"
+            />
+          </div>
+        </SectionGroup>
+      )}
+
       <SectionGroup title="Scroll" defaultOpen={false}>
+        <div className="flex items-center justify-between">
+          <Label className="text-xs text-muted-foreground">Enabled</Label>
+          <Switch
+            checked={styles.scroll.enabled}
+            onCheckedChange={(v) => updateNested(["scroll", "enabled"], v)}
+            size="sm"
+          />
+        </div>
         <div className="flex items-center gap-2">
           <Label className="w-28 shrink-0 text-xs text-muted-foreground">Speed (px/s)</Label>
           <Slider
@@ -327,6 +459,7 @@ export function TaskStyleEditor({
             min={0}
             max={200}
             className="w-32"
+            disabled={!styles.scroll.enabled}
           />
           <span className="w-10 text-right text-xs text-muted-foreground">
             {styles.scroll.pixelsPerSecond}
@@ -340,6 +473,7 @@ export function TaskStyleEditor({
             min={0}
             max={300}
             className="w-32"
+            disabled={!styles.scroll.enabled}
           />
           <span className="w-10 text-right text-xs text-muted-foreground">
             {styles.scroll.gapBetweenLoops}

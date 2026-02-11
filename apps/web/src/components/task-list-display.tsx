@@ -11,7 +11,7 @@ interface TaskStylesConfig {
     numberOfLines: number;
   };
   fonts: { header: string; body: string };
-  scroll: { pixelsPerSecond: number; gapBetweenLoops: number };
+  scroll: { enabled: boolean; pixelsPerSecond: number; gapBetweenLoops: number };
   header: {
     height: string;
     background: { color: string; opacity: number };
@@ -34,7 +34,6 @@ interface TaskStylesConfig {
     padding: string;
     marginBottom: string;
     maxWidth: string;
-    direction: string;
   };
   taskDone: {
     background: { color: string; opacity: number };
@@ -410,7 +409,7 @@ export function TaskListDisplay({
           >
             <p style={{ fontSize: config.task.fontSize }}>No tasks yet</p>
           </div>
-        ) : (
+        ) : config.scroll.enabled ? (
           <InfiniteScroll
             pixelsPerSecond={config.scroll.pixelsPerSecond}
             gapBetweenLoops={config.scroll.gapBetweenLoops}
@@ -419,6 +418,12 @@ export function TaskListDisplay({
               <AuthorGroup key={group.authorKey} group={group} config={config} />
             ))}
           </InfiniteScroll>
+        ) : (
+          <div className="flex-1 overflow-y-auto">
+            {groups.map((group) => (
+              <AuthorGroup key={group.authorKey} group={group} config={config} />
+            ))}
+          </div>
         )}
       </div>
     </div>
