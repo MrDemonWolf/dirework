@@ -9,10 +9,8 @@ import { toast } from "sonner";
 import type {
   TaskMessagesConfig,
   TimerMessagesConfig,
-  PhaseLabelsConfig,
   CommandAliasesConfig,
 } from "@/lib/config-types";
-import { extractTaskMessages, extractTimerMessages, extractPhaseLabels } from "@/lib/config-types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +26,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { TaskMessageEditor, TimerMessageEditor } from "@/components/bot-settings/message-editor";
 import { CommandAliasEditor } from "@/components/bot-settings/command-alias-editor";
-import { PhaseLabelsEditor } from "@/components/bot-settings/phase-labels-editor";
 import { TaskVariableReference, TimerVariableReference } from "@/components/bot-settings/variable-reference";
 import { trpc } from "@/utils/trpc";
 
@@ -70,50 +67,38 @@ const defaultTimerMessages: TimerMessagesConfig = {
   eta: "The hunt will end at {time}",
 };
 
-const defaultPhaseLabels: PhaseLabelsConfig = {
-  idle: "Ready",
-  starting: "Starting",
-  work: "Focus",
-  break: "Break",
-  longBreak: "Long Break",
-  paused: "Paused",
-  finished: "Done",
-};
-
 const defaultCommandAliases: CommandAliasesConfig = {};
 
 function BotSettingsSkeleton() {
   return (
-    <div className="container mx-auto max-w-2xl px-4 py-8">
+    <div className="container mx-auto max-w-5xl px-4 py-8">
       <div className="mb-6 space-y-2">
         <Skeleton className="h-7 w-36" />
         <Skeleton className="h-4 w-72" />
       </div>
-      <div className="space-y-6">
-        {/* Bot account card skeleton */}
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-5 w-28" />
-            <Skeleton className="h-4 w-56" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-8 w-40" />
-          </CardContent>
-        </Card>
-        <Separator />
-        {/* Section skeletons */}
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Skeleton className="h-5 w-32" />
-                <Skeleton className="h-3 w-48" />
-              </div>
-              <Skeleton className="h-5 w-10" />
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <div className="w-full space-y-6 lg:w-80 lg:shrink-0">
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-5 w-28" />
+              <Skeleton className="h-4 w-56" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-8 w-40" />
+            </CardContent>
+          </Card>
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+        <div className="min-w-0 flex-1 space-y-6">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="space-y-3">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-24 w-full" />
             </div>
-            <Skeleton className="h-24 w-full" />
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -143,7 +128,6 @@ export default function BotSettingsPage() {
   const [timerCommandsEnabled, setTimerCommandsEnabled] = useState(true);
   const [taskMessages, setTaskMessages] = useState<TaskMessagesConfig>(defaultTaskMessages);
   const [timerMessages, setTimerMessages] = useState<TimerMessagesConfig>(defaultTimerMessages);
-  const [phaseLabels, setPhaseLabels] = useState<PhaseLabelsConfig>(defaultPhaseLabels);
   const [commandAliases, setCommandAliases] = useState<CommandAliasesConfig>(defaultCommandAliases);
   const [hasUnsaved, setHasUnsaved] = useState(false);
 
@@ -152,30 +136,27 @@ export default function BotSettingsPage() {
   const [savedTimerCommandsEnabled, setSavedTimerCommandsEnabled] = useState(true);
   const [savedTaskMessages, setSavedTaskMessages] = useState<TaskMessagesConfig>(defaultTaskMessages);
   const [savedTimerMessages, setSavedTimerMessages] = useState<TimerMessagesConfig>(defaultTimerMessages);
-  const [savedPhaseLabels, setSavedPhaseLabels] = useState<PhaseLabelsConfig>(defaultPhaseLabels);
   const [savedCommandAliases, setSavedCommandAliases] = useState<CommandAliasesConfig>(defaultCommandAliases);
 
-  // Once config loads, extract values from DB columns
+  // Once config loads, extract values from the pre-built nested objects
   useEffect(() => {
     if (config.data) {
-      const data = config.data;
-      const tMsgs = extractTaskMessages(data);
-      const tmMsgs = extractTimerMessages(data);
-      const labels = extractPhaseLabels(data);
-      const aliases = (data.commandAliases ?? {}) as CommandAliasesConfig;
+      const bot = config.data.botConfig;
 
-      setTaskCommandsEnabled(data.taskCommandsEnabled);
-      setTimerCommandsEnabled(data.timerCommandsEnabled);
+      const tMsgs = bot?.task ?? defaultTaskMessages;
+      const tmMsgs = bot?.timer ?? defaultTimerMessages;
+      const aliases = (bot?.commandAliases ?? {}) as CommandAliasesConfig;
+
+      setTaskCommandsEnabled(bot?.taskCommandsEnabled ?? true);
+      setTimerCommandsEnabled(bot?.timerCommandsEnabled ?? true);
       setTaskMessages(tMsgs);
       setTimerMessages(tmMsgs);
-      setPhaseLabels(labels);
       setCommandAliases(aliases);
 
-      setSavedTaskCommandsEnabled(data.taskCommandsEnabled);
-      setSavedTimerCommandsEnabled(data.timerCommandsEnabled);
+      setSavedTaskCommandsEnabled(bot?.taskCommandsEnabled ?? true);
+      setSavedTimerCommandsEnabled(bot?.timerCommandsEnabled ?? true);
       setSavedTaskMessages(tMsgs);
       setSavedTimerMessages(tmMsgs);
-      setSavedPhaseLabels(labels);
       setSavedCommandAliases(aliases);
     }
   }, [config.data]);
@@ -195,13 +176,6 @@ export default function BotSettingsPage() {
     },
   });
 
-  const updatePhaseLabelsMutation = useMutation({
-    ...trpc.config.updatePhaseLabels.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
-    },
-  });
-
   const updateAliasesMutation = useMutation({
     ...trpc.config.updateCommandAliases.mutationOptions(),
     onSuccess: () => {
@@ -211,7 +185,6 @@ export default function BotSettingsPage() {
 
   const isSaving =
     updateMessagesMutation.isPending ||
-    updatePhaseLabelsMutation.isPending ||
     updateAliasesMutation.isPending;
 
   const markUnsaved = useCallback(() => setHasUnsaved(true), []);
@@ -226,11 +199,6 @@ export default function BotSettingsPage() {
     setHasUnsaved(true);
   }, []);
 
-  const handlePhaseLabelsChange = useCallback((newLabels: PhaseLabelsConfig) => {
-    setPhaseLabels(newLabels);
-    setHasUnsaved(true);
-  }, []);
-
   const handleAliasesChange = useCallback((newAliases: CommandAliasesConfig) => {
     setCommandAliases(newAliases);
     setHasUnsaved(true);
@@ -241,7 +209,6 @@ export default function BotSettingsPage() {
     setTimerCommandsEnabled(savedTimerCommandsEnabled);
     setTaskMessages(savedTaskMessages);
     setTimerMessages(savedTimerMessages);
-    setPhaseLabels(savedPhaseLabels);
     setCommandAliases(savedCommandAliases);
     setHasUnsaved(false);
   }, [
@@ -249,7 +216,6 @@ export default function BotSettingsPage() {
     savedTimerCommandsEnabled,
     savedTaskMessages,
     savedTimerMessages,
-    savedPhaseLabels,
     savedCommandAliases,
   ]);
 
@@ -261,7 +227,6 @@ export default function BotSettingsPage() {
         task: taskMessages,
         timer: timerMessages,
       });
-      await updatePhaseLabelsMutation.mutateAsync(phaseLabels);
       await updateAliasesMutation.mutateAsync({
         commandAliases: commandAliases,
       });
@@ -270,7 +235,6 @@ export default function BotSettingsPage() {
       setSavedTimerCommandsEnabled(timerCommandsEnabled);
       setSavedTaskMessages(taskMessages);
       setSavedTimerMessages(timerMessages);
-      setSavedPhaseLabels(phaseLabels);
       setSavedCommandAliases(commandAliases);
       setHasUnsaved(false);
       toast.success("Bot settings saved successfully");
@@ -282,10 +246,8 @@ export default function BotSettingsPage() {
     timerCommandsEnabled,
     taskMessages,
     timerMessages,
-    phaseLabels,
     commandAliases,
     updateMessagesMutation,
-    updatePhaseLabelsMutation,
     updateAliasesMutation,
   ]);
 
@@ -294,145 +256,158 @@ export default function BotSettingsPage() {
   }
 
   return (
-    <div className={cn("container mx-auto max-w-2xl px-4 py-8", hasUnsaved && "pb-24")}>
+    <div className={cn("container mx-auto max-w-5xl px-4 py-8", hasUnsaved && "pb-24")}>
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Bot Settings</h1>
         <p className="text-sm text-muted-foreground">
-          Configure your bot account, response messages, phase labels, and command aliases
+          Configure your bot account, response messages, and command aliases
         </p>
       </div>
 
-      <div className="space-y-6">
-        {/* Bot Account */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Bot Account</CardTitle>
-            <CardDescription>Connect a Twitch bot for chat commands</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {user.data?.botAccount ? (
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm">
-                    Connected as{" "}
-                    <span className="font-medium">
-                      {user.data.botAccount.displayName}
-                    </span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Scopes: {user.data.botAccount.scopes.join(", ")}
-                  </p>
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        {/* Left column — sidebar with controls */}
+        <div className="w-full space-y-6 lg:sticky lg:top-20 lg:w-80 lg:shrink-0">
+          {/* Bot Account */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Bot Account</CardTitle>
+              <CardDescription>Connect a Twitch bot for chat commands</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {user.data?.botAccount ? (
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm">
+                      Connected as{" "}
+                      <span className="font-medium">
+                        {user.data.botAccount.displayName}
+                      </span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Scopes: {user.data.botAccount.scopes.join(", ")}
+                    </p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => disconnectBot.mutate()}
+                    disabled={disconnectBot.isPending}
+                  >
+                    <Unplug className="size-3" />
+                    Disconnect
+                  </Button>
                 </div>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => disconnectBot.mutate()}
-                  disabled={disconnectBot.isPending}
-                >
-                  <Unplug className="size-3" />
-                  Disconnect
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  No bot account connected.
-                </p>
-                <a
-                  href="/api/bot/authorize"
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#9146FF] px-3 text-xs font-medium text-white hover:bg-[#7c3ae6]"
-                >
-                  Connect Bot Account
-                </a>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    No bot account connected.
+                  </p>
+                  <a
+                    href="/api/bot/authorize"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#9146FF] px-3 text-xs font-medium text-white hover:bg-[#7c3ae6]"
+                  >
+                    Connect Bot Account
+                  </a>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-        <Separator />
+          {/* Task Commands Toggle */}
+          <Card>
+            <CardContent className="flex items-center justify-between py-4">
+              <div>
+                <h2 className="text-sm font-semibold">Task Commands</h2>
+                <p className="text-xs text-muted-foreground">Chat task commands</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="task-commands-toggle" className="text-xs">
+                  {taskCommandsEnabled ? "On" : "Off"}
+                </Label>
+                <Switch
+                  id="task-commands-toggle"
+                  checked={taskCommandsEnabled}
+                  onCheckedChange={(checked) => {
+                    setTaskCommandsEnabled(checked);
+                    markUnsaved();
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Task Commands */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold">Task Commands</h2>
-              <p className="text-xs text-muted-foreground">
-                Enable or disable task-related chat commands
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Label htmlFor="task-commands-toggle" className="text-sm">
-                {taskCommandsEnabled ? "Enabled" : "Disabled"}
-              </Label>
-              <Switch
-                id="task-commands-toggle"
-                checked={taskCommandsEnabled}
-                onCheckedChange={(checked) => {
-                  setTaskCommandsEnabled(checked);
-                  markUnsaved();
-                }}
-              />
-            </div>
-          </div>
-          <TaskVariableReference />
-          <TaskMessageEditor
-            messages={taskMessages}
-            onChange={handleTaskMessagesChange}
-            disabled={!taskCommandsEnabled}
+          {/* Timer Commands Toggle */}
+          <Card>
+            <CardContent className="flex items-center justify-between py-4">
+              <div>
+                <h2 className="text-sm font-semibold">Timer Commands</h2>
+                <p className="text-xs text-muted-foreground">Chat timer commands</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="timer-commands-toggle" className="text-xs">
+                  {timerCommandsEnabled ? "On" : "Off"}
+                </Label>
+                <Switch
+                  id="timer-commands-toggle"
+                  checked={timerCommandsEnabled}
+                  onCheckedChange={(checked) => {
+                    setTimerCommandsEnabled(checked);
+                    markUnsaved();
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Command Aliases */}
+          <CommandAliasEditor
+            aliases={commandAliases}
+            onChange={handleAliasesChange}
           />
         </div>
 
-        <Separator />
-
-        {/* Timer Commands */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
+        {/* Right column — message editors */}
+        <div className="min-w-0 flex-1 space-y-6">
+          {/* Task Messages */}
+          <div className="space-y-4">
             <div>
-              <h2 className="text-lg font-semibold">Timer Commands</h2>
+              <h2 className="text-lg font-semibold">Task Messages</h2>
               <p className="text-xs text-muted-foreground">
-                Enable or disable timer-related chat commands
+                Customize bot responses for task-related commands
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <Label htmlFor="timer-commands-toggle" className="text-sm">
-                {timerCommandsEnabled ? "Enabled" : "Disabled"}
-              </Label>
-              <Switch
-                id="timer-commands-toggle"
-                checked={timerCommandsEnabled}
-                onCheckedChange={(checked) => {
-                  setTimerCommandsEnabled(checked);
-                  markUnsaved();
-                }}
-              />
-            </div>
+            <TaskVariableReference />
+            <TaskMessageEditor
+              messages={taskMessages}
+              onChange={handleTaskMessagesChange}
+              disabled={!taskCommandsEnabled}
+            />
           </div>
-          <TimerVariableReference />
-          <TimerMessageEditor
-            messages={timerMessages}
-            onChange={handleTimerMessagesChange}
-            disabled={!timerCommandsEnabled}
-          />
+
+          <Separator />
+
+          {/* Timer Messages */}
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">Timer Messages</h2>
+              <p className="text-xs text-muted-foreground">
+                Customize bot responses for timer-related commands
+              </p>
+            </div>
+            <TimerVariableReference />
+            <TimerMessageEditor
+              messages={timerMessages}
+              onChange={handleTimerMessagesChange}
+              disabled={!timerCommandsEnabled}
+            />
+          </div>
         </div>
-
-        <Separator />
-
-        {/* Phase Labels */}
-        <PhaseLabelsEditor labels={phaseLabels} onChange={handlePhaseLabelsChange} />
-
-        <Separator />
-
-        {/* Command Aliases */}
-        <CommandAliasEditor
-          aliases={commandAliases}
-          onChange={handleAliasesChange}
-        />
       </div>
 
       {/* Sticky Save / Reset Bar */}
       {hasUnsaved && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/80 backdrop-blur-2xl">
-          <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
+          <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
             <p className="text-sm text-muted-foreground">You have unsaved changes</p>
             <div className="flex items-center gap-2">
               <Button
