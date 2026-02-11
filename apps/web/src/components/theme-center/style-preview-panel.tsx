@@ -25,10 +25,12 @@ function timerPreviewConfig(styles: TimerStylesConfig) {
   return {
     ...styles,
     labels: {
+      idle: "Ready",
+      starting: "Starting",
       work: "Focus",
       break: "Break",
       longBreak: "Long Break",
-      starting: "Starting",
+      paused: "Paused",
       finished: "Done",
     },
     showHours: false,

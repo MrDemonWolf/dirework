@@ -26,6 +26,7 @@ packages/config    → Shared TypeScript configuration
 pnpm dev              # Start all apps (web + docs)
 pnpm build            # Build all apps for production
 pnpm check-types      # TypeScript type checking across all packages
+pnpm test             # Run Vitest unit tests across all packages
 pnpm dev:web          # Web app only
 pnpm dev:native       # Native app only
 pnpm db:start         # Start PostgreSQL via Docker

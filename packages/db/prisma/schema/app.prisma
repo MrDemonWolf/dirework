@@ -60,9 +60,57 @@ model Config {
   timer          Json     // Timer config object
   timerStyles    Json     // Timer CSS values
   taskStyles     Json     // Task list CSS values
-  messages       Json     // Bot response messages
   commandAliases Json     @default("{}")
   updatedAt      DateTime @updatedAt
+
+  // Command toggles
+  taskCommandsEnabled  Boolean @default(true)  @map("task_commands_enabled")
+  timerCommandsEnabled Boolean @default(true)  @map("timer_commands_enabled")
+
+  // Task messages
+  msgTaskAdded        String @default("Awooo! The task \"{task}\" has been added to the pack, {user}!")        @map("msg_task_added")
+  msgNoTaskAdded      String @default("You're already on the hunt {user}, use !check to see your current task!") @map("msg_no_task_added")
+  msgNoTaskContent    String @default("Tell the pack what you're working on! Use !add [task] {user}")         @map("msg_no_task_content")
+  msgNoTaskToEdit     String @default("No task found in your den to edit {user}")                             @map("msg_no_task_to_edit")
+  msgTaskEdited       String @default("The hunt has changed! Task updated to \"{task}\" {user}")              @map("msg_task_edited")
+  msgTaskRemoved      String @default("Task \"{task}\" has been scent-wiped from the list, {user}")           @map("msg_task_removed")
+  msgTaskNext         String @default("Paws-ome work finishing '{oldTask}'! Now tracking '{newTask}', {user}!") @map("msg_task_next")
+  msgAdminDeleteTasks String @default("All of the user's tasks have been cleared from the forest.")           @map("msg_admin_delete_tasks")
+  msgTaskDone         String @default("Alpha work! You finished \"{task}\" {user}!")                          @map("msg_task_done")
+  msgTaskCheck        String @default("{user}, your current scent is on: \"{task}\"")                         @map("msg_task_check")
+  msgTaskCheckUser    String @default("{user}, {user2} is currently tracking: \"{task}\"")                    @map("msg_task_check_user")
+  msgNoTask           String @default("Looks like you aren't tracking anything in the forest right now, {user}") @map("msg_no_task")
+  msgNoTaskOther      String @default("The scent is cold... there is no task from that user {user}")          @map("msg_no_task_other")
+  msgNotMod           String @default("Grrr! Permission denied, {user}; Only pack leaders (mods) can do that.") @map("msg_not_mod")
+  msgClearedAll       String @default("The forest has been cleared of all tasks!")                             @map("msg_cleared_all")
+  msgClearedDone      String @default("All finished tasks have been cleared from the den!")                    @map("msg_cleared_done")
+  msgNextNoContent    String @default("Don't leave the pack hanging! Try !next [task] {user}")                @map("msg_next_no_content")
+  msgHelp             String @default("{user} Join the hunt with !task, !remove, !edit, or !done.")           @map("msg_help")
+
+  // Timer messages
+  msgWorkMsg          String @default("Time to hunt some code! Focus mode activated!")                        @map("msg_work")
+  msgBreakMsg         String @default("Paws up! Time for a short rest in the den.")                           @map("msg_break")
+  msgLongBreakMsg     String @default("The whole pack is taking a long snooze! Back soon!")                   @map("msg_long_break")
+  msgWorkRemindMsg    String @default("Get ready to howl at that code @{channel}, focus starts in 25 seconds!") @map("msg_work_remind")
+  msgNotRunning       String @default("The timer isn't howling yet! Start it up first.")                      @map("msg_not_running")
+  msgStreamStarting   String @default("The Blue Wolf is waking up! Stream starting!")                         @map("msg_stream_starting")
+  msgWrongCommand     String @default("My ears didn't catch that... Command not recognized!")                  @map("msg_wrong_command")
+  msgTimerRunning     String @default("The hunt is already in progress!")                                     @map("msg_timer_running")
+  msgCommandSuccess   String @default("Paw-fect! Done!")                                                      @map("msg_command_success")
+  msgCycleWrong       String @default("The cycle cannot outrun the goal!")                                    @map("msg_cycle_wrong")
+  msgGoalWrong        String @default("The goal needs to be further than the cycle!")                         @map("msg_goal_wrong")
+  msgFinishResponse   String @default("Great work today pack! We hunted well.")                               @map("msg_finish_response")
+  msgAlreadyStarting  String @default("The pack is already moving or the timer is running!")                  @map("msg_already_starting")
+  msgEta              String @default("The hunt will end at {time}")                                          @map("msg_eta")
+
+  // Phase labels (shown on timer overlay)
+  labelIdle      String @default("Ready")      @map("label_idle")
+  labelStarting  String @default("Starting")   @map("label_starting")
+  labelWork      String @default("Focus")      @map("label_work")
+  labelBreak     String @default("Break")      @map("label_break")
+  labelLongBreak String @default("Long Break") @map("label_long_break")
+  labelPaused    String @default("Paused")     @map("label_paused")
+  labelFinished  String @default("Done")       @map("label_finished")
 
   @@map("config")
 }

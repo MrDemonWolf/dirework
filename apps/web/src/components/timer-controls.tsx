@@ -32,26 +32,15 @@ function formatTime(ms: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-function statusLabel(status: string): string {
-  switch (status) {
-    case "idle":
-      return "Ready";
-    case "starting":
-      return "Starting";
-    case "work":
-      return "Focus";
-    case "break":
-      return "Break";
-    case "longBreak":
-      return "Long Break";
-    case "paused":
-      return "Paused";
-    case "finished":
-      return "Finished";
-    default:
-      return status;
-  }
-}
+const DEFAULT_LABELS: Record<string, string> = {
+  idle: "Ready",
+  starting: "Starting",
+  work: "Focus",
+  break: "Break",
+  longBreak: "Long Break",
+  paused: "Paused",
+  finished: "Finished",
+};
 
 function statusColor(status: string): string {
   switch (status) {
@@ -87,6 +76,19 @@ export function TimerControls() {
 
   const config = useQuery(trpc.config.get.queryOptions());
 
+  // Extract phase labels from config columns (fall back to defaults)
+  const configLabels: Record<string, string> = config.data
+    ? {
+        idle: config.data.labelIdle,
+        starting: config.data.labelStarting,
+        work: config.data.labelWork,
+        break: config.data.labelBreak,
+        longBreak: config.data.labelLongBreak,
+        paused: config.data.labelPaused,
+        finished: config.data.labelFinished,
+      }
+    : DEFAULT_LABELS;
+
   const updateTimerConfig = useMutation({
     ...trpc.config.updateTimer.mutationOptions(),
     onSuccess: () => {
@@ -108,7 +110,7 @@ export function TimerControls() {
     setLongBreakInterval(tc.longBreakInterval ?? DEFAULT_TIMER_CONFIG.longBreakInterval);
     setCycles(tc.defaultCycles ?? DEFAULT_TIMER_CONFIG.defaultCycles);
     setConfigLoaded(true);
-    // @ts-expect-error -- Prisma Json field causes deep type instantiation in deps
+    // @ts-expect-error -- Prisma Json fields cause deep type instantiation in dependency array
   }, [config.data, configLoaded]);
 
   const saveConfig = (overrides: Partial<typeof DEFAULT_TIMER_CONFIG>) => {
@@ -212,7 +214,7 @@ export function TimerControls() {
       <div className="order-1 flex-1">
         <div className="flex flex-col items-center gap-4">
           <p className={`text-sm font-semibold uppercase tracking-widest ${statusColor(status)}`}>
-            {statusLabel(status)}
+            {configLabels[status] ?? DEFAULT_LABELS[status] ?? status}
           </p>
           <p className="font-heading text-6xl font-bold tabular-nums tracking-tight">
             {displayTime}

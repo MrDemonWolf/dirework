@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { protectedProcedure, router } from "../index";
 
-const defaultTimerConfig = {
+export const defaultTimerConfig = {
   workDuration: 25 * 60 * 1000,
   breakDuration: 5 * 60 * 1000,
   longBreakDuration: 15 * 60 * 1000,
@@ -10,10 +10,12 @@ const defaultTimerConfig = {
   startingDuration: 5000,
   defaultCycles: 4,
   labels: {
+    idle: "Ready",
+    starting: "Starting",
     work: "Focus",
     break: "Break",
     longBreak: "Long Break",
-    starting: "Starting",
+    paused: "Paused",
     finished: "Done",
   },
   showHours: false,
@@ -91,17 +93,6 @@ const defaultTaskStyles = {
   },
 };
 
-const defaultMessages = {
-  taskAdded: "@{user}, task added!",
-  taskDone: "@{user}, task marked done!",
-  taskEdited: "@{user}, task updated!",
-  taskRemoved: "@{user}, task removed!",
-  noTasks: "@{user}, you have no tasks.",
-  timerStarted: "Timer started! {duration} minutes",
-  timerPaused: "Timer paused.",
-  timerResumed: "Timer resumed!",
-};
-
 export const configRouter = router({
   get: protectedProcedure.query(async ({ ctx }) => {
     let config = await ctx.prisma.config.findUnique({
@@ -115,7 +106,6 @@ export const configRouter = router({
           timer: defaultTimerConfig,
           timerStyles: defaultTimerStyles,
           taskStyles: defaultTaskStyles,
-          messages: defaultMessages,
           commandAliases: {},
         },
       });
@@ -152,11 +142,114 @@ export const configRouter = router({
     }),
 
   updateMessages: protectedProcedure
-    .input(z.object({ messages: z.record(z.string(), z.any()) }))
+    .input(
+      z.object({
+        taskCommandsEnabled: z.boolean(),
+        timerCommandsEnabled: z.boolean(),
+        task: z.object({
+          taskAdded: z.string(),
+          noTaskAdded: z.string(),
+          noTaskContent: z.string(),
+          noTaskToEdit: z.string(),
+          taskEdited: z.string(),
+          taskRemoved: z.string(),
+          taskNext: z.string(),
+          adminDeleteTasks: z.string(),
+          taskDone: z.string(),
+          taskCheck: z.string(),
+          taskCheckUser: z.string(),
+          noTask: z.string(),
+          noTaskOther: z.string(),
+          notMod: z.string(),
+          clearedAll: z.string(),
+          clearedDone: z.string(),
+          nextNoContent: z.string(),
+          help: z.string(),
+        }),
+        timer: z.object({
+          workMsg: z.string(),
+          breakMsg: z.string(),
+          longBreakMsg: z.string(),
+          workRemindMsg: z.string(),
+          notRunning: z.string(),
+          streamStarting: z.string(),
+          wrongCommand: z.string(),
+          timerRunning: z.string(),
+          commandSuccess: z.string(),
+          cycleWrong: z.string(),
+          goalWrong: z.string(),
+          finishResponse: z.string(),
+          alreadyStarting: z.string(),
+          eta: z.string(),
+        }),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.config.update({
         where: { userId: ctx.session.user.id },
-        data: { messages: input.messages as object },
+        data: {
+          taskCommandsEnabled: input.taskCommandsEnabled,
+          timerCommandsEnabled: input.timerCommandsEnabled,
+          msgTaskAdded: input.task.taskAdded,
+          msgNoTaskAdded: input.task.noTaskAdded,
+          msgNoTaskContent: input.task.noTaskContent,
+          msgNoTaskToEdit: input.task.noTaskToEdit,
+          msgTaskEdited: input.task.taskEdited,
+          msgTaskRemoved: input.task.taskRemoved,
+          msgTaskNext: input.task.taskNext,
+          msgAdminDeleteTasks: input.task.adminDeleteTasks,
+          msgTaskDone: input.task.taskDone,
+          msgTaskCheck: input.task.taskCheck,
+          msgTaskCheckUser: input.task.taskCheckUser,
+          msgNoTask: input.task.noTask,
+          msgNoTaskOther: input.task.noTaskOther,
+          msgNotMod: input.task.notMod,
+          msgClearedAll: input.task.clearedAll,
+          msgClearedDone: input.task.clearedDone,
+          msgNextNoContent: input.task.nextNoContent,
+          msgHelp: input.task.help,
+          msgWorkMsg: input.timer.workMsg,
+          msgBreakMsg: input.timer.breakMsg,
+          msgLongBreakMsg: input.timer.longBreakMsg,
+          msgWorkRemindMsg: input.timer.workRemindMsg,
+          msgNotRunning: input.timer.notRunning,
+          msgStreamStarting: input.timer.streamStarting,
+          msgWrongCommand: input.timer.wrongCommand,
+          msgTimerRunning: input.timer.timerRunning,
+          msgCommandSuccess: input.timer.commandSuccess,
+          msgCycleWrong: input.timer.cycleWrong,
+          msgGoalWrong: input.timer.goalWrong,
+          msgFinishResponse: input.timer.finishResponse,
+          msgAlreadyStarting: input.timer.alreadyStarting,
+          msgEta: input.timer.eta,
+        },
+      });
+    }),
+
+  updatePhaseLabels: protectedProcedure
+    .input(
+      z.object({
+        idle: z.string(),
+        starting: z.string(),
+        work: z.string(),
+        break: z.string(),
+        longBreak: z.string(),
+        paused: z.string(),
+        finished: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.config.update({
+        where: { userId: ctx.session.user.id },
+        data: {
+          labelIdle: input.idle,
+          labelStarting: input.starting,
+          labelWork: input.work,
+          labelBreak: input.break,
+          labelLongBreak: input.longBreak,
+          labelPaused: input.paused,
+          labelFinished: input.finished,
+        },
       });
     }),
 
