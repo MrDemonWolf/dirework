@@ -24,8 +24,8 @@ One streamer, one instance, zero distractions.
   dashboard before going live.
 - **Dashboard** - Control the timer, manage tasks, and preview
   overlays from one page.
-- **Bot Settings** - Dedicated page for bot account management,
-  message customization, phase labels, and command aliases.
+- **Bot Settings** - Two-column layout for bot account management,
+  message customization, and command aliases.
 - **Self-Hosted** - Own your data, deploy anywhere, single
   user per instance.
 
@@ -88,7 +88,7 @@ aliases.
 | Styling   | Tailwind CSS v4, shadcn/ui, Montserrat + Roboto    |
 | API       | tRPC v11, TanStack React Query                     |
 | Auth      | Better Auth (Twitch OAuth)                         |
-| Database  | PostgreSQL 16 + Prisma 7                           |
+| Database  | PostgreSQL 17 + Prisma 7                           |
 | Chat Bot  | Twurple (runs inside overlay browser sources)      |
 | Docs      | Fumadocs                                           |
 | Monorepo  | Turborepo + pnpm workspaces                        |
