@@ -16,9 +16,10 @@ const mockTimerState = {
 };
 
 const mockTasks = [
-  { id: "1", authorDisplayName: "StreamerWolf", authorColor: null, text: "Fix the auth flow for bot accounts", status: "pending" },
-  { id: "2", authorDisplayName: "ViewerFox", authorColor: "#ff6b35", text: "Review the PR for overlay updates", status: "pending" },
-  { id: "3", authorDisplayName: "CozyBear", authorColor: "#2dd4bf", text: "Write unit tests for timer", status: "done" },
+  { id: "1", authorTwitchId: "1001", authorDisplayName: "StreamerWolf", authorColor: null, text: "Fix the auth flow for bot accounts", status: "pending" },
+  { id: "2", authorTwitchId: "1002", authorDisplayName: "ViewerFox", authorColor: "#ff6b35", text: "Review the PR for overlay updates", status: "pending" },
+  { id: "3", authorTwitchId: "1002", authorDisplayName: "ViewerFox", authorColor: "#ff6b35", text: "Update the README docs", status: "pending" },
+  { id: "4", authorTwitchId: "1003", authorDisplayName: "CozyBear", authorColor: "#2dd4bf", text: "Write unit tests for timer", status: "done" },
 ];
 
 function timerPreviewConfig(styles: TimerStylesConfig) {
