@@ -14,30 +14,32 @@ export function DashboardSkeleton() {
       </div>
 
       <div className="grid gap-6">
-        {/* Timer hero card skeleton */}
+        {/* Timer card skeleton */}
         <Card>
           <CardHeader>
             <Skeleton className="h-5 w-16" />
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col items-center gap-4 py-4">
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-16 w-48" />
-              <Skeleton className="h-3 w-32" />
-              <Skeleton className="h-10 w-32" />
+            <div className="flex flex-col items-center gap-6 md:flex-row md:items-center">
+              <div className="flex flex-1 flex-col items-center gap-4 py-4">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-16 w-48" />
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-10 w-32" />
+              </div>
+              <Skeleton className="h-[280px] w-[280px] rounded-xl" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Two-column grid skeleton */}
-        <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-          {/* Tasks card skeleton */}
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-5 w-16" />
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
+        {/* Tasks card skeleton */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-16" />
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-6 md:flex-row md:items-start">
+              <div className="flex-1 space-y-3">
                 <Skeleton className="h-9 w-full" />
                 <Skeleton className="h-4 w-32" />
                 <div className="space-y-2">
@@ -46,28 +48,29 @@ export function DashboardSkeleton() {
                   ))}
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              <Skeleton className="h-[350px] w-[350px] rounded-lg" />
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Overlay URLs card skeleton */}
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-5 w-28" />
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-9 w-full" />
-                </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-9 w-full" />
-                </div>
+        {/* Overlay URLs card skeleton */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-28" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-9 w-full" />
               </div>
-            </CardContent>
-          </Card>
-        </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-9 w-full" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
