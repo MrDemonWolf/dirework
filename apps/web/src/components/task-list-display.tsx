@@ -59,10 +59,43 @@ interface TaskStylesConfig {
 
 interface Task {
   id: string;
+  authorTwitchId?: string;
   authorDisplayName: string;
   authorColor: string | null;
   text: string;
   status: string;
+}
+
+interface TaskGroup {
+  authorKey: string;
+  authorDisplayName: string;
+  authorColor: string | null;
+  pending: number;
+  done: number;
+  tasks: Task[];
+}
+
+function groupTasksByAuthor(tasks: Task[]): TaskGroup[] {
+  const groups = new Map<string, TaskGroup>();
+  for (const task of tasks) {
+    const key = task.authorTwitchId || task.authorDisplayName;
+    let group = groups.get(key);
+    if (!group) {
+      group = {
+        authorKey: key,
+        authorDisplayName: task.authorDisplayName,
+        authorColor: task.authorColor,
+        pending: 0,
+        done: 0,
+        tasks: [],
+      };
+      groups.set(key, group);
+    }
+    if (task.status === "done") group.done++;
+    else group.pending++;
+    group.tasks.push(task);
+  }
+  return Array.from(groups.values());
 }
 
 function toHexOpacity(opacity: number): string {
@@ -148,101 +181,72 @@ function InfiniteScroll({
 function TaskItem({
   task,
   config,
+  isLast,
 }: {
   task: Task;
   config: TaskStylesConfig;
+  isLast: boolean;
 }) {
   const isDone = task.status === "done";
-  const isRow = config.task.direction === "row";
 
   return (
     <div
-      className={`flex ${isRow ? "flex-row items-start" : "flex-col"} gap-0`}
+      className="flex flex-row items-start gap-0"
       style={{
         backgroundColor: isDone
           ? `${config.taskDone.background.color}${toHexOpacity(config.taskDone.background.opacity)}`
-          : `${config.task.background.color}${toHexOpacity(config.task.background.opacity)}`,
-        borderRadius: config.task.border.radius,
-        borderWidth: config.task.border.width,
-        borderColor: config.task.border.color,
-        borderStyle: "solid",
+          : "transparent",
         padding: config.task.padding,
-        marginBottom: config.task.marginBottom,
+        marginBottom: isLast ? "0" : "1px",
         maxWidth: config.task.maxWidth,
         opacity: isDone ? 0.6 : 1,
         transition: "opacity 300ms",
       }}
     >
-      {/* Username row with checkbox */}
-      <div className="flex flex-row items-center">
-        {/* Checkbox or bullet */}
-        {config.display.useCheckboxes ? (
-          <div
-            className="flex flex-shrink-0 items-center justify-center"
-            style={{
-              width: config.checkbox.size,
-              height: config.checkbox.size,
-              backgroundColor: `${config.checkbox.background.color}${toHexOpacity(config.checkbox.background.opacity)}`,
-              borderWidth: config.checkbox.border.width,
-              borderStyle: "solid",
-              borderColor: isDone ? config.checkbox.tickColor : config.checkbox.border.color,
-              borderRadius: config.checkbox.border.radius,
-              marginTop: config.checkbox.margin.top,
-              marginLeft: config.checkbox.margin.left,
-              marginRight: config.checkbox.margin.right,
-            }}
-          >
-            {isDone && (
-              <span
-                style={{
-                  fontSize: config.checkbox.tickSize,
-                  color: config.checkbox.tickColor,
-                  lineHeight: 1,
-                }}
-              >
-                {config.checkbox.tickChar}
-              </span>
-            )}
-          </div>
-        ) : (
-          <span
-            className="flex-shrink-0"
-            style={{
-              fontSize: config.bullet.size,
-              color: config.bullet.color,
-              marginTop: config.bullet.margin.top,
-              marginLeft: config.bullet.margin.left,
-              marginRight: config.bullet.margin.right,
-              lineHeight: 1,
-            }}
-          >
-            {config.bullet.char}
-          </span>
-        )}
-
-        {/* Username */}
-        <span
-          className="truncate font-bold"
+      {/* Checkbox or bullet */}
+      {config.display.useCheckboxes ? (
+        <div
+          className="flex flex-shrink-0 items-center justify-center"
           style={{
-            color: task.authorColor || config.task.usernameColor || "#ffffff",
-            fontSize: config.task.fontSize,
+            width: config.checkbox.size,
+            height: config.checkbox.size,
+            backgroundColor: `${config.checkbox.background.color}${toHexOpacity(config.checkbox.background.opacity)}`,
+            borderWidth: config.checkbox.border.width,
+            borderStyle: "solid",
+            borderColor: isDone ? config.checkbox.tickColor : config.checkbox.border.color,
+            borderRadius: config.checkbox.border.radius,
+            marginTop: config.checkbox.margin.top,
+            marginLeft: config.checkbox.margin.left,
+            marginRight: config.checkbox.margin.right,
           }}
         >
-          {task.authorDisplayName}
-        </span>
-
-        {/* Colon separator */}
+          {isDone && (
+            <span
+              style={{
+                fontSize: config.checkbox.tickSize,
+                color: config.checkbox.tickColor,
+                lineHeight: 1,
+              }}
+            >
+              {config.checkbox.tickChar}
+            </span>
+          )}
+        </div>
+      ) : (
         <span
-          className="mr-1.5 flex-shrink-0"
+          className="flex-shrink-0"
           style={{
-            color: config.task.fontColor,
-            fontSize: config.task.fontSize,
-            opacity: 0.6,
+            fontSize: config.bullet.size,
+            color: config.bullet.color,
+            marginTop: config.bullet.margin.top,
+            marginLeft: config.bullet.margin.left,
+            marginRight: config.bullet.margin.right,
+            lineHeight: 1,
           }}
         >
-          :
+          {config.bullet.char}
         </span>
-      </div>
+      )}
 
       {/* Task text */}
       <span
@@ -263,6 +267,72 @@ function TaskItem({
   );
 }
 
+function AuthorGroup({
+  group,
+  config,
+}: {
+  group: TaskGroup;
+  config: TaskStylesConfig;
+}) {
+  const authorColor = group.authorColor || config.task.usernameColor || "#ffffff";
+
+  return (
+    <div
+      style={{
+        backgroundColor: `${config.task.background.color}${toHexOpacity(config.task.background.opacity)}`,
+        borderRadius: config.task.border.radius,
+        borderWidth: config.task.border.width,
+        borderColor: config.task.border.color,
+        borderStyle: "solid",
+        overflow: "hidden",
+        marginBottom: config.task.marginBottom,
+        maxWidth: config.task.maxWidth,
+      }}
+    >
+      {/* Author header */}
+      <div
+        className="flex items-center justify-between"
+        style={{
+          padding: config.task.padding,
+          borderBottom: `${config.task.border.width} solid ${config.task.border.color}`,
+          backgroundColor: `${authorColor}10`,
+        }}
+      >
+        <span
+          className="truncate font-bold"
+          style={{
+            color: authorColor,
+            fontSize: config.task.fontSize,
+          }}
+        >
+          {group.authorDisplayName}
+        </span>
+        <span
+          style={{
+            color: config.task.fontColor,
+            fontSize: `calc(${config.task.fontSize} * 0.75)`,
+            opacity: 0.7,
+            whiteSpace: "nowrap",
+            marginLeft: "8px",
+          }}
+        >
+          {group.done}/{group.tasks.length}
+        </span>
+      </div>
+
+      {/* Tasks */}
+      {group.tasks.map((task, i) => (
+        <TaskItem
+          key={task.id}
+          task={task}
+          config={config}
+          isLast={i === group.tasks.length - 1}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function TaskListDisplay({
   config,
   tasks,
@@ -270,11 +340,12 @@ export function TaskListDisplay({
   config: TaskStylesConfig;
   tasks: Task[];
 }) {
+  const displayTasks = config.display.showDone
+    ? tasks
+    : tasks.filter((t) => t.status === "pending");
+  const groups = groupTasksByAuthor(displayTasks);
   const pendingTasks = tasks.filter((t) => t.status === "pending");
   const doneTasks = tasks.filter((t) => t.status === "done");
-  const displayTasks = config.display.showDone
-    ? [...pendingTasks, ...doneTasks]
-    : pendingTasks;
 
   return (
     <div
@@ -344,8 +415,8 @@ export function TaskListDisplay({
             pixelsPerSecond={config.scroll.pixelsPerSecond}
             gapBetweenLoops={config.scroll.gapBetweenLoops}
           >
-            {displayTasks.map((task) => (
-              <TaskItem key={task.id} task={task} config={config} />
+            {groups.map((group) => (
+              <AuthorGroup key={group.authorKey} group={group} config={config} />
             ))}
           </InfiniteScroll>
         )}
