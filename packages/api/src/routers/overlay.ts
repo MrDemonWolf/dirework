@@ -16,7 +16,17 @@ export const overlayRouter = router({
         ctx.prisma.timerState.findUnique({ where: { userId: user.id } }),
         ctx.prisma.config.findUnique({
           where: { userId: user.id },
-          select: { timer: true, timerStyles: true },
+          select: {
+            timer: true,
+            timerStyles: true,
+            labelIdle: true,
+            labelStarting: true,
+            labelWork: true,
+            labelBreak: true,
+            labelLongBreak: true,
+            labelPaused: true,
+            labelFinished: true,
+          },
         }),
       ]);
 

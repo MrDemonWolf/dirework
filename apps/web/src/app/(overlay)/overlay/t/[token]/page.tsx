@@ -46,13 +46,15 @@ export default function TimerOverlayPage() {
     ring: mergedStyles.ring as { enabled: boolean; trackColor: string; trackOpacity: number; fillColor: string; fillOpacity: number; width: number; gap: number },
     text: mergedStyles.text as { color: string; outlineColor: string; outlineSize: string; fontFamily: string },
     fontSizes: mergedStyles.fontSizes as { label: string; time: string; cycle: string },
-    labels: (tc.labels ?? {
-      work: "Focus",
-      break: "Break",
-      longBreak: "Long Break",
-      starting: "Starting",
-      finished: "Done",
-    }) as Record<string, string>,
+    labels: {
+      idle: (data?.config?.labelIdle as string) ?? "Ready",
+      starting: (data?.config?.labelStarting as string) ?? "Starting",
+      work: (data?.config?.labelWork as string) ?? "Focus",
+      break: (data?.config?.labelBreak as string) ?? "Break",
+      longBreak: (data?.config?.labelLongBreak as string) ?? "Long Break",
+      paused: (data?.config?.labelPaused as string) ?? "Paused",
+      finished: (data?.config?.labelFinished as string) ?? "Done",
+    } as Record<string, string>,
     showHours: (tc.showHours ?? false) as boolean,
   };
 

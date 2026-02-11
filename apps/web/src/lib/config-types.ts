@@ -74,18 +74,161 @@ export interface TaskStylesConfig {
   };
 }
 
-export interface MessagesConfig {
+export interface TaskMessagesConfig {
   taskAdded: string;
-  taskDone: string;
+  noTaskAdded: string;
+  noTaskContent: string;
+  noTaskToEdit: string;
   taskEdited: string;
   taskRemoved: string;
-  noTasks: string;
-  timerStarted: string;
-  timerPaused: string;
-  timerResumed: string;
+  taskNext: string;
+  adminDeleteTasks: string;
+  taskDone: string;
+  taskCheck: string;
+  taskCheckUser: string;
+  noTask: string;
+  noTaskOther: string;
+  notMod: string;
+  clearedAll: string;
+  clearedDone: string;
+  nextNoContent: string;
+  help: string;
+}
+
+export interface TimerMessagesConfig {
+  workMsg: string;
+  breakMsg: string;
+  longBreakMsg: string;
+  workRemindMsg: string;
+  notRunning: string;
+  streamStarting: string;
+  wrongCommand: string;
+  timerRunning: string;
+  commandSuccess: string;
+  cycleWrong: string;
+  goalWrong: string;
+  finishResponse: string;
+  alreadyStarting: string;
+  eta: string;
+}
+
+export interface MessagesConfig {
+  taskCommandsEnabled: boolean;
+  timerCommandsEnabled: boolean;
+  task: TaskMessagesConfig;
+  timer: TimerMessagesConfig;
+}
+
+export interface PhaseLabelsConfig {
+  idle: string;
+  starting: string;
+  work: string;
+  break: string;
+  longBreak: string;
+  paused: string;
+  finished: string;
 }
 
 export type CommandAliasesConfig = Record<string, string>;
+
+/** Extract grouped task messages from a flat Config row */
+export function extractTaskMessages(config: {
+  msgTaskAdded: string;
+  msgNoTaskAdded: string;
+  msgNoTaskContent: string;
+  msgNoTaskToEdit: string;
+  msgTaskEdited: string;
+  msgTaskRemoved: string;
+  msgTaskNext: string;
+  msgAdminDeleteTasks: string;
+  msgTaskDone: string;
+  msgTaskCheck: string;
+  msgTaskCheckUser: string;
+  msgNoTask: string;
+  msgNoTaskOther: string;
+  msgNotMod: string;
+  msgClearedAll: string;
+  msgClearedDone: string;
+  msgNextNoContent: string;
+  msgHelp: string;
+}): TaskMessagesConfig {
+  return {
+    taskAdded: config.msgTaskAdded,
+    noTaskAdded: config.msgNoTaskAdded,
+    noTaskContent: config.msgNoTaskContent,
+    noTaskToEdit: config.msgNoTaskToEdit,
+    taskEdited: config.msgTaskEdited,
+    taskRemoved: config.msgTaskRemoved,
+    taskNext: config.msgTaskNext,
+    adminDeleteTasks: config.msgAdminDeleteTasks,
+    taskDone: config.msgTaskDone,
+    taskCheck: config.msgTaskCheck,
+    taskCheckUser: config.msgTaskCheckUser,
+    noTask: config.msgNoTask,
+    noTaskOther: config.msgNoTaskOther,
+    notMod: config.msgNotMod,
+    clearedAll: config.msgClearedAll,
+    clearedDone: config.msgClearedDone,
+    nextNoContent: config.msgNextNoContent,
+    help: config.msgHelp,
+  };
+}
+
+/** Extract grouped timer messages from a flat Config row */
+export function extractTimerMessages(config: {
+  msgWorkMsg: string;
+  msgBreakMsg: string;
+  msgLongBreakMsg: string;
+  msgWorkRemindMsg: string;
+  msgNotRunning: string;
+  msgStreamStarting: string;
+  msgWrongCommand: string;
+  msgTimerRunning: string;
+  msgCommandSuccess: string;
+  msgCycleWrong: string;
+  msgGoalWrong: string;
+  msgFinishResponse: string;
+  msgAlreadyStarting: string;
+  msgEta: string;
+}): TimerMessagesConfig {
+  return {
+    workMsg: config.msgWorkMsg,
+    breakMsg: config.msgBreakMsg,
+    longBreakMsg: config.msgLongBreakMsg,
+    workRemindMsg: config.msgWorkRemindMsg,
+    notRunning: config.msgNotRunning,
+    streamStarting: config.msgStreamStarting,
+    wrongCommand: config.msgWrongCommand,
+    timerRunning: config.msgTimerRunning,
+    commandSuccess: config.msgCommandSuccess,
+    cycleWrong: config.msgCycleWrong,
+    goalWrong: config.msgGoalWrong,
+    finishResponse: config.msgFinishResponse,
+    alreadyStarting: config.msgAlreadyStarting,
+    eta: config.msgEta,
+  };
+}
+
+/** Extract phase labels from a flat Config row */
+export function extractPhaseLabels(config: {
+  labelIdle: string;
+  labelStarting: string;
+  labelWork: string;
+  labelBreak: string;
+  labelLongBreak: string;
+  labelPaused: string;
+  labelFinished: string;
+}): PhaseLabelsConfig {
+  return {
+    idle: config.labelIdle,
+    starting: config.labelStarting,
+    work: config.labelWork,
+    break: config.labelBreak,
+    longBreak: config.labelLongBreak,
+    paused: config.labelPaused,
+    finished: config.labelFinished,
+  };
+}
 
 export interface ThemePreset {
   id: string;

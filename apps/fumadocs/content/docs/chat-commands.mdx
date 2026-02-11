@@ -18,6 +18,7 @@ Once you've connected a [bot account](/docs/twitch-oauth#connect-a-bot-account),
 | `!remove <number>` | Remove a specific task by number |
 | `!check` | Show your current tasks |
 | `!check @user` | Show another user's tasks |
+| `!next <text>` | Complete current task and start a new one |
 
 ## Task Commands (Broadcaster / Mods)
 
@@ -46,17 +47,58 @@ Tasks created by the broadcaster (stream owner) are pinned to the top of the lis
 
 ## Bot Responses
 
-The bot responds to commands with configurable messages. Default responses include:
+All bot response messages are customizable from the **Bot Settings** page (`/dashboard/bot`). Task and timer command groups can also be individually enabled or disabled.
 
-| Event | Default Message |
+### Task Bot Responses
+
+| Message | Default | Variables |
+| --- | --- | --- |
+| Task Added | `Awooo! The task "{task}" has been added to the pack, {user}!` | `{task}`, `{user}` |
+| No Task Added | `You're already on the hunt {user}, use !check to see your current task!` | `{user}` |
+| No Task Content | `Tell the pack what you're working on! Use !add [task] {user}` | `{user}` |
+| No Task to Edit | `No task found in your den to edit {user}` | `{user}` |
+| Task Edited | `The hunt has changed! Task updated to "{task}" {user}` | `{task}`, `{user}` |
+| Task Removed | `Task "{task}" has been scent-wiped from the list, {user}` | `{task}`, `{user}` |
+| Task Next | `Paws-ome work finishing '{oldTask}'! Now tracking '{newTask}', {user}!` | `{oldTask}`, `{newTask}`, `{user}` |
+| Admin Delete Tasks | `All of the user's tasks have been cleared from the forest.` | none |
+| Task Done | `Alpha work! You finished "{task}" {user}!` | `{task}`, `{user}` |
+| Task Check | `{user}, your current scent is on: "{task}"` | `{user}`, `{task}` |
+| Task Check User | `{user}, {user2} is currently tracking: "{task}"` | `{user}`, `{user2}`, `{task}` |
+| No Task | `Looks like you aren't tracking anything in the forest right now, {user}` | `{user}` |
+| No Task (Other) | `The scent is cold... there is no task from that user {user}` | `{user}` |
+| Not Mod | `Grrr! Permission denied, {user}; Only pack leaders (mods) can do that.` | `{user}` |
+| Cleared All | `The forest has been cleared of all tasks!` | none |
+| Cleared Done | `All finished tasks have been cleared from the den!` | none |
+| Next No Content | `Don't leave the pack hanging! Try !next [task] {user}` | `{user}` |
+| Help | `{user} Join the hunt with !task, !remove, !edit, or !done.` | `{user}` |
+
+### Timer Bot Responses
+
+| Message | Default | Variables |
+| --- | --- | --- |
+| Work Started | `Time to hunt some code! Focus mode activated!` | none |
+| Break Started | `Paws up! Time for a short rest in the den.` | none |
+| Long Break Started | `The whole pack is taking a long snooze! Back soon!` | none |
+| Work Reminder | `Get ready to howl at that code @{channel}, focus starts in 25 seconds!` | `{channel}` |
+| Not Running | `The timer isn't howling yet! Start it up first.` | none |
+| Stream Starting | `The Blue Wolf is waking up! Stream starting!` | none |
+| Wrong Command | `My ears didn't catch that... Command not recognized!` | none |
+| Timer Running | `The hunt is already in progress!` | none |
+| Command Success | `Paw-fect! Done!` | none |
+| Cycle Wrong | `The cycle cannot outrun the goal!` | none |
+| Goal Wrong | `The goal needs to be further than the cycle!` | none |
+| Finish Response | `Great work today pack! We hunted well.` | none |
+| Already Starting | `The pack is already moving or the timer is running!` | none |
+| ETA | `The hunt will end at {time}` | `{time}` |
+
+### Message Variables Reference
+
+| Variable | Description |
 | --- | --- |
-| Task added | `@{user}, task added!` |
-| Task done | `@{user}, task marked done!` |
-| Task edited | `@{user}, task updated!` |
-| Task removed | `@{user}, task removed!` |
-| No tasks | `@{user}, you have no tasks.` |
-| Timer started | `Timer started! {duration} minutes` |
-| Timer paused | `Timer paused.` |
-| Timer resumed | `Timer resumed!` |
-
-These messages can be customized through the dashboard configuration.
+| `{user}` | The Twitch display name of the person who ran the command |
+| `{user2}` | The Twitch display name of the target user (e.g., `!check @other`) |
+| `{task}` | The task text content |
+| `{oldTask}` | The task that was just completed (used in `!next`) |
+| `{newTask}` | The new task now being tracked (used in `!next`) |
+| `{channel}` | The Twitch channel name, used as @mention to ping chat |
+| `{time}` | The estimated end time formatted as local clock time (e.g., `3:45 PM`) |
