@@ -15,6 +15,33 @@ interface TaskManagerProps {
   displayName: string;
 }
 
+interface TaskGroup {
+  authorTwitchId: string;
+  authorDisplayName: string;
+  authorColor: string | null;
+  tasks: Array<{ id: string; text: string; status: string; authorTwitchId: string; authorDisplayName: string; authorColor: string | null }>;
+}
+
+function groupTasksByAuthor(
+  tasks: Array<{ id: string; text: string; status: string; authorTwitchId: string; authorDisplayName: string; authorColor: string | null }>,
+): TaskGroup[] {
+  const groups = new Map<string, TaskGroup>();
+  for (const task of tasks) {
+    let group = groups.get(task.authorTwitchId);
+    if (!group) {
+      group = {
+        authorTwitchId: task.authorTwitchId,
+        authorDisplayName: task.authorDisplayName,
+        authorColor: task.authorColor,
+        tasks: [],
+      };
+      groups.set(task.authorTwitchId, group);
+    }
+    group.tasks.push(task);
+  }
+  return Array.from(groups.values());
+}
+
 export function TaskManager({
   userTwitchId,
   username,
@@ -127,8 +154,8 @@ export function TaskManager({
         </div>
       </div>
 
-      {/* Task list */}
-      <div className="space-y-1">
+      {/* Task list grouped by author */}
+      <div className="space-y-3">
         {taskList.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-8">
             <div className="rounded-full bg-muted p-3">
@@ -142,60 +169,73 @@ export function TaskManager({
             </div>
           </div>
         ) : (
-          taskList.map((task) => {
-            const isDone = task.status === "done";
+          groupTasksByAuthor(taskList).map((group) => {
+            const groupPending = group.tasks.filter((t) => t.status === "pending").length;
+            const groupDone = group.tasks.filter((t) => t.status === "done").length;
             return (
-              <div
-                key={task.id}
-                className={cn(
-                  "group flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-muted/50",
-                  isDone && "opacity-60",
-                )}
-              >
-                {/* Checkbox */}
-                <button
-                  type="button"
-                  onClick={() => !isDone && markDone.mutate({ id: task.id })}
-                  disabled={isDone || markDone.isPending}
-                  className={cn(
-                    "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                    isDone
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-muted-foreground/40 hover:border-primary",
-                  )}
-                >
-                  {isDone && <Check className="size-3" />}
-                </button>
-
-                {/* Content */}
-                <div className="min-w-0 flex-1">
+              <div key={group.authorTwitchId} className="space-y-1">
+                {/* Author header */}
+                <div className="flex items-center gap-2 px-2">
                   <span
-                    className="text-xs font-medium"
-                    style={{ color: task.authorColor || undefined }}
+                    className="text-xs font-semibold"
+                    style={{ color: group.authorColor || undefined }}
                   >
-                    {task.authorDisplayName}
+                    {group.authorDisplayName}
                   </span>
-                  <p
-                    className={cn(
-                      "truncate text-sm",
-                      isDone && "text-muted-foreground line-through",
-                    )}
-                  >
-                    {task.text}
-                  </p>
+                  <span className="text-[10px] text-muted-foreground">
+                    {groupPending} pending
+                    {groupDone > 0 && ` · ${groupDone} done`}
+                  </span>
                 </div>
+                {group.tasks.map((task) => {
+                  const isDone = task.status === "done";
+                  return (
+                    <div
+                      key={task.id}
+                      className={cn(
+                        "group flex items-center gap-3 rounded-lg px-2 py-1.5 pl-4 hover:bg-muted/50",
+                        isDone && "opacity-60",
+                      )}
+                    >
+                      {/* Checkbox */}
+                      <button
+                        type="button"
+                        onClick={() => !isDone && markDone.mutate({ id: task.id })}
+                        disabled={isDone || markDone.isPending}
+                        className={cn(
+                          "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                          isDone
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-muted-foreground/40 hover:border-primary",
+                        )}
+                      >
+                        {isDone && <Check className="size-3" />}
+                      </button>
 
-                {/* Remove button (hover reveal) */}
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => removeTask.mutate({ id: task.id })}
-                  disabled={removeTask.isPending}
-                  title="Remove"
-                  className="opacity-0 transition-opacity group-hover:opacity-100"
-                >
-                  <Trash2 className="size-3" />
-                </Button>
+                      {/* Task text */}
+                      <p
+                        className={cn(
+                          "min-w-0 flex-1 truncate text-sm",
+                          isDone && "text-muted-foreground line-through",
+                        )}
+                      >
+                        {task.text}
+                      </p>
+
+                      {/* Remove button (hover reveal) */}
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => removeTask.mutate({ id: task.id })}
+                        disabled={removeTask.isPending}
+                        title="Remove"
+                        className="opacity-0 transition-opacity group-hover:opacity-100"
+                      >
+                        <Trash2 className="size-3" />
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
             );
           })
