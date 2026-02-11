@@ -30,6 +30,7 @@ export default function TaskListOverlayPage() {
   const rawTasks = query.data?.tasks ?? [];
   const tasks = rawTasks as {
     id: string;
+    authorTwitchId: string;
     authorDisplayName: string;
     authorColor: string | null;
     text: string;
