@@ -16,7 +16,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeBrowser } from "@/components/theme-center/theme-browser";
 import { TimerStyleEditor } from "@/components/theme-center/timer-style-editor";
 import { TaskStyleEditor } from "@/components/theme-center/task-style-editor";
-import { StylePreviewPanel } from "@/components/theme-center/style-preview-panel";
 import { trpc } from "@/utils/trpc";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -57,6 +56,7 @@ function StylesSkeleton() {
 export default function StylesPage() {
   const queryClient = useQueryClient();
   const config = useQuery(trpc.config.get.queryOptions());
+  const user = useQuery(trpc.user.me.queryOptions());
 
   // Working state — what the user sees and edits
   const [timerStyles, setTimerStyles] = useState<TimerStylesConfig>(defaultTimerStyles);
@@ -201,11 +201,36 @@ export default function StylesPage() {
         </div>
 
         {/* Preview Column */}
-        <div className="flex-1">
-          <StylePreviewPanel
-            timerStyles={timerStyles}
-            taskStyles={taskStyles}
-          />
+        <div className="flex flex-1 flex-col gap-6">
+          {/* Timer Preview */}
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Timer Preview</p>
+            <div className="overflow-hidden rounded-xl border border-dashed border-border/60 bg-muted/40" style={{ width: "280px", height: "280px" }}>
+              {user.data?.overlayTimerToken ? (
+                <iframe
+                  src={`/overlay/t/${user.data.overlayTimerToken}`}
+                  className="pointer-events-none"
+                  style={{ width: "280px", height: "280px", border: "none", background: "transparent" }}
+                  title="Timer overlay preview"
+                />
+              ) : null}
+            </div>
+          </div>
+
+          {/* Task List Preview */}
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Task List Preview</p>
+            <div className="overflow-hidden rounded-lg border border-dashed border-border/60 bg-muted/40" style={{ width: "350px", height: "350px" }}>
+              {user.data?.overlayTasksToken ? (
+                <iframe
+                  src={`/overlay/l/${user.data.overlayTasksToken}`}
+                  className="pointer-events-none"
+                  style={{ width: "350px", height: "350px", border: "none", background: "transparent" }}
+                  title="Task list overlay preview"
+                />
+              ) : null}
+            </div>
+          </div>
         </div>
       </div>
 
