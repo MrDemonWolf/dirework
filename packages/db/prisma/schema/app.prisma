@@ -226,7 +226,7 @@ model BotConfig {
   // Task messages
   msgTaskAdded        String @default("Awooo! The task \"{task}\" has been added to the pack, {user}!")        @map("msg_task_added")
   msgNoTaskAdded      String @default("You're already on the hunt {user}, use !check to see your current task!") @map("msg_no_task_added")
-  msgNoTaskContent    String @default("Tell the pack what you're working on! Use !add [task] {user}")         @map("msg_no_task_content")
+  msgNoTaskContent    String @default("Tell the pack what you're working on! Use !task [task] {user}")        @map("msg_no_task_content")
   msgNoTaskToEdit     String @default("No task found in your den to edit {user}")                             @map("msg_no_task_to_edit")
   msgTaskEdited       String @default("The hunt has changed! Task updated to \"{task}\" {user}")              @map("msg_task_edited")
   msgTaskRemoved      String @default("Task \"{task}\" has been scent-wiped from the list, {user}")           @map("msg_task_removed")

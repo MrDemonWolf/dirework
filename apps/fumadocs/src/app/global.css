@@ -3,37 +3,37 @@
 
 /* macOS 26 Liquid Glass — Light */
 :root {
-  --color-fd-primary: hsl(262 83% 58%);
-  --color-fd-primary-foreground: hsl(0 0% 100%);
-  --color-fd-foreground: hsl(240 10% 4%);
-  --color-fd-muted-foreground: hsl(240 4% 46%);
-  --color-fd-border: hsl(240 6% 90%);
-  --color-fd-ring: hsl(262 83% 50%);
-  --color-fd-accent: hsl(262 30% 96%);
-  --color-fd-accent-foreground: hsl(262 50% 45%);
+  --color-fd-primary: hsl(262deg 83% 58%);
+  --color-fd-primary-foreground: hsl(0deg 0% 100%);
+  --color-fd-foreground: hsl(240deg 10% 4%);
+  --color-fd-muted-foreground: hsl(240deg 4% 46%);
+  --color-fd-border: hsl(240deg 6% 90%);
+  --color-fd-ring: hsl(262deg 83% 50%);
+  --color-fd-accent: hsl(262deg 30% 96%);
+  --color-fd-accent-foreground: hsl(262deg 50% 45%);
 }
 
 /* macOS 26 Liquid Glass — Dark */
 .dark {
-  --color-fd-background: hsl(260 15% 6%);
-  --color-fd-foreground: hsl(0 0% 98%);
-  --color-fd-muted: hsl(260 15% 9%);
-  --color-fd-card: hsl(260 15% 10%);
-  --color-fd-card-foreground: hsl(0 0% 98%);
-  --color-fd-secondary: hsl(260 15% 13%);
-  --color-fd-secondary-foreground: hsl(0 0% 98%);
-  --color-fd-muted-foreground: hsl(260 10% 72%);
-  --color-fd-primary: hsl(262 83% 65%);
-  --color-fd-primary-foreground: hsl(0 0% 100%);
-  --color-fd-ring: hsl(262 83% 55%);
-  --color-fd-overlay: hsla(260 20% 0% / 0.5);
-  --color-fd-border: hsl(260 15% 18%);
-  --color-fd-accent: hsl(260 15% 15%);
-  --color-fd-accent-foreground: hsl(0 0% 98%);
+  --color-fd-background: hsl(260deg 15% 6%);
+  --color-fd-foreground: hsl(0deg 0% 98%);
+  --color-fd-muted: hsl(260deg 15% 9%);
+  --color-fd-card: hsl(260deg 15% 10%);
+  --color-fd-card-foreground: hsl(0deg 0% 98%);
+  --color-fd-secondary: hsl(260deg 15% 13%);
+  --color-fd-secondary-foreground: hsl(0deg 0% 98%);
+  --color-fd-muted-foreground: hsl(260deg 10% 72%);
+  --color-fd-primary: hsl(262deg 83% 65%);
+  --color-fd-primary-foreground: hsl(0deg 0% 100%);
+  --color-fd-ring: hsl(262deg 83% 55%);
+  --color-fd-overlay: hsl(260deg 20% 0% / 50%);
+  --color-fd-border: hsl(260deg 15% 18%);
+  --color-fd-accent: hsl(260deg 15% 15%);
+  --color-fd-accent-foreground: hsl(0deg 0% 98%);
 
   /* Shiki code theme tokens */
   --shiki-dark: #e1e4e8;
-  --shiki-dark-bg: hsl(260 15% 5%);
+  --shiki-dark-bg: hsl(260deg 15% 5%);
 
   /* Slate fallbacks */
   --color-slate-200: #e5e7eb;

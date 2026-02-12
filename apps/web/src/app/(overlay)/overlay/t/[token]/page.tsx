@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { useSubscription } from "@trpc/tanstack-react-query";
 import { useParams } from "next/navigation";
 
@@ -33,11 +34,15 @@ export default function TimerOverlayPage() {
     enabled: true,
   });
 
-  if (status === "connecting" || status === "idle") return null;
+  const lastKnownDataRef = useRef(data);
+  if (data) lastKnownDataRef.current = data;
 
-  const timerState = data?.timerState ?? defaultTimerState;
-  const timerStyles = data?.timerStyles ?? defaultTimerStyles;
-  const timerConfig = data?.timerConfig;
+  const current = data ?? lastKnownDataRef.current;
+  if (!current && (status === "connecting" || status === "idle")) return null;
+
+  const timerState = current?.timerState ?? defaultTimerState;
+  const timerStyles = current?.timerStyles ?? defaultTimerStyles;
+  const timerConfig = current?.timerConfig;
 
   const displayConfig = {
     ...timerStyles,

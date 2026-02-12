@@ -58,7 +58,7 @@ export function StylePreviewPanel({
 
   const timerState = targetEndTime
     ? { status: "work", targetEndTime, pausedWithRemaining: null, currentCycle: 2, totalCycles: 4 }
-    : { status: "work", targetEndTime: null, pausedWithRemaining: pausedRemaining, currentCycle: 2, totalCycles: 4 };
+    : { status: "paused", targetEndTime: null, pausedWithRemaining: pausedRemaining, currentCycle: 2, totalCycles: 4 };
 
   return (
     <div className="flex flex-col gap-6">
