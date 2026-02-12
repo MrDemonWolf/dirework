@@ -19,7 +19,8 @@
     "db:start": "turbo -F @dirework/db db:start",
     "db:watch": "turbo -F @dirework/db db:watch",
     "db:stop": "turbo -F @dirework/db db:stop",
-    "db:down": "turbo -F @dirework/db db:down"
+    "db:down": "turbo -F @dirework/db db:down",
+    "test": "turbo test"
   },
   "dependencies": {
     "@dirework/env": "workspace:*",
@@ -30,10 +31,16 @@
     "@dirework/config": "workspace:*",
     "@types/node": "^22.13.14",
     "turbo": "^2.6.3",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "^4.0.18"
   },
   "packageManager": "pnpm@10.28.2",
   "pnpm": {
-    "onlyBuiltDependencies": ["prisma", "@prisma/engines", "esbuild", "sharp"]
+    "onlyBuiltDependencies": [
+      "prisma",
+      "@prisma/engines",
+      "esbuild",
+      "sharp"
+    ]
   }
 }

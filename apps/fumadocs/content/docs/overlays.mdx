@@ -51,11 +51,12 @@ The timer supports two progress ring shapes:
 
 The task list overlay shows:
 - Header with "Tasks" title and completion count
-- Scrolling list of viewer tasks with usernames in their Twitch color
+- Tasks grouped by author — each author gets a styled card with a tinted header row showing their name and done/total count
+- Individual tasks render inside their author's group container
 - Checkboxes (or bullets) for task status
 - Completed tasks with strikethrough text
 
-The task list auto-scrolls when the list overflows using a dual-container infinite scroll animation.
+When scroll is enabled, the task list auto-scrolls using a dual-container infinite scroll animation. Scroll can be disabled in the Theme Center to use standard overflow scrolling instead.
 
 ## Dashboard Preview
 
@@ -82,10 +83,10 @@ Both overlays are fully customizable through the **Theme Center** at `/dashboard
 | --- | --- |
 | **Display** | Show completed tasks, show count, use checkboxes, strikethrough on done, number of visible lines |
 | **Fonts** | Header font, body font |
-| **Scroll** | Pixels per second, gap between scroll loops |
+| **Scroll** | Enabled/disabled toggle, pixels per second, gap between scroll loops |
 | **Header** | Height, background color/opacity, border color/width/radius, font size, font color, padding |
 | **Body** | Background color/opacity, border color/width/radius, padding |
-| **Task Items** | Background color/opacity, border, font size, font color, username color, padding, margin, max width, layout direction |
+| **Task Items** | Background color/opacity, border, font size, font color, username color, padding, margin, max width |
 | **Done State** | Background color/opacity, font color |
 | **Checkboxes** | Size, background, border, margin, tick character, tick size, tick color |
 | **Bullets** | Character, size, color, margin |
@@ -114,7 +115,6 @@ The overlays render with a transparent background by default. In OBS, the browse
 
 ## Real-Time Updates
 
-- **Timer overlay** polls the server every 1 second
-- **Task list overlay** polls every 2 seconds
+Both overlays use **Server-Sent Events (SSE)** for instant updates. When you start the timer, add a task, or make any change on the dashboard, the overlay updates immediately — no polling delay.
 
-Changes made on the dashboard (starting/pausing timer, adding tasks, etc.) appear in the overlay within 1-2 seconds.
+Under the hood, overlay pages subscribe to tRPC SSE endpoints (`onTimerState` / `onTaskList`). The server pushes changes as they happen via an in-process event bus.

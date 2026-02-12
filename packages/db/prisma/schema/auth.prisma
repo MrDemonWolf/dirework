@@ -17,7 +17,10 @@ model User {
 
   botAccount    BotAccount?
   timerState    TimerState?
-  config        Config?
+  timerConfig   TimerConfig?
+  timerStyle    TimerStyle?
+  taskStyle     TaskStyle?
+  botConfig     BotConfig?
   tasks         Task[]       @relation("TaskOwner")
 
   @@unique([email])
