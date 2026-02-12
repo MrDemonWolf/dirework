@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Pause, Play } from "lucide-react";
 
 import type { TimerStylesConfig, TaskStylesConfig } from "@/lib/config-types";
@@ -10,14 +10,7 @@ import { TaskListDisplay } from "@/components/task-list-display";
 
 const MOCK_DURATION = 25 * 60 * 1000; // 25 minutes
 
-// Use pausedWithRemaining to avoid hydration mismatch from Date.now()
-const mockTimerStatePaused = {
-  status: "work",
-  targetEndTime: null,
-  pausedWithRemaining: 15 * 60 * 1000, // 15 minutes remaining
-  currentCycle: 2,
-  totalCycles: 4,
-};
+const DEFAULT_PAUSED_REMAINING = 15 * 60 * 1000; // 15 minutes
 
 const mockTasks = [
   { id: "1", authorTwitchId: "1001", authorDisplayName: "StreamerWolf", authorColor: null, text: "Fix the auth flow for bot accounts", status: "pending" },
@@ -49,52 +42,23 @@ export function StylePreviewPanel({
   timerStyles: TimerStylesConfig;
   taskStyles: TaskStylesConfig;
 }) {
-  const [timerRunning, setTimerRunning] = useState(false);
-  const [remaining, setRemaining] = useState(15 * 60 * 1000);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [targetEndTime, setTargetEndTime] = useState<string | null>(null);
+  const [pausedRemaining, setPausedRemaining] = useState(DEFAULT_PAUSED_REMAINING);
 
-  // Clean up interval on unmount
+  // Auto-reset (loop) when countdown reaches 0
   useEffect(() => {
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
+    if (!targetEndTime) return;
+    const check = setInterval(() => {
+      if (new Date(targetEndTime).getTime() <= Date.now()) {
+        setTargetEndTime(new Date(Date.now() + MOCK_DURATION).toISOString());
+      }
+    }, 1000);
+    return () => clearInterval(check);
+  }, [targetEndTime]);
 
-  // Start/stop the countdown simulation
-  useEffect(() => {
-    if (timerRunning) {
-      intervalRef.current = setInterval(() => {
-        setRemaining((prev) => {
-          if (prev <= 0) {
-            // Reset to simulate looping
-            return MOCK_DURATION;
-          }
-          return prev - 100;
-        });
-      }, 100);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    }
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [timerRunning]);
-
-  const timerState = timerRunning
-    ? {
-        status: "work",
-        targetEndTime: null,
-        pausedWithRemaining: remaining,
-        currentCycle: 2,
-        totalCycles: 4,
-      }
-    : mockTimerStatePaused;
+  const timerState = targetEndTime
+    ? { status: "work", targetEndTime, pausedWithRemaining: null, currentCycle: 2, totalCycles: 4 }
+    : { status: "work", targetEndTime: null, pausedWithRemaining: pausedRemaining, currentCycle: 2, totalCycles: 4 };
 
   return (
     <div className="flex flex-col gap-6">
@@ -107,11 +71,19 @@ export function StylePreviewPanel({
             size="sm"
             className="h-6 gap-1 px-2 text-xs"
             onClick={() => {
-              if (!timerRunning) setRemaining(15 * 60 * 1000);
-              setTimerRunning(!timerRunning);
+              if (targetEndTime) {
+                // Pause: freeze remaining time
+                const msLeft = Math.max(0, new Date(targetEndTime).getTime() - Date.now());
+                setPausedRemaining(msLeft);
+                setTargetEndTime(null);
+              } else {
+                // Start/resume: set a future end time
+                const msLeft = pausedRemaining ?? MOCK_DURATION;
+                setTargetEndTime(new Date(Date.now() + msLeft).toISOString());
+              }
             }}
           >
-            {timerRunning ? (
+            {targetEndTime ? (
               <>
                 <Pause className="size-3" />
                 Pause
