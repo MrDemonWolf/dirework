@@ -23,5 +23,21 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 30, // 30 days
     updateAge: 60 * 60 * 24, // Update session every 24 hours
   },
+  databaseHooks: {
+    session: {
+      create: {
+        after: async (session) => {
+          // Provision config rows on every login — upsert is atomic (no race conditions)
+          const userId = session.userId;
+          await Promise.all([
+            prisma.timerConfig.upsert({ where: { userId }, create: { userId }, update: {} }),
+            prisma.timerStyle.upsert({ where: { userId }, create: { userId }, update: {} }),
+            prisma.taskStyle.upsert({ where: { userId }, create: { userId }, update: {} }),
+            prisma.botConfig.upsert({ where: { userId }, create: { userId }, update: {} }),
+          ]);
+        },
+      },
+    },
+  },
   plugins: [nextCookies()],
 });

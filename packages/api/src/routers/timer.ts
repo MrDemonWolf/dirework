@@ -1,29 +1,33 @@
 import { z } from "zod";
 
 import { protectedProcedure, publicProcedure, router } from "../index";
+import { ee } from "../events";
 
-const defaultTimerConfig = {
-  workDuration: 25 * 60 * 1000,
-  breakDuration: 5 * 60 * 1000,
-  longBreakDuration: 15 * 60 * 1000,
+// Default values matching Prisma @default() values for TimerConfig
+const DEFAULTS = {
+  workDuration: 1500000,
+  breakDuration: 300000,
+  longBreakDuration: 900000,
   longBreakInterval: 4,
   startingDuration: 5000,
-  defaultCycles: 4,
   noLastBreak: true,
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyRecord = Record<string, any>;
-
-function getTimerConfig(configTimer: unknown) {
-  const tc = (configTimer ?? {}) as AnyRecord;
+function getTimerConfig(tc: {
+  workDuration: number;
+  breakDuration: number;
+  longBreakDuration: number;
+  longBreakInterval: number;
+  startingDuration: number;
+  noLastBreak: boolean;
+} | null) {
   return {
-    workDuration: (tc.workDuration as number) ?? defaultTimerConfig.workDuration,
-    breakDuration: (tc.breakDuration as number) ?? defaultTimerConfig.breakDuration,
-    longBreakDuration: (tc.longBreakDuration as number) ?? defaultTimerConfig.longBreakDuration,
-    longBreakInterval: (tc.longBreakInterval as number) ?? defaultTimerConfig.longBreakInterval,
-    startingDuration: (tc.startingDuration as number) ?? defaultTimerConfig.startingDuration,
-    noLastBreak: (tc.noLastBreak as boolean) ?? defaultTimerConfig.noLastBreak,
+    workDuration: tc?.workDuration ?? DEFAULTS.workDuration,
+    breakDuration: tc?.breakDuration ?? DEFAULTS.breakDuration,
+    longBreakDuration: tc?.longBreakDuration ?? DEFAULTS.longBreakDuration,
+    longBreakInterval: tc?.longBreakInterval ?? DEFAULTS.longBreakInterval,
+    startingDuration: tc?.startingDuration ?? DEFAULTS.startingDuration,
+    noLastBreak: tc?.noLastBreak ?? DEFAULTS.noLastBreak,
   };
 }
 
@@ -54,12 +58,12 @@ export const timerRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const config = await ctx.prisma.config.findUnique({
+      const timerConfig = await ctx.prisma.timerConfig.findUnique({
         where: { userId: ctx.session.user.id },
       });
-      const tc = getTimerConfig(config?.timer);
+      const tc = getTimerConfig(timerConfig);
 
-      return ctx.prisma.timerState.upsert({
+      const result = await ctx.prisma.timerState.upsert({
         where: { userId: ctx.session.user.id },
         update: {
           status: "starting",
@@ -77,18 +81,18 @@ export const timerRouter = router({
           totalCycles: input.totalCycles ?? 4,
         },
       });
+      ee.emit(`timerStateChange:${ctx.session.user.id}`);
+      return result;
     }),
 
   nextPhase: protectedProcedure.mutation(async ({ ctx }) => {
-    const timer = await ctx.prisma.timerState.findUnique({
-      where: { userId: ctx.session.user.id },
-    });
+    const [timer, timerConfig] = await Promise.all([
+      ctx.prisma.timerState.findUnique({ where: { userId: ctx.session.user.id } }),
+      ctx.prisma.timerConfig.findUnique({ where: { userId: ctx.session.user.id } }),
+    ]);
     if (!timer) return null;
 
-    const config = await ctx.prisma.config.findUnique({
-      where: { userId: ctx.session.user.id },
-    });
-    const tc = getTimerConfig(config?.timer);
+    const tc = getTimerConfig(timerConfig);
 
     let nextStatus: string;
     let nextDuration: number | null = null;
@@ -155,10 +159,12 @@ export const timerRouter = router({
       data.pausedWithRemaining = null;
     }
 
-    return ctx.prisma.timerState.update({
+    const result = await ctx.prisma.timerState.update({
       where: { userId: ctx.session.user.id },
       data,
     });
+    ee.emit(`timerStateChange:${ctx.session.user.id}`);
+    return result;
   }),
 
   transition: protectedProcedure
@@ -178,10 +184,12 @@ export const timerRouter = router({
         data.pausedWithRemaining = null;
       }
 
-      return ctx.prisma.timerState.update({
+      const result = await ctx.prisma.timerState.update({
         where: { userId: ctx.session.user.id },
         data,
       });
+      ee.emit(`timerStateChange:${ctx.session.user.id}`);
+      return result;
     }),
 
   pause: protectedProcedure.mutation(async ({ ctx }) => {
@@ -192,7 +200,7 @@ export const timerRouter = router({
 
     const remaining = Math.max(0, timer.targetEndTime.getTime() - Date.now());
 
-    return ctx.prisma.timerState.update({
+    const result = await ctx.prisma.timerState.update({
       where: { userId: ctx.session.user.id },
       data: {
         status: "paused",
@@ -201,6 +209,8 @@ export const timerRouter = router({
         targetEndTime: null,
       },
     });
+    ee.emit(`timerStateChange:${ctx.session.user.id}`);
+    return result;
   }),
 
   resume: protectedProcedure.mutation(async ({ ctx }) => {
@@ -211,7 +221,7 @@ export const timerRouter = router({
 
     const resumeStatus = timer.pausedFromStatus ?? "work";
 
-    return ctx.prisma.timerState.update({
+    const result = await ctx.prisma.timerState.update({
       where: { userId: ctx.session.user.id },
       data: {
         status: resumeStatus,
@@ -220,13 +230,15 @@ export const timerRouter = router({
         pausedFromStatus: null,
       },
     });
+    ee.emit(`timerStateChange:${ctx.session.user.id}`);
+    return result;
   }),
 
   skip: protectedProcedure.mutation(async ({ ctx }) => {
-    // Skip delegates to nextPhase logic — find current state, advance to next phase
-    const timer = await ctx.prisma.timerState.findUnique({
-      where: { userId: ctx.session.user.id },
-    });
+    const [timer, timerConfig] = await Promise.all([
+      ctx.prisma.timerState.findUnique({ where: { userId: ctx.session.user.id } }),
+      ctx.prisma.timerConfig.findUnique({ where: { userId: ctx.session.user.id } }),
+    ]);
     if (!timer) return null;
 
     // If paused, treat as skipping the phase we paused from
@@ -234,10 +246,7 @@ export const timerRouter = router({
       ? (timer.pausedFromStatus ?? "work")
       : timer.status;
 
-    const config = await ctx.prisma.config.findUnique({
-      where: { userId: ctx.session.user.id },
-    });
-    const tc = getTimerConfig(config?.timer);
+    const tc = getTimerConfig(timerConfig);
 
     let nextStatus: string;
     let nextDuration: number | null = null;
@@ -304,14 +313,16 @@ export const timerRouter = router({
       data.targetEndTime = null;
     }
 
-    return ctx.prisma.timerState.update({
+    const result = await ctx.prisma.timerState.update({
       where: { userId: ctx.session.user.id },
       data,
     });
+    ee.emit(`timerStateChange:${ctx.session.user.id}`);
+    return result;
   }),
 
   reset: protectedProcedure.mutation(async ({ ctx }) => {
-    return ctx.prisma.timerState.update({
+    const result = await ctx.prisma.timerState.update({
       where: { userId: ctx.session.user.id },
       data: {
         status: "idle",
@@ -322,5 +333,7 @@ export const timerRouter = router({
         totalCycles: 4,
       },
     });
+    ee.emit(`timerStateChange:${ctx.session.user.id}`);
+    return result;
   }),
 });
