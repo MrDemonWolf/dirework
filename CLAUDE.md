@@ -236,6 +236,8 @@ Defined in `packages/env/src/server.ts`. Required:
 
 Optional:
 - `ALLOWED_TWITCH_IDS` — comma-separated allowlist (empty = allow all)
+- `PRIVACY_POLICY_URL` — URL to Privacy Policy page (set to show link in footer)
+- `TERMS_OF_SERVICE_URL` — URL to Terms of Service page (set to show link in footer)
 - `NODE_ENV` — development/production/test
 - `SKIP_ENV_VALIDATION` — set to `"true"` during CI/build to skip env validation
 
@@ -243,6 +245,8 @@ Optional:
 
 Both the web app and docs site use the same footer format:
 `© {year} DireWork by MrDemonWolf, Inc.` — both names are links (no underline, font-medium, hover highlight). "DireWork" links to the GitHub repo, "MrDemonWolf, Inc." links to mrdemonwolf.com.
+
+The web app footer also conditionally shows Privacy Policy and Terms of Service links when the corresponding env vars (`PRIVACY_POLICY_URL`, `TERMS_OF_SERVICE_URL`) are set. If neither is set, the legal links row is hidden.
 
 - Web app: inline in `apps/web/src/app/(app)/layout.tsx`
 - Docs: shared `Footer` component in `apps/fumadocs/src/components/footer.tsx`, rendered from root layout

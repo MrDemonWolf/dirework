@@ -16,6 +16,10 @@ export const env = createEnv({
 
     // User allowlist (comma-separated Twitch user IDs, empty = allow all)
     ALLOWED_TWITCH_IDS: z.string().default(""),
+
+    // Legal page URLs (set to show links in footer, unset to hide)
+    PRIVACY_POLICY_URL: z.url().optional(),
+    TERMS_OF_SERVICE_URL: z.url().optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
