@@ -1,24 +1,65 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, RotateCcw, Save } from "lucide-react";
 import { toast } from "sonner";
 
-import type { TimerStylesConfig, TaskStylesConfig, ThemePreset } from "@/lib/config-types";
-import { deepMerge } from "@/lib/deep-merge";
+import type { TimerStylesConfig, TaskStylesConfig, PhaseLabelsConfig, ThemePreset } from "@/lib/config-types";
 import { defaultTimerStyles, defaultTaskStyles, themePresets } from "@/lib/theme-presets";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PhaseLabelsEditor } from "@/components/theme-center/phase-labels-editor";
 import { ThemeBrowser } from "@/components/theme-center/theme-browser";
 import { TimerStyleEditor } from "@/components/theme-center/timer-style-editor";
 import { TaskStyleEditor } from "@/components/theme-center/task-style-editor";
 import { StylePreviewPanel } from "@/components/theme-center/style-preview-panel";
 import { trpc } from "@/utils/trpc";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyRecord = Record<string, any>;
+function StylesSkeleton() {
+  return (
+    <div className="container mx-auto max-w-5xl px-4 py-8">
+      <div className="mb-6 space-y-2">
+        <Skeleton className="h-7 w-36" />
+        <Skeleton className="h-4 w-64" />
+      </div>
+      {/* Theme browser skeleton */}
+      <div className="mb-6 flex gap-3 overflow-hidden">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 w-32 shrink-0 rounded-lg" />
+        ))}
+      </div>
+      <Separator className="mb-6" />
+      {/* Two-column skeleton */}
+      <div className="flex flex-col gap-6 lg:flex-row">
+        <div className="w-full lg:w-96 lg:shrink-0">
+          <Skeleton className="mb-4 h-9 w-48" />
+          <div className="space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        </div>
+        <div className="flex-1">
+          <Skeleton className="h-[400px] w-full rounded-lg" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const defaultPhaseLabels: PhaseLabelsConfig = {
+  idle: "Ready",
+  starting: "Starting",
+  work: "Focus",
+  break: "Break",
+  longBreak: "Long Break",
+  paused: "Paused",
+  finished: "Done",
+};
 
 export default function StylesPage() {
   const queryClient = useQueryClient();
@@ -27,35 +68,35 @@ export default function StylesPage() {
   // Working state — what the user sees and edits
   const [timerStyles, setTimerStyles] = useState<TimerStylesConfig>(defaultTimerStyles);
   const [taskStyles, setTaskStyles] = useState<TaskStylesConfig>(defaultTaskStyles);
+  const [phaseLabels, setPhaseLabels] = useState<PhaseLabelsConfig>(defaultPhaseLabels);
   const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
   const [hasUnsaved, setHasUnsaved] = useState(false);
 
   // Saved state — what's persisted in the database
   const [savedTimerStyles, setSavedTimerStyles] = useState<TimerStylesConfig>(defaultTimerStyles);
   const [savedTaskStyles, setSavedTaskStyles] = useState<TaskStylesConfig>(defaultTaskStyles);
+  const [savedPhaseLabels, setSavedPhaseLabels] = useState<PhaseLabelsConfig>(defaultPhaseLabels);
 
-  // Once config loads, merge saved values with defaults
+  // Once config loads, initialize — skip on subsequent refetches
+  const initializedRef = useRef(false);
   useEffect(() => {
-    if (config.data) {
-      const configData = config.data as AnyRecord;
-      const mergedTimer = deepMerge(
-        defaultTimerStyles,
-        (configData.timerStyles as AnyRecord) ?? {},
-      ) as unknown as TimerStylesConfig;
-      const mergedTask = deepMerge(
-        defaultTaskStyles,
-        (configData.taskStyles as AnyRecord) ?? {},
-      ) as unknown as TaskStylesConfig;
+    if (!config.data) return;
+    if (initializedRef.current) return;
+    initializedRef.current = true;
 
-      setTimerStyles(mergedTimer);
-      setTaskStyles(mergedTask);
-      setSavedTimerStyles(mergedTimer);
-      setSavedTaskStyles(mergedTask);
+    const loadedTimer = config.data.timerStyles ?? defaultTimerStyles;
+    const loadedTask = config.data.taskStyles ?? defaultTaskStyles;
+    const loadedLabels = config.data.timerConfig?.labels ?? defaultPhaseLabels;
 
-      // Try to detect which preset matches the saved config
-      const matchedPreset = detectMatchingPreset(mergedTimer, mergedTask);
-      setActiveThemeId(matchedPreset);
-    }
+    setTimerStyles(loadedTimer);
+    setTaskStyles(loadedTask);
+    setPhaseLabels(loadedLabels);
+    setSavedTimerStyles(loadedTimer);
+    setSavedTaskStyles(loadedTask);
+    setSavedPhaseLabels(loadedLabels);
+
+    const matchedPreset = detectMatchingPreset(loadedTimer, loadedTask);
+    setActiveThemeId(matchedPreset);
   }, [config.data]);
 
   const updateTimerMutation = useMutation({
@@ -72,7 +113,14 @@ export default function StylesPage() {
     },
   });
 
-  const isSaving = updateTimerMutation.isPending || updateTaskMutation.isPending;
+  const updatePhaseLabelsMutation = useMutation({
+    ...trpc.config.updatePhaseLabels.mutationOptions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
+    },
+  });
+
+  const isSaving = updateTimerMutation.isPending || updateTaskMutation.isPending || updatePhaseLabelsMutation.isPending;
 
   const handleTimerChange = useCallback((newStyles: TimerStylesConfig) => {
     setTimerStyles(newStyles);
@@ -86,6 +134,11 @@ export default function StylesPage() {
     setActiveThemeId(null);
   }, []);
 
+  const handlePhaseLabelsChange = useCallback((newLabels: PhaseLabelsConfig) => {
+    setPhaseLabels(newLabels);
+    setHasUnsaved(true);
+  }, []);
+
   const handleApplyTheme = useCallback((theme: ThemePreset) => {
     setTimerStyles(theme.timerStyles);
     setTaskStyles(theme.taskStyles);
@@ -96,38 +149,35 @@ export default function StylesPage() {
   const handleReset = useCallback(() => {
     setTimerStyles(savedTimerStyles);
     setTaskStyles(savedTaskStyles);
+    setPhaseLabels(savedPhaseLabels);
     setHasUnsaved(false);
     const matchedPreset = detectMatchingPreset(savedTimerStyles, savedTaskStyles);
     setActiveThemeId(matchedPreset);
-  }, [savedTimerStyles, savedTaskStyles]);
+  }, [savedTimerStyles, savedTaskStyles, savedPhaseLabels]);
 
   const handleSave = useCallback(async () => {
     try {
-      await updateTimerMutation.mutateAsync({
-        timerStyles: timerStyles as unknown as AnyRecord,
-      });
-      await updateTaskMutation.mutateAsync({
-        taskStyles: taskStyles as unknown as AnyRecord,
-      });
+      await Promise.all([
+        updateTimerMutation.mutateAsync({ timerStyles }),
+        updateTaskMutation.mutateAsync({ taskStyles }),
+        updatePhaseLabelsMutation.mutateAsync(phaseLabels),
+      ]);
       setSavedTimerStyles(timerStyles);
       setSavedTaskStyles(taskStyles);
+      setSavedPhaseLabels(phaseLabels);
       setHasUnsaved(false);
       toast.success("Styles saved successfully");
     } catch {
       toast.error("Failed to save styles");
     }
-  }, [timerStyles, taskStyles, updateTimerMutation, updateTaskMutation]);
+  }, [timerStyles, taskStyles, phaseLabels, updateTimerMutation, updateTaskMutation, updatePhaseLabelsMutation]);
 
   if (config.isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <StylesSkeleton />;
   }
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-8">
+    <div className={cn("container mx-auto max-w-5xl px-4 py-8", hasUnsaved && "pb-24")}>
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Theme Center</h1>
         <p className="text-sm text-muted-foreground">
@@ -157,6 +207,11 @@ export default function StylesPage() {
                   styles={timerStyles}
                   onChange={handleTimerChange}
                 />
+                <Separator className="my-4" />
+                <PhaseLabelsEditor
+                  labels={phaseLabels}
+                  onChange={handlePhaseLabelsChange}
+                />
               </div>
             </TabsContent>
             <TabsContent value="tasks">
@@ -179,31 +234,37 @@ export default function StylesPage() {
         </div>
       </div>
 
-      {/* Save / Reset Bar */}
-      <Separator className="my-6" />
-      <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleReset}
-          disabled={!hasUnsaved || isSaving}
-        >
-          <RotateCcw className="mr-1.5 size-3.5" />
-          Reset
-        </Button>
-        <Button
-          size="sm"
-          onClick={handleSave}
-          disabled={!hasUnsaved || isSaving}
-        >
-          {isSaving ? (
-            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-          ) : (
-            <Save className="mr-1.5 size-3.5" />
-          )}
-          Save Changes
-        </Button>
-      </div>
+      {/* Sticky Save / Reset Bar */}
+      {hasUnsaved && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/80 backdrop-blur-2xl">
+          <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+            <p className="text-sm text-muted-foreground">You have unsaved changes</p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReset}
+                disabled={isSaving}
+              >
+                <RotateCcw className="mr-1.5 size-3.5" />
+                Reset
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSave}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                ) : (
+                  <Save className="mr-1.5 size-3.5" />
+                )}
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

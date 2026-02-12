@@ -28,7 +28,7 @@ export interface TaskStylesConfig {
     numberOfLines: number;
   };
   fonts: { header: string; body: string };
-  scroll: { pixelsPerSecond: number; gapBetweenLoops: number };
+  scroll: { enabled: boolean; pixelsPerSecond: number; gapBetweenLoops: number };
   header: {
     height: string;
     background: { color: string; opacity: number };
@@ -51,7 +51,6 @@ export interface TaskStylesConfig {
     padding: string;
     marginBottom: string;
     maxWidth: string;
-    direction: string;
   };
   taskDone: {
     background: { color: string; opacity: number };
@@ -74,18 +73,83 @@ export interface TaskStylesConfig {
   };
 }
 
-export interface MessagesConfig {
+export interface TimerConfigData {
+  workDuration: number;
+  breakDuration: number;
+  longBreakDuration: number;
+  longBreakInterval: number;
+  startingDuration: number;
+  defaultCycles: number;
+  showHours: boolean;
+  noLastBreak: boolean;
+  labels: PhaseLabelsConfig;
+}
+
+export interface TaskMessagesConfig {
   taskAdded: string;
-  taskDone: string;
+  noTaskAdded: string;
+  noTaskContent: string;
+  noTaskToEdit: string;
   taskEdited: string;
   taskRemoved: string;
-  noTasks: string;
-  timerStarted: string;
-  timerPaused: string;
-  timerResumed: string;
+  taskNext: string;
+  adminDeleteTasks: string;
+  taskDone: string;
+  taskCheck: string;
+  taskCheckUser: string;
+  noTask: string;
+  noTaskOther: string;
+  notMod: string;
+  clearedAll: string;
+  clearedDone: string;
+  nextNoContent: string;
+  help: string;
+}
+
+export interface TimerMessagesConfig {
+  workMsg: string;
+  breakMsg: string;
+  longBreakMsg: string;
+  workRemindMsg: string;
+  notRunning: string;
+  streamStarting: string;
+  wrongCommand: string;
+  timerRunning: string;
+  commandSuccess: string;
+  cycleWrong: string;
+  goalWrong: string;
+  finishResponse: string;
+  alreadyStarting: string;
+  eta: string;
+}
+
+export interface BotConfigData {
+  taskCommandsEnabled: boolean;
+  timerCommandsEnabled: boolean;
+  commandAliases: Record<string, string>;
+  task: TaskMessagesConfig;
+  timer: TimerMessagesConfig;
+}
+
+export interface PhaseLabelsConfig {
+  idle: string;
+  starting: string;
+  work: string;
+  break: string;
+  longBreak: string;
+  paused: string;
+  finished: string;
 }
 
 export type CommandAliasesConfig = Record<string, string>;
+
+/** Full config shape returned by config.get */
+export interface AppConfig {
+  timerConfig: TimerConfigData;
+  timerStyles: TimerStylesConfig;
+  taskStyles: TaskStylesConfig;
+  botConfig: BotConfigData;
+}
 
 export interface ThemePreset {
   id: string;
