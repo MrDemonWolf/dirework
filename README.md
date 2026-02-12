@@ -14,14 +14,18 @@ One streamer, one instance, zero distractions.
 - **Task List** - Viewers add and manage tasks via chat
   commands, displayed as a scrolling OBS overlay.
 - **Twitch Bot** - Dedicated bot account for chat commands
-  like `!task`, `!done`, `!timer start`, and `!time`.
+  like `!task`, `!done`, `!timer start`, and `!time`. Customizable
+  wolf-themed response messages, enable/disable toggles for task
+  and timer command groups, and configurable phase labels.
 - **Theme Center** - 11 built-in themes including Liquid
   Glass, Neon Cyberpunk, Sakura, and Retro Terminal with
   full style customization for colors, fonts, and layout.
 - **Live Preview** - See overlay changes in real-time on the
   dashboard before going live.
-- **Dashboard** - Control the timer, manage tasks, preview
-  overlays, and connect your bot from one page.
+- **Dashboard** - Control the timer, manage tasks, and preview
+  overlays from one page.
+- **Bot Settings** - Two-column layout for bot account management,
+  message customization, and command aliases.
 - **Self-Hosted** - Own your data, deploy anywhere, single
   user per instance.
 
@@ -68,6 +72,14 @@ account configuration, and OBS setup, see the
 | `!timer pause/resume` | Pause or resume the timer      |
 | `!time`               | Show remaining time            |
 
+### Bot Configuration
+
+Navigate to `/dashboard/bot` to manage your bot account,
+customize all response messages (wolf-themed defaults included),
+enable or disable task and timer command groups, configure
+phase labels shown on the timer overlay, and set up command
+aliases.
+
 ## Tech Stack
 
 | Layer     | Technology                                          |
@@ -76,7 +88,7 @@ account configuration, and OBS setup, see the
 | Styling   | Tailwind CSS v4, shadcn/ui, Montserrat + Roboto    |
 | API       | tRPC v11, TanStack React Query                     |
 | Auth      | Better Auth (Twitch OAuth)                         |
-| Database  | PostgreSQL 16 + Prisma 7                           |
+| Database  | PostgreSQL 17 + Prisma 7                           |
 | Chat Bot  | Twurple (runs inside overlay browser sources)      |
 | Docs      | Fumadocs                                           |
 | Monorepo  | Turborepo + pnpm workspaces                        |

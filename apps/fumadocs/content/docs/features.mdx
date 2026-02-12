@@ -26,8 +26,9 @@ A viewer-interactive task list managed through Twitch chat.
 - **Multiple tasks per viewer** — Each viewer can have multiple tasks, numbered for easy reference
 - **Task priority** — Broadcaster tasks are pinned to the top, viewer tasks below in order
 - **Broadcaster controls** — Clear all tasks, clear completed tasks, or remove a specific user's tasks
-- **Real-time OBS overlay** — Scrolling task list with usernames in Twitch chat colors, checkboxes, and strikethrough for completed tasks
-- **Auto-scroll** — Infinite scroll animation when the list overflows the display area
+- **Author grouping** — Tasks are grouped by author, each with a styled card container showing the author's name and done/total count
+- **Real-time OBS overlay** — Task list with usernames in Twitch chat colors, checkboxes, and strikethrough for completed tasks
+- **Auto-scroll** — Toggleable infinite scroll animation when the list overflows the display area
 
 ## Theme Center
 
@@ -35,8 +36,8 @@ A visual editor for customizing your overlays, available at `/dashboard/styles`.
 
 - **11 built-in theme presets** — Default, Liquid Glass Light, Liquid Glass Dark, Neon Cyberpunk, Cozy Cottage, Ocean Depths, Sakura, Retro Terminal, Minimal Light, Sunset, Twitch Purple
 - **Timer overlay editor** — Customize dimensions, background (color, opacity, border radius), progress ring (track/fill colors, width, gap), text (color, outline, font family), font sizes (label, time, cycle), and phase labels
-- **Task list overlay editor** — Customize header, body, task items, done state, checkboxes, bullets, fonts, scroll speed, and more
-- **Live preview** — See changes instantly in the preview panel before saving
+- **Task list overlay editor** — Customize header, body, task items, done state, checkboxes, bullets, fonts, scroll toggle/speed, and more
+- **Live preview** — See changes instantly in the preview panel with an animated timer countdown toggle
 - **Progress ring shapes** — Choose between circle and rounded rectangle (squircle) ring styles
 - **Per-property control** — Every color, size, opacity, font, and spacing value is individually configurable
 
@@ -59,14 +60,14 @@ Two transparent browser source overlays designed for OBS and streaming software.
 - **Task list overlay** — Shows task list with viewer usernames, checkboxes, and auto-scroll
 - **Transparent backgrounds** — Overlays render with no background, layering cleanly over your stream
 - **Unique tokens** — Each overlay has a private token URL; regenerate if compromised
-- **Real-time updates** — Overlays poll the server every 1-2 seconds for instant updates
+- **Real-time updates** — Overlays use Server-Sent Events (SSE) for instant updates with no polling delay
 - **Toggle previews** — Dashboard previews can be toggled on/off to avoid slow page loads
 
 ## Dashboard
 
 A single-page control center for your stream.
 
-- **Timer controls** — Start, pause, resume, skip, and stop the timer with inline duration settings
+- **Timer controls** — Start, pause, resume, skip, and stop the timer with inline duration settings and info tooltips
 - **Task manager** — Add, complete, edit, and remove tasks directly from the dashboard
 - **Overlay previews** — Live iframe previews of both overlays (toggleable)
 - **Overlay URLs** — Copy overlay URLs for OBS with one click; regenerate tokens if needed

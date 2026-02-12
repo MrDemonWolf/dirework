@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { protectedProcedure, publicProcedure, router } from "../index";
+import { ee } from "../events";
 
 export const taskRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -51,7 +52,7 @@ export const taskRouter = router({
         select: { order: true },
       });
 
-      return ctx.prisma.task.create({
+      const result = await ctx.prisma.task.create({
         data: {
           ownerId: ctx.session.user.id,
           ...input,
@@ -59,32 +60,40 @@ export const taskRouter = router({
           order: (lastTask?.order ?? 0) + 1,
         },
       });
+      ee.emit(`taskListChange:${ctx.session.user.id}`);
+      return result;
     }),
 
   markDone: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.task.update({
+      const result = await ctx.prisma.task.update({
         where: { id: input.id, ownerId: ctx.session.user.id },
         data: { status: "done", completedAt: new Date() },
       });
+      ee.emit(`taskListChange:${ctx.session.user.id}`);
+      return result;
     }),
 
   edit: protectedProcedure
     .input(z.object({ id: z.string(), text: z.string().min(1).max(500) }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.task.update({
+      const result = await ctx.prisma.task.update({
         where: { id: input.id, ownerId: ctx.session.user.id },
         data: { text: input.text },
       });
+      ee.emit(`taskListChange:${ctx.session.user.id}`);
+      return result;
     }),
 
   remove: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.task.delete({
+      const result = await ctx.prisma.task.delete({
         where: { id: input.id, ownerId: ctx.session.user.id },
       });
+      ee.emit(`taskListChange:${ctx.session.user.id}`);
+      return result;
     }),
 
   // ── Broadcaster moderation ────────────────────────────────
@@ -93,49 +102,61 @@ export const taskRouter = router({
   removeByViewer: protectedProcedure
     .input(z.object({ authorTwitchId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.task.deleteMany({
+      const result = await ctx.prisma.task.deleteMany({
         where: {
           ownerId: ctx.session.user.id,
           authorTwitchId: input.authorTwitchId,
         },
       });
+      ee.emit(`taskListChange:${ctx.session.user.id}`);
+      return result;
     }),
 
   /** Edit any task (broadcaster moderation) */
   moderateEdit: protectedProcedure
     .input(z.object({ id: z.string(), text: z.string().min(1).max(500) }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.task.update({
+      const result = await ctx.prisma.task.update({
         where: { id: input.id, ownerId: ctx.session.user.id },
         data: { text: input.text },
       });
+      ee.emit(`taskListChange:${ctx.session.user.id}`);
+      return result;
     }),
 
   /** Delete any task (broadcaster moderation) */
   moderateRemove: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.task.delete({
+      const result = await ctx.prisma.task.delete({
         where: { id: input.id, ownerId: ctx.session.user.id },
       });
+      ee.emit(`taskListChange:${ctx.session.user.id}`);
+      return result;
     }),
 
   clearAll: protectedProcedure.mutation(async ({ ctx }) => {
-    return ctx.prisma.task.deleteMany({
+    const result = await ctx.prisma.task.deleteMany({
       where: { ownerId: ctx.session.user.id },
     });
+    ee.emit(`taskListChange:${ctx.session.user.id}`);
+    return result;
   }),
 
   clearDone: protectedProcedure.mutation(async ({ ctx }) => {
-    return ctx.prisma.task.deleteMany({
+    const result = await ctx.prisma.task.deleteMany({
       where: { ownerId: ctx.session.user.id, status: "done" },
     });
+    ee.emit(`taskListChange:${ctx.session.user.id}`);
+    return result;
   }),
 
   /** Clear only viewer tasks, keep broadcaster's own tasks */
   clearViewers: protectedProcedure.mutation(async ({ ctx }) => {
-    return ctx.prisma.task.deleteMany({
+    const result = await ctx.prisma.task.deleteMany({
       where: { ownerId: ctx.session.user.id, priority: 1 },
     });
+    ee.emit(`taskListChange:${ctx.session.user.id}`);
+    return result;
   }),
 });
