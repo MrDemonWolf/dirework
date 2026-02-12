@@ -4,61 +4,50 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.0.0] - 2026-02-12
 
 ### Added
-- Task list groups tasks by author with styled card containers and per-author done/total counts (overlay + dashboard)
-- Scroll enabled/disabled toggle for task list overlay (new `scrollEnabled` field in TaskStyle)
-- Timer preview animation toggle in Theme Center (play/pause live countdown simulation)
-- Missing task style editor controls: bullet section, checkbox background/border details, body padding, header padding, task max width
-- Server-Sent Events (SSE) for overlay real-time updates replacing polling (via tRPC subscriptions + in-process EventEmitter)
-- Tooltip component (`@base-ui/react/tooltip`) with glass styling matching dropdown menus
-- Info tooltips on all 5 timer config labels (work, break, long break, every, pomos)
-- Phase Labels editor in Theme Center Timer tab (moved from Bot Settings)
-- Comprehensive Coolify deployment guide in deployment docs
-- Landing page with hero section, gradient branding, and features showcase
-- Timer status badge on dashboard showing live timer state
-- Skeleton loading states for dashboard, styles, and bot settings pages
-- Mobile hamburger navigation menu
-- Cycle progress dots on timer display
-- Collapsible timer settings panel
-- Bot Settings page (`/dashboard/bot`) with dedicated bot account management
-- Wolf-themed default bot messages for all task and timer commands
+- Pomodoro timer with configurable work/break/long break durations, automatic phase transitions, and cycle tracking
+- Task list with Twitch chat integration — viewers add and manage tasks via chat commands
+- OBS overlays (timer + task list) with transparent backgrounds and real-time SSE updates
+- Timer overlay supports circle and rounded rectangle (squircle) progress ring shapes
+- Task list overlay groups tasks by author with styled card containers and per-author done/total counts
+- Scroll enabled/disabled toggle for task list overlay
+- Twitch chat bot with configurable commands for tasks (!task, !done, !edit, !remove, !check, !next) and timer (!timer start/pause/resume/skip, !time, !eta)
+- Bot account connection via separate OAuth flow with error feedback
+- 18 customizable task bot response messages and 14 timer bot response messages
 - Enable/disable toggles for task and timer command groups
-- Customizable phase labels (Focus, Break, Long Break, etc.) for timer display
+- Command alias system for remapping bot commands
+- Theme Center visual style editor with 11 presets (Default, Liquid Glass Light/Dark, Neon Cyberpunk, Cozy Cottage, Ocean Depths, Sakura, Retro Terminal, Minimal Light, Sunset, Twitch Purple)
+- Timer preview animation toggle in Theme Center (play/pause live countdown simulation)
+- Phase Labels editor for customizing timer overlay state labels (Focus, Break, Long Break, etc.)
+- Dashboard with timer controls, task manager, overlay previews, and live timer status badge
+- Task manager groups tasks by author with per-author pending/done counts
+- Bot Settings page with two-column layout: sticky sidebar (bot account, toggles, aliases) + scrollable message editors
 - Variable/placeholder reference panels in bot settings UI
-- Message variables documentation in chat commands docs
-- 18 task message fields and 14 timer message fields (up from 8 total)
-- 7 configurable phase labels for timer overlay states
-- Individual typed database columns for all messages, toggles, and labels
-- CI/CD pipeline (GitHub Actions) with type-checking and tests on PRs to main and pushes to dev
+- Overlay access via UUID tokens (no auth required), regenerable per user
+- Server-Sent Events (SSE) for overlay real-time updates via tRPC subscriptions
+- Tooltip component with glass styling on timer config labels
+- Mobile hamburger navigation menu
+- Skeleton loading states for dashboard, styles, and bot settings pages
+- Sticky save/reset bars when unsaved changes exist
+- Self-hosted single-user per instance with Twitch OAuth login
+- CI/CD pipeline (GitHub Actions) with Prisma generation, type-checking, and tests
 - Vitest unit tests for config defaults, deep merge, config types, and theme presets
-- CHANGELOG.md
+- Fumadocs documentation site with macOS 26 Liquid Glass purple theme
+- Documentation covering getting started, features, deployment, chat commands, overlays, environment variables, Twitch OAuth, and troubleshooting
+- Full SEO metadata (OpenGraph, Twitter cards, keywords) on documentation site
+- Coolify deployment guide with Docker and PostgreSQL setup
 
-### Changed
-- Database restructured from single Config model (55+ columns + 4 JSON blobs) into 4 focused models: TimerConfig, TimerStyle, TaskStyle, BotConfig — all fields are typed Prisma columns with defaults
-- API config router rewritten with typed Zod schemas, build/flatten helpers for nested ↔ flat conversion, and lazy-provisioning via `ensureUserConfig()`
-- Theme Center styles page width changed from `max-w-6xl` to `max-w-5xl` to match dashboard
-- Overlays use SSE subscriptions instead of polling for instant updates
-- Overlays receive pre-built nested config objects from API — removed client-side deep-merge dependency
-- Bot Settings page redesigned with two-column layout: sticky sidebar (bot account, toggles, aliases) + scrollable message editors
-- Dropdown menu hover effect now fills full width (fixed `mx-1` inset issue)
-- Dashboard layout: timer is now the hero card, tasks and overlay URLs in two-column grid
-- Timer display enlarged from 6xl to 7xl/8xl font
-- Task list items redesigned with checkbox-style completion and hover interactions
-- Active nav items use branded primary color instead of generic accent
-- Overlay URLs redesigned with icons and styled containers
-- Save bars on styles and bot settings pages are now sticky/fixed when unsaved changes exist
-- Moved Bot Account card from dashboard to dedicated Bot Settings page
-- Bot OAuth callback now redirects to `/dashboard/bot`
-- Restructured messages storage from single Json column to individual typed database columns
-- Timer overlay now reads phase labels from dedicated database columns
-
-### Removed
-- Old monolithic Config model (replaced by TimerConfig, TimerStyle, TaskStyle, BotConfig)
-- `deep-merge.ts` utility (no longer needed — API returns pre-built nested objects)
-- `task.direction` field from task styles (was hardcoded to "row", never used)
-- `extractTaskMessages`, `extractTimerMessages`, `extractPhaseLabels` functions (logic moved to API build helpers)
-- Phase Labels from Bot Settings page (moved to Theme Center Timer tab)
-- Bot Account section from main dashboard (moved to Bot Settings)
-- Old `messages` Json column (replaced by individual typed columns via migration)
+### Architecture
+- Turborepo + pnpm workspaces monorepo with ESM throughout
+- Next.js 16 (App Router) with React 19, React Compiler, and typed routes
+- tRPC v11 with httpBatchLink, httpSubscriptionLink (SSE), and splitLink
+- Better Auth with Twitch social provider (30-day sessions)
+- Prisma 7 with PostgreSQL 17 and 4 focused config models (TimerConfig, TimerStyle, TaskStyle, BotConfig)
+- All config columns have Prisma defaults — rows lazily provisioned on first access
+- API maps flat DB columns to nested frontend objects via build/flatten helpers
+- Overlays receive pre-built nested config objects from public API procedures
+- In-process EventEmitter bus for SSE event routing
+- Tailwind CSS v4 with shadcn/ui (base-lyra style) and Lucide icons
+- Fumadocs documentation with Orama search, deployed to GitHub Pages

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, RotateCcw, Save, Unplug } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -32,7 +32,7 @@ import { trpc } from "@/utils/trpc";
 const defaultTaskMessages: TaskMessagesConfig = {
   taskAdded: 'Awooo! The task "{task}" has been added to the pack, {user}!',
   noTaskAdded: "You're already on the hunt {user}, use !check to see your current task!",
-  noTaskContent: "Tell the pack what you're working on! Use !add [task] {user}",
+  noTaskContent: "Tell the pack what you're working on! Use !task [task] {user}",
   noTaskToEdit: "No task found in your den to edit {user}",
   taskEdited: 'The hunt has changed! Task updated to "{task}" {user}',
   taskRemoved: 'Task "{task}" has been scent-wiped from the list, {user}',
@@ -138,27 +138,30 @@ export default function BotSettingsPage() {
   const [savedTimerMessages, setSavedTimerMessages] = useState<TimerMessagesConfig>(defaultTimerMessages);
   const [savedCommandAliases, setSavedCommandAliases] = useState<CommandAliasesConfig>(defaultCommandAliases);
 
-  // Once config loads, extract values from the pre-built nested objects
+  // Once config loads, extract values — skip if user has unsaved edits
+  const initializedRef = useRef(false);
   useEffect(() => {
-    if (config.data) {
-      const bot = config.data.botConfig;
+    if (!config.data) return;
+    if (initializedRef.current) return;
+    initializedRef.current = true;
 
-      const tMsgs = bot?.task ?? defaultTaskMessages;
-      const tmMsgs = bot?.timer ?? defaultTimerMessages;
-      const aliases = (bot?.commandAliases ?? {}) as CommandAliasesConfig;
+    const bot = config.data.botConfig;
 
-      setTaskCommandsEnabled(bot?.taskCommandsEnabled ?? true);
-      setTimerCommandsEnabled(bot?.timerCommandsEnabled ?? true);
-      setTaskMessages(tMsgs);
-      setTimerMessages(tmMsgs);
-      setCommandAliases(aliases);
+    const tMsgs = bot?.task ?? defaultTaskMessages;
+    const tmMsgs = bot?.timer ?? defaultTimerMessages;
+    const aliases = (bot?.commandAliases ?? {}) as CommandAliasesConfig;
 
-      setSavedTaskCommandsEnabled(bot?.taskCommandsEnabled ?? true);
-      setSavedTimerCommandsEnabled(bot?.timerCommandsEnabled ?? true);
-      setSavedTaskMessages(tMsgs);
-      setSavedTimerMessages(tmMsgs);
-      setSavedCommandAliases(aliases);
-    }
+    setTaskCommandsEnabled(bot?.taskCommandsEnabled ?? true);
+    setTimerCommandsEnabled(bot?.timerCommandsEnabled ?? true);
+    setTaskMessages(tMsgs);
+    setTimerMessages(tmMsgs);
+    setCommandAliases(aliases);
+
+    setSavedTaskCommandsEnabled(bot?.taskCommandsEnabled ?? true);
+    setSavedTimerCommandsEnabled(bot?.timerCommandsEnabled ?? true);
+    setSavedTaskMessages(tMsgs);
+    setSavedTimerMessages(tmMsgs);
+    setSavedCommandAliases(aliases);
   }, [config.data]);
 
   const disconnectBot = useMutation({

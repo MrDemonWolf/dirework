@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { useSubscription } from "@trpc/tanstack-react-query";
 import { useParams } from "next/navigation";
 
@@ -15,9 +16,13 @@ export default function TaskListOverlayPage() {
     enabled: true,
   });
 
-  if (status === "connecting" || status === "idle") return null;
+  const lastKnownDataRef = useRef(data);
+  if (data) lastKnownDataRef.current = data;
 
-  const rawTasks = data?.tasks ?? [];
+  const current = data ?? lastKnownDataRef.current;
+  if (!current && (status === "connecting" || status === "idle")) return null;
+
+  const rawTasks = current?.tasks ?? [];
   const tasks = rawTasks as {
     id: string;
     authorTwitchId: string;
@@ -27,7 +32,7 @@ export default function TaskListOverlayPage() {
     status: string;
   }[];
 
-  const displayConfig = data?.taskStyles ?? defaultTaskStyles;
+  const displayConfig = current?.taskStyles ?? defaultTaskStyles;
 
   return (
     <div className="h-screen w-screen bg-transparent p-4">

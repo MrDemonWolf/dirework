@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, RotateCcw, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -77,24 +77,26 @@ export default function StylesPage() {
   const [savedTaskStyles, setSavedTaskStyles] = useState<TaskStylesConfig>(defaultTaskStyles);
   const [savedPhaseLabels, setSavedPhaseLabels] = useState<PhaseLabelsConfig>(defaultPhaseLabels);
 
-  // Once config loads, use the pre-built nested objects from the API
+  // Once config loads, initialize — skip on subsequent refetches
+  const initializedRef = useRef(false);
   useEffect(() => {
-    if (config.data) {
-      const loadedTimer = config.data.timerStyles ?? defaultTimerStyles;
-      const loadedTask = config.data.taskStyles ?? defaultTaskStyles;
-      const loadedLabels = config.data.timerConfig?.labels ?? defaultPhaseLabels;
+    if (!config.data) return;
+    if (initializedRef.current) return;
+    initializedRef.current = true;
 
-      setTimerStyles(loadedTimer);
-      setTaskStyles(loadedTask);
-      setPhaseLabels(loadedLabels);
-      setSavedTimerStyles(loadedTimer);
-      setSavedTaskStyles(loadedTask);
-      setSavedPhaseLabels(loadedLabels);
+    const loadedTimer = config.data.timerStyles ?? defaultTimerStyles;
+    const loadedTask = config.data.taskStyles ?? defaultTaskStyles;
+    const loadedLabels = config.data.timerConfig?.labels ?? defaultPhaseLabels;
 
-      // Try to detect which preset matches the saved config
-      const matchedPreset = detectMatchingPreset(loadedTimer, loadedTask);
-      setActiveThemeId(matchedPreset);
-    }
+    setTimerStyles(loadedTimer);
+    setTaskStyles(loadedTask);
+    setPhaseLabels(loadedLabels);
+    setSavedTimerStyles(loadedTimer);
+    setSavedTaskStyles(loadedTask);
+    setSavedPhaseLabels(loadedLabels);
+
+    const matchedPreset = detectMatchingPreset(loadedTimer, loadedTask);
+    setActiveThemeId(matchedPreset);
   }, [config.data]);
 
   const updateTimerMutation = useMutation({
@@ -155,13 +157,11 @@ export default function StylesPage() {
 
   const handleSave = useCallback(async () => {
     try {
-      await updateTimerMutation.mutateAsync({
-        timerStyles,
-      });
-      await updateTaskMutation.mutateAsync({
-        taskStyles,
-      });
-      await updatePhaseLabelsMutation.mutateAsync(phaseLabels);
+      await Promise.all([
+        updateTimerMutation.mutateAsync({ timerStyles }),
+        updateTaskMutation.mutateAsync({ taskStyles }),
+        updatePhaseLabelsMutation.mutateAsync(phaseLabels),
+      ]);
       setSavedTimerStyles(timerStyles);
       setSavedTaskStyles(taskStyles);
       setSavedPhaseLabels(phaseLabels);

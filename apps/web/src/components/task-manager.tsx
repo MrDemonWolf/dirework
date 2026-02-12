@@ -49,6 +49,7 @@ export function TaskManager({
 }: TaskManagerProps) {
   const queryClient = useQueryClient();
   const [newTask, setNewTask] = useState("");
+  const [removingTaskId, setRemovingTaskId] = useState<string | null>(null);
 
   const tasks = useQuery({
     ...trpc.task.list.queryOptions(),
@@ -226,8 +227,14 @@ export function TaskManager({
                       <Button
                         variant="ghost"
                         size="icon-xs"
-                        onClick={() => removeTask.mutate({ id: task.id })}
-                        disabled={removeTask.isPending}
+                        onClick={() => {
+                          setRemovingTaskId(task.id);
+                          removeTask.mutate(
+                            { id: task.id },
+                            { onSettled: () => setRemovingTaskId(null) },
+                          );
+                        }}
+                        disabled={removingTaskId === task.id}
                         title="Remove"
                         className="opacity-0 transition-opacity group-hover:opacity-100"
                       >

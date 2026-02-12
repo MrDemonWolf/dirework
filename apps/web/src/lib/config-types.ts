@@ -131,13 +131,6 @@ export interface BotConfigData {
   timer: TimerMessagesConfig;
 }
 
-export interface MessagesConfig {
-  taskCommandsEnabled: boolean;
-  timerCommandsEnabled: boolean;
-  task: TaskMessagesConfig;
-  timer: TimerMessagesConfig;
-}
-
 export interface PhaseLabelsConfig {
   idle: string;
   starting: string;

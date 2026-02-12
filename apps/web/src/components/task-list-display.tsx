@@ -294,7 +294,7 @@ function AuthorGroup({
         style={{
           padding: config.task.padding,
           borderBottom: `${config.task.border.width} solid ${config.task.border.color}`,
-          backgroundColor: `${authorColor}10`,
+          backgroundColor: `color-mix(in srgb, ${authorColor} 6%, transparent)`,
         }}
       >
         <span
