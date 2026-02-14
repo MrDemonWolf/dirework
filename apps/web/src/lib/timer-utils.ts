@@ -1,5 +1,6 @@
 export function toHexOpacity(opacity: number): string {
-  return Math.round(opacity * 255)
+  const clamped = Math.min(1, Math.max(0, opacity));
+  return Math.round(clamped * 255)
     .toString(16)
     .padStart(2, "0");
 }

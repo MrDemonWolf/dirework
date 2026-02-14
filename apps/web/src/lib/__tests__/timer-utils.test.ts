@@ -12,7 +12,7 @@ describe("toHexOpacity", () => {
     expect(toHexOpacity(0.5)).toBe("80");
   });
 
-  it("should return 'f3' for opacity 0.95", () => {
+  it("should return 'f2' for opacity 0.95", () => {
     // 0.95 * 255 = 242.25, rounds to 242 = 0xf2
     expect(toHexOpacity(0.95)).toBe("f2");
   });
