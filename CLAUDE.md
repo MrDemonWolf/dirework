@@ -101,6 +101,11 @@ Routers live in `packages/api/src/routers/`. Two procedure types:
 
 Router structure: `user`, `task`, `timer`, `config`, `overlay`.
 
+Pure logic extracted for testability:
+- `packages/api/src/routers/timer-logic.ts` — `DEFAULTS`, `getTimerConfig()`, `computeNextPhase()` (timer state machine)
+- `apps/web/src/lib/timer-utils.ts` — `toHexOpacity()`, `formatTime()`, `roundedRectPath()` (display helpers)
+- `apps/web/src/lib/task-utils.ts` — `groupTasksByAuthor()`, re-exported `toHexOpacity()` (task grouping)
+
 Context provides `session` (from Better Auth) and `prisma` client.
 
 ### Database
@@ -194,6 +199,34 @@ Two-column responsive layout (`max-w-5xl`):
 - Render a placeholder during SSR, swap to real content after `useEffect` mount
 - When using controlled components (e.g., Base UI Switch), always pass the controlled prop (e.g., `checked={false}`) even in the pre-mount placeholder to avoid uncontrolled-to-controlled warnings
 
+## Testing
+
+Vitest unit tests across `packages/api` and `apps/web`. Run with `pnpm test`.
+
+Test file locations:
+- `packages/api/src/routers/__tests__/config.test.ts` — build helpers (buildTimerConfig, buildTimerStylesConfig, buildTaskStylesConfig, buildBotConfig)
+- `packages/api/src/routers/__tests__/timer-logic.test.ts` — timer state machine (computeNextPhase), getTimerConfig defaults
+- `packages/api/src/routers/__tests__/config-flatten.test.ts` — flattenTimerStyles, flattenTaskStyles (full, partial, empty inputs)
+- `packages/api/src/routers/__tests__/config-roundtrip.test.ts` — flatten → build round-trip consistency for both style types
+- `packages/api/src/__tests__/events.test.ts` — EventEmitter config, emit/receive, cross-fire isolation
+- `apps/web/src/lib/__tests__/timer-utils.test.ts` — toHexOpacity, formatTime, roundedRectPath
+- `apps/web/src/lib/__tests__/task-utils.test.ts` — groupTasksByAuthor (grouping, counts, ordering, fallback)
+- `apps/web/src/lib/__tests__/config-types.test.ts` — TypeScript interface shape validation
+- `apps/web/src/lib/__tests__/theme-presets.test.ts` — theme preset structure and uniqueness
+
+When adding new pure functions, extract them into testable modules (not inline in components/routers) and add corresponding tests.
+
+## CI/CD
+
+CI workflow: `.github/workflows/ci.yml`
+- Triggers on push to `dev` and `main`, and PRs to `main`
+- Steps: install → db:generate → check-types → build → test
+- `SKIP_ENV_VALIDATION=true` is set to bypass t3-env during CI (no runtime secrets)
+
+Docs deployment: `.github/workflows/deploy-docs-to-pages.yml`
+- Triggers on push to `main`
+- Builds fumadocs as static export → deploys to GitHub Pages
+
 ## Deployment
 
 ### Web App (Coolify)
@@ -210,12 +243,10 @@ Deployed via **Coolify** using **Dockerfile**. Config in `Dockerfile` + `docker-
 
 ### Documentation (GitHub Pages)
 
-Deployed via **GitHub Actions** to **GitHub Pages**. Workflow in `.github/workflows/deploy-docs-to-pages.yml`.
+Deployed via GitHub Actions (see CI/CD section above).
 
-- Triggers on push to `main` branch
 - Fumadocs uses `output: "export"` for static site generation
 - `basePath` is set dynamically via `NEXT_PUBLIC_BASE_PATH` env var from `actions/configure-pages` (resolves to `/dirework` for GitHub Pages subpath)
-- Workflow: install deps → build fumadocs → upload to GitHub Pages
 - Uses ocean (blue) color preset (`fumadocs-ui/css/ocean.css`)
 - GitHub link in nav bar via `githubUrl` in shared layout options
 
@@ -236,6 +267,8 @@ Defined in `packages/env/src/server.ts`. Required:
 
 Optional:
 - `ALLOWED_TWITCH_IDS` — comma-separated allowlist (empty = allow all)
+- `PRIVACY_POLICY_URL` — URL to Privacy Policy page (set to show link in footer)
+- `TERMS_OF_SERVICE_URL` — URL to Terms of Service page (set to show link in footer)
 - `NODE_ENV` — development/production/test
 - `SKIP_ENV_VALIDATION` — set to `"true"` during CI/build to skip env validation
 
@@ -243,6 +276,8 @@ Optional:
 
 Both the web app and docs site use the same footer format:
 `© {year} DireWork by MrDemonWolf, Inc.` — both names are links (no underline, font-medium, hover highlight). "DireWork" links to the GitHub repo, "MrDemonWolf, Inc." links to mrdemonwolf.com.
+
+The web app footer also conditionally shows Privacy Policy and Terms of Service links when the corresponding env vars (`PRIVACY_POLICY_URL`, `TERMS_OF_SERVICE_URL`) are set. If neither is set, the legal links row is hidden.
 
 - Web app: inline in `apps/web/src/app/(app)/layout.tsx`
 - Docs: shared `Footer` component in `apps/fumadocs/src/components/footer.tsx`, rendered from root layout

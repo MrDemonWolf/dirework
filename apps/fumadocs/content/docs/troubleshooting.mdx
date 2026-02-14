@@ -66,7 +66,7 @@ For production, add your domain-based URLs too. See [Twitch OAuth Setup](/docs/t
 
 - OBS browser sources cache aggressively. Right-click the source and click **Refresh cache of current page**.
 - Make sure **"Shutdown source when not visible"** is checked in the browser source settings so it reloads when you switch scenes.
-- The timer overlay polls every 1 second and the task list every 2 seconds. There may be a slight delay.
+- Overlays use Server-Sent Events (SSE) for real-time updates. If updates aren't coming through, try refreshing the browser source cache in OBS.
 
 ### Overlay has a white/colored background in OBS
 
@@ -76,10 +76,10 @@ The overlays are designed to be transparent. In OBS browser source settings, mak
 
 ### Timer stuck at 0:00 / not transitioning
 
-The timer relies on the dashboard or overlay page being open to trigger phase transitions. If no client is polling the timer state, the transition won't happen.
+The timer relies on the dashboard or overlay page being open to trigger phase transitions. If no client is connected via SSE, the transition won't happen.
 
 - Make sure the dashboard page or at least one overlay (timer) is open in a browser
-- The timer overlay polls every 1 second — transitions happen automatically when the countdown reaches 0
+- Overlays receive state changes via Server-Sent Events (SSE) — transitions happen automatically when the countdown reaches 0
 - If the timer is stuck, try clicking **Stop** (square button) and starting a new session
 
 ### Timer starts but only counts down 5 seconds
@@ -150,4 +150,4 @@ If your issue isn't covered here:
 
 - Check the [GitHub Issues](https://github.com/mrdemonwolf/dirework/issues) for known bugs
 - Open a new issue with details about your environment and the error you're seeing
-- Join the [Discord](https://mrdwolf.com/discord) for community help
+- Join the [Discord](https://mrdwolf.net/discord) for community help

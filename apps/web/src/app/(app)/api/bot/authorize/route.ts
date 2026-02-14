@@ -1,7 +1,7 @@
 import { auth } from "@dirework/auth";
 import { env } from "@dirework/env/server";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { NextResponse } from "next/server";
 
 export async function GET() {
   const session = await auth.api.getSession({
@@ -9,7 +9,7 @@ export async function GET() {
   });
 
   if (!session) {
-    redirect("/?error=not_authenticated");
+    return NextResponse.redirect(new URL("/?error=not_authenticated", env.BETTER_AUTH_URL));
   }
 
   const state = Buffer.from(
@@ -25,5 +25,5 @@ export async function GET() {
     state,
   });
 
-  redirect(`https://id.twitch.tv/oauth2/authorize?${params}`);
+  return NextResponse.redirect(`https://id.twitch.tv/oauth2/authorize?${params}`);
 }

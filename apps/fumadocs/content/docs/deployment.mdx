@@ -27,6 +27,10 @@ NODE_ENV="production"
 
 # Optional: restrict login to specific Twitch accounts
 ALLOWED_TWITCH_IDS=""
+
+# Optional: show legal links in footer (set URL to enable)
+# PRIVACY_POLICY_URL="https://your-domain.com/privacy"
+# TERMS_OF_SERVICE_URL="https://your-domain.com/terms"
 ```
 
 <Callout type="warn">
@@ -149,8 +153,6 @@ docker run -d \
 For a complete setup with PostgreSQL:
 
 ```yaml
-version: "3.8"
-
 services:
   db:
     image: postgres:17-alpine
