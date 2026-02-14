@@ -20,6 +20,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: echo "DATABASE_URL=${DATABASE_URL}" > apps/web/.env
       - run: pnpm db:generate
       - run: pnpm check-types
       - run: pnpm build
