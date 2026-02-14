@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { groupTasksByAuthor, toHexOpacity } from "@/lib/task-utils";
+import type { Task, TaskGroup } from "@/lib/task-utils";
+
 interface TaskStylesConfig {
   display: {
     showDone: boolean;
@@ -54,53 +57,6 @@ interface TaskStylesConfig {
     color: string;
     margin: { top: string; left: string; right: string };
   };
-}
-
-interface Task {
-  id: string;
-  authorTwitchId?: string;
-  authorDisplayName: string;
-  authorColor: string | null;
-  text: string;
-  status: string;
-}
-
-interface TaskGroup {
-  authorKey: string;
-  authorDisplayName: string;
-  authorColor: string | null;
-  pending: number;
-  done: number;
-  tasks: Task[];
-}
-
-function groupTasksByAuthor(tasks: Task[]): TaskGroup[] {
-  const groups = new Map<string, TaskGroup>();
-  for (const task of tasks) {
-    const key = task.authorTwitchId || task.authorDisplayName;
-    let group = groups.get(key);
-    if (!group) {
-      group = {
-        authorKey: key,
-        authorDisplayName: task.authorDisplayName,
-        authorColor: task.authorColor,
-        pending: 0,
-        done: 0,
-        tasks: [],
-      };
-      groups.set(key, group);
-    }
-    if (task.status === "done") group.done++;
-    else group.pending++;
-    group.tasks.push(task);
-  }
-  return Array.from(groups.values());
-}
-
-function toHexOpacity(opacity: number): string {
-  return Math.round(opacity * 255)
-    .toString(16)
-    .padStart(2, "0");
 }
 
 /**
