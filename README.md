@@ -33,7 +33,7 @@ One streamer, one instance, zero distractions.
 
 For full setup instructions including Twitch OAuth, bot
 account configuration, and OBS setup, see the
-**[Documentation](https://dirework-docs.vercel.app/docs)**.
+**[Documentation](https://mrdemonwolf.github.io/dirework)**.
 
 1. Clone the repository
 2. Install dependencies with `pnpm install`
@@ -152,6 +152,7 @@ aliases.
 - `pnpm dev` - Start all apps (web on port 3001, docs on port 4000)
 - `pnpm build` - Build all apps for production
 - `pnpm check-types` - Run TypeScript type checking
+- `pnpm test` - Run unit tests across all packages
 - `pnpm dev:web` - Start the web app only
 - `pnpm db:start` - Start PostgreSQL via Docker
 - `pnpm db:stop` - Stop PostgreSQL
@@ -160,6 +161,14 @@ aliases.
 - `pnpm db:migrate` - Run Prisma migrations
 - `pnpm db:studio` - Open Prisma Studio
 
+### Testing
+
+- **Vitest** for unit testing across all packages
+- Tests cover timer state machine, config build/flatten helpers,
+  round-trip consistency, display utilities, task grouping, and
+  event emitter isolation
+- Run with `pnpm test`
+
 ### Code Quality
 
 - **TypeScript** in strict mode across all packages
@@ -167,6 +176,7 @@ aliases.
 - **tRPC** for end-to-end type-safe API layer
 - **t3-env** for environment variable validation
 - **Turborepo** for monorepo build orchestration
+- **GitHub Actions** CI runs type checks, builds, and tests on every push
 
 ## Project Structure
 
