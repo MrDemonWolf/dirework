@@ -21,6 +21,8 @@ All environment variables are defined in `apps/web/.env`. The app validates them
 | Variable | Default | Description |
 | --- | --- | --- |
 | `ALLOWED_TWITCH_IDS` | `""` (allow all) | Comma-separated list of Twitch user IDs allowed to sign in. Leave empty to allow any Twitch user. |
+| `PRIVACY_POLICY_URL` | _(unset)_ | URL to your Privacy Policy page. When set, a link appears in the app footer. |
+| `TERMS_OF_SERVICE_URL` | _(unset)_ | URL to your Terms of Service page. When set, a link appears in the app footer. |
 | `NODE_ENV` | `"development"` | Set to `"production"` for production deployments |
 
 ## Example `.env`
@@ -40,6 +42,10 @@ TWITCH_CLIENT_SECRET="your_client_secret_here"
 
 # User allowlist (comma-separated Twitch user IDs, empty = allow all)
 ALLOWED_TWITCH_IDS=""
+
+# Legal page URLs (set to show links in footer, leave empty to hide)
+# PRIVACY_POLICY_URL="https://example.com/privacy"
+# TERMS_OF_SERVICE_URL="https://example.com/terms"
 ```
 
 ## Production Notes

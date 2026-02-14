@@ -9,6 +9,9 @@
     "overlays",
     "chat-commands",
     "deployment",
-    "troubleshooting"
+    "troubleshooting",
+    "---",
+    "privacy-policy",
+    "terms-of-service"
   ]
 }

@@ -106,6 +106,7 @@ function HomeContent() {
           <Button
             variant="outline"
             size="lg"
+            nativeButton={false}
             render={
               <a
                 href="https://github.com/mrdemonwolf/dirework"
