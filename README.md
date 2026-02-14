@@ -37,9 +37,9 @@ account configuration, and OBS setup, see the
 
 1. Clone the repository
 2. Install dependencies with `pnpm install`
-3. Start PostgreSQL with `pnpm db:start`
-4. Push the database schema with `pnpm db:push`
-5. Configure your `apps/web/.env` file
+3. Configure your `apps/web/.env` file
+4. Start PostgreSQL with `pnpm db:start`
+5. Push the database schema with `pnpm db:push`
 6. Start the dev server with `pnpm dev`
 7. Open `http://localhost:3001` and sign in with Twitch
 
@@ -47,13 +47,14 @@ account configuration, and OBS setup, see the
 
 ### Viewer Commands
 
-| Command          | Description                           |
-| ---------------- | ------------------------------------- |
-| `!task <text>`   | Add a new task                        |
-| `!done`          | Mark your oldest pending task as done |
-| `!edit <text>`   | Edit your oldest pending task         |
-| `!remove`        | Remove your oldest pending task       |
-| `!check`         | Show your current tasks               |
+| Command                | Description                              |
+| ---------------------- | ---------------------------------------- |
+| `!task <text>`         | Add a new task                           |
+| `!done [number]`       | Mark your oldest (or specific) task done |
+| `!edit [number] <text>`| Edit your oldest (or specific) task      |
+| `!remove [number]`     | Remove your oldest (or specific) task    |
+| `!next <text>`         | Complete current task and start a new one|
+| `!check [@user]`       | Show your (or another user's) tasks      |
 
 ### Mod Commands
 
@@ -70,15 +71,20 @@ account configuration, and OBS setup, see the
 | `!timer start`        | Start the timer                |
 | `!timer <minutes>`    | Start with specific duration   |
 | `!timer pause/resume` | Pause or resume the timer      |
+| `!timer skip`         | Skip the current phase         |
+| `!timer goal <num>`   | Set pomodoro cycle count       |
 | `!time`               | Show remaining time            |
+| `!eta`                | Show when the timer ends       |
+
+See the [full command reference](https://mrdemonwolf.github.io/dirework/docs/chat-commands)
+for all options and customizable bot responses.
 
 ### Bot Configuration
 
 Navigate to `/dashboard/bot` to manage your bot account,
 customize all response messages (wolf-themed defaults included),
-enable or disable task and timer command groups, configure
-phase labels shown on the timer overlay, and set up command
-aliases.
+enable or disable task and timer command groups, and set up
+command aliases.
 
 ## Tech Stack
 
@@ -118,19 +124,7 @@ aliases.
    pnpm install
    ```
 
-3. Start the database:
-
-   ```bash
-   pnpm db:start
-   ```
-
-4. Push the schema:
-
-   ```bash
-   pnpm db:push
-   ```
-
-5. Configure environment variables in `apps/web/.env`:
+3. Configure environment variables in `apps/web/.env`:
 
    ```bash
    DATABASE_URL="postgresql://postgres:password@localhost:5432/dirework"
@@ -139,6 +133,18 @@ aliases.
    CORS_ORIGIN="http://localhost:3001"
    TWITCH_CLIENT_ID="your_client_id"
    TWITCH_CLIENT_SECRET="your_client_secret"
+   ```
+
+4. Start the database:
+
+   ```bash
+   pnpm db:start
+   ```
+
+5. Push the schema:
+
+   ```bash
+   pnpm db:push
    ```
 
 6. Start the dev server:
