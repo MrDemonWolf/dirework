@@ -101,6 +101,11 @@ Routers live in `packages/api/src/routers/`. Two procedure types:
 
 Router structure: `user`, `task`, `timer`, `config`, `overlay`.
 
+Pure logic extracted for testability:
+- `packages/api/src/routers/timer-logic.ts` — `DEFAULTS`, `getTimerConfig()`, `computeNextPhase()` (timer state machine)
+- `apps/web/src/lib/timer-utils.ts` — `toHexOpacity()`, `formatTime()`, `roundedRectPath()` (display helpers)
+- `apps/web/src/lib/task-utils.ts` — `groupTasksByAuthor()`, re-exported `toHexOpacity()` (task grouping)
+
 Context provides `session` (from Better Auth) and `prisma` client.
 
 ### Database

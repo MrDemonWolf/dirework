@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { toHexOpacity, formatTime, roundedRectPath } from "@/lib/timer-utils";
+
 interface RingConfig {
   enabled: boolean;
   trackColor: string;
@@ -35,27 +37,6 @@ interface TimerState {
   totalCycles: number;
 }
 
-function toHexOpacity(opacity: number): string {
-  return Math.round(opacity * 255)
-    .toString(16)
-    .padStart(2, "0");
-}
-
-function formatTime(
-  ms: number,
-  showHours: boolean,
-): { hours: string; minutes: string; seconds: string } {
-  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return {
-    hours: String(hours).padStart(2, "0"),
-    minutes: String(showHours ? minutes : Math.floor(totalSeconds / 60)).padStart(2, "0"),
-    seconds: String(seconds).padStart(2, "0"),
-  };
-}
-
 // Default durations for progress calculation when totalDuration is not provided
 const STATUS_DURATIONS: Record<string, number> = {
   work: 25 * 60 * 1000,
@@ -63,33 +44,6 @@ const STATUS_DURATIONS: Record<string, number> = {
   longBreak: 15 * 60 * 1000,
   starting: 5 * 1000,
 };
-
-/**
- * Build a rounded-rectangle SVG path starting from top-center, going clockwise.
- * This gives us a continuous path we can use with strokeDasharray for progress.
- */
-function roundedRectPath(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-): string {
-  r = Math.min(r, w / 2, h / 2);
-  // Start at top-center, draw clockwise
-  return [
-    `M ${x + w / 2} ${y}`,
-    `L ${x + w - r} ${y}`,
-    `A ${r} ${r} 0 0 1 ${x + w} ${y + r}`,
-    `L ${x + w} ${y + h - r}`,
-    `A ${r} ${r} 0 0 1 ${x + w - r} ${y + h}`,
-    `L ${x + r} ${y + h}`,
-    `A ${r} ${r} 0 0 1 ${x} ${y + h - r}`,
-    `L ${x} ${y + r}`,
-    `A ${r} ${r} 0 0 1 ${x + r} ${y}`,
-    `Z`,
-  ].join(" ");
-}
 
 function ProgressRing({
   progress,

@@ -2,34 +2,7 @@ import { z } from "zod";
 
 import { protectedProcedure, publicProcedure, router } from "../index";
 import { ee } from "../events";
-
-// Default values matching Prisma @default() values for TimerConfig
-const DEFAULTS = {
-  workDuration: 1500000,
-  breakDuration: 300000,
-  longBreakDuration: 900000,
-  longBreakInterval: 4,
-  startingDuration: 5000,
-  noLastBreak: true,
-};
-
-function getTimerConfig(tc: {
-  workDuration: number;
-  breakDuration: number;
-  longBreakDuration: number;
-  longBreakInterval: number;
-  startingDuration: number;
-  noLastBreak: boolean;
-} | null) {
-  return {
-    workDuration: tc?.workDuration ?? DEFAULTS.workDuration,
-    breakDuration: tc?.breakDuration ?? DEFAULTS.breakDuration,
-    longBreakDuration: tc?.longBreakDuration ?? DEFAULTS.longBreakDuration,
-    longBreakInterval: tc?.longBreakInterval ?? DEFAULTS.longBreakInterval,
-    startingDuration: tc?.startingDuration ?? DEFAULTS.startingDuration,
-    noLastBreak: tc?.noLastBreak ?? DEFAULTS.noLastBreak,
-  };
-}
+import { getTimerConfig, computeNextPhase } from "./timer-logic";
 
 export const timerRouter = router({
   get: protectedProcedure.query(async ({ ctx }) => {
@@ -93,56 +66,14 @@ export const timerRouter = router({
     if (!timer) return null;
 
     const tc = getTimerConfig(timerConfig);
+    const { nextStatus, nextDuration, nextCycle } = computeNextPhase(
+      { status: timer.status, currentCycle: timer.currentCycle, totalCycles: timer.totalCycles },
+      tc,
+    );
 
-    let nextStatus: string;
-    let nextDuration: number | null = null;
-    let nextCycle = timer.currentCycle;
-
-    switch (timer.status) {
-      case "starting":
-        nextStatus = "work";
-        nextDuration = tc.workDuration;
-        break;
-
-      case "work":
-        if (timer.currentCycle >= timer.totalCycles) {
-          if (tc.noLastBreak) {
-            nextStatus = "finished";
-          } else {
-            nextStatus =
-              timer.currentCycle % tc.longBreakInterval === 0
-                ? "longBreak"
-                : "break";
-            nextDuration =
-              nextStatus === "longBreak"
-                ? tc.longBreakDuration
-                : tc.breakDuration;
-          }
-        } else {
-          nextStatus =
-            timer.currentCycle % tc.longBreakInterval === 0
-              ? "longBreak"
-              : "break";
-          nextDuration =
-            nextStatus === "longBreak"
-              ? tc.longBreakDuration
-              : tc.breakDuration;
-        }
-        break;
-
-      case "break":
-      case "longBreak":
-        nextCycle = timer.currentCycle + 1;
-        if (nextCycle > timer.totalCycles) {
-          nextStatus = "finished";
-        } else {
-          nextStatus = "work";
-          nextDuration = tc.workDuration;
-        }
-        break;
-
-      default:
-        return timer;
+    // Unknown status — no transition
+    if (nextStatus === timer.status && nextDuration === null && nextCycle === timer.currentCycle) {
+      return timer;
     }
 
     const data: Record<string, unknown> = {
@@ -247,58 +178,10 @@ export const timerRouter = router({
       : timer.status;
 
     const tc = getTimerConfig(timerConfig);
-
-    let nextStatus: string;
-    let nextDuration: number | null = null;
-    let nextCycle = timer.currentCycle;
-
-    switch (effectiveStatus) {
-      case "starting":
-        nextStatus = "work";
-        nextDuration = tc.workDuration;
-        break;
-
-      case "work":
-        if (timer.currentCycle >= timer.totalCycles) {
-          if (tc.noLastBreak) {
-            nextStatus = "finished";
-          } else {
-            nextStatus =
-              timer.currentCycle % tc.longBreakInterval === 0
-                ? "longBreak"
-                : "break";
-            nextDuration =
-              nextStatus === "longBreak"
-                ? tc.longBreakDuration
-                : tc.breakDuration;
-          }
-        } else {
-          nextStatus =
-            timer.currentCycle % tc.longBreakInterval === 0
-              ? "longBreak"
-              : "break";
-          nextDuration =
-            nextStatus === "longBreak"
-              ? tc.longBreakDuration
-              : tc.breakDuration;
-        }
-        break;
-
-      case "break":
-      case "longBreak":
-        nextCycle = timer.currentCycle + 1;
-        if (nextCycle > timer.totalCycles) {
-          nextStatus = "finished";
-        } else {
-          nextStatus = "work";
-          nextDuration = tc.workDuration;
-        }
-        break;
-
-      default:
-        nextStatus = "idle";
-        break;
-    }
+    const { nextStatus, nextDuration, nextCycle } = computeNextPhase(
+      { status: effectiveStatus, currentCycle: timer.currentCycle, totalCycles: timer.totalCycles },
+      tc,
+    );
 
     const data: Record<string, unknown> = {
       status: nextStatus,
