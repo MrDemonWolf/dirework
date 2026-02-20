@@ -3,10 +3,16 @@
 echo "Running database migrations..."
 cd /app/packages/db
 
-# Remove config file that imports prisma SDK (not available in production image)
-rm -f prisma.config.ts
+# Replace config file with minimal production version (original imports prisma SDK not available in image)
+cat > prisma.config.ts << 'CONF'
+export default {
+  schema: "prisma/schema",
+  migrations: { path: "prisma/migrations" },
+  datasource: { url: process.env.DATABASE_URL },
+};
+CONF
 
-if prisma migrate deploy --schema prisma/schema --url "$DATABASE_URL"; then
+if prisma migrate deploy; then
   echo "Database migrations completed successfully."
 else
   echo "WARNING: Database migrations failed. The app will still start."
