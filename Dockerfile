@@ -1,5 +1,5 @@
-FROM node:24-slim AS base
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+FROM node:24-alpine AS base
+RUN apk add --no-cache libc6-compat
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
@@ -16,7 +16,7 @@ COPY packages/db/package.json ./packages/db/package.json
 COPY packages/env/package.json ./packages/env/package.json
 COPY packages/config/package.json ./packages/config/package.json
 RUN corepack install
-RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
 RUN pnpm rebuild @prisma/engines esbuild sharp
 
 # Build the application
@@ -30,9 +30,8 @@ RUN if [ -d apps/web/public ]; then cp -r apps/web/public apps/web/.next/standal
 RUN cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static
 
 # Production runner
-FROM node:24-slim AS runner
-RUN apt-get update && apt-get install -y openssl curl && rm -rf /var/lib/apt/lists/*
-RUN npm install -g prisma@7
+FROM node:24-alpine AS runner
+RUN apk add --no-cache libc6-compat curl
 WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME="0.0.0.0"
@@ -40,9 +39,7 @@ ENV PORT=3000
 
 COPY --from=build /app/apps/web/.next/standalone ./
 COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=build /app/packages/db/prisma/schema ./packages/db/prisma/schema
-COPY --from=build /app/packages/db/prisma/migrations ./packages/db/prisma/migrations
-COPY --from=build /app/packages/db/prisma.docker.config.ts ./packages/db/prisma.docker.config.ts
+COPY --from=build /app/packages/db ./packages/db
 COPY docker-entrypoint.sh ./
 
 EXPOSE 3000
