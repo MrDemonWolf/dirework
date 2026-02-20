@@ -2,7 +2,7 @@
 
 echo "Running database migrations..."
 cd /app/packages/db
-if prisma migrate deploy; then
+if prisma migrate deploy --schema prisma/schema; then
   echo "Database migrations completed successfully."
 else
   echo "WARNING: Database migrations failed. The app will still start."
