@@ -2,6 +2,10 @@
 
 echo "Running database migrations..."
 cd /app/packages/db
+
+# Remove config file that imports prisma SDK (not available in production image)
+rm -f prisma.config.ts
+
 if prisma migrate deploy --schema prisma/schema; then
   echo "Database migrations completed successfully."
 else
