@@ -32,6 +32,7 @@ RUN cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static
 # Production runner
 FROM node:24-alpine AS runner
 RUN apk add --no-cache libc6-compat curl
+RUN npm install -g prisma@7
 WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME="0.0.0.0"
