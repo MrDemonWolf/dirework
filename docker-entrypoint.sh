@@ -6,7 +6,7 @@ cd /app/packages/db
 # Remove config file that imports prisma SDK (not available in production image)
 rm -f prisma.config.ts
 
-if prisma migrate deploy --schema prisma/schema; then
+if prisma migrate deploy --schema prisma/schema --url "$DATABASE_URL"; then
   echo "Database migrations completed successfully."
 else
   echo "WARNING: Database migrations failed. The app will still start."
