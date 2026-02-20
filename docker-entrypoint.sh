@@ -1,9 +1,14 @@
 #!/bin/sh
-set -e
 
 echo "Running database migrations..."
-NODE_PATH=/usr/local/lib/node_modules prisma migrate deploy --config /app/packages/db/prisma.docker.config.ts
-echo "Migrations complete."
+cd /app/packages/db
+if npx prisma migrate deploy; then
+  echo "Database migrations completed successfully."
+else
+  echo "WARNING: Database migrations failed. The app will still start."
+  echo "Check your DATABASE_URL and ensure the database is reachable."
+fi
+cd /app
 
 echo "Starting application..."
 exec node apps/web/server.js
