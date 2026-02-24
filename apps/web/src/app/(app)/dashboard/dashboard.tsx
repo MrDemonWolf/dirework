@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/card";
 import { DashboardSkeleton } from "@/components/dashboard-skeleton";
 import { TaskManager } from "@/components/task-manager";
-import { TimerControls } from "@/components/timer-controls";
+import { TimerProvider, TimerDisplay, TimerSettings } from "@/components/timer-controls";
 import { TimerStatusBadge } from "@/components/timer-status-badge";
 import { trpc } from "@/utils/trpc";
 
@@ -96,6 +96,7 @@ export default function Dashboard({
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowTimerPreview((v) => !v)}
+                aria-pressed={showTimerPreview}
                 className="gap-1.5 text-xs text-muted-foreground"
               >
                 {showTimerPreview ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
@@ -104,24 +105,40 @@ export default function Dashboard({
             </CardAction>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col items-center gap-6 md:flex-row md:items-center">
-              <div className="flex-1">
-                <TimerControls />
-              </div>
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-xs font-medium text-muted-foreground">Preview</span>
-                <div className="overflow-hidden rounded-xl border border-dashed border-border/60 bg-muted/40" style={{ width: "280px", height: "280px" }}>
+            <TimerProvider>
+              <div className="flex flex-col items-center gap-6 md:flex-row md:items-center">
+                {/* Left: Timer display */}
+                <div className="flex-1">
+                  <TimerDisplay />
+                </div>
+                {/* Middle: Settings */}
+                <div className="flex-1">
+                  <TimerSettings />
+                </div>
+                {/* Right: Preview */}
+                <div
+                  className="shrink-0 self-center overflow-hidden rounded-xl border border-dashed border-border/60 bg-muted/40"
+                  style={{ width: 280, height: 280 }}
+                >
                   {showTimerPreview && timerToken ? (
                     <iframe
                       src={`/overlay/t/${timerToken}`}
                       className="pointer-events-none"
-                      style={{ width: "280px", height: "280px", border: "none", background: "transparent" }}
+                      style={{ width: 280, height: 280, border: "none", background: "transparent" }}
                       title="Timer overlay preview"
                     />
-                  ) : null}
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center gap-3">
+                      <EyeOff className="size-5 text-muted-foreground/40" />
+                      <p className="text-sm text-muted-foreground/60">Preview is disabled</p>
+                      <Button variant="outline" size="sm" onClick={() => setShowTimerPreview(true)}>
+                        Enable Preview
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
+            </TimerProvider>
           </CardContent>
         </Card>
 
@@ -135,6 +152,7 @@ export default function Dashboard({
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowTasksPreview((v) => !v)}
+                aria-pressed={showTasksPreview}
                 className="gap-1.5 text-xs text-muted-foreground"
               >
                 {showTasksPreview ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
@@ -155,18 +173,26 @@ export default function Dashboard({
                   <p className="text-sm text-muted-foreground">Loading...</p>
                 )}
               </div>
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-xs font-medium text-muted-foreground">Preview</span>
-                <div className="overflow-hidden rounded-lg border border-dashed border-border/60 bg-muted/40" style={{ width: "350px", height: "350px" }}>
-                  {showTasksPreview && tasksToken ? (
-                    <iframe
-                      src={`/overlay/l/${tasksToken}`}
-                      className="pointer-events-none"
-                      style={{ width: "350px", height: "350px", border: "none", background: "transparent" }}
-                      title="Task list overlay preview"
-                    />
-                  ) : null}
-                </div>
+              <div
+                className="shrink-0 self-center overflow-hidden rounded-lg border border-dashed border-border/60 bg-muted/40"
+                style={{ width: 350, height: 350 }}
+              >
+                {showTasksPreview && tasksToken ? (
+                  <iframe
+                    src={`/overlay/l/${tasksToken}`}
+                    className="pointer-events-none"
+                    style={{ width: 350, height: 350, border: "none", background: "transparent" }}
+                    title="Task list overlay preview"
+                  />
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center gap-3">
+                    <EyeOff className="size-5 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground/60">Preview is disabled</p>
+                    <Button variant="outline" size="sm" onClick={() => setShowTasksPreview(true)}>
+                      Enable Preview
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
@@ -197,7 +223,7 @@ export default function Dashboard({
                       onClick={() =>
                         copyUrl(`/overlay/t/${user.data!.overlayTimerToken}`)
                       }
-                      title="Copy URL"
+                      aria-label="Copy timer overlay URL"
                     >
                       <Copy className="size-3.5" />
                     </Button>
@@ -207,7 +233,7 @@ export default function Dashboard({
                       className="size-8 shrink-0"
                       onClick={() => regenerateToken.mutate({ type: "timer" })}
                       disabled={regenerateToken.isPending}
-                      title="Regenerate token"
+                      aria-label="Regenerate timer overlay token"
                     >
                       <RefreshCw className="size-3.5" />
                     </Button>
@@ -229,7 +255,7 @@ export default function Dashboard({
                       onClick={() =>
                         copyUrl(`/overlay/l/${user.data!.overlayTasksToken}`)
                       }
-                      title="Copy URL"
+                      aria-label="Copy task list overlay URL"
                     >
                       <Copy className="size-3.5" />
                     </Button>
@@ -239,7 +265,7 @@ export default function Dashboard({
                       className="size-8 shrink-0"
                       onClick={() => regenerateToken.mutate({ type: "tasks" })}
                       disabled={regenerateToken.isPending}
-                      title="Regenerate token"
+                      aria-label="Regenerate task list overlay token"
                     >
                       <RefreshCw className="size-3.5" />
                     </Button>

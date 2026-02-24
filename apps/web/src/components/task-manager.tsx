@@ -113,6 +113,7 @@ export function TaskManager({
           placeholder="Add a task..."
           maxLength={500}
           disabled={createTask.isPending}
+          aria-label="New task text"
         />
         <Button type="submit" disabled={!newTask.trim() || createTask.isPending}>
           Add
@@ -203,11 +204,12 @@ export function TaskManager({
                         type="button"
                         onClick={() => !isDone && markDone.mutate({ id: task.id })}
                         disabled={isDone || markDone.isPending}
+                        aria-label={isDone ? `${task.text} (done)` : `Mark "${task.text}" as done`}
                         className={cn(
-                          "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                          "flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors",
                           isDone
                             ? "border-primary bg-primary text-primary-foreground"
-                            : "border-muted-foreground/40 hover:border-primary",
+                            : "border-muted-foreground/40 hover:border-primary disabled:hover:border-muted-foreground/40",
                         )}
                       >
                         {isDone && <Check className="size-3" />}
@@ -235,8 +237,8 @@ export function TaskManager({
                           );
                         }}
                         disabled={removingTaskId === task.id}
-                        title="Remove"
-                        className="opacity-0 transition-opacity group-hover:opacity-100"
+                        aria-label={`Remove "${task.text}"`}
+                        className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
                       >
                         <Trash2 className="size-3" />
                       </Button>

@@ -41,13 +41,15 @@ export function FontSelect({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const id = `font-${label.toLowerCase().replace(/\s+/g, "-")}`;
+
   return (
     <div className="flex items-center gap-2">
-      <Label className="w-28 shrink-0 text-xs text-muted-foreground">
+      <Label htmlFor={id} className="w-28 shrink-0 text-xs text-muted-foreground">
         {label}
       </Label>
       <Select value={value} onValueChange={(v) => { if (v) onChange(v); }}>
-        <SelectTrigger className="h-8 w-44 text-xs">
+        <SelectTrigger id={id} className="h-8 w-44 text-xs">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

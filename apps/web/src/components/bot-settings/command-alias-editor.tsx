@@ -53,16 +53,18 @@ export function CommandAliasEditor({
         {entries.map(([key, value], index) => (
           <div key={index} className="flex items-center gap-2">
             <div className="flex-1 space-y-1">
-              <Label className="text-xs">Alias</Label>
+              <Label htmlFor={`alias-key-${index}`} className="text-xs">Alias</Label>
               <Input
+                id={`alias-key-${index}`}
                 value={key}
                 onChange={(e) => handleKeyChange(key, e.target.value)}
                 placeholder="!t"
               />
             </div>
             <div className="flex-1 space-y-1">
-              <Label className="text-xs">Command</Label>
+              <Label htmlFor={`alias-cmd-${index}`} className="text-xs">Command</Label>
               <Input
+                id={`alias-cmd-${index}`}
                 value={value}
                 onChange={(e) => handleValueChange(key, e.target.value)}
                 placeholder="!task"
@@ -73,6 +75,7 @@ export function CommandAliasEditor({
               size="icon"
               className="mt-5 shrink-0"
               onClick={() => handleRemove(key)}
+              aria-label={`Remove alias ${key || "(empty)"}`}
             >
               <Trash2 className="size-4 text-muted-foreground" />
             </Button>
