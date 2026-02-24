@@ -2,6 +2,15 @@
 
 This file provides guidance for Claude Code when working on the Dirework codebase.
 
+## Critical Documentation Reference
+
+**ALWAYS update this section** when creating or discovering important docs to prevent context loss.
+
+- Architecture diagrams → *(none yet)*
+- Database schemas → `packages/db/prisma/schema/` (schema.prisma, auth.prisma, app.prisma)
+- Problem solutions → *(none yet)*
+- Setup guides → `.env.example`, `coolify.md` (gitignored)
+
 ## Project Overview
 
 Dirework is a self-hosted Pomodoro timer and task list with Twitch chat integration, designed for co-working and body-doubling streams. Single-user per instance. Streamers login with Twitch, connect a bot account, configure OBS overlays, and viewers interact via chat commands.
