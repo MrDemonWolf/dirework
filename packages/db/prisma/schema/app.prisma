@@ -8,7 +8,7 @@ model BotAccount {
   accessToken  String
   refreshToken String
   expiresAt    DateTime
-  scopes       String[] @default(["chat:read", "chat:edit"])
+  scopes       String[] @default(["chat:read", "chat:edit", "channel:moderate", "user:read:chat"])
 
   @@map("bot_account")
 }
@@ -26,7 +26,7 @@ model Task {
 
   // Task content
   text              String
-  status            String   @default("pending") // "pending" | "done"
+  status            String   @default("pending") // "pending" | "active" | "done"
   priority          Int      @default(1)          // 0 = broadcaster (top), 1 = viewer
   order             Int
 

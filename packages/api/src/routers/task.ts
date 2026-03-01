@@ -43,19 +43,34 @@ export const taskRouter = router({
       });
       const isBroadcaster = user?.twitchId === input.authorTwitchId;
 
-      const lastTask = await ctx.prisma.task.findFirst({
-        where: {
-          ownerId: ctx.session.user.id,
-          priority: isBroadcaster ? 0 : 1,
-        },
-        orderBy: { order: "desc" },
-        select: { order: true },
-      });
+      // Check if this viewer has any existing pending/active tasks
+      const [lastTask, existingTasks] = await Promise.all([
+        ctx.prisma.task.findFirst({
+          where: {
+            ownerId: ctx.session.user.id,
+            priority: isBroadcaster ? 0 : 1,
+          },
+          orderBy: { order: "desc" },
+          select: { order: true },
+        }),
+        ctx.prisma.task.findMany({
+          where: {
+            ownerId: ctx.session.user.id,
+            authorTwitchId: input.authorTwitchId,
+            status: { in: ["pending", "active"] },
+          },
+          select: { id: true },
+        }),
+      ]);
+
+      // Auto-activate if viewer has no other pending/active tasks
+      const autoActivate = existingTasks.length === 0;
 
       const result = await ctx.prisma.task.create({
         data: {
           ownerId: ctx.session.user.id,
           ...input,
+          status: autoActivate ? "active" : "pending",
           priority: isBroadcaster ? 0 : 1,
           order: (lastTask?.order ?? 0) + 1,
         },
@@ -71,6 +86,23 @@ export const taskRouter = router({
         where: { id: input.id, ownerId: ctx.session.user.id },
         data: { status: "done", completedAt: new Date() },
       });
+
+      // Auto-activate the next pending task for this viewer
+      const nextPending = await ctx.prisma.task.findFirst({
+        where: {
+          ownerId: ctx.session.user.id,
+          authorTwitchId: result.authorTwitchId,
+          status: "pending",
+        },
+        orderBy: { order: "asc" },
+      });
+      if (nextPending) {
+        await ctx.prisma.task.update({
+          where: { id: nextPending.id },
+          data: { status: "active" },
+        });
+      }
+
       ee.emit(`taskListChange:${ctx.session.user.id}`);
       return result;
     }),

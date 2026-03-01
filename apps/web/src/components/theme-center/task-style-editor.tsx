@@ -268,6 +268,15 @@ export function TaskStyleEditor({
           onChange={(v) => updateNested(["task", "border", "color"], v)}
         />
         <div className="flex items-center gap-2">
+          <Label htmlFor="task-style-task-border-width" className="w-28 shrink-0 text-xs text-muted-foreground">Border Width</Label>
+          <Input
+            id="task-style-task-border-width"
+            value={styles.task.border.width}
+            onChange={(e) => updateNested(["task", "border", "width"], e.target.value)}
+            className="h-8 w-24 text-xs"
+          />
+        </div>
+        <div className="flex items-center gap-2">
           <Label htmlFor="task-style-task-border-radius" className="w-28 shrink-0 text-xs text-muted-foreground">Border Radius</Label>
           <Input
             id="task-style-task-border-radius"
@@ -433,6 +442,33 @@ export function TaskStyleEditor({
           value={styles.checkbox.tickColor}
           onChange={(v) => updateNested(["checkbox", "tickColor"], v)}
         />
+        <div className="flex items-center gap-2">
+          <Label htmlFor="task-style-checkbox-margin-top" className="w-28 shrink-0 text-xs text-muted-foreground">Margin Top</Label>
+          <Input
+            id="task-style-checkbox-margin-top"
+            value={styles.checkbox.margin.top}
+            onChange={(e) => updateNested(["checkbox", "margin", "top"], e.target.value)}
+            className="h-8 w-24 text-xs"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="task-style-checkbox-margin-left" className="w-28 shrink-0 text-xs text-muted-foreground">Margin Left</Label>
+          <Input
+            id="task-style-checkbox-margin-left"
+            value={styles.checkbox.margin.left}
+            onChange={(e) => updateNested(["checkbox", "margin", "left"], e.target.value)}
+            className="h-8 w-24 text-xs"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="task-style-checkbox-margin-right" className="w-28 shrink-0 text-xs text-muted-foreground">Margin Right</Label>
+          <Input
+            id="task-style-checkbox-margin-right"
+            value={styles.checkbox.margin.right}
+            onChange={(e) => updateNested(["checkbox", "margin", "right"], e.target.value)}
+            className="h-8 w-24 text-xs"
+          />
+        </div>
       </SectionGroup>
 
       {!styles.display.useCheckboxes && (

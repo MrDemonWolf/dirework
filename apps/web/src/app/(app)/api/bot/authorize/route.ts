@@ -20,7 +20,7 @@ export async function GET() {
     client_id: env.TWITCH_CLIENT_ID,
     redirect_uri: `${env.BETTER_AUTH_URL}/api/bot/callback`,
     response_type: "code",
-    scope: "chat:read chat:edit",
+    scope: "chat:read chat:edit channel:moderate user:read:chat",
     force_verify: "true",
     state,
   });

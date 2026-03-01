@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, RotateCcw, Save, Unplug } from "lucide-react";
+import { Loader2, Play, RotateCcw, Save, Square, Unplug } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
@@ -164,10 +164,38 @@ export default function BotSettingsPage() {
     setSavedCommandAliases(aliases);
   }, [config.data]);
 
+  const botStatus = useQuery({
+    ...trpc.bot.status.queryOptions(),
+    refetchInterval: 5000,
+  });
+
+  const startBot = useMutation({
+    ...trpc.bot.start.mutationOptions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: trpc.bot.status.queryKey() });
+      toast.success("Bot started");
+    },
+    onError: (err) => {
+      toast.error(`Failed to start bot: ${err.message}`);
+    },
+  });
+
+  const stopBot = useMutation({
+    ...trpc.bot.stop.mutationOptions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: trpc.bot.status.queryKey() });
+      toast.success("Bot stopped");
+    },
+    onError: (err) => {
+      toast.error(`Failed to stop bot: ${err.message}`);
+    },
+  });
+
   const disconnectBot = useMutation({
     ...trpc.user.disconnectBot.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trpc.user.me.queryKey() });
+      queryClient.invalidateQueries({ queryKey: trpc.bot.status.queryKey() });
       toast.success("Bot account disconnected");
     },
   });
@@ -273,7 +301,23 @@ export default function BotSettingsPage() {
           {/* Bot Account */}
           <Card>
             <CardHeader>
-              <CardTitle>Bot Account</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle>Bot Account</CardTitle>
+                {user.data?.botAccount && (
+                  <span className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                    botStatus.data?.running
+                      ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                      : "bg-muted text-muted-foreground",
+                  )}>
+                    <span className={cn(
+                      "size-1.5 rounded-full",
+                      botStatus.data?.running ? "bg-green-500" : "bg-muted-foreground/50",
+                    )} />
+                    {botStatus.data?.running ? "Online" : "Offline"}
+                  </span>
+                )}
+              </div>
               <CardDescription>Connect a Twitch bot for chat commands</CardDescription>
             </CardHeader>
             <CardContent>
@@ -286,19 +330,47 @@ export default function BotSettingsPage() {
                         {user.data.botAccount.displayName}
                       </span>
                     </p>
+                    {botStatus.data?.running && botStatus.data.channel && (
+                      <p className="text-xs text-muted-foreground">
+                        In channel: #{botStatus.data.channel}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground">
                       Scopes: {user.data.botAccount.scopes.join(", ")}
                     </p>
                   </div>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => disconnectBot.mutate()}
-                    disabled={disconnectBot.isPending}
-                  >
-                    <Unplug className="size-3" />
-                    Disconnect
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {botStatus.data?.running ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => stopBot.mutate()}
+                        disabled={stopBot.isPending}
+                        className="text-destructive"
+                      >
+                        <Square className="size-3" />
+                        Stop Bot
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => startBot.mutate()}
+                        disabled={startBot.isPending}
+                      >
+                        <Play className="size-3" />
+                        Start Bot
+                      </Button>
+                    )}
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => disconnectBot.mutate()}
+                      disabled={disconnectBot.isPending}
+                    >
+                      <Unplug className="size-3" />
+                      Disconnect
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-2">

@@ -449,7 +449,7 @@ export const configRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      return ctx.prisma.botConfig.update({
+      const result = await ctx.prisma.botConfig.update({
         where: { userId },
         data: {
           taskCommandsEnabled: input.taskCommandsEnabled,
@@ -488,6 +488,8 @@ export const configRouter = router({
           msgEta: input.timer.eta,
         },
       });
+      ee.emit(`botConfigChange:${userId}`);
+      return result;
     }),
 
   /** Update phase labels (stored in TimerConfig) */
@@ -526,9 +528,11 @@ export const configRouter = router({
     .input(z.object({ commandAliases: z.record(z.string(), z.string()) }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      return ctx.prisma.botConfig.update({
+      const result = await ctx.prisma.botConfig.update({
         where: { userId },
         data: { commandAliases: input.commandAliases as object },
       });
+      ee.emit(`botConfigChange:${userId}`);
+      return result;
     }),
 });

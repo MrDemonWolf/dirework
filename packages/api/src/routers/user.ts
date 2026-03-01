@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { protectedProcedure, publicProcedure, router } from "../index";
+import { botService } from "../bot/index";
 
 export const userRouter = router({
   me: protectedProcedure.query(async ({ ctx }) => {
@@ -36,6 +37,10 @@ export const userRouter = router({
     }),
 
   disconnectBot: protectedProcedure.mutation(async ({ ctx }) => {
+    // Stop the bot if running
+    if (botService.isRunning()) {
+      await botService.stop();
+    }
     await ctx.prisma.botAccount.deleteMany({
       where: { userId: ctx.session.user.id },
     });

@@ -469,11 +469,6 @@ export function TimerSettings() {
           className="h-8"
         />
       </div>
-      {!isIdle && (
-        <p className="text-xs text-muted-foreground">
-          Stop the timer to change settings
-        </p>
-      )}
     </div>
   );
 }
