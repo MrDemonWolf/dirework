@@ -9,37 +9,59 @@ Once you've connected a [bot account](/docs/twitch-oauth#connect-a-bot-account),
 
 | Command | Description |
 | --- | --- |
-| `!task <text>` | Add a new task (viewers can have multiple tasks) |
-| `!done` | Mark your oldest pending task as done |
-| `!done <number>` | Mark a specific task by number as done |
-| `!edit <text>` | Edit your oldest pending task |
-| `!edit <number> <text>` | Edit a specific task by number |
-| `!remove` | Remove your oldest pending task |
-| `!remove <number>` | Remove a specific task by number |
-| `!check` | Show your current tasks |
-| `!check @user` | Show another user's tasks |
-| `!next <text>` | Complete current task and start a new one |
+| `!task <text>` | Add a new task (auto-activates if it's your first) |
+| `!done` | Mark your active task as done |
+| `!done <number>` | Mark a specific task by position as done |
+| `!edit <number> <text>` | Edit a specific task by position |
+| `!remove <number>` | Remove a specific task by position |
+| `!focus <number>` | Set a task as your active/focused task |
+| `!check` | Show your current active task |
+| `!check @user` | Show another user's active task |
+| `!next <text>` | Complete your active task and start a new one |
+| `!help` | Show available commands in chat |
 
 ## Task Commands (Broadcaster / Mods)
 
 | Command | Description |
 | --- | --- |
-| `!clear` | Clear all tasks from the list |
-| `!cleardone` | Clear all completed tasks |
-| `!adel @user` | Remove all tasks from a specific user |
+| `!clear all` | Clear all tasks from the list |
+| `!clear done` | Clear all completed tasks |
+| `!clear @user` | Remove all tasks from a specific user |
 
-## Timer Commands
+## Timer Commands (Broadcaster / Mods)
 
 | Command | Description |
 | --- | --- |
 | `!timer start` | Start the timer with default settings |
-| `!timer <minutes>` | Start a timer with a specific duration (e.g. `!timer 25`) |
+| `!timer start <cycles>` | Start the timer with a specific cycle count |
 | `!timer pause` | Pause the timer |
 | `!timer resume` | Resume the timer |
-| `!timer skip` | Skip the current session |
-| `!timer goal <num>` | Set the number of pomodoro cycles |
-| `!time` | Show remaining time |
-| `!eta` | Show when the timer ends (local time) |
+| `!timer skip` | Skip the current phase |
+| `!timer reset` | Reset the timer to idle |
+| `!timer eta` | Show estimated end time |
+
+## Meta Commands (Always Available)
+
+These commands are always enabled regardless of task or timer command settings.
+
+| Command | Description |
+| --- | --- |
+| `!dwhelp` | Link to this commands reference page |
+| `!dwcommands` | Same as `!dwhelp` |
+
+## Active Task & Focus
+
+When you add your first task with `!task`, it automatically becomes your **active** task. Subsequent tasks are added as **pending**.
+
+- Your active task is what shows as your current focus in the overlay and in `!check` responses.
+- When you complete a task with `!done`, the next pending task is automatically activated.
+- Use `!focus <number>` to manually switch which task is active. The number is the position in your task list (1-based).
+
+## Command Aliases
+
+Broadcasters can remap command names in **Bot Settings** (`/dashboard/bot`). For example, you could set `add` to map to `task`, so viewers can use `!add` instead of `!task`.
+
+Aliases only apply to task and timer commands. Meta commands (`!dwhelp`, `!dwcommands`) cannot be aliased.
 
 ## Task Priority
 
