@@ -7,6 +7,9 @@
     },
     "./*": {
       "default": "./src/*.ts"
+    },
+    "./*/*": {
+      "default": "./src/*/*.ts"
     }
   },
   "scripts": {
@@ -18,6 +21,8 @@
     "@dirework/env": "workspace:*",
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
+    "@twurple/auth": "^8.0.3",
+    "@twurple/chat": "^8.0.3",
     "dotenv": "catalog:",
     "next": "catalog:",
     "zod": "catalog:"

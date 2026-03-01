@@ -161,3 +161,13 @@
   width: 100%;
   animation: scroll-secondary var(--scroll-duration, 20s) linear infinite;
 }
+
+/* Active task glow animation (overlay) */
+@keyframes active-glow {
+  0%, 100% {
+    box-shadow: 0 0 4px 1px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 12px 4px rgba(59, 130, 246, 0.6);
+  }
+}

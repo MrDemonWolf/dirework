@@ -6,7 +6,6 @@ import { Copy, Eye, EyeOff, ListTodo, RefreshCw, Timer } from "lucide-react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -62,7 +61,8 @@ export default function Dashboard({
 
   const [showTimerPreview, setShowTimerPreview] = useState(false);
   const [showTasksPreview, setShowTasksPreview] = useState(false);
-  const [showTokens, setShowTokens] = useState(false);
+  const [showTimerToken, setShowTimerToken] = useState(false);
+  const [showTasksToken, setShowTasksToken] = useState(false);
 
   const timerToken = user.data?.overlayTimerToken;
   const tasksToken = user.data?.overlayTasksToken;
@@ -205,16 +205,6 @@ export default function Dashboard({
           <CardHeader>
             <CardTitle>Overlay URLs</CardTitle>
             <CardDescription>Add these as browser sources in OBS</CardDescription>
-            <CardAction>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setShowTokens((v) => !v)}
-                aria-label={showTokens ? "Hide overlay tokens" : "Show overlay tokens"}
-              >
-                {showTokens ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-              </Button>
-            </CardAction>
           </CardHeader>
           <CardContent>
             {user.data ? (
@@ -225,12 +215,21 @@ export default function Dashboard({
                     Timer Overlay
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <code className={cn(
-                      "flex-1 truncate rounded-lg border bg-muted/30 px-3 py-2 font-mono text-xs transition-[filter]",
-                      !showTokens && "blur-sm select-none"
-                    )}>
-                      /overlay/t/{user.data.overlayTimerToken}
-                    </code>
+                    <input
+                      type={showTimerToken ? "text" : "password"}
+                      readOnly
+                      value={`/overlay/t/${user.data.overlayTimerToken}`}
+                      className="flex-1 truncate rounded-lg border bg-muted/30 px-3 py-2 font-mono text-xs"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="size-8 shrink-0"
+                      onClick={() => setShowTimerToken((v) => !v)}
+                      aria-label={showTimerToken ? "Hide timer overlay URL" : "Show timer overlay URL"}
+                    >
+                      {showTimerToken ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </Button>
                     <Button
                       variant="outline"
                       size="icon"
@@ -260,12 +259,21 @@ export default function Dashboard({
                     Task List Overlay
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <code className={cn(
-                      "flex-1 truncate rounded-lg border bg-muted/30 px-3 py-2 font-mono text-xs transition-[filter]",
-                      !showTokens && "blur-sm select-none"
-                    )}>
-                      /overlay/l/{user.data.overlayTasksToken}
-                    </code>
+                    <input
+                      type={showTasksToken ? "text" : "password"}
+                      readOnly
+                      value={`/overlay/l/${user.data.overlayTasksToken}`}
+                      className="flex-1 truncate rounded-lg border bg-muted/30 px-3 py-2 font-mono text-xs"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="size-8 shrink-0"
+                      onClick={() => setShowTasksToken((v) => !v)}
+                      aria-label={showTasksToken ? "Hide task list overlay URL" : "Show task list overlay URL"}
+                    >
+                      {showTasksToken ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </Button>
                     <Button
                       variant="outline"
                       size="icon"

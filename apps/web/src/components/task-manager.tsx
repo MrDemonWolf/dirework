@@ -100,7 +100,8 @@ export function TaskManager({
   };
 
   const taskList = tasks.data ?? [];
-  const pendingCount = taskList.filter((t) => t.status === "pending").length;
+  const activeCount = taskList.filter((t) => t.status === "active").length;
+  const pendingCount = taskList.filter((t) => t.status === "pending" || t.status === "active").length;
   const doneCount = taskList.filter((t) => t.status === "done").length;
 
   return (
@@ -157,7 +158,7 @@ export function TaskManager({
       </div>
 
       {/* Task list grouped by author */}
-      <div className="space-y-3">
+      <div className="max-h-[400px] space-y-3 overflow-y-auto">
         {taskList.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-8">
             <div className="rounded-full bg-muted p-3">
@@ -172,7 +173,7 @@ export function TaskManager({
           </div>
         ) : (
           groupTasksByAuthor(taskList).map((group) => {
-            const groupPending = group.tasks.filter((t) => t.status === "pending").length;
+            const groupPending = group.tasks.filter((t) => t.status === "pending" || t.status === "active").length;
             const groupDone = group.tasks.filter((t) => t.status === "done").length;
             return (
               <div key={group.authorTwitchId} className="space-y-1">
@@ -191,18 +192,20 @@ export function TaskManager({
                 </div>
                 {group.tasks.map((task) => {
                   const isDone = task.status === "done";
+                  const isActive = task.status === "active";
                   return (
                     <div
                       key={task.id}
                       className={cn(
                         "group flex items-center gap-3 rounded-lg px-2 py-1.5 pl-4 hover:bg-muted/50",
                         isDone && "opacity-60",
+                        isActive && "ring-2 ring-primary/60 shadow-[0_0_8px_rgba(var(--primary-rgb,59,130,246),0.4)] animate-pulse",
                       )}
                     >
                       {/* Checkbox */}
                       <button
                         type="button"
-                        onClick={() => !isDone && markDone.mutate({ id: task.id })}
+                        onClick={() => (isActive || task.status === "pending") && markDone.mutate({ id: task.id })}
                         disabled={isDone || markDone.isPending}
                         aria-label={isDone ? `${task.text} (done)` : `Mark "${task.text}" as done`}
                         className={cn(
