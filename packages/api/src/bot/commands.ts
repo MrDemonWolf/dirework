@@ -1,4 +1,5 @@
 import type prismaDefault from "@dirework/db";
+import { env } from "@dirework/env/server";
 
 import { ee } from "../events";
 
@@ -101,6 +102,17 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
       return;
     }
     await handleTimerCommand(args, ctx);
+    return;
+  }
+
+  // Meta commands (always available, not aliasable)
+  if (command === "!dwhelp" || command === "!dwcommands") {
+    const docsUrl = env.DOCS_URL;
+    if (docsUrl) {
+      say(`${userInfo.displayName}, check out all the commands here: ${docsUrl}/docs/chat-commands`);
+    } else {
+      say(`${userInfo.displayName}, available commands: !task, !done, !edit, !remove, !focus, !check, !next, !help, !clear (mods), !timer (mods)`);
+    }
     return;
   }
 
