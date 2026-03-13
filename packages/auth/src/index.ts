@@ -1,13 +1,12 @@
-import prisma from "@dirework/db";
+import { db } from "@dirework/db";
+import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
 import { betterAuth } from "better-auth";
-import { prismaAdapter } from "better-auth/adapters/prisma";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 
 export const auth = betterAuth({
-  database: prismaAdapter(prisma, {
-    provider: "postgresql",
-  }),
+  database: drizzleAdapter(db, { provider: "pg", schema }),
 
   trustedOrigins: [env.CORS_ORIGIN],
   emailAndPassword: {
@@ -27,13 +26,13 @@ export const auth = betterAuth({
     session: {
       create: {
         after: async (session) => {
-          // Provision config rows on every login — upsert is atomic (no race conditions)
+          // Provision config rows on every login — onConflictDoNothing is atomic
           const userId = session.userId;
           await Promise.all([
-            prisma.timerConfig.upsert({ where: { userId }, create: { userId }, update: {} }),
-            prisma.timerStyle.upsert({ where: { userId }, create: { userId }, update: {} }),
-            prisma.taskStyle.upsert({ where: { userId }, create: { userId }, update: {} }),
-            prisma.botConfig.upsert({ where: { userId }, create: { userId }, update: {} }),
+            db.insert(schema.timerConfig).values({ userId }).onConflictDoNothing(),
+            db.insert(schema.timerStyle).values({ userId }).onConflictDoNothing(),
+            db.insert(schema.taskStyle).values({ userId }).onConflictDoNothing(),
+            db.insert(schema.botConfig).values({ userId }).onConflictDoNothing(),
           ]);
         },
       },

@@ -1,9 +1,9 @@
-import type prismaDefault from "@dirework/db";
+import { eq, and, asc, inArray, sql } from "drizzle-orm";
+import type { DbClient } from "@dirework/db";
+import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
 
 import { ee } from "../events";
-
-type PrismaClient = typeof prismaDefault;
 import { getTimerConfig, computeNextPhase } from "../routers/timer-logic";
 
 export interface BotConfigData {
@@ -58,7 +58,7 @@ interface UserInfo {
 }
 
 interface MessageContext {
-  prisma: PrismaClient;
+  db: DbClient;
   ownerId: string;
   channelName: string;
   config: BotConfigData;
@@ -151,7 +151,7 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
 }
 
 async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void> {
-  const { config, userInfo, say, prisma, ownerId } = ctx;
+  const { config, userInfo, say, db, ownerId } = ctx;
   const text = args.join(" ").trim();
   const vars = { user: userInfo.displayName, channel: ctx.channelName, task: text };
 
@@ -161,42 +161,40 @@ async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void>
   }
 
   // Check for existing pending/active tasks
-  const existingTasks = await prisma.task.findMany({
-    where: {
-      ownerId,
-      authorTwitchId: userInfo.twitchId,
-      status: { in: ["pending", "active"] },
-    },
-    select: { id: true },
+  const existingTasks = await db.query.task.findMany({
+    where: and(
+      eq(schema.task.ownerId, ownerId),
+      eq(schema.task.authorTwitchId, userInfo.twitchId),
+      inArray(schema.task.status, ["pending", "active"]),
+    ),
+    columns: { id: true },
   });
 
   // Determine broadcaster priority
-  const user = await prisma.user.findUnique({
-    where: { id: ownerId },
-    select: { twitchId: true },
+  const user = await db.query.user.findFirst({
+    where: eq(schema.user.id, ownerId),
+    columns: { twitchId: true },
   });
   const isBroadcaster = user?.twitchId === userInfo.twitchId;
 
-  const lastTask = await prisma.task.findFirst({
-    where: { ownerId, priority: isBroadcaster ? 0 : 1 },
-    orderBy: { order: "desc" },
-    select: { order: true },
+  const lastTask = await db.query.task.findFirst({
+    where: and(eq(schema.task.ownerId, ownerId), eq(schema.task.priority, isBroadcaster ? 0 : 1)),
+    orderBy: [asc(schema.task.order)],
+    columns: { order: true },
   });
 
   const autoActivate = existingTasks.length === 0;
 
-  await prisma.task.create({
-    data: {
-      ownerId,
-      authorTwitchId: userInfo.twitchId,
-      authorUsername: userInfo.username,
-      authorDisplayName: userInfo.displayName,
-      authorColor: userInfo.color,
-      text,
-      status: autoActivate ? "active" : "pending",
-      priority: isBroadcaster ? 0 : 1,
-      order: (lastTask?.order ?? 0) + 1,
-    },
+  await db.insert(schema.task).values({
+    ownerId,
+    authorTwitchId: userInfo.twitchId,
+    authorUsername: userInfo.username,
+    authorDisplayName: userInfo.displayName,
+    authorColor: userInfo.color,
+    text,
+    status: autoActivate ? "active" : "pending",
+    priority: isBroadcaster ? 0 : 1,
+    order: (lastTask?.order ?? 0) + 1,
   });
 
   ee.emit(`taskListChange:${ownerId}`);
@@ -204,7 +202,7 @@ async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void>
 }
 
 async function handleTaskDone(args: string[], ctx: MessageContext): Promise<void> {
-  const { config, userInfo, say, prisma, ownerId } = ctx;
+  const { config, userInfo, say, db, ownerId } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   let task;
@@ -212,15 +210,23 @@ async function handleTaskDone(args: string[], ctx: MessageContext): Promise<void
   if (args[0] && /^\d+$/.test(args[0])) {
     // Position-based
     const position = parseInt(args[0], 10);
-    const viewerTasks = await prisma.task.findMany({
-      where: { ownerId, authorTwitchId: userInfo.twitchId, status: { in: ["pending", "active"] } },
-      orderBy: { order: "asc" },
+    const viewerTasks = await db.query.task.findMany({
+      where: and(
+        eq(schema.task.ownerId, ownerId),
+        eq(schema.task.authorTwitchId, userInfo.twitchId),
+        inArray(schema.task.status, ["pending", "active"]),
+      ),
+      orderBy: [asc(schema.task.order)],
     });
     task = viewerTasks[position - 1];
   } else {
     // Active task
-    task = await prisma.task.findFirst({
-      where: { ownerId, authorTwitchId: userInfo.twitchId, status: "active" },
+    task = await db.query.task.findFirst({
+      where: and(
+        eq(schema.task.ownerId, ownerId),
+        eq(schema.task.authorTwitchId, userInfo.twitchId),
+        eq(schema.task.status, "active"),
+      ),
     });
   }
 
@@ -229,21 +235,23 @@ async function handleTaskDone(args: string[], ctx: MessageContext): Promise<void
     return;
   }
 
-  await prisma.task.update({
-    where: { id: task.id },
-    data: { status: "done", completedAt: new Date() },
-  });
+  await db.update(schema.task)
+    .set({ status: "done", completedAt: new Date() })
+    .where(eq(schema.task.id, task.id));
 
   // Auto-activate next pending task
-  const nextPending = await prisma.task.findFirst({
-    where: { ownerId, authorTwitchId: userInfo.twitchId, status: "pending" },
-    orderBy: { order: "asc" },
+  const nextPending = await db.query.task.findFirst({
+    where: and(
+      eq(schema.task.ownerId, ownerId),
+      eq(schema.task.authorTwitchId, userInfo.twitchId),
+      eq(schema.task.status, "pending"),
+    ),
+    orderBy: [asc(schema.task.order)],
   });
   if (nextPending) {
-    await prisma.task.update({
-      where: { id: nextPending.id },
-      data: { status: "active" },
-    });
+    await db.update(schema.task)
+      .set({ status: "active" })
+      .where(eq(schema.task.id, nextPending.id));
   }
 
   ee.emit(`taskListChange:${ownerId}`);
@@ -251,7 +259,7 @@ async function handleTaskDone(args: string[], ctx: MessageContext): Promise<void
 }
 
 async function handleTaskEdit(args: string[], ctx: MessageContext): Promise<void> {
-  const { config, userInfo, say, prisma, ownerId } = ctx;
+  const { config, userInfo, say, db, ownerId } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   const firstArg = args[0];
@@ -263,9 +271,13 @@ async function handleTaskEdit(args: string[], ctx: MessageContext): Promise<void
   const position = parseInt(firstArg, 10);
   const newText = args.slice(1).join(" ").trim();
 
-  const viewerTasks = await prisma.task.findMany({
-    where: { ownerId, authorTwitchId: userInfo.twitchId, status: { in: ["pending", "active"] } },
-    orderBy: { order: "asc" },
+  const viewerTasks = await db.query.task.findMany({
+    where: and(
+      eq(schema.task.ownerId, ownerId),
+      eq(schema.task.authorTwitchId, userInfo.twitchId),
+      inArray(schema.task.status, ["pending", "active"]),
+    ),
+    orderBy: [asc(schema.task.order)],
   });
 
   const task = viewerTasks[position - 1];
@@ -274,17 +286,16 @@ async function handleTaskEdit(args: string[], ctx: MessageContext): Promise<void
     return;
   }
 
-  await prisma.task.update({
-    where: { id: task.id },
-    data: { text: newText },
-  });
+  await db.update(schema.task)
+    .set({ text: newText })
+    .where(eq(schema.task.id, task.id));
 
   ee.emit(`taskListChange:${ownerId}`);
   say(interpolate(config.task.taskEdited, { ...vars, task: newText }));
 }
 
 async function handleTaskRemove(args: string[], ctx: MessageContext): Promise<void> {
-  const { config, userInfo, say, prisma, ownerId } = ctx;
+  const { config, userInfo, say, db, ownerId } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   if (!args[0] || !/^\d+$/.test(args[0])) {
@@ -293,9 +304,13 @@ async function handleTaskRemove(args: string[], ctx: MessageContext): Promise<vo
   }
 
   const position = parseInt(args[0], 10);
-  const viewerTasks = await prisma.task.findMany({
-    where: { ownerId, authorTwitchId: userInfo.twitchId, status: { in: ["pending", "active"] } },
-    orderBy: { order: "asc" },
+  const viewerTasks = await db.query.task.findMany({
+    where: and(
+      eq(schema.task.ownerId, ownerId),
+      eq(schema.task.authorTwitchId, userInfo.twitchId),
+      inArray(schema.task.status, ["pending", "active"]),
+    ),
+    orderBy: [asc(schema.task.order)],
   });
 
   const task = viewerTasks[position - 1];
@@ -304,19 +319,22 @@ async function handleTaskRemove(args: string[], ctx: MessageContext): Promise<vo
     return;
   }
 
-  await prisma.task.delete({ where: { id: task.id } });
+  await db.delete(schema.task).where(eq(schema.task.id, task.id));
 
   // If we removed an active task, auto-activate next pending
   if (task.status === "active") {
-    const nextPending = await prisma.task.findFirst({
-      where: { ownerId, authorTwitchId: userInfo.twitchId, status: "pending" },
-      orderBy: { order: "asc" },
+    const nextPending = await db.query.task.findFirst({
+      where: and(
+        eq(schema.task.ownerId, ownerId),
+        eq(schema.task.authorTwitchId, userInfo.twitchId),
+        eq(schema.task.status, "pending"),
+      ),
+      orderBy: [asc(schema.task.order)],
     });
     if (nextPending) {
-      await prisma.task.update({
-        where: { id: nextPending.id },
-        data: { status: "active" },
-      });
+      await db.update(schema.task)
+        .set({ status: "active" })
+        .where(eq(schema.task.id, nextPending.id));
     }
   }
 
@@ -325,7 +343,7 @@ async function handleTaskRemove(args: string[], ctx: MessageContext): Promise<vo
 }
 
 async function handleTaskFocus(args: string[], ctx: MessageContext): Promise<void> {
-  const { config, userInfo, say, prisma, ownerId } = ctx;
+  const { config, userInfo, say, db, ownerId } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   if (!args[0] || !/^\d+$/.test(args[0])) {
@@ -334,9 +352,13 @@ async function handleTaskFocus(args: string[], ctx: MessageContext): Promise<voi
   }
 
   const position = parseInt(args[0], 10);
-  const viewerTasks = await prisma.task.findMany({
-    where: { ownerId, authorTwitchId: userInfo.twitchId, status: { in: ["pending", "active"] } },
-    orderBy: { order: "asc" },
+  const viewerTasks = await db.query.task.findMany({
+    where: and(
+      eq(schema.task.ownerId, ownerId),
+      eq(schema.task.authorTwitchId, userInfo.twitchId),
+      inArray(schema.task.status, ["pending", "active"]),
+    ),
+    orderBy: [asc(schema.task.order)],
   });
 
   const task = viewerTasks[position - 1];
@@ -346,34 +368,36 @@ async function handleTaskFocus(args: string[], ctx: MessageContext): Promise<voi
   }
 
   // Deactivate any current active task
-  await prisma.task.updateMany({
-    where: { ownerId, authorTwitchId: userInfo.twitchId, status: "active" },
-    data: { status: "pending" },
-  });
+  await db.update(schema.task)
+    .set({ status: "pending" })
+    .where(and(
+      eq(schema.task.ownerId, ownerId),
+      eq(schema.task.authorTwitchId, userInfo.twitchId),
+      eq(schema.task.status, "active"),
+    ));
 
   // Activate the target task
-  await prisma.task.update({
-    where: { id: task.id },
-    data: { status: "active" },
-  });
+  await db.update(schema.task)
+    .set({ status: "active" })
+    .where(eq(schema.task.id, task.id));
 
   ee.emit(`taskListChange:${ownerId}`);
   say(interpolate(config.task.taskCheck, { ...vars, task: task.text }));
 }
 
 async function handleTaskCheck(args: string[], ctx: MessageContext): Promise<void> {
-  const { config, userInfo, say, prisma, ownerId } = ctx;
+  const { config, userInfo, say, db, ownerId } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   if (args[0] && args[0].startsWith("@")) {
     // Check another user
-    const targetUsername = args[0].slice(1).toLowerCase();
-    const targetTask = await prisma.task.findFirst({
-      where: {
-        ownerId,
-        authorUsername: { equals: targetUsername, mode: "insensitive" },
-        status: "active",
-      },
+    const targetUsername = args[0].slice(1);
+    const targetTask = await db.query.task.findFirst({
+      where: and(
+        eq(schema.task.ownerId, ownerId),
+        sql`lower(${schema.task.authorUsername}) = lower(${targetUsername})`,
+        eq(schema.task.status, "active"),
+      ),
     });
 
     if (!targetTask) {
@@ -390,8 +414,12 @@ async function handleTaskCheck(args: string[], ctx: MessageContext): Promise<voi
   }
 
   // Check own tasks
-  const activeTask = await prisma.task.findFirst({
-    where: { ownerId, authorTwitchId: userInfo.twitchId, status: "active" },
+  const activeTask = await db.query.task.findFirst({
+    where: and(
+      eq(schema.task.ownerId, ownerId),
+      eq(schema.task.authorTwitchId, userInfo.twitchId),
+      eq(schema.task.status, "active"),
+    ),
   });
 
   if (!activeTask) {
@@ -403,7 +431,7 @@ async function handleTaskCheck(args: string[], ctx: MessageContext): Promise<voi
 }
 
 async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void> {
-  const { config, userInfo, say, prisma, ownerId } = ctx;
+  const { config, userInfo, say, db, ownerId } = ctx;
   const newText = args.join(" ").trim();
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
@@ -413,43 +441,44 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
   }
 
   // Mark active task as done
-  const activeTask = await prisma.task.findFirst({
-    where: { ownerId, authorTwitchId: userInfo.twitchId, status: "active" },
+  const activeTask = await db.query.task.findFirst({
+    where: and(
+      eq(schema.task.ownerId, ownerId),
+      eq(schema.task.authorTwitchId, userInfo.twitchId),
+      eq(schema.task.status, "active"),
+    ),
   });
 
   if (activeTask) {
-    await prisma.task.update({
-      where: { id: activeTask.id },
-      data: { status: "done", completedAt: new Date() },
-    });
+    await db.update(schema.task)
+      .set({ status: "done", completedAt: new Date() })
+      .where(eq(schema.task.id, activeTask.id));
   }
 
   // Determine broadcaster priority
-  const user = await prisma.user.findUnique({
-    where: { id: ownerId },
-    select: { twitchId: true },
+  const user = await db.query.user.findFirst({
+    where: eq(schema.user.id, ownerId),
+    columns: { twitchId: true },
   });
   const isBroadcaster = user?.twitchId === userInfo.twitchId;
 
-  const lastTask = await prisma.task.findFirst({
-    where: { ownerId, priority: isBroadcaster ? 0 : 1 },
-    orderBy: { order: "desc" },
-    select: { order: true },
+  const lastTask = await db.query.task.findFirst({
+    where: and(eq(schema.task.ownerId, ownerId), eq(schema.task.priority, isBroadcaster ? 0 : 1)),
+    orderBy: [asc(schema.task.order)],
+    columns: { order: true },
   });
 
   // Create new task as active
-  await prisma.task.create({
-    data: {
-      ownerId,
-      authorTwitchId: userInfo.twitchId,
-      authorUsername: userInfo.username,
-      authorDisplayName: userInfo.displayName,
-      authorColor: userInfo.color,
-      text: newText,
-      status: "active",
-      priority: isBroadcaster ? 0 : 1,
-      order: (lastTask?.order ?? 0) + 1,
-    },
+  await db.insert(schema.task).values({
+    ownerId,
+    authorTwitchId: userInfo.twitchId,
+    authorUsername: userInfo.username,
+    authorDisplayName: userInfo.displayName,
+    authorColor: userInfo.color,
+    text: newText,
+    status: "active",
+    priority: isBroadcaster ? 0 : 1,
+    order: (lastTask?.order ?? 0) + 1,
   });
 
   ee.emit(`taskListChange:${ownerId}`);
@@ -461,7 +490,7 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
 }
 
 async function handleClear(args: string[], ctx: MessageContext): Promise<void> {
-  const { config, userInfo, say, prisma, ownerId } = ctx;
+  const { config, userInfo, say, db, ownerId } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   if (!userInfo.isMod) {
@@ -472,61 +501,63 @@ async function handleClear(args: string[], ctx: MessageContext): Promise<void> {
   const sub = args[0]?.toLowerCase();
 
   if (sub === "all") {
-    await prisma.task.deleteMany({ where: { ownerId } });
+    await db.delete(schema.task).where(eq(schema.task.ownerId, ownerId));
     ee.emit(`taskListChange:${ownerId}`);
     say(interpolate(config.task.clearedAll, vars));
   } else if (sub === "done") {
-    await prisma.task.deleteMany({ where: { ownerId, status: "done" } });
+    await db.delete(schema.task).where(and(eq(schema.task.ownerId, ownerId), eq(schema.task.status, "done")));
     ee.emit(`taskListChange:${ownerId}`);
     say(interpolate(config.task.clearedDone, vars));
   } else if (sub && sub.startsWith("@")) {
     const targetUsername = sub.slice(1);
-    await prisma.task.deleteMany({
-      where: {
-        ownerId,
-        authorUsername: { equals: targetUsername, mode: "insensitive" },
-      },
-    });
+    await db.delete(schema.task)
+      .where(and(
+        eq(schema.task.ownerId, ownerId),
+        sql`lower(${schema.task.authorUsername}) = lower(${targetUsername})`,
+      ));
     ee.emit(`taskListChange:${ownerId}`);
     say(interpolate(config.task.adminDeleteTasks, vars));
   }
 }
 
 async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<void> {
-  const { config, say, prisma, ownerId, channelName, userInfo } = ctx;
+  const { config, say, db, ownerId, channelName, userInfo } = ctx;
   const sub = args[0]?.toLowerCase();
   const vars = { user: userInfo.displayName, channel: channelName };
 
   switch (sub) {
     case "start": {
-      const timer = await prisma.timerState.findUnique({ where: { userId: ownerId } });
+      const timer = await db.query.timerState.findFirst({ where: eq(schema.timerState.userId, ownerId) });
       if (timer && timer.status !== "idle" && timer.status !== "finished") {
         say(interpolate(config.timer.timerRunning, vars));
         return;
       }
 
-      const timerConfig = await prisma.timerConfig.findUnique({ where: { userId: ownerId } });
-      const tc = getTimerConfig(timerConfig);
-      const totalCycles = args[1] ? parseInt(args[1], 10) : timerConfig?.defaultCycles ?? 4;
+      const timerConfigRow = await db.query.timerConfig.findFirst({ where: eq(schema.timerConfig.userId, ownerId) });
+      const tc = getTimerConfig(timerConfigRow ?? null);
+      const totalCycles = args[1] ? parseInt(args[1], 10) : timerConfigRow?.defaultCycles ?? 4;
 
-      await prisma.timerState.upsert({
-        where: { userId: ownerId },
-        update: {
+      await db.insert(schema.timerState)
+        .values({
+          userId: ownerId,
           status: "starting",
           targetEndTime: new Date(Date.now() + tc.startingDuration),
           pausedWithRemaining: null,
           pausedFromStatus: null,
           currentCycle: 1,
           totalCycles,
-        },
-        create: {
-          userId: ownerId,
-          status: "starting",
-          targetEndTime: new Date(Date.now() + tc.startingDuration),
-          currentCycle: 1,
-          totalCycles,
-        },
-      });
+        })
+        .onConflictDoUpdate({
+          target: schema.timerState.userId,
+          set: {
+            status: "starting",
+            targetEndTime: new Date(Date.now() + tc.startingDuration),
+            pausedWithRemaining: null,
+            pausedFromStatus: null,
+            currentCycle: 1,
+            totalCycles,
+          },
+        });
 
       ee.emit(`timerStateChange:${ownerId}`);
       say(interpolate(config.timer.commandSuccess, vars));
@@ -534,22 +565,21 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
     }
 
     case "pause": {
-      const timer = await prisma.timerState.findUnique({ where: { userId: ownerId } });
+      const timer = await db.query.timerState.findFirst({ where: eq(schema.timerState.userId, ownerId) });
       if (!timer?.targetEndTime) {
         say(interpolate(config.timer.notRunning, vars));
         return;
       }
 
       const remaining = Math.max(0, timer.targetEndTime.getTime() - Date.now());
-      await prisma.timerState.update({
-        where: { userId: ownerId },
-        data: {
+      await db.update(schema.timerState)
+        .set({
           status: "paused",
           pausedFromStatus: timer.status,
           pausedWithRemaining: remaining,
           targetEndTime: null,
-        },
-      });
+        })
+        .where(eq(schema.timerState.userId, ownerId));
 
       ee.emit(`timerStateChange:${ownerId}`);
       say(interpolate(config.timer.commandSuccess, vars));
@@ -557,22 +587,21 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
     }
 
     case "resume": {
-      const timer = await prisma.timerState.findUnique({ where: { userId: ownerId } });
+      const timer = await db.query.timerState.findFirst({ where: eq(schema.timerState.userId, ownerId) });
       if (!timer?.pausedWithRemaining) {
         say(interpolate(config.timer.notRunning, vars));
         return;
       }
 
       const resumeStatus = timer.pausedFromStatus ?? "work";
-      await prisma.timerState.update({
-        where: { userId: ownerId },
-        data: {
+      await db.update(schema.timerState)
+        .set({
           status: resumeStatus,
           targetEndTime: new Date(Date.now() + timer.pausedWithRemaining),
           pausedWithRemaining: null,
           pausedFromStatus: null,
-        },
-      });
+        })
+        .where(eq(schema.timerState.userId, ownerId));
 
       ee.emit(`timerStateChange:${ownerId}`);
       say(interpolate(config.timer.commandSuccess, vars));
@@ -580,9 +609,9 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
     }
 
     case "skip": {
-      const [timer, timerConfig] = await Promise.all([
-        prisma.timerState.findUnique({ where: { userId: ownerId } }),
-        prisma.timerConfig.findUnique({ where: { userId: ownerId } }),
+      const [timer, timerConfigRow] = await Promise.all([
+        db.query.timerState.findFirst({ where: eq(schema.timerState.userId, ownerId) }),
+        db.query.timerConfig.findFirst({ where: eq(schema.timerConfig.userId, ownerId) }),
       ]);
       if (!timer) {
         say(interpolate(config.timer.notRunning, vars));
@@ -593,7 +622,7 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
         ? (timer.pausedFromStatus ?? "work")
         : timer.status;
 
-      const tc = getTimerConfig(timerConfig);
+      const tc = getTimerConfig(timerConfigRow ?? null);
       const { nextStatus, nextDuration, nextCycle } = computeNextPhase(
         { status: effectiveStatus, currentCycle: timer.currentCycle, totalCycles: timer.totalCycles },
         tc,
@@ -612,38 +641,39 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
         data.targetEndTime = null;
       }
 
-      await prisma.timerState.update({ where: { userId: ownerId }, data });
+      await db.update(schema.timerState)
+        .set(data)
+        .where(eq(schema.timerState.userId, ownerId));
       ee.emit(`timerStateChange:${ownerId}`);
       say(interpolate(config.timer.commandSuccess, vars));
       break;
     }
 
     case "reset": {
-      await prisma.timerState.update({
-        where: { userId: ownerId },
-        data: {
+      await db.update(schema.timerState)
+        .set({
           status: "idle",
           targetEndTime: null,
           pausedWithRemaining: null,
           pausedFromStatus: null,
           currentCycle: 1,
           totalCycles: 4,
-        },
-      });
+        })
+        .where(eq(schema.timerState.userId, ownerId));
       ee.emit(`timerStateChange:${ownerId}`);
       say(interpolate(config.timer.commandSuccess, vars));
       break;
     }
 
     case "eta": {
-      const timer = await prisma.timerState.findUnique({ where: { userId: ownerId } });
+      const timer = await db.query.timerState.findFirst({ where: eq(schema.timerState.userId, ownerId) });
       if (!timer?.targetEndTime) {
         say(interpolate(config.timer.notRunning, vars));
         return;
       }
 
-      const timerConfig = await prisma.timerConfig.findUnique({ where: { userId: ownerId } });
-      const tc = getTimerConfig(timerConfig);
+      const timerConfigRow = await db.query.timerConfig.findFirst({ where: eq(schema.timerConfig.userId, ownerId) });
+      const tc = getTimerConfig(timerConfigRow ?? null);
 
       // Calculate estimated end time based on remaining cycles
       let totalMs = timer.targetEndTime.getTime() - Date.now();

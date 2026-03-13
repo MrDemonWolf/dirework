@@ -1,5 +1,8 @@
-import prisma from "@dirework/db";
+import { auth } from "@dirework/auth";
+import { db } from "@dirework/db";
+import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
+import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 
 function errorRedirect(_request: NextRequest, reason: string) {
@@ -26,6 +29,12 @@ export async function GET(request: NextRequest) {
     return errorRedirect(request, "Invalid state parameter");
   }
 
+  // Verify the current session matches the userId from state
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session || session.user.id !== userId) {
+    return errorRedirect(request, "Session expired or mismatch — please try connecting your bot again");
+  }
+
   // Exchange code for tokens
   const tokenRes = await fetch("https://id.twitch.tv/oauth2/token", {
     method: "POST",
@@ -35,7 +44,7 @@ export async function GET(request: NextRequest) {
       client_secret: env.TWITCH_CLIENT_SECRET,
       code,
       grant_type: "authorization_code",
-      redirect_uri: `${env.BETTER_AUTH_URL}/api/bot/callback`,
+      redirect_uri: `${env.BETTER_AUTH_URL}/api/bot/callback/twitch`,
     }),
   });
 
@@ -69,17 +78,8 @@ export async function GET(request: NextRequest) {
 
   // Upsert bot account
   try {
-    await prisma.botAccount.upsert({
-      where: { userId },
-      update: {
-        twitchId: botUser.id,
-        username: botUser.login,
-        displayName: botUser.display_name,
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-        expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-      },
-      create: {
+    await db.insert(schema.botAccount)
+      .values({
         userId,
         twitchId: botUser.id,
         username: botUser.login,
@@ -87,8 +87,18 @@ export async function GET(request: NextRequest) {
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
         expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-      },
-    });
+      })
+      .onConflictDoUpdate({
+        target: schema.botAccount.userId,
+        set: {
+          twitchId: botUser.id,
+          username: botUser.login,
+          displayName: botUser.display_name,
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+        },
+      });
   } catch (err) {
     console.error("Failed to save bot account:", err);
     return errorRedirect(request, "Database error saving bot account");

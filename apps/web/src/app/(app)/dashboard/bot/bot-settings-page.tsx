@@ -22,11 +22,13 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { TaskMessageEditor, TimerMessageEditor } from "@/components/bot-settings/message-editor";
 import { CommandAliasEditor } from "@/components/bot-settings/command-alias-editor";
 import { TaskVariableReference, TimerVariableReference } from "@/components/bot-settings/variable-reference";
+import { CommandsReference } from "@/components/bot-settings/commands-reference";
 import { trpc } from "@/utils/trpc";
 
 const defaultTaskMessages: TaskMessagesConfig = {
@@ -388,48 +390,44 @@ export default function BotSettingsPage() {
             </CardContent>
           </Card>
 
-          {/* Task Commands Toggle */}
+          {/* Chat Commands Toggles */}
           <Card>
-            <CardContent className="flex items-center justify-between py-4">
-              <div>
-                <h2 className="text-sm font-semibold">Task Commands</h2>
-                <p className="text-xs text-muted-foreground">Chat task commands</p>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Chat Commands</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 pt-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Task Commands</p>
+                  <p className="text-xs text-muted-foreground">Viewer task management</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="task-commands-toggle" className="text-xs">
+                    {taskCommandsEnabled ? "On" : "Off"}
+                  </Label>
+                  <Switch
+                    id="task-commands-toggle"
+                    checked={taskCommandsEnabled}
+                    onCheckedChange={(checked) => { setTaskCommandsEnabled(checked); markUnsaved(); }}
+                  />
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Label htmlFor="task-commands-toggle" className="text-xs">
-                  {taskCommandsEnabled ? "On" : "Off"}
-                </Label>
-                <Switch
-                  id="task-commands-toggle"
-                  checked={taskCommandsEnabled}
-                  onCheckedChange={(checked) => {
-                    setTaskCommandsEnabled(checked);
-                    markUnsaved();
-                  }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Timer Commands Toggle */}
-          <Card>
-            <CardContent className="flex items-center justify-between py-4">
-              <div>
-                <h2 className="text-sm font-semibold">Timer Commands</h2>
-                <p className="text-xs text-muted-foreground">Chat timer commands</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Label htmlFor="timer-commands-toggle" className="text-xs">
-                  {timerCommandsEnabled ? "On" : "Off"}
-                </Label>
-                <Switch
-                  id="timer-commands-toggle"
-                  checked={timerCommandsEnabled}
-                  onCheckedChange={(checked) => {
-                    setTimerCommandsEnabled(checked);
-                    markUnsaved();
-                  }}
-                />
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Timer Commands</p>
+                  <p className="text-xs text-muted-foreground">Mod timer control</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="timer-commands-toggle" className="text-xs">
+                    {timerCommandsEnabled ? "On" : "Off"}
+                  </Label>
+                  <Switch
+                    id="timer-commands-toggle"
+                    checked={timerCommandsEnabled}
+                    onCheckedChange={(checked) => { setTimerCommandsEnabled(checked); markUnsaved(); }}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -441,43 +439,43 @@ export default function BotSettingsPage() {
           />
         </div>
 
-        {/* Right column — message editors */}
-        <div className="min-w-0 flex-1 space-y-6">
-          {/* Task Messages */}
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold">Task Messages</h2>
+        {/* Right column — tabbed message editors */}
+        <div className="min-w-0 flex-1">
+          <Tabs defaultValue="task">
+            <TabsList className="mb-4">
+              <TabsTrigger value="task">Task Messages</TabsTrigger>
+              <TabsTrigger value="timer">Timer Messages</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="task" className="space-y-4">
               <p className="text-xs text-muted-foreground">
                 Customize bot responses for task-related commands
               </p>
-            </div>
-            <TaskVariableReference />
-            <TaskMessageEditor
-              messages={taskMessages}
-              onChange={handleTaskMessagesChange}
-              disabled={!taskCommandsEnabled}
-            />
-          </div>
+              <TaskVariableReference />
+              <TaskMessageEditor
+                messages={taskMessages}
+                onChange={handleTaskMessagesChange}
+                disabled={!taskCommandsEnabled}
+              />
+            </TabsContent>
 
-          <Separator />
-
-          {/* Timer Messages */}
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold">Timer Messages</h2>
+            <TabsContent value="timer" className="space-y-4">
               <p className="text-xs text-muted-foreground">
                 Customize bot responses for timer-related commands
               </p>
-            </div>
-            <TimerVariableReference />
-            <TimerMessageEditor
-              messages={timerMessages}
-              onChange={handleTimerMessagesChange}
-              disabled={!timerCommandsEnabled}
-            />
-          </div>
+              <TimerVariableReference />
+              <TimerMessageEditor
+                messages={timerMessages}
+                onChange={handleTimerMessagesChange}
+                disabled={!timerCommandsEnabled}
+              />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
+
+      {/* Commands Reference — full width */}
+      <CommandsReference />
 
       {/* Sticky Save / Reset Bar */}
       {hasUnsaved && (

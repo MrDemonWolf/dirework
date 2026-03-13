@@ -1,8 +1,11 @@
+import { TRPCError } from "@trpc/server";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure, router } from "../index";
 import { ee } from "../events";
-import type { TimerConfig, TimerStyle, TaskStyle, BotConfig } from "@dirework/db";
+import type { TimerConfig, TimerStyle, TaskStyle, BotConfig, DbClient } from "@dirework/db";
+import * as schema from "@dirework/db/schema";
 
 // ── Build helpers: flat DB rows → nested frontend objects ─────────────────────
 
@@ -274,17 +277,25 @@ export function flattenTaskStyles(input: TaskStylesInput) {
 
 // ── Provisioning helper ───────────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function ensureUserConfig(prisma: any, userId: string) {
-  // Upsert is atomic — no race conditions, 1 round-trip per model (all parallel)
-  const [timerConfig, timerStyle, taskStyle, botConfig] = await Promise.all([
-    prisma.timerConfig.upsert({ where: { userId }, create: { userId }, update: {} }),
-    prisma.timerStyle.upsert({ where: { userId }, create: { userId }, update: {} }),
-    prisma.taskStyle.upsert({ where: { userId }, create: { userId }, update: {} }),
-    prisma.botConfig.upsert({ where: { userId }, create: { userId }, update: {} }),
+async function ensureUserConfig(db: DbClient, userId: string) {
+  await Promise.all([
+    db.insert(schema.timerConfig).values({ userId }).onConflictDoNothing(),
+    db.insert(schema.timerStyle).values({ userId }).onConflictDoNothing(),
+    db.insert(schema.taskStyle).values({ userId }).onConflictDoNothing(),
+    db.insert(schema.botConfig).values({ userId }).onConflictDoNothing(),
   ]);
 
-  return { timerConfig, timerStyle, taskStyle, botConfig };
+  const [timerConfigRow, timerStyleRow, taskStyleRow, botConfigRow] = await Promise.all([
+    db.query.timerConfig.findFirst({ where: eq(schema.timerConfig.userId, userId) }),
+    db.query.timerStyle.findFirst({ where: eq(schema.timerStyle.userId, userId) }),
+    db.query.taskStyle.findFirst({ where: eq(schema.taskStyle.userId, userId) }),
+    db.query.botConfig.findFirst({ where: eq(schema.botConfig.userId, userId) }),
+  ]);
+
+  if (!timerConfigRow || !timerStyleRow || !taskStyleRow || !botConfigRow) {
+    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to provision user config" });
+  }
+  return { timerConfig: timerConfigRow, timerStyle: timerStyleRow, taskStyle: taskStyleRow, botConfig: botConfigRow };
 }
 
 // ── Zod schemas ───────────────────────────────────────────────────────────────
@@ -344,7 +355,7 @@ export const configRouter = router({
   /** Get all config for the current user (creates defaults if missing) */
   get: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.session.user.id;
-    const config = await ensureUserConfig(ctx.prisma, userId);
+    const config = await ensureUserConfig(ctx.db, userId);
     return {
       timerConfig: buildTimerConfig(config.timerConfig),
       timerStyles: buildTimerStylesConfig(config.timerStyle),
@@ -367,10 +378,11 @@ export const configRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      const updated = await ctx.prisma.timerConfig.update({
-        where: { userId },
-        data: input,
-      });
+      const [updated] = await ctx.db.update(schema.timerConfig)
+        .set(input)
+        .where(eq(schema.timerConfig.userId, userId))
+        .returning();
+      if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found — call config.get first to provision defaults" });
       ee.emit(`timerStateChange:${userId}`);
       return buildTimerConfig(updated);
     }),
@@ -381,10 +393,11 @@ export const configRouter = router({
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
       const flat = flattenTimerStyles(input.timerStyles);
-      const updated = await ctx.prisma.timerStyle.update({
-        where: { userId },
-        data: flat,
-      });
+      const [updated] = await ctx.db.update(schema.timerStyle)
+        .set(flat)
+        .where(eq(schema.timerStyle.userId, userId))
+        .returning();
+      if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found — call config.get first to provision defaults" });
       ee.emit(`timerStateChange:${userId}`);
       return buildTimerStylesConfig(updated);
     }),
@@ -395,10 +408,11 @@ export const configRouter = router({
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
       const flat = flattenTaskStyles(input.taskStyles);
-      const updated = await ctx.prisma.taskStyle.update({
-        where: { userId },
-        data: flat,
-      });
+      const [updated] = await ctx.db.update(schema.taskStyle)
+        .set(flat)
+        .where(eq(schema.taskStyle.userId, userId))
+        .returning();
+      if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found — call config.get first to provision defaults" });
       ee.emit(`taskListChange:${userId}`);
       return buildTaskStylesConfig(updated);
     }),
@@ -449,9 +463,8 @@ export const configRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      const result = await ctx.prisma.botConfig.update({
-        where: { userId },
-        data: {
+      const [result] = await ctx.db.update(schema.botConfig)
+        .set({
           taskCommandsEnabled: input.taskCommandsEnabled,
           timerCommandsEnabled: input.timerCommandsEnabled,
           msgTaskAdded: input.task.taskAdded,
@@ -486,10 +499,11 @@ export const configRouter = router({
           msgFinishResponse: input.timer.finishResponse,
           msgAlreadyStarting: input.timer.alreadyStarting,
           msgEta: input.timer.eta,
-        },
-      });
+        })
+        .where(eq(schema.botConfig.userId, userId))
+        .returning();
       ee.emit(`botConfigChange:${userId}`);
-      return result;
+      return result ?? null;
     }),
 
   /** Update phase labels (stored in TimerConfig) */
@@ -507,9 +521,8 @@ export const configRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      const result = await ctx.prisma.timerConfig.update({
-        where: { userId },
-        data: {
+      const [result] = await ctx.db.update(schema.timerConfig)
+        .set({
           labelIdle: input.idle,
           labelStarting: input.starting,
           labelWork: input.work,
@@ -517,10 +530,11 @@ export const configRouter = router({
           labelLongBreak: input.longBreak,
           labelPaused: input.paused,
           labelFinished: input.finished,
-        },
-      });
+        })
+        .where(eq(schema.timerConfig.userId, userId))
+        .returning();
       ee.emit(`timerStateChange:${userId}`);
-      return result;
+      return result ?? null;
     }),
 
   /** Update command aliases */
@@ -528,11 +542,11 @@ export const configRouter = router({
     .input(z.object({ commandAliases: z.record(z.string(), z.string()) }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      const result = await ctx.prisma.botConfig.update({
-        where: { userId },
-        data: { commandAliases: input.commandAliases as object },
-      });
+      const [result] = await ctx.db.update(schema.botConfig)
+        .set({ commandAliases: input.commandAliases })
+        .where(eq(schema.botConfig.userId, userId))
+        .returning();
       ee.emit(`botConfigChange:${userId}`);
-      return result;
+      return result ?? null;
     }),
 });

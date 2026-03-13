@@ -18,7 +18,7 @@ export async function GET() {
 
   const params = new URLSearchParams({
     client_id: env.TWITCH_CLIENT_ID,
-    redirect_uri: `${env.BETTER_AUTH_URL}/api/bot/callback`,
+    redirect_uri: `${env.BETTER_AUTH_URL}/api/bot/callback/twitch`,
     response_type: "code",
     scope: "chat:read chat:edit channel:moderate user:read:chat",
     force_verify: "true",

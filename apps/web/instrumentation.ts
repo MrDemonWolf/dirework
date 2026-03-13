@@ -1,19 +1,16 @@
-export async function onRequestInit() {
-  // Only auto-start once (on first request after server boot)
-  if ((globalThis as Record<string, unknown>).__botAutoStarted) return;
-  (globalThis as Record<string, unknown>).__botAutoStarted = true;
-
+export async function register() {
+  // register() only runs in the Node.js runtime, not Edge — safe for db
   try {
-    const { default: prisma } = await import("@dirework/db");
+    const { db } = await import("@dirework/db");
     const { botService } = await import("@dirework/api/bot/index");
 
     // Find a bot account to auto-start
-    const botAccount = await prisma.botAccount.findFirst({
-      select: { userId: true },
+    const botAccount = await db.query.botAccount.findFirst({
+      columns: { userId: true },
     });
 
     if (botAccount && !botService.isRunning()) {
-      await botService.start(prisma, botAccount.userId);
+      await botService.start(db, botAccount.userId);
       console.log("[Instrumentation] Bot auto-started");
     }
   } catch (err) {

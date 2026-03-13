@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 
 import { auth } from "@dirework/auth";
-import prisma from "@dirework/db";
+import { db } from "@dirework/db";
 
 export async function createContext(req: NextRequest) {
   const session = await auth.api.getSession({
@@ -9,7 +9,7 @@ export async function createContext(req: NextRequest) {
   });
   return {
     session,
-    prisma,
+    db,
   };
 }
 
