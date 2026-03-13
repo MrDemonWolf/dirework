@@ -1,17 +1,19 @@
 import { on } from "events";
+import { eq, asc } from "drizzle-orm";
 import { z } from "zod";
 
 import { publicProcedure, router } from "../index";
 import { ee } from "../events";
 import { buildTimerStylesConfig, buildTaskStylesConfig, buildTimerConfig } from "./config";
+import * as schema from "@dirework/db/schema";
 
 export const overlayRouter = router({
   getTimerState: publicProcedure
     .input(z.object({ token: z.string() }))
     .query(async ({ ctx, input }) => {
-      const user = await ctx.prisma.user.findFirst({
-        where: { overlayTimerToken: input.token },
-        include: { timerState: true, timerConfig: true, timerStyle: true },
+      const user = await ctx.db.query.user.findFirst({
+        where: eq(schema.user.overlayTimerToken, input.token),
+        with: { timerState: true, timerConfig: true, timerStyle: true },
       });
       if (!user) return null;
 
@@ -25,15 +27,16 @@ export const overlayRouter = router({
   getTaskList: publicProcedure
     .input(z.object({ token: z.string() }))
     .query(async ({ ctx, input }) => {
-      const user = await ctx.prisma.user.findFirst({
-        where: { overlayTasksToken: input.token },
-        select: { id: true, taskStyle: true },
+      const user = await ctx.db.query.user.findFirst({
+        where: eq(schema.user.overlayTasksToken, input.token),
+        columns: { id: true },
+        with: { taskStyle: true },
       });
       if (!user) return null;
 
-      const tasks = await ctx.prisma.task.findMany({
-        where: { ownerId: user.id },
-        orderBy: [{ priority: "asc" }, { order: "asc" }],
+      const tasks = await ctx.db.query.task.findMany({
+        where: eq(schema.task.ownerId, user.id),
+        orderBy: [asc(schema.task.priority), asc(schema.task.order)],
       });
 
       return {
@@ -47,9 +50,9 @@ export const overlayRouter = router({
   onTimerState: publicProcedure
     .input(z.object({ token: z.string() }))
     .subscription(async function* ({ ctx, input, signal }) {
-      const user = await ctx.prisma.user.findFirst({
-        where: { overlayTimerToken: input.token },
-        include: { timerState: true, timerConfig: true, timerStyle: true },
+      const user = await ctx.db.query.user.findFirst({
+        where: eq(schema.user.overlayTimerToken, input.token),
+        with: { timerState: true, timerConfig: true, timerStyle: true },
       });
       if (!user) return;
 
@@ -62,9 +65,9 @@ export const overlayRouter = router({
 
       // Then yield on every change
       for await (const _ of on(ee, `timerStateChange:${user.id}`, { signal })) {
-        const fresh = await ctx.prisma.user.findFirst({
-          where: { id: user.id },
-          include: { timerState: true, timerConfig: true, timerStyle: true },
+        const fresh = await ctx.db.query.user.findFirst({
+          where: eq(schema.user.id, user.id),
+          with: { timerState: true, timerConfig: true, timerStyle: true },
         });
         if (!fresh) return;
         yield {
@@ -78,16 +81,17 @@ export const overlayRouter = router({
   onTaskList: publicProcedure
     .input(z.object({ token: z.string() }))
     .subscription(async function* ({ ctx, input, signal }) {
-      const user = await ctx.prisma.user.findFirst({
-        where: { overlayTasksToken: input.token },
-        select: { id: true, taskStyle: true },
+      const user = await ctx.db.query.user.findFirst({
+        where: eq(schema.user.overlayTasksToken, input.token),
+        columns: { id: true },
+        with: { taskStyle: true },
       });
       if (!user) return;
 
       // Yield initial state
-      const initialTasks = await ctx.prisma.task.findMany({
-        where: { ownerId: user.id },
-        orderBy: [{ priority: "asc" }, { order: "asc" }],
+      const initialTasks = await ctx.db.query.task.findMany({
+        where: eq(schema.task.ownerId, user.id),
+        orderBy: [asc(schema.task.priority), asc(schema.task.order)],
       });
       yield {
         tasks: initialTasks,
@@ -97,13 +101,14 @@ export const overlayRouter = router({
       // Then yield on every change
       for await (const _ of on(ee, `taskListChange:${user.id}`, { signal })) {
         const [freshUser, tasks] = await Promise.all([
-          ctx.prisma.user.findFirst({
-            where: { id: user.id },
-            select: { id: true, taskStyle: true },
+          ctx.db.query.user.findFirst({
+            where: eq(schema.user.id, user.id),
+            columns: { id: true },
+            with: { taskStyle: true },
           }),
-          ctx.prisma.task.findMany({
-            where: { ownerId: user.id },
-            orderBy: [{ priority: "asc" }, { order: "asc" }],
+          ctx.db.query.task.findMany({
+            where: eq(schema.task.ownerId, user.id),
+            orderBy: [asc(schema.task.priority), asc(schema.task.order)],
           }),
         ]);
         if (!freshUser) return;

@@ -94,10 +94,10 @@ command aliases.
 | Styling   | Tailwind CSS v4, shadcn/ui, Montserrat + Roboto    |
 | API       | tRPC v11, TanStack React Query                     |
 | Auth      | Better Auth (Twitch OAuth)                         |
-| Database  | PostgreSQL 17 + Prisma 7                           |
+| Database  | PostgreSQL 17 + Drizzle ORM                        |
 | Chat Bot  | Twurple (runs inside overlay browser sources)      |
 | Docs      | Fumadocs                                           |
-| Monorepo  | Turborepo + pnpm workspaces                        |
+| Monorepo  | Turborepo + Bun workspaces                         |
 
 ## Development
 
@@ -162,10 +162,10 @@ command aliases.
 - `pnpm dev:web` - Start the web app only
 - `pnpm db:start` - Start PostgreSQL via Docker
 - `pnpm db:stop` - Stop PostgreSQL
-- `pnpm db:push` - Push Prisma schema to database
-- `pnpm db:generate` - Regenerate Prisma client
-- `pnpm db:migrate` - Run Prisma migrations
-- `pnpm db:studio` - Open Prisma Studio
+- `bun run db:push` - Push Drizzle schema to database (dev only, no migration file)
+- `bun run db:generate` - Generate a new Drizzle migration from schema changes
+- `bun run db:migrate` - Apply pending Drizzle migrations
+- `bun run db:studio` - Open Drizzle Studio
 
 ### Testing
 
@@ -178,7 +178,7 @@ command aliases.
 ### Code Quality
 
 - **TypeScript** in strict mode across all packages
-- **Prisma** for type-safe database access
+- **Drizzle ORM** for type-safe database access
 - **tRPC** for end-to-end type-safe API layer
 - **t3-env** for environment variable validation
 - **Turborepo** for monorepo build orchestration
@@ -194,7 +194,7 @@ dirework/
 ├── packages/
 │   ├── api/           # tRPC routers + business logic
 │   ├── auth/          # Better Auth configuration
-│   ├── db/            # Prisma schema + client
+│   ├── db/            # Drizzle schema + client
 │   ├── env/           # Environment variable validation
 │   └── config/        # Shared TypeScript configuration
 ```

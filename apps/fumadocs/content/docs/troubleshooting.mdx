@@ -121,20 +121,19 @@ If you changed the work duration (e.g. to 50 minutes) but the timer still uses 2
 
 ### TypeScript errors after pulling changes
 
-Regenerate the Prisma client and check types:
+Check types:
 
 ```bash
-pnpm db:generate
 pnpm check-types
 ```
 
-### Changes to Prisma schema not reflected
+### Changes to Drizzle schema not reflected
 
-After modifying the schema files in `packages/db/prisma/schema/`, push the changes:
+After modifying the schema files in `packages/db/src/schema/`, generate and apply migrations:
 
 ```bash
-pnpm db:push
 pnpm db:generate
+pnpm db:migrate
 ```
 
 ### Port already in use

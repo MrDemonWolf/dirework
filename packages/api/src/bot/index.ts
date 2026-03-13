@@ -1,10 +1,10 @@
 import { RefreshingAuthProvider } from "@twurple/auth";
 import { ChatClient } from "@twurple/chat";
-import type prismaDefault from "@dirework/db";
+import { eq, and, sql } from "drizzle-orm";
+import type { DbClient } from "@dirework/db";
+import * as schema from "@dirework/db/schema";
 
 import { env } from "@dirework/env/server";
-
-type PrismaClient = typeof prismaDefault;
 import { ee } from "../events";
 import { buildBotConfig } from "../routers/config";
 import type { BotConfigData } from "./commands";
@@ -13,25 +13,25 @@ import { handleMessage } from "./commands";
 class TwitchBotService {
   private authProvider: RefreshingAuthProvider | null = null;
   private chatClient: ChatClient | null = null;
-  private prisma: PrismaClient | null = null;
+  private db: DbClient | null = null;
   private userId: string | null = null;
   private channelName: string | null = null;
   private botUsername: string | null = null;
   private configCache: BotConfigData | null = null;
   private configListener: (() => void) | null = null;
 
-  async start(prisma: PrismaClient, userId: string): Promise<void> {
+  async start(db: DbClient, userId: string): Promise<void> {
     if (this.chatClient) {
       throw new Error("Bot is already running");
     }
 
-    this.prisma = prisma;
+    this.db = db;
     this.userId = userId;
 
     // Load bot account + user
     const [botAccount, user] = await Promise.all([
-      prisma.botAccount.findUnique({ where: { userId } }),
-      prisma.user.findUnique({ where: { id: userId }, select: { name: true, twitchId: true } }),
+      db.query.botAccount.findFirst({ where: eq(schema.botAccount.userId, userId) }),
+      db.query.user.findFirst({ where: eq(schema.user.id, userId), columns: { name: true, twitchId: true } }),
     ]);
 
     if (!botAccount || !user) {
@@ -49,17 +49,16 @@ class TwitchBotService {
 
     this.authProvider.onRefresh(async (_userId, tokenData) => {
       // Persist refreshed tokens
-      await prisma.botAccount.update({
-        where: { userId },
-        data: {
+      await db.update(schema.botAccount)
+        .set({
           accessToken: tokenData.accessToken,
           refreshToken: tokenData.refreshToken ?? botAccount.refreshToken,
           expiresAt: tokenData.expiresIn
             ? new Date(Date.now() + tokenData.expiresIn * 1000)
             : botAccount.expiresAt,
           scopes: tokenData.scope ?? botAccount.scopes,
-        },
-      });
+        })
+        .where(eq(schema.botAccount.userId, userId));
     });
 
     await this.authProvider.addUserForToken(
@@ -81,14 +80,14 @@ class TwitchBotService {
 
     // Register message handler
     this.chatClient.onMessage(async (channel, _userState, message, msg) => {
-      if (!this.configCache || !this.prisma || !this.userId) return;
+      if (!this.configCache || !this.db || !this.userId) return;
 
       const isBroadcaster = msg.userInfo.isBroadcaster;
       const isMod = msg.userInfo.isMod;
 
       try {
         await handleMessage({
-          prisma: this.prisma,
+          db: this.db,
           ownerId: this.userId,
           channelName: this.channelName!,
           config: this.configCache,
@@ -109,30 +108,28 @@ class TwitchBotService {
     });
 
     // Ban/timeout handlers — remove all tasks by that user
-    this.chatClient.onBan(async (_channel, user) => {
-      if (!this.prisma || !this.userId) return;
+    this.chatClient.onBan(async (_channel, username) => {
+      if (!this.db || !this.userId) return;
       try {
-        await this.prisma.task.deleteMany({
-          where: {
-            ownerId: this.userId,
-            authorUsername: { equals: user, mode: "insensitive" },
-          },
-        });
+        await this.db.delete(schema.task)
+          .where(and(
+            eq(schema.task.ownerId, this.userId),
+            sql`lower(${schema.task.authorUsername}) = lower(${username})`,
+          ));
         ee.emit(`taskListChange:${this.userId}`);
       } catch (err) {
         console.error("[Bot] Error handling ban:", err);
       }
     });
 
-    this.chatClient.onTimeout(async (_channel, user) => {
-      if (!this.prisma || !this.userId) return;
+    this.chatClient.onTimeout(async (_channel, username) => {
+      if (!this.db || !this.userId) return;
       try {
-        await this.prisma.task.deleteMany({
-          where: {
-            ownerId: this.userId,
-            authorUsername: { equals: user, mode: "insensitive" },
-          },
-        });
+        await this.db.delete(schema.task)
+          .where(and(
+            eq(schema.task.ownerId, this.userId),
+            sql`lower(${schema.task.authorUsername}) = lower(${username})`,
+          ));
         ee.emit(`taskListChange:${this.userId}`);
       } catch (err) {
         console.error("[Bot] Error handling timeout:", err);
@@ -170,7 +167,7 @@ class TwitchBotService {
     }
 
     this.authProvider = null;
-    this.prisma = null;
+    this.db = null;
     this.userId = null;
     this.channelName = null;
     this.botUsername = null;
@@ -192,14 +189,19 @@ class TwitchBotService {
   }
 
   async reloadConfig(): Promise<void> {
-    if (!this.prisma || !this.userId) return;
+    if (!this.db || !this.userId) return;
 
-    const botConfig = await this.prisma.botConfig.findUnique({
-      where: { userId: this.userId },
+    // Ensure a default row exists (first-start case, before user visits config page)
+    await this.db.insert(schema.botConfig)
+      .values({ userId: this.userId })
+      .onConflictDoNothing();
+
+    const botConfigRow = await this.db.query.botConfig.findFirst({
+      where: eq(schema.botConfig.userId, this.userId),
     });
 
-    if (botConfig) {
-      this.configCache = buildBotConfig(botConfig);
+    if (botConfigRow) {
+      this.configCache = buildBotConfig(botConfigRow);
     }
   }
 }

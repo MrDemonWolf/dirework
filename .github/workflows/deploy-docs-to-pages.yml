@@ -13,24 +13,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
+      - uses: oven-sh/setup-bun@v2
 
       - uses: actions/configure-pages@v4
         id: pages
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
 
       - name: Build docs
         working-directory: apps/fumadocs
         env:
           NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
-        run: pnpm run build
+        run: bun run build
 
       - uses: actions/upload-pages-artifact@v4
         with:

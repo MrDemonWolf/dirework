@@ -1,15 +1,14 @@
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import { env } from "@dirework/env/server";
-import { PrismaPg } from "@prisma/adapter-pg";
+import * as schema from "./schema";
 
-import { PrismaClient } from "../prisma/generated/client";
+const pool = new Pool({ connectionString: env.DATABASE_URL });
+export const db = drizzle(pool, { schema });
 
-const adapter = new PrismaPg({ connectionString: env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter });
+export type DbClient = typeof db;
 
-export default prisma;
-export type {
-  TimerConfigModel as TimerConfig,
-  TimerStyleModel as TimerStyle,
-  TaskStyleModel as TaskStyle,
-  BotConfigModel as BotConfig,
-} from "../prisma/generated/models";
+export type TimerConfig = typeof schema.timerConfig.$inferSelect;
+export type TimerStyle = typeof schema.timerStyle.$inferSelect;
+export type TaskStyle = typeof schema.taskStyle.$inferSelect;
+export type BotConfig = typeof schema.botConfig.$inferSelect;

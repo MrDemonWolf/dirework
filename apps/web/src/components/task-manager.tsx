@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ListTodo, Trash2 } from "lucide-react";
+import { Check, Focus, ListTodo, Trash2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { trpc } from "@/utils/trpc";
 
 interface TaskManagerProps {
@@ -50,6 +51,7 @@ export function TaskManager({
   const queryClient = useQueryClient();
   const [newTask, setNewTask] = useState("");
   const [removingTaskId, setRemovingTaskId] = useState<string | null>(null);
+  const [activatingTaskId, setActivatingTaskId] = useState<string | null>(null);
 
   const tasks = useQuery({
     ...trpc.task.list.queryOptions(),
@@ -70,6 +72,11 @@ export function TaskManager({
 
   const markDone = useMutation({
     ...trpc.task.markDone.mutationOptions(),
+    onSuccess: invalidate,
+  });
+
+  const activateTask = useMutation({
+    ...trpc.task.activate.mutationOptions(),
     onSuccess: invalidate,
   });
 
@@ -227,6 +234,33 @@ export function TaskManager({
                       >
                         {task.text}
                       </p>
+
+                      {/* Activate button (hover reveal, pending tasks only) */}
+                      {!isDone && !isActive && (
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                onClick={() => {
+                                  setActivatingTaskId(task.id);
+                                  activateTask.mutate(
+                                    { id: task.id },
+                                    { onSettled: () => setActivatingTaskId(null) },
+                                  );
+                                }}
+                                disabled={activatingTaskId === task.id}
+                                aria-label={`Set "${task.text}" as active`}
+                                className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                              />
+                            }
+                          >
+                            <Focus className="size-3" />
+                          </TooltipTrigger>
+                          <TooltipContent>Set as active</TooltipContent>
+                        </Tooltip>
+                      )}
 
                       {/* Remove button (hover reveal) */}
                       <Button
