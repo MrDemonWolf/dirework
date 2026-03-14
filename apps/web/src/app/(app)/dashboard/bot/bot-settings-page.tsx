@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Play, RotateCcw, Save, Square, Unplug } from "lucide-react";
+import { Loader2, Play, RotateCcw, Save, SquareStop, Unplug } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
@@ -22,13 +23,10 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { TaskMessageEditor, TimerMessageEditor } from "@/components/bot-settings/message-editor";
-import { CommandAliasEditor } from "@/components/bot-settings/command-alias-editor";
-import { TaskVariableReference, TimerVariableReference } from "@/components/bot-settings/variable-reference";
 import { CommandsReference } from "@/components/bot-settings/commands-reference";
+import { BotMessagesCard } from "@/components/bot-settings/bot-messages-card";
 import { trpc } from "@/utils/trpc";
 
 const defaultTaskMessages: TaskMessagesConfig = {
@@ -107,6 +105,7 @@ function BotSettingsSkeleton() {
 }
 
 export default function BotSettingsPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const config = useQuery(trpc.config.get.queryOptions());
@@ -117,11 +116,11 @@ export default function BotSettingsPage() {
     const botStatus = searchParams.get("bot");
     if (botStatus === "connected") {
       toast.success("Bot account connected successfully!");
-      window.history.replaceState({}, "", "/dashboard/bot");
+      router.replace("/dashboard/bot");
     } else if (botStatus === "error") {
       const reason = searchParams.get("reason") ?? "unknown";
       toast.error(`Failed to connect bot account: ${reason}`);
-      window.history.replaceState({}, "", "/dashboard/bot");
+      router.replace("/dashboard/bot");
     }
   }, [searchParams]);
 
@@ -291,7 +290,7 @@ export default function BotSettingsPage() {
   return (
     <div className={cn("container mx-auto max-w-5xl px-4 py-8", hasUnsaved && "pb-24")}>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Bot Settings</h1>
+        <h1 className="font-heading text-2xl font-bold">Bot Settings</h1>
         <p className="text-sm text-muted-foreground">
           Configure your bot account, response messages, and command aliases
         </p>
@@ -350,7 +349,7 @@ export default function BotSettingsPage() {
                         disabled={stopBot.isPending}
                         className="text-destructive"
                       >
-                        <Square className="size-3" />
+                        <SquareStop className="size-3" />
                         Stop Bot
                       </Button>
                     ) : (
@@ -432,50 +431,24 @@ export default function BotSettingsPage() {
             </CardContent>
           </Card>
 
-          {/* Command Aliases */}
-          <CommandAliasEditor
+        </div>
+
+        {/* Right column — commands reference + messages */}
+        <div className="min-w-0 flex-1 space-y-6">
+          <CommandsReference
             aliases={commandAliases}
-            onChange={handleAliasesChange}
+            onAliasesChange={handleAliasesChange}
+          />
+          <BotMessagesCard
+            taskMessages={taskMessages}
+            timerMessages={timerMessages}
+            onTaskChange={handleTaskMessagesChange}
+            onTimerChange={handleTimerMessagesChange}
+            taskCommandsEnabled={taskCommandsEnabled}
+            timerCommandsEnabled={timerCommandsEnabled}
           />
         </div>
-
-        {/* Right column — tabbed message editors */}
-        <div className="min-w-0 flex-1">
-          <Tabs defaultValue="task">
-            <TabsList className="mb-4">
-              <TabsTrigger value="task">Task Messages</TabsTrigger>
-              <TabsTrigger value="timer">Timer Messages</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="task" className="space-y-4">
-              <p className="text-xs text-muted-foreground">
-                Customize bot responses for task-related commands
-              </p>
-              <TaskVariableReference />
-              <TaskMessageEditor
-                messages={taskMessages}
-                onChange={handleTaskMessagesChange}
-                disabled={!taskCommandsEnabled}
-              />
-            </TabsContent>
-
-            <TabsContent value="timer" className="space-y-4">
-              <p className="text-xs text-muted-foreground">
-                Customize bot responses for timer-related commands
-              </p>
-              <TimerVariableReference />
-              <TimerMessageEditor
-                messages={timerMessages}
-                onChange={handleTimerMessagesChange}
-                disabled={!timerCommandsEnabled}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
       </div>
-
-      {/* Commands Reference — full width */}
-      <CommandsReference />
 
       {/* Sticky Save / Reset Bar */}
       {hasUnsaved && (

@@ -67,8 +67,17 @@ interface MessageContext {
   say: (text: string) => void;
 }
 
-function interpolate(template: string, vars: Record<string, string>): string {
+export function interpolate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? `{${key}}`);
+}
+
+export function resolveAlias(command: string, aliases: Record<string, string>): string {
+  for (const [alias, target] of Object.entries(aliases)) {
+    if (command === `!${alias}`.toLowerCase()) {
+      return `!${target}`.toLowerCase();
+    }
+  }
+  return command;
 }
 
 export async function handleMessage(ctx: MessageContext): Promise<void> {
@@ -82,12 +91,7 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
   const args = parts.slice(1);
 
   // Resolve aliases
-  for (const [alias, target] of Object.entries(config.commandAliases)) {
-    if (command === `!${alias}`.toLowerCase()) {
-      command = `!${target}`.toLowerCase();
-      break;
-    }
-  }
+  command = resolveAlias(command, config.commandAliases);
 
   const vars = {
     user: userInfo.displayName,
