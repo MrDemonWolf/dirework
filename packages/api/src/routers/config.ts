@@ -539,7 +539,12 @@ export const configRouter = router({
 
   /** Update command aliases */
   updateCommandAliases: protectedProcedure
-    .input(z.object({ commandAliases: z.record(z.string(), z.string()) }))
+    .input(z.object({
+      commandAliases: z.record(z.string().max(50), z.string().max(100)).refine(
+        (obj) => Object.keys(obj).length <= 50,
+        { message: "Maximum of 50 command aliases allowed" },
+      ),
+    }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
       const [result] = await ctx.db.update(schema.botConfig)

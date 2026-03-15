@@ -83,4 +83,37 @@ describe("resolveAlias", () => {
   it("does not match partial command names", () => {
     expect(resolveAlias("!taskextra", { task: "done" })).toBe("!taskextra");
   });
+
+  it("does not match without the ! prefix", () => {
+    expect(resolveAlias("focus", { focus: "task" })).toBe("focus");
+  });
+
+  it("handles alias key with mixed case", () => {
+    // resolveAlias compares command (lowercased) to `!${alias}`.toLowerCase()
+    expect(resolveAlias("!focus", { Focus: "task" })).toBe("!task");
+  });
+});
+
+describe("interpolate edge cases", () => {
+  it("handles nested braces gracefully", () => {
+    expect(interpolate("{{user}}", { user: "Alice" })).toBe("{Alice}");
+  });
+
+  it("handles special regex characters in values", () => {
+    expect(interpolate("{task}", { task: "fix $1 issue" })).toBe("fix $1 issue");
+  });
+
+  it("handles numeric variable values", () => {
+    expect(interpolate("{count} tasks", { count: "5" })).toBe("5 tasks");
+  });
+
+  it("substitutes {oldTask} and {newTask} for next command", () => {
+    expect(
+      interpolate("{user} finished {oldTask}, now working on {newTask}", {
+        user: "Alice",
+        oldTask: "Bug fix",
+        newTask: "Feature",
+      }),
+    ).toBe("Alice finished Bug fix, now working on Feature");
+  });
 });

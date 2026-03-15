@@ -106,7 +106,7 @@ export const timerRouter = router({
   }),
 
   transition: protectedProcedure
-    .input(z.object({ status: z.string(), durationMs: z.number().optional() }))
+    .input(z.object({ status: z.enum(["idle", "starting", "work", "break", "longBreak", "paused", "finished"]), durationMs: z.number().optional() }))
     .mutation(async ({ ctx, input }) => {
       const data: Record<string, unknown> = {
         status: input.status,

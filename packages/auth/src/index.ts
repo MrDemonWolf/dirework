@@ -4,6 +4,23 @@ import { env } from "@dirework/env/server";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
+import { APIError } from "better-auth/api";
+
+/**
+ * Parse the ALLOWED_TWITCH_IDS env var into a Set.
+ * Empty string or undefined → empty set (allow all).
+ */
+export function parseAllowedTwitchIds(raw: string | undefined): Set<string> {
+  if (!raw) return new Set();
+  return new Set(
+    raw
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean),
+  );
+}
+
+const allowedTwitchIds = parseAllowedTwitchIds(env.ALLOWED_TWITCH_IDS);
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema }),
@@ -23,6 +40,22 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24, // Update session every 24 hours
   },
   databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          // Enforce ALLOWED_TWITCH_IDS allowlist on account creation
+          if (allowedTwitchIds.size > 0) {
+            const twitchId = (user as Record<string, unknown>).twitchId as string | undefined;
+            if (!twitchId || !allowedTwitchIds.has(twitchId)) {
+              throw new APIError("FORBIDDEN", {
+                message: "Your Twitch account is not authorized to use this instance.",
+              });
+            }
+          }
+          return { data: user };
+        },
+      },
+    },
     session: {
       create: {
         after: async (session) => {
