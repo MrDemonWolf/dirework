@@ -6,6 +6,7 @@ import * as schema from "@dirework/db/schema";
 
 import { env } from "@dirework/env/server";
 import { ee } from "../events";
+import { logger } from "../logger";
 import { buildBotConfig } from "../routers/config";
 import type { BotConfigData } from "./commands";
 import { handleMessage } from "./commands";
@@ -103,7 +104,7 @@ class TwitchBotService {
           say: (text: string) => this.chatClient!.say(channel, text),
         });
       } catch (err) {
-        console.error("[Bot] Error handling message:", err);
+        logger.error("[Bot] Error handling message:", err);
       }
     });
 
@@ -118,7 +119,7 @@ class TwitchBotService {
           ));
         ee.emit(`taskListChange:${this.userId}`);
       } catch (err) {
-        console.error("[Bot] Error handling ban:", err);
+        logger.error("[Bot] Error handling ban:", err);
       }
     });
 
@@ -132,7 +133,7 @@ class TwitchBotService {
           ));
         ee.emit(`taskListChange:${this.userId}`);
       } catch (err) {
-        console.error("[Bot] Error handling timeout:", err);
+        logger.error("[Bot] Error handling timeout:", err);
       }
     });
 
@@ -146,13 +147,13 @@ class TwitchBotService {
     const eventName = `botConfigChange:${userId}`;
     const configHandler = () => {
       this.reloadConfig().catch((err) => {
-        console.error("[Bot] Error reloading config:", err);
+        logger.error("[Bot] Error reloading config:", err);
       });
     };
     ee.on(eventName, configHandler);
     this.configListener = () => ee.off(eventName, configHandler);
 
-    console.log(`[Bot] Connected to #${this.channelName} as ${this.botUsername}`);
+    logger.info(`[Bot] Connected to #${this.channelName} as ${this.botUsername}`);
   }
 
   async stop(): Promise<void> {
@@ -173,7 +174,7 @@ class TwitchBotService {
     this.botUsername = null;
     this.configCache = null;
 
-    console.log("[Bot] Disconnected");
+    logger.info("[Bot] Disconnected");
   }
 
   isRunning(): boolean {

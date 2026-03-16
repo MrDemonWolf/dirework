@@ -88,8 +88,7 @@ export default function Dashboard({
 
       <div className="grid gap-6">
         {/* Timer: Controls + Preview */}
-        <Card className="overflow-hidden">
-          <div className="h-0.5 bg-gradient-to-r from-primary/60 via-primary to-primary/60" />
+        <Card>
           <CardHeader>
             <CardTitle>Timer</CardTitle>
             <CardDescription>Control your Pomodoro timer and see the overlay preview</CardDescription>

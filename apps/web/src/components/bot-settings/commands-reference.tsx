@@ -46,15 +46,21 @@ export function CommandsReference({ aliases, onAliasesChange }: CommandsReferenc
   const entries = Object.entries(aliases);
 
   const handleAddAlias = () => {
-    onAliasesChange({ ...aliases, "": "" });
+    let draft = "!new";
+    let i = 1;
+    while (aliases[draft] !== undefined) draft = `!new${i++}`;
+    onAliasesChange({ ...aliases, [draft]: "" });
     setActiveTab("aliases");
   };
 
   const handleKeyChange = (oldKey: string, newKey: string) => {
+    const normalized = newKey.trim();
+    if (!normalized) return;
+    if (normalized !== oldKey && aliases[normalized] !== undefined) return;
     const newAliases: CommandAliasesConfig = {};
     for (const [k, v] of Object.entries(aliases)) {
       if (k === oldKey) {
-        newAliases[newKey] = v;
+        newAliases[normalized] = v;
       } else {
         newAliases[k] = v;
       }
@@ -77,7 +83,7 @@ export function CommandsReference({ aliases, onAliasesChange }: CommandsReferenc
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">Commands Reference</CardTitle>
-          <Button variant="ghost" size="icon" className="size-7" onClick={handleAddAlias}>
+          <Button variant="ghost" size="icon" className="size-7" onClick={handleAddAlias} disabled={entries.length >= 50}>
             <Plus className="size-3.5" />
             <span className="sr-only">Add alias</span>
           </Button>
@@ -176,6 +182,7 @@ export function CommandsReference({ aliases, onAliasesChange }: CommandsReferenc
                       value={key}
                       onChange={(e) => handleKeyChange(key, e.target.value)}
                       placeholder="!t"
+                      maxLength={50}
                     />
                   </div>
                   <div className="flex-1 space-y-1">
@@ -185,6 +192,7 @@ export function CommandsReference({ aliases, onAliasesChange }: CommandsReferenc
                       value={value}
                       onChange={(e) => handleValueChange(key, e.target.value)}
                       placeholder="!task"
+                      maxLength={100}
                     />
                   </div>
                   <Button
