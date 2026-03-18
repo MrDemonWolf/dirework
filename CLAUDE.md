@@ -2,20 +2,29 @@
 
 This file provides guidance for Claude Code when working on the Dirework codebase.
 
+## Critical Documentation Reference
+
+**ALWAYS update this section** when creating or discovering important docs to prevent context loss.
+
+- Architecture diagrams → *(none yet)*
+- Database schemas → `packages/db/src/schema/` (index.ts, auth.ts, app.ts)
+- Problem solutions → *(none yet)*
+- Setup guides → `.env.example`, `coolify.md` (gitignored)
+
 ## Project Overview
 
 Dirework is a self-hosted Pomodoro timer and task list with Twitch chat integration, designed for co-working and body-doubling streams. Single-user per instance. Streamers login with Twitch, connect a bot account, configure OBS overlays, and viewers interact via chat commands.
 
 ## Monorepo Structure
 
-Turborepo + pnpm workspaces. All packages use ESM (`"type": "module"`).
+Turborepo + Bun workspaces. All packages use ESM (`"type": "module"`).
 
 ```
 apps/web           → Next.js 16 app (frontend + API), port 3001
 apps/fumadocs      → Fumadocs documentation site, port 4000
 packages/api       → tRPC routers + business logic
 packages/auth      → Better Auth configuration (Twitch OAuth)
-packages/db        → Prisma schema + client (PostgreSQL)
+packages/db        → Drizzle ORM schema + client (PostgreSQL)
 packages/env       → t3-env environment variable validation
 packages/config    → Shared TypeScript configuration
 ```
@@ -23,20 +32,20 @@ packages/config    → Shared TypeScript configuration
 ## Commands
 
 ```bash
-pnpm dev              # Start all apps (web + docs)
-pnpm build            # Build all apps for production
-pnpm check-types      # TypeScript type checking across all packages
-pnpm test             # Run Vitest unit tests across all packages
-pnpm dev:web          # Web app only
-pnpm dev:native       # Native app only
-pnpm db:start         # Start PostgreSQL via Docker
-pnpm db:stop          # Stop PostgreSQL
-pnpm db:down          # Tear down database completely
-pnpm db:push          # Push Prisma schema to database
-pnpm db:generate      # Regenerate Prisma client
-pnpm db:studio        # Open Prisma Studio
-pnpm db:migrate       # Run Prisma migrations
-pnpm db:watch         # Watch database changes
+bun run dev           # Start all apps (web + docs)
+bun run build         # Build all apps for production
+bun run check-types   # TypeScript type checking across all packages
+bun run test          # Run Vitest unit tests across all packages
+bun run dev:web       # Web app only
+bun run dev:native    # Native app only
+bun run db:start      # Start PostgreSQL via Docker
+bun run db:stop       # Stop PostgreSQL
+bun run db:down       # Tear down database completely
+bun run db:push       # Push Drizzle schema to database (dev only, no migration file)
+bun run db:generate   # Generate a new Drizzle migration from schema changes
+bun run db:studio     # Open Drizzle Studio
+bun run db:migrate    # Apply pending Drizzle migrations
+bun run db:watch      # Watch database changes
 ```
 
 ## Tech Stack
@@ -48,7 +57,7 @@ pnpm db:watch         # Watch database changes
 - **TanStack React Query** for client-side data fetching
 - **TanStack React Form** for form handling
 - **Better Auth** with Twitch social provider (30-day sessions)
-- **Prisma 7** with PostgreSQL 17 (Docker) and `@prisma/adapter-pg`
+- **Drizzle ORM** with PostgreSQL 17 (Docker) and `drizzle-orm/node-postgres`
 - **Sonner** for toast notifications
 - **next-themes** for dark/light mode
 - **Google Fonts** — Montserrat (headings/timer) + Roboto (body text)
@@ -106,36 +115,38 @@ Pure logic extracted for testability:
 - `apps/web/src/lib/timer-utils.ts` — `toHexOpacity()`, `formatTime()`, `roundedRectPath()` (display helpers)
 - `apps/web/src/lib/task-utils.ts` — `groupTasksByAuthor()`, re-exported `toHexOpacity()` (task grouping)
 
-Context provides `session` (from Better Auth) and `prisma` client.
+Context provides `session` (from Better Auth) and `db` (Drizzle client).
 
 ### Database
 
-Prisma schema split across files in `packages/db/prisma/schema/`:
-- `schema.prisma` — generator + datasource config
-- `auth.prisma` — User, Session, Account, Verification (Better Auth managed)
-- `app.prisma` — BotAccount, Task, TimerState, TimerConfig, TimerStyle, TaskStyle, BotConfig (app-specific)
+Drizzle ORM schema split across files in `packages/db/src/schema/`:
+- `auth.ts` — user, session, account, verification (Better Auth managed)
+- `app.ts` — botAccount, task, timerState, timerConfig, timerStyle, taskStyle, botConfig (app-specific)
+- `index.ts` — re-exports all tables + defines all `relations()` for relational queries
+
+Drizzle config: `packages/db/drizzle.config.ts`. Generated migrations: `packages/db/drizzle/`.
 
 Key conventions:
-- Table names use `@map("snake_case")`
-- IDs use `@default(cuid())`
-- User model extended with `twitchId`, `displayName`, overlay tokens
+- DB columns use snake_case; TypeScript field names use camelCase
+- IDs use `text().primaryKey().$defaultFn(() => createId())` (from `@paralleldrive/cuid2`)
+- User table extended with `twitchId`, `displayName`, `overlayTimerToken`, `overlayTasksToken`
 - Tasks have priority system: 0 = broadcaster (pinned top), 1 = viewers
 - TimerState is a state machine: idle → starting → work → break → longBreak → paused → finished
 
 Database architecture uses 4 focused config models instead of one monolithic table:
-- `TimerConfig` — timer durations, cycles, behavior flags, phase labels (17 columns)
-- `TimerStyle` — timer overlay appearance: dimensions, ring, colors, fonts (21 columns)
-- `TaskStyle` — task list overlay appearance: header, body, items, checkboxes, bullets (57 columns)
-- `BotConfig` — bot toggles, command aliases (Json), task messages (18), timer messages (14)
+- `timerConfig` — timer durations, cycles, behavior flags, phase labels (17 columns)
+- `timerStyle` — timer overlay appearance: dimensions, ring, colors, fonts (21 columns)
+- `taskStyle` — task list overlay appearance: header, body, items, checkboxes, bullets (57 columns)
+- `botConfig` — bot toggles, command aliases (jsonb), task messages (18), timer messages (14)
 
-All columns have Prisma `@default()` values — row creation only requires `{ userId }`. Records are lazily provisioned on first access via `ensureUserConfig()` in the config router.
+All columns have Drizzle `.default()` values — row creation only requires `{ userId }`. Records are lazily provisioned on first access via `ensureUserConfig()` in the config router.
 
 The API layer maps flat DB columns to nested frontend objects via build helpers (`buildTimerConfig`, `buildTimerStylesConfig`, `buildTaskStylesConfig`, `buildBotConfig`) and flattens writes via `flattenTimerStyles`/`flattenTaskStyles`.
 
 ### Authentication
 
-- Better Auth handles Twitch OAuth login
-- Bot account connection is a separate OAuth flow via `/api/bot/authorize` → `/api/bot/callback`
+- Better Auth handles Twitch OAuth login via `drizzleAdapter`
+- Bot account connection is a separate OAuth flow via `/api/bot/authorize` → `/api/bot/callback/twitch`
 - Bot callback includes error reason in redirect query params for user-facing toast notifications
 - Overlay access uses UUID tokens (no auth needed), regenerable per user
 
@@ -220,7 +231,7 @@ When adding new pure functions, extract them into testable modules (not inline i
 
 CI workflow: `.github/workflows/ci.yml`
 - Triggers on push to `dev` and `main`, and PRs to `main`
-- Steps: install → db:generate → check-types → build → test
+- Steps: install → check-types → build → test (no codegen step — Drizzle is schema-as-code)
 - `SKIP_ENV_VALIDATION=true` is set to bypass t3-env during CI (no runtime secrets)
 
 Docs deployment: `.github/workflows/deploy-docs-to-pages.yml`

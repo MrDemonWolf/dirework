@@ -179,7 +179,7 @@ export default function StylesPage() {
   return (
     <div className={cn("container mx-auto max-w-5xl px-4 py-8", hasUnsaved && "pb-24")}>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Theme Center</h1>
+        <h1 className="font-heading text-2xl font-bold">Theme Center</h1>
         <p className="text-sm text-muted-foreground">
           Browse preset themes or customize your overlay styles
         </p>

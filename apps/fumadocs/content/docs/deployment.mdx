@@ -87,14 +87,14 @@ This runs Turborepo to build all packages and the Next.js app with `output: "sta
 
 5. Add your domain in Coolify and enable HTTPS
 
-6. Deploy — Coolify will build using Nixpacks, run Prisma migrations, and start the server
+6. Deploy — Coolify will build using Nixpacks, run Drizzle migrations, and start the server
 
 ### How Nixpacks Builds
 
 The `nixpacks.toml` configures the build pipeline:
 
-1. **Install** — Enables corepack/pnpm, installs dependencies, rebuilds native modules (Prisma, esbuild, sharp)
-2. **Build** — Generates Prisma client, runs database migrations, builds Next.js standalone output, copies static assets
+1. **Install** — Enables corepack/pnpm, installs dependencies, rebuilds native modules (esbuild, sharp)
+2. **Build** — Runs Drizzle migrations, builds Next.js standalone output, copies static assets
 3. **Start** — Runs `node apps/web/.next/standalone/apps/web/server.js`
 
 ### Updating
@@ -126,7 +126,6 @@ RUN pnpm install --frozen-lockfile
 
 # Copy source and build
 COPY . .
-RUN pnpm --filter @dirework/db exec prisma generate
 RUN SKIP_ENV_VALIDATION=true pnpm --filter web build
 
 # Copy static assets to standalone output
@@ -193,7 +192,7 @@ docker compose up -d
 ```
 
 <Callout type="info">
-  After the first start, run migrations: `docker compose exec web npx prisma db push` or include a migration step in your entrypoint script.
+  Migrations run automatically on startup via the entrypoint script. No manual step is needed.
 </Callout>
 
 ---
@@ -329,10 +328,10 @@ After updating Dirework, push any schema changes:
 pnpm db:push
 ```
 
-Or if using Docker, run migrations as part of your deployment:
+Migrations run automatically on container startup. For manual runs:
 
 ```bash
-docker compose exec web npx prisma db push
+docker compose exec web node /app/packages/db/migrate.js
 ```
 
 ---

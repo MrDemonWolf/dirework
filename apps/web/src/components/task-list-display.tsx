@@ -143,6 +143,7 @@ function TaskItem({
   isLast: boolean;
 }) {
   const isDone = task.status === "done";
+  const isActive = task.status === "active";
 
   return (
     <div
@@ -156,6 +157,10 @@ function TaskItem({
         maxWidth: config.task.maxWidth,
         opacity: isDone ? 0.6 : 1,
         transition: "opacity 300ms",
+        ...(isActive ? {
+          boxShadow: `0 0 8px 2px ${config.task.border.color}80`,
+          animation: "active-glow 2s ease-in-out infinite",
+        } : {}),
       }}
     >
       {/* Checkbox or bullet */}
@@ -297,9 +302,9 @@ export function TaskListDisplay({
 }) {
   const displayTasks = config.display.showDone
     ? tasks
-    : tasks.filter((t) => t.status === "pending");
+    : tasks.filter((t) => t.status !== "done");
   const groups = groupTasksByAuthor(displayTasks);
-  const pendingTasks = tasks.filter((t) => t.status === "pending");
+  const pendingTasks = tasks.filter((t) => t.status !== "done");
   const doneTasks = tasks.filter((t) => t.status === "done");
 
   return (

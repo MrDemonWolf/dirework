@@ -17,6 +17,9 @@ export const env = createEnv({
     // User allowlist (comma-separated Twitch user IDs, empty = allow all)
     ALLOWED_TWITCH_IDS: z.string().default(""),
 
+    // Documentation site URL (for bot !dwhelp command)
+    DOCS_URL: z.url().optional(),
+
     // Legal page URLs (set to show links in footer, unset to hide)
     PRIVACY_POLICY_URL: z.url().optional(),
     TERMS_OF_SERVICE_URL: z.url().optional(),

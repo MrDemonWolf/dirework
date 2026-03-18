@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ListTodo, Trash2 } from "lucide-react";
+import { Check, Focus, ListTodo, Trash2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { trpc } from "@/utils/trpc";
 
 interface TaskManagerProps {
@@ -50,6 +51,7 @@ export function TaskManager({
   const queryClient = useQueryClient();
   const [newTask, setNewTask] = useState("");
   const [removingTaskId, setRemovingTaskId] = useState<string | null>(null);
+  const [activatingTaskId, setActivatingTaskId] = useState<string | null>(null);
 
   const tasks = useQuery({
     ...trpc.task.list.queryOptions(),
@@ -70,6 +72,11 @@ export function TaskManager({
 
   const markDone = useMutation({
     ...trpc.task.markDone.mutationOptions(),
+    onSuccess: invalidate,
+  });
+
+  const activateTask = useMutation({
+    ...trpc.task.activate.mutationOptions(),
     onSuccess: invalidate,
   });
 
@@ -100,7 +107,8 @@ export function TaskManager({
   };
 
   const taskList = tasks.data ?? [];
-  const pendingCount = taskList.filter((t) => t.status === "pending").length;
+  const activeCount = taskList.filter((t) => t.status === "active").length;
+  const pendingCount = taskList.filter((t) => t.status === "pending" || t.status === "active").length;
   const doneCount = taskList.filter((t) => t.status === "done").length;
 
   return (
@@ -113,6 +121,7 @@ export function TaskManager({
           placeholder="Add a task..."
           maxLength={500}
           disabled={createTask.isPending}
+          aria-label="New task text"
         />
         <Button type="submit" disabled={!newTask.trim() || createTask.isPending}>
           Add
@@ -156,7 +165,7 @@ export function TaskManager({
       </div>
 
       {/* Task list grouped by author */}
-      <div className="space-y-3">
+      <div className="max-h-[400px] space-y-3 overflow-y-auto">
         {taskList.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-8">
             <div className="rounded-full bg-muted p-3">
@@ -171,7 +180,7 @@ export function TaskManager({
           </div>
         ) : (
           groupTasksByAuthor(taskList).map((group) => {
-            const groupPending = group.tasks.filter((t) => t.status === "pending").length;
+            const groupPending = group.tasks.filter((t) => t.status === "pending" || t.status === "active").length;
             const groupDone = group.tasks.filter((t) => t.status === "done").length;
             return (
               <div key={group.authorTwitchId} className="space-y-1">
@@ -190,24 +199,27 @@ export function TaskManager({
                 </div>
                 {group.tasks.map((task) => {
                   const isDone = task.status === "done";
+                  const isActive = task.status === "active";
                   return (
                     <div
                       key={task.id}
                       className={cn(
                         "group flex items-center gap-3 rounded-lg px-2 py-1.5 pl-4 hover:bg-muted/50",
                         isDone && "opacity-60",
+                        isActive && "ring-2 ring-primary/60 shadow-[0_0_8px_rgba(var(--primary-rgb,59,130,246),0.4)] animate-pulse",
                       )}
                     >
                       {/* Checkbox */}
                       <button
                         type="button"
-                        onClick={() => !isDone && markDone.mutate({ id: task.id })}
+                        onClick={() => (isActive || task.status === "pending") && markDone.mutate({ id: task.id })}
                         disabled={isDone || markDone.isPending}
+                        aria-label={isDone ? `${task.text} (done)` : `Mark "${task.text}" as done`}
                         className={cn(
-                          "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                          "flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors",
                           isDone
                             ? "border-primary bg-primary text-primary-foreground"
-                            : "border-muted-foreground/40 hover:border-primary",
+                            : "border-muted-foreground/40 hover:border-primary disabled:hover:border-muted-foreground/40",
                         )}
                       >
                         {isDone && <Check className="size-3" />}
@@ -223,6 +235,33 @@ export function TaskManager({
                         {task.text}
                       </p>
 
+                      {/* Activate button (hover reveal, pending tasks only) */}
+                      {!isDone && !isActive && (
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                onClick={() => {
+                                  setActivatingTaskId(task.id);
+                                  activateTask.mutate(
+                                    { id: task.id },
+                                    { onSettled: () => setActivatingTaskId(null) },
+                                  );
+                                }}
+                                disabled={activatingTaskId === task.id}
+                                aria-label={`Set "${task.text}" as active`}
+                                className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                              />
+                            }
+                          >
+                            <Focus className="size-3" />
+                          </TooltipTrigger>
+                          <TooltipContent>Set as active</TooltipContent>
+                        </Tooltip>
+                      )}
+
                       {/* Remove button (hover reveal) */}
                       <Button
                         variant="ghost"
@@ -235,8 +274,8 @@ export function TaskManager({
                           );
                         }}
                         disabled={removingTaskId === task.id}
-                        title="Remove"
-                        className="opacity-0 transition-opacity group-hover:opacity-100"
+                        aria-label={`Remove "${task.text}"`}
+                        className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
                       >
                         <Trash2 className="size-3" />
                       </Button>

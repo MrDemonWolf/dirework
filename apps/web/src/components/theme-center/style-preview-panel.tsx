@@ -70,6 +70,7 @@ export function StylePreviewPanel({
             variant="ghost"
             size="sm"
             className="h-6 gap-1 px-2 text-xs"
+            aria-pressed={!!targetEndTime}
             onClick={() => {
               if (targetEndTime) {
                 // Pause: freeze remaining time
