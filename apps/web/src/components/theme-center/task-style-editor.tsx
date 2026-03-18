@@ -16,8 +16,7 @@ export function TaskStyleEditor({
   styles: TaskStylesConfig;
   onChange: (styles: TaskStylesConfig) => void;
 }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function updateNested(path: string[], value: any) {
+  function updateNested(path: string[], value: unknown) {
     const updated = JSON.parse(JSON.stringify(styles)) as Record<string, unknown>;
     let current = updated as Record<string, unknown>;
     for (let i = 0; i < path.length - 1; i++) {
