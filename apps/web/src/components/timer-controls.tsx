@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info, Pause, Play, SkipForward, Square } from "lucide-react";
 
@@ -76,7 +77,50 @@ function CycleDots({ current, total }: { current: number; total: number }) {
   );
 }
 
-export function TimerControls() {
+// --- Context ---
+
+interface TimerState {
+  status: string;
+  currentCycle: number;
+  totalCycles: number;
+  targetEndTime?: string | null;
+  pausedWithRemaining?: number | null;
+}
+
+interface TimerContextValue {
+  cycles: number;
+  setCycles: (v: number) => void;
+  workMin: number;
+  setWorkMin: (v: number) => void;
+  breakMin: number;
+  setBreakMin: (v: number) => void;
+  longBreakMin: number;
+  setLongBreakMin: (v: number) => void;
+  longBreakInterval: number;
+  setLongBreakInterval: (v: number) => void;
+  saveConfig: (overrides: Partial<typeof DEFAULT_TIMER_VALUES>) => void;
+  status: string;
+  isIdle: boolean;
+  isPaused: boolean;
+  displayTime: string;
+  state: TimerState | null;
+  configLabels: Record<string, string>;
+  start: { mutate: (args: { totalCycles: number }) => void; isPending: boolean };
+  pause: { mutate: () => void; isPending: boolean };
+  resume: { mutate: () => void; isPending: boolean };
+  skip: { mutate: () => void; isPending: boolean };
+  reset: { mutate: () => void; isPending: boolean };
+}
+
+const TimerContext = createContext<TimerContextValue | null>(null);
+
+function useTimerContext() {
+  const ctx = useContext(TimerContext);
+  if (!ctx) throw new Error("useTimerContext must be used within TimerProvider");
+  return ctx;
+}
+
+export function TimerProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [cycles, setCycles] = useState(4);
   const [remaining, setRemaining] = useState<number | null>(null);
@@ -94,7 +138,6 @@ export function TimerControls() {
 
   const config = useQuery(trpc.config.get.queryOptions());
 
-  // Extract phase labels from timerConfig (fall back to defaults)
   const configLabels: Record<string, string> = config.data?.timerConfig?.labels
     ? {
         idle: config.data.timerConfig.labels.idle,
@@ -114,7 +157,6 @@ export function TimerControls() {
     },
   });
 
-  // Initialize local state from config
   useEffect(() => {
     if (!config.data || configLoaded) return;
     const tc = config.data.timerConfig;
@@ -172,12 +214,11 @@ export function TimerControls() {
     onSuccess: invalidate,
   });
 
-  const state = timer.data;
+  const state = (timer.data as TimerState | undefined) ?? null;
   const status = state?.status ?? "idle";
   const isIdle = status === "idle" || status === "finished";
   const isPaused = status === "paused";
 
-  // Countdown tick + auto-transition
   useEffect(() => {
     if (!state?.targetEndTime) {
       if (state?.pausedWithRemaining) {
@@ -192,7 +233,6 @@ export function TimerControls() {
       const ms = new Date(state.targetEndTime!).getTime() - Date.now();
       setRemaining(Math.max(0, ms));
 
-      // Auto-transition when countdown reaches 0
       if (ms <= 0 && !transitioningRef.current) {
         transitioningRef.current = true;
         nextPhase.mutate();
@@ -204,12 +244,10 @@ export function TimerControls() {
     return () => clearInterval(interval);
   }, [state?.targetEndTime, state?.pausedWithRemaining]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reset transition lock when status changes
   useEffect(() => {
     transitioningRef.current = false;
   }, [status]);
 
-  // Display time: show configured work duration when idle, otherwise countdown
   const displayTime = isIdle
     ? formatTime(minutesToMs(workMin))
     : remaining !== null
@@ -217,179 +255,233 @@ export function TimerControls() {
       : "--:--";
 
   return (
-    <div className="flex flex-col items-center gap-6 md:flex-row md:items-center md:gap-8">
-      <div className="order-1 flex-1">
-        <div className="flex flex-col items-center gap-4">
-          <p className={`text-sm font-semibold uppercase tracking-widest ${statusColor(status)}`}>
-            {configLabels[status] ?? DEFAULT_LABELS[status] ?? status}
-          </p>
-          <p className="font-heading text-7xl font-bold tabular-nums tracking-tight md:text-8xl">
-            {displayTime}
-          </p>
-          {state && !isIdle ? (
-            <CycleDots current={state.currentCycle} total={state.totalCycles} />
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              {cycles} {cycles === 1 ? "pomo" : "pomos"} &middot; {workMin}m work &middot; {breakMin}m break
-            </p>
-          )}
-          <div className="flex items-center gap-2">
-            {isIdle ? (
+    <TimerContext.Provider
+      value={{
+        cycles, setCycles,
+        workMin, setWorkMin,
+        breakMin, setBreakMin,
+        longBreakMin, setLongBreakMin,
+        longBreakInterval, setLongBreakInterval,
+        saveConfig,
+        status, isIdle, isPaused,
+        displayTime,
+        state,
+        configLabels,
+        start, pause, resume, skip, reset,
+      }}
+    >
+      {children}
+    </TimerContext.Provider>
+  );
+}
+
+export function TimerDisplay() {
+  const {
+    cycles, workMin, breakMin,
+    status, isIdle, isPaused, displayTime, state, configLabels,
+    start, pause, resume, skip, reset,
+  } = useTimerContext();
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <p className={`text-sm font-semibold uppercase tracking-widest ${statusColor(status)}`}>
+        {configLabels[status] ?? DEFAULT_LABELS[status] ?? status}
+      </p>
+      <p className="font-heading text-7xl font-bold tabular-nums tracking-tight md:text-8xl">
+        {displayTime}
+      </p>
+      {state && !isIdle ? (
+        <CycleDots current={state.currentCycle} total={state.totalCycles} />
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          {cycles} {cycles === 1 ? "pomo" : "pomos"} &middot; {workMin}m work &middot; {breakMin}m break
+        </p>
+      )}
+      <div className="flex items-center gap-2">
+        {isIdle ? (
+          <Button
+            size="lg"
+            onClick={() => start.mutate({ totalCycles: cycles })}
+            disabled={start.isPending}
+            className="gap-2 px-6"
+          >
+            <Play className="size-4" />
+            Start
+          </Button>
+        ) : (
+          <>
+            {isPaused ? (
               <Button
                 size="lg"
-                onClick={() => start.mutate({ totalCycles: cycles })}
-                disabled={start.isPending}
+                onClick={() => resume.mutate()}
+                disabled={resume.isPending}
                 className="gap-2 px-6"
               >
                 <Play className="size-4" />
-                Start
+                Resume
               </Button>
             ) : (
-              <>
-                {isPaused ? (
-                  <Button
-                    size="lg"
-                    onClick={() => resume.mutate()}
-                    disabled={resume.isPending}
-                    className="gap-2 px-6"
-                  >
-                    <Play className="size-4" />
-                    Resume
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={() => pause.mutate()}
-                    disabled={pause.isPending}
-                    className="gap-2 px-6"
-                  >
-                    <Pause className="size-4" />
-                    Pause
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => skip.mutate()}
-                  disabled={skip.isPending}
-                  title="Skip phase"
-                >
-                  <SkipForward className="size-4" />
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  onClick={() => reset.mutate()}
-                  disabled={reset.isPending}
-                  title="Stop timer"
-                >
-                  <Square className="size-4" />
-                </Button>
-              </>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => pause.mutate()}
+                disabled={pause.isPending}
+                className="gap-2 px-6"
+              >
+                <Pause className="size-4" />
+                Pause
+              </Button>
             )}
-          </div>
-        </div>
-      </div>
-      <div className="order-2 w-44 shrink-0">
-        <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-          <div className="space-y-1">
-            <Tooltip>
-              <TooltipTrigger render={<Label className="inline-flex items-center gap-1 text-xs text-muted-foreground" />}>
-                Work (min)
-                <Info className="size-3 text-muted-foreground/60" />
-              </TooltipTrigger>
-              <TooltipContent>Duration of each focus session in minutes</TooltipContent>
-            </Tooltip>
-            <Input
-              type="number"
-              min={1}
-              max={120}
-              value={workMin}
-              onChange={(e) => setWorkMin(Number(e.target.value))}
-              onBlur={() => saveConfig({ workDuration: minutesToMs(workMin) })}
-              disabled={!isIdle}
-              className="h-8"
-            />
-          </div>
-          <div className="space-y-1">
-            <Tooltip>
-              <TooltipTrigger render={<Label className="inline-flex items-center gap-1 text-xs text-muted-foreground" />}>
-                Break (min)
-                <Info className="size-3 text-muted-foreground/60" />
-              </TooltipTrigger>
-              <TooltipContent>Duration of short breaks between focus sessions</TooltipContent>
-            </Tooltip>
-            <Input
-              type="number"
-              min={1}
-              max={60}
-              value={breakMin}
-              onChange={(e) => setBreakMin(Number(e.target.value))}
-              onBlur={() => saveConfig({ breakDuration: minutesToMs(breakMin) })}
-              disabled={!isIdle}
-              className="h-8"
-            />
-          </div>
-          <div className="space-y-1">
-            <Tooltip>
-              <TooltipTrigger render={<Label className="inline-flex items-center gap-1 text-xs text-muted-foreground" />}>
-                Long break
-                <Info className="size-3 text-muted-foreground/60" />
-              </TooltipTrigger>
-              <TooltipContent>Duration of the extended break in minutes</TooltipContent>
-            </Tooltip>
-            <Input
-              type="number"
-              min={1}
-              max={60}
-              value={longBreakMin}
-              onChange={(e) => setLongBreakMin(Number(e.target.value))}
-              onBlur={() => saveConfig({ longBreakDuration: minutesToMs(longBreakMin) })}
-              disabled={!isIdle}
-              className="h-8"
-            />
-          </div>
-          <div className="space-y-1">
-            <Tooltip>
-              <TooltipTrigger render={<Label className="inline-flex items-center gap-1 text-xs text-muted-foreground" />}>
-                Every (cycles)
-                <Info className="size-3 text-muted-foreground/60" />
-              </TooltipTrigger>
-              <TooltipContent>Take a long break after this many focus sessions</TooltipContent>
-            </Tooltip>
-            <Input
-              type="number"
-              min={2}
-              max={20}
-              value={longBreakInterval}
-              onChange={(e) => setLongBreakInterval(Number(e.target.value))}
-              onBlur={() => saveConfig({ longBreakInterval })}
-              disabled={!isIdle}
-              className="h-8"
-            />
-          </div>
-          <div className="col-span-2 space-y-1">
-            <Tooltip>
-              <TooltipTrigger render={<Label className="inline-flex items-center gap-1 text-xs text-muted-foreground" />}>
-                Pomos
-                <Info className="size-3 text-muted-foreground/60" />
-              </TooltipTrigger>
-              <TooltipContent>Total number of focus sessions (pomodoros) in this run</TooltipContent>
-            </Tooltip>
-            <Input
-              type="number"
-              min={1}
-              max={99}
-              value={cycles}
-              onChange={(e) => setCycles(Number(e.target.value))}
-              onBlur={() => saveConfig({ defaultCycles: cycles })}
-              disabled={!isIdle}
-              className="h-8"
-            />
-          </div>
-        </div>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => skip.mutate()}
+              disabled={skip.isPending}
+              aria-label="Skip phase"
+            >
+              <SkipForward className="size-4" />
+            </Button>
+            <Button
+              variant="destructive"
+              size="icon"
+              onClick={() => reset.mutate()}
+              disabled={reset.isPending}
+              aria-label="Stop timer"
+            >
+              <Square className="size-4" />
+            </Button>
+          </>
+        )}
       </div>
     </div>
+  );
+}
+
+export function TimerSettings() {
+  const {
+    workMin, setWorkMin,
+    breakMin, setBreakMin,
+    longBreakMin, setLongBreakMin,
+    longBreakInterval, setLongBreakInterval,
+    cycles, setCycles,
+    saveConfig, isIdle,
+  } = useTimerContext();
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="space-y-1">
+        <Tooltip>
+          <TooltipTrigger render={<Label htmlFor="timer-work-min" className="inline-flex items-center gap-1 text-xs text-muted-foreground" />}>
+            Work (min)
+            <Info className="size-3 text-muted-foreground/60" />
+          </TooltipTrigger>
+          <TooltipContent>Duration of each focus session in minutes</TooltipContent>
+        </Tooltip>
+        <Input
+          id="timer-work-min"
+          type="number"
+          min={1}
+          max={120}
+          value={workMin}
+          onChange={(e) => setWorkMin(Number(e.target.value))}
+          onBlur={() => saveConfig({ workDuration: minutesToMs(workMin) })}
+          disabled={!isIdle}
+          className="h-8"
+        />
+      </div>
+      <div className="space-y-1">
+        <Tooltip>
+          <TooltipTrigger render={<Label htmlFor="timer-break-min" className="inline-flex items-center gap-1 text-xs text-muted-foreground" />}>
+            Break (min)
+            <Info className="size-3 text-muted-foreground/60" />
+          </TooltipTrigger>
+          <TooltipContent>Duration of short breaks between focus sessions</TooltipContent>
+        </Tooltip>
+        <Input
+          id="timer-break-min"
+          type="number"
+          min={1}
+          max={60}
+          value={breakMin}
+          onChange={(e) => setBreakMin(Number(e.target.value))}
+          onBlur={() => saveConfig({ breakDuration: minutesToMs(breakMin) })}
+          disabled={!isIdle}
+          className="h-8"
+        />
+      </div>
+      <div className="space-y-1">
+        <Tooltip>
+          <TooltipTrigger render={<Label htmlFor="timer-long-break-min" className="inline-flex items-center gap-1 text-xs text-muted-foreground" />}>
+            Long break
+            <Info className="size-3 text-muted-foreground/60" />
+          </TooltipTrigger>
+          <TooltipContent>Duration of the extended break in minutes</TooltipContent>
+        </Tooltip>
+        <Input
+          id="timer-long-break-min"
+          type="number"
+          min={1}
+          max={60}
+          value={longBreakMin}
+          onChange={(e) => setLongBreakMin(Number(e.target.value))}
+          onBlur={() => saveConfig({ longBreakDuration: minutesToMs(longBreakMin) })}
+          disabled={!isIdle}
+          className="h-8"
+        />
+      </div>
+      <div className="space-y-1">
+        <Tooltip>
+          <TooltipTrigger render={<Label htmlFor="timer-long-break-interval" className="inline-flex items-center gap-1 text-xs text-muted-foreground" />}>
+            Every (cycles)
+            <Info className="size-3 text-muted-foreground/60" />
+          </TooltipTrigger>
+          <TooltipContent>Take a long break after this many focus sessions</TooltipContent>
+        </Tooltip>
+        <Input
+          id="timer-long-break-interval"
+          type="number"
+          min={2}
+          max={20}
+          value={longBreakInterval}
+          onChange={(e) => setLongBreakInterval(Number(e.target.value))}
+          onBlur={() => saveConfig({ longBreakInterval })}
+          disabled={!isIdle}
+          className="h-8"
+        />
+      </div>
+      <div className="space-y-1">
+        <Tooltip>
+          <TooltipTrigger render={<Label htmlFor="timer-pomos" className="inline-flex items-center gap-1 text-xs text-muted-foreground" />}>
+            Pomos
+            <Info className="size-3 text-muted-foreground/60" />
+          </TooltipTrigger>
+          <TooltipContent>Total number of focus sessions (pomodoros) in this run</TooltipContent>
+        </Tooltip>
+        <Input
+          id="timer-pomos"
+          type="number"
+          min={1}
+          max={99}
+          value={cycles}
+          onChange={(e) => setCycles(Number(e.target.value))}
+          onBlur={() => saveConfig({ defaultCycles: cycles })}
+          disabled={!isIdle}
+          className="h-8"
+        />
+      </div>
+    </div>
+  );
+}
+
+export function TimerControls() {
+  return (
+    <TimerProvider>
+      <div className="flex flex-col items-center gap-6">
+        <TimerDisplay />
+        <div className="w-full">
+          <TimerSettings />
+        </div>
+      </div>
+    </TimerProvider>
   );
 }

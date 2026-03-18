@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
+import { Search } from "lucide-react";
+
 import type { TaskMessagesConfig, TimerMessagesConfig } from "@/lib/config-types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SectionGroup } from "@/components/theme-center/section-group";
 
 const taskMessageFields: {
   key: keyof TaskMessagesConfig;
@@ -60,29 +62,62 @@ export function TaskMessageEditor({
   onChange: (messages: TaskMessagesConfig) => void;
   disabled?: boolean;
 }) {
+  const [search, setSearch] = useState("");
+
   const handleChange = (key: keyof TaskMessagesConfig, value: string) => {
     onChange({ ...messages, [key]: value });
   };
 
+  const filteredFields = taskMessageFields.filter((f) =>
+    f.label.toLowerCase().includes(search.toLowerCase()),
+  );
+
   return (
-    <SectionGroup title="Task Messages">
-      {taskMessageFields.map((field) => (
-        <div key={field.key} className="space-y-1.5">
-          <Label htmlFor={`task-${field.key}`} className="text-xs font-medium">
-            {field.label}
-          </Label>
-          <Input
-            id={`task-${field.key}`}
-            value={messages[field.key]}
-            onChange={(e) => handleChange(field.key, e.target.value)}
-            disabled={disabled}
-          />
-          <p className="text-xs text-muted-foreground">
-            Variables: {field.placeholder}
-          </p>
-        </div>
-      ))}
-    </SectionGroup>
+    <div className="space-y-3">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+        <Input
+          className="h-8 pl-8 text-xs"
+          placeholder="Filter messages..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      {disabled && (
+        <p className="text-xs text-muted-foreground">
+          Task commands are disabled — enable them to edit messages.
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        {filteredFields.map((field) => (
+          <div key={field.key} className="space-y-1">
+            <Label htmlFor={`task-${field.key}`} className="text-xs font-medium">
+              {field.label}
+            </Label>
+            <Input
+              id={`task-${field.key}`}
+              value={messages[field.key]}
+              onChange={(e) => handleChange(field.key, e.target.value)}
+              disabled={disabled}
+            />
+            {field.placeholder !== "none" && (
+              <div className="flex flex-wrap gap-1">
+                {field.placeholder.split(", ").map((v) => (
+                  <code
+                    key={v}
+                    className="rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-muted-foreground"
+                  >
+                    {v}
+                  </code>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -95,28 +130,61 @@ export function TimerMessageEditor({
   onChange: (messages: TimerMessagesConfig) => void;
   disabled?: boolean;
 }) {
+  const [search, setSearch] = useState("");
+
   const handleChange = (key: keyof TimerMessagesConfig, value: string) => {
     onChange({ ...messages, [key]: value });
   };
 
+  const filteredFields = timerMessageFields.filter((f) =>
+    f.label.toLowerCase().includes(search.toLowerCase()),
+  );
+
   return (
-    <SectionGroup title="Timer Messages">
-      {timerMessageFields.map((field) => (
-        <div key={field.key} className="space-y-1.5">
-          <Label htmlFor={`timer-${field.key}`} className="text-xs font-medium">
-            {field.label}
-          </Label>
-          <Input
-            id={`timer-${field.key}`}
-            value={messages[field.key]}
-            onChange={(e) => handleChange(field.key, e.target.value)}
-            disabled={disabled}
-          />
-          <p className="text-xs text-muted-foreground">
-            Variables: {field.placeholder}
-          </p>
-        </div>
-      ))}
-    </SectionGroup>
+    <div className="space-y-3">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+        <Input
+          className="h-8 pl-8 text-xs"
+          placeholder="Filter messages..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      {disabled && (
+        <p className="text-xs text-muted-foreground">
+          Timer commands are disabled — enable them to edit messages.
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        {filteredFields.map((field) => (
+          <div key={field.key} className="space-y-1">
+            <Label htmlFor={`timer-${field.key}`} className="text-xs font-medium">
+              {field.label}
+            </Label>
+            <Input
+              id={`timer-${field.key}`}
+              value={messages[field.key]}
+              onChange={(e) => handleChange(field.key, e.target.value)}
+              disabled={disabled}
+            />
+            {field.placeholder !== "none" && (
+              <div className="flex flex-wrap gap-1">
+                {field.placeholder.split(", ").map((v) => (
+                  <code
+                    key={v}
+                    className="rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-muted-foreground"
+                  >
+                    {v}
+                  </code>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

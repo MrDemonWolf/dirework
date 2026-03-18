@@ -6,6 +6,7 @@ import { EventEmitter } from "events";
 // Emitted events:
 //   "timerStateChange:{userId}" — when timer state changes
 //   "taskListChange:{userId}"   — when tasks are modified
+//   "botConfigChange:{userId}"  — when bot config is saved (reload cache)
 export const ee = new EventEmitter();
 
 // Allow many concurrent overlay SSE connections without Node warning

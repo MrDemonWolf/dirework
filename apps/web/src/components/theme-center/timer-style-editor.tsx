@@ -30,16 +30,18 @@ export function TimerStyleEditor({
     <div className="space-y-1">
       <SectionGroup title="Dimensions">
         <div className="flex items-center gap-2">
-          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Width</Label>
+          <Label htmlFor="timer-style-dimensions-width" className="w-28 shrink-0 text-xs text-muted-foreground">Width</Label>
           <Input
+            id="timer-style-dimensions-width"
             value={styles.dimensions.width}
             onChange={(e) => update("dimensions", { width: e.target.value })}
             className="h-8 w-24 text-xs"
           />
         </div>
         <div className="flex items-center gap-2">
-          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Height</Label>
+          <Label htmlFor="timer-style-dimensions-height" className="w-28 shrink-0 text-xs text-muted-foreground">Height</Label>
           <Input
+            id="timer-style-dimensions-height"
             value={styles.dimensions.height}
             onChange={(e) => update("dimensions", { height: e.target.value })}
             className="h-8 w-24 text-xs"
@@ -50,12 +52,14 @@ export function TimerStyleEditor({
       <SectionGroup title="Background">
         <ColorInput
           label="Color"
+          id="timer-style-bg-color"
           value={styles.background.color}
           onChange={(v) => update("background", { color: v })}
         />
         <div className="flex items-center gap-2">
-          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Opacity</Label>
+          <Label htmlFor="timer-style-bg-opacity" className="w-28 shrink-0 text-xs text-muted-foreground">Opacity</Label>
           <Slider
+            id="timer-style-bg-opacity"
             value={[styles.background.opacity * 100]}
             onValueChange={(v) => update("background", { opacity: (Array.isArray(v) ? v[0] : v) / 100 })}
             min={0}
@@ -67,8 +71,9 @@ export function TimerStyleEditor({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Border Radius</Label>
+          <Label htmlFor="timer-style-bg-border-radius" className="w-28 shrink-0 text-xs text-muted-foreground">Border Radius</Label>
           <Input
+            id="timer-style-bg-border-radius"
             value={styles.background.borderRadius}
             onChange={(e) => update("background", { borderRadius: e.target.value })}
             className="h-8 w-24 text-xs"
@@ -78,8 +83,9 @@ export function TimerStyleEditor({
 
       <SectionGroup title="Progress Ring">
         <div className="flex items-center justify-between">
-          <Label className="text-xs text-muted-foreground">Enabled</Label>
+          <Label htmlFor="timer-style-ring-enabled" className="text-xs text-muted-foreground">Enabled</Label>
           <Switch
+            id="timer-style-ring-enabled"
             checked={styles.ring.enabled}
             onCheckedChange={(v) => update("ring", { enabled: v as boolean })}
             size="sm"
@@ -87,12 +93,14 @@ export function TimerStyleEditor({
         </div>
         <ColorInput
           label="Fill Color"
+          id="timer-style-ring-fill-color"
           value={styles.ring.fillColor}
           onChange={(v) => update("ring", { fillColor: v })}
         />
         <div className="flex items-center gap-2">
-          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Fill Opacity</Label>
+          <Label htmlFor="timer-style-ring-fill-opacity" className="w-28 shrink-0 text-xs text-muted-foreground">Fill Opacity</Label>
           <Slider
+            id="timer-style-ring-fill-opacity"
             value={[styles.ring.fillOpacity * 100]}
             onValueChange={(v) => update("ring", { fillOpacity: (Array.isArray(v) ? v[0] : v) / 100 })}
             min={0}
@@ -105,12 +113,14 @@ export function TimerStyleEditor({
         </div>
         <ColorInput
           label="Track Color"
+          id="timer-style-ring-track-color"
           value={styles.ring.trackColor}
           onChange={(v) => update("ring", { trackColor: v })}
         />
         <div className="flex items-center gap-2">
-          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Track Opacity</Label>
+          <Label htmlFor="timer-style-ring-track-opacity" className="w-28 shrink-0 text-xs text-muted-foreground">Track Opacity</Label>
           <Slider
+            id="timer-style-ring-track-opacity"
             value={[styles.ring.trackOpacity * 100]}
             onValueChange={(v) => update("ring", { trackOpacity: (Array.isArray(v) ? v[0] : v) / 100 })}
             min={0}
@@ -122,8 +132,9 @@ export function TimerStyleEditor({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Width</Label>
+          <Label htmlFor="timer-style-ring-width" className="w-28 shrink-0 text-xs text-muted-foreground">Width</Label>
           <Slider
+            id="timer-style-ring-width"
             value={[styles.ring.width]}
             onValueChange={(v) => update("ring", { width: Array.isArray(v) ? v[0] : v })}
             min={2}
@@ -135,8 +146,9 @@ export function TimerStyleEditor({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Gap</Label>
+          <Label htmlFor="timer-style-ring-gap" className="w-28 shrink-0 text-xs text-muted-foreground">Gap</Label>
           <Slider
+            id="timer-style-ring-gap"
             value={[styles.ring.gap]}
             onValueChange={(v) => update("ring", { gap: Array.isArray(v) ? v[0] : v })}
             min={0}
@@ -152,17 +164,20 @@ export function TimerStyleEditor({
       <SectionGroup title="Text">
         <ColorInput
           label="Color"
+          id="timer-style-text-color"
           value={styles.text.color}
           onChange={(v) => update("text", { color: v })}
         />
         <ColorInput
           label="Outline Color"
+          id="timer-style-text-outline-color"
           value={styles.text.outlineColor}
           onChange={(v) => update("text", { outlineColor: v })}
         />
         <div className="flex items-center gap-2">
-          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Outline Size</Label>
+          <Label htmlFor="timer-style-text-outline-size" className="w-28 shrink-0 text-xs text-muted-foreground">Outline Size</Label>
           <Input
+            id="timer-style-text-outline-size"
             value={styles.text.outlineSize}
             onChange={(e) => update("text", { outlineSize: e.target.value })}
             className="h-8 w-24 text-xs"
@@ -177,24 +192,27 @@ export function TimerStyleEditor({
 
       <SectionGroup title="Font Sizes">
         <div className="flex items-center gap-2">
-          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Label</Label>
+          <Label htmlFor="timer-style-font-label" className="w-28 shrink-0 text-xs text-muted-foreground">Label</Label>
           <Input
+            id="timer-style-font-label"
             value={styles.fontSizes.label}
             onChange={(e) => update("fontSizes", { label: e.target.value })}
             className="h-8 w-24 text-xs"
           />
         </div>
         <div className="flex items-center gap-2">
-          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Time</Label>
+          <Label htmlFor="timer-style-font-time" className="w-28 shrink-0 text-xs text-muted-foreground">Time</Label>
           <Input
+            id="timer-style-font-time"
             value={styles.fontSizes.time}
             onChange={(e) => update("fontSizes", { time: e.target.value })}
             className="h-8 w-24 text-xs"
           />
         </div>
         <div className="flex items-center gap-2">
-          <Label className="w-28 shrink-0 text-xs text-muted-foreground">Cycle</Label>
+          <Label htmlFor="timer-style-font-cycle" className="w-28 shrink-0 text-xs text-muted-foreground">Cycle</Label>
           <Input
+            id="timer-style-font-cycle"
             value={styles.fontSizes.cycle}
             onChange={(e) => update("fontSizes", { cycle: e.target.value })}
             className="h-8 w-24 text-xs"

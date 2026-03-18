@@ -1,13 +1,29 @@
-import prisma from "@dirework/db";
+import { db } from "@dirework/db";
+import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
 import { betterAuth } from "better-auth";
-import { prismaAdapter } from "better-auth/adapters/prisma";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
+import { APIError } from "better-auth/api";
+
+/**
+ * Parse the ALLOWED_TWITCH_IDS env var into a Set.
+ * Empty string or undefined → empty set (allow all).
+ */
+export function parseAllowedTwitchIds(raw: string | undefined): Set<string> {
+  if (!raw) return new Set();
+  return new Set(
+    raw
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean),
+  );
+}
+
+const allowedTwitchIds = parseAllowedTwitchIds(env.ALLOWED_TWITCH_IDS);
 
 export const auth = betterAuth({
-  database: prismaAdapter(prisma, {
-    provider: "postgresql",
-  }),
+  database: drizzleAdapter(db, { provider: "pg", schema }),
 
   trustedOrigins: [env.CORS_ORIGIN],
   emailAndPassword: {
@@ -24,16 +40,32 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24, // Update session every 24 hours
   },
   databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          // Enforce ALLOWED_TWITCH_IDS allowlist on account creation
+          if (allowedTwitchIds.size > 0) {
+            const twitchId = (user as Record<string, unknown>).twitchId as string | undefined;
+            if (!twitchId || !allowedTwitchIds.has(twitchId)) {
+              throw new APIError("FORBIDDEN", {
+                message: "Your Twitch account is not authorized to use this instance.",
+              });
+            }
+          }
+          return { data: user };
+        },
+      },
+    },
     session: {
       create: {
         after: async (session) => {
-          // Provision config rows on every login — upsert is atomic (no race conditions)
+          // Provision config rows on every login — onConflictDoNothing is atomic
           const userId = session.userId;
           await Promise.all([
-            prisma.timerConfig.upsert({ where: { userId }, create: { userId }, update: {} }),
-            prisma.timerStyle.upsert({ where: { userId }, create: { userId }, update: {} }),
-            prisma.taskStyle.upsert({ where: { userId }, create: { userId }, update: {} }),
-            prisma.botConfig.upsert({ where: { userId }, create: { userId }, update: {} }),
+            db.insert(schema.timerConfig).values({ userId }).onConflictDoNothing(),
+            db.insert(schema.timerStyle).values({ userId }).onConflictDoNothing(),
+            db.insert(schema.taskStyle).values({ userId }).onConflictDoNothing(),
+            db.insert(schema.botConfig).values({ userId }).onConflictDoNothing(),
           ]);
         },
       },

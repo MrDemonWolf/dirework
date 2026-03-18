@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Wolf ears -->
+  <path d="M14 30L20 8l10 18" stroke="#6d28d9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M50 30L44 8l-10 18" stroke="#6d28d9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Wolf head outline -->
+  <path d="M12 30c-1 10 4 18 12 22l8 6 8-6c8-4 13-12 12-22" stroke="#6d28d9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Eyes -->
+  <circle cx="23" cy="36" r="2.5" fill="#6d28d9"/>
+  <circle cx="41" cy="36" r="2.5" fill="#6d28d9"/>
+  <!-- Nose -->
+  <path d="M28 46l4 4 4-4" stroke="#6d28d9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Clock face -->
+  <circle cx="32" cy="24" r="7" stroke="#6d28d9" stroke-width="2.5"/>
+  <line x1="32" y1="24" x2="32" y2="19" stroke="#6d28d9" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="32" y1="24" x2="36" y2="24" stroke="#6d28d9" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

@@ -28,9 +28,29 @@ export default function Header() {
         <div className="flex items-center gap-8">
           <Link
             href="/"
-            className="font-heading text-lg font-bold tracking-tight transition-opacity hover:opacity-80"
+            className="flex items-center gap-2 font-heading text-lg font-bold tracking-tight transition-opacity hover:opacity-80"
           >
-            Dirework
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 64 64"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-6"
+            >
+              <path d="M14 30L20 8l10 18"/>
+              <path d="M50 30L44 8l-10 18"/>
+              <path d="M12 30c-1 10 4 18 12 22l8 6 8-6c8-4 13-12 12-22"/>
+              <circle cx="23" cy="36" r="2.5" fill="currentColor" stroke="none"/>
+              <circle cx="41" cy="36" r="2.5" fill="currentColor" stroke="none"/>
+              <path d="M28 46l4 4 4-4"/>
+              <circle cx="32" cy="24" r="7" strokeWidth="2.5"/>
+              <line x1="32" y1="24" x2="32" y2="19" strokeWidth="2.5"/>
+              <line x1="32" y1="24" x2="36" y2="24" strokeWidth="2.5"/>
+            </svg>
+            DireWork
           </Link>
 
           {/* Desktop nav */}
@@ -46,6 +66,7 @@ export default function Header() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    aria-current={isActive ? "page" : undefined}
                     className={cn(
                       "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
                       isActive
@@ -72,6 +93,8 @@ export default function Header() {
               size="icon"
               className="md:hidden"
               onClick={() => setMobileMenuOpen((v) => !v)}
+              aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={mobileMenuOpen}
             >
               {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </Button>
@@ -94,6 +117,7 @@ export default function Header() {
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
+                  aria-current={isActive ? "page" : undefined}
                   className={cn(
                     "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                     isActive

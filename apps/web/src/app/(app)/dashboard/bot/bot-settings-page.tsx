@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, RotateCcw, Save, Unplug } from "lucide-react";
+import { Loader2, Play, Plus, RotateCcw, Save, SquareStop, Trash2, Unplug } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
@@ -20,14 +21,35 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TaskMessageEditor, TimerMessageEditor } from "@/components/bot-settings/message-editor";
-import { CommandAliasEditor } from "@/components/bot-settings/command-alias-editor";
-import { TaskVariableReference, TimerVariableReference } from "@/components/bot-settings/variable-reference";
 import { trpc } from "@/utils/trpc";
+
+const taskCommands = [
+  { command: "!task", usage: "!task [task]", description: "Add a task" },
+  { command: "!done", usage: "!done or !done [#]", description: "Mark task done" },
+  { command: "!edit", usage: "!edit [#] [new task]", description: "Edit a task" },
+  { command: "!remove", usage: "!remove [#]", description: "Remove a task" },
+  { command: "!focus", usage: "!focus [#]", description: "Set active task" },
+  { command: "!check", usage: "!check or !check @user", description: "Check current task" },
+  { command: "!next", usage: "!next [task]", description: "Complete & add next task" },
+  { command: "!help", usage: "!help", description: "Show help in chat" },
+  { command: "!clear", usage: "!clear all/done/@user", description: "Clear tasks (mods only)" },
+];
+
+const timerCommands = [
+  { command: "!timer start", usage: "!timer start [cycles]", description: "Start timer" },
+  { command: "!timer pause", usage: "!timer pause", description: "Pause timer" },
+  { command: "!timer resume", usage: "!timer resume", description: "Resume timer" },
+  { command: "!timer skip", usage: "!timer skip", description: "Skip current phase" },
+  { command: "!timer reset", usage: "!timer reset", description: "Reset to idle" },
+  { command: "!timer eta", usage: "!timer eta", description: "Show end time ETA" },
+];
 
 const defaultTaskMessages: TaskMessagesConfig = {
   taskAdded: 'Awooo! The task "{task}" has been added to the pack, {user}!',
@@ -69,6 +91,29 @@ const defaultTimerMessages: TimerMessagesConfig = {
 
 const defaultCommandAliases: CommandAliasesConfig = {};
 
+function CommandTable({ commands }: { commands: { command: string; usage: string; description: string }[] }) {
+  return (
+    <table className="w-full text-xs">
+      <thead>
+        <tr className="border-b text-left text-muted-foreground">
+          <th className="pb-1 font-medium">Command</th>
+          <th className="pb-1 font-medium">Usage</th>
+          <th className="pb-1 font-medium">Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {commands.map((cmd) => (
+          <tr key={cmd.command} className="border-b last:border-0">
+            <td className="py-1.5 pr-3 font-mono font-medium">{cmd.command}</td>
+            <td className="py-1.5 pr-3 font-mono text-muted-foreground">{cmd.usage}</td>
+            <td className="py-1.5 text-muted-foreground">{cmd.description}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 function BotSettingsSkeleton() {
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
@@ -76,35 +121,33 @@ function BotSettingsSkeleton() {
         <Skeleton className="h-7 w-36" />
         <Skeleton className="h-4 w-72" />
       </div>
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <div className="w-full space-y-6 lg:w-80 lg:shrink-0">
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-5 w-28" />
-              <Skeleton className="h-4 w-56" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-8 w-40" />
-            </CardContent>
-          </Card>
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-24 w-full" />
-        </div>
-        <div className="min-w-0 flex-1 space-y-6">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="space-y-3">
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-24 w-full" />
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="h-4 w-56" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-8 w-40" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <Skeleton className="mb-4 h-9 w-72" />
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
             </div>
-          ))}
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
 }
 
 export default function BotSettingsPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const config = useQuery(trpc.config.get.queryOptions());
@@ -115,11 +158,11 @@ export default function BotSettingsPage() {
     const botStatus = searchParams.get("bot");
     if (botStatus === "connected") {
       toast.success("Bot account connected successfully!");
-      window.history.replaceState({}, "", "/dashboard/bot");
+      router.replace("/dashboard/bot");
     } else if (botStatus === "error") {
       const reason = searchParams.get("reason") ?? "unknown";
       toast.error(`Failed to connect bot account: ${reason}`);
-      window.history.replaceState({}, "", "/dashboard/bot");
+      router.replace("/dashboard/bot");
     }
   }, [searchParams]);
 
@@ -138,7 +181,7 @@ export default function BotSettingsPage() {
   const [savedTimerMessages, setSavedTimerMessages] = useState<TimerMessagesConfig>(defaultTimerMessages);
   const [savedCommandAliases, setSavedCommandAliases] = useState<CommandAliasesConfig>(defaultCommandAliases);
 
-  // Once config loads, extract values — skip if user has unsaved edits
+  // Once config loads, extract values
   const initializedRef = useRef(false);
   useEffect(() => {
     if (!config.data) return;
@@ -164,10 +207,38 @@ export default function BotSettingsPage() {
     setSavedCommandAliases(aliases);
   }, [config.data]);
 
+  const botStatus = useQuery({
+    ...trpc.bot.status.queryOptions(),
+    refetchInterval: 5000,
+  });
+
+  const startBot = useMutation({
+    ...trpc.bot.start.mutationOptions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: trpc.bot.status.queryKey() });
+      toast.success("Bot started");
+    },
+    onError: (err) => {
+      toast.error(`Failed to start bot: ${err.message}`);
+    },
+  });
+
+  const stopBot = useMutation({
+    ...trpc.bot.stop.mutationOptions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: trpc.bot.status.queryKey() });
+      toast.success("Bot stopped");
+    },
+    onError: (err) => {
+      toast.error(`Failed to stop bot: ${err.message}`);
+    },
+  });
+
   const disconnectBot = useMutation({
     ...trpc.user.disconnectBot.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trpc.user.me.queryKey() });
+      queryClient.invalidateQueries({ queryKey: trpc.bot.status.queryKey() });
       toast.success("Bot account disconnected");
     },
   });
@@ -199,11 +270,6 @@ export default function BotSettingsPage() {
 
   const handleTimerMessagesChange = useCallback((newMessages: TimerMessagesConfig) => {
     setTimerMessages(newMessages);
-    setHasUnsaved(true);
-  }, []);
-
-  const handleAliasesChange = useCallback((newAliases: CommandAliasesConfig) => {
-    setCommandAliases(newAliases);
     setHasUnsaved(true);
   }, []);
 
@@ -254,6 +320,39 @@ export default function BotSettingsPage() {
     updateAliasesMutation,
   ]);
 
+  // Alias editor handlers
+  const aliasEntries = Object.entries(commandAliases);
+
+  const handleAddAlias = () => {
+    setCommandAliases({ ...commandAliases, "": "" });
+    markUnsaved();
+  };
+
+  const handleAliasKeyChange = (oldKey: string, newKey: string) => {
+    const newAliases: CommandAliasesConfig = {};
+    for (const [k, v] of Object.entries(commandAliases)) {
+      if (k === oldKey) {
+        newAliases[newKey] = v;
+      } else {
+        newAliases[k] = v;
+      }
+    }
+    setCommandAliases(newAliases);
+    markUnsaved();
+  };
+
+  const handleAliasValueChange = (key: string, value: string) => {
+    setCommandAliases({ ...commandAliases, [key]: value });
+    markUnsaved();
+  };
+
+  const handleAliasRemove = (key: string) => {
+    const newAliases = { ...commandAliases };
+    delete newAliases[key];
+    setCommandAliases(newAliases);
+    markUnsaved();
+  };
+
   if (config.isLoading) {
     return <BotSettingsSkeleton />;
   }
@@ -261,35 +360,76 @@ export default function BotSettingsPage() {
   return (
     <div className={cn("container mx-auto max-w-5xl px-4 py-8", hasUnsaved && "pb-24")}>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Bot Settings</h1>
+        <h1 className="font-heading text-2xl font-bold">Bot Settings</h1>
         <p className="text-sm text-muted-foreground">
           Configure your bot account, response messages, and command aliases
         </p>
       </div>
 
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        {/* Left column — sidebar with controls */}
-        <div className="w-full space-y-6 lg:sticky lg:top-20 lg:w-80 lg:shrink-0">
-          {/* Bot Account */}
-          <Card>
-            <CardHeader>
+      <div className="space-y-6">
+        {/* Bot Account Card — full width */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
               <CardTitle>Bot Account</CardTitle>
-              <CardDescription>Connect a Twitch bot for chat commands</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {user.data?.botAccount ? (
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm">
-                      Connected as{" "}
-                      <span className="font-medium">
-                        {user.data.botAccount.displayName}
-                      </span>
-                    </p>
+              {user.data?.botAccount && (
+                <span className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                  botStatus.data?.running
+                    ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                    : "bg-muted text-muted-foreground",
+                )}>
+                  <span className={cn(
+                    "size-1.5 rounded-full",
+                    botStatus.data?.running ? "bg-green-500" : "bg-muted-foreground/50",
+                  )} />
+                  {botStatus.data?.running ? "Online" : "Offline"}
+                </span>
+              )}
+            </div>
+            <CardDescription>Connect a Twitch bot for chat commands</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {user.data?.botAccount ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm">
+                    Connected as{" "}
+                    <span className="font-medium">
+                      {user.data.botAccount.displayName}
+                    </span>
+                  </p>
+                  {botStatus.data?.running && botStatus.data.channel && (
                     <p className="text-xs text-muted-foreground">
-                      Scopes: {user.data.botAccount.scopes.join(", ")}
+                      In channel: #{botStatus.data.channel}
                     </p>
-                  </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Scopes: {user.data.botAccount.scopes.join(", ")}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {botStatus.data?.running ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => stopBot.mutate()}
+                      disabled={stopBot.isPending}
+                      className="text-destructive"
+                    >
+                      <SquareStop className="size-3" />
+                      Stop Bot
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={() => startBot.mutate()}
+                      disabled={startBot.isPending}
+                    >
+                      <Play className="size-3" />
+                      Start Bot
+                    </Button>
+                  )}
                   <Button
                     variant="destructive"
                     size="sm"
@@ -300,111 +440,168 @@ export default function BotSettingsPage() {
                     Disconnect
                   </Button>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    No bot account connected.
-                  </p>
-                  <a
-                    href="/api/bot/authorize"
-                    className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#9146FF] px-3 text-xs font-medium text-white hover:bg-[#7c3ae6]"
-                  >
-                    Connect Bot Account
-                  </a>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  No bot account connected.
+                </p>
+                <a
+                  href="/api/bot/authorize"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#9146FF] px-3 text-xs font-medium text-white hover:bg-[#7c3ae6]"
+                >
+                  Connect Bot Account
+                </a>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Unified Settings Card with Tabs */}
+        <Card>
+          <CardContent className="px-4 pb-4 pt-4">
+            <Tabs defaultValue="tasks">
+              <TabsList>
+                <TabsTrigger value="tasks">Task Commands</TabsTrigger>
+                <TabsTrigger value="timer">Timer Commands</TabsTrigger>
+                <TabsTrigger value="aliases">Aliases</TabsTrigger>
+              </TabsList>
+
+              {/* Task Commands Tab */}
+              <TabsContent value="tasks" className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Task Commands</p>
+                    <p className="text-xs text-muted-foreground">Viewer task management via chat</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="task-commands-toggle" className="text-xs">
+                      {taskCommandsEnabled ? "On" : "Off"}
+                    </Label>
+                    <Switch
+                      id="task-commands-toggle"
+                      checked={taskCommandsEnabled}
+                      onCheckedChange={(checked) => { setTaskCommandsEnabled(checked); markUnsaved(); }}
+                    />
+                  </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
 
-          {/* Task Commands Toggle */}
-          <Card>
-            <CardContent className="flex items-center justify-between py-4">
-              <div>
-                <h2 className="text-sm font-semibold">Task Commands</h2>
-                <p className="text-xs text-muted-foreground">Chat task commands</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Label htmlFor="task-commands-toggle" className="text-xs">
-                  {taskCommandsEnabled ? "On" : "Off"}
-                </Label>
-                <Switch
-                  id="task-commands-toggle"
-                  checked={taskCommandsEnabled}
-                  onCheckedChange={(checked) => {
-                    setTaskCommandsEnabled(checked);
-                    markUnsaved();
-                  }}
-                />
-              </div>
-            </CardContent>
-          </Card>
+                <Separator />
 
-          {/* Timer Commands Toggle */}
-          <Card>
-            <CardContent className="flex items-center justify-between py-4">
-              <div>
-                <h2 className="text-sm font-semibold">Timer Commands</h2>
-                <p className="text-xs text-muted-foreground">Chat timer commands</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Label htmlFor="timer-commands-toggle" className="text-xs">
-                  {timerCommandsEnabled ? "On" : "Off"}
-                </Label>
-                <Switch
-                  id="timer-commands-toggle"
-                  checked={timerCommandsEnabled}
-                  onCheckedChange={(checked) => {
-                    setTimerCommandsEnabled(checked);
-                    markUnsaved();
-                  }}
-                />
-              </div>
-            </CardContent>
-          </Card>
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold">Command Reference</h3>
+                  <CommandTable commands={taskCommands} />
+                </div>
 
-          {/* Command Aliases */}
-          <CommandAliasEditor
-            aliases={commandAliases}
-            onChange={handleAliasesChange}
-          />
-        </div>
+                <Separator />
 
-        {/* Right column — message editors */}
-        <div className="min-w-0 flex-1 space-y-6">
-          {/* Task Messages */}
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold">Task Messages</h2>
-              <p className="text-xs text-muted-foreground">
-                Customize bot responses for task-related commands
-              </p>
-            </div>
-            <TaskVariableReference />
-            <TaskMessageEditor
-              messages={taskMessages}
-              onChange={handleTaskMessagesChange}
-              disabled={!taskCommandsEnabled}
-            />
-          </div>
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold">Messages</h3>
+                  <TaskMessageEditor
+                    messages={taskMessages}
+                    onChange={handleTaskMessagesChange}
+                    disabled={!taskCommandsEnabled}
+                  />
+                </div>
+              </TabsContent>
 
-          <Separator />
+              {/* Timer Commands Tab */}
+              <TabsContent value="timer" className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Timer Commands</p>
+                    <p className="text-xs text-muted-foreground">Mod-only timer control via chat</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="timer-commands-toggle" className="text-xs">
+                      {timerCommandsEnabled ? "On" : "Off"}
+                    </Label>
+                    <Switch
+                      id="timer-commands-toggle"
+                      checked={timerCommandsEnabled}
+                      onCheckedChange={(checked) => { setTimerCommandsEnabled(checked); markUnsaved(); }}
+                    />
+                  </div>
+                </div>
 
-          {/* Timer Messages */}
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold">Timer Messages</h2>
-              <p className="text-xs text-muted-foreground">
-                Customize bot responses for timer-related commands
-              </p>
-            </div>
-            <TimerVariableReference />
-            <TimerMessageEditor
-              messages={timerMessages}
-              onChange={handleTimerMessagesChange}
-              disabled={!timerCommandsEnabled}
-            />
-          </div>
-        </div>
+                <Separator />
+
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold">Command Reference</h3>
+                  <CommandTable commands={timerCommands} />
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold">Messages</h3>
+                  <TimerMessageEditor
+                    messages={timerMessages}
+                    onChange={handleTimerMessagesChange}
+                    disabled={!timerCommandsEnabled}
+                  />
+                </div>
+              </TabsContent>
+
+              {/* Aliases Tab */}
+              <TabsContent value="aliases" className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Command Aliases</p>
+                    <p className="text-xs text-muted-foreground">
+                      Map custom command names to built-in commands (e.g. &quot;!t&quot; to &quot;!task&quot;)
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={handleAddAlias}>
+                    <Plus className="size-3.5" />
+                    Add Alias
+                  </Button>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  {aliasEntries.map(([key, value], index) => (
+                    <div key={index} className="flex items-end gap-2">
+                      <div className="flex-1 space-y-1">
+                        <Label htmlFor={`alias-key-${index}`} className="text-xs">Alias</Label>
+                        <Input
+                          id={`alias-key-${index}`}
+                          value={key}
+                          onChange={(e) => handleAliasKeyChange(key, e.target.value)}
+                          placeholder="!t"
+                        />
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <Label htmlFor={`alias-cmd-${index}`} className="text-xs">Command</Label>
+                        <Input
+                          id={`alias-cmd-${index}`}
+                          value={value}
+                          onChange={(e) => handleAliasValueChange(key, e.target.value)}
+                          placeholder="!task"
+                        />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0"
+                        onClick={() => handleAliasRemove(key)}
+                        aria-label={`Remove alias ${key || "(empty)"}`}
+                      >
+                        <Trash2 className="size-4 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  ))}
+                  {aliasEntries.length === 0 && (
+                    <p className="py-4 text-center text-xs text-muted-foreground">
+                      No aliases configured. Click &quot;Add Alias&quot; to create one.
+                    </p>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Sticky Save / Reset Bar */}
