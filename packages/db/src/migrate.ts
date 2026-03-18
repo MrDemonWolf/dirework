@@ -7,5 +7,5 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const migrationsFolder = path.resolve(__dirname, "../../drizzle");
 
 await migrate(db, { migrationsFolder });
-console.log("Migrations applied successfully");
+console.log("[DB] Migrations applied successfully");
 process.exit(0);

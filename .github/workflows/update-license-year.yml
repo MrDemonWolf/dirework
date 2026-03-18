@@ -1,0 +1,34 @@
+name: Update LICENSE Year
+
+on:
+  schedule:
+    # January 1st, 06:00 UTC = midnight CST (UTC-6)
+    - cron: "0 6 1 1 *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-year:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Update copyright year
+        run: |
+          CURRENT_YEAR=$(date +%Y)
+          sed -i "s/Copyright (c) [0-9]\{4\}/Copyright (c) $CURRENT_YEAR/" LICENSE
+
+      - name: Commit and push if changed
+        run: |
+          CURRENT_YEAR=$(date +%Y)
+          git config user.name "MrDemonWolf, Inc."
+          git config user.email "admin@mrdemonwolf.com"
+          git diff --quiet LICENSE && echo "No changes needed" && exit 0
+          git add LICENSE
+          git commit -m "chore: update LICENSE copyright year to $CURRENT_YEAR"
+          git push

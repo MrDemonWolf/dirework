@@ -1,4 +1,4 @@
-import { pgTable, text, boolean, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -11,8 +11,8 @@ export const user = pgTable("user", {
   // Dirework-specific
   twitchId: text("twitch_id").unique(),
   displayName: text("display_name"),
-  overlayTimerToken: text("overlay_timer_token").notNull().$defaultFn(() => crypto.randomUUID()),
-  overlayTasksToken: text("overlay_tasks_token").notNull().$defaultFn(() => crypto.randomUUID()),
+  overlayTimerToken: text("overlay_timer_token").notNull().unique().$defaultFn(() => crypto.randomUUID()),
+  overlayTasksToken: text("overlay_tasks_token").notNull().unique().$defaultFn(() => crypto.randomUUID()),
 });
 
 export const session = pgTable("session", {
@@ -44,6 +44,7 @@ export const account = pgTable("account", {
   updatedAt: timestamp("updated_at").notNull().defaultNow().$onUpdateFn(() => new Date()),
 }, (table) => [
   index("account_user_id_idx").on(table.userId),
+  uniqueIndex("account_provider_account_idx").on(table.providerId, table.accountId),
 ]);
 
 export const verification = pgTable("verification", {

@@ -2,6 +2,7 @@ import { auth } from "@dirework/auth";
 import { db } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
+import { logger } from "@dirework/api/logger";
 import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
 
   if (!tokenRes.ok) {
     const body = await tokenRes.text().catch(() => "");
-    console.error("Twitch token exchange failed:", tokenRes.status, body);
+    logger.error("[Auth] Twitch token exchange failed:", tokenRes.status, body);
     return errorRedirect(request, "Token exchange failed — check redirect URI matches Twitch app");
   }
 
@@ -100,7 +101,7 @@ export async function GET(request: NextRequest) {
         },
       });
   } catch (err) {
-    console.error("Failed to save bot account:", err);
+    logger.error("[Auth] Failed to save bot account:", err);
     return errorRedirect(request, "Database error saving bot account");
   }
 
