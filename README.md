@@ -1,11 +1,13 @@
 # Dirework - Pomodoro Timer and Task List for Twitch
 
-Self-hosted Pomodoro timer and task list built for Twitch
-co-working and body-doubling streams. Your viewers join the
-grind through chat commands while customizable OBS overlays
-keep everyone focused and in sync.
+Dirework is a personal project built for my own Twitch
+co-working and body-doubling streams. It combines a
+Pomodoro timer, viewer task list, and Twitch chat bot into
+a single self-hosted tool with customizable OBS overlays.
 
-One streamer, one instance, zero distractions.
+It is open source. If you want the same setup for your own
+channel, fork it and run your own instance — one streamer,
+one instance, zero distractions.
 
 ## Features
 
@@ -201,7 +203,7 @@ dirework/
 
 ## License
 
-![GitHub license](https://img.shields.io/github/license/mrdemonwolf/dirework.svg?style=for-the-badge&logo=github)
+[![GitHub license](https://img.shields.io/github/license/MrDemonWolf/dirework.svg?style=for-the-badge&logo=github)](https://github.com/MrDemonWolf/dirework/blob/main/LICENSE)
 
 ## Contact
 
