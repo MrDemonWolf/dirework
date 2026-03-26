@@ -1,5 +1,7 @@
 #!/bin/sh
 
+export SKIP_ENV_VALIDATION=true
+
 echo "Running database migrations..."
 if node /app/packages/db/migrate.js; then
   echo "Database migrations completed successfully."

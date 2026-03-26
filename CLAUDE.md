@@ -246,7 +246,7 @@ Deployed via **Coolify** using **Dockerfile**. Config in `Dockerfile` + `docker-
 
 - Next.js uses `output: "standalone"` for containerized deployment
 - `SKIP_ENV_VALIDATION=true` is set at build time to bypass t3-env validation (runtime secrets aren't available during build)
-- Docker build: install deps → generate Prisma client → build Next.js → copy static assets
+- Docker build: install deps → build Drizzle migration bundle → build Next.js → copy static assets
 - Start command: `node apps/web/.next/standalone/apps/web/server.js`
 - PostgreSQL 17 Alpine as a separate Coolify service
 - Instance-specific notes live in `coolify.md` (gitignored)

@@ -1,4 +1,4 @@
-import { eq, and, asc, inArray, sql } from "drizzle-orm";
+import { eq, and, asc, desc, inArray, sql } from "drizzle-orm";
 import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
@@ -183,7 +183,7 @@ async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void>
 
   const lastTask = await db.query.task.findFirst({
     where: and(eq(schema.task.ownerId, ownerId), eq(schema.task.priority, isBroadcaster ? 0 : 1)),
-    orderBy: [asc(schema.task.order)],
+    orderBy: [desc(schema.task.order)],
     columns: { order: true },
   });
 
@@ -468,7 +468,7 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
 
   const lastTask = await db.query.task.findFirst({
     where: and(eq(schema.task.ownerId, ownerId), eq(schema.task.priority, isBroadcaster ? 0 : 1)),
-    orderBy: [asc(schema.task.order)],
+    orderBy: [desc(schema.task.order)],
     columns: { order: true },
   });
 
@@ -697,7 +697,7 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
       }
 
       const etaDate = new Date(Date.now() + totalMs);
-      const timeStr = etaDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const timeStr = etaDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 
       say(interpolate(config.timer.eta, { ...vars, time: timeStr }));
       break;
