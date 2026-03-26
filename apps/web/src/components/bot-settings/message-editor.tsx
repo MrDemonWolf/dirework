@@ -86,7 +86,7 @@ export function TaskMessageEditor({
 
       {disabled && (
         <p className="text-xs text-muted-foreground">
-          Task commands are disabled — enable them in the sidebar to edit messages.
+          Task commands are disabled — enable them to edit messages.
         </p>
       )}
 
@@ -154,7 +154,7 @@ export function TimerMessageEditor({
 
       {disabled && (
         <p className="text-xs text-muted-foreground">
-          Timer commands are disabled — enable them in the sidebar to edit messages.
+          Timer commands are disabled — enable them to edit messages.
         </p>
       )}
 
