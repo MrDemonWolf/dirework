@@ -164,7 +164,7 @@ export default function BotSettingsPage() {
       toast.error(`Failed to connect bot account: ${reason}`);
       router.replace("/dashboard/bot");
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   // Working state
   const [taskCommandsEnabled, setTaskCommandsEnabled] = useState(true);

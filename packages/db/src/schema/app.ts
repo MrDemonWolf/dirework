@@ -20,7 +20,7 @@ export const botAccount = pgTable("bot_account", {
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
-  scopes: text("scopes").array().notNull().default(["chat:read", "chat:edit", "channel:moderate", "user:read:chat"]),
+  scopes: text("scopes").array().notNull().default(["user:read:chat", "user:write:chat"]),
 });
 
 export const task = pgTable("task", {

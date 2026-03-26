@@ -1,11 +1,13 @@
 # Dirework - Pomodoro Timer and Task List for Twitch
 
-Self-hosted Pomodoro timer and task list built for Twitch
-co-working and body-doubling streams. Your viewers join the
-grind through chat commands while customizable OBS overlays
-keep everyone focused and in sync.
+Dirework is a personal project built for my own Twitch
+co-working and body-doubling streams. It combines a
+Pomodoro timer, viewer task list, and Twitch chat bot into
+a single self-hosted tool with customizable OBS overlays.
 
-One streamer, one instance, zero distractions.
+It is open source. If you want the same setup for your own
+channel, fork it and run your own instance — one streamer,
+one instance, zero distractions.
 
 ## Features
 
@@ -104,7 +106,7 @@ command aliases.
 ### Prerequisites
 
 - Node.js 20+
-- pnpm 10+
+- Bun 1.0+
 - Docker (for PostgreSQL)
 - A Twitch Developer Application
   ([dev.twitch.tv](https://dev.twitch.tv/console))
@@ -121,7 +123,7 @@ command aliases.
 2. Install dependencies:
 
    ```bash
-   pnpm install
+   bun install
    ```
 
 3. Configure environment variables in `apps/web/.env`:
@@ -138,30 +140,30 @@ command aliases.
 4. Start the database:
 
    ```bash
-   pnpm db:start
+   bun db:start
    ```
 
 5. Push the schema:
 
    ```bash
-   pnpm db:push
+   bun db:push
    ```
 
 6. Start the dev server:
 
    ```bash
-   pnpm dev
+   bun dev
    ```
 
 ### Development Scripts
 
-- `pnpm dev` - Start all apps (web on port 3001, docs on port 4000)
-- `pnpm build` - Build all apps for production
-- `pnpm check-types` - Run TypeScript type checking
-- `pnpm test` - Run unit tests across all packages
-- `pnpm dev:web` - Start the web app only
-- `pnpm db:start` - Start PostgreSQL via Docker
-- `pnpm db:stop` - Stop PostgreSQL
+- `bun dev` - Start all apps (web on port 3001, docs on port 4000)
+- `bun build` - Build all apps for production
+- `bun check-types` - Run TypeScript type checking
+- `bun test` - Run unit tests across all packages
+- `bun dev:web` - Start the web app only
+- `bun db:start` - Start PostgreSQL via Docker
+- `bun db:stop` - Stop PostgreSQL
 - `bun run db:push` - Push Drizzle schema to database (dev only, no migration file)
 - `bun run db:generate` - Generate a new Drizzle migration from schema changes
 - `bun run db:migrate` - Apply pending Drizzle migrations
@@ -173,7 +175,7 @@ command aliases.
 - Tests cover timer state machine, config build/flatten helpers,
   round-trip consistency, display utilities, task grouping, and
   event emitter isolation
-- Run with `pnpm test`
+- Run with `bun test`
 
 ### Code Quality
 
@@ -201,7 +203,7 @@ dirework/
 
 ## License
 
-![GitHub license](https://img.shields.io/github/license/mrdemonwolf/dirework.svg?style=for-the-badge&logo=github)
+[![GitHub license](https://img.shields.io/github/license/MrDemonWolf/dirework.svg?style=for-the-badge&logo=github)](https://github.com/MrDemonWolf/dirework/blob/main/LICENSE)
 
 ## Contact
 

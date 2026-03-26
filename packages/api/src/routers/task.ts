@@ -80,24 +80,36 @@ export const taskRouter = router({
   markDone: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      // Fetch current status before updating
+      const existing = await ctx.db.query.task.findFirst({
+        where: and(eq(schema.task.id, input.id), eq(schema.task.ownerId, ctx.session.user.id)),
+        columns: { id: true, status: true, authorTwitchId: true },
+      });
+      if (!existing) return null;
+
+      const wasActive = existing.status === "active";
+
       const [result] = await ctx.db.update(schema.task)
         .set({ status: "done", completedAt: new Date() })
-        .where(and(eq(schema.task.id, input.id), eq(schema.task.ownerId, ctx.session.user.id)))
+        .where(eq(schema.task.id, existing.id))
         .returning();
       if (!result) return null;
 
-      const nextPending = await ctx.db.query.task.findFirst({
-        where: and(
-          eq(schema.task.ownerId, ctx.session.user.id),
-          eq(schema.task.authorTwitchId, result.authorTwitchId),
-          eq(schema.task.status, "pending"),
-        ),
-        orderBy: [asc(schema.task.order)],
-      });
-      if (nextPending) {
-        await ctx.db.update(schema.task)
-          .set({ status: "active" })
-          .where(eq(schema.task.id, nextPending.id));
+      // Only promote next pending task if the completed task was active
+      if (wasActive) {
+        const nextPending = await ctx.db.query.task.findFirst({
+          where: and(
+            eq(schema.task.ownerId, ctx.session.user.id),
+            eq(schema.task.authorTwitchId, result.authorTwitchId),
+            eq(schema.task.status, "pending"),
+          ),
+          orderBy: [asc(schema.task.order)],
+        });
+        if (nextPending) {
+          await ctx.db.update(schema.task)
+            .set({ status: "active" })
+            .where(eq(schema.task.id, nextPending.id));
+        }
       }
 
       ee.emit(`taskListChange:${ctx.session.user.id}`);
