@@ -54,7 +54,7 @@ class TwitchBotService {
         .set({
           accessToken: tokenData.accessToken,
           refreshToken: tokenData.refreshToken ?? botAccount.refreshToken,
-          expiresAt: tokenData.expiresIn
+          expiresAt: tokenData.expiresIn != null
             ? new Date(Date.now() + tokenData.expiresIn * 1000)
             : botAccount.expiresAt,
           scopes: tokenData.scope ?? botAccount.scopes,
@@ -179,6 +179,10 @@ class TwitchBotService {
 
   isRunning(): boolean {
     return this.chatClient !== null;
+  }
+
+  getOwnerId(): string | null {
+    return this.userId;
   }
 
   getStatus(): { running: boolean; channel: string | null; botUsername: string | null } {

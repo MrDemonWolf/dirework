@@ -378,11 +378,12 @@ export const configRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
+      await ensureUserConfig(ctx.db, userId);
       const [updated] = await ctx.db.update(schema.timerConfig)
         .set(input)
         .where(eq(schema.timerConfig.userId, userId))
         .returning();
-      if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found — call config.get first to provision defaults" });
+      if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found" });
       ee.emit(`timerStateChange:${userId}`);
       return buildTimerConfig(updated);
     }),
@@ -392,12 +393,13 @@ export const configRouter = router({
     .input(z.object({ timerStyles: timerStylesSchema }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
+      await ensureUserConfig(ctx.db, userId);
       const flat = flattenTimerStyles(input.timerStyles);
       const [updated] = await ctx.db.update(schema.timerStyle)
         .set(flat)
         .where(eq(schema.timerStyle.userId, userId))
         .returning();
-      if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found — call config.get first to provision defaults" });
+      if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found" });
       ee.emit(`timerStateChange:${userId}`);
       return buildTimerStylesConfig(updated);
     }),
@@ -407,12 +409,13 @@ export const configRouter = router({
     .input(z.object({ taskStyles: taskStylesSchema }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
+      await ensureUserConfig(ctx.db, userId);
       const flat = flattenTaskStyles(input.taskStyles);
       const [updated] = await ctx.db.update(schema.taskStyle)
         .set(flat)
         .where(eq(schema.taskStyle.userId, userId))
         .returning();
-      if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found — call config.get first to provision defaults" });
+      if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found" });
       ee.emit(`taskListChange:${userId}`);
       return buildTaskStylesConfig(updated);
     }),
@@ -463,6 +466,7 @@ export const configRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
+      await ensureUserConfig(ctx.db, userId);
       const [result] = await ctx.db.update(schema.botConfig)
         .set({
           taskCommandsEnabled: input.taskCommandsEnabled,
@@ -521,6 +525,7 @@ export const configRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
+      await ensureUserConfig(ctx.db, userId);
       const [result] = await ctx.db.update(schema.timerConfig)
         .set({
           labelIdle: input.idle,
@@ -547,6 +552,7 @@ export const configRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
+      await ensureUserConfig(ctx.db, userId);
       const [result] = await ctx.db.update(schema.botConfig)
         .set({ commandAliases: input.commandAliases })
         .where(eq(schema.botConfig.userId, userId))

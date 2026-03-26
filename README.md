@@ -106,7 +106,7 @@ command aliases.
 ### Prerequisites
 
 - Node.js 20+
-- pnpm 10+
+- Bun 1.0+
 - Docker (for PostgreSQL)
 - A Twitch Developer Application
   ([dev.twitch.tv](https://dev.twitch.tv/console))
@@ -123,7 +123,7 @@ command aliases.
 2. Install dependencies:
 
    ```bash
-   pnpm install
+   bun install
    ```
 
 3. Configure environment variables in `apps/web/.env`:
@@ -140,30 +140,30 @@ command aliases.
 4. Start the database:
 
    ```bash
-   pnpm db:start
+   bun db:start
    ```
 
 5. Push the schema:
 
    ```bash
-   pnpm db:push
+   bun db:push
    ```
 
 6. Start the dev server:
 
    ```bash
-   pnpm dev
+   bun dev
    ```
 
 ### Development Scripts
 
-- `pnpm dev` - Start all apps (web on port 3001, docs on port 4000)
-- `pnpm build` - Build all apps for production
-- `pnpm check-types` - Run TypeScript type checking
-- `pnpm test` - Run unit tests across all packages
-- `pnpm dev:web` - Start the web app only
-- `pnpm db:start` - Start PostgreSQL via Docker
-- `pnpm db:stop` - Stop PostgreSQL
+- `bun dev` - Start all apps (web on port 3001, docs on port 4000)
+- `bun build` - Build all apps for production
+- `bun check-types` - Run TypeScript type checking
+- `bun test` - Run unit tests across all packages
+- `bun dev:web` - Start the web app only
+- `bun db:start` - Start PostgreSQL via Docker
+- `bun db:stop` - Stop PostgreSQL
 - `bun run db:push` - Push Drizzle schema to database (dev only, no migration file)
 - `bun run db:generate` - Generate a new Drizzle migration from schema changes
 - `bun run db:migrate` - Apply pending Drizzle migrations
@@ -175,7 +175,7 @@ command aliases.
 - Tests cover timer state machine, config build/flatten helpers,
   round-trip consistency, display utilities, task grouping, and
   event emitter isolation
-- Run with `pnpm test`
+- Run with `bun test`
 
 ### Code Quality
 

@@ -1,9 +1,10 @@
+import { timingSafeEqual } from "node:crypto";
 import { auth } from "@dirework/auth";
 import { db } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
 import { logger } from "@dirework/api/logger";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 
 function errorRedirect(_request: NextRequest, reason: string) {
@@ -21,13 +22,22 @@ export async function GET(request: NextRequest) {
   }
 
   let userId: string;
+  let nonce: string;
   try {
     const decoded = JSON.parse(
       Buffer.from(state, "base64url").toString(),
     );
     userId = decoded.userId;
+    nonce = decoded.nonce;
   } catch {
     return errorRedirect(request, "Invalid state parameter");
+  }
+
+  // Verify CSRF nonce from httpOnly cookie
+  const cookieStore = await cookies();
+  const storedNonce = cookieStore.get("bot_oauth_nonce")?.value;
+  if (!storedNonce || !nonce || !timingSafeEqual(Buffer.from(storedNonce), Buffer.from(nonce))) {
+    return errorRedirect(request, "Invalid or expired OAuth state — please try again");
   }
 
   // Verify the current session matches the userId from state
