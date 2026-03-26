@@ -27,9 +27,13 @@ export const botRouter = router({
     return botService.getStatus();
   }),
 
-  stop: protectedProcedure.mutation(async () => {
+  stop: protectedProcedure.mutation(async ({ ctx }) => {
     if (!botService.isRunning()) {
       throw new TRPCError({ code: "CONFLICT", message: "Bot is not running" });
+    }
+
+    if (botService.getOwnerId() !== ctx.session.user.id) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "You can only stop your own bot instance" });
     }
 
     await botService.stop();

@@ -37,6 +37,8 @@ COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=build /app/packages/db/migrate.js ./packages/db/migrate.js
 COPY --from=build /app/packages/db/drizzle ./packages/db/drizzle
 COPY docker-entrypoint.sh ./
+RUN chown -R node:node /app && chmod +x /app/docker-entrypoint.sh
+USER node
 
 EXPOSE 3000
 ENTRYPOINT ["./docker-entrypoint.sh"]

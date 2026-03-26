@@ -17,6 +17,7 @@ describe("getTimerConfig", () => {
       longBreakInterval: 2,
       startingDuration: 10000,
       noLastBreak: false,
+      defaultCycles: 8,
     };
     const result = getTimerConfig(custom);
     expect(result).toEqual(custom);

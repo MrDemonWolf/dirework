@@ -5,14 +5,14 @@ export async function register() {
     const { botService } = await import("@dirework/api/bot/index");
     const { logger } = await import("@dirework/api/logger");
 
-    // Find a bot account to auto-start
+    // Find a bot account to auto-start (single-user-per-instance app)
     const botAccount = await db.query.botAccount.findFirst({
       columns: { userId: true },
     });
 
     if (botAccount && !botService.isRunning()) {
       await botService.start(db, botAccount.userId);
-      logger.info("[Instrumentation] Bot auto-started");
+      logger.info(`[Instrumentation] Bot auto-started for user ${botAccount.userId}`);
     }
   } catch (err) {
     const { logger } = await import("@dirework/api/logger").catch(() => ({

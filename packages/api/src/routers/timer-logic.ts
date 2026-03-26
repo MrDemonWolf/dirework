@@ -6,6 +6,7 @@ export const DEFAULTS = {
   longBreakInterval: 4,
   startingDuration: 5000,
   noLastBreak: true,
+  defaultCycles: 4,
 };
 
 export interface TimerConfigInput {
@@ -15,6 +16,7 @@ export interface TimerConfigInput {
   longBreakInterval: number;
   startingDuration: number;
   noLastBreak: boolean;
+  defaultCycles?: number;
 }
 
 export function getTimerConfig(tc: TimerConfigInput | null) {
@@ -25,6 +27,7 @@ export function getTimerConfig(tc: TimerConfigInput | null) {
     longBreakInterval: tc?.longBreakInterval ?? DEFAULTS.longBreakInterval,
     startingDuration: tc?.startingDuration ?? DEFAULTS.startingDuration,
     noLastBreak: tc?.noLastBreak ?? DEFAULTS.noLastBreak,
+    defaultCycles: tc?.defaultCycles ?? DEFAULTS.defaultCycles,
   };
 }
 

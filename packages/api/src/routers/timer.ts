@@ -47,7 +47,7 @@ export const timerRouter = router({
           pausedWithRemaining: null,
           pausedFromStatus: null,
           currentCycle: 1,
-          totalCycles: input.totalCycles ?? 4,
+          totalCycles: input.totalCycles ?? tc.defaultCycles,
         })
         .onConflictDoUpdate({
           target: schema.timerState.userId,
@@ -57,7 +57,7 @@ export const timerRouter = router({
             pausedWithRemaining: null,
             pausedFromStatus: null,
             currentCycle: 1,
-            totalCycles: input.totalCycles ?? 4,
+            totalCycles: input.totalCycles ?? tc.defaultCycles,
           },
         })
         .returning();
