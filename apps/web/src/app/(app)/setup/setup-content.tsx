@@ -58,7 +58,7 @@ export default function SetupContent() {
             authClient.signIn.social({
               provider: "twitch",
               callbackURL: "/dashboard",
-              errorCallbackURL: "/?error=instance_claimed",
+              errorCallbackURL: "/?error=signin_failed",
             })
           }
         >

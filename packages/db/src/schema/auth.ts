@@ -1,4 +1,5 @@
 import { pgTable, text, boolean, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -12,7 +13,10 @@ export const user = pgTable("user", {
   twitchId: text("twitch_id").unique(),
   displayName: text("display_name"),
   isOwner: boolean("is_owner").notNull().default(false),
-});
+}, (table) => [
+  // DB-level guarantee: only one row can have isOwner=true (backs the app-level count check)
+  uniqueIndex("user_single_owner_idx").on(table.isOwner).where(sql`${table.isOwner} = true`),
+]);
 
 export const session = pgTable("session", {
   id: text("id").primaryKey(),

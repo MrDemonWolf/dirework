@@ -58,6 +58,8 @@ function HomeInner() {
     const error = searchParams.get("error");
     if (error === "instance_claimed") {
       toast.error("This instance is already claimed by another account.");
+    } else if (error === "signin_failed") {
+      toast.error("Sign in failed. Please try again.");
     }
   }, [searchParams]);
 
@@ -86,7 +88,7 @@ function HomeInner() {
               authClient.signIn.social({
                 provider: "twitch",
                 callbackURL: "/dashboard",
-                errorCallbackURL: "/?error=instance_claimed",
+                errorCallbackURL: "/?error=signin_failed",
               })
             }
           >

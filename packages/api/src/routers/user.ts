@@ -31,12 +31,13 @@ export const userRouter = router({
     .input(z.object({ type: z.enum(["timer", "tasks"]) }))
     .mutation(async ({ ctx, input }) => {
       const token = crypto.randomUUID();
-      const data = input.type === "timer"
+      const set = input.type === "timer"
         ? { overlayTimerToken: token }
         : { overlayTasksToken: token };
-      await ctx.db.insert(schema.instanceConfig)
-        .values({ ...data })
-        .onConflictDoUpdate({ target: schema.instanceConfig.id, set: data });
+      await ctx.db
+        .update(schema.instanceConfig)
+        .set(set)
+        .where(eq(schema.instanceConfig.id, "singleton"));
       return { token };
     }),
 
