@@ -277,7 +277,6 @@ Defined in `packages/env/src/server.ts`. Required:
 - `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` — from dev.twitch.tv
 
 Optional:
-- `ALLOWED_TWITCH_IDS` — comma-separated allowlist (empty = allow all)
 - `PRIVACY_POLICY_URL` — URL to Privacy Policy page (set to show link in footer)
 - `TERMS_OF_SERVICE_URL` — URL to Terms of Service page (set to show link in footer)
 - `NODE_ENV` — development/production/test
