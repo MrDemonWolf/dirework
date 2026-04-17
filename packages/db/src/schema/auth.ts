@@ -11,8 +11,7 @@ export const user = pgTable("user", {
   // Dirework-specific
   twitchId: text("twitch_id").unique(),
   displayName: text("display_name"),
-  overlayTimerToken: text("overlay_timer_token").notNull().unique().$defaultFn(() => crypto.randomUUID()),
-  overlayTasksToken: text("overlay_tasks_token").notNull().unique().$defaultFn(() => crypto.randomUUID()),
+  isOwner: boolean("is_owner").notNull().default(false),
 });
 
 export const session = pgTable("session", {

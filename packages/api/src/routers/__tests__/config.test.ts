@@ -4,8 +4,7 @@ import { buildTimerConfig, buildTimerStylesConfig, buildTaskStylesConfig, buildB
 
 describe("buildTimerConfig", () => {
   const fakeTimerConfig = {
-    id: "test",
-    userId: "user1",
+    id: "singleton",
     workDuration: 1500000,
     breakDuration: 300000,
     longBreakDuration: 900000,
@@ -48,8 +47,7 @@ describe("buildTimerConfig", () => {
 
 describe("buildTimerStylesConfig", () => {
   const fakeTimerStyle = {
-    id: "test",
-    userId: "user1",
+    id: "singleton",
     width: "280px",
     height: "280px",
     bgColor: "#1a1a1a",
@@ -84,8 +82,7 @@ describe("buildTimerStylesConfig", () => {
 
 describe("buildTaskStylesConfig", () => {
   const fakeTaskStyle = {
-    id: "test",
-    userId: "user1",
+    id: "singleton",
     displayShowDone: true,
     displayShowCount: true,
     displayUseCheckboxes: true,
@@ -164,8 +161,7 @@ describe("buildTaskStylesConfig", () => {
 
 describe("buildBotConfig", () => {
   const fakeBotConfig = {
-    id: "test",
-    userId: "user1",
+    id: "singleton",
     taskCommandsEnabled: true,
     timerCommandsEnabled: false,
     commandAliases: { "!t": "!task" },

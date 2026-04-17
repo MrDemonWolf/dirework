@@ -1,11 +1,11 @@
 import { RefreshingAuthProvider } from "@twurple/auth";
 import { ChatClient } from "@twurple/chat";
-import { eq, and, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 
 import { env } from "@dirework/env/server";
-import { ee } from "../events";
+import { ee, TASK_LIST_CHANGE, BOT_CONFIG_CHANGE } from "../events";
 import { logger } from "../logger";
 import { buildBotConfig } from "../routers/config";
 import type { BotConfigData } from "./commands";
@@ -15,31 +15,29 @@ class TwitchBotService {
   private authProvider: RefreshingAuthProvider | null = null;
   private chatClient: ChatClient | null = null;
   private db: DbClient | null = null;
-  private userId: string | null = null;
   private channelName: string | null = null;
   private botUsername: string | null = null;
   private configCache: BotConfigData | null = null;
   private configListener: (() => void) | null = null;
 
-  async start(db: DbClient, userId: string): Promise<void> {
+  async start(db: DbClient): Promise<void> {
     if (this.chatClient) {
       throw new Error("Bot is already running");
     }
 
     this.db = db;
-    this.userId = userId;
 
-    // Load bot account + user
-    const [botAccount, user] = await Promise.all([
-      db.query.botAccount.findFirst({ where: eq(schema.botAccount.userId, userId) }),
-      db.query.user.findFirst({ where: eq(schema.user.id, userId), columns: { name: true, twitchId: true } }),
+    // Load bot account + owner
+    const [botAccount, owner] = await Promise.all([
+      db.query.botAccount.findFirst(),
+      db.query.user.findFirst({ columns: { name: true, twitchId: true } }),
     ]);
 
-    if (!botAccount || !user) {
-      throw new Error("Bot account or user not found");
+    if (!botAccount || !owner) {
+      throw new Error("Bot account or owner not found");
     }
 
-    this.channelName = user.name;
+    this.channelName = owner.name;
     this.botUsername = botAccount.username;
 
     // Set up auth provider
@@ -49,7 +47,6 @@ class TwitchBotService {
     });
 
     this.authProvider.onRefresh(async (_userId, tokenData) => {
-      // Persist refreshed tokens
       await db.update(schema.botAccount)
         .set({
           accessToken: tokenData.accessToken,
@@ -58,8 +55,7 @@ class TwitchBotService {
             ? new Date(Date.now() + tokenData.expiresIn * 1000)
             : botAccount.expiresAt,
           scopes: tokenData.scope ?? botAccount.scopes,
-        })
-        .where(eq(schema.botAccount.userId, userId));
+        });
     });
 
     await this.authProvider.addUserForToken(
@@ -73,15 +69,13 @@ class TwitchBotService {
       ["chat"],
     );
 
-    // Create chat client
     this.chatClient = new ChatClient({
       authProvider: this.authProvider,
       channels: [this.channelName!],
     });
 
-    // Register message handler
     this.chatClient.onMessage(async (channel, _userState, message, msg) => {
-      if (!this.configCache || !this.db || !this.userId) return;
+      if (!this.configCache || !this.db) return;
 
       const isBroadcaster = msg.userInfo.isBroadcaster;
       const isMod = msg.userInfo.isMod;
@@ -89,7 +83,6 @@ class TwitchBotService {
       try {
         await handleMessage({
           db: this.db,
-          ownerId: this.userId,
           channelName: this.channelName!,
           config: this.configCache,
           message: message.trim(),
@@ -110,48 +103,38 @@ class TwitchBotService {
 
     // Ban/timeout handlers — remove all tasks by that user
     this.chatClient.onBan(async (_channel, username) => {
-      if (!this.db || !this.userId) return;
+      if (!this.db) return;
       try {
         await this.db.delete(schema.task)
-          .where(and(
-            eq(schema.task.ownerId, this.userId),
-            sql`lower(${schema.task.authorUsername}) = lower(${username})`,
-          ));
-        ee.emit(`taskListChange:${this.userId}`);
+          .where(sql`lower(${schema.task.authorUsername}) = lower(${username})`);
+        ee.emit(TASK_LIST_CHANGE);
       } catch (err) {
         logger.error("[Bot] Error handling ban:", err);
       }
     });
 
     this.chatClient.onTimeout(async (_channel, username) => {
-      if (!this.db || !this.userId) return;
+      if (!this.db) return;
       try {
         await this.db.delete(schema.task)
-          .where(and(
-            eq(schema.task.ownerId, this.userId),
-            sql`lower(${schema.task.authorUsername}) = lower(${username})`,
-          ));
-        ee.emit(`taskListChange:${this.userId}`);
+          .where(sql`lower(${schema.task.authorUsername}) = lower(${username})`);
+        ee.emit(TASK_LIST_CHANGE);
       } catch (err) {
         logger.error("[Bot] Error handling timeout:", err);
       }
     });
 
-    // Connect
     this.chatClient.connect();
 
-    // Load + cache config
     await this.reloadConfig();
 
-    // Listen for config changes
-    const eventName = `botConfigChange:${userId}`;
     const configHandler = () => {
       this.reloadConfig().catch((err) => {
         logger.error("[Bot] Error reloading config:", err);
       });
     };
-    ee.on(eventName, configHandler);
-    this.configListener = () => ee.off(eventName, configHandler);
+    ee.on(BOT_CONFIG_CHANGE, configHandler);
+    this.configListener = () => ee.off(BOT_CONFIG_CHANGE, configHandler);
 
     logger.info(`[Bot] Connected to #${this.channelName} as ${this.botUsername}`);
   }
@@ -169,7 +152,6 @@ class TwitchBotService {
 
     this.authProvider = null;
     this.db = null;
-    this.userId = null;
     this.channelName = null;
     this.botUsername = null;
     this.configCache = null;
@@ -181,10 +163,6 @@ class TwitchBotService {
     return this.chatClient !== null;
   }
 
-  getOwnerId(): string | null {
-    return this.userId;
-  }
-
   getStatus(): { running: boolean; channel: string | null; botUsername: string | null } {
     return {
       running: this.isRunning(),
@@ -194,16 +172,13 @@ class TwitchBotService {
   }
 
   async reloadConfig(): Promise<void> {
-    if (!this.db || !this.userId) return;
+    if (!this.db) return;
 
-    // Ensure a default row exists (first-start case, before user visits config page)
     await this.db.insert(schema.botConfig)
-      .values({ userId: this.userId })
+      .values({})
       .onConflictDoNothing();
 
-    const botConfigRow = await this.db.query.botConfig.findFirst({
-      where: eq(schema.botConfig.userId, this.userId),
-    });
+    const botConfigRow = await this.db.query.botConfig.findFirst();
 
     if (botConfigRow) {
       this.configCache = buildBotConfig(botConfigRow);

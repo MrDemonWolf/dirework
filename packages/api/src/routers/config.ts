@@ -1,9 +1,8 @@
 import { TRPCError } from "@trpc/server";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure, router } from "../index";
-import { ee } from "../events";
+import { ee, TIMER_STATE_CHANGE, TASK_LIST_CHANGE, BOT_CONFIG_CHANGE } from "../events";
 import type { TimerConfig, TimerStyle, TaskStyle, BotConfig, DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 
@@ -277,23 +276,24 @@ export function flattenTaskStyles(input: TaskStylesInput) {
 
 // ── Provisioning helper ───────────────────────────────────────────────────────
 
-async function ensureUserConfig(db: DbClient, userId: string) {
+async function ensureSingletons(db: DbClient) {
   await Promise.all([
-    db.insert(schema.timerConfig).values({ userId }).onConflictDoNothing(),
-    db.insert(schema.timerStyle).values({ userId }).onConflictDoNothing(),
-    db.insert(schema.taskStyle).values({ userId }).onConflictDoNothing(),
-    db.insert(schema.botConfig).values({ userId }).onConflictDoNothing(),
+    db.insert(schema.timerConfig).values({}).onConflictDoNothing(),
+    db.insert(schema.timerStyle).values({}).onConflictDoNothing(),
+    db.insert(schema.taskStyle).values({}).onConflictDoNothing(),
+    db.insert(schema.botConfig).values({}).onConflictDoNothing(),
+    db.insert(schema.instanceConfig).values({}).onConflictDoNothing(),
   ]);
 
   const [timerConfigRow, timerStyleRow, taskStyleRow, botConfigRow] = await Promise.all([
-    db.query.timerConfig.findFirst({ where: eq(schema.timerConfig.userId, userId) }),
-    db.query.timerStyle.findFirst({ where: eq(schema.timerStyle.userId, userId) }),
-    db.query.taskStyle.findFirst({ where: eq(schema.taskStyle.userId, userId) }),
-    db.query.botConfig.findFirst({ where: eq(schema.botConfig.userId, userId) }),
+    db.query.timerConfig.findFirst(),
+    db.query.timerStyle.findFirst(),
+    db.query.taskStyle.findFirst(),
+    db.query.botConfig.findFirst(),
   ]);
 
   if (!timerConfigRow || !timerStyleRow || !taskStyleRow || !botConfigRow) {
-    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to provision user config" });
+    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to provision config" });
   }
   return { timerConfig: timerConfigRow, timerStyle: timerStyleRow, taskStyle: taskStyleRow, botConfig: botConfigRow };
 }
@@ -352,10 +352,8 @@ const taskStylesSchema = z.object({
 // ── Config router ─────────────────────────────────────────────────────────────
 
 export const configRouter = router({
-  /** Get all config for the current user (creates defaults if missing) */
   get: protectedProcedure.query(async ({ ctx }) => {
-    const userId = ctx.session.user.id;
-    const config = await ensureUserConfig(ctx.db, userId);
+    const config = await ensureSingletons(ctx.db);
     return {
       timerConfig: buildTimerConfig(config.timerConfig),
       timerStyles: buildTimerStylesConfig(config.timerStyle),
@@ -364,7 +362,6 @@ export const configRouter = router({
     };
   }),
 
-  /** Update timer durations/behavior */
   updateTimerConfig: protectedProcedure
     .input(z.object({
       workDuration: z.number().int().min(1000).optional(),
@@ -377,50 +374,41 @@ export const configRouter = router({
       noLastBreak: z.boolean().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      await ensureUserConfig(ctx.db, userId);
+      await ensureSingletons(ctx.db);
       const [updated] = await ctx.db.update(schema.timerConfig)
         .set(input)
-        .where(eq(schema.timerConfig.userId, userId))
         .returning();
       if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found" });
-      ee.emit(`timerStateChange:${userId}`);
+      ee.emit(TIMER_STATE_CHANGE);
       return buildTimerConfig(updated);
     }),
 
-  /** Update timer overlay styles */
   updateTimerStyles: protectedProcedure
     .input(z.object({ timerStyles: timerStylesSchema }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      await ensureUserConfig(ctx.db, userId);
+      await ensureSingletons(ctx.db);
       const flat = flattenTimerStyles(input.timerStyles);
       const [updated] = await ctx.db.update(schema.timerStyle)
         .set(flat)
-        .where(eq(schema.timerStyle.userId, userId))
         .returning();
       if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found" });
-      ee.emit(`timerStateChange:${userId}`);
+      ee.emit(TIMER_STATE_CHANGE);
       return buildTimerStylesConfig(updated);
     }),
 
-  /** Update task list overlay styles */
   updateTaskStyles: protectedProcedure
     .input(z.object({ taskStyles: taskStylesSchema }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      await ensureUserConfig(ctx.db, userId);
+      await ensureSingletons(ctx.db);
       const flat = flattenTaskStyles(input.taskStyles);
       const [updated] = await ctx.db.update(schema.taskStyle)
         .set(flat)
-        .where(eq(schema.taskStyle.userId, userId))
         .returning();
       if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found" });
-      ee.emit(`taskListChange:${userId}`);
+      ee.emit(TASK_LIST_CHANGE);
       return buildTaskStylesConfig(updated);
     }),
 
-  /** Update bot messages and toggles */
   updateMessages: protectedProcedure
     .input(
       z.object({
@@ -465,8 +453,7 @@ export const configRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      await ensureUserConfig(ctx.db, userId);
+      await ensureSingletons(ctx.db);
       const [result] = await ctx.db.update(schema.botConfig)
         .set({
           taskCommandsEnabled: input.taskCommandsEnabled,
@@ -504,13 +491,11 @@ export const configRouter = router({
           msgAlreadyStarting: input.timer.alreadyStarting,
           msgEta: input.timer.eta,
         })
-        .where(eq(schema.botConfig.userId, userId))
         .returning();
-      ee.emit(`botConfigChange:${userId}`);
+      ee.emit(BOT_CONFIG_CHANGE);
       return result ?? null;
     }),
 
-  /** Update phase labels (stored in TimerConfig) */
   updatePhaseLabels: protectedProcedure
     .input(
       z.object({
@@ -524,8 +509,7 @@ export const configRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      await ensureUserConfig(ctx.db, userId);
+      await ensureSingletons(ctx.db);
       const [result] = await ctx.db.update(schema.timerConfig)
         .set({
           labelIdle: input.idle,
@@ -536,13 +520,11 @@ export const configRouter = router({
           labelPaused: input.paused,
           labelFinished: input.finished,
         })
-        .where(eq(schema.timerConfig.userId, userId))
         .returning();
-      ee.emit(`timerStateChange:${userId}`);
+      ee.emit(TIMER_STATE_CHANGE);
       return result ?? null;
     }),
 
-  /** Update command aliases */
   updateCommandAliases: protectedProcedure
     .input(z.object({
       commandAliases: z.record(z.string().max(50), z.string().max(100)).refine(
@@ -551,13 +533,11 @@ export const configRouter = router({
       ),
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      await ensureUserConfig(ctx.db, userId);
+      await ensureSingletons(ctx.db);
       const [result] = await ctx.db.update(schema.botConfig)
         .set({ commandAliases: input.commandAliases })
-        .where(eq(schema.botConfig.userId, userId))
         .returning();
-      ee.emit(`botConfigChange:${userId}`);
+      ee.emit(BOT_CONFIG_CHANGE);
       return result ?? null;
     }),
 });

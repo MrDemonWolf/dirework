@@ -1,12 +1,19 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock dependencies so the auth module can load without env/db
-vi.mock("@dirework/db", () => ({ db: {} }));
+const { mockSelect, mockDb } = vi.hoisted(() => {
+  const mockSelect = vi.fn();
+  const mockDb = { select: mockSelect };
+  return { mockSelect, mockDb };
+});
+
+vi.mock("@dirework/db", () => ({ db: mockDb }));
 vi.mock("@dirework/db/schema", () => ({
+  user: {},
   timerConfig: {},
   timerStyle: {},
   taskStyle: {},
   botConfig: {},
+  instanceConfig: {},
 }));
 vi.mock("@dirework/env/server", () => ({
   env: {
@@ -15,7 +22,6 @@ vi.mock("@dirework/env/server", () => ({
     TWITCH_CLIENT_SECRET: "test",
     BETTER_AUTH_SECRET: "a".repeat(32),
     BETTER_AUTH_URL: "http://localhost:3001",
-    ALLOWED_TWITCH_IDS: "",
     DATABASE_URL: "postgres://localhost/test",
   },
 }));
@@ -31,57 +37,35 @@ vi.mock("better-auth/api", () => ({
     }
   },
 }));
+vi.mock("drizzle-orm", () => ({
+  count: () => "count()",
+}));
 
-import { parseAllowedTwitchIds } from "../index";
+import { hasOwner } from "../index";
 
-describe("parseAllowedTwitchIds", () => {
-  it("returns an empty set for undefined input", () => {
-    const result = parseAllowedTwitchIds(undefined);
-    expect(result).toBeInstanceOf(Set);
-    expect(result.size).toBe(0);
+function mockUserCount(n: number) {
+  mockSelect.mockReturnValue({
+    from: () => Promise.resolve([{ count: n }]),
+  });
+}
+
+describe("hasOwner", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it("returns an empty set for an empty string", () => {
-    const result = parseAllowedTwitchIds("");
-    expect(result).toBeInstanceOf(Set);
-    expect(result.size).toBe(0);
+  it("returns false when no users exist", async () => {
+    mockUserCount(0);
+    expect(await hasOwner()).toBe(false);
   });
 
-  it("returns a set with one entry for a single ID", () => {
-    const result = parseAllowedTwitchIds("12345");
-    expect(result.size).toBe(1);
-    expect(result.has("12345")).toBe(true);
+  it("returns true when one user exists", async () => {
+    mockUserCount(1);
+    expect(await hasOwner()).toBe(true);
   });
 
-  it("returns a set with all entries for comma-separated IDs", () => {
-    const result = parseAllowedTwitchIds("111,222,333");
-    expect(result.size).toBe(3);
-    expect(result.has("111")).toBe(true);
-    expect(result.has("222")).toBe(true);
-    expect(result.has("333")).toBe(true);
-  });
-
-  it("trims whitespace around IDs", () => {
-    const result = parseAllowedTwitchIds("  111 , 222 , 333  ");
-    expect(result.size).toBe(3);
-    expect(result.has("111")).toBe(true);
-    expect(result.has("222")).toBe(true);
-    expect(result.has("333")).toBe(true);
-  });
-
-  it("handles trailing commas and empty segments", () => {
-    const result = parseAllowedTwitchIds("111,,222,,,333,");
-    expect(result.size).toBe(3);
-    expect(result.has("111")).toBe(true);
-    expect(result.has("222")).toBe(true);
-    expect(result.has("333")).toBe(true);
-  });
-
-  it("deduplicates repeated IDs", () => {
-    const result = parseAllowedTwitchIds("111,222,111,333,222");
-    expect(result.size).toBe(3);
-    expect(result.has("111")).toBe(true);
-    expect(result.has("222")).toBe(true);
-    expect(result.has("333")).toBe(true);
+  it("returns true when multiple users exist", async () => {
+    mockUserCount(3);
+    expect(await hasOwner()).toBe(true);
   });
 });
