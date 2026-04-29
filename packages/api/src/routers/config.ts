@@ -377,6 +377,7 @@ export const configRouter = router({
       await ensureSingletons(ctx.db);
       const [updated] = await ctx.db.update(schema.timerConfig)
         .set(input)
+        .where(eq(schema.timerConfig.id, "singleton"))
         .returning();
       if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found" });
       ee.emit(TIMER_STATE_CHANGE);
@@ -390,6 +391,7 @@ export const configRouter = router({
       const flat = flattenTimerStyles(input.timerStyles);
       const [updated] = await ctx.db.update(schema.timerStyle)
         .set(flat)
+        .where(eq(schema.timerStyle.id, "singleton"))
         .returning();
       if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found" });
       ee.emit(TIMER_STATE_CHANGE);
@@ -403,6 +405,7 @@ export const configRouter = router({
       const flat = flattenTaskStyles(input.taskStyles);
       const [updated] = await ctx.db.update(schema.taskStyle)
         .set(flat)
+        .where(eq(schema.taskStyle.id, "singleton"))
         .returning();
       if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found" });
       ee.emit(TASK_LIST_CHANGE);
@@ -491,6 +494,7 @@ export const configRouter = router({
           msgAlreadyStarting: input.timer.alreadyStarting,
           msgEta: input.timer.eta,
         })
+        .where(eq(schema.botConfig.id, "singleton"))
         .returning();
       ee.emit(BOT_CONFIG_CHANGE);
       return result ?? null;
@@ -520,6 +524,7 @@ export const configRouter = router({
           labelPaused: input.paused,
           labelFinished: input.finished,
         })
+        .where(eq(schema.timerConfig.id, "singleton"))
         .returning();
       ee.emit(TIMER_STATE_CHANGE);
       return result ?? null;
@@ -536,6 +541,7 @@ export const configRouter = router({
       await ensureSingletons(ctx.db);
       const [result] = await ctx.db.update(schema.botConfig)
         .set({ commandAliases: input.commandAliases })
+        .where(eq(schema.botConfig.id, "singleton"))
         .returning();
       ee.emit(BOT_CONFIG_CHANGE);
       return result ?? null;

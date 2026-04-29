@@ -182,6 +182,8 @@ class TwitchBotService {
 
     if (botConfigRow) {
       this.configCache = buildBotConfig(botConfigRow);
+    } else {
+      logger.warn("[Bot] reloadConfig: botConfig row missing after insert");
     }
   }
 }

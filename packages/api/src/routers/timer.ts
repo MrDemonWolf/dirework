@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure, publicProcedure, router } from "../index";
@@ -88,6 +89,7 @@ export const timerRouter = router({
 
     const [result] = await ctx.db.update(schema.timerState)
       .set(data)
+      .where(eq(schema.timerState.id, "singleton"))
       .returning();
     ee.emit(TIMER_STATE_CHANGE);
     return result ?? null;
@@ -112,6 +114,7 @@ export const timerRouter = router({
 
       const [result] = await ctx.db.update(schema.timerState)
         .set(data)
+        .where(eq(schema.timerState.id, "singleton"))
         .returning();
       ee.emit(TIMER_STATE_CHANGE);
       return result ?? null;
@@ -130,6 +133,7 @@ export const timerRouter = router({
         pausedWithRemaining: remaining,
         targetEndTime: null,
       })
+      .where(eq(schema.timerState.id, "singleton"))
       .returning();
     ee.emit(TIMER_STATE_CHANGE);
     return result!;
@@ -148,6 +152,7 @@ export const timerRouter = router({
         pausedWithRemaining: null,
         pausedFromStatus: null,
       })
+      .where(eq(schema.timerState.id, "singleton"))
       .returning();
     ee.emit(TIMER_STATE_CHANGE);
     return result!;
@@ -185,6 +190,7 @@ export const timerRouter = router({
 
     const [result] = await ctx.db.update(schema.timerState)
       .set(data)
+      .where(eq(schema.timerState.id, "singleton"))
       .returning();
     ee.emit(TIMER_STATE_CHANGE);
     return result ?? null;
@@ -200,6 +206,7 @@ export const timerRouter = router({
         currentCycle: 1,
         totalCycles: 4,
       })
+      .where(eq(schema.timerState.id, "singleton"))
       .returning();
     ee.emit(TIMER_STATE_CHANGE);
     return result ?? null;

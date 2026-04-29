@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { notFound } from "next/navigation";
 
 import { auth, hasOwner } from "@dirework/auth";
 import SetupContent from "./setup-content";
