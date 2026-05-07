@@ -12,3 +12,4 @@ export type TimerConfig = typeof schema.timerConfig.$inferSelect;
 export type TimerStyle = typeof schema.timerStyle.$inferSelect;
 export type TaskStyle = typeof schema.taskStyle.$inferSelect;
 export type BotConfig = typeof schema.botConfig.$inferSelect;
+export type InstanceConfig = typeof schema.instanceConfig.$inferSelect;

@@ -1,3 +1,4 @@
+import { count } from "drizzle-orm";
 import { db } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
@@ -6,21 +7,11 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { APIError } from "better-auth/api";
 
-/**
- * Parse the ALLOWED_TWITCH_IDS env var into a Set.
- * Empty string or undefined → empty set (allow all).
- */
-export function parseAllowedTwitchIds(raw: string | undefined): Set<string> {
-  if (!raw) return new Set();
-  return new Set(
-    raw
-      .split(",")
-      .map((id) => id.trim())
-      .filter(Boolean),
-  );
+/** Returns true if an owner account already exists in the database. */
+export async function hasOwner(): Promise<boolean> {
+  const [row] = await db.select({ count: count() }).from(schema.user);
+  return (row?.count ?? 0) > 0;
 }
-
-const allowedTwitchIds = parseAllowedTwitchIds(env.ALLOWED_TWITCH_IDS);
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema }),
@@ -37,35 +28,32 @@ export const auth = betterAuth({
   },
   session: {
     expiresIn: 60 * 60 * 24 * 30, // 30 days
-    updateAge: 60 * 60 * 24, // Update session every 24 hours
+    updateAge: 60 * 60 * 24,
   },
   databaseHooks: {
     user: {
       create: {
         before: async (user) => {
-          // Enforce ALLOWED_TWITCH_IDS allowlist on account creation
-          if (allowedTwitchIds.size > 0) {
-            const twitchId = (user as Record<string, unknown>).twitchId as string | undefined;
-            if (!twitchId || !allowedTwitchIds.has(twitchId)) {
-              throw new APIError("FORBIDDEN", {
-                message: "Your Twitch account is not authorized to use this instance.",
-              });
-            }
+          const [row] = await db.select({ count: count() }).from(schema.user);
+          if ((row?.count ?? 0) > 0) {
+            throw new APIError("FORBIDDEN", {
+              message: "This instance is already claimed. Single-user only.",
+            });
           }
-          return { data: user };
+          return { data: { ...user, isOwner: true } };
         },
       },
     },
     session: {
       create: {
-        after: async (session) => {
-          // Provision config rows on every login — onConflictDoNothing is atomic
-          const userId = session.userId;
+        after: async () => {
+          // Provision singleton config rows on every login — onConflictDoNothing is atomic
           await Promise.all([
-            db.insert(schema.timerConfig).values({ userId }).onConflictDoNothing(),
-            db.insert(schema.timerStyle).values({ userId }).onConflictDoNothing(),
-            db.insert(schema.taskStyle).values({ userId }).onConflictDoNothing(),
-            db.insert(schema.botConfig).values({ userId }).onConflictDoNothing(),
+            db.insert(schema.timerConfig).values({}).onConflictDoNothing(),
+            db.insert(schema.timerStyle).values({}).onConflictDoNothing(),
+            db.insert(schema.taskStyle).values({}).onConflictDoNothing(),
+            db.insert(schema.botConfig).values({}).onConflictDoNothing(),
+            db.insert(schema.instanceConfig).values({}).onConflictDoNothing(),
           ]);
         },
       },

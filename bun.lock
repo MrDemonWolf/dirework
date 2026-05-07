@@ -110,6 +110,7 @@
         "@dirework/env": "workspace:*",
         "better-auth": "^1.4.18",
         "dotenv": "^17.2.2",
+        "drizzle-orm": "^0.41.0",
         "zod": "^4.1.13",
       },
       "devDependencies": {

@@ -91,7 +91,6 @@ export async function GET(request: NextRequest) {
   try {
     await db.insert(schema.botAccount)
       .values({
-        userId,
         twitchId: botUser.id,
         username: botUser.login,
         displayName: botUser.display_name,
@@ -100,7 +99,7 @@ export async function GET(request: NextRequest) {
         expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
       })
       .onConflictDoUpdate({
-        target: schema.botAccount.userId,
+        target: schema.botAccount.id,
         set: {
           twitchId: botUser.id,
           username: botUser.login,

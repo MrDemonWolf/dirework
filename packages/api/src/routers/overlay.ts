@@ -1,9 +1,9 @@
 import { on } from "events";
-import { eq, asc } from "drizzle-orm";
+import { asc } from "drizzle-orm";
 import { z } from "zod";
 
 import { publicProcedure, router } from "../index";
-import { ee } from "../events";
+import { ee, TIMER_STATE_CHANGE, TASK_LIST_CHANGE } from "../events";
 import { buildTimerStylesConfig, buildTaskStylesConfig, buildTimerConfig } from "./config";
 import * as schema from "@dirework/db/schema";
 
@@ -11,37 +11,38 @@ export const overlayRouter = router({
   getTimerState: publicProcedure
     .input(z.object({ token: z.string() }))
     .query(async ({ ctx, input }) => {
-      const user = await ctx.db.query.user.findFirst({
-        where: eq(schema.user.overlayTimerToken, input.token),
-        with: { timerState: true, timerConfig: true, timerStyle: true },
-      });
-      if (!user) return null;
+      const instance = await ctx.db.query.instanceConfig.findFirst();
+      if (!instance || instance.overlayTimerToken !== input.token) return null;
+
+      const [timerState, timerConfigRow, timerStyleRow] = await Promise.all([
+        ctx.db.query.timerState.findFirst(),
+        ctx.db.query.timerConfig.findFirst(),
+        ctx.db.query.timerStyle.findFirst(),
+      ]);
 
       return {
-        timerState: user.timerState,
-        timerConfig: user.timerConfig ? buildTimerConfig(user.timerConfig) : null,
-        timerStyles: user.timerStyle ? buildTimerStylesConfig(user.timerStyle) : null,
+        timerState: timerState ?? null,
+        timerConfig: timerConfigRow ? buildTimerConfig(timerConfigRow) : null,
+        timerStyles: timerStyleRow ? buildTimerStylesConfig(timerStyleRow) : null,
       };
     }),
 
   getTaskList: publicProcedure
     .input(z.object({ token: z.string() }))
     .query(async ({ ctx, input }) => {
-      const user = await ctx.db.query.user.findFirst({
-        where: eq(schema.user.overlayTasksToken, input.token),
-        columns: { id: true },
-        with: { taskStyle: true },
-      });
-      if (!user) return null;
+      const instance = await ctx.db.query.instanceConfig.findFirst();
+      if (!instance || instance.overlayTasksToken !== input.token) return null;
 
-      const tasks = await ctx.db.query.task.findMany({
-        where: eq(schema.task.ownerId, user.id),
-        orderBy: [asc(schema.task.priority), asc(schema.task.order)],
-      });
+      const [tasks, taskStyleRow] = await Promise.all([
+        ctx.db.query.task.findMany({
+          orderBy: [asc(schema.task.priority), asc(schema.task.order)],
+        }),
+        ctx.db.query.taskStyle.findFirst(),
+      ]);
 
       return {
         tasks,
-        taskStyles: user.taskStyle ? buildTaskStylesConfig(user.taskStyle) : null,
+        taskStyles: taskStyleRow ? buildTaskStylesConfig(taskStyleRow) : null,
       };
     }),
 
@@ -50,30 +51,32 @@ export const overlayRouter = router({
   onTimerState: publicProcedure
     .input(z.object({ token: z.string() }))
     .subscription(async function* ({ ctx, input, signal }) {
-      const user = await ctx.db.query.user.findFirst({
-        where: eq(schema.user.overlayTimerToken, input.token),
-        with: { timerState: true, timerConfig: true, timerStyle: true },
-      });
-      if (!user) return;
+      const instance = await ctx.db.query.instanceConfig.findFirst();
+      if (!instance || instance.overlayTimerToken !== input.token) return;
 
       // Yield initial state immediately
+      const [timerState, timerConfigRow, timerStyleRow] = await Promise.all([
+        ctx.db.query.timerState.findFirst(),
+        ctx.db.query.timerConfig.findFirst(),
+        ctx.db.query.timerStyle.findFirst(),
+      ]);
       yield {
-        timerState: user.timerState,
-        timerConfig: user.timerConfig ? buildTimerConfig(user.timerConfig) : null,
-        timerStyles: user.timerStyle ? buildTimerStylesConfig(user.timerStyle) : null,
+        timerState: timerState ?? null,
+        timerConfig: timerConfigRow ? buildTimerConfig(timerConfigRow) : null,
+        timerStyles: timerStyleRow ? buildTimerStylesConfig(timerStyleRow) : null,
       };
 
       // Then yield on every change
-      for await (const _ of on(ee, `timerStateChange:${user.id}`, { signal })) {
-        const fresh = await ctx.db.query.user.findFirst({
-          where: eq(schema.user.id, user.id),
-          with: { timerState: true, timerConfig: true, timerStyle: true },
-        });
-        if (!fresh) return;
+      for await (const _ of on(ee, TIMER_STATE_CHANGE, { signal })) {
+        const [freshTimerState, freshConfig, freshStyle] = await Promise.all([
+          ctx.db.query.timerState.findFirst(),
+          ctx.db.query.timerConfig.findFirst(),
+          ctx.db.query.timerStyle.findFirst(),
+        ]);
         yield {
-          timerState: fresh.timerState,
-          timerConfig: fresh.timerConfig ? buildTimerConfig(fresh.timerConfig) : null,
-          timerStyles: fresh.timerStyle ? buildTimerStylesConfig(fresh.timerStyle) : null,
+          timerState: freshTimerState ?? null,
+          timerConfig: freshConfig ? buildTimerConfig(freshConfig) : null,
+          timerStyles: freshStyle ? buildTimerStylesConfig(freshStyle) : null,
         };
       }
     }),
@@ -81,40 +84,32 @@ export const overlayRouter = router({
   onTaskList: publicProcedure
     .input(z.object({ token: z.string() }))
     .subscription(async function* ({ ctx, input, signal }) {
-      const user = await ctx.db.query.user.findFirst({
-        where: eq(schema.user.overlayTasksToken, input.token),
-        columns: { id: true },
-        with: { taskStyle: true },
-      });
-      if (!user) return;
+      const instance = await ctx.db.query.instanceConfig.findFirst();
+      if (!instance || instance.overlayTasksToken !== input.token) return;
 
       // Yield initial state
-      const initialTasks = await ctx.db.query.task.findMany({
-        where: eq(schema.task.ownerId, user.id),
-        orderBy: [asc(schema.task.priority), asc(schema.task.order)],
-      });
+      const [initialTasks, taskStyleRow] = await Promise.all([
+        ctx.db.query.task.findMany({
+          orderBy: [asc(schema.task.priority), asc(schema.task.order)],
+        }),
+        ctx.db.query.taskStyle.findFirst(),
+      ]);
       yield {
         tasks: initialTasks,
-        taskStyles: user.taskStyle ? buildTaskStylesConfig(user.taskStyle) : null,
+        taskStyles: taskStyleRow ? buildTaskStylesConfig(taskStyleRow) : null,
       };
 
       // Then yield on every change
-      for await (const _ of on(ee, `taskListChange:${user.id}`, { signal })) {
-        const [freshUser, tasks] = await Promise.all([
-          ctx.db.query.user.findFirst({
-            where: eq(schema.user.id, user.id),
-            columns: { id: true },
-            with: { taskStyle: true },
-          }),
+      for await (const _ of on(ee, TASK_LIST_CHANGE, { signal })) {
+        const [tasks, freshStyle] = await Promise.all([
           ctx.db.query.task.findMany({
-            where: eq(schema.task.ownerId, user.id),
             orderBy: [asc(schema.task.priority), asc(schema.task.order)],
           }),
+          ctx.db.query.taskStyle.findFirst(),
         ]);
-        if (!freshUser) return;
         yield {
           tasks,
-          taskStyles: freshUser.taskStyle ? buildTaskStylesConfig(freshUser.taskStyle) : null,
+          taskStyles: freshStyle ? buildTaskStylesConfig(freshStyle) : null,
         };
       }
     }),

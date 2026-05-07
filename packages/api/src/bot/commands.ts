@@ -3,7 +3,7 @@ import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
 
-import { ee } from "../events";
+import { ee, TASK_LIST_CHANGE, TIMER_STATE_CHANGE } from "../events";
 import { getTimerConfig, computeNextPhase } from "../routers/timer-logic";
 
 export interface BotConfigData {
@@ -59,7 +59,6 @@ interface UserInfo {
 
 interface MessageContext {
   db: DbClient;
-  ownerId: string;
   channelName: string;
   config: BotConfigData;
   message: string;
@@ -90,7 +89,6 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
   let command = parts[0].toLowerCase();
   const args = parts.slice(1);
 
-  // Resolve aliases
   command = resolveAlias(command, config.commandAliases);
 
   const vars = {
@@ -98,7 +96,6 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
     channel: channelName,
   };
 
-  // Timer commands
   if (command === "!timer") {
     if (!config.timerCommandsEnabled) return;
     if (!userInfo.isMod) {
@@ -109,7 +106,6 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
     return;
   }
 
-  // Meta commands (always available, not aliasable)
   if (command === "!dwhelp" || command === "!dwcommands") {
     const docsUrl = env.DOCS_URL;
     if (docsUrl) {
@@ -120,7 +116,6 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
     return;
   }
 
-  // Task commands
   if (!config.taskCommandsEnabled) return;
 
   switch (command) {
@@ -155,7 +150,7 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
 }
 
 async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void> {
-  const { config, userInfo, say, db, ownerId } = ctx;
+  const { config, userInfo, say, db } = ctx;
   const text = args.join(" ").trim();
   const vars = { user: userInfo.displayName, channel: ctx.channelName, task: text };
 
@@ -164,25 +159,19 @@ async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void>
     return;
   }
 
-  // Check for existing pending/active tasks
   const existingTasks = await db.query.task.findMany({
     where: and(
-      eq(schema.task.ownerId, ownerId),
       eq(schema.task.authorTwitchId, userInfo.twitchId),
       inArray(schema.task.status, ["pending", "active"]),
     ),
     columns: { id: true },
   });
 
-  // Determine broadcaster priority
-  const user = await db.query.user.findFirst({
-    where: eq(schema.user.id, ownerId),
-    columns: { twitchId: true },
-  });
-  const isBroadcaster = user?.twitchId === userInfo.twitchId;
+  const owner = await db.query.user.findFirst({ columns: { twitchId: true } });
+  const isBroadcaster = owner?.twitchId === userInfo.twitchId;
 
   const lastTask = await db.query.task.findFirst({
-    where: and(eq(schema.task.ownerId, ownerId), eq(schema.task.priority, isBroadcaster ? 0 : 1)),
+    where: eq(schema.task.priority, isBroadcaster ? 0 : 1),
     orderBy: [desc(schema.task.order)],
     columns: { order: true },
   });
@@ -190,7 +179,6 @@ async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void>
   const autoActivate = existingTasks.length === 0;
 
   await db.insert(schema.task).values({
-    ownerId,
     authorTwitchId: userInfo.twitchId,
     authorUsername: userInfo.username,
     authorDisplayName: userInfo.displayName,
@@ -201,22 +189,20 @@ async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void>
     order: (lastTask?.order ?? 0) + 1,
   });
 
-  ee.emit(`taskListChange:${ownerId}`);
+  ee.emit(TASK_LIST_CHANGE);
   say(interpolate(config.task.taskAdded, vars));
 }
 
 async function handleTaskDone(args: string[], ctx: MessageContext): Promise<void> {
-  const { config, userInfo, say, db, ownerId } = ctx;
+  const { config, userInfo, say, db } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   let task;
 
   if (args[0] && /^\d+$/.test(args[0])) {
-    // Position-based
     const position = parseInt(args[0], 10);
     const viewerTasks = await db.query.task.findMany({
       where: and(
-        eq(schema.task.ownerId, ownerId),
         eq(schema.task.authorTwitchId, userInfo.twitchId),
         inArray(schema.task.status, ["pending", "active"]),
       ),
@@ -224,10 +210,8 @@ async function handleTaskDone(args: string[], ctx: MessageContext): Promise<void
     });
     task = viewerTasks[position - 1];
   } else {
-    // Active task
     task = await db.query.task.findFirst({
       where: and(
-        eq(schema.task.ownerId, ownerId),
         eq(schema.task.authorTwitchId, userInfo.twitchId),
         eq(schema.task.status, "active"),
       ),
@@ -243,10 +227,8 @@ async function handleTaskDone(args: string[], ctx: MessageContext): Promise<void
     .set({ status: "done", completedAt: new Date() })
     .where(eq(schema.task.id, task.id));
 
-  // Auto-activate next pending task
   const nextPending = await db.query.task.findFirst({
     where: and(
-      eq(schema.task.ownerId, ownerId),
       eq(schema.task.authorTwitchId, userInfo.twitchId),
       eq(schema.task.status, "pending"),
     ),
@@ -258,12 +240,12 @@ async function handleTaskDone(args: string[], ctx: MessageContext): Promise<void
       .where(eq(schema.task.id, nextPending.id));
   }
 
-  ee.emit(`taskListChange:${ownerId}`);
+  ee.emit(TASK_LIST_CHANGE);
   say(interpolate(config.task.taskDone, { ...vars, task: task.text }));
 }
 
 async function handleTaskEdit(args: string[], ctx: MessageContext): Promise<void> {
-  const { config, userInfo, say, db, ownerId } = ctx;
+  const { config, userInfo, say, db } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   const firstArg = args[0];
@@ -277,7 +259,6 @@ async function handleTaskEdit(args: string[], ctx: MessageContext): Promise<void
 
   const viewerTasks = await db.query.task.findMany({
     where: and(
-      eq(schema.task.ownerId, ownerId),
       eq(schema.task.authorTwitchId, userInfo.twitchId),
       inArray(schema.task.status, ["pending", "active"]),
     ),
@@ -294,12 +275,12 @@ async function handleTaskEdit(args: string[], ctx: MessageContext): Promise<void
     .set({ text: newText })
     .where(eq(schema.task.id, task.id));
 
-  ee.emit(`taskListChange:${ownerId}`);
+  ee.emit(TASK_LIST_CHANGE);
   say(interpolate(config.task.taskEdited, { ...vars, task: newText }));
 }
 
 async function handleTaskRemove(args: string[], ctx: MessageContext): Promise<void> {
-  const { config, userInfo, say, db, ownerId } = ctx;
+  const { config, userInfo, say, db } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   if (!args[0] || !/^\d+$/.test(args[0])) {
@@ -310,7 +291,6 @@ async function handleTaskRemove(args: string[], ctx: MessageContext): Promise<vo
   const position = parseInt(args[0], 10);
   const viewerTasks = await db.query.task.findMany({
     where: and(
-      eq(schema.task.ownerId, ownerId),
       eq(schema.task.authorTwitchId, userInfo.twitchId),
       inArray(schema.task.status, ["pending", "active"]),
     ),
@@ -325,11 +305,9 @@ async function handleTaskRemove(args: string[], ctx: MessageContext): Promise<vo
 
   await db.delete(schema.task).where(eq(schema.task.id, task.id));
 
-  // If we removed an active task, auto-activate next pending
   if (task.status === "active") {
     const nextPending = await db.query.task.findFirst({
       where: and(
-        eq(schema.task.ownerId, ownerId),
         eq(schema.task.authorTwitchId, userInfo.twitchId),
         eq(schema.task.status, "pending"),
       ),
@@ -342,12 +320,12 @@ async function handleTaskRemove(args: string[], ctx: MessageContext): Promise<vo
     }
   }
 
-  ee.emit(`taskListChange:${ownerId}`);
+  ee.emit(TASK_LIST_CHANGE);
   say(interpolate(config.task.taskRemoved, { ...vars, task: task.text }));
 }
 
 async function handleTaskFocus(args: string[], ctx: MessageContext): Promise<void> {
-  const { config, userInfo, say, db, ownerId } = ctx;
+  const { config, userInfo, say, db } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   if (!args[0] || !/^\d+$/.test(args[0])) {
@@ -358,7 +336,6 @@ async function handleTaskFocus(args: string[], ctx: MessageContext): Promise<voi
   const position = parseInt(args[0], 10);
   const viewerTasks = await db.query.task.findMany({
     where: and(
-      eq(schema.task.ownerId, ownerId),
       eq(schema.task.authorTwitchId, userInfo.twitchId),
       inArray(schema.task.status, ["pending", "active"]),
     ),
@@ -371,34 +348,29 @@ async function handleTaskFocus(args: string[], ctx: MessageContext): Promise<voi
     return;
   }
 
-  // Deactivate any current active task
   await db.update(schema.task)
     .set({ status: "pending" })
     .where(and(
-      eq(schema.task.ownerId, ownerId),
       eq(schema.task.authorTwitchId, userInfo.twitchId),
       eq(schema.task.status, "active"),
     ));
 
-  // Activate the target task
   await db.update(schema.task)
     .set({ status: "active" })
     .where(eq(schema.task.id, task.id));
 
-  ee.emit(`taskListChange:${ownerId}`);
+  ee.emit(TASK_LIST_CHANGE);
   say(interpolate(config.task.taskCheck, { ...vars, task: task.text }));
 }
 
 async function handleTaskCheck(args: string[], ctx: MessageContext): Promise<void> {
-  const { config, userInfo, say, db, ownerId } = ctx;
+  const { config, userInfo, say, db } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   if (args[0] && args[0].startsWith("@")) {
-    // Check another user
     const targetUsername = args[0].slice(1);
     const targetTask = await db.query.task.findFirst({
       where: and(
-        eq(schema.task.ownerId, ownerId),
         sql`lower(${schema.task.authorUsername}) = lower(${targetUsername})`,
         eq(schema.task.status, "active"),
       ),
@@ -417,10 +389,8 @@ async function handleTaskCheck(args: string[], ctx: MessageContext): Promise<voi
     return;
   }
 
-  // Check own tasks
   const activeTask = await db.query.task.findFirst({
     where: and(
-      eq(schema.task.ownerId, ownerId),
       eq(schema.task.authorTwitchId, userInfo.twitchId),
       eq(schema.task.status, "active"),
     ),
@@ -435,7 +405,7 @@ async function handleTaskCheck(args: string[], ctx: MessageContext): Promise<voi
 }
 
 async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void> {
-  const { config, userInfo, say, db, ownerId } = ctx;
+  const { config, userInfo, say, db } = ctx;
   const newText = args.join(" ").trim();
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
@@ -444,10 +414,8 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
     return;
   }
 
-  // Mark active task as done
   const activeTask = await db.query.task.findFirst({
     where: and(
-      eq(schema.task.ownerId, ownerId),
       eq(schema.task.authorTwitchId, userInfo.twitchId),
       eq(schema.task.status, "active"),
     ),
@@ -459,22 +427,16 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
       .where(eq(schema.task.id, activeTask.id));
   }
 
-  // Determine broadcaster priority
-  const user = await db.query.user.findFirst({
-    where: eq(schema.user.id, ownerId),
-    columns: { twitchId: true },
-  });
-  const isBroadcaster = user?.twitchId === userInfo.twitchId;
+  const owner = await db.query.user.findFirst({ columns: { twitchId: true } });
+  const isBroadcaster = owner?.twitchId === userInfo.twitchId;
 
   const lastTask = await db.query.task.findFirst({
-    where: and(eq(schema.task.ownerId, ownerId), eq(schema.task.priority, isBroadcaster ? 0 : 1)),
+    where: eq(schema.task.priority, isBroadcaster ? 0 : 1),
     orderBy: [desc(schema.task.order)],
     columns: { order: true },
   });
 
-  // Create new task as active
   await db.insert(schema.task).values({
-    ownerId,
     authorTwitchId: userInfo.twitchId,
     authorUsername: userInfo.username,
     authorDisplayName: userInfo.displayName,
@@ -485,7 +447,7 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
     order: (lastTask?.order ?? 0) + 1,
   });
 
-  ee.emit(`taskListChange:${ownerId}`);
+  ee.emit(TASK_LIST_CHANGE);
   say(interpolate(config.task.taskNext, {
     ...vars,
     oldTask: activeTask?.text ?? "",
@@ -494,7 +456,7 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
 }
 
 async function handleClear(args: string[], ctx: MessageContext): Promise<void> {
-  const { config, userInfo, say, db, ownerId } = ctx;
+  const { config, userInfo, say, db } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   if (!userInfo.isMod) {
@@ -505,45 +467,41 @@ async function handleClear(args: string[], ctx: MessageContext): Promise<void> {
   const sub = args[0]?.toLowerCase();
 
   if (sub === "all") {
-    await db.delete(schema.task).where(eq(schema.task.ownerId, ownerId));
-    ee.emit(`taskListChange:${ownerId}`);
+    await db.delete(schema.task);
+    ee.emit(TASK_LIST_CHANGE);
     say(interpolate(config.task.clearedAll, vars));
   } else if (sub === "done") {
-    await db.delete(schema.task).where(and(eq(schema.task.ownerId, ownerId), eq(schema.task.status, "done")));
-    ee.emit(`taskListChange:${ownerId}`);
+    await db.delete(schema.task).where(eq(schema.task.status, "done"));
+    ee.emit(TASK_LIST_CHANGE);
     say(interpolate(config.task.clearedDone, vars));
   } else if (sub && sub.startsWith("@")) {
     const targetUsername = sub.slice(1);
     await db.delete(schema.task)
-      .where(and(
-        eq(schema.task.ownerId, ownerId),
-        sql`lower(${schema.task.authorUsername}) = lower(${targetUsername})`,
-      ));
-    ee.emit(`taskListChange:${ownerId}`);
+      .where(sql`lower(${schema.task.authorUsername}) = lower(${targetUsername})`);
+    ee.emit(TASK_LIST_CHANGE);
     say(interpolate(config.task.adminDeleteTasks, vars));
   }
 }
 
 async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<void> {
-  const { config, say, db, ownerId, channelName, userInfo } = ctx;
+  const { config, say, db, channelName, userInfo } = ctx;
   const sub = args[0]?.toLowerCase();
   const vars = { user: userInfo.displayName, channel: channelName };
 
   switch (sub) {
     case "start": {
-      const timer = await db.query.timerState.findFirst({ where: eq(schema.timerState.userId, ownerId) });
+      const timer = await db.query.timerState.findFirst();
       if (timer && timer.status !== "idle" && timer.status !== "finished") {
         say(interpolate(config.timer.timerRunning, vars));
         return;
       }
 
-      const timerConfigRow = await db.query.timerConfig.findFirst({ where: eq(schema.timerConfig.userId, ownerId) });
+      const timerConfigRow = await db.query.timerConfig.findFirst();
       const tc = getTimerConfig(timerConfigRow ?? null);
       const totalCycles = args[1] ? parseInt(args[1], 10) : timerConfigRow?.defaultCycles ?? 4;
 
       await db.insert(schema.timerState)
         .values({
-          userId: ownerId,
           status: "starting",
           targetEndTime: new Date(Date.now() + tc.startingDuration),
           pausedWithRemaining: null,
@@ -552,7 +510,7 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
           totalCycles,
         })
         .onConflictDoUpdate({
-          target: schema.timerState.userId,
+          target: schema.timerState.id,
           set: {
             status: "starting",
             targetEndTime: new Date(Date.now() + tc.startingDuration),
@@ -563,13 +521,13 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
           },
         });
 
-      ee.emit(`timerStateChange:${ownerId}`);
+      ee.emit(TIMER_STATE_CHANGE);
       say(interpolate(config.timer.commandSuccess, vars));
       break;
     }
 
     case "pause": {
-      const timer = await db.query.timerState.findFirst({ where: eq(schema.timerState.userId, ownerId) });
+      const timer = await db.query.timerState.findFirst();
       if (!timer?.targetEndTime) {
         say(interpolate(config.timer.notRunning, vars));
         return;
@@ -582,16 +540,15 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
           pausedFromStatus: timer.status,
           pausedWithRemaining: remaining,
           targetEndTime: null,
-        })
-        .where(eq(schema.timerState.userId, ownerId));
+        });
 
-      ee.emit(`timerStateChange:${ownerId}`);
+      ee.emit(TIMER_STATE_CHANGE);
       say(interpolate(config.timer.commandSuccess, vars));
       break;
     }
 
     case "resume": {
-      const timer = await db.query.timerState.findFirst({ where: eq(schema.timerState.userId, ownerId) });
+      const timer = await db.query.timerState.findFirst();
       if (!timer?.pausedWithRemaining) {
         say(interpolate(config.timer.notRunning, vars));
         return;
@@ -604,18 +561,17 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
           targetEndTime: new Date(Date.now() + timer.pausedWithRemaining),
           pausedWithRemaining: null,
           pausedFromStatus: null,
-        })
-        .where(eq(schema.timerState.userId, ownerId));
+        });
 
-      ee.emit(`timerStateChange:${ownerId}`);
+      ee.emit(TIMER_STATE_CHANGE);
       say(interpolate(config.timer.commandSuccess, vars));
       break;
     }
 
     case "skip": {
       const [timer, timerConfigRow] = await Promise.all([
-        db.query.timerState.findFirst({ where: eq(schema.timerState.userId, ownerId) }),
-        db.query.timerConfig.findFirst({ where: eq(schema.timerConfig.userId, ownerId) }),
+        db.query.timerState.findFirst(),
+        db.query.timerConfig.findFirst(),
       ]);
       if (!timer) {
         say(interpolate(config.timer.notRunning, vars));
@@ -645,10 +601,8 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
         data.targetEndTime = null;
       }
 
-      await db.update(schema.timerState)
-        .set(data)
-        .where(eq(schema.timerState.userId, ownerId));
-      ee.emit(`timerStateChange:${ownerId}`);
+      await db.update(schema.timerState).set(data);
+      ee.emit(TIMER_STATE_CHANGE);
       say(interpolate(config.timer.commandSuccess, vars));
       break;
     }
@@ -662,29 +616,26 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
           pausedFromStatus: null,
           currentCycle: 1,
           totalCycles: 4,
-        })
-        .where(eq(schema.timerState.userId, ownerId));
-      ee.emit(`timerStateChange:${ownerId}`);
+        });
+      ee.emit(TIMER_STATE_CHANGE);
       say(interpolate(config.timer.commandSuccess, vars));
       break;
     }
 
     case "eta": {
-      const timer = await db.query.timerState.findFirst({ where: eq(schema.timerState.userId, ownerId) });
+      const timer = await db.query.timerState.findFirst();
       if (!timer?.targetEndTime) {
         say(interpolate(config.timer.notRunning, vars));
         return;
       }
 
-      const timerConfigRow = await db.query.timerConfig.findFirst({ where: eq(schema.timerConfig.userId, ownerId) });
+      const timerConfigRow = await db.query.timerConfig.findFirst();
       const tc = getTimerConfig(timerConfigRow ?? null);
 
-      // Calculate estimated end time based on remaining cycles
       let totalMs = timer.targetEndTime.getTime() - Date.now();
       let cycle = timer.currentCycle;
       let status = timer.status;
 
-      // Add remaining phases
       while (status !== "finished" && cycle <= timer.totalCycles) {
         const { nextStatus, nextDuration, nextCycle } = computeNextPhase(
           { status, currentCycle: cycle, totalCycles: timer.totalCycles },
