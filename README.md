@@ -38,12 +38,12 @@ account configuration, and OBS setup, see the
 **[Documentation](https://mrdemonwolf.github.io/dirework)**.
 
 1. Clone the repository
-2. Install dependencies with `pnpm install`
+2. Install dependencies with `bun install`
 3. Configure your `apps/web/.env` file
-4. Start PostgreSQL with `pnpm db:start`
-5. Push the database schema with `pnpm db:push`
-6. Start the dev server with `pnpm dev`
-7. Open `http://localhost:3001` and sign in with Twitch
+4. Start PostgreSQL with `bun run db:start`
+5. Push the database schema with `bun run db:push`
+6. Start the dev server with `bun run dev:web`
+7. Open `http://localhost:3001` — on first run you'll be redirected to `/setup` to claim the instance with your Twitch account
 
 ## Usage
 

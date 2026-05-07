@@ -36,8 +36,7 @@ CREATE TABLE "user" (
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"twitch_id" text,
 	"display_name" text,
-	"overlay_timer_token" text NOT NULL,
-	"overlay_tasks_token" text NOT NULL,
+	"is_owner" boolean DEFAULT false NOT NULL,
 	CONSTRAINT "user_email_unique" UNIQUE("email"),
 	CONSTRAINT "user_twitch_id_unique" UNIQUE("twitch_id")
 );
@@ -52,21 +51,18 @@ CREATE TABLE "verification" (
 );
 --> statement-breakpoint
 CREATE TABLE "bot_account" (
-	"id" text PRIMARY KEY NOT NULL,
-	"user_id" text NOT NULL,
+	"id" text PRIMARY KEY DEFAULT 'singleton' NOT NULL,
 	"twitch_id" text NOT NULL,
 	"username" text NOT NULL,
 	"display_name" text NOT NULL,
 	"access_token" text NOT NULL,
 	"refresh_token" text NOT NULL,
 	"expires_at" timestamp NOT NULL,
-	"scopes" text[] DEFAULT '{"chat:read","chat:edit","channel:moderate","user:read:chat"}' NOT NULL,
-	CONSTRAINT "bot_account_user_id_unique" UNIQUE("user_id")
+	"scopes" text[] DEFAULT '{"user:read:chat","user:write:chat"}' NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "bot_config" (
-	"id" text PRIMARY KEY NOT NULL,
-	"user_id" text NOT NULL,
+	"id" text PRIMARY KEY DEFAULT 'singleton' NOT NULL,
 	"task_commands_enabled" boolean DEFAULT true NOT NULL,
 	"timer_commands_enabled" boolean DEFAULT true NOT NULL,
 	"command_aliases" jsonb DEFAULT '{}'::jsonb NOT NULL,
@@ -101,13 +97,19 @@ CREATE TABLE "bot_config" (
 	"msg_goal_wrong" text DEFAULT 'The goal needs to be further than the cycle!' NOT NULL,
 	"msg_finish_response" text DEFAULT 'Great work today pack! We hunted well.' NOT NULL,
 	"msg_already_starting" text DEFAULT 'The pack is already moving or the timer is running!' NOT NULL,
-	"msg_eta" text DEFAULT 'The hunt will end at {time}' NOT NULL,
-	CONSTRAINT "bot_config_user_id_unique" UNIQUE("user_id")
+	"msg_eta" text DEFAULT 'The hunt will end at {time}' NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "instance_config" (
+	"id" text PRIMARY KEY DEFAULT 'singleton' NOT NULL,
+	"overlay_timer_token" text NOT NULL,
+	"overlay_tasks_token" text NOT NULL,
+	CONSTRAINT "instance_config_overlay_timer_token_unique" UNIQUE("overlay_timer_token"),
+	CONSTRAINT "instance_config_overlay_tasks_token_unique" UNIQUE("overlay_tasks_token")
 );
 --> statement-breakpoint
 CREATE TABLE "task" (
 	"id" text PRIMARY KEY NOT NULL,
-	"owner_id" text NOT NULL,
 	"author_twitch_id" text NOT NULL,
 	"author_username" text NOT NULL,
 	"author_display_name" text NOT NULL,
@@ -121,8 +123,7 @@ CREATE TABLE "task" (
 );
 --> statement-breakpoint
 CREATE TABLE "task_style" (
-	"id" text PRIMARY KEY NOT NULL,
-	"user_id" text NOT NULL,
+	"id" text PRIMARY KEY DEFAULT 'singleton' NOT NULL,
 	"display_show_done" boolean DEFAULT true NOT NULL,
 	"display_show_count" boolean DEFAULT true NOT NULL,
 	"display_use_checkboxes" boolean DEFAULT true NOT NULL,
@@ -180,13 +181,11 @@ CREATE TABLE "task_style" (
 	"bullet_color" text DEFAULT '#8e8e93' NOT NULL,
 	"bullet_margin_top" text DEFAULT '0px' NOT NULL,
 	"bullet_margin_left" text DEFAULT '2px' NOT NULL,
-	"bullet_margin_right" text DEFAULT '8px' NOT NULL,
-	CONSTRAINT "task_style_user_id_unique" UNIQUE("user_id")
+	"bullet_margin_right" text DEFAULT '8px' NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "timer_config" (
-	"id" text PRIMARY KEY NOT NULL,
-	"user_id" text NOT NULL,
+	"id" text PRIMARY KEY DEFAULT 'singleton' NOT NULL,
 	"work_duration" integer DEFAULT 1500000 NOT NULL,
 	"break_duration" integer DEFAULT 300000 NOT NULL,
 	"long_break_duration" integer DEFAULT 900000 NOT NULL,
@@ -195,31 +194,27 @@ CREATE TABLE "timer_config" (
 	"default_cycles" integer DEFAULT 4 NOT NULL,
 	"show_hours" boolean DEFAULT false NOT NULL,
 	"no_last_break" boolean DEFAULT true NOT NULL,
-	"label_idle" text DEFAULT 'Ready' NOT NULL,
-	"label_starting" text DEFAULT 'Starting' NOT NULL,
-	"label_work" text DEFAULT 'Focus' NOT NULL,
-	"label_break" text DEFAULT 'Break' NOT NULL,
-	"label_long_break" text DEFAULT 'Long Break' NOT NULL,
-	"label_paused" text DEFAULT 'Paused' NOT NULL,
-	"label_finished" text DEFAULT 'Done' NOT NULL,
-	CONSTRAINT "timer_config_user_id_unique" UNIQUE("user_id")
+	"label_idle" text DEFAULT 'Resting' NOT NULL,
+	"label_starting" text DEFAULT 'Gathering the Pack' NOT NULL,
+	"label_work" text DEFAULT 'On the Hunt' NOT NULL,
+	"label_break" text DEFAULT 'Den Rest' NOT NULL,
+	"label_long_break" text DEFAULT 'Pack Slumber' NOT NULL,
+	"label_paused" text DEFAULT 'Paws''d' NOT NULL,
+	"label_finished" text DEFAULT 'Hunt Complete' NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "timer_state" (
-	"id" text PRIMARY KEY NOT NULL,
-	"user_id" text NOT NULL,
+	"id" text PRIMARY KEY DEFAULT 'singleton' NOT NULL,
 	"status" text DEFAULT 'idle' NOT NULL,
 	"target_end_time" timestamp,
 	"paused_with_remaining" integer,
 	"paused_from_status" text,
 	"current_cycle" integer DEFAULT 1 NOT NULL,
-	"total_cycles" integer DEFAULT 4 NOT NULL,
-	CONSTRAINT "timer_state_user_id_unique" UNIQUE("user_id")
+	"total_cycles" integer DEFAULT 4 NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "timer_style" (
-	"id" text PRIMARY KEY NOT NULL,
-	"user_id" text NOT NULL,
+	"id" text PRIMARY KEY DEFAULT 'singleton' NOT NULL,
 	"width" text DEFAULT '250px' NOT NULL,
 	"height" text DEFAULT '250px' NOT NULL,
 	"bg_color" text DEFAULT '#1c1c1e' NOT NULL,
@@ -238,22 +233,15 @@ CREATE TABLE "timer_style" (
 	"text_font_family" text DEFAULT 'Montserrat' NOT NULL,
 	"font_size_label" text DEFAULT '18px' NOT NULL,
 	"font_size_time" text DEFAULT '48px' NOT NULL,
-	"font_size_cycle" text DEFAULT '16px' NOT NULL,
-	CONSTRAINT "timer_style_user_id_unique" UNIQUE("user_id")
+	"font_size_cycle" text DEFAULT '16px' NOT NULL
 );
 --> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "bot_account" ADD CONSTRAINT "bot_account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "bot_config" ADD CONSTRAINT "bot_config_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "task" ADD CONSTRAINT "task_owner_id_user_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "task_style" ADD CONSTRAINT "task_style_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "timer_config" ADD CONSTRAINT "timer_config_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "timer_state" ADD CONSTRAINT "timer_state_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "timer_style" ADD CONSTRAINT "timer_style_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "account_user_id_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "account_provider_account_idx" ON "account" USING btree ("provider_id","account_id");--> statement-breakpoint
 CREATE INDEX "session_user_id_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");--> statement-breakpoint
-CREATE INDEX "task_owner_status_idx" ON "task" USING btree ("owner_id","status");--> statement-breakpoint
-CREATE INDEX "task_owner_priority_order_idx" ON "task" USING btree ("owner_id","priority","order");--> statement-breakpoint
-CREATE INDEX "task_owner_author_idx" ON "task" USING btree ("owner_id","author_twitch_id");
+CREATE INDEX "task_status_idx" ON "task" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "task_priority_order_idx" ON "task" USING btree ("priority","order");--> statement-breakpoint
+CREATE INDEX "task_author_idx" ON "task" USING btree ("author_twitch_id");

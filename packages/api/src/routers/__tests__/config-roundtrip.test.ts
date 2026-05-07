@@ -8,7 +8,7 @@ import {
 } from "../config";
 
 describe("timer styles round-trip", () => {
-  it("flatten → add id/userId → build → should match original nested input", () => {
+  it("flatten → add id → build → should match original nested input", () => {
     const nested = {
       dimensions: { width: "280px", height: "280px" },
       background: { color: "#1a1a1a", opacity: 0.95, borderRadius: "22%" },
@@ -31,7 +31,7 @@ describe("timer styles round-trip", () => {
     };
 
     const flat = flattenTimerStyles(nested);
-    const dbRow = { id: "test", userId: "user1", ...flat };
+    const dbRow = { id: "singleton", ...flat };
     const rebuilt = buildTimerStylesConfig(dbRow as never);
 
     expect(rebuilt).toEqual(nested);
@@ -39,7 +39,7 @@ describe("timer styles round-trip", () => {
 });
 
 describe("task styles round-trip", () => {
-  it("flatten → add id/userId → build → should match original nested input", () => {
+  it("flatten → add id → build → should match original nested input", () => {
     const nested = {
       display: {
         showDone: true,
@@ -95,7 +95,7 @@ describe("task styles round-trip", () => {
     };
 
     const flat = flattenTaskStyles(nested);
-    const dbRow = { id: "test", userId: "user1", ...flat };
+    const dbRow = { id: "singleton", ...flat };
     const rebuilt = buildTaskStylesConfig(dbRow as never);
 
     expect(rebuilt).toEqual(nested);

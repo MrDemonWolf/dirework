@@ -9,11 +9,18 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 import { createId } from "@paralleldrive/cuid2";
-import { user } from "./auth";
+
+// Singleton pattern: one row per table, primary key pinned to "singleton".
+export const SINGLETON_ID = "singleton";
+
+export const instanceConfig = pgTable("instance_config", {
+  id: text("id").primaryKey().default(SINGLETON_ID),
+  overlayTimerToken: text("overlay_timer_token").notNull().unique().$defaultFn(() => crypto.randomUUID()),
+  overlayTasksToken: text("overlay_tasks_token").notNull().unique().$defaultFn(() => crypto.randomUUID()),
+});
 
 export const botAccount = pgTable("bot_account", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
-  userId: text("user_id").notNull().unique().references(() => user.id, { onDelete: "cascade" }),
+  id: text("id").primaryKey().default(SINGLETON_ID),
   twitchId: text("twitch_id").notNull(),
   username: text("username").notNull(),
   displayName: text("display_name").notNull(),
@@ -25,7 +32,6 @@ export const botAccount = pgTable("bot_account", {
 
 export const task = pgTable("task", {
   id: text("id").primaryKey().$defaultFn(() => createId()),
-  ownerId: text("owner_id").notNull().references(() => user.id, { onDelete: "cascade" }),
   authorTwitchId: text("author_twitch_id").notNull(),
   authorUsername: text("author_username").notNull(),
   authorDisplayName: text("author_display_name").notNull(),
@@ -37,14 +43,13 @@ export const task = pgTable("task", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at"),
 }, (table) => [
-  index("task_owner_status_idx").on(table.ownerId, table.status),
-  index("task_owner_priority_order_idx").on(table.ownerId, table.priority, table.order),
-  index("task_owner_author_idx").on(table.ownerId, table.authorTwitchId),
+  index("task_status_idx").on(table.status),
+  index("task_priority_order_idx").on(table.priority, table.order),
+  index("task_author_idx").on(table.authorTwitchId),
 ]);
 
 export const timerState = pgTable("timer_state", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
-  userId: text("user_id").notNull().unique().references(() => user.id, { onDelete: "cascade" }),
+  id: text("id").primaryKey().default(SINGLETON_ID),
   status: text("status").notNull().default("idle"),
   targetEndTime: timestamp("target_end_time"),
   pausedWithRemaining: integer("paused_with_remaining"),
@@ -54,8 +59,7 @@ export const timerState = pgTable("timer_state", {
 });
 
 export const timerConfig = pgTable("timer_config", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
-  userId: text("user_id").notNull().unique().references(() => user.id, { onDelete: "cascade" }),
+  id: text("id").primaryKey().default(SINGLETON_ID),
   workDuration: integer("work_duration").notNull().default(1500000),
   breakDuration: integer("break_duration").notNull().default(300000),
   longBreakDuration: integer("long_break_duration").notNull().default(900000),
@@ -74,8 +78,7 @@ export const timerConfig = pgTable("timer_config", {
 });
 
 export const timerStyle = pgTable("timer_style", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
-  userId: text("user_id").notNull().unique().references(() => user.id, { onDelete: "cascade" }),
+  id: text("id").primaryKey().default(SINGLETON_ID),
   width: text("width").notNull().default("250px"),
   height: text("height").notNull().default("250px"),
   bgColor: text("bg_color").notNull().default("#1c1c1e"),
@@ -98,8 +101,7 @@ export const timerStyle = pgTable("timer_style", {
 });
 
 export const taskStyle = pgTable("task_style", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
-  userId: text("user_id").notNull().unique().references(() => user.id, { onDelete: "cascade" }),
+  id: text("id").primaryKey().default(SINGLETON_ID),
   displayShowDone: boolean("display_show_done").notNull().default(true),
   displayShowCount: boolean("display_show_count").notNull().default(true),
   displayUseCheckboxes: boolean("display_use_checkboxes").notNull().default(true),
@@ -161,8 +163,7 @@ export const taskStyle = pgTable("task_style", {
 });
 
 export const botConfig = pgTable("bot_config", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
-  userId: text("user_id").notNull().unique().references(() => user.id, { onDelete: "cascade" }),
+  id: text("id").primaryKey().default(SINGLETON_ID),
   taskCommandsEnabled: boolean("task_commands_enabled").notNull().default(true),
   timerCommandsEnabled: boolean("timer_commands_enabled").notNull().default(true),
   commandAliases: jsonb("command_aliases").notNull().default({}),

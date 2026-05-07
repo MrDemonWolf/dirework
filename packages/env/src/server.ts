@@ -14,9 +14,6 @@ export const env = createEnv({
     TWITCH_CLIENT_ID: z.string().min(1),
     TWITCH_CLIENT_SECRET: z.string().min(1),
 
-    // User allowlist (comma-separated Twitch user IDs, empty = allow all)
-    ALLOWED_TWITCH_IDS: z.string().default(""),
-
     // Documentation site URL (for bot !dwhelp command)
     DOCS_URL: z.url().optional(),
 

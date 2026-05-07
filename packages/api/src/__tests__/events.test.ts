@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ee } from "../events";
+import { ee, TIMER_STATE_CHANGE, TASK_LIST_CHANGE, BOT_CONFIG_CHANGE } from "../events";
 
 describe("event emitter", () => {
   it("should have maxListeners set to 100", () => {
@@ -9,47 +9,40 @@ describe("event emitter", () => {
 
   it("should emit and receive timerStateChange events", () => {
     const handler = vi.fn();
-    ee.on("timerStateChange:user1", handler);
-    ee.emit("timerStateChange:user1");
+    ee.on(TIMER_STATE_CHANGE, handler);
+    ee.emit(TIMER_STATE_CHANGE);
     expect(handler).toHaveBeenCalledOnce();
-    ee.off("timerStateChange:user1", handler);
+    ee.off(TIMER_STATE_CHANGE, handler);
   });
 
   it("should emit and receive taskListChange events", () => {
     const handler = vi.fn();
-    ee.on("taskListChange:user1", handler);
-    ee.emit("taskListChange:user1");
+    ee.on(TASK_LIST_CHANGE, handler);
+    ee.emit(TASK_LIST_CHANGE);
     expect(handler).toHaveBeenCalledOnce();
-    ee.off("taskListChange:user1", handler);
+    ee.off(TASK_LIST_CHANGE, handler);
   });
 
-  it("should not cross-fire between different userId events", () => {
-    const handler1 = vi.fn();
-    const handler2 = vi.fn();
-    ee.on("timerStateChange:userA", handler1);
-    ee.on("timerStateChange:userB", handler2);
-
-    ee.emit("timerStateChange:userA");
-
-    expect(handler1).toHaveBeenCalledOnce();
-    expect(handler2).not.toHaveBeenCalled();
-
-    ee.off("timerStateChange:userA", handler1);
-    ee.off("timerStateChange:userB", handler2);
+  it("should emit and receive botConfigChange events", () => {
+    const handler = vi.fn();
+    ee.on(BOT_CONFIG_CHANGE, handler);
+    ee.emit(BOT_CONFIG_CHANGE);
+    expect(handler).toHaveBeenCalledOnce();
+    ee.off(BOT_CONFIG_CHANGE, handler);
   });
 
-  it("should not cross-fire between timer and task events for same user", () => {
+  it("should not cross-fire between timer and task events", () => {
     const timerHandler = vi.fn();
     const taskHandler = vi.fn();
-    ee.on("timerStateChange:user1", timerHandler);
-    ee.on("taskListChange:user1", taskHandler);
+    ee.on(TIMER_STATE_CHANGE, timerHandler);
+    ee.on(TASK_LIST_CHANGE, taskHandler);
 
-    ee.emit("timerStateChange:user1");
+    ee.emit(TIMER_STATE_CHANGE);
 
     expect(timerHandler).toHaveBeenCalledOnce();
     expect(taskHandler).not.toHaveBeenCalled();
 
-    ee.off("timerStateChange:user1", timerHandler);
-    ee.off("taskListChange:user1", taskHandler);
+    ee.off(TIMER_STATE_CHANGE, timerHandler);
+    ee.off(TASK_LIST_CHANGE, taskHandler);
   });
 });

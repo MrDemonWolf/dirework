@@ -1,6 +1,6 @@
 {
-  "id": "2d35ba8e-9fb8-4972-904d-1f3c67d98632",
-  "prevId": "363c8744-5048-40d7-96a0-673dbdc27781",
+  "id": "08d5583d-3d06-4394-ac73-c73bc136d783",
+  "prevId": "f2d8d737-3b1b-46c3-9ab4-4cc3c16c2974",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -310,20 +310,32 @@
           "primaryKey": false,
           "notNull": false
         },
-        "overlay_timer_token": {
-          "name": "overlay_timer_token",
-          "type": "text",
+        "is_owner": {
+          "name": "is_owner",
+          "type": "boolean",
           "primaryKey": false,
-          "notNull": true
-        },
-        "overlay_tasks_token": {
-          "name": "overlay_tasks_token",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "user_single_owner_idx": {
+          "name": "user_single_owner_idx",
+          "columns": [
+            {
+              "expression": "is_owner",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"user\".\"is_owner\" = true",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
@@ -339,20 +351,6 @@
           "nullsNotDistinct": false,
           "columns": [
             "twitch_id"
-          ]
-        },
-        "user_overlay_timer_token_unique": {
-          "name": "user_overlay_timer_token_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "overlay_timer_token"
-          ]
-        },
-        "user_overlay_tasks_token_unique": {
-          "name": "user_overlay_tasks_token_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "overlay_tasks_token"
           ]
         }
       },
@@ -435,13 +433,8 @@
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "'singleton'"
         },
         "twitch_id": {
           "name": "twitch_id",
@@ -484,35 +477,13 @@
           "type": "text[]",
           "primaryKey": false,
           "notNull": true,
-          "default": "'{\"chat:read\",\"chat:edit\",\"channel:moderate\",\"user:read:chat\"}'"
+          "default": "'{\"user:read:chat\",\"user:write:chat\"}'"
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "bot_account_user_id_user_id_fk": {
-          "name": "bot_account_user_id_user_id_fk",
-          "tableFrom": "bot_account",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "bot_account_user_id_unique": {
-          "name": "bot_account_user_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -525,13 +496,8 @@
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "'singleton'"
         },
         "task_commands_enabled": {
           "name": "task_commands_enabled",
@@ -780,28 +746,53 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "bot_config_user_id_user_id_fk": {
-          "name": "bot_config_user_id_user_id_fk",
-          "tableFrom": "bot_config",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.instance_config": {
+      "name": "instance_config",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "'singleton'"
+        },
+        "overlay_timer_token": {
+          "name": "overlay_timer_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "overlay_tasks_token": {
+          "name": "overlay_tasks_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
         }
       },
+      "indexes": {},
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "bot_config_user_id_unique": {
-          "name": "bot_config_user_id_unique",
+        "instance_config_overlay_timer_token_unique": {
+          "name": "instance_config_overlay_timer_token_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "user_id"
+            "overlay_timer_token"
+          ]
+        },
+        "instance_config_overlay_tasks_token_unique": {
+          "name": "instance_config_overlay_tasks_token_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "overlay_tasks_token"
           ]
         }
       },
@@ -817,12 +808,6 @@
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true
-        },
-        "owner_id": {
-          "name": "owner_id",
-          "type": "text",
-          "primaryKey": false,
           "notNull": true
         },
         "author_twitch_id": {
@@ -890,15 +875,9 @@
         }
       },
       "indexes": {
-        "task_owner_status_idx": {
-          "name": "task_owner_status_idx",
+        "task_status_idx": {
+          "name": "task_status_idx",
           "columns": [
-            {
-              "expression": "owner_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
             {
               "expression": "status",
               "isExpression": false,
@@ -911,15 +890,9 @@
           "method": "btree",
           "with": {}
         },
-        "task_owner_priority_order_idx": {
-          "name": "task_owner_priority_order_idx",
+        "task_priority_order_idx": {
+          "name": "task_priority_order_idx",
           "columns": [
-            {
-              "expression": "owner_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
             {
               "expression": "priority",
               "isExpression": false,
@@ -938,15 +911,9 @@
           "method": "btree",
           "with": {}
         },
-        "task_owner_author_idx": {
-          "name": "task_owner_author_idx",
+        "task_author_idx": {
+          "name": "task_author_idx",
           "columns": [
-            {
-              "expression": "owner_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
             {
               "expression": "author_twitch_id",
               "isExpression": false,
@@ -960,21 +927,7 @@
           "with": {}
         }
       },
-      "foreignKeys": {
-        "task_owner_id_user_id_fk": {
-          "name": "task_owner_id_user_id_fk",
-          "tableFrom": "task",
-          "tableTo": "user",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -989,13 +942,8 @@
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "'singleton'"
         },
         "display_show_done": {
           "name": "display_show_done",
@@ -1405,31 +1353,9 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "task_style_user_id_user_id_fk": {
-          "name": "task_style_user_id_user_id_fk",
-          "tableFrom": "task_style",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "task_style_user_id_unique": {
-          "name": "task_style_user_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -1442,13 +1368,8 @@
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "'singleton'"
         },
         "work_duration": {
           "name": "work_duration",
@@ -1557,31 +1478,9 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "timer_config_user_id_user_id_fk": {
-          "name": "timer_config_user_id_user_id_fk",
-          "tableFrom": "timer_config",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "timer_config_user_id_unique": {
-          "name": "timer_config_user_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -1594,13 +1493,8 @@
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "'singleton'"
         },
         "status": {
           "name": "status",
@@ -1643,31 +1537,9 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "timer_state_user_id_user_id_fk": {
-          "name": "timer_state_user_id_user_id_fk",
-          "tableFrom": "timer_state",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "timer_state_user_id_unique": {
-          "name": "timer_state_user_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -1680,13 +1552,8 @@
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "'singleton'"
         },
         "width": {
           "name": "width",
@@ -1823,31 +1690,9 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "timer_style_user_id_user_id_fk": {
-          "name": "timer_style_user_id_user_id_fk",
-          "tableFrom": "timer_style",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "timer_style_user_id_unique": {
-          "name": "timer_style_user_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

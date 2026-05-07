@@ -1,15 +1,14 @@
 import { TRPCError } from "@trpc/server";
-import { eq, and, asc, desc, inArray } from "drizzle-orm";
+import { eq, and, asc, desc, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure, publicProcedure, router } from "../index";
-import { ee } from "../events";
+import { ee, TASK_LIST_CHANGE } from "../events";
 import * as schema from "@dirework/db/schema";
 
 export const taskRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.query.task.findMany({
-      where: eq(schema.task.ownerId, ctx.session.user.id),
       orderBy: [asc(schema.task.priority), asc(schema.task.order)],
     });
   }),
@@ -17,13 +16,11 @@ export const taskRouter = router({
   listByToken: publicProcedure
     .input(z.object({ token: z.string() }))
     .query(async ({ ctx, input }) => {
-      const user = await ctx.db.query.user.findFirst({
-        where: eq(schema.user.overlayTasksToken, input.token),
-        columns: { id: true },
+      const instance = await ctx.db.query.instanceConfig.findFirst({
+        columns: { overlayTasksToken: true },
       });
-      if (!user) return [];
+      if (!instance || instance.overlayTasksToken !== input.token) return [];
       return ctx.db.query.task.findMany({
-        where: eq(schema.task.ownerId, user.id),
         orderBy: [asc(schema.task.priority), asc(schema.task.order)],
       });
     }),
@@ -39,24 +36,19 @@ export const taskRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const user = await ctx.db.query.user.findFirst({
-        where: eq(schema.user.id, ctx.session.user.id),
+      const owner = await ctx.db.query.user.findFirst({
         columns: { twitchId: true },
       });
-      const isBroadcaster = user?.twitchId === input.authorTwitchId;
+      const isBroadcaster = owner?.twitchId === input.authorTwitchId;
 
       const [lastTask, existingTasks] = await Promise.all([
         ctx.db.query.task.findFirst({
-          where: and(
-            eq(schema.task.ownerId, ctx.session.user.id),
-            eq(schema.task.priority, isBroadcaster ? 0 : 1),
-          ),
+          where: eq(schema.task.priority, isBroadcaster ? 0 : 1),
           orderBy: [desc(schema.task.order)],
           columns: { order: true },
         }),
         ctx.db.query.task.findMany({
           where: and(
-            eq(schema.task.ownerId, ctx.session.user.id),
             eq(schema.task.authorTwitchId, input.authorTwitchId),
             inArray(schema.task.status, ["pending", "active"]),
           ),
@@ -67,22 +59,20 @@ export const taskRouter = router({
       const autoActivate = existingTasks.length === 0;
 
       const [result] = await ctx.db.insert(schema.task).values({
-        ownerId: ctx.session.user.id,
         ...input,
         status: autoActivate ? "active" : "pending",
         priority: isBroadcaster ? 0 : 1,
         order: (lastTask?.order ?? 0) + 1,
       }).returning();
-      ee.emit(`taskListChange:${ctx.session.user.id}`);
+      ee.emit(TASK_LIST_CHANGE);
       return result ?? null;
     }),
 
   markDone: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // Fetch current status before updating
       const existing = await ctx.db.query.task.findFirst({
-        where: and(eq(schema.task.id, input.id), eq(schema.task.ownerId, ctx.session.user.id)),
+        where: eq(schema.task.id, input.id),
         columns: { id: true, status: true, authorTwitchId: true },
       });
       if (!existing) return null;
@@ -95,11 +85,9 @@ export const taskRouter = router({
         .returning();
       if (!result) return null;
 
-      // Only promote next pending task if the completed task was active
       if (wasActive) {
         const nextPending = await ctx.db.query.task.findFirst({
           where: and(
-            eq(schema.task.ownerId, ctx.session.user.id),
             eq(schema.task.authorTwitchId, result.authorTwitchId),
             eq(schema.task.status, "pending"),
           ),
@@ -112,7 +100,7 @@ export const taskRouter = router({
         }
       }
 
-      ee.emit(`taskListChange:${ctx.session.user.id}`);
+      ee.emit(TASK_LIST_CHANGE);
       return result;
     }),
 
@@ -120,7 +108,7 @@ export const taskRouter = router({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const task = await ctx.db.query.task.findFirst({
-        where: and(eq(schema.task.id, input.id), eq(schema.task.ownerId, ctx.session.user.id)),
+        where: eq(schema.task.id, input.id),
       });
       if (!task) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Task not found" });
@@ -129,11 +117,9 @@ export const taskRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot activate a completed task" });
       }
 
-      // Demote current active task for the same author back to pending
       await ctx.db.update(schema.task)
         .set({ status: "pending" })
         .where(and(
-          eq(schema.task.ownerId, ctx.session.user.id),
           eq(schema.task.authorTwitchId, task.authorTwitchId),
           eq(schema.task.status, "active"),
         ));
@@ -143,7 +129,7 @@ export const taskRouter = router({
         .where(eq(schema.task.id, task.id))
         .returning();
 
-      ee.emit(`taskListChange:${ctx.session.user.id}`);
+      ee.emit(TASK_LIST_CHANGE);
       return result ?? null;
     }),
 
@@ -152,9 +138,9 @@ export const taskRouter = router({
     .mutation(async ({ ctx, input }) => {
       const [result] = await ctx.db.update(schema.task)
         .set({ text: input.text })
-        .where(and(eq(schema.task.id, input.id), eq(schema.task.ownerId, ctx.session.user.id)))
+        .where(eq(schema.task.id, input.id))
         .returning();
-      ee.emit(`taskListChange:${ctx.session.user.id}`);
+      ee.emit(TASK_LIST_CHANGE);
       return result ?? null;
     }),
 
@@ -162,69 +148,61 @@ export const taskRouter = router({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const [result] = await ctx.db.delete(schema.task)
-        .where(and(eq(schema.task.id, input.id), eq(schema.task.ownerId, ctx.session.user.id)))
+        .where(eq(schema.task.id, input.id))
         .returning();
-      ee.emit(`taskListChange:${ctx.session.user.id}`);
+      ee.emit(TASK_LIST_CHANGE);
       return result ?? null;
     }),
 
   // ── Broadcaster moderation ────────────────────────────────
 
-  /** Remove all tasks from a specific viewer */
   removeByViewer: protectedProcedure
     .input(z.object({ authorTwitchId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.db.delete(schema.task)
-        .where(and(
-          eq(schema.task.ownerId, ctx.session.user.id),
-          eq(schema.task.authorTwitchId, input.authorTwitchId),
-        ));
-      ee.emit(`taskListChange:${ctx.session.user.id}`);
+        .where(eq(schema.task.authorTwitchId, input.authorTwitchId));
+      ee.emit(TASK_LIST_CHANGE);
       return result;
     }),
 
-  /** Edit any task (broadcaster moderation) */
   moderateEdit: protectedProcedure
     .input(z.object({ id: z.string(), text: z.string().min(1).max(500) }))
     .mutation(async ({ ctx, input }) => {
       const [result] = await ctx.db.update(schema.task)
         .set({ text: input.text })
-        .where(and(eq(schema.task.id, input.id), eq(schema.task.ownerId, ctx.session.user.id)))
+        .where(eq(schema.task.id, input.id))
         .returning();
-      ee.emit(`taskListChange:${ctx.session.user.id}`);
+      ee.emit(TASK_LIST_CHANGE);
       return result ?? null;
     }),
 
-  /** Delete any task (broadcaster moderation) */
   moderateRemove: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const [result] = await ctx.db.delete(schema.task)
-        .where(and(eq(schema.task.id, input.id), eq(schema.task.ownerId, ctx.session.user.id)))
+        .where(eq(schema.task.id, input.id))
         .returning();
-      ee.emit(`taskListChange:${ctx.session.user.id}`);
+      ee.emit(TASK_LIST_CHANGE);
       return result ?? null;
     }),
 
   clearAll: protectedProcedure.mutation(async ({ ctx }) => {
-    const result = await ctx.db.delete(schema.task)
-      .where(eq(schema.task.ownerId, ctx.session.user.id));
-    ee.emit(`taskListChange:${ctx.session.user.id}`);
+    const result = await ctx.db.delete(schema.task);
+    ee.emit(TASK_LIST_CHANGE);
     return result;
   }),
 
   clearDone: protectedProcedure.mutation(async ({ ctx }) => {
     const result = await ctx.db.delete(schema.task)
-      .where(and(eq(schema.task.ownerId, ctx.session.user.id), eq(schema.task.status, "done")));
-    ee.emit(`taskListChange:${ctx.session.user.id}`);
+      .where(eq(schema.task.status, "done"));
+    ee.emit(TASK_LIST_CHANGE);
     return result;
   }),
 
-  /** Clear only viewer tasks, keep broadcaster's own tasks */
   clearViewers: protectedProcedure.mutation(async ({ ctx }) => {
     const result = await ctx.db.delete(schema.task)
-      .where(and(eq(schema.task.ownerId, ctx.session.user.id), eq(schema.task.priority, 1)));
-    ee.emit(`taskListChange:${ctx.session.user.id}`);
+      .where(eq(schema.task.priority, 1));
+    ee.emit(TASK_LIST_CHANGE);
     return result;
   }),
 });
