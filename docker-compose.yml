@@ -26,6 +26,7 @@ services:
       - .env
     environment:
       NODE_ENV: production
+      SKIP_ENV_VALIDATION: "true"
     depends_on:
       db:
         condition: service_healthy
