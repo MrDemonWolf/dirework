@@ -37,14 +37,14 @@ docker compose -f "$ROOT_DIR/packages/db/docker-compose.yml" up -d
 
 TIMEOUT=30
 ELAPSED=0
-until docker compose -f "$ROOT_DIR/packages/db/docker-compose.yml" exec -T db \
-  pg_isready -U "${POSTGRES_USER:-dirework}" > /dev/null 2>&1; do
+until docker compose -f "$ROOT_DIR/packages/db/docker-compose.yml" exec -T postgres \
+  pg_isready -U "${POSTGRES_USER:-postgres}" > /dev/null 2>&1; do
+  sleep 1
+  ELAPSED=$((ELAPSED + 1))
   if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
     echo "Error: Database did not become ready within ${TIMEOUT}s."
     exit 1
   fi
-  sleep 1
-  ELAPSED=$((ELAPSED + 1))
 done
 echo "Database ready."
 

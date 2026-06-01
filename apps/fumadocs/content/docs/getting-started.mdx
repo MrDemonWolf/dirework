@@ -1,89 +1,110 @@
 ---
 title: Getting Started
-description: How to self-host Dirework
+description: Run Dirework on your own computer in a few minutes
 ---
 
-## Prerequisites
+This guide gets Dirework running on your own machine so you can try it before you
+deploy it anywhere. Going to production instead? Jump to [Deployment](/docs/deployment).
 
-- [Node.js](https://nodejs.org/) v20+
-- [pnpm](https://pnpm.io/) v10+
-- [Docker](https://www.docker.com/) (for PostgreSQL)
-- A [Twitch Developer Application](/docs/twitch-oauth)
+<Callout>
+  **No deep tech knowledge needed.** You'll copy a few commands, paste two Twitch keys,
+  and you're done. Take it one step at a time — each step says exactly what to do.
+</Callout>
 
-## 1. Clone the repository
+## What you need first
+
+Install these once. Click each name if you don't have it yet:
+
+- [Bun](https://bun.sh) — the toolkit that runs everything (one install command on their site)
+- [Docker](https://www.docker.com/products/docker-desktop/) — runs the database in the background
+- A free [Twitch developer application](/docs/twitch-oauth) — this is where your two keys come from
+
+That's the whole shopping list.
+
+## 1. Get the code
 
 ```bash
 git clone https://github.com/mrdemonwolf/dirework.git
 cd dirework
 ```
 
-## 2. Install dependencies
+## 2. Install + set up — one command
 
 ```bash
-pnpm install
+bun install
+bun run setup
 ```
 
-## 3. Configure environment variables
+`bun run setup` does the boring parts for you: it creates your `.env` file, starts the
+database in Docker, and loads the database tables. When it finishes, it tells you what to do next.
 
-Create a `.env` file in `apps/web/`:
+<Callout type="info">
+  Seeing a Docker error? Make sure Docker Desktop is open and running, then run
+  `bun run setup` again. It's safe to re-run.
+</Callout>
+
+## 3. Add your two Twitch keys
+
+Open the new `.env` file in the project folder and fill in these two lines:
 
 ```bash
-# Database
-DATABASE_URL="postgresql://postgres:password@localhost:5432/dirework"
-
-# Better Auth
-BETTER_AUTH_SECRET="<generate-a-random-32-char-string>"
-BETTER_AUTH_URL="http://localhost:3001"
-CORS_ORIGIN="http://localhost:3001"
-
-# Twitch OAuth (from dev.twitch.tv)
-TWITCH_CLIENT_ID="<your_client_id>"
-TWITCH_CLIENT_SECRET="<your_client_secret>"
-
-# User allowlist (comma-separated Twitch user IDs, empty = allow all)
-ALLOWED_TWITCH_IDS=""
+TWITCH_CLIENT_ID="paste_your_client_id"
+TWITCH_CLIENT_SECRET="paste_your_client_secret"
 ```
 
-You can generate a secret with:
+Don't have these yet? The [Twitch OAuth Setup](/docs/twitch-oauth) page walks you
+through getting them — it takes about two minutes. For local use, set your app's
+redirect URL to:
+
+```
+http://localhost:3001/api/auth/callback/twitch
+```
+
+Everything else in `.env` already has a sensible default for local use. You don't need
+to touch it.
+
+## 4. Start it up
 
 ```bash
-openssl rand -base64 32
+bun run dev:full
 ```
 
-See [Environment Variables](/docs/environment-variables) for a full reference.
+This starts the database (if it isn't already running) and launches both apps:
 
-## 4. Start the database
+- **Your Dirework app** → [http://localhost:3001](http://localhost:3001)
+- **This documentation** → [http://localhost:4000](http://localhost:4000)
 
-```bash
-pnpm db:start
-```
+✅ You should now see the Dirework welcome screen at `localhost:3001`.
 
-This starts a PostgreSQL container via Docker Compose.
+## 5. Claim your instance
 
-## 5. Push the database schema
+The first time you open the app, it sends you to a **setup screen**. Click
+**Claim with Twitch** and sign in. That makes you the owner — one streamer, one instance.
 
-```bash
-pnpm db:push
-```
+✅ After signing in you land on your **dashboard**. You're in.
 
-## 6. Start the development server
+<Callout type="warn">
+  The setup screen only appears once. After you claim the instance, it turns off for good.
+</Callout>
 
-```bash
-pnpm dev
-```
+## Where to go next
 
-This starts all apps via Turborepo:
+- [Connect your bot account](/docs/twitch-oauth#step-5-connect-the-bot-account) so chat commands work
+- [Add the overlays to OBS](/docs/overlays) — the timer and task list
+- [Learn the chat commands](/docs/chat-commands) your viewers will use
+- [Make it your own](/docs/features) in the Theme Center
+- Ready for the world? [Deploy to production](/docs/deployment)
 
-- **Web app:** [http://localhost:3001](http://localhost:3001)
-- **Documentation:** [http://localhost:4000](http://localhost:4000)
+## Handy commands
 
-## 7. Sign in
+You'll mostly use `bun run dev:full`. These are here when you need them:
 
-Open the web app and click **Sign in with Twitch**. You'll be redirected to Twitch to authorize the application. Make sure you've [set up your Twitch OAuth application](/docs/twitch-oauth) first.
-
-## Next steps
-
-- [Set up Twitch OAuth](/docs/twitch-oauth) if you haven't already
-- [Add overlays to OBS](/docs/overlays)
-- [Learn the chat commands](/docs/chat-commands)
-- [Deploy to production](/docs/deployment)
+| Command | What it does |
+| --- | --- |
+| `bun run dev:full` | Start the database and both apps together |
+| `bun run dev:web` | Start just the web app (database must already be running) |
+| `bun run db` | Bring the database up, wait until it's ready, and sync the schema |
+| `bun run db:start` | Start the database container on its own |
+| `bun run db:stop` | Stop the database |
+| `bun run db:studio` | Open a visual editor for the database |
+| `bun run db:push` | Reload the database tables after a code update |

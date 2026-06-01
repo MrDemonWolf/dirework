@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Pause, Play } from "lucide-react";
 
 import type { TimerStylesConfig, TaskStylesConfig } from "@/lib/config-types";
+import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
 import { Button } from "@/components/ui/button";
 import { TimerDisplay } from "@/components/timer-display";
 import { TaskListDisplay } from "@/components/task-list-display";
@@ -22,15 +23,7 @@ const mockTasks = [
 function timerPreviewConfig(styles: TimerStylesConfig) {
   return {
     ...styles,
-    labels: {
-      idle: "Ready",
-      starting: "Starting",
-      work: "Focus",
-      break: "Break",
-      longBreak: "Long Break",
-      paused: "Paused",
-      finished: "Done",
-    },
+    labels: { ...DEFAULT_PHASE_LABELS },
     showHours: false,
   };
 }

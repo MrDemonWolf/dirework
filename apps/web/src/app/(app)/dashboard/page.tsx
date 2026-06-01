@@ -1,19 +1,10 @@
 import { Suspense } from "react";
 
-import { auth } from "@dirework/auth";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-
+import { requireSession } from "@/lib/auth-guard";
 import Dashboard from "./dashboard";
 
 export default async function DashboardPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session?.user) {
-    redirect("/");
-  }
+  const session = await requireSession();
 
   return (
     <Suspense>

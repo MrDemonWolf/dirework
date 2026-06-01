@@ -59,3 +59,103 @@
     color: var(--color-fd-muted-foreground, #e5e7eb);
   }
 }
+
+/* ============================================================
+   Dirework landing — "Focus console" motif
+   Scoped utilities (dw-*) used only by the marketing home page.
+   ============================================================ */
+
+/* Atmospheric glow behind the hero focus ring */
+.dw-aurora {
+  background:
+    radial-gradient(
+      60% 50% at 50% 0%,
+      hsl(262deg 83% 60% / 0.22) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      40% 40% at 85% 30%,
+      hsl(190deg 90% 55% / 0.1) 0%,
+      transparent 70%
+    );
+}
+
+/* Fine grain texture overlay for depth */
+.dw-grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Signature Pomodoro ring — slow rotating progress sweep */
+@keyframes dw-ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.dw-ring-sweep {
+  animation: dw-ring-spin 14s linear infinite;
+  transform-origin: center;
+}
+
+/* Soft breathing pulse for the ring core */
+@keyframes dw-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+.dw-breathe {
+  animation: dw-breathe 4s ease-in-out infinite;
+}
+
+/* Staggered entrance — apply with inline animation-delay */
+@keyframes dw-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.dw-rise {
+  opacity: 0;
+  animation: dw-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Feature / step card with accent edge that lights up on hover */
+.dw-card {
+  position: relative;
+  border: 1px solid var(--color-fd-border);
+  background: color-mix(in oklab, var(--color-fd-card) 80%, transparent);
+  transition:
+    border-color 0.25s ease,
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.dw-card:hover {
+  transform: translateY(-3px);
+  border-color: hsl(262deg 83% 60% / 0.5);
+  box-shadow: 0 12px 40px -12px hsl(262deg 83% 50% / 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dw-ring-sweep,
+  .dw-breathe,
+  .dw-rise {
+    animation: none;
+  }
+  .dw-rise {
+    opacity: 1;
+  }
+}
