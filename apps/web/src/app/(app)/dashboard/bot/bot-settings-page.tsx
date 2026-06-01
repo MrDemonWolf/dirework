@@ -448,7 +448,7 @@ export default function BotSettingsPage() {
                 </p>
                 <a
                   href="/api/bot/authorize"
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#9146FF] px-3 text-xs font-medium text-white hover:bg-[#7c3ae6]"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-twitch px-3 text-xs font-medium text-white hover:bg-twitch-hover"
                 >
                   Connect Bot Account
                 </a>

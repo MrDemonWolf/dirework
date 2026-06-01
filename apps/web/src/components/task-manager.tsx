@@ -167,14 +167,15 @@ export function TaskManager({
       {/* Task list grouped by author */}
       <div className="max-h-[400px] space-y-3 overflow-y-auto">
         {taskList.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-8">
-            <div className="rounded-full bg-muted p-3">
-              <ListTodo className="size-6 text-muted-foreground" />
+          <div className="flex flex-col items-center gap-3 py-10">
+            <div className="rounded-2xl bg-primary/10 p-3.5">
+              <ListTodo className="size-6 text-primary" />
             </div>
-            <div className="text-center">
-              <p className="text-sm font-medium">No tasks yet</p>
-              <p className="text-xs text-muted-foreground">
-                Add one above or use <code className="rounded bg-muted px-1">!task</code> in chat
+            <div className="max-w-[15rem] text-center">
+              <p className="text-sm font-medium">A clean slate</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Add the first task above — or let chat kick things off with{" "}
+                <code className="rounded bg-muted px-1 py-0.5">!task</code>.
               </p>
             </div>
           </div>

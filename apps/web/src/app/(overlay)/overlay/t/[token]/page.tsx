@@ -5,6 +5,7 @@ import { useSubscription } from "@trpc/tanstack-react-query";
 import { useParams } from "next/navigation";
 
 import { defaultTimerStyles } from "@/lib/theme-presets";
+import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
 import { TimerDisplay } from "@/components/timer-display";
 import { trpc } from "@/utils/trpc";
 
@@ -14,16 +15,6 @@ const defaultTimerState = {
   pausedWithRemaining: null,
   currentCycle: 1,
   totalCycles: 4,
-};
-
-const defaultLabels: Record<string, string> = {
-  idle: "Ready",
-  starting: "Starting",
-  work: "Focus",
-  break: "Break",
-  longBreak: "Long Break",
-  paused: "Paused",
-  finished: "Done",
 };
 
 export default function TimerOverlayPage() {
@@ -46,7 +37,7 @@ export default function TimerOverlayPage() {
 
   const displayConfig = {
     ...timerStyles,
-    labels: timerConfig?.labels ?? defaultLabels,
+    labels: timerConfig?.labels ?? DEFAULT_PHASE_LABELS,
     showHours: timerConfig?.showHours ?? false,
   };
 
