@@ -188,6 +188,46 @@ command aliases.
 - **Turborepo** for monorepo build orchestration
 - **GitHub Actions** CI runs type checks, builds, and tests on every push
 
+## Deployment
+
+### Docker Compose
+
+The easiest way to self-host Dirework in production. Requires
+Docker and Docker Compose.
+
+1. Copy `.env.example` to `.env` and fill in all values:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Set `DATABASE_URL` to use the `db` service hostname for
+   Docker networking, and fill in the matching Postgres vars:
+
+   ```bash
+   DATABASE_URL="postgresql://dirework:your-password@db:5432/dirework"
+   POSTGRES_USER="dirework"
+   POSTGRES_PASSWORD="your-password"
+   POSTGRES_DB="dirework"
+   BETTER_AUTH_SECRET="$(openssl rand -base64 32)"
+   BETTER_AUTH_URL="https://your-domain.com"
+   CORS_ORIGIN="https://your-domain.com"
+   TWITCH_CLIENT_ID="your_client_id"
+   TWITCH_CLIENT_SECRET="your_client_secret"
+   ```
+
+2. Start the stack:
+
+   ```bash
+   docker compose up -d
+   ```
+
+3. Open your instance URL — on first run you will be redirected
+   to `/setup` to claim the instance with your Twitch account.
+
+Database migrations run automatically on startup via
+`docker-entrypoint.sh`. No manual migration step required.
+
 ## Project Structure
 
 ```
