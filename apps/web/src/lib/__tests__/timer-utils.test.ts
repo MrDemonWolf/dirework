@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { toHexOpacity, formatTime, roundedRectPath } from "../timer-utils";
+import {
+  toHexOpacity,
+  formatTime,
+  formatClock,
+  roundedRectPath,
+} from "../timer-utils";
 
 describe("toHexOpacity", () => {
   it("should return '00' for opacity 0", () => {
@@ -24,6 +29,28 @@ describe("toHexOpacity", () => {
   it("should pad single-digit hex values", () => {
     // 0.01 * 255 = 2.55, rounds to 3 = 0x03
     expect(toHexOpacity(0.01)).toBe("03");
+  });
+});
+
+describe("formatClock", () => {
+  it("formats zero as 00:00", () => {
+    expect(formatClock(0)).toBe("00:00");
+  });
+
+  it("clamps negative values to 00:00", () => {
+    expect(formatClock(-5000)).toBe("00:00");
+  });
+
+  it("formats 25 minutes as 25:00", () => {
+    expect(formatClock(25 * 60 * 1000)).toBe("25:00");
+  });
+
+  it("does not roll minutes into hours (90:30 stays 90:30)", () => {
+    expect(formatClock((90 * 60 + 30) * 1000)).toBe("90:30");
+  });
+
+  it("rounds partial seconds up", () => {
+    expect(formatClock(1500)).toBe("00:02");
   });
 });
 

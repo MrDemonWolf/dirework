@@ -39,13 +39,13 @@ You need to add **two** redirect URLs. Click the **+ Add** button for each:
 **For local development:**
 ```
 http://localhost:3001/api/auth/callback/twitch
-http://localhost:3001/api/bot/callback
+http://localhost:3001/api/bot/callback/twitch
 ```
 
 **For production** (add these too if you plan to deploy):
 ```
 https://your-domain.com/api/auth/callback/twitch
-https://your-domain.com/api/bot/callback
+https://your-domain.com/api/bot/callback/twitch
 ```
 
 <Callout type="warn">
@@ -82,7 +82,7 @@ Your complete `.env` should look like this:
 
 ```bash
 # Database
-DATABASE_URL="postgresql://postgres:password@localhost:5432/dirework"
+DATABASE_URL="postgresql://dirework:password@localhost:5432/dirework"
 
 # Better Auth
 BETTER_AUTH_SECRET="generate-a-random-32-character-string"
@@ -92,9 +92,6 @@ CORS_ORIGIN="http://localhost:3001"
 # Twitch OAuth
 TWITCH_CLIENT_ID="abc123def456..."
 TWITCH_CLIENT_SECRET="xyz789..."
-
-# Optional: restrict who can log in
-ALLOWED_TWITCH_IDS=""
 ```
 
 Generate a strong secret with:
@@ -111,11 +108,11 @@ openssl rand -base64 32
 
 ## Step 3: Sign In
 
-1. Start the app with `pnpm dev`
+1. Start the app with `bun run dev:full`
 2. Open [http://localhost:3001](http://localhost:3001)
-3. Click **Sign In** in the top-right corner
+3. On a fresh install you'll land on the **setup screen** — click **Claim with Twitch**
 4. You'll be redirected to Twitch — authorize the app with your **streamer account**
-5. After authorizing, you'll land on the dashboard
+5. After authorizing, you'll land on the dashboard as the instance owner
 
 If sign-in fails, check:
 - Your `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` are correct
@@ -183,13 +180,13 @@ Common issues:
 
 | Error | Solution |
 | --- | --- |
-| Token exchange failed | Check that `http://localhost:3001/api/bot/callback` is in your Twitch app's redirect URLs |
+| Token exchange failed | Check that `http://localhost:3001/api/bot/callback/twitch` is in your Twitch app's redirect URLs |
 | Redirected to home page | Make sure you're logged in to Dirework first |
 | No error but nothing happened | Check the browser console and server logs for details |
 | "Invalid redirect URI" on Twitch | The redirect URL in your Twitch app doesn't match exactly — check for trailing slashes, wrong port, or http vs https |
 
 <Callout type="warn">
-  The most common issue is a **redirect URL mismatch**. The URL `{BETTER_AUTH_URL}/api/bot/callback` must exactly match one of the redirect URLs in your Twitch Developer Console app.
+  The most common issue is a **redirect URL mismatch**. The URL `{BETTER_AUTH_URL}/api/bot/callback/twitch` must exactly match one of the redirect URLs in your Twitch Developer Console app.
 </Callout>
 
 ---
@@ -214,7 +211,7 @@ See the [Overlays guide](/docs/overlays) for more details.
 | URL Pattern | Purpose | When it's used |
 | --- | --- | --- |
 | `{BETTER_AUTH_URL}/api/auth/callback/twitch` | Streamer login | When you click "Sign In" |
-| `{BETTER_AUTH_URL}/api/bot/callback` | Bot account connection | When you click "Connect Bot Account" |
+| `{BETTER_AUTH_URL}/api/bot/callback/twitch` | Bot account connection | When you click "Connect Bot Account" |
 
 For local development, `BETTER_AUTH_URL` = `http://localhost:3001`
 
@@ -222,29 +219,11 @@ For production, replace with your domain (e.g., `https://dirework.example.com`)
 
 ---
 
-## Restrict Access (Optional)
+## Who can sign in?
 
-If you want to limit who can log in to your Dirework instance:
-
-### Find your Twitch User ID
-
-Use one of these tools to convert your Twitch username to a numeric ID:
-
-- [streamscharts.com/tools/convert-username](https://streamscharts.com/tools/convert-username)
-- [twitchinsights.net/checkuser](https://twitchinsights.net/checkuser)
-
-### Set the allowlist
-
-```bash
-# Single user
-ALLOWED_TWITCH_IDS="123456789"
-
-# Multiple users (comma-separated)
-ALLOWED_TWITCH_IDS="123456789,987654321"
-
-# Allow everyone (leave empty or omit)
-ALLOWED_TWITCH_IDS=""
-```
+You don't need to configure access. Dirework is **single-owner**: the first Twitch
+account to sign in claims the instance, and after that no one else can take it over. Your
+instance is yours the moment you claim it.
 
 ---
 
@@ -256,6 +235,5 @@ When deploying to production, make sure to:
 - [ ] Update `CORS_ORIGIN` to your production domain
 - [ ] Add production redirect URLs to your Twitch app:
   - `https://your-domain.com/api/auth/callback/twitch`
-  - `https://your-domain.com/api/bot/callback`
+  - `https://your-domain.com/api/bot/callback/twitch`
 - [ ] Use `https://` (not `http://`) for all production URLs
-- [ ] Set `ALLOWED_TWITCH_IDS` to restrict access if needed

@@ -1,155 +1,172 @@
 ---
 title: Deployment
-description: Deploy Dirework to production
+description: Put Dirework online for your stream
 ---
 
-This guide covers deploying Dirework to a production environment. Dirework is a Next.js application backed by PostgreSQL, so it can run anywhere that supports Node.js.
+Ready to run Dirework for real? This guide puts it online so it's available whenever you
+stream. Dirework ships with a **Dockerfile**, so anything that can run a Docker container
+can run it.
 
-## Prerequisites
+<Callout>
+  **The short version:** run a PostgreSQL database, run the Dirework container, point a
+  domain at it with HTTPS, and add that domain to your Twitch app. The
+  [Dokploy](#option-1-dokploy-recommended) guide below does all of this with a few clicks.
+</Callout>
 
-- A server or hosting platform that supports Node.js 20+
-- A production PostgreSQL 17+ database
-- A domain name (required for Twitch OAuth redirect URLs over HTTPS)
-- Your [Twitch application credentials](/docs/twitch-oauth)
+## Before you start
 
-## Environment Variables
+You'll need:
 
-Set all required environment variables for production:
+- A server you control (a small VPS is plenty) **or** a host that builds from a Dockerfile
+- A domain name — Twitch requires HTTPS for sign-in, and a domain is the easiest way to get it
+- Your two [Twitch keys](/docs/twitch-oauth) (client ID + secret)
+
+## The settings you'll paste
+
+Every deployment uses the same handful of environment variables. Keep these somewhere
+handy — you'll paste them into your host's dashboard:
 
 ```bash
 DATABASE_URL="postgresql://user:password@host:5432/dirework"
-BETTER_AUTH_SECRET="<generate-with-openssl-rand-base64-32>"
+BETTER_AUTH_SECRET="<a-long-random-string>"
 BETTER_AUTH_URL="https://your-domain.com"
 CORS_ORIGIN="https://your-domain.com"
 TWITCH_CLIENT_ID="<your_client_id>"
 TWITCH_CLIENT_SECRET="<your_client_secret>"
 NODE_ENV="production"
-
-# Optional: restrict login to specific Twitch accounts
-ALLOWED_TWITCH_IDS=""
-
-# Optional: show legal links in footer (set URL to enable)
-# PRIVACY_POLICY_URL="https://your-domain.com/privacy"
-# TERMS_OF_SERVICE_URL="https://your-domain.com/terms"
 ```
 
 <Callout type="warn">
-  Use a strong, unique `BETTER_AUTH_SECRET` in production. Generate one with `openssl rand -base64 32`. Never reuse your development secret.
+  Generate a fresh `BETTER_AUTH_SECRET` for production — never reuse the one from your
+  computer. Make one with:
+
+  ```bash
+  openssl rand -base64 32
+  ```
 </Callout>
 
-See [Environment Variables](/docs/environment-variables) for the full reference.
+See [Environment Variables](/docs/environment-variables) for the full list.
 
-## Update Twitch Redirect URLs
+## Tell Twitch about your domain
 
-In the [Twitch Developer Console](https://dev.twitch.tv/console/apps), add your production redirect URLs:
+In the [Twitch Developer Console](https://dev.twitch.tv/console/apps), open your app and
+add these two redirect URLs (swap in your real domain):
 
 ```
 https://your-domain.com/api/auth/callback/twitch
-https://your-domain.com/api/bot/callback
+https://your-domain.com/api/bot/callback/twitch
 ```
 
-You can keep the localhost URLs alongside the production ones for local development.
+You can keep your `localhost` URLs in the list too, so local development still works.
 
-## Build
+---
 
-Build the web application from the repository root:
+## Option 1: Dokploy (recommended)
+
+[Dokploy](https://dokploy.com/) is a free, open-source dashboard you install on your own
+server. It handles the database, builds, domains, and HTTPS for you — no command-line
+juggling once it's set up.
+
+### Step 1 — Install Dokploy on your server
+
+On a fresh VPS (Ubuntu works great), run the one-line installer from the
+[Dokploy install docs](https://docs.dokploy.com/docs/core/installation):
 
 ```bash
-pnpm install
-pnpm build
+curl -sSL https://dokploy.com/install.sh | sh
 ```
 
-This runs Turborepo to build all packages and the Next.js app with `output: "standalone"`. The standalone output is in `apps/web/.next/standalone/`.
+✅ When it finishes, open `http://your-server-ip:3000` and create your admin account.
+
+### Step 2 — Create the database
+
+1. In Dokploy, go to **Databases → Create Database → PostgreSQL**
+2. Pick **PostgreSQL 17**, give it a name, and set a password
+3. Click **Create**, then **Deploy**
+
+✅ Open the database's page and copy its **internal connection string** — that's your
+`DATABASE_URL`. It looks like `postgresql://postgres:yourpassword@<internal-host>:5432/postgres`.
+
+### Step 3 — Create the Dirework app
+
+1. Create a **Project**, then inside it **Create Service → Application**
+2. Connect your Git repository (`mrdemonwolf/dirework`) and pick your branch
+3. Under **Build Type**, choose **Dockerfile** — Dirework's `Dockerfile` is auto-detected
+4. Set the **port** to **`3000`** (the container listens there)
+
+### Step 4 — Add your settings
+
+Open the app's **Environment** tab and paste the variables from
+[the settings above](#the-settings-youll-paste). For `DATABASE_URL`, use the internal
+connection string you copied in Step 2.
+
+<Callout type="info">
+  You don't need `SKIP_ENV_VALIDATION` here — the Dockerfile already handles that during
+  the build.
+</Callout>
+
+### Step 5 — Add your domain + turn on HTTPS
+
+1. Go to the app's **Domains** tab and add your domain
+2. Point the domain's DNS at your server's IP (an `A` record)
+3. Enable **HTTPS** — Dokploy gets a free certificate for you automatically
+
+### Step 6 — Deploy
+
+Hit **Deploy**. Dokploy builds the container, and Dirework **runs its database setup
+automatically** on first start — you don't run any migration commands.
+
+✅ Visit your domain. You should see the Dirework welcome screen. Click
+**Claim with Twitch** to become the owner.
+
+### Updating later
+
+Push to your branch and click **Deploy** again (or turn on auto-deploy in Dokploy).
+Database updates apply themselves on each start.
 
 ---
 
-## Option 1: Coolify (Recommended)
+## Option 2: Coolify
 
-[Coolify](https://coolify.io/) is an open-source, self-hosted PaaS that makes deployment simple. Dirework is configured for Coolify with the included `nixpacks.toml`.
+[Coolify](https://coolify.io/) is another open-source, self-hosted dashboard. The flow
+mirrors Dokploy:
 
-### Setup
+1. Install Coolify on your server ([Coolify install docs](https://coolify.io/docs/installation))
+2. Add a **PostgreSQL 17** database resource and copy its internal connection string
+3. Add an **Application** connected to your Git repo
+4. Set **Build Pack** to **Dockerfile** and the **port** to `3000`
+5. Paste the [environment variables](#the-settings-youll-paste), using the database's
+   internal host for `DATABASE_URL`
+6. Add your domain and enable HTTPS
+7. **Deploy** — migrations run automatically on startup
 
-1. Install Coolify on your server (see [Coolify docs](https://coolify.io/docs/installation))
-
-2. In Coolify, create a new **Service** with two resources:
-   - **PostgreSQL 17 Alpine** — as the database
-   - **Application** — connected to your Dirework Git repository
-
-3. Configure the application:
-   - **Build Pack:** Nixpacks (auto-detected from `nixpacks.toml`)
-   - **Base Directory:** `/` (repository root)
-   - **Port:** `3001`
-
-4. Set the environment variables in the Coolify dashboard:
-   - All required variables from the section above
-   - `DATABASE_URL` should point to the Coolify PostgreSQL service (use the internal hostname Coolify provides)
-   - `SKIP_ENV_VALIDATION="true"` for the build phase (runtime secrets aren't available during build)
-
-5. Add your domain in Coolify and enable HTTPS
-
-6. Deploy — Coolify will build using Nixpacks, run Drizzle migrations, and start the server
-
-### How Nixpacks Builds
-
-The `nixpacks.toml` configures the build pipeline:
-
-1. **Install** — Enables corepack/pnpm, installs dependencies, rebuilds native modules (esbuild, sharp)
-2. **Build** — Runs Drizzle migrations, builds Next.js standalone output, copies static assets
-3. **Start** — Runs `node apps/web/.next/standalone/apps/web/server.js`
-
-### Updating
-
-Push to your Git branch and Coolify will automatically rebuild and redeploy. Database migrations run automatically during the build phase.
+Dirework also includes a `nixpacks.toml`, so Coolify's Nixpacks build pack works too if
+you prefer it over the Dockerfile.
 
 ---
 
-## Option 2: Docker
+## Option 3: Docker on your own server
 
-You can containerize Dirework with Docker. Here's a production-ready Dockerfile:
-
-```dockerfile
-FROM node:20-slim AS base
-RUN corepack enable && corepack prepare pnpm@latest --activate
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-# Install dependencies
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/web/package.json apps/web/package.json
-COPY packages/api/package.json packages/api/package.json
-COPY packages/auth/package.json packages/auth/package.json
-COPY packages/db/package.json packages/db/package.json
-COPY packages/env/package.json packages/env/package.json
-COPY packages/config/package.json packages/config/package.json
-RUN pnpm install --frozen-lockfile
-
-# Copy source and build
-COPY . .
-RUN SKIP_ENV_VALIDATION=true pnpm --filter web build
-
-# Copy static assets to standalone output
-RUN cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static
-RUN [ -d apps/web/public ] && cp -r apps/web/public apps/web/.next/standalone/apps/web/public || true
-
-EXPOSE 3001
-CMD ["node", "apps/web/.next/standalone/apps/web/server.js"]
-```
+Prefer the command line? Run it directly with Docker. The repository's `Dockerfile`
+builds a small production image and runs migrations on startup.
 
 ### Build and run
 
 ```bash
+# from the repo root
 docker build -t dirework .
+
 docker run -d \
   --name dirework \
-  -p 3001:3001 \
-  --env-file apps/web/.env \
+  -p 3000:3000 \
+  --env-file .env \
   dirework
 ```
 
-### Docker Compose
+Put your production values in a `.env` file next to the command (see
+[the settings above](#the-settings-youll-paste)).
 
-For a complete setup with PostgreSQL:
+### Docker Compose (app + database together)
 
 ```yaml
 services:
@@ -162,8 +179,6 @@ services:
       POSTGRES_DB: dirework
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
 
   web:
     build: .
@@ -171,7 +186,7 @@ services:
     depends_on:
       - db
     ports:
-      - "3001:3001"
+      - "3000:3000"
     environment:
       DATABASE_URL: "postgresql://dirework:your-secure-password@db:5432/dirework"
       BETTER_AUTH_SECRET: "<generate-with-openssl-rand-base64-32>"
@@ -185,181 +200,41 @@ volumes:
   postgres_data:
 ```
 
-Run with:
-
 ```bash
 docker compose up -d
 ```
 
 <Callout type="info">
-  Migrations run automatically on startup via the entrypoint script. No manual step is needed.
+  Migrations run automatically when the container starts — there's no separate step.
 </Callout>
 
----
-
-## Option 3: VPS / Bare Metal
-
-### Setup
-
-1. Clone the repository on your server:
-
-   ```bash
-   git clone https://github.com/mrdemonwolf/dirework.git
-   cd dirework
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   pnpm install
-   ```
-
-3. Create and configure `apps/web/.env` with your production values.
-
-4. Set up PostgreSQL. You can use the included Docker Compose or connect to an external database:
-
-   ```bash
-   # Using included Docker Compose
-   pnpm db:start
-
-   # Or point DATABASE_URL to your external PostgreSQL instance
-   ```
-
-5. Push the database schema:
-
-   ```bash
-   pnpm db:push
-   ```
-
-6. Build the application:
-
-   ```bash
-   pnpm build
-   ```
-
-7. Start the production server:
-
-   ```bash
-   node apps/web/.next/standalone/apps/web/server.js
-   ```
-
-   The app runs on port 3001 by default.
-
-### Reverse Proxy
-
-Use Nginx or Caddy to proxy traffic to the Node.js server and handle HTTPS.
-
-**Caddy** (recommended — handles HTTPS automatically):
+Put a reverse proxy (Caddy or Nginx) in front for HTTPS, or use a tunnel like Cloudflare
+Tunnel. Caddy is the simplest:
 
 ```
 your-domain.com {
-    reverse_proxy 127.0.0.1:3001
+    reverse_proxy 127.0.0.1:3000
 }
 ```
 
-**Nginx:**
+---
 
-```nginx
-server {
-    listen 443 ssl;
-    server_name your-domain.com;
+## Production database
 
-    ssl_certificate /path/to/cert.pem;
-    ssl_certificate_key /path/to/key.pem;
-
-    location / {
-        proxy_pass http://127.0.0.1:3001;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-### Process Manager
-
-Use a process manager to keep the app running:
-
-```bash
-# Using PM2
-npm install -g pm2
-pm2 start "node apps/web/.next/standalone/apps/web/server.js" --name dirework
-pm2 save
-pm2 startup
-```
+The Docker Compose database above is fine for a personal instance. If you'd rather use a
+managed database, point `DATABASE_URL` at any PostgreSQL 17+ provider — Neon, Supabase,
+Railway, or your host's managed database all work. Migrations still run automatically on
+startup.
 
 ---
 
-## Option 4: Railway / Render / Fly.io
+## Before you go live — quick checklist
 
-These platforms support Node.js applications. General steps:
-
-1. Connect your Git repository
-2. Set the build command: `pnpm install && pnpm build`
-3. Set the start command: `node apps/web/.next/standalone/apps/web/server.js`
-4. Add all environment variables
-5. Provision a PostgreSQL database and set `DATABASE_URL`
-6. Set `SKIP_ENV_VALIDATION=true` as a build-time variable
-7. Deploy
-
-<Callout>
-  Make sure your platform supports Node.js 20+ and that you set `SKIP_ENV_VALIDATION=true` during the build phase, since runtime secrets aren't available at build time.
-</Callout>
-
----
-
-## Database
-
-### Production PostgreSQL
-
-For production, use a managed PostgreSQL service or a dedicated PostgreSQL server instead of the development Docker container:
-
-- **Managed services:** Neon, Supabase, Railway, AWS RDS, DigitalOcean Managed Databases
-- **Self-hosted:** Install PostgreSQL directly or use Docker with a persistent volume
-
-Update `DATABASE_URL` to point to your production database.
-
-### Migrations
-
-After updating Dirework, push any schema changes:
-
-```bash
-pnpm db:push
-```
-
-Migrations run automatically on container startup. For manual runs:
-
-```bash
-docker compose exec web node /app/packages/db/migrate.js
-```
-
----
-
-## Documentation Site
-
-The documentation site (`apps/fumadocs`) is a static site that can be deployed separately:
-
-```bash
-cd apps/fumadocs
-pnpm build
-```
-
-The static output is in `apps/fumadocs/out/`. Deploy it to any static hosting service (GitHub Pages, Netlify, Vercel, Cloudflare Pages, etc.).
-
----
-
-## Checklist
-
-Before going live, verify:
-
-- [ ] `BETTER_AUTH_SECRET` is a strong, unique value
-- [ ] `BETTER_AUTH_URL` and `CORS_ORIGIN` match your production domain (with `https://`)
-- [ ] Twitch redirect URLs are added for your production domain
-- [ ] PostgreSQL is accessible and schema is pushed
-- [ ] HTTPS is configured (required for Twitch OAuth in production)
-- [ ] `ALLOWED_TWITCH_IDS` is set if you want to restrict access
-- [ ] Application starts and you can sign in with Twitch
-- [ ] Bot account connects and responds to chat commands
-- [ ] Timer overlay works in OBS
-- [ ] Task list overlay works in OBS
+- [ ] `BETTER_AUTH_SECRET` is a fresh, long random value
+- [ ] `BETTER_AUTH_URL` and `CORS_ORIGIN` are your real `https://` domain
+- [ ] Both Twitch redirect URLs are added for your domain
+- [ ] The database is reachable from the app
+- [ ] HTTPS works (required for Twitch sign-in)
+- [ ] You can sign in and claim the instance
+- [ ] Your bot account connects and replies in chat
+- [ ] The timer and task list overlays show up in OBS

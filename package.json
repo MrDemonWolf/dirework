@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "turbo dev",
     "dev:full": "bash scripts/dev.sh",
+    "db": "bash scripts/db.sh",
     "setup": "bash scripts/setup.sh",
     "build": "turbo build",
     "check-types": "turbo check-types",

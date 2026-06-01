@@ -20,16 +20,22 @@ All environment variables are defined in `apps/web/.env`. The app validates them
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `ALLOWED_TWITCH_IDS` | `""` (allow all) | Comma-separated list of Twitch user IDs allowed to sign in. Leave empty to allow any Twitch user. |
+| `DOCS_URL` | _(unset)_ | URL to your documentation site. Used by the `!dwhelp` bot command to point viewers at the commands page. |
 | `PRIVACY_POLICY_URL` | _(unset)_ | URL to your Privacy Policy page. When set, a link appears in the app footer. |
 | `TERMS_OF_SERVICE_URL` | _(unset)_ | URL to your Terms of Service page. When set, a link appears in the app footer. |
 | `NODE_ENV` | `"development"` | Set to `"production"` for production deployments |
+| `SKIP_ENV_VALIDATION` | _(unset)_ | Set to `"true"` during CI or a Docker build to skip env validation when runtime secrets aren't available. |
+
+<Callout>
+  Access to Dirework is single-owner: the first Twitch account to sign in claims the
+  instance, and no one else can take it over. There's no separate allowlist to configure.
+</Callout>
 
 ## Example `.env`
 
 ```bash
 # Database
-DATABASE_URL="postgresql://postgres:password@localhost:5432/dirework"
+DATABASE_URL="postgresql://dirework:password@localhost:5432/dirework"
 
 # Better Auth
 BETTER_AUTH_SECRET="<your-secret-here>"
@@ -40,8 +46,8 @@ CORS_ORIGIN="http://localhost:3001"
 TWITCH_CLIENT_ID="your_client_id_here"
 TWITCH_CLIENT_SECRET="your_client_secret_here"
 
-# User allowlist (comma-separated Twitch user IDs, empty = allow all)
-ALLOWED_TWITCH_IDS=""
+# Documentation site URL (used by the !dwhelp bot command)
+# DOCS_URL="http://localhost:4000"
 
 # Legal page URLs (set to show links in footer, leave empty to hide)
 # PRIVACY_POLICY_URL="https://example.com/privacy"
