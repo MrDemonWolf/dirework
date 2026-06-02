@@ -4,7 +4,7 @@ Frosted, translucent surface used for hero product mocks and "premium" feature c
 
 ## Anatomy
 
-- Background: `color-mix(--ds-color-surface-elev 65%, transparent)`.
+- Background: `color-mix(in srgb, var(--ds-color-surface-elev) 65%, transparent)`.
 - Backdrop: `saturate(180%) blur(30px)`.
 - Border: 1px hairline at 80% opacity.
 - Radius: `1.25rem`.

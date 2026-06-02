@@ -463,7 +463,7 @@ export default function HomePage() {
           <div className="mt-12 grid md:grid-cols-2 gap-4">
             <div className="dw-card dw-bg-elev" style={{ border: "1px solid var(--hairline)" }}>
               <p className="dw-mono text-xs dw-text-2 mb-3">QUICK START</p>
-              <pre className="dw-code">{`git clone ${GITHUB.replace("https://", "")}
+              <pre className="dw-code">{`git clone ${GITHUB}.git
 cd dirework
 bun install
 bun run db:start && bun run db:push
