@@ -6,6 +6,7 @@ import { Loader2, RotateCcw, Save } from "lucide-react";
 import { toast } from "sonner";
 
 import type { TimerStylesConfig, TaskStylesConfig, PhaseLabelsConfig, ThemePreset } from "@/lib/config-types";
+import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
 import { defaultTimerStyles, defaultTaskStyles, themePresets } from "@/lib/theme-presets";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -51,15 +52,7 @@ function StylesSkeleton() {
   );
 }
 
-const defaultPhaseLabels: PhaseLabelsConfig = {
-  idle: "Ready",
-  starting: "Starting",
-  work: "Focus",
-  break: "Break",
-  longBreak: "Long Break",
-  paused: "Paused",
-  finished: "Done",
-};
+const defaultPhaseLabels: PhaseLabelsConfig = DEFAULT_PHASE_LABELS;
 
 export default function StylesPage() {
   const queryClient = useQueryClient();

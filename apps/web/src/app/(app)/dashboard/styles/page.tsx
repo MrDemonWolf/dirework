@@ -1,17 +1,8 @@
-import { auth } from "@dirework/auth";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-
+import { requireSession } from "@/lib/auth-guard";
 import StylesPage from "./styles-page";
 
 export default async function StylesRoute() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session?.user) {
-    redirect("/");
-  }
+  await requireSession();
 
   return <StylesPage />;
 }

@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- Single-owner architecture with a first-time setup flow — the first Twitch account to sign in claims the instance
+- One-command developer setup: `bun run setup` (creates `.env`, starts the database, loads the schema) and `bun run dev:full`
+- Redesigned documentation landing page with a "focus console" theme, three-step quick start, and ADHD-friendly copy
+- Dokploy deployment guide (now the recommended self-hosting path) alongside the existing Coolify and Docker options
+- Branded loading state (focus-ring spinner) and a warmer first-time setup screen
+- Shared `DEFAULT_PHASE_LABELS` constant and Twitch brand color token to keep timer labels and buttons consistent
+
+### Changed
+- Rewrote Getting Started, Deployment, and reference docs to match the real stack (Bun + Drizzle + Dockerfile), correcting stale pnpm/Prisma/nixpacks instructions
+- Corrected the bot OAuth callback path in docs to `/api/bot/callback/twitch`
+- Consolidated duplicated timer formatting and route session guards into shared helpers (`formatClock`, `requireSession`)
+
+### Removed
+- Dropped the never-implemented `ALLOWED_TWITCH_IDS` allowlist from docs and examples — single-owner login already restricts access
+
 ## [1.0.0] - 2026-02-12
 
 ### Added
@@ -32,7 +50,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Skeleton loading states for dashboard, styles, and bot settings pages
 - Sticky save/reset bars when unsaved changes exist
 - Self-hosted single-user per instance with Twitch OAuth login
-- CI/CD pipeline (GitHub Actions) with Prisma generation, type-checking, and tests
+- CI/CD pipeline (GitHub Actions) with type-checking, build, and tests (Drizzle is schema-as-code, no codegen step)
 - Vitest unit tests for config defaults, deep merge, config types, and theme presets
 - Fumadocs documentation site with macOS 26 Liquid Glass purple theme
 - Documentation covering getting started, features, deployment, chat commands, overlays, environment variables, Twitch OAuth, and troubleshooting
@@ -40,12 +58,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Coolify deployment guide with Docker and PostgreSQL setup
 
 ### Architecture
-- Turborepo + pnpm workspaces monorepo with ESM throughout
+- Turborepo + Bun workspaces monorepo with ESM throughout
 - Next.js 16 (App Router) with React 19, React Compiler, and typed routes
 - tRPC v11 with httpBatchLink, httpSubscriptionLink (SSE), and splitLink
 - Better Auth with Twitch social provider (30-day sessions)
-- Prisma 7 with PostgreSQL 17 and 4 focused config models (TimerConfig, TimerStyle, TaskStyle, BotConfig)
-- All config columns have Prisma defaults — rows lazily provisioned on first access
+- Drizzle ORM with PostgreSQL 17 and 4 focused config models (timerConfig, timerStyle, taskStyle, botConfig)
+- All config columns have Drizzle defaults — rows lazily provisioned on first access
 - API maps flat DB columns to nested frontend objects via build/flatten helpers
 - Overlays receive pre-built nested config objects from public API procedures
 - In-process EventEmitter bus for SSE event routing

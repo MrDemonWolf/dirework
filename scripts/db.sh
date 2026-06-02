@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-echo "Starting development environment..."
+echo "Bringing the database up..."
 
 # Start database
 echo "[1/3] Starting database..."
@@ -29,5 +29,4 @@ echo "[3/3] Syncing database schema..."
 cd "$ROOT_DIR" && bun run db:push
 
 echo ""
-echo "Starting dev server..."
-bun run dev
+echo "Database is up and the schema is in sync. Run 'bun run dev' to start the apps."
