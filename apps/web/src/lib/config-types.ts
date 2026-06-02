@@ -141,6 +141,17 @@ export interface PhaseLabelsConfig {
   finished: string;
 }
 
+/** Default timer phase labels — single source for controls, overlay, and previews. */
+export const DEFAULT_PHASE_LABELS: PhaseLabelsConfig = {
+  idle: "Ready",
+  starting: "Starting",
+  work: "Focus",
+  break: "Break",
+  longBreak: "Long Break",
+  paused: "Paused",
+  finished: "Done",
+};
+
 export type CommandAliasesConfig = Record<string, string>;
 
 /** Full config shape returned by config.get */

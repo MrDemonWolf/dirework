@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "turbo dev",
     "dev:full": "bash scripts/dev.sh",
+    "db": "bash scripts/db.sh",
     "setup": "bash scripts/setup.sh",
     "tokens": "bun design-system/scripts/generate.ts",
     "build": "turbo build",

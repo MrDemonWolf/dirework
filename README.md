@@ -39,11 +39,10 @@ account configuration, and OBS setup, see the
 
 1. Clone the repository
 2. Install dependencies with `bun install`
-3. Configure your `apps/web/.env` file
-4. Start PostgreSQL with `bun run db:start`
-5. Push the database schema with `bun run db:push`
-6. Start the dev server with `bun run dev:web`
-7. Open `http://localhost:3001` — on first run you'll be redirected to `/setup` to claim the instance with your Twitch account
+3. Run `bun run setup` — creates your `.env`, starts PostgreSQL, and loads the schema
+4. Add `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` to `.env`
+5. Start everything with `bun run dev:full`
+6. Open `http://localhost:3001` — on first run you'll be redirected to `/setup` to claim the instance with your Twitch account
 
 ## Usage
 
@@ -126,37 +125,40 @@ command aliases.
    bun install
    ```
 
-3. Configure environment variables in `apps/web/.env`:
+3. Run the one-command setup:
 
    ```bash
-   DATABASE_URL="postgresql://postgres:password@localhost:5432/dirework"
-   BETTER_AUTH_SECRET="generate-a-random-32-character-string"
-   BETTER_AUTH_URL="http://localhost:3001"
-   CORS_ORIGIN="http://localhost:3001"
+   bun run setup
+   ```
+
+   This creates `.env` from `.env.example`, starts PostgreSQL via Docker, and
+   pushes the database schema.
+
+4. Add your Twitch credentials to `.env`:
+
+   ```bash
    TWITCH_CLIENT_ID="your_client_id"
    TWITCH_CLIENT_SECRET="your_client_secret"
    ```
 
-4. Start the database:
+   Get them from [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps).
+   Everything else in `.env` already defaults to working local values
+   (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `CORS_ORIGIN`).
+
+5. Start the database and both apps:
 
    ```bash
-   bun db:start
+   bun run dev:full
    ```
 
-5. Push the schema:
-
-   ```bash
-   bun db:push
-   ```
-
-6. Start the dev server:
-
-   ```bash
-   bun dev
-   ```
+   Prefer to wire it up by hand? Use `bun run db:start`, then `bun run db:push`,
+   then `bun run dev`.
 
 ### Development Scripts
 
+- `bun run setup` - One-command setup: create `.env`, start the database, load the schema
+- `bun run dev:full` - Start the database (if needed) and run all apps together
+- `bun run db` - Bring the database up, wait until ready, and sync the schema (no apps)
 - `bun dev` - Start all apps (web on port 3001, docs on port 4000)
 - `bun build` - Build all apps for production
 - `bun check-types` - Run TypeScript type checking
@@ -185,6 +187,46 @@ command aliases.
 - **t3-env** for environment variable validation
 - **Turborepo** for monorepo build orchestration
 - **GitHub Actions** CI runs type checks, builds, and tests on every push
+
+## Deployment
+
+### Docker Compose
+
+The easiest way to self-host Dirework in production. Requires
+Docker and Docker Compose.
+
+1. Copy `.env.example` to `.env` and fill in all values:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Set `DATABASE_URL` to use the `db` service hostname for
+   Docker networking, and fill in the matching Postgres vars:
+
+   ```bash
+   DATABASE_URL="postgresql://dirework:your-password@db:5432/dirework"
+   POSTGRES_USER="dirework"
+   POSTGRES_PASSWORD="your-password"
+   POSTGRES_DB="dirework"
+   BETTER_AUTH_SECRET="$(openssl rand -base64 32)"
+   BETTER_AUTH_URL="https://your-domain.com"
+   CORS_ORIGIN="https://your-domain.com"
+   TWITCH_CLIENT_ID="your_client_id"
+   TWITCH_CLIENT_SECRET="your_client_secret"
+   ```
+
+2. Start the stack:
+
+   ```bash
+   docker compose up -d
+   ```
+
+3. Open your instance URL — on first run you will be redirected
+   to `/setup` to claim the instance with your Twitch account.
+
+Database migrations run automatically on startup via
+`docker-entrypoint.sh`. No manual migration step required.
 
 ## Project Structure
 

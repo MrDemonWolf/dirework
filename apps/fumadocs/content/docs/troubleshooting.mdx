@@ -5,29 +5,30 @@ description: Common issues and solutions
 
 ## Setup Issues
 
-### `pnpm install` fails
+### `bun install` fails
 
-Make sure you're using **pnpm v10+** and **Node.js v20+**:
+Make sure you have **Bun** installed and you're on **Node.js v20+**:
 
 ```bash
+bun --version    # any recent 1.x
 node --version   # Should be v20 or higher
-pnpm --version   # Should be v10 or higher
 ```
 
-If you have an older version, update Node.js via [nvm](https://github.com/nvm-sh/nvm) or the [official installer](https://nodejs.org/) and update pnpm with `corepack enable && corepack prepare pnpm@latest --activate`.
+Don't have Bun yet? Install it from [bun.sh](https://bun.sh). Update Node.js via
+[nvm](https://github.com/nvm-sh/nvm) or the [official installer](https://nodejs.org/).
 
-### `pnpm db:start` fails
+### `bun run setup` / `bun run db:start` fails
 
-This command starts PostgreSQL via Docker Compose. Common issues:
+These start PostgreSQL via Docker Compose. Common issues:
 
-- **Docker not running:** Make sure Docker Desktop (or the Docker daemon) is running.
+- **Docker not running:** Make sure Docker Desktop (or the Docker daemon) is running, then re-run the command — it's safe to run again.
 - **Port 5432 in use:** Another PostgreSQL instance may be using the port. Stop it or change the port in `packages/db/docker-compose.yml`.
 - **Permission errors:** On Linux, you may need to add your user to the `docker` group: `sudo usermod -aG docker $USER`, then log out and back in.
 
-### `pnpm db:push` fails
+### `bun run db:push` fails
 
-- **Database not running:** Run `pnpm db:start` first.
-- **Wrong DATABASE_URL:** Make sure `DATABASE_URL` in `apps/web/.env` matches your PostgreSQL connection string. The default is `postgresql://postgres:password@localhost:5432/dirework`.
+- **Database not running:** Run `bun run db:start` first.
+- **Wrong DATABASE_URL:** Make sure `DATABASE_URL` in your `.env` matches your PostgreSQL connection string. The default is `postgresql://postgres:password@localhost:5432/dirework`.
 
 ## Authentication Issues
 
@@ -37,7 +38,7 @@ Your Twitch application's redirect URLs don't match the ones Dirework is using. 
 
 ```
 http://localhost:3001/api/auth/callback/twitch
-http://localhost:3001/api/bot/callback
+http://localhost:3001/api/bot/callback/twitch
 ```
 
 For production, add your domain-based URLs too. See [Twitch OAuth Setup](/docs/twitch-oauth) for details.
@@ -47,12 +48,11 @@ For production, add your domain-based URLs too. See [Twitch OAuth Setup](/docs/t
 - Check that `BETTER_AUTH_URL` matches the URL you're accessing the app from (e.g., `http://localhost:3001`).
 - Check that `CORS_ORIGIN` matches as well.
 - Make sure your Twitch application's **Client Type** is set to **Confidential**.
-- If using `ALLOWED_TWITCH_IDS`, make sure your Twitch user ID is in the list.
 
 ### Bot account won't connect
 
 - You need to sign in to a **different** Twitch account when connecting the bot. The bot account cannot be the same as the streamer account.
-- Make sure the second redirect URL (`/api/bot/callback`) is registered in your Twitch application.
+- Make sure the second redirect URL (`/api/bot/callback/twitch`) is registered in your Twitch application.
 
 ## Overlay Issues
 
@@ -108,7 +108,7 @@ If you changed the work duration (e.g. to 50 minutes) but the timer still uses 2
 
 ### Bot not responding to commands
 
-- Make sure you've [connected a bot account](/docs/twitch-oauth#connect-a-bot-account) in the dashboard.
+- Make sure you've [connected a bot account](/docs/twitch-oauth#step-5-connect-the-bot-account) in the dashboard.
 - The bot runs inside the overlay browser sources. If the overlays are not active in OBS (or the browser source is shut down), the bot won't be listening.
 - Make sure at least one overlay (timer or task list) is active as a browser source in OBS.
 
@@ -124,7 +124,7 @@ If you changed the work duration (e.g. to 50 minutes) but the timer still uses 2
 Check types:
 
 ```bash
-pnpm check-types
+bun run check-types
 ```
 
 ### Changes to Drizzle schema not reflected
@@ -132,8 +132,8 @@ pnpm check-types
 After modifying the schema files in `packages/db/src/schema/`, generate and apply migrations:
 
 ```bash
-pnpm db:generate
-pnpm db:migrate
+bun run db:generate
+bun run db:migrate
 ```
 
 ### Port already in use

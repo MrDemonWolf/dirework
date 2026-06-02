@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { formatClock } from "@/lib/timer-utils";
+import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
 import { trpc } from "@/utils/trpc";
 
 const DEFAULT_TIMER_VALUES = {
@@ -28,22 +30,7 @@ function minutesToMs(min: number): number {
   return min * 60000;
 }
 
-function formatTime(ms: number): string {
-  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
-
-const DEFAULT_LABELS: Record<string, string> = {
-  idle: "Ready",
-  starting: "Starting",
-  work: "Focus",
-  break: "Break",
-  longBreak: "Long Break",
-  paused: "Paused",
-  finished: "Finished",
-};
+const DEFAULT_LABELS: Record<string, string> = { ...DEFAULT_PHASE_LABELS };
 
 function statusColor(status: string): string {
   switch (status) {
@@ -249,9 +236,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   }, [status]);
 
   const displayTime = isIdle
-    ? formatTime(minutesToMs(workMin))
+    ? formatClock(minutesToMs(workMin))
     : remaining !== null
-      ? formatTime(remaining)
+      ? formatClock(remaining)
       : "--:--";
 
   return (
