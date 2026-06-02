@@ -4,7 +4,7 @@ Single source of truth for Dirework's visual language across the web app, the do
 
 ## Layout
 
-```
+```text
 design-system/
   tokens.json          # canonical token source — edit this
   scripts/generate.ts  # bun script that emits per-platform outputs
@@ -27,7 +27,7 @@ design-system/
 | Namespace | Purpose | Examples |
 |---|---|---|
 | `color.brand.{50…900}` | Primary brand scale (Dirework blue-purple) | `brand500 = #6E5AF5` |
-| `color.brandDark` | Brand overrides for dark mode | `brand500 = #A78BFA` |
+| `color.brandDark` | Brand overrides for dark mode | `brand500 = #9385FB` |
 | `color.semantic` | Status colors | `success`, `warning`, `error`, `info` |
 | `color.phase` | Pomodoro phase accents | `work`, `break`, `longBreak`, `paused` |
 | `color.surface.{light,dark}` | Backgrounds, elevation, dividers | `base`, `surface`, `elev`, `hairline` |
