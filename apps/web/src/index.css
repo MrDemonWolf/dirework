@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./tokens.generated.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -10,7 +11,7 @@
   --card-foreground: oklch(0.18 0.02 260);
   --popover: oklch(1 0 0 / 70%);
   --popover-foreground: oklch(0.18 0.02 260);
-  --primary: oklch(0.5 0.2 260);
+  --primary: oklch(0.577 0.222 283);
   --primary-foreground: oklch(0.99 0 0);
   --secondary: oklch(0.94 0.01 260 / 60%);
   --secondary-foreground: oklch(0.25 0.04 260);
@@ -21,7 +22,7 @@
   --destructive: oklch(0.58 0.22 27);
   --border: oklch(0.7 0.02 260 / 20%);
   --input: oklch(0.7 0.02 260 / 20%);
-  --ring: oklch(0.55 0.18 260);
+  --ring: oklch(0.55 0.2 283);
   --chart-1: oklch(0.809 0.105 251.813);
   --chart-2: oklch(0.623 0.214 259.815);
   --chart-3: oklch(0.546 0.245 262.881);
@@ -30,12 +31,12 @@
   --radius: 1rem;
   --sidebar: oklch(0.97 0.005 260 / 70%);
   --sidebar-foreground: oklch(0.18 0.02 260);
-  --sidebar-primary: oklch(0.5 0.2 260);
+  --sidebar-primary: oklch(0.577 0.222 283);
   --sidebar-primary-foreground: oklch(0.99 0 0);
   --sidebar-accent: oklch(0.94 0.02 260 / 50%);
   --sidebar-accent-foreground: oklch(0.25 0.1 260);
   --sidebar-border: oklch(0.7 0.02 260 / 20%);
-  --sidebar-ring: oklch(0.55 0.18 260);
+  --sidebar-ring: oklch(0.55 0.2 283);
 }
 
 .dark {
@@ -45,7 +46,7 @@
   --card-foreground: oklch(0.95 0.01 260);
   --popover: oklch(0.2 0.015 260 / 80%);
   --popover-foreground: oklch(0.95 0.01 260);
-  --primary: oklch(0.68 0.18 260);
+  --primary: oklch(0.7 0.17 283);
   --primary-foreground: oklch(0.1 0 0);
   --secondary: oklch(1 0 0 / 8%);
   --secondary-foreground: oklch(0.92 0.01 260);
@@ -56,7 +57,7 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 10%);
-  --ring: oklch(0.6 0.18 260);
+  --ring: oklch(0.64 0.17 283);
   --chart-1: oklch(0.809 0.105 251.813);
   --chart-2: oklch(0.623 0.214 259.815);
   --chart-3: oklch(0.546 0.245 262.881);
@@ -64,12 +65,12 @@
   --chart-5: oklch(0.424 0.199 265.638);
   --sidebar: oklch(1 0 0 / 5%);
   --sidebar-foreground: oklch(0.95 0.01 260);
-  --sidebar-primary: oklch(0.68 0.18 260);
+  --sidebar-primary: oklch(0.7 0.17 283);
   --sidebar-primary-foreground: oklch(0.1 0 0);
   --sidebar-accent: oklch(1 0 0 / 8%);
   --sidebar-accent-foreground: oklch(0.95 0.01 260);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.6 0.18 260);
+  --sidebar-ring: oklch(0.64 0.17 283);
 }
 
 @theme inline {

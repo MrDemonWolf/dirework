@@ -1,6 +1,12 @@
 @import "tailwindcss";
 @import "fumadocs-ui/css/ocean.css";
 @import "fumadocs-ui/css/preset.css";
+@import "./tokens.generated.css";
+
+/* ──────────────────────────────────────────────────────────
+   Dirework docs. Blue-purple brand (#6E5AF5), Montserrat + Roboto.
+   Liquid-glass surfaces nod to the overlay themes.
+   ────────────────────────────────────────────────────────── */
 
 /* macOS 26 Liquid Glass — Light */
 :root {
@@ -8,17 +14,20 @@
   --color-fd-foreground: hsl(240deg 10% 4%);
   --color-fd-card: hsl(260deg 20% 99%);
   --color-fd-card-foreground: hsl(240deg 10% 4%);
-  --color-fd-primary: hsl(262deg 83% 58%);
+  --color-fd-primary: hsl(248deg 83% 58%);
   --color-fd-primary-foreground: hsl(0deg 0% 100%);
   --color-fd-secondary: hsl(260deg 20% 94%);
   --color-fd-secondary-foreground: hsl(260deg 15% 20%);
   --color-fd-muted: hsl(260deg 15% 94%);
   --color-fd-muted-foreground: hsl(240deg 4% 46%);
   --color-fd-border: hsl(260deg 10% 90%);
-  --color-fd-ring: hsl(262deg 83% 50%);
-  --color-fd-accent: hsl(262deg 30% 96%);
-  --color-fd-accent-foreground: hsl(262deg 50% 45%);
+  --color-fd-ring: hsl(248deg 83% 50%);
+  --color-fd-accent: hsl(248deg 30% 96%);
+  --color-fd-accent-foreground: hsl(248deg 50% 45%);
   --color-fd-overlay: hsl(260deg 20% 0% / 30%);
+
+  --shiki-light: #1a1523;
+  --shiki-light-bg: #f4f3f8;
 }
 
 /* macOS 26 Liquid Glass — Dark */
@@ -31,131 +40,358 @@
   --color-fd-secondary: hsl(260deg 15% 13%);
   --color-fd-secondary-foreground: hsl(0deg 0% 98%);
   --color-fd-muted-foreground: hsl(260deg 10% 72%);
-  --color-fd-primary: hsl(262deg 83% 65%);
+  --color-fd-primary: hsl(248deg 83% 72%);
   --color-fd-primary-foreground: hsl(0deg 0% 100%);
-  --color-fd-ring: hsl(262deg 83% 55%);
+  --color-fd-ring: hsl(248deg 83% 65%);
   --color-fd-overlay: hsl(260deg 20% 0% / 50%);
   --color-fd-border: hsl(260deg 15% 18%);
   --color-fd-accent: hsl(260deg 15% 15%);
   --color-fd-accent-foreground: hsl(0deg 0% 98%);
 
-  /* Shiki code theme tokens */
   --shiki-dark: #e1e4e8;
-  --shiki-dark-bg: hsl(260deg 15% 5%);
-
-  /* Slate fallbacks */
-  --color-slate-200: #e5e7eb;
-  --color-slate-300: #d1d5db;
-  --color-slate-400: #9ca3af;
-  --color-slate-800: #1e1b2e;
+  --shiki-dark-bg: #120e1b;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
     color-scheme: dark;
   }
-  body {
-    background-color: var(--color-fd-background, #0d0a18);
-    color: var(--color-fd-muted-foreground, #e5e7eb);
-  }
 }
 
-/* ============================================================
-   Dirework landing — "Focus console" motif
-   Scoped utilities (dw-*) used only by the marketing home page.
-   ============================================================ */
+/* ── Semantic brand aliases (mapped onto generated --ds-* tokens) ─────────── */
+:root {
+  --brand-50:  var(--ds-color-brand-50);
+  --brand-500: var(--ds-color-brand-500);
+  --brand-600: var(--ds-color-brand-600);
 
-/* Atmospheric glow behind the hero focus ring */
-.dw-aurora {
-  background:
-    radial-gradient(
-      60% 50% at 50% 0%,
-      hsl(262deg 83% 60% / 0.22) 0%,
-      transparent 70%
-    ),
-    radial-gradient(
-      40% 40% at 85% 30%,
-      hsl(190deg 90% 55% / 0.1) 0%,
-      transparent 70%
-    );
+  --bg-base:    var(--ds-color-surface-base);
+  --bg-surface: var(--ds-color-surface-surface);
+  --bg-elev:    var(--ds-color-surface-elev);
+  --txt-1:      var(--ds-color-text-primary);
+  --txt-2:      var(--ds-color-text-secondary);
+  --hairline:   var(--ds-color-surface-hairline);
+
+  --font-display: var(--font-montserrat), "Montserrat", -apple-system,
+    BlinkMacSystemFont, system-ui, sans-serif;
+  --font-body: var(--font-roboto), "Roboto", -apple-system, BlinkMacSystemFont,
+    system-ui, sans-serif;
 }
 
-/* Fine grain texture overlay for depth */
-.dw-grain::before {
+/* ── Typography ──────────────────────────────────────────── */
+.dw-font {
+  font-family: var(--font-body);
+}
+.dw-display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.dw-mono {
+  font-family: var(--ds-font-family-mono);
+}
+
+/* ── Surfaces / text ─────────────────────────────────────── */
+.dw-bg-base    { background-color: var(--bg-base); }
+.dw-bg-surface { background-color: var(--bg-surface); }
+.dw-bg-elev    { background-color: var(--bg-elev); }
+
+.dw-text-1     { color: var(--txt-1); }
+.dw-text-2     { color: var(--txt-2); }
+.dw-text-brand { color: var(--brand-600); }
+.dark .dw-text-brand { color: var(--brand-500); }
+
+/* ── Liquid Glass surface ────────────────────────────────── */
+.dw-glass {
+  background-color: color-mix(in srgb, var(--bg-elev) 65%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(30px);
+  backdrop-filter: saturate(180%) blur(30px);
+  border: 1px solid color-mix(in srgb, var(--hairline) 80%, transparent);
+  border-radius: 1.25rem;
+  box-shadow:
+    0 1px 0 0 color-mix(in srgb, #ffffff 60%, transparent) inset,
+    var(--ds-shadow-lg);
+  position: relative;
+}
+.dark .dw-glass {
+  background-color: color-mix(in srgb, var(--bg-elev) 55%, transparent);
+  border-color: color-mix(in srgb, var(--hairline) 70%, transparent);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.06) inset,
+    var(--ds-shadow-lg);
+}
+.dw-glass::before {
   content: "";
   position: absolute;
   inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand-500) 8%, transparent) 0%,
+    transparent 32%
+  );
   pointer-events: none;
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* Signature Pomodoro ring — slow rotating progress sweep */
-@keyframes dw-ring-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-.dw-ring-sweep {
-  animation: dw-ring-spin 14s linear infinite;
-  transform-origin: center;
-}
-
-/* Soft breathing pulse for the ring core */
-@keyframes dw-breathe {
-  0%,
-  100% {
-    opacity: 0.5;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.04);
-  }
-}
-.dw-breathe {
-  animation: dw-breathe 4s ease-in-out infinite;
+/* ── Hero headline ───────────────────────────────────────── */
+.dw-hero-headline {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.04;
+  font-size: clamp(2.25rem, 6vw, 3.75rem);
+  margin: 0;
+  text-wrap: balance;
 }
 
-/* Staggered entrance — apply with inline animation-delay */
-@keyframes dw-rise {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ── Hero glows ──────────────────────────────────────────── */
+.dw-hero-glow {
+  position: absolute;
+  inset: -10% -10% auto -10%;
+  height: 70%;
+  background: radial-gradient(
+    ellipse 60% 55% at 50% 30%,
+    rgba(110, 90, 245, 0.12) 0%,
+    transparent 65%
+  );
+  pointer-events: none;
+  z-index: 0;
 }
-.dw-rise {
-  opacity: 0;
-  animation: dw-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+.dark .dw-hero-glow {
+  background: radial-gradient(
+    ellipse 60% 55% at 50% 30%,
+    rgba(110, 90, 245, 0.22) 0%,
+    transparent 65%
+  );
+}
+.dw-hero-card-glow {
+  position: absolute;
+  inset: 8% -6%;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse 70% 60% at 50% 50%,
+    rgba(110, 90, 245, 0.18) 0%,
+    transparent 70%
+  );
+  filter: blur(8px);
+  pointer-events: none;
+}
+.dw-hero-card-float {
+  z-index: 1;
+  will-change: transform;
+  animation: dw-card-float 7s ease-in-out infinite;
+}
+@keyframes dw-card-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
 }
 
-/* Feature / step card with accent edge that lights up on hover */
+/* ── Buttons ─────────────────────────────────────────────── */
+.dw-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.4rem;
+  border-radius: var(--ds-radius-pill);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.dw-btn:active { transform: scale(0.98); }
+.dw-btn-primary {
+  background-color: var(--brand-500);
+  color: #fff;
+}
+.dw-btn-primary:hover { background-color: var(--brand-600); }
+.dark .dw-btn-primary { color: #1a1523; }
+.dw-btn-secondary {
+  background-color: transparent;
+  color: var(--brand-600);
+}
+.dark .dw-btn-secondary { color: var(--brand-500); }
+.dw-btn-secondary:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.dw-btn-ghost {
+  background-color: var(--bg-surface);
+  color: var(--txt-1);
+}
+.dw-btn-ghost:hover {
+  background-color: color-mix(in srgb, var(--bg-surface) 80%, var(--brand-500));
+}
+
+/* ── Card ────────────────────────────────────────────────── */
 .dw-card {
-  position: relative;
-  border: 1px solid var(--color-fd-border);
-  background: color-mix(in oklab, var(--color-fd-card) 80%, transparent);
-  transition:
-    border-color 0.25s ease,
-    transform 0.25s ease,
-    box-shadow 0.25s ease;
+  background-color: var(--bg-surface);
+  border-radius: 1.25rem;
+  padding: 2rem;
+  transition: transform 0.25s ease;
 }
-.dw-card:hover {
-  transform: translateY(-3px);
-  border-color: hsl(262deg 83% 60% / 0.5);
-  box-shadow: 0 12px 40px -12px hsl(262deg 83% 50% / 0.35);
+.dw-card-hover:hover { transform: translateY(-2px); }
+
+/* ── Pill ────────────────────────────────────────────────── */
+.dw-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--ds-radius-pill);
+  background-color: var(--bg-surface);
+  color: var(--txt-2);
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
+/* ── Reveal on load ──────────────────────────────────────── */
+.dw-reveal {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: dw-rise 0.5s ease forwards;
+}
+.dw-reveal-1 { animation-delay: 0.05s; }
+.dw-reveal-2 { animation-delay: 0.15s; }
+.dw-reveal-3 { animation-delay: 0.25s; }
+@keyframes dw-rise {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Code block ──────────────────────────────────────────── */
+.dw-code {
+  background-color: var(--bg-elev);
+  color: var(--txt-1);
+  border: 1px solid var(--hairline);
+  border-radius: 0.9rem;
+  padding: 1.25rem 1.4rem;
+  font-family: var(--ds-font-family-mono);
+  font-size: 0.82rem;
+  line-height: 1.7;
+  overflow-x: auto;
+}
+.dark .dw-code { background-color: #120e1b; }
+
+/* ── Navbar ──────────────────────────────────────────────── */
+#nd-nav {
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  background-color: color-mix(in srgb, var(--bg-base) 72%, transparent);
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+#nd-nav:not([data-transparent="true"]) {
+  border-bottom-color: var(--hairline);
+}
+
+/* ── Headings use Montserrat across docs ─────────────────── */
+.fd-prose h1,
+.fd-prose h2,
+.fd-prose h3,
+.fd-prose h4,
+[class*="prose"] h1,
+[class*="prose"] h2,
+[class*="prose"] h3,
+[class*="prose"] h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* ── Focus visible ───────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--brand-600);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.dark :focus-visible { outline-color: var(--brand-500); }
+
+/* ── Docs prose readability ──────────────────────────────── */
+.fd-prose,
+[class*="prose"] { line-height: 1.75; }
+.fd-prose :not(pre) > code,
+[class*="prose"] :not(pre) > code {
+  color: var(--brand-600);
+  background-color: var(--bg-surface);
+  padding: 0.15em 0.4em;
+  border-radius: 6px;
+  font-size: 0.9em;
+  font-weight: 500;
+}
+.dark .fd-prose :not(pre) > code,
+.dark [class*="prose"] :not(pre) > code { color: var(--brand-500); }
+
+/* ── Fumadocs Card — match dw-card aesthetic ─────────────── */
+.fd-card,
+a[data-card],
+div[data-card] {
+  border: 1px solid var(--hairline) !important;
+  border-radius: 1rem !important;
+  background-color: var(--bg-elev) !important;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+.fd-card:hover,
+a[data-card]:hover,
+div[data-card]:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--brand-500) 35%, var(--hairline));
+  box-shadow: 0 12px 32px -16px rgba(110, 90, 245, 0.22);
+}
+
+/* ── Tabs — pill segmented control ───────────────────────── */
+[role="tablist"] {
+  background-color: var(--bg-surface) !important;
+  border: 1px solid var(--hairline) !important;
+  border-radius: var(--ds-radius-pill) !important;
+  padding: 4px !important;
+  gap: 2px;
+}
+[role="tab"] {
+  border-radius: var(--ds-radius-pill) !important;
+  padding: 0.4rem 1rem !important;
+  font-size: 0.85rem !important;
+  font-weight: 500;
+  color: var(--txt-2) !important;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+[role="tab"][data-state="active"],
+[role="tab"][aria-selected="true"] {
+  background-color: var(--brand-50) !important;
+  color: var(--brand-600) !important;
+}
+.dark [role="tab"][data-state="active"],
+.dark [role="tab"][aria-selected="true"] { color: var(--brand-500) !important; }
+
+/* ── Accordion — match FaqRow aesthetic ──────────────────── */
+div[data-orientation="vertical"][data-state] {
+  border: 1px solid var(--hairline) !important;
+  border-radius: 1rem !important;
+  background-color: var(--bg-elev) !important;
+  margin-bottom: 0.6rem !important;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+div[data-orientation="vertical"][data-state="open"] {
+  border-color: color-mix(in srgb, var(--brand-500) 30%, var(--hairline)) !important;
+  box-shadow: 0 8px 24px -16px rgba(110, 90, 245, 0.22);
+}
+div[data-orientation="vertical"][data-state] > h3 { margin: 0 !important; }
+div[data-orientation="vertical"][data-state] > h3 > button {
+  width: 100%;
+  padding: 1rem 1.25rem !important;
+  font-weight: 600 !important;
+  color: var(--txt-1) !important;
+}
+div[data-orientation="vertical"][data-state] > h3 > button > svg {
+  color: var(--brand-500) !important;
+}
+
+/* ── Reduced motion ──────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .dw-ring-sweep,
-  .dw-breathe,
-  .dw-rise {
-    animation: none;
-  }
-  .dw-rise {
-    opacity: 1;
+  .dw-reveal,
+  .dw-hero-card-float {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }

@@ -1,4 +1,4 @@
-import { Inter } from "next/font/google";
+import { Roboto, Montserrat } from "next/font/google";
 import type { Metadata } from "next";
 
 import { Provider } from "@/components/provider";
@@ -6,8 +6,17 @@ import { Footer } from "@/components/footer";
 
 import "./global.css";
 
-const inter = Inter({
+// Match the web app: Montserrat for headings/display, Roboto for body.
+const roboto = Roboto({
   subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  variable: "--font-roboto",
+});
+
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800"],
+  variable: "--font-montserrat",
 });
 
 export const metadata: Metadata = {
@@ -52,7 +61,11 @@ export const metadata: Metadata = {
 
 export default function Layout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={inter.className} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${roboto.variable} ${montserrat.variable} ${roboto.className}`}
+      suppressHydrationWarning
+    >
       <body className="flex flex-col min-h-screen">
         <Provider>{children}</Provider>
         <Footer />

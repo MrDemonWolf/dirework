@@ -1,0 +1,97 @@
+---
+title: Design System
+description: Dirework's design tokens, the dw-* utility layer, and shared UI primitives.
+---
+
+Dirework ships a small, generated design system so the web app, the docs site, and the OBS overlays all speak the same visual language. The source of truth is a single JSON file; everything else is generated from it.
+
+## Source of truth
+
+```text
+design-system/
+  tokens.json          # canonical tokens — edit this
+  scripts/generate.ts  # bun script that emits per-platform outputs
+  README.md            # full reference
+  components/          # markdown catalog (one .md per primitive)
+```
+
+Regenerate the outputs from the repo root:
+
+```bash
+bun run tokens
+```
+
+This writes three committed files:
+
+| Output | Consumed by |
+| --- | --- |
+| `apps/fumadocs/src/app/tokens.generated.css` | Docs `--ds-*` CSS variables |
+| `apps/web/src/tokens.generated.css` | Web app `--ds-*` CSS variables |
+| `apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts` | Landing-page theme gallery |
+
+CI verifies the outputs are in sync: `bun run tokens && git diff --exit-code`. Never edit a generated file by hand.
+
+## Brand
+
+Dirework's primary is a **blue-leaning purple `#6E5AF5`** — a nod to Twitch purple (`#9146FF`) without copying it, nudged toward blue. Dark mode lightens the brand to `#9385FB` for contrast on near-black surfaces.
+
+- **Display / headings:** Montserrat (`--ds-font-family-display`)
+- **Body:** Roboto (`--ds-font-family-sans`)
+- **Code:** JetBrains Mono (`--ds-font-family-mono`)
+
+## Tokens
+
+All tokens are exposed as `--ds-*` CSS custom properties. Highlights:
+
+| Namespace | Variable pattern | Example |
+| --- | --- | --- |
+| Brand scale | `--ds-color-brand-{50…900}` | `--ds-color-brand-500: #6E5AF5` |
+| Semantic | `--ds-color-{success,warning,error,info}` | `--ds-color-success: #34C759` |
+| Phase | `--ds-color-phase-{work,break,long-break,paused}` | timer ring accents |
+| Surface | `--ds-color-surface-{base,surface,elev,hairline}` | light/dark aware |
+| Text | `--ds-color-text-{primary,secondary,muted}` | light/dark aware |
+| Partner | `--ds-color-partner-{twitch,discord,obs}` | partner brands only |
+| Type | `--ds-font-size-{xs…6xl}`, `--ds-font-weight-*` | `--ds-font-size-5xl: 48px` |
+| Space | `--ds-space-{0…11}` | 4px-based scale |
+| Radius | `--ds-radius-{xs…2xl,pill}` | `--ds-radius-pill: 9999px` |
+| Motion | `--ds-motion-duration-*`, `--ds-motion-easing-*` | `fast: 150ms` |
+| Shadow | `--ds-shadow-{xs…lg,glow}` | `--ds-shadow-glow` |
+
+Dark-mode values are swapped under `.dark` / `[data-theme="dark"]` automatically.
+
+## The `dw-*` utility layer
+
+The marketing and docs surfaces use a thin set of utility classes (defined in `apps/fumadocs/src/app/global.css`) that read the tokens. These keep the landing page token-backed without pulling in a component framework.
+
+| Class | Purpose |
+| --- | --- |
+| `dw-display` | Montserrat heading style |
+| `dw-text-1` / `dw-text-2` / `dw-text-brand` | Text hierarchy |
+| `dw-bg-base` / `dw-bg-surface` / `dw-bg-elev` | Surfaces |
+| `dw-glass` | Liquid-glass translucent card |
+| `dw-card` / `dw-card-hover` | Content container |
+| `dw-btn` + `dw-btn-primary/secondary/ghost` | Buttons |
+| `dw-pill` | Metadata / trust chip |
+| `dw-code` | Inline code block |
+| `dw-reveal-{1,2,3}` | Staggered entrance animation |
+
+## Component catalog
+
+Shared primitives are documented one-per-file under `design-system/components/`:
+
+- **Button**, **Card**, **Glass Card**, **Pill** — marketing chrome
+- **Timer Ring** — the overlay progress ring (circle + squircle), mirroring `apps/web/src/lib/timer-utils.ts`
+- **Task Card** — the grouped task overlay, mirroring `task-list-display.tsx`
+- **Chat Bubble** — the Twitch command preview
+- **Theme Swatch** — the overlay theme gallery, driven by the generated `OVERLAY_THEMES`
+
+## Overlay themes
+
+`overlay.themes` in `tokens.json` mirrors the 11 presets in `apps/web/src/lib/theme-presets.ts`, holding the four swatch colors each exposes (`bg`, `accent`, `text`, `username`). That data is generated into a typed module the landing-page gallery renders. When a preset's preview colors change, update `tokens.json` and run `bun run tokens`.
+
+## Accessibility rules
+
+- **Two themes, always.** Every surface must read in light and dark.
+- **Never color alone.** Done tasks use strike-through *and* a dimmed color.
+- **Honor reduced motion.** Animated primitives stop under `prefers-reduced-motion: reduce`.
+- **Real interactive elements.** Buttons and links are `<button>`/`<a>`, never clickable `<div>`s.

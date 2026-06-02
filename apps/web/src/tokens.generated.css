@@ -1,0 +1,100 @@
+/*
+ * Dirework Design System — GENERATED FILE. Do not edit by hand.
+ * Source: design-system/tokens.json
+ * Run `bun run tokens` to regenerate.
+ */
+
+:root {
+  --ds-color-brand-50: #F1F0FE;
+  --ds-color-brand-100: #E4E1FD;
+  --ds-color-brand-200: #CBC4FB;
+  --ds-color-brand-300: #AA9FF8;
+  --ds-color-brand-400: #8B7CF6;
+  --ds-color-brand-500: #6E5AF5;
+  --ds-color-brand-600: #5B43E0;
+  --ds-color-brand-700: #4A35C2;
+  --ds-color-brand-800: #3B2C9C;
+  --ds-color-brand-900: #2E2576;
+  --ds-color-success: #34C759;
+  --ds-color-warning: #FF9F0A;
+  --ds-color-error: #FF453A;
+  --ds-color-info: #6E5AF5;
+  --ds-color-phase-work: #34C759;
+  --ds-color-phase-break: #0A84FF;
+  --ds-color-phase-long-break: #BF5AF2;
+  --ds-color-phase-paused: #FF9F0A;
+  --ds-color-surface-base: #FFFFFF;
+  --ds-color-surface-surface: #F4F3F8;
+  --ds-color-surface-elev: #FBFAFE;
+  --ds-color-surface-hairline: #E5E2EF;
+  --ds-color-text-primary: #1A1523;
+  --ds-color-text-secondary: #6B6577;
+  --ds-color-text-muted: #9C97A8;
+  --ds-color-partner-twitch: #9146FF;
+  --ds-color-partner-twitch-dark: #772CE8;
+  --ds-color-partner-discord: #5865F2;
+  --ds-color-partner-obs: #302E3B;
+  --ds-font-family-display: Montserrat, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --ds-font-family-sans: Roboto, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --ds-font-family-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --ds-font-size-xs: 12px;
+  --ds-font-size-sm: 13px;
+  --ds-font-size-base: 14px;
+  --ds-font-size-md: 16px;
+  --ds-font-size-lg: 18px;
+  --ds-font-size-xl: 20px;
+  --ds-font-size-2xl: 24px;
+  --ds-font-size-3xl: 30px;
+  --ds-font-size-4xl: 36px;
+  --ds-font-size-5xl: 48px;
+  --ds-font-size-6xl: 60px;
+  --ds-font-weight-regular: 400;
+  --ds-font-weight-medium: 500;
+  --ds-font-weight-semibold: 600;
+  --ds-font-weight-bold: 700;
+  --ds-font-weight-extrabold: 800;
+  --ds-space-0: 2px;
+  --ds-space-1: 4px;
+  --ds-space-2: 8px;
+  --ds-space-3: 12px;
+  --ds-space-4: 16px;
+  --ds-space-5: 20px;
+  --ds-space-6: 24px;
+  --ds-space-7: 32px;
+  --ds-space-8: 40px;
+  --ds-space-9: 48px;
+  --ds-space-10: 64px;
+  --ds-space-11: 80px;
+  --ds-radius-xs: 6px;
+  --ds-radius-sm: 8px;
+  --ds-radius-md: 12px;
+  --ds-radius-lg: 16px;
+  --ds-radius-xl: 20px;
+  --ds-radius-2xl: 24px;
+  --ds-radius-pill: 9999px;
+  --ds-motion-duration-instant: 0ms;
+  --ds-motion-duration-fast: 150ms;
+  --ds-motion-duration-base: 220ms;
+  --ds-motion-duration-slow: 320ms;
+  --ds-motion-duration-long: 500ms;
+  --ds-motion-easing-standard: cubic-bezier(0.4, 0.0, 0.2, 1);
+  --ds-motion-easing-emphasized: cubic-bezier(0.2, 0.0, 0, 1);
+  --ds-shadow-xs: 0 1px 2px rgba(26,21,35,0.08);
+  --ds-shadow-sm: 0 2px 6px rgba(26,21,35,0.10);
+  --ds-shadow-md: 0 8px 24px -8px rgba(26,21,35,0.18);
+  --ds-shadow-lg: 0 24px 60px -28px rgba(26,21,35,0.35);
+  --ds-shadow-glow: 0 0 24px rgba(110,90,245,0.30);
+}
+
+.dark, [data-theme="dark"] {
+  --ds-color-brand-50: rgba(110,90,245,0.12);
+  --ds-color-brand-500: #9385FB;
+  --ds-color-brand-600: #6E5AF5;
+  --ds-color-surface-base: #0E0B16;
+  --ds-color-surface-surface: #171221;
+  --ds-color-surface-elev: #120E1B;
+  --ds-color-surface-hairline: #2A2438;
+  --ds-color-text-primary: #F5F3FF;
+  --ds-color-text-secondary: #A8A2B8;
+  --ds-color-text-muted: #6B6577;
+}
