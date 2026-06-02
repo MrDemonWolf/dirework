@@ -10,6 +10,7 @@
     "dev": "turbo dev",
     "dev:full": "bash scripts/dev.sh",
     "setup": "bash scripts/setup.sh",
+    "tokens": "bun design-system/scripts/generate.ts",
     "build": "turbo build",
     "check-types": "turbo check-types",
     "dev:native": "turbo -F native dev",
