@@ -47,14 +47,20 @@ export const auth = betterAuth({
     session: {
       create: {
         after: async () => {
-          // Provision singleton config rows on every login — onConflictDoNothing is atomic
-          await Promise.all([
-            db.insert(schema.timerConfig).values({}).onConflictDoNothing(),
-            db.insert(schema.timerStyle).values({}).onConflictDoNothing(),
-            db.insert(schema.taskStyle).values({}).onConflictDoNothing(),
-            db.insert(schema.botConfig).values({}).onConflictDoNothing(),
-            db.insert(schema.instanceConfig).values({}).onConflictDoNothing(),
-          ]);
+          // Provision singleton config rows on every login — onConflictDoNothing is atomic.
+          // Never fail the login over provisioning: rows usually exist already,
+          // and missing ones are lazily created by ensureUserConfig() on first access.
+          try {
+            await Promise.all([
+              db.insert(schema.timerConfig).values({}).onConflictDoNothing(),
+              db.insert(schema.timerStyle).values({}).onConflictDoNothing(),
+              db.insert(schema.taskStyle).values({}).onConflictDoNothing(),
+              db.insert(schema.botConfig).values({}).onConflictDoNothing(),
+              db.insert(schema.instanceConfig).values({}).onConflictDoNothing(),
+            ]);
+          } catch (err) {
+            console.warn("[auth] Singleton config provisioning failed (will retry lazily):", err);
+          }
         },
       },
     },

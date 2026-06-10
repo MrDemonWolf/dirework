@@ -13,18 +13,20 @@
     }
   },
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@dirework/auth": "workspace:*",
     "@dirework/db": "workspace:*",
     "@dirework/env": "workspace:*",
-    "drizzle-orm": "^0.41.0",
     "@trpc/client": "^11.7.2",
     "@trpc/server": "^11.7.2",
     "@twurple/auth": "^8.0.3",
     "@twurple/chat": "^8.0.3",
     "dotenv": "^17.2.2",
+    "drizzle-orm": "^0.41.0",
+    "ioredis": "^5.11.1",
     "next": "^16.1.1",
     "zod": "^4.1.13"
   },

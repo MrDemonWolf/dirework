@@ -5,7 +5,7 @@ import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 
 import { env } from "@dirework/env/server";
-import { ee, TASK_LIST_CHANGE, BOT_CONFIG_CHANGE } from "../events";
+import { ee, emitEvent, TASK_LIST_CHANGE, BOT_CONFIG_CHANGE } from "../events";
 import { logger } from "../logger";
 import { buildBotConfig } from "../routers/config";
 import type { BotConfigData } from "./commands";
@@ -107,7 +107,7 @@ class TwitchBotService {
       try {
         await this.db.delete(schema.task)
           .where(sql`lower(${schema.task.authorUsername}) = lower(${username})`);
-        ee.emit(TASK_LIST_CHANGE);
+        emitEvent(TASK_LIST_CHANGE);
       } catch (err) {
         logger.error("[Bot] Error handling ban:", err);
       }
@@ -118,7 +118,7 @@ class TwitchBotService {
       try {
         await this.db.delete(schema.task)
           .where(sql`lower(${schema.task.authorUsername}) = lower(${username})`);
-        ee.emit(TASK_LIST_CHANGE);
+        emitEvent(TASK_LIST_CHANGE);
       } catch (err) {
         logger.error("[Bot] Error handling timeout:", err);
       }

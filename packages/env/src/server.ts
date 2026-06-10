@@ -14,6 +14,10 @@ export const env = createEnv({
     TWITCH_CLIENT_ID: z.string().min(1),
     TWITCH_CLIENT_SECRET: z.string().min(1),
 
+    // Redis pub/sub event bus (optional — falls back to in-process events).
+    // Set when running multiple instances/replicas so overlays stay in sync.
+    REDIS_URL: z.string().min(1).optional(),
+
     // Documentation site URL (for bot !dwhelp command)
     DOCS_URL: z.url().optional(),
 

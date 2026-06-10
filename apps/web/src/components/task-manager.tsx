@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSubscription } from "@trpc/tanstack-react-query";
 import { Check, Focus, ListTodo, Trash2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -14,6 +15,8 @@ interface TaskManagerProps {
   userTwitchId: string;
   username: string;
   displayName: string;
+  /** Overlay tasks token — enables live SSE sync (chat commands show up instantly). */
+  overlayToken?: string | null;
 }
 
 interface TaskGroup {
@@ -47,6 +50,7 @@ export function TaskManager({
   userTwitchId,
   username,
   displayName,
+  overlayToken,
 }: TaskManagerProps) {
   const queryClient = useQueryClient();
   const [newTask, setNewTask] = useState("");
@@ -55,7 +59,18 @@ export function TaskManager({
 
   const tasks = useQuery({
     ...trpc.task.list.queryOptions(),
-    refetchInterval: 3000,
+    // SSE keeps this fresh when a token is available; polling is the fallback
+    refetchInterval: overlayToken ? 30000 : 3000,
+  });
+
+  // Live sync: any task change (dashboard, chat command, bot) pushes an SSE
+  // event — refetch the list so the manager mirrors the overlay instantly.
+  useSubscription({
+    ...trpc.overlay.onTaskList.subscriptionOptions({ token: overlayToken ?? "" }),
+    enabled: Boolean(overlayToken),
+    onData: () => {
+      queryClient.invalidateQueries({ queryKey: trpc.task.list.queryKey() });
+    },
   });
 
   const invalidate = () => {

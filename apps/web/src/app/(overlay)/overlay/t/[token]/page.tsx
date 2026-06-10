@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 
 import { defaultTimerStyles } from "@/lib/theme-presets";
 import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
+import { OverlayStatus } from "@/components/overlay-status";
 import { TimerDisplay } from "@/components/timer-display";
 import { trpc } from "@/utils/trpc";
 
@@ -28,8 +29,10 @@ export default function TimerOverlayPage() {
   const lastKnownDataRef = useRef(data);
   if (data) lastKnownDataRef.current = data;
 
+  // No data yet (first connect, bad token, or server unreachable) — show a
+  // quiet status hint instead of a blank browser source.
   const current = data ?? lastKnownDataRef.current;
-  if (!current && (status === "connecting" || status === "idle")) return null;
+  if (!current) return <OverlayStatus error={status === "error"} />;
 
   const timerState = current?.timerState ?? defaultTimerState;
   const timerStyles = current?.timerStyles ?? defaultTimerStyles;

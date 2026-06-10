@@ -1,10 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ee, TIMER_STATE_CHANGE, TASK_LIST_CHANGE, BOT_CONFIG_CHANGE } from "../events";
+import { ee, emitEvent, TIMER_STATE_CHANGE, TASK_LIST_CHANGE, BOT_CONFIG_CHANGE } from "../events";
 
 describe("event emitter", () => {
-  it("should have maxListeners set to 100", () => {
-    expect(ee.getMaxListeners()).toBe(100);
+  it("should allow many concurrent SSE listeners", () => {
+    expect(ee.getMaxListeners()).toBe(200);
+  });
+
+  it("emitEvent delivers locally when REDIS_URL is unset", () => {
+    const handler = vi.fn();
+    ee.on(TIMER_STATE_CHANGE, handler);
+    emitEvent(TIMER_STATE_CHANGE);
+    expect(handler).toHaveBeenCalledOnce();
+    ee.off(TIMER_STATE_CHANGE, handler);
   });
 
   it("should emit and receive timerStateChange events", () => {

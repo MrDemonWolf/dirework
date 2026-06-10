@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, RotateCcw, Save } from "lucide-react";
+import { Loader2, Radio, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 import type { TimerStylesConfig, TaskStylesConfig, PhaseLabelsConfig, ThemePreset } from "@/lib/config-types";
@@ -159,23 +159,61 @@ export default function StylesPage() {
       setSavedTaskStyles(taskStyles);
       setSavedPhaseLabels(phaseLabels);
       setHasUnsaved(false);
-      toast.success("Styles saved successfully");
+      toast.success("Applied to live — your overlays are updated");
     } catch {
-      toast.error("Failed to save styles");
+      toast.error("Failed to apply styles");
     }
   }, [timerStyles, taskStyles, phaseLabels, updateTimerMutation, updateTaskMutation, updatePhaseLabelsMutation]);
+
+  // Warn before leaving the page with unapplied preview changes
+  useEffect(() => {
+    if (!hasUnsaved) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [hasUnsaved]);
+
+  // Cmd/Ctrl+S applies the preview to live
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        if (hasUnsaved && !isSaving) void handleSave();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [hasUnsaved, isSaving, handleSave]);
 
   if (config.isLoading) {
     return <StylesSkeleton />;
   }
 
   return (
-    <div className={cn("container mx-auto max-w-5xl px-4 py-8", hasUnsaved && "pb-24")}>
-      <div className="mb-6">
-        <h1 className="font-heading text-2xl font-bold">Theme Center</h1>
-        <p className="text-sm text-muted-foreground">
-          Browse preset themes or customize your overlay styles
-        </p>
+    <div className="container mx-auto max-w-5xl px-4 py-8 pb-24">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-heading text-2xl font-bold">Theme Center</h1>
+          <p className="text-sm text-muted-foreground">
+            Changes preview here first — nothing touches your stream until you apply
+          </p>
+        </div>
+        {hasUnsaved ? (
+          <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-60" />
+              <span className="relative inline-flex size-2 rounded-full bg-amber-500" />
+            </span>
+            Preview — not live yet
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+            <span className="inline-flex size-2 rounded-full bg-emerald-500" />
+            Live — overlays match
+          </span>
+        )}
       </div>
 
       {/* Theme Browser */}
@@ -227,37 +265,51 @@ export default function StylesPage() {
         </div>
       </div>
 
-      {/* Sticky Save / Reset Bar */}
-      {hasUnsaved && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/80 backdrop-blur-2xl">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-            <p className="text-sm text-muted-foreground">You have unsaved changes</p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleReset}
-                disabled={isSaving}
-              >
-                <RotateCcw className="mr-1.5 size-3.5" />
-                Reset
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSave}
-                disabled={isSaving}
-              >
-                {isSaving ? (
-                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                ) : (
-                  <Save className="mr-1.5 size-3.5" />
-                )}
-                Save Changes
-              </Button>
-            </div>
+      {/* Apply-to-live control bar — always mounted, slides in when previewing changes */}
+      <div
+        aria-hidden={!hasUnsaved}
+        className={cn(
+          "fixed inset-x-0 bottom-0 z-40 border-t bg-background/80 backdrop-blur-2xl transition-all duration-300",
+          hasUnsaved
+            ? "translate-y-0 opacity-100"
+            : "pointer-events-none translate-y-full opacity-0",
+        )}
+      >
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="relative flex size-2 shrink-0">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-60" />
+              <span className="relative inline-flex size-2 rounded-full bg-amber-500" />
+            </span>
+            Previewing changes — your stream overlays still show the live styles
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleReset}
+              disabled={isSaving}
+              tabIndex={hasUnsaved ? 0 : -1}
+            >
+              <RotateCcw className="mr-1.5 size-3.5" />
+              Revert
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={isSaving}
+              tabIndex={hasUnsaved ? 0 : -1}
+            >
+              {isSaving ? (
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              ) : (
+                <Radio className="mr-1.5 size-3.5" />
+              )}
+              Apply to Live
+            </Button>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

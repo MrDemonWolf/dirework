@@ -34,6 +34,10 @@ CORS_ORIGIN="https://your-domain.com"
 TWITCH_CLIENT_ID="<your_client_id>"
 TWITCH_CLIENT_SECRET="<your_client_secret>"
 NODE_ENV="production"
+
+# Optional — only needed if you run more than one app instance/replica.
+# Keeps overlays, dashboard, and chat bot in sync via Redis pub/sub.
+# REDIS_URL="redis://<internal-host>:6379"
 ```
 
 <Callout type="warn">
@@ -86,6 +90,14 @@ curl -sSL https://dokploy.com/install.sh | sh
 
 ✅ Open the database's page and copy its **internal connection string** — that's your
 `DATABASE_URL`. It looks like `postgresql://postgres:yourpassword@<internal-host>:5432/postgres`.
+
+<Callout type="info">
+  **Optional — Redis for multi-instance sync.** A single Dirework container keeps its
+  overlays in sync on its own. If you plan to run more than one replica, also create a
+  **Redis** database in Dokploy (**Databases → Create Database → Redis**), copy its
+  internal connection string, and set it as `REDIS_URL` in Step 4. Dirework then routes
+  its live events through Redis pub/sub so every instance pushes the same updates.
+</Callout>
 
 ### Step 3 — Create the Dirework app
 
@@ -180,15 +192,21 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
   web:
     build: .
     restart: unless-stopped
     depends_on:
       - db
+      - redis
     ports:
       - "3000:3000"
     environment:
       DATABASE_URL: "postgresql://dirework:your-secure-password@db:5432/dirework"
+      REDIS_URL: "redis://redis:6379"
       BETTER_AUTH_SECRET: "<generate-with-openssl-rand-base64-32>"
       BETTER_AUTH_URL: "https://your-domain.com"
       CORS_ORIGIN: "https://your-domain.com"
@@ -199,6 +217,10 @@ services:
 volumes:
   postgres_data:
 ```
+
+The repository's own `docker-compose.yml` is a fuller version of this — Postgres,
+Redis, and the app with healthchecks wired up. You can deploy it as-is (in Dokploy,
+create a **Compose** service instead of an Application and point it at the repo).
 
 ```bash
 docker compose up -d

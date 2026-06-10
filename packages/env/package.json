@@ -17,5 +17,8 @@
     "@dirework/config": "workspace:*",
     "@types/node": "^22.13.14",
     "typescript": "^5"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit"
   }
 }

@@ -5,6 +5,7 @@ import { useSubscription } from "@trpc/tanstack-react-query";
 import { useParams } from "next/navigation";
 
 import { defaultTaskStyles } from "@/lib/theme-presets";
+import { OverlayStatus } from "@/components/overlay-status";
 import { TaskListDisplay } from "@/components/task-list-display";
 import { trpc } from "@/utils/trpc";
 
@@ -19,8 +20,10 @@ export default function TaskListOverlayPage() {
   const lastKnownDataRef = useRef(data);
   if (data) lastKnownDataRef.current = data;
 
+  // No data yet (first connect, bad token, or server unreachable) — show a
+  // quiet status hint instead of a blank browser source.
   const current = data ?? lastKnownDataRef.current;
-  if (!current && (status === "connecting" || status === "idle")) return null;
+  if (!current) return <OverlayStatus error={status === "error"} />;
 
   const rawTasks = current?.tasks ?? [];
   const tasks = rawTasks as {

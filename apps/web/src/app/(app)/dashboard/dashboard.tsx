@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, Eye, EyeOff, ListTodo, RefreshCw, Timer } from "lucide-react";
+import { Check, Copy, Eye, EyeOff, ListTodo, RefreshCw, Timer } from "lucide-react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
@@ -53,16 +53,28 @@ export default function Dashboard({
     },
   });
 
-  const copyUrl = (path: string) => {
+  const [copiedPath, setCopiedPath] = useState<string | null>(null);
+  const copyUrl = async (path: string) => {
     const url = `${window.location.origin}${path}`;
-    navigator.clipboard.writeText(url);
-    toast.success("Copied to clipboard");
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedPath(path);
+      setTimeout(() => setCopiedPath((p) => (p === path ? null : p)), 2000);
+      toast.success("Copied to clipboard");
+    } catch {
+      toast.error("Couldn't copy — select the URL and copy manually");
+    }
   };
 
   const [showTimerPreview, setShowTimerPreview] = useState(false);
   const [showTasksPreview, setShowTasksPreview] = useState(false);
   const [showTimerToken, setShowTimerToken] = useState(false);
   const [showTasksToken, setShowTasksToken] = useState(false);
+
+  // Compute once per mount so a re-render across an hour boundary can't
+  // flip the greeting mid-session.
+  const [greeting] = useState(() => getGreeting());
+  const [subGreeting] = useState(() => getSubGreeting());
 
   const timerToken = user.data?.overlayTimerToken;
   const tasksToken = user.data?.overlayTasksToken;
@@ -77,10 +89,10 @@ export default function Dashboard({
       <div className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="font-heading text-3xl font-bold" suppressHydrationWarning>
-            {getGreeting()}, {session.user.name}
+            {greeting}, {session.user.name}
           </h1>
           <p className="text-muted-foreground" suppressHydrationWarning>
-            {getSubGreeting()}
+            {subGreeting}
           </p>
         </div>
         <TimerStatusBadge />
@@ -169,6 +181,7 @@ export default function Dashboard({
                     userTwitchId={user.data.twitchId ?? ""}
                     username={user.data.name}
                     displayName={user.data.displayName ?? user.data.name}
+                    overlayToken={tasksToken}
                   />
                 ) : (
                   <p className="text-sm text-muted-foreground">Loading...</p>
@@ -238,7 +251,11 @@ export default function Dashboard({
                       }
                       aria-label="Copy timer overlay URL"
                     >
-                      <Copy className="size-3.5" />
+                      {copiedPath === `/overlay/t/${user.data.overlayTimerToken}` ? (
+                        <Check className="size-3.5 text-emerald-500" />
+                      ) : (
+                        <Copy className="size-3.5" />
+                      )}
                     </Button>
                     <Button
                       variant="outline"
@@ -282,7 +299,11 @@ export default function Dashboard({
                       }
                       aria-label="Copy task list overlay URL"
                     >
-                      <Copy className="size-3.5" />
+                      {copiedPath === `/overlay/l/${user.data.overlayTasksToken}` ? (
+                        <Check className="size-3.5 text-emerald-500" />
+                      ) : (
+                        <Copy className="size-3.5" />
+                      )}
                     </Button>
                     <Button
                       variant="outline"

@@ -1,6 +1,21 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
+  "globalEnv": [
+    "SKIP_ENV_VALIDATION",
+    "NODE_ENV",
+    "DATABASE_URL",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "CORS_ORIGIN",
+    "TWITCH_CLIENT_ID",
+    "TWITCH_CLIENT_SECRET",
+    "REDIS_URL",
+    "DOCS_URL",
+    "PRIVACY_POLICY_URL",
+    "TERMS_OF_SERVICE_URL",
+    "NEXT_PUBLIC_BASE_PATH"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

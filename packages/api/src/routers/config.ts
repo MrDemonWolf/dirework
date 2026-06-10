@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { protectedProcedure, router } from "../index";
-import { ee, TIMER_STATE_CHANGE, TASK_LIST_CHANGE, BOT_CONFIG_CHANGE } from "../events";
+import { emitEvent, TIMER_STATE_CHANGE, TASK_LIST_CHANGE, BOT_CONFIG_CHANGE } from "../events";
 import type { TimerConfig, TimerStyle, TaskStyle, BotConfig, DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 
@@ -381,7 +381,7 @@ export const configRouter = router({
         .where(eq(schema.timerConfig.id, "singleton"))
         .returning();
       if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found" });
-      ee.emit(TIMER_STATE_CHANGE);
+      emitEvent(TIMER_STATE_CHANGE);
       return buildTimerConfig(updated);
     }),
 
@@ -395,7 +395,7 @@ export const configRouter = router({
         .where(eq(schema.timerStyle.id, "singleton"))
         .returning();
       if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found" });
-      ee.emit(TIMER_STATE_CHANGE);
+      emitEvent(TIMER_STATE_CHANGE);
       return buildTimerStylesConfig(updated);
     }),
 
@@ -409,7 +409,7 @@ export const configRouter = router({
         .where(eq(schema.taskStyle.id, "singleton"))
         .returning();
       if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found" });
-      ee.emit(TASK_LIST_CHANGE);
+      emitEvent(TASK_LIST_CHANGE);
       return buildTaskStylesConfig(updated);
     }),
 
@@ -497,7 +497,7 @@ export const configRouter = router({
         })
         .where(eq(schema.botConfig.id, "singleton"))
         .returning();
-      ee.emit(BOT_CONFIG_CHANGE);
+      emitEvent(BOT_CONFIG_CHANGE);
       return result ?? null;
     }),
 
@@ -527,7 +527,7 @@ export const configRouter = router({
         })
         .where(eq(schema.timerConfig.id, "singleton"))
         .returning();
-      ee.emit(TIMER_STATE_CHANGE);
+      emitEvent(TIMER_STATE_CHANGE);
       return result ?? null;
     }),
 
@@ -544,7 +544,7 @@ export const configRouter = router({
         .set({ commandAliases: input.commandAliases })
         .where(eq(schema.botConfig.id, "singleton"))
         .returning();
-      ee.emit(BOT_CONFIG_CHANGE);
+      emitEvent(BOT_CONFIG_CHANGE);
       return result ?? null;
     }),
 });

@@ -65,7 +65,16 @@ export async function GET(request: NextRequest) {
     return errorRedirect(request, "Token exchange failed — check redirect URI matches Twitch app");
   }
 
-  const tokens = await tokenRes.json();
+  const tokens = await tokenRes.json().catch(() => null);
+  if (
+    !tokens ||
+    typeof tokens.access_token !== "string" ||
+    typeof tokens.refresh_token !== "string" ||
+    typeof tokens.expires_in !== "number"
+  ) {
+    logger.error("[Auth] Twitch token response missing expected fields");
+    return errorRedirect(request, "Twitch returned an incomplete token response — please try again");
+  }
 
   // Get bot user info from Twitch
   const userRes = await fetch("https://api.twitch.tv/helix/users", {
@@ -79,11 +88,10 @@ export async function GET(request: NextRequest) {
     return errorRedirect(request, "Failed to fetch bot user info from Twitch");
   }
 
-  const {
-    data: [botUser],
-  } = await userRes.json();
+  const userBody = await userRes.json().catch(() => null);
+  const botUser = Array.isArray(userBody?.data) ? userBody.data[0] : undefined;
 
-  if (!botUser) {
+  if (!botUser?.id || !botUser.login) {
     return errorRedirect(request, "No user data returned from Twitch");
   }
 

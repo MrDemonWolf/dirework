@@ -20,6 +20,7 @@ All environment variables are defined in `apps/web/.env`. The app validates them
 
 | Variable | Default | Description |
 | --- | --- | --- |
+| `REDIS_URL` | _(unset)_ | Redis connection string (e.g. `redis://redis:6379`). When set, live events route through Redis pub/sub so multiple app instances stay in sync. Unset, events use the in-process bus — fine for a single container. |
 | `DOCS_URL` | _(unset)_ | URL to your documentation site. Used by the `!dwhelp` bot command to point viewers at the commands page. |
 | `PRIVACY_POLICY_URL` | _(unset)_ | URL to your Privacy Policy page. When set, a link appears in the app footer. |
 | `TERMS_OF_SERVICE_URL` | _(unset)_ | URL to your Terms of Service page. When set, a link appears in the app footer. |
@@ -45,6 +46,9 @@ CORS_ORIGIN="http://localhost:3001"
 # Twitch OAuth (from dev.twitch.tv)
 TWITCH_CLIENT_ID="your_client_id_here"
 TWITCH_CLIENT_SECRET="your_client_secret_here"
+
+# Redis pub/sub (only needed for multi-instance deployments)
+# REDIS_URL="redis://localhost:6379"
 
 # Documentation site URL (used by the !dwhelp bot command)
 # DOCS_URL="http://localhost:4000"

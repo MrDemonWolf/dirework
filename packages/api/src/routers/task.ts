@@ -1,9 +1,9 @@
 import { TRPCError } from "@trpc/server";
-import { eq, and, asc, desc, inArray, sql } from "drizzle-orm";
+import { eq, and, asc, desc, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure, publicProcedure, router } from "../index";
-import { ee, TASK_LIST_CHANGE } from "../events";
+import { emitEvent, TASK_LIST_CHANGE } from "../events";
 import * as schema from "@dirework/db/schema";
 
 export const taskRouter = router({
@@ -64,7 +64,7 @@ export const taskRouter = router({
         priority: isBroadcaster ? 0 : 1,
         order: (lastTask?.order ?? 0) + 1,
       }).returning();
-      ee.emit(TASK_LIST_CHANGE);
+      emitEvent(TASK_LIST_CHANGE);
       return result ?? null;
     }),
 
@@ -100,7 +100,7 @@ export const taskRouter = router({
         }
       }
 
-      ee.emit(TASK_LIST_CHANGE);
+      emitEvent(TASK_LIST_CHANGE);
       return result;
     }),
 
@@ -129,7 +129,7 @@ export const taskRouter = router({
         .where(eq(schema.task.id, task.id))
         .returning();
 
-      ee.emit(TASK_LIST_CHANGE);
+      emitEvent(TASK_LIST_CHANGE);
       return result ?? null;
     }),
 
@@ -140,7 +140,7 @@ export const taskRouter = router({
         .set({ text: input.text })
         .where(eq(schema.task.id, input.id))
         .returning();
-      ee.emit(TASK_LIST_CHANGE);
+      emitEvent(TASK_LIST_CHANGE);
       return result ?? null;
     }),
 
@@ -150,7 +150,7 @@ export const taskRouter = router({
       const [result] = await ctx.db.delete(schema.task)
         .where(eq(schema.task.id, input.id))
         .returning();
-      ee.emit(TASK_LIST_CHANGE);
+      emitEvent(TASK_LIST_CHANGE);
       return result ?? null;
     }),
 
@@ -161,7 +161,7 @@ export const taskRouter = router({
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.db.delete(schema.task)
         .where(eq(schema.task.authorTwitchId, input.authorTwitchId));
-      ee.emit(TASK_LIST_CHANGE);
+      emitEvent(TASK_LIST_CHANGE);
       return result;
     }),
 
@@ -172,7 +172,7 @@ export const taskRouter = router({
         .set({ text: input.text })
         .where(eq(schema.task.id, input.id))
         .returning();
-      ee.emit(TASK_LIST_CHANGE);
+      emitEvent(TASK_LIST_CHANGE);
       return result ?? null;
     }),
 
@@ -182,27 +182,27 @@ export const taskRouter = router({
       const [result] = await ctx.db.delete(schema.task)
         .where(eq(schema.task.id, input.id))
         .returning();
-      ee.emit(TASK_LIST_CHANGE);
+      emitEvent(TASK_LIST_CHANGE);
       return result ?? null;
     }),
 
   clearAll: protectedProcedure.mutation(async ({ ctx }) => {
     const result = await ctx.db.delete(schema.task);
-    ee.emit(TASK_LIST_CHANGE);
+    emitEvent(TASK_LIST_CHANGE);
     return result;
   }),
 
   clearDone: protectedProcedure.mutation(async ({ ctx }) => {
     const result = await ctx.db.delete(schema.task)
       .where(eq(schema.task.status, "done"));
-    ee.emit(TASK_LIST_CHANGE);
+    emitEvent(TASK_LIST_CHANGE);
     return result;
   }),
 
   clearViewers: protectedProcedure.mutation(async ({ ctx }) => {
     const result = await ctx.db.delete(schema.task)
       .where(eq(schema.task.priority, 1));
-    ee.emit(TASK_LIST_CHANGE);
+    emitEvent(TASK_LIST_CHANGE);
     return result;
   }),
 });

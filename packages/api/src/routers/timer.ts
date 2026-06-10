@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure, publicProcedure, router } from "../index";
-import { ee, TIMER_STATE_CHANGE } from "../events";
+import { emitEvent, TIMER_STATE_CHANGE } from "../events";
 import { getTimerConfig, computeNextPhase } from "./timer-logic";
 import * as schema from "@dirework/db/schema";
 
@@ -52,7 +52,7 @@ export const timerRouter = router({
           },
         })
         .returning();
-      ee.emit(TIMER_STATE_CHANGE);
+      emitEvent(TIMER_STATE_CHANGE);
       return result ?? null;
     }),
 
@@ -91,7 +91,7 @@ export const timerRouter = router({
       .set(data)
       .where(eq(schema.timerState.id, "singleton"))
       .returning();
-    ee.emit(TIMER_STATE_CHANGE);
+    emitEvent(TIMER_STATE_CHANGE);
     return result ?? null;
   }),
 
@@ -116,7 +116,7 @@ export const timerRouter = router({
         .set(data)
         .where(eq(schema.timerState.id, "singleton"))
         .returning();
-      ee.emit(TIMER_STATE_CHANGE);
+      emitEvent(TIMER_STATE_CHANGE);
       return result ?? null;
     }),
 
@@ -135,7 +135,7 @@ export const timerRouter = router({
       })
       .where(eq(schema.timerState.id, "singleton"))
       .returning();
-    ee.emit(TIMER_STATE_CHANGE);
+    emitEvent(TIMER_STATE_CHANGE);
     return result!;
   }),
 
@@ -154,7 +154,7 @@ export const timerRouter = router({
       })
       .where(eq(schema.timerState.id, "singleton"))
       .returning();
-    ee.emit(TIMER_STATE_CHANGE);
+    emitEvent(TIMER_STATE_CHANGE);
     return result!;
   }),
 
@@ -192,7 +192,7 @@ export const timerRouter = router({
       .set(data)
       .where(eq(schema.timerState.id, "singleton"))
       .returning();
-    ee.emit(TIMER_STATE_CHANGE);
+    emitEvent(TIMER_STATE_CHANGE);
     return result ?? null;
   }),
 
@@ -208,7 +208,7 @@ export const timerRouter = router({
       })
       .where(eq(schema.timerState.id, "singleton"))
       .returning();
-    ee.emit(TIMER_STATE_CHANGE);
+    emitEvent(TIMER_STATE_CHANGE);
     return result ?? null;
   }),
 });

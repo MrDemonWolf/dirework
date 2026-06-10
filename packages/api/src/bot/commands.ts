@@ -3,7 +3,7 @@ import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
 
-import { ee, TASK_LIST_CHANGE, TIMER_STATE_CHANGE } from "../events";
+import { emitEvent, TASK_LIST_CHANGE, TIMER_STATE_CHANGE } from "../events";
 import { getTimerConfig, computeNextPhase } from "../routers/timer-logic";
 
 export interface BotConfigData {
@@ -189,7 +189,7 @@ async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void>
     order: (lastTask?.order ?? 0) + 1,
   });
 
-  ee.emit(TASK_LIST_CHANGE);
+  emitEvent(TASK_LIST_CHANGE);
   say(interpolate(config.task.taskAdded, vars));
 }
 
@@ -240,7 +240,7 @@ async function handleTaskDone(args: string[], ctx: MessageContext): Promise<void
       .where(eq(schema.task.id, nextPending.id));
   }
 
-  ee.emit(TASK_LIST_CHANGE);
+  emitEvent(TASK_LIST_CHANGE);
   say(interpolate(config.task.taskDone, { ...vars, task: task.text }));
 }
 
@@ -275,7 +275,7 @@ async function handleTaskEdit(args: string[], ctx: MessageContext): Promise<void
     .set({ text: newText })
     .where(eq(schema.task.id, task.id));
 
-  ee.emit(TASK_LIST_CHANGE);
+  emitEvent(TASK_LIST_CHANGE);
   say(interpolate(config.task.taskEdited, { ...vars, task: newText }));
 }
 
@@ -320,7 +320,7 @@ async function handleTaskRemove(args: string[], ctx: MessageContext): Promise<vo
     }
   }
 
-  ee.emit(TASK_LIST_CHANGE);
+  emitEvent(TASK_LIST_CHANGE);
   say(interpolate(config.task.taskRemoved, { ...vars, task: task.text }));
 }
 
@@ -359,7 +359,7 @@ async function handleTaskFocus(args: string[], ctx: MessageContext): Promise<voi
     .set({ status: "active" })
     .where(eq(schema.task.id, task.id));
 
-  ee.emit(TASK_LIST_CHANGE);
+  emitEvent(TASK_LIST_CHANGE);
   say(interpolate(config.task.taskCheck, { ...vars, task: task.text }));
 }
 
@@ -447,7 +447,7 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
     order: (lastTask?.order ?? 0) + 1,
   });
 
-  ee.emit(TASK_LIST_CHANGE);
+  emitEvent(TASK_LIST_CHANGE);
   say(interpolate(config.task.taskNext, {
     ...vars,
     oldTask: activeTask?.text ?? "",
@@ -468,17 +468,17 @@ async function handleClear(args: string[], ctx: MessageContext): Promise<void> {
 
   if (sub === "all") {
     await db.delete(schema.task);
-    ee.emit(TASK_LIST_CHANGE);
+    emitEvent(TASK_LIST_CHANGE);
     say(interpolate(config.task.clearedAll, vars));
   } else if (sub === "done") {
     await db.delete(schema.task).where(eq(schema.task.status, "done"));
-    ee.emit(TASK_LIST_CHANGE);
+    emitEvent(TASK_LIST_CHANGE);
     say(interpolate(config.task.clearedDone, vars));
   } else if (sub && sub.startsWith("@")) {
     const targetUsername = sub.slice(1);
     await db.delete(schema.task)
       .where(sql`lower(${schema.task.authorUsername}) = lower(${targetUsername})`);
-    ee.emit(TASK_LIST_CHANGE);
+    emitEvent(TASK_LIST_CHANGE);
     say(interpolate(config.task.adminDeleteTasks, vars));
   }
 }
@@ -521,7 +521,7 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
           },
         });
 
-      ee.emit(TIMER_STATE_CHANGE);
+      emitEvent(TIMER_STATE_CHANGE);
       say(interpolate(config.timer.commandSuccess, vars));
       break;
     }
@@ -542,7 +542,7 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
           targetEndTime: null,
         });
 
-      ee.emit(TIMER_STATE_CHANGE);
+      emitEvent(TIMER_STATE_CHANGE);
       say(interpolate(config.timer.commandSuccess, vars));
       break;
     }
@@ -563,7 +563,7 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
           pausedFromStatus: null,
         });
 
-      ee.emit(TIMER_STATE_CHANGE);
+      emitEvent(TIMER_STATE_CHANGE);
       say(interpolate(config.timer.commandSuccess, vars));
       break;
     }
@@ -602,7 +602,7 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
       }
 
       await db.update(schema.timerState).set(data);
-      ee.emit(TIMER_STATE_CHANGE);
+      emitEvent(TIMER_STATE_CHANGE);
       say(interpolate(config.timer.commandSuccess, vars));
       break;
     }
@@ -617,7 +617,7 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
           currentCycle: 1,
           totalCycles: 4,
         });
-      ee.emit(TIMER_STATE_CHANGE);
+      emitEvent(TIMER_STATE_CHANGE);
       say(interpolate(config.timer.commandSuccess, vars));
       break;
     }

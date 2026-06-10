@@ -155,10 +155,12 @@ The API layer maps flat DB columns to nested frontend objects via build helpers 
 Public routes at `/overlay/t/[token]` (timer) and `/overlay/l/[token]` (task list). Transparent backgrounds for OBS browser sources. Overlays use **Server-Sent Events (SSE)** via tRPC subscriptions for real-time updates (replaces polling).
 
 SSE infrastructure:
-- `packages/api/src/events.ts` — in-process `EventEmitter` bus emitting `timerStateChange:{userId}` and `taskListChange:{userId}` events
+- `packages/api/src/events.ts` — event bus with two modes: in-process `EventEmitter` (default) or Redis pub/sub when `REDIS_URL` is set (multi-instance sync; publishes to `dirework:events` channel, all instances re-emit locally). Always emit via `emitEvent(...)`, never `ee.emit(...)`; listen via `ee` (e.g. `on(ee, EVENT)`)
 - `trpc.overlay.onTimerState` / `trpc.overlay.onTaskList` — SSE subscription procedures that yield initial state then stream changes
 - `apps/web/src/utils/trpc.ts` — `splitLink` routes subscriptions to `httpSubscriptionLink`, queries/mutations to `httpBatchLink`
-- Task and timer mutations emit events after DB writes; overlay subscriptions listen and push fresh data
+- Task and timer mutations call `emitEvent` after DB writes; overlay subscriptions listen and push fresh data
+- Dashboard `TaskManager` also subscribes (via overlay tasks token) and invalidates the task list on events — chat commands appear instantly; polling (30s) is only a fallback
+- Overlay pages render `OverlayStatus` (quiet hint) when no data: error → "can't connect", >8s without data → "check the overlay URL"
 
 Timer overlay supports two progress ring shapes:
 - **Circle** — standard SVG `<circle>` with `strokeDasharray`/`strokeDashoffset`
@@ -277,6 +279,7 @@ Defined in `packages/env/src/server.ts`. Required:
 - `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` — from dev.twitch.tv
 
 Optional:
+- `REDIS_URL` — Redis connection string; enables Redis pub/sub event bus for multi-instance sync (unset = in-process events)
 - `PRIVACY_POLICY_URL` — URL to Privacy Policy page (set to show link in footer)
 - `TERMS_OF_SERVICE_URL` — URL to Terms of Service page (set to show link in footer)
 - `NODE_ENV` — development/production/test

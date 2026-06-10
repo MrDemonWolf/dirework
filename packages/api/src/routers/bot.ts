@@ -2,7 +2,6 @@ import { TRPCError } from "@trpc/server";
 
 import { protectedProcedure, router } from "../index";
 import { botService } from "../bot/index";
-import * as schema from "@dirework/db/schema";
 
 export const botRouter = router({
   status: protectedProcedure.query(() => {
