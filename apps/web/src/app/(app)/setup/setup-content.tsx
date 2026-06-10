@@ -14,10 +14,10 @@ const perks = [
 
 export default function SetupContent() {
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center px-4 py-16">
+    <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
         {/* Focus ring badge */}
-        <div className="mb-8 flex justify-center">
+        <div className="mb-6 flex justify-center">
           <div className="relative size-20">
             <svg viewBox="0 0 80 80" className="size-full">
               <circle
@@ -61,7 +61,7 @@ export default function SetupContent() {
         </div>
 
         {/* What you get */}
-        <div className="mt-8 rounded-2xl border bg-card/50 p-5">
+        <div className="mt-6 rounded-2xl border bg-card/50 p-5">
           <p className="mb-4 text-sm font-medium">Here&apos;s what you&apos;re turning on:</p>
           <ul className="space-y-3">
             {perks.map((perk) => (
