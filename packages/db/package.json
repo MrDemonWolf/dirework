@@ -13,27 +13,18 @@
     }
   },
   "scripts": {
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio",
-    "db:push": "drizzle-kit push",
-    "db:start": "docker compose up -d",
-    "db:watch": "docker compose up",
-    "db:stop": "docker compose stop",
-    "db:down": "docker compose down"
+    "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
     "@dirework/env": "workspace:*",
     "@paralleldrive/cuid2": "^2.2.2",
-    "dotenv": "^17.2.2",
-    "drizzle-orm": "^0.41.0",
-    "pg": "^8.17.1",
-    "zod": "^4.1.13"
+    "dotenv": "catalog:",
+    "drizzle-orm": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@dirework/config": "workspace:*",
-    "@types/pg": "^8.16.0",
-    "drizzle-kit": "^0.30.0",
-    "typescript": "^5"
+    "drizzle-kit": "catalog:",
+    "typescript": "catalog:"
   }
 }
