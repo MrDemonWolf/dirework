@@ -28,6 +28,7 @@ export const server = await Worker("server", {
     BETTER_AUTH_URL: alchemy.env.BETTER_AUTH_URL!,
     TWITCH_CLIENT_ID: alchemy.env.TWITCH_CLIENT_ID!,
     TWITCH_CLIENT_SECRET: alchemy.secret.env.TWITCH_CLIENT_SECRET!,
+    DOCS_URL: alchemy.env.DOCS_URL ?? "https://mrdemonwolf.github.io/dirework",
   },
   dev: {
     port: 3000,

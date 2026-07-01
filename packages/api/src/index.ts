@@ -2,12 +2,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 
 import type { Context } from "./context";
 
-export const t = initTRPC.context<Context>().create({
-  sse: {
-    ping: { enabled: true, intervalMs: 3000 },
-    client: { reconnectAfterInactivityMs: 3000 },
-  },
-});
+export const t = initTRPC.context<Context>().create();
 
 export const router = t.router;
 

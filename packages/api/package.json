@@ -20,10 +20,8 @@
     "@dirework/auth": "workspace:*",
     "@dirework/db": "workspace:*",
     "@dirework/env": "workspace:*",
-    "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
     "drizzle-orm": "catalog:",
-    "dotenv": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

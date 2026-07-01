@@ -1,13 +1,12 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 
-import { auth, hasOwner } from "@dirework/auth";
+import { getInstanceOwned, getServerSession } from "@/lib/server-session";
 import HomeContent from "./home-content";
 
 export default async function Home() {
   const [owned, session] = await Promise.all([
-    hasOwner(),
-    auth.api.getSession({ headers: await headers() }),
+    getInstanceOwned(),
+    getServerSession(),
   ]);
 
   if (session?.user) {

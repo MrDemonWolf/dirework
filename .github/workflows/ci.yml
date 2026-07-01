@@ -11,14 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SKIP_ENV_VALIDATION: "true"
-      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+      NEXT_PUBLIC_SERVER_URL: "http://localhost:3000"
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - run: |
-          echo "DATABASE_URL=${DATABASE_URL}" > apps/web/.env
-          echo "SKIP_ENV_VALIDATION=true" >> apps/web/.env
       - run: bun run check-types
       - run: bun run build
       - run: bun run test
