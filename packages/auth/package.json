@@ -10,18 +10,17 @@
     }
   },
   "scripts": {
-    "test": "vitest run"
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@dirework/db": "workspace:*",
     "@dirework/env": "workspace:*",
-    "better-auth": "^1.4.18",
-    "drizzle-orm": "^0.41.0",
-    "dotenv": "^17.2.2",
-    "zod": "^4.1.13"
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@dirework/config": "workspace:*",
-    "typescript": "^5"
+    "typescript": "catalog:"
   }
 }
