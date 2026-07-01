@@ -10,7 +10,7 @@ can run it.
 <Callout>
   **The short version:** run a PostgreSQL database, run the Dirework container, point a
   domain at it with HTTPS, and add that domain to your Twitch app. The
-  [Dokploy](#option-1-dokploy-recommended) guide below does all of this with a few clicks.
+  [Coolify](#option-1-coolify-recommended) guide below does all of this with a few clicks.
 </Callout>
 
 ## Before you start
@@ -61,75 +61,11 @@ You can keep your `localhost` URLs in the list too, so local development still w
 
 ---
 
-## Option 1: Dokploy (recommended)
+## Option 1: Coolify (recommended)
 
-[Dokploy](https://dokploy.com/) is a free, open-source dashboard you install on your own
+[Coolify](https://coolify.io/) is a free, open-source dashboard you install on your own
 server. It handles the database, builds, domains, and HTTPS for you — no command-line
-juggling once it's set up.
-
-### Step 1 — Install Dokploy on your server
-
-On a fresh VPS (Ubuntu works great), run the one-line installer from the
-[Dokploy install docs](https://docs.dokploy.com/docs/core/installation):
-
-```bash
-curl -sSL https://dokploy.com/install.sh | sh
-```
-
-✅ When it finishes, open `http://your-server-ip:3000` and create your admin account.
-
-### Step 2 — Create the database
-
-1. In Dokploy, go to **Databases → Create Database → PostgreSQL**
-2. Pick **PostgreSQL 17**, give it a name, and set a password
-3. Click **Create**, then **Deploy**
-
-✅ Open the database's page and copy its **internal connection string** — that's your
-`DATABASE_URL`. It looks like `postgresql://postgres:yourpassword@<internal-host>:5432/postgres`.
-
-### Step 3 — Create the Dirework app
-
-1. Create a **Project**, then inside it **Create Service → Application**
-2. Connect your Git repository (`mrdemonwolf/dirework`) and pick your branch
-3. Under **Build Type**, choose **Dockerfile** — Dirework's `Dockerfile` is auto-detected
-4. Set the **port** to **`3000`** (the container listens there)
-
-### Step 4 — Add your settings
-
-Open the app's **Environment** tab and paste the variables from
-[the settings above](#the-settings-youll-paste). For `DATABASE_URL`, use the internal
-connection string you copied in Step 2.
-
-<Callout type="info">
-  You don't need `SKIP_ENV_VALIDATION` here — the Dockerfile already handles that during
-  the build.
-</Callout>
-
-### Step 5 — Add your domain + turn on HTTPS
-
-1. Go to the app's **Domains** tab and add your domain
-2. Point the domain's DNS at your server's IP (an `A` record)
-3. Enable **HTTPS** — Dokploy gets a free certificate for you automatically
-
-### Step 6 — Deploy
-
-Hit **Deploy**. Dokploy builds the container, and Dirework **runs its database setup
-automatically** on first start — you don't run any migration commands.
-
-✅ Visit your domain. You should see the Dirework welcome screen. Click
-**Claim with Twitch** to become the owner.
-
-### Updating later
-
-Push to your branch and click **Deploy** again (or turn on auto-deploy in Dokploy).
-Database updates apply themselves on each start.
-
----
-
-## Option 2: Coolify
-
-[Coolify](https://coolify.io/) is another open-source, self-hosted dashboard. The flow
-mirrors Dokploy:
+juggling once it's set up:
 
 1. Install Coolify on your server ([Coolify install docs](https://coolify.io/docs/installation))
 2. Add a **PostgreSQL 17** database resource and copy its internal connection string
@@ -145,7 +81,7 @@ you prefer it over the Dockerfile.
 
 ---
 
-## Option 3: Docker on your own server
+## Option 2: Docker on your own server
 
 Prefer the command line? Run it directly with Docker. The repository's `Dockerfile`
 builds a small production image and runs migrations on startup.
