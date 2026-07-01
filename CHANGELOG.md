@@ -10,7 +10,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Single-owner architecture with a first-time setup flow — the first Twitch account to sign in claims the instance
 - One-command developer setup: `bun run setup` (creates `.env`, starts the database, loads the schema) and `bun run dev:full`
 - Redesigned documentation landing page with a "focus console" theme, three-step quick start, and ADHD-friendly copy
-- Dokploy deployment guide (now the recommended self-hosting path) alongside the existing Coolify and Docker options
 - Branded loading state (focus-ring spinner) and a warmer first-time setup screen
 - Shared `DEFAULT_PHASE_LABELS` constant and Twitch brand color token to keep timer labels and buttons consistent
 
