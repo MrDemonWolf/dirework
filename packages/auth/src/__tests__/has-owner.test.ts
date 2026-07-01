@@ -6,8 +6,9 @@ const { mockSelect, mockDb } = vi.hoisted(() => {
   return { mockSelect, mockDb };
 });
 
-vi.mock("@dirework/db", () => ({ db: mockDb }));
+vi.mock("@dirework/db", () => ({ createDb: () => mockDb }));
 vi.mock("@dirework/db/schema", () => ({
+  SINGLETON_ID: "singleton",
   user: {},
   timerConfig: {},
   timerStyle: {},
@@ -22,14 +23,12 @@ vi.mock("@dirework/env/server", () => ({
     TWITCH_CLIENT_SECRET: "test",
     BETTER_AUTH_SECRET: "a".repeat(32),
     BETTER_AUTH_URL: "http://localhost:3001",
-    DATABASE_URL: "postgres://localhost/test",
   },
 }));
 vi.mock("better-auth", () => ({ betterAuth: () => ({}) }));
 vi.mock("better-auth/adapters/drizzle", () => ({
   drizzleAdapter: () => ({}),
 }));
-vi.mock("better-auth/next-js", () => ({ nextCookies: () => ({}) }));
 vi.mock("better-auth/api", () => ({
   APIError: class APIError extends Error {
     constructor(_code: string, opts: { message: string }) {
@@ -67,5 +66,15 @@ describe("hasOwner", () => {
   it("returns true when multiple users exist", async () => {
     mockUserCount(3);
     expect(await hasOwner()).toBe(true);
+  });
+
+  it("uses an injected db client when provided", async () => {
+    const injectedSelect = vi.fn().mockReturnValue({
+      from: () => Promise.resolve([{ count: 1 }]),
+    });
+    const injectedDb = { select: injectedSelect } as never;
+    expect(await hasOwner(injectedDb)).toBe(true);
+    expect(injectedSelect).toHaveBeenCalledOnce();
+    expect(mockSelect).not.toHaveBeenCalled();
   });
 });

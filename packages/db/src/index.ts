@@ -1,12 +1,15 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
 import { env } from "@dirework/env/server";
+import { drizzle } from "drizzle-orm/d1";
 import * as schema from "./schema";
 
-const pool = new Pool({ connectionString: env.DATABASE_URL });
-export const db = drizzle(pool, { schema });
+// Per-request factory — Workers isolate per request, no module-level singletons.
+export function createDb() {
+  return drizzle(env.DB, { schema });
+}
 
-export type DbClient = typeof db;
+export type DbClient = ReturnType<typeof createDb>;
+
+export * as schema from "./schema";
 
 export type TimerConfig = typeof schema.timerConfig.$inferSelect;
 export type TimerStyle = typeof schema.timerStyle.$inferSelect;

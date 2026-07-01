@@ -1,15 +1,16 @@
-import type { NextRequest } from "next/server";
+import type { Context as HonoContext } from "hono";
 
-import { auth } from "@dirework/auth";
-import { db } from "@dirework/db";
+import { createAuth } from "@dirework/auth";
+import { createDb } from "@dirework/db";
 
-export async function createContext(req: NextRequest) {
-  const session = await auth.api.getSession({
-    headers: req.headers,
+// Per-request factories — Workers isolate per request, no module singletons.
+export async function createContext({ context }: { context: HonoContext }) {
+  const session = await createAuth().api.getSession({
+    headers: context.req.raw.headers,
   });
   return {
     session,
-    db,
+    db: createDb(),
   };
 }
 

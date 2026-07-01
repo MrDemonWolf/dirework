@@ -1,7 +1,6 @@
 import { notFound, redirect } from "next/navigation";
-import { headers } from "next/headers";
 
-import { auth, hasOwner } from "@dirework/auth";
+import { getInstanceOwned, getServerSession } from "@/lib/server-session";
 import SetupContent from "./setup-content";
 
 export const metadata = {
@@ -11,8 +10,8 @@ export const metadata = {
 
 export default async function SetupPage() {
   const [owned, session] = await Promise.all([
-    hasOwner(),
-    auth.api.getSession({ headers: await headers() }),
+    getInstanceOwned(),
+    getServerSession(),
   ]);
 
   // Instance already claimed — this route no longer exists

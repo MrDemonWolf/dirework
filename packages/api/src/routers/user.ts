@@ -1,12 +1,19 @@
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { protectedProcedure, router } from "../index";
-import { botService } from "../bot/index";
-import { env } from "@dirework/env/server";
 import * as schema from "@dirework/db/schema";
+import { env } from "@dirework/env/server";
+
+import { protectedProcedure, publicProcedure, router } from "../index";
+import { updateSingleton } from "../services/singleton";
 
 export const userRouter = router({
+  /** Public setup gate: does this single-tenant instance have an owner yet? */
+  hasOwner: publicProcedure.query(async ({ ctx }) => {
+    const [row] = await ctx.db.select({ count: count() }).from(schema.user);
+    return (row?.count ?? 0) > 0;
+  }),
+
   me: protectedProcedure.query(async ({ ctx }) => {
     const [user, instance, botAccount] = await Promise.all([
       ctx.db.query.user.findFirst({
@@ -15,7 +22,11 @@ export const userRouter = router({
       ctx.db.query.instanceConfig.findFirst({
         columns: { overlayTimerToken: true, overlayTasksToken: true },
       }),
-      ctx.db.query.botAccount.findFirst(),
+      // H1 fix: never select accessToken/refreshToken/scopes — chat-scoped
+      // Twitch credentials must not be serialized to the dashboard.
+      ctx.db.query.botAccount.findFirst({
+        columns: { username: true, displayName: true, twitchId: true, expiresAt: true },
+      }),
     ]);
     if (!user) return null;
     // Flatten into same shape as before so frontend needs no changes
@@ -34,18 +45,11 @@ export const userRouter = router({
       const set = input.type === "timer"
         ? { overlayTimerToken: token }
         : { overlayTasksToken: token };
-      await ctx.db
-        .update(schema.instanceConfig)
-        .set(set)
-        .where(eq(schema.instanceConfig.id, "singleton"));
+      await updateSingleton(ctx.db, schema.instanceConfig, set);
       return { token };
     }),
 
   disconnectBot: protectedProcedure.mutation(async ({ ctx }) => {
-    if (botService.isRunning()) {
-      await botService.stop();
-    }
-
     const botAccount = await ctx.db.query.botAccount.findFirst({
       columns: { accessToken: true },
     });

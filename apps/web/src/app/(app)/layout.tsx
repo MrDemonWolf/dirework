@@ -1,13 +1,15 @@
 import Header from "@/components/header";
-import { env } from "@dirework/env/server";
 
 export default function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const privacyPolicyUrl = env.PRIVACY_POLICY_URL;
-  const termsOfServiceUrl = env.TERMS_OF_SERVICE_URL;
+  // Plain worker vars surfaced through process.env by OpenNext — the web
+  // worker has no @dirework/env/server (that module is cloudflare:workers +
+  // D1 bindings owned by the api worker).
+  const privacyPolicyUrl = process.env.PRIVACY_POLICY_URL;
+  const termsOfServiceUrl = process.env.TERMS_OF_SERVICE_URL;
   const showLegalLinks = privacyPolicyUrl || termsOfServiceUrl;
 
   return (

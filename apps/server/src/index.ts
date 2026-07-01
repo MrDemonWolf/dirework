@@ -6,6 +6,7 @@ import { trpcServer } from "@hono/trpc-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { botOAuth } from "./routes/bot-oauth";
 
 const app = new Hono();
 
@@ -21,6 +22,11 @@ app.use(
 );
 
 app.on(["POST", "GET"], "/api/auth/*", (c) => createAuth().handler(c.req.raw));
+
+// Bot-account OAuth (second Twitch OAuth flow) — mounted before tRPC.
+app.route("/api/bot", botOAuth);
+
+app.get("/health", (c) => c.json({ status: "ok" }));
 
 app.use(
   "/trpc/*",

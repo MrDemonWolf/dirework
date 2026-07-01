@@ -1,13 +1,19 @@
 "use client";
 
-import { useRef } from "react";
-import { useSubscription } from "@trpc/tanstack-react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 
 import { defaultTimerStyles } from "@/lib/theme-presets";
 import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
 import { TimerDisplay } from "@/components/timer-display";
-import { trpc } from "@/utils/trpc";
+import { publicTrpc } from "@/utils/trpc";
+
+/**
+ * Overlay polling interval. The countdown itself ticks locally inside
+ * TimerDisplay (computed from targetEndTime vs Date.now()); polling only
+ * picks up phase changes and style edits.
+ */
+const POLL_INTERVAL_MS = 2000;
 
 const defaultTimerState = {
   status: "idle",
@@ -20,24 +26,33 @@ const defaultTimerState = {
 export default function TimerOverlayPage() {
   const { token } = useParams<{ token: string }>();
 
-  const { data, status } = useSubscription({
-    ...trpc.overlay.onTimerState.subscriptionOptions({ token }),
-    enabled: true,
+  // Polls the api worker directly (token auth, no cookies) — no same-origin
+  // proxy hop for high-frequency overlay traffic. React Query keeps the last
+  // successful payload across failed refetches, so transient errors don't
+  // blank the OBS source.
+  const { data, isPending } = useQuery({
+    queryKey: ["overlay", "timerState", token],
+    queryFn: () => publicTrpc.overlay.getTimerState.query({ token }),
+    enabled: Boolean(token),
+    refetchInterval: POLL_INTERVAL_MS,
+    refetchIntervalInBackground: true,
   });
 
-  const lastKnownDataRef = useRef(data);
-  if (data) lastKnownDataRef.current = data;
+  if (isPending) return null;
 
-  const current = data ?? lastKnownDataRef.current;
-  if (!current && (status === "connecting" || status === "idle")) return null;
+  const timerState = data?.timerState ?? defaultTimerState;
+  const timerStyles = data?.timerStyles ?? defaultTimerStyles;
+  const timerConfig = data?.timerConfig;
 
-  const timerState = current?.timerState ?? defaultTimerState;
-  const timerStyles = current?.timerStyles ?? defaultTimerStyles;
-  const timerConfig = current?.timerConfig;
+  // TimerDisplay indexes labels by runtime status string — widen the closed
+  // PhaseLabelsConfig interface to a Record via spread.
+  const labels: Record<string, string> = {
+    ...(timerConfig?.labels ?? DEFAULT_PHASE_LABELS),
+  };
 
   const displayConfig = {
     ...timerStyles,
-    labels: timerConfig?.labels ?? DEFAULT_PHASE_LABELS,
+    labels,
     showHours: timerConfig?.showHours ?? false,
   };
 

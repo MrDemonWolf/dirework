@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 
-const tokenSchema = z.object({ token: z.string() });
+import { tokenInput } from "../../services/tokens";
+
+const tokenSchema = z.object({ token: tokenInput });
 
 describe("overlay router input validation", () => {
-  describe("token schema", () => {
+  describe("token schema (bounded — L3)", () => {
     it("accepts a valid token string", () => {
       expect(tokenSchema.parse({ token: "abc-123-def" })).toEqual({ token: "abc-123-def" });
     });
@@ -22,8 +24,21 @@ describe("overlay router input validation", () => {
       expect(() => tokenSchema.parse({ token: 123 })).toThrow();
     });
 
-    it("accepts empty string token (validation is at DB level)", () => {
-      expect(tokenSchema.parse({ token: "" })).toEqual({ token: "" });
+    it("rejects empty string token", () => {
+      expect(() => tokenSchema.parse({ token: "" })).toThrow();
+    });
+
+    it("rejects tokens shorter than 8 characters", () => {
+      expect(() => tokenSchema.parse({ token: "abcdefg" })).toThrow();
+    });
+
+    it("rejects tokens longer than 128 characters", () => {
+      expect(() => tokenSchema.parse({ token: "a".repeat(129) })).toThrow();
+    });
+
+    it("accepts tokens at the boundaries (8 and 128 chars)", () => {
+      expect(tokenSchema.parse({ token: "a".repeat(8) })).toEqual({ token: "a".repeat(8) });
+      expect(tokenSchema.parse({ token: "a".repeat(128) })).toEqual({ token: "a".repeat(128) });
     });
   });
 
