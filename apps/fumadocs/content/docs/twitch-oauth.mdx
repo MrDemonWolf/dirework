@@ -42,10 +42,10 @@ http://localhost:3001/api/auth/callback/twitch
 http://localhost:3001/api/bot/callback/twitch
 ```
 
-**For production** (add these too if you plan to deploy):
+**For production** (add these too if you plan to deploy — swap in your workers.dev subdomain):
 ```
-https://your-domain.com/api/auth/callback/twitch
-https://your-domain.com/api/bot/callback/twitch
+https://dirework.<your-subdomain>.workers.dev/api/auth/callback/twitch
+https://dirework.<your-subdomain>.workers.dev/api/bot/callback/twitch
 ```
 
 <Callout type="warn">
@@ -70,7 +70,8 @@ After creating the app:
 
 ## Step 2: Configure Environment Variables
 
-Create or edit your `apps/web/.env` file and add the Twitch credentials:
+Create or edit your `packages/infra/.env` file (copy it from `.env.example` if you
+haven't yet) and add the Twitch credentials:
 
 ```bash
 # Twitch OAuth (from dev.twitch.tv)
@@ -81,9 +82,6 @@ TWITCH_CLIENT_SECRET="paste_your_client_secret_here"
 Your complete `.env` should look like this:
 
 ```bash
-# Database
-DATABASE_URL="postgresql://postgres:password@localhost:5432/dirework"
-
 # Better Auth
 BETTER_AUTH_SECRET="generate-a-random-32-character-string"
 BETTER_AUTH_URL="http://localhost:3001"
@@ -108,7 +106,7 @@ openssl rand -base64 32
 
 ## Step 3: Sign In
 
-1. Start the app with `bun run dev:full`
+1. Start the app with `bun run dev`
 2. Open [http://localhost:3001](http://localhost:3001)
 3. On a fresh install you'll land on the **setup screen** — click **Claim with Twitch**
 4. You'll be redirected to Twitch — authorize the app with your **streamer account**
@@ -160,6 +158,13 @@ This prevents the bot from being rate-limited when sending messages.
 6. You'll be redirected back to the dashboard with a success message
 
 The bot will have `chat:read` and `chat:edit` permissions — enough to read messages and respond to commands.
+
+<Callout>
+  **One more thing before the bot talks:** the bot runs in a token-gated browser page,
+  not on a server. Copy the bot page URL from **Dashboard → Bot** and add it to OBS as a
+  browser source (or keep it in a pinned tab). The bot listens to chat only while that
+  page is open. See [Chat Commands](/docs/chat-commands) for the full command list.
+</Callout>
 
 ### OAuth Scopes
 
@@ -215,7 +220,8 @@ See the [Overlays guide](/docs/overlays) for more details.
 
 For local development, `BETTER_AUTH_URL` = `http://localhost:3001`
 
-For production, replace with your domain (e.g., `https://dirework.example.com`)
+For production, replace with your web worker's origin
+(e.g., `https://dirework.<your-subdomain>.workers.dev`)
 
 ---
 
@@ -231,9 +237,11 @@ instance is yours the moment you claim it.
 
 When deploying to production, make sure to:
 
-- [ ] Update `BETTER_AUTH_URL` to your production domain
-- [ ] Update `CORS_ORIGIN` to your production domain
+- [ ] Set `BETTER_AUTH_URL` and `CORS_ORIGIN` to your web worker's origin — for GitHub
+  Actions deploys these live at the top of `.github/workflows/deploy.yml`
 - [ ] Add production redirect URLs to your Twitch app:
-  - `https://your-domain.com/api/auth/callback/twitch`
-  - `https://your-domain.com/api/bot/callback/twitch`
+  - `https://dirework.<your-subdomain>.workers.dev/api/auth/callback/twitch`
+  - `https://dirework.<your-subdomain>.workers.dev/api/bot/callback/twitch`
 - [ ] Use `https://` (not `http://`) for all production URLs
+
+The full walkthrough lives in the [Deployment guide](/docs/deployment).

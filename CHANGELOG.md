@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- **Rebuilt on Cloudflare Workers** — the entire stack moved from Node.js + PostgreSQL +
+  Docker to Cloudflare Workers + D1 (SQLite) + Hono, deployable on the free plan
+  - Two workers (`dirework` web via OpenNext, `dirework-api` Hono) + D1, managed by Alchemy
+  - Twitch chat bot now runs in a token-gated browser page (`/bot/<token>`) holding the
+    IRC WebSocket — add it as an OBS browser source or pinned tab; command logic runs
+    server-side via `bot.ingest`
+  - Overlays switched from Server-Sent Events to polling with local countdown
+  - Auth and dashboard API calls proxy same-origin through the web worker (workers.dev
+    cookie isolation); overlays and the bot page talk to the API worker directly
+  - Mutation logic extracted into shared services used by both the dashboard API and chat
+    commands; timer/task command drift bugs fixed along the way
+  - Security hardening from the pre-migration audit: bot OAuth tokens no longer sent to
+    the browser, constant-time token comparison, bounded public inputs, chat task length
+    and per-user caps
+  - CI deploys on push to `main` via GitHub Actions + Alchemy
+- Removed Docker, Docker Compose, Coolify, and PostgreSQL deployment paths (see the new
+  Cloudflare deployment guide)
+
 ### Added
 - Single-owner architecture with a first-time setup flow — the first Twitch account to sign in claims the instance
 - One-command developer setup: `bun run setup` (creates `.env`, starts the database, loads the schema) and `bun run dev:full`

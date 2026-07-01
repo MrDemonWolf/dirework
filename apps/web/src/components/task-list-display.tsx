@@ -4,60 +4,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { groupTasksByAuthor, toHexOpacity } from "@/lib/task-utils";
 import type { Task, TaskGroup } from "@/lib/task-utils";
-
-interface TaskStylesConfig {
-  display: {
-    showDone: boolean;
-    showCount: boolean;
-    useCheckboxes: boolean;
-    crossOnDone: boolean;
-    numberOfLines: number;
-  };
-  fonts: { header: string; body: string };
-  scroll: { enabled: boolean; pixelsPerSecond: number; gapBetweenLoops: number };
-  header: {
-    height: string;
-    background: { color: string; opacity: number };
-    border: { color: string; width: string; radius: string };
-    fontSize: string;
-    fontColor: string;
-    padding: string;
-  };
-  body: {
-    background: { color: string; opacity: number };
-    border: { color: string; width: string; radius: string };
-    padding: { vertical: string; horizontal: string };
-  };
-  task: {
-    background: { color: string; opacity: number };
-    border: { color: string; width: string; radius: string };
-    fontSize: string;
-    fontColor: string;
-    usernameColor: string;
-    padding: string;
-    marginBottom: string;
-    maxWidth: string;
-  };
-  taskDone: {
-    background: { color: string; opacity: number };
-    fontColor: string;
-  };
-  checkbox: {
-    size: string;
-    background: { color: string; opacity: number };
-    border: { color: string; width: string; radius: string };
-    margin: { top: string; left: string; right: string };
-    tickChar: string;
-    tickSize: string;
-    tickColor: string;
-  };
-  bullet: {
-    char: string;
-    size: string;
-    color: string;
-    margin: { top: string; left: string; right: string };
-  };
-}
+// Style shape comes from the shared config source of truth (audit M4)
+import type { TaskStylesConfig } from "@/lib/config-types";
 
 /**
  * Infinite scroll using a dual-container system like Chat-Task-Tic.

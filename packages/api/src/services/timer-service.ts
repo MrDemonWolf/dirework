@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
@@ -11,8 +11,61 @@ import { computeNextPhase, getTimerConfig } from "../routers/timer-logic";
 
 export type TimerStateRow = typeof schema.timerState.$inferSelect;
 
+const RUNNING_STATUSES = new Set(["starting", "work", "break", "longBreak"]);
+
+/**
+ * Lazily advance a timer whose targetEndTime has passed. There is no always-on
+ * server on Workers, so phase transitions are driven by reads: every overlay
+ * poll, dashboard query, or chat command self-heals the state machine. Each new
+ * phase is anchored at the PREVIOUS phase's end time (not Date.now()), so a
+ * timer left unattended catches up through multiple missed phases accurately.
+ * Concurrent pollers race safely: the UPDATE is guarded on the old
+ * targetEndTime, and a loser just re-reads.
+ */
+export async function maybeAdvanceOverdueTimer(db: DbClient): Promise<TimerStateRow | null> {
+  let timer = (await db.query.timerState.findFirst()) ?? null;
+  let timerConfigRow: typeof schema.timerConfig.$inferSelect | null = null;
+
+  for (let i = 0; i < 50; i++) {
+    if (
+      !timer ||
+      !RUNNING_STATUSES.has(timer.status) ||
+      !timer.targetEndTime ||
+      timer.targetEndTime.getTime() > Date.now()
+    ) {
+      return timer;
+    }
+
+    timerConfigRow ??= (await db.query.timerConfig.findFirst()) ?? null;
+    const tc = getTimerConfig(timerConfigRow);
+    const { nextStatus, nextDuration, nextCycle } = computeNextPhase(
+      { status: timer.status, currentCycle: timer.currentCycle, totalCycles: timer.totalCycles },
+      tc,
+    );
+
+    const prevEnd = timer.targetEndTime;
+    const [row] = await db.update(schema.timerState)
+      .set({
+        status: nextStatus,
+        currentCycle: nextCycle,
+        pausedFromStatus: null,
+        pausedWithRemaining: null,
+        targetEndTime: nextDuration ? new Date(prevEnd.getTime() + nextDuration) : null,
+      })
+      .where(and(
+        eq(schema.timerState.id, SINGLETON_ID),
+        eq(schema.timerState.targetEndTime, prevEnd),
+      ))
+      .returning();
+
+    // Guarded update lost (another poller advanced first) → re-read and retry.
+    timer = row ?? (await db.query.timerState.findFirst()) ?? null;
+  }
+  return timer;
+}
+
 export async function getTimerState(db: DbClient): Promise<TimerStateRow | null> {
-  return (await db.query.timerState.findFirst()) ?? null;
+  return maybeAdvanceOverdueTimer(db);
 }
 
 async function loadTimerConfig(db: DbClient) {
@@ -173,7 +226,7 @@ export async function resetTimer(db: DbClient) {
 /** Projected end time of the whole session, or null if not running. */
 export async function getTimerEta(db: DbClient): Promise<Date | null> {
   const [timer, timerConfigRow] = await Promise.all([
-    db.query.timerState.findFirst(),
+    maybeAdvanceOverdueTimer(db),
     db.query.timerConfig.findFirst(),
   ]);
   if (!timer?.targetEndTime) return null;

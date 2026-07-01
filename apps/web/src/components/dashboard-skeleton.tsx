@@ -10,24 +10,30 @@ export function DashboardSkeleton() {
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-4 w-48" />
         </div>
-        <Skeleton className="h-5 w-24" />
+        <Skeleton className="h-6 w-24 rounded-full" />
       </div>
 
       <div className="grid gap-6">
-        {/* Timer card skeleton */}
+        {/* Timer console skeleton */}
         <Card>
           <CardHeader>
-            <Skeleton className="h-5 w-16" />
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-5 w-24" />
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col items-center gap-6 md:flex-row md:items-center">
+            <div className="flex flex-col items-center gap-8 lg:flex-row lg:items-center">
               <div className="flex flex-1 flex-col items-center gap-4 py-4">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-16 w-48" />
+                <Skeleton className="h-6 w-24 rounded-full" />
+                <Skeleton className="h-20 w-56" />
                 <Skeleton className="h-3 w-32" />
-                <Skeleton className="h-10 w-32" />
+                <Skeleton className="h-9 w-32" />
               </div>
-              <Skeleton className="h-[280px] w-[280px] rounded-xl" />
+              <div className="w-full max-w-56 space-y-3 lg:w-56">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-8 w-full" />
+                ))}
+              </div>
+              <Skeleton className="h-[280px] w-[280px] shrink-0 rounded-xl" />
             </div>
           </CardContent>
         </Card>
@@ -35,6 +41,7 @@ export function DashboardSkeleton() {
         {/* Tasks card skeleton */}
         <Card>
           <CardHeader>
+            <Skeleton className="h-3 w-20" />
             <Skeleton className="h-5 w-16" />
           </CardHeader>
           <CardContent>
@@ -48,29 +55,48 @@ export function DashboardSkeleton() {
                   ))}
                 </div>
               </div>
-              <Skeleton className="h-[350px] w-[350px] rounded-lg" />
+              <Skeleton className="h-[350px] w-[350px] shrink-0 rounded-xl" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Overlay URLs card skeleton */}
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-5 w-28" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-9 w-full" />
+        {/* Overlay URLs + bot status skeleton */}
+        <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-5 w-28" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-9 w-full" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-5 w-12" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-9 rounded-lg" />
+                <div className="space-y-1.5">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+              <Skeleton className="h-8 w-full" />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
