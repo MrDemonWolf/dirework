@@ -6,13 +6,15 @@ import {
   buildTimerStylesConfig,
 } from "../config-shared";
 import { listTasks } from "./task-service";
+import { maybeAdvanceOverdueTimer } from "./timer-service";
 
 // Overlay payload assembly (L7) — one implementation per overlay type,
 // shared by the public overlay query procedures.
 
 export async function loadTimerOverlayPayload(db: DbClient) {
   const [timerState, timerConfigRow, timerStyleRow] = await Promise.all([
-    db.query.timerState.findFirst(),
+    // Overlay polls drive phase transitions — no always-on server on Workers.
+    maybeAdvanceOverdueTimer(db),
     db.query.timerConfig.findFirst(),
     db.query.timerStyle.findFirst(),
   ]);

@@ -117,9 +117,7 @@
         "@dirework/auth": "workspace:*",
         "@dirework/db": "workspace:*",
         "@dirework/env": "workspace:*",
-        "@trpc/client": "catalog:",
         "@trpc/server": "catalog:",
-        "dotenv": "catalog:",
         "drizzle-orm": "catalog:",
         "zod": "catalog:",
       },
@@ -142,6 +140,7 @@
       "devDependencies": {
         "@dirework/config": "workspace:*",
         "typescript": "catalog:",
+        "vitest": "catalog:",
       },
     },
     "packages/config": {

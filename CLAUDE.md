@@ -6,292 +6,222 @@ This file provides guidance for Claude Code when working on the Dirework codebas
 
 **ALWAYS update this section** when creating or discovering important docs to prevent context loss.
 
-- Architecture diagrams → *(none yet)*
+- Migration plan (Node/Postgres → Cloudflare) → `MIGRATION.md`
+- Pre-migration audit (29 findings, all addressed in the port) → `AUDIT-cloudflare-migration.md`
 - Database schemas → `packages/db/src/schema/` (index.ts, auth.ts, app.ts)
-- Problem solutions → *(none yet)*
-- Setup guides → `.env.example`, `coolify.md` (gitignored)
+- Setup guides → `.env.example`, docs `apps/fumadocs/content/docs/deployment.mdx`
 
 ## Project Overview
 
-Dirework is a self-hosted Pomodoro timer and task list with Twitch chat integration, designed for co-working and body-doubling streams. Single-user per instance. Streamers login with Twitch, connect a bot account, configure OBS overlays, and viewers interact via chat commands.
+Dirework is a Pomodoro timer and task list with Twitch chat integration for co-working
+and body-doubling streams. Single-user per instance, one deploy per streamer. Runs
+entirely on **Cloudflare Workers + D1** (free plan — no Durable Objects). Streamers login
+with Twitch, connect a bot account, configure OBS overlays, and viewers interact via chat
+commands.
+
+## Architecture (Cloudflare)
+
+Two workers + one D1 database, deployed via **Alchemy** (`packages/infra/alchemy.run.ts`):
+
+- **`dirework`** (web) — Next.js 16 via OpenNext (`@opennextjs/cloudflare`). Dashboard,
+  Theme Center, bot settings, overlays, bot console page.
+- **`dirework-api`** (server) — Hono worker. Mounts better-auth (`/api/auth/*`), tRPC
+  (`/trpc/*`), bot OAuth (`/api/bot/*`), `/health`.
+- **`dirework-db`** — D1 (SQLite). Migrations in `packages/db/src/migrations`, applied by
+  Alchemy on deploy.
+
+**Same-origin proxy (load-bearing):** `*.workers.dev` is on the Public Suffix List, so
+cookies cannot span the two workers. The web app's `next.config.ts` rewrites
+`/rpc/:path*` → api `/trpc/:path*`, plus `/api/auth/*` and `/api/bot/*` — the browser only
+ever sees the web origin for authenticated traffic (sameSite lax cookies). Public
+token-authenticated traffic (overlay polling, bot page) goes DIRECT to the api worker via
+`publicTrpc` (no cookies) to avoid double-hop request burn on the free tier.
+
+**Per-request factories, no module singletons** (Workers isolate per request):
+`createDb()` (packages/db), `createAuth()` (packages/auth), `createContext({ context })`
+(packages/api). Never add module-level db/auth/EventEmitter state.
+
+**Real-time = polling.** Overlays poll public tRPC queries every 2s and compute the
+countdown locally from `targetEndTime`. There is no SSE, no event bus.
+
+**Twitch bot = browser page.** `/bot/<token>` (token-gated, `instanceConfig.botToken`)
+holds the IRC WebSocket (`wss://irc-ws.chat.twitch.tv`) via `apps/web/src/lib/irc-client.ts`,
+relays `!`-prefixed chat to `bot.ingest` (stateless, runs command logic against D1), and
+sends back the returned replies. Bot lives only while that page is open (OBS browser
+source or pinned tab). Chat token comes from `bot.getSession` (server refreshes it; the
+refresh token and client secret never reach the browser).
 
 ## Monorepo Structure
 
-Turborepo + Bun workspaces. All packages use ESM (`"type": "module"`).
+Turborepo + Bun workspaces (catalog for shared versions). All packages ESM.
 
 ```
-apps/web           → Next.js 16 app (frontend + API), port 3001
-apps/fumadocs      → Fumadocs documentation site, port 4000
-packages/api       → tRPC routers + business logic
-packages/auth      → Better Auth configuration (Twitch OAuth)
-packages/db        → Drizzle ORM schema + client (PostgreSQL)
-packages/env       → t3-env environment variable validation
+apps/web           → Next.js 16 on Workers via OpenNext, port 3001 (dev)
+apps/server        → Hono API worker, port 3000 (dev)
+apps/fumadocs      → Fumadocs documentation site, port 4000 (GitHub Pages)
+packages/api       → tRPC routers + services + bot command logic
+packages/auth      → Better Auth (Twitch OAuth) — createAuth() factory
+packages/db        → Drizzle ORM schema + createDb() (drizzle-orm/d1) + migrations
+packages/env       → cloudflare:workers bindings (server), t3-env (web), dotenv proxy (local tooling)
+packages/infra     → Alchemy IaC (both workers + D1)
 packages/config    → Shared TypeScript configuration
 ```
 
 ## Commands
 
 ```bash
-bun run dev           # Start all apps (web + docs)
-bun run build         # Build all apps for production
-bun run check-types   # TypeScript type checking across all packages
-bun run test          # Run Vitest unit tests across all packages
+bun run dev           # Alchemy dev: api worker :3000 + web :3001 + local D1 (migrations applied)
 bun run dev:web       # Web app only
-bun run dev:native    # Native app only
-bun run db:start      # Start PostgreSQL via Docker
-bun run db:stop       # Stop PostgreSQL
-bun run db:down       # Tear down database completely
-bun run db:push       # Push Drizzle schema to database (dev only, no migration file)
-bun run db:generate   # Generate a new Drizzle migration from schema changes
-bun run db:studio     # Open Drizzle Studio
-bun run db:migrate    # Apply pending Drizzle migrations
-bun run db:watch      # Watch database changes
+bun run dev:server    # API worker only
+bun run build         # Build all apps
+bun run check-types   # TypeScript type checking across all packages
+bun run test          # Vitest unit tests across all packages
+bun run db:generate   # Generate a Drizzle migration from schema changes
+bun run deploy        # Alchemy deploy (both workers + D1) — CI does this on main
+bun run destroy       # Tear down the Cloudflare deployment
 ```
+
+Local env lives in `packages/infra/.env` (+ mirrored `apps/server/.env`,
+`apps/web/.env`); see `.env.example`.
 
 ## Tech Stack
 
-- **Next.js 16** (App Router) with React 19, React Compiler, and typed routes enabled
-- **Tailwind CSS v4** via `@tailwindcss/postcss`
-- **shadcn/ui** (base-lyra style) with Lucide icons
-- **tRPC v11** with httpBatchLink, httpSubscriptionLink (SSE), splitLink, and `createTRPCOptionsProxy` for type-safe API
-- **TanStack React Query** for client-side data fetching
-- **TanStack React Form** for form handling
-- **Better Auth** with Twitch social provider (30-day sessions)
-- **Drizzle ORM** with PostgreSQL 17 (Docker) and `drizzle-orm/node-postgres`
-- **Sonner** for toast notifications
-- **next-themes** for dark/light mode
-- **Google Fonts** — Montserrat (headings/timer) + Roboto (body text)
-- **Fumadocs** with Orama search for documentation
-- **TypeScript 5** in strict mode everywhere
+- **Next.js 16** (App Router) with React 19, React Compiler, typed routes, OpenNext on Workers
+- **Hono** API worker with `@hono/trpc-server`
+- **tRPC v11** — `httpBatchLink` to same-origin `/rpc` (authed) + `publicTrpc` direct to the api worker (public)
+- **TanStack React Query** (polling via `refetchInterval`)
+- **Better Auth** with Twitch social provider (30-day sessions, sqlite adapter)
+- **Drizzle ORM** on **Cloudflare D1** (`drizzle-orm/d1`, drizzle-kit `d1-http`)
+- **Tailwind CSS v4** + shadcn/ui (base-lyra) + Lucide icons
+- **Alchemy** infrastructure-as-code; **GitHub Actions** CI/CD
+- **Fumadocs** with Orama search
+- **TypeScript 5** strict everywhere; **Vitest** for tests
 
 ## Code Patterns
 
 ### Imports & Aliases
 
-The web app uses `@/` mapping to `apps/web/src/`:
-- `@/components` — React components
-- `@/components/ui` — shadcn/ui primitives (button, input, label, dropdown-menu, tooltip, tabs, etc.)
-- `@/components/theme-center` — Theme Center editor components
-- `@/lib` — utilities (auth-client, cn helper, config-types, theme-presets)
-- `@/utils` — tRPC client setup
+Web app: `@/` → `apps/web/src/`. Internal packages: `@dirework/api`, `@dirework/auth`,
+`@dirework/db`, `@dirework/env`. Shared config types/constants come from
+`@dirework/api/config-shared` — do NOT re-declare them in the web app (audit M3/M4).
 
-Internal packages are imported as `@dirework/api`, `@dirework/auth`, `@dirework/db`, `@dirework/env`.
+### tRPC / API layer
 
-### Component Conventions
+Routers in `packages/api/src/routers/` (`user`, `task`, `timer`, `config`, `overlay`, `bot`).
+`publicProcedure` (overlays + bot page, token-gated) vs `protectedProcedure` (session).
 
-- Functional components only, PascalCase names
-- `"use client"` directive on all interactive components
-- Server components only for auth checks and data loading (e.g., `dashboard/page.tsx`)
-- Styling via Tailwind utility classes + CSS variables for theming
-- Class merging with `clsx` + `tailwind-merge` via `cn()` helper
-- Components using `useSearchParams` must be wrapped in `<Suspense>` in their parent server component
+**Services own mutations** (`packages/api/src/services/`): `task-service`, `timer-service`,
+`overlay-service`, `twitch-auth`, `tokens`, `singleton`, `provision`. Both tRPC routers and
+`bot.ingest` call the same service functions — never duplicate mutation logic in a router
+or command handler (audit M1). Pure logic (timer-logic.ts, config-shared.ts, services)
+must not import `@dirework/env/server` — Vitest runs in Node and cannot resolve
+`cloudflare:workers`.
 
-### Next.js Typed Routes
-
-Next.js typed routes are enabled. When using `Link` with dynamic `href` from arrays/objects, use `as const` on literal route strings to preserve the type:
-```tsx
-const navItems = [
-  { href: "/dashboard" as const, label: "Dashboard" },
-];
-// <Link href={item.href}> works because href is a string literal type
-```
-
-### Fonts
-
-- **Montserrat** — used for headings (`font-heading` CSS class / `--font-heading` variable) and timer display text
-- **Roboto** — used for body text (`font-sans` / `--font-roboto` variable)
-- Loaded via `next/font/google` in root layout; overlay layout loads via Google Fonts CDN `<link>` tag
-
-### API Layer (tRPC)
-
-Routers live in `packages/api/src/routers/`. Two procedure types:
-- `publicProcedure` — no auth required (used by overlays)
-- `protectedProcedure` — throws UNAUTHORIZED if no session
-
-Router structure: `user`, `task`, `timer`, `config`, `overlay`.
-
-Pure logic extracted for testability:
-- `packages/api/src/routers/timer-logic.ts` — `DEFAULTS`, `getTimerConfig()`, `computeNextPhase()` (timer state machine)
-- `apps/web/src/lib/timer-utils.ts` — `toHexOpacity()`, `formatTime()`, `roundedRectPath()` (display helpers)
-- `apps/web/src/lib/task-utils.ts` — `groupTasksByAuthor()`, re-exported `toHexOpacity()` (task grouping)
-
-Context provides `session` (from Better Auth) and `db` (Drizzle client).
+Token gates: `verifyOverlayToken` / `verifyBotToken` (constant-time compare, bounded
+zod inputs). Never return `accessToken`/`refreshToken` from any procedure (audit H1).
 
 ### Database
 
-Drizzle ORM schema split across files in `packages/db/src/schema/`:
-- `auth.ts` — user, session, account, verification (Better Auth managed)
-- `app.ts` — botAccount, task, timerState, timerConfig, timerStyle, taskStyle, botConfig (app-specific)
-- `index.ts` — re-exports all tables + defines all `relations()` for relational queries
+Schema split: `auth.ts` (Better Auth tables), `app.ts` (instanceConfig, botAccount, task,
+timerState, timerConfig, timerStyle, taskStyle, botConfig), `index.ts` (relations).
+SQLite idioms: booleans `integer({mode:"boolean"})`, timestamps `integer({mode:"timestamp_ms"})`
+with `unixepoch('subsecond')*1000` defaults, JSON columns `text({mode:"json"}).$type<T>()`
+(commandAliases, scopes), opacities `real`, cuid2 ids. Config rows are singletons
+(`SINGLETON_ID`), lazily provisioned; all columns have defaults. The API maps flat DB
+columns ↔ nested config objects via build/flatten helpers in
+`packages/api/src/config-shared.ts`.
 
-Drizzle config: `packages/db/drizzle.config.ts`. Generated migrations: `packages/db/drizzle/`.
-
-Key conventions:
-- DB columns use snake_case; TypeScript field names use camelCase
-- IDs use `text().primaryKey().$defaultFn(() => createId())` (from `@paralleldrive/cuid2`)
-- User table extended with `twitchId`, `displayName`, `overlayTimerToken`, `overlayTasksToken`
-- Tasks have priority system: 0 = broadcaster (pinned top), 1 = viewers
-- TimerState is a state machine: idle → starting → work → break → longBreak → paused → finished
-
-Database architecture uses 4 focused config models instead of one monolithic table:
-- `timerConfig` — timer durations, cycles, behavior flags, phase labels (17 columns)
-- `timerStyle` — timer overlay appearance: dimensions, ring, colors, fonts (21 columns)
-- `taskStyle` — task list overlay appearance: header, body, items, checkboxes, bullets (57 columns)
-- `botConfig` — bot toggles, command aliases (jsonb), task messages (18), timer messages (14)
-
-All columns have Drizzle `.default()` values — row creation only requires `{ userId }`. Records are lazily provisioned on first access via `ensureUserConfig()` in the config router.
-
-The API layer maps flat DB columns to nested frontend objects via build helpers (`buildTimerConfig`, `buildTimerStylesConfig`, `buildTaskStylesConfig`, `buildBotConfig`) and flattens writes via `flattenTimerStyles`/`flattenTaskStyles`.
+Migrations: `bun run db:generate` → SQL in `packages/db/src/migrations` → applied by
+Alchemy (dev and deploy). Never edit applied migrations.
 
 ### Authentication
 
-- Better Auth handles Twitch OAuth login via `drizzleAdapter`
-- Bot account connection is a separate OAuth flow via `/api/bot/authorize` → `/api/bot/callback/twitch`
-- Bot callback includes error reason in redirect query params for user-facing toast notifications
-- Overlay access uses UUID tokens (no auth needed), regenerable per user
+- Better Auth on the api worker; browser reaches it through the web origin proxy.
+  `baseURL` = web origin. Cookies sameSite lax/secure/httpOnly. First user to sign in
+  claims the instance (`isOwner`); config singletons provisioned on session create.
+- Bot account connection = separate OAuth flow on Hono: `/api/bot/authorize` →
+  `/api/bot/callback/twitch` (state cookie, scopes `user:read:chat user:write:chat`,
+  error reasons surfaced as `?bot=error&reason=…` toasts).
+- Server components check sessions via `lib/server-session.ts` (`getServerSession()` —
+  forwards cookies to the api worker). Never import `@dirework/auth` or `@dirework/db`
+  in apps/web.
 
 ### Overlay System
 
-Public routes at `/overlay/t/[token]` (timer) and `/overlay/l/[token]` (task list). Transparent backgrounds for OBS browser sources. Overlays use **Server-Sent Events (SSE)** via tRPC subscriptions for real-time updates (replaces polling).
+Public routes `/overlay/t/[token]` (timer) and `/overlay/l/[token]` (tasks), transparent
+for OBS. Poll `publicTrpc.overlay.getTimerState` / `getTaskList` every 2s
+(`refetchIntervalInBackground: true`); timer display ticks locally (100ms) from
+`targetEndTime`. React Query keeps the last payload on failed refetches so OBS sources
+don't blank. Two ring shapes: circle + rounded-rect squircle.
 
-SSE infrastructure:
-- `packages/api/src/events.ts` — in-process `EventEmitter` bus emitting `timerStateChange:{userId}` and `taskListChange:{userId}` events
-- `trpc.overlay.onTimerState` / `trpc.overlay.onTaskList` — SSE subscription procedures that yield initial state then stream changes
-- `apps/web/src/utils/trpc.ts` — `splitLink` routes subscriptions to `httpSubscriptionLink`, queries/mutations to `httpBatchLink`
-- Task and timer mutations emit events after DB writes; overlay subscriptions listen and push fresh data
+### Theme Center & Frontend
 
-Timer overlay supports two progress ring shapes:
-- **Circle** — standard SVG `<circle>` with `strokeDasharray`/`strokeDashoffset`
-- **Rounded rectangle (squircle)** — SVG `<rect>` with configurable `borderRadius`, macOS-style (default 22%)
-
-Overlays receive pre-built nested config objects from `trpc.overlay.*` public procedures — no client-side merging needed.
-
-Task list overlay groups tasks by author — each author gets a styled card container with a tinted header row showing their name and done/total count. Individual tasks render inside the container. Grouping uses `authorTwitchId` (falls back to `authorDisplayName`). Component: `src/components/task-list-display.tsx`.
-
-### Theme Center (`/dashboard/styles`)
-
-Two-column layout: editor (left) + live preview (right).
-
-Key files:
-- `src/lib/config-types.ts` — TypeScript interfaces for `TimerStylesConfig`, `TaskStylesConfig`, `TimerConfigData`, `BotConfigData`, `AppConfig`
-- `src/lib/theme-presets.ts` — 11 theme presets + default style objects
-- `src/components/theme-center/` — All editor components (ThemeBrowser, ThemeCard, TimerStyleEditor, TaskStyleEditor, PhaseLabelsEditor, ColorInput, FontSelect, SectionGroup, StylePreviewPanel)
-- `src/app/(app)/dashboard/styles/` — Page and client component
-
-Theme presets (11 total): Default, Liquid Glass Light, Liquid Glass Dark, Neon Cyberpunk, Cozy Cottage, Ocean Depths, Sakura, Retro Terminal, Minimal Light, Sunset, Twitch Purple.
-
-Data flow:
-1. Load saved config via `trpc.config.get` — returns pre-built nested `{ timerConfig, timerStyles, taskStyles, botConfig }`
-2. Theme "Apply" or editor changes update working state (instant preview)
-3. "Save" calls `config.updateTimerStyles` + `config.updateTaskStyles` + `config.updatePhaseLabels` mutations
-4. API flattens nested objects back to flat DB columns via `flattenTimerStyles`/`flattenTaskStyles`
-
-Phase Labels editor lives in the Timer tab (moved from Bot Settings — it's a timer display concern, not a bot concern). Style preview panel includes a timer animation toggle (play/pause) for live countdown simulation. Task list respects `scroll.enabled` toggle to switch between infinite scroll and static overflow.
-
-### Dashboard
-
-- Time-of-day greetings (morning/afternoon/evening/night) with `suppressHydrationWarning`
-- Overlay previews use iframes pointing to actual overlay pages (`/overlay/t/[token]` and `/overlay/l/[token]`)
-- Bot connection feedback via URL search params (`?bot=connected` or `?bot=error&reason=...`) with toast notifications
-- Task manager groups tasks by author with per-author pending/done counts. Component: `src/components/task-manager.tsx`
-
-### Bot Settings (`/dashboard/bot`)
-
-Two-column responsive layout (`max-w-5xl`):
-- **Left column** (sticky sidebar, `lg:w-80`): Bot Account card, Task/Timer command toggle cards, Command Aliases editor
-- **Right column** (scrollable): Task Messages + Variable Reference, Timer Messages + Variable Reference
-- Collapses to single column on mobile (`< lg`)
-- Components in `src/components/bot-settings/` (message-editor, command-alias-editor, variable-reference)
-- Bot callback redirects use `env.BETTER_AUTH_URL` instead of `request.url` for correct behavior behind reverse proxies
+Design language: **"Focus Console"** — dark-first instrument panel. Montserrat (display,
+tabular-nums timer digits), IBM Plex Sans (body), IBM Plex Mono (labels/tokens/status).
+Warm charcoal base, Twitch purple accent used sparingly, amber = paused, emerald =
+live/connected (LED-style chips). All animation respects `prefers-reduced-motion`;
+inputs ≥16px on touch (iOS zoom). Destructive actions (token regenerate, disconnect,
+clear, stop) always confirm via the AlertDialog primitive. Editors with dirty state use
+the unsaved-changes guard hook. 11 theme presets in `lib/theme-presets.ts`.
 
 ### Hydration Safety
 
-- Components depending on client-only state (e.g., `next-themes` resolved theme) must use a `mounted` state pattern to avoid hydration mismatches
-- Render a placeholder during SSR, swap to real content after `useEffect` mount
-- When using controlled components (e.g., Base UI Switch), always pass the controlled prop (e.g., `checked={false}`) even in the pre-mount placeholder to avoid uncontrolled-to-controlled warnings
+Mounted-state pattern for client-only values (next-themes); controlled props on Base UI
+Switch placeholders pre-mount; `suppressHydrationWarning` on time-of-day greeting.
 
 ## Testing
 
-Vitest unit tests across `packages/api` and `apps/web`. Run with `pnpm test`.
-
-Test file locations:
-- `packages/api/src/routers/__tests__/config.test.ts` — build helpers (buildTimerConfig, buildTimerStylesConfig, buildTaskStylesConfig, buildBotConfig)
-- `packages/api/src/routers/__tests__/timer-logic.test.ts` — timer state machine (computeNextPhase), getTimerConfig defaults
-- `packages/api/src/routers/__tests__/config-flatten.test.ts` — flattenTimerStyles, flattenTaskStyles (full, partial, empty inputs)
-- `packages/api/src/routers/__tests__/config-roundtrip.test.ts` — flatten → build round-trip consistency for both style types
-- `packages/api/src/__tests__/events.test.ts` — EventEmitter config, emit/receive, cross-fire isolation
-- `apps/web/src/lib/__tests__/timer-utils.test.ts` — toHexOpacity, formatTime, roundedRectPath
-- `apps/web/src/lib/__tests__/task-utils.test.ts` — groupTasksByAuthor (grouping, counts, ordering, fallback)
-- `apps/web/src/lib/__tests__/config-types.test.ts` — TypeScript interface shape validation
-- `apps/web/src/lib/__tests__/theme-presets.test.ts` — theme preset structure and uniqueness
-
-When adding new pure functions, extract them into testable modules (not inline in components/routers) and add corresponding tests.
+Vitest across `packages/api`, `packages/auth`, `apps/web` — run `bun run test`.
+Key suites: `packages/api/src/services/__tests__/` (tokens, timer-service, task-service),
+`packages/api/src/routers/__tests__/` (timer-logic, config build/flatten/round-trip),
+`apps/web/src/lib/__tests__/` (timer-utils, task-utils, theme-presets, config-types),
+`packages/auth/src/__tests__/has-owner.test.ts`.
+New pure functions → extract to testable modules + add tests.
 
 ## CI/CD
 
-CI workflow: `.github/workflows/ci.yml`
-- Triggers on push to `dev` and `main`, and PRs to `main`
-- Steps: install → check-types → build → test (no codegen step — Drizzle is schema-as-code)
-- `SKIP_ENV_VALIDATION=true` is set to bypass t3-env during CI (no runtime secrets)
-
-Docs deployment: `.github/workflows/deploy-docs-to-pages.yml`
-- Triggers on push to `main`
-- Builds fumadocs as static export → deploys to GitHub Pages
+- `.github/workflows/ci.yml` — push (dev/main) + PRs: install → check-types → build → test.
+  `SKIP_ENV_VALIDATION=true`, dummy `NEXT_PUBLIC_SERVER_URL`.
+- `.github/workflows/deploy.yml` — push to main (or manual): test job, then Alchemy deploy.
+  **Deploy runs under Node via `npx tsx` — Bun segfaults on the Alchemy program** (same
+  lesson as Wolfathon). Secrets: `CLOUDFLARE_API_TOKEN`, `ALCHEMY_PASSWORD`,
+  `BETTER_AUTH_SECRET`, `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`. URLs
+  (`BETTER_AUTH_URL`/`CORS_ORIGIN`) are workflow env literals.
+- `.github/workflows/deploy-docs-to-pages.yml` — fumadocs static export → GitHub Pages.
 
 ## Deployment
 
-### Web App (Coolify)
-
-Deployed via **Coolify** using **Dockerfile**. Config in `Dockerfile` + `docker-entrypoint.sh`.
-
-- Next.js uses `output: "standalone"` for containerized deployment
-- `SKIP_ENV_VALIDATION=true` is set at build time to bypass t3-env validation (runtime secrets aren't available during build)
-- Docker build: install deps → build Drizzle migration bundle → build Next.js → copy static assets
-- Start command: `node apps/web/.next/standalone/apps/web/server.js`
-- PostgreSQL 17 Alpine as a separate Coolify service
-- Instance-specific notes live in `coolify.md` (gitignored)
-- Environment variable reference in `.env.example`
-
-### Documentation (GitHub Pages)
-
-Deployed via GitHub Actions (see CI/CD section above).
-
-- Fumadocs uses `output: "export"` for static site generation
-- `basePath` is set dynamically via `NEXT_PUBLIC_BASE_PATH` env var from `actions/configure-pages` (resolves to `/dirework` for GitHub Pages subpath)
-- Uses ocean (blue) color preset (`fumadocs-ui/css/ocean.css`)
-- GitHub link in nav bar via `githubUrl` in shared layout options
+Production: `dirework.mrdemonwolf.workers.dev` (web) + `dirework-api.mrdemonwolf.workers.dev`
+(api) + `dirework-db` (D1). Twitch app redirect URLs point at the WEB origin:
+`/api/auth/callback/twitch` and `/api/bot/callback/twitch`. Docs:
+`apps/fumadocs/content/docs/deployment.mdx`.
 
 ## Git Workflow
 
-- `main` — production branch
-- `dev` — development branch
-- Work on `dev`, PR to `main` for releases
+- `main` — production (deploys on push)
+- `dev` — development branch; PR to `main` for releases
 
 ## Environment Variables
 
-Defined in `packages/env/src/server.ts`. Required:
-- `DATABASE_URL` — PostgreSQL connection string
-- `BETTER_AUTH_SECRET` — min 32 characters
-- `BETTER_AUTH_URL` — app URL (e.g., `http://localhost:3001`)
-- `CORS_ORIGIN` — allowed CORS origin
-- `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` — from dev.twitch.tv
-
-Optional:
-- `PRIVACY_POLICY_URL` — URL to Privacy Policy page (set to show link in footer)
-- `TERMS_OF_SERVICE_URL` — URL to Terms of Service page (set to show link in footer)
-- `NODE_ENV` — development/production/test
-- `SKIP_ENV_VALIDATION` — set to `"true"` during CI/build to skip env validation
+Server worker bindings (typed via `packages/env/env.d.ts` from `alchemy.run.ts`):
+`DB` (D1), `CORS_ORIGIN`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `TWITCH_CLIENT_ID`,
+`TWITCH_CLIENT_SECRET`, `DOCS_URL`. Web worker: `NEXT_PUBLIC_SERVER_URL`.
+`SKIP_ENV_VALIDATION=true` bypasses t3-env during CI/build.
 
 ## Footer Convention
 
 Both the web app and docs site use the same footer format:
-`© {year} DireWork by MrDemonWolf, Inc.` — both names are links (no underline, font-medium, hover highlight). "DireWork" links to the GitHub repo, "MrDemonWolf, Inc." links to mrdemonwolf.com.
-
-The web app footer also conditionally shows Privacy Policy and Terms of Service links when the corresponding env vars (`PRIVACY_POLICY_URL`, `TERMS_OF_SERVICE_URL`) are set. If neither is set, the legal links row is hidden.
+`© {year} DireWork by MrDemonWolf, Inc.` — both names are links (no underline,
+font-medium, hover highlight). "DireWork" → GitHub repo, "MrDemonWolf, Inc." →
+mrdemonwolf.com.
 
 - Web app: inline in `apps/web/src/app/(app)/layout.tsx`
-- Docs: shared `Footer` component in `apps/fumadocs/src/components/footer.tsx`, rendered from root layout
+- Docs: shared `Footer` component in `apps/fumadocs/src/components/footer.tsx`
 
 ## README Convention
 
-The README follows the MrDemonWolf format (see `mrdemonwolf/fluffboost` for reference). Section order: Title with tagline, Description, Features, Getting Started, Usage, Tech Stack, Development (Prerequisites, Setup, Scripts, Code Quality), Project Structure, License badge, Contact, Footer. No emojis. Bold feature names. Aligned tables. Code blocks with language tags.
+The README follows the MrDemonWolf format (see `mrdemonwolf/fluffboost` for reference).
+Section order: Title with tagline, Description, Features, Getting Started, Usage, Tech
+Stack, Development (Prerequisites, Setup, Scripts, Code Quality), Deployment, Project
+Structure, License badge, Contact, Footer. No emojis. Bold feature names. Aligned tables.
+Code blocks with language tags.

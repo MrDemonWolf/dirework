@@ -16,10 +16,11 @@ deploy it anywhere. Going to production instead? Jump to [Deployment](/docs/depl
 Install these once. Click each name if you don't have it yet:
 
 - [Bun](https://bun.sh) — the toolkit that runs everything (one install command on their site)
-- [Docker](https://www.docker.com/products/docker-desktop/) — runs the database in the background
+- [Node.js](https://nodejs.org) — version 22 or newer
 - A free [Twitch developer application](/docs/twitch-oauth) — this is where your two keys come from
 
-That's the whole shopping list.
+That's the whole shopping list. No Docker, no database to install — a local database
+is created for you automatically.
 
 ## 1. Get the code
 
@@ -28,53 +29,63 @@ git clone https://github.com/mrdemonwolf/dirework.git
 cd dirework
 ```
 
-## 2. Install + set up — one command
+## 2. Install
 
 ```bash
 bun install
-bun run setup
 ```
 
-`bun run setup` does the boring parts for you: it creates your `.env` file, starts the
-database in Docker, and loads the database tables. When it finishes, it tells you what to do next.
+## 3. Create your `.env` file
 
-<Callout type="info">
-  Seeing a Docker error? Make sure Docker Desktop is open and running, then run
-  `bun run setup` again. It's safe to re-run.
-</Callout>
+```bash
+cp .env.example packages/infra/.env
+```
 
-## 3. Add your two Twitch keys
-
-Open the new `.env` file in the project folder and fill in these two lines:
+Open `packages/infra/.env` and fill in three values:
 
 ```bash
 TWITCH_CLIENT_ID="paste_your_client_id"
 TWITCH_CLIENT_SECRET="paste_your_client_secret"
+BETTER_AUTH_SECRET="paste_a_generated_secret"
 ```
 
-Don't have these yet? The [Twitch OAuth Setup](/docs/twitch-oauth) page walks you
-through getting them — it takes about two minutes. For local use, set your app's
-redirect URL to:
+Generate the `BETTER_AUTH_SECRET` with one command:
+
+```bash
+openssl rand -base64 32
+```
+
+Don't have the Twitch keys yet? The [Twitch OAuth Setup](/docs/twitch-oauth) page walks
+you through getting them — it takes about two minutes. For local use, add **both** of
+these redirect URLs to your Twitch app:
 
 ```
 http://localhost:3001/api/auth/callback/twitch
+http://localhost:3001/api/bot/callback/twitch
 ```
 
-Everything else in `.env` already has a sensible default for local use. You don't need
-to touch it.
+Everything else in the `.env` file already has a sensible default for local use. You
+don't need to touch it.
 
 ## 4. Start it up
 
 ```bash
-bun run dev:full
+bun run dev
 ```
 
-This starts the database (if it isn't already running) and launches both apps:
+This starts everything at once:
 
+- **The API** → `http://localhost:3000` (works behind the scenes)
 - **Your Dirework app** → [http://localhost:3001](http://localhost:3001)
 - **This documentation** → [http://localhost:4000](http://localhost:4000)
+- **A local database** — created automatically, with all tables set up for you
 
 ✅ You should now see the Dirework welcome screen at `localhost:3001`.
+
+<Callout type="info">
+  First start taking a moment? That's the local database being created and the apps
+  compiling. It's much faster after the first run.
+</Callout>
 
 ## 5. Claim your instance
 
@@ -97,14 +108,15 @@ The first time you open the app, it sends you to a **setup screen**. Click
 
 ## Handy commands
 
-You'll mostly use `bun run dev:full`. These are here when you need them:
+You'll mostly use `bun run dev`. These are here when you need them:
 
 | Command | What it does |
 | --- | --- |
-| `bun run dev:full` | Start the database and both apps together |
-| `bun run dev:web` | Start just the web app (database must already be running) |
-| `bun run db` | Bring the database up, wait until it's ready, and sync the schema |
-| `bun run db:start` | Start the database container on its own |
-| `bun run db:stop` | Stop the database |
-| `bun run db:studio` | Open a visual editor for the database |
-| `bun run db:push` | Reload the database tables after a code update |
+| `bun run dev` | Start the API, the web app, the docs, and the local database together |
+| `bun run dev:web` | Start just the web app |
+| `bun run dev:server` | Start just the API |
+| `bun run check-types` | Check the code for TypeScript errors |
+| `bun run test` | Run the unit tests |
+| `bun run db:generate` | Create a new database migration after schema changes |
+| `bun run deploy` | Deploy to Cloudflare from your machine (see [Deployment](/docs/deployment)) |
+| `bun run destroy` | Tear a Cloudflare deployment back down |

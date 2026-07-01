@@ -5,6 +5,7 @@ import { Pause, Play } from "lucide-react";
 
 import type { TimerStylesConfig, TaskStylesConfig } from "@/lib/config-types";
 import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { TimerDisplay } from "@/components/timer-display";
 import { TaskListDisplay } from "@/components/task-list-display";
@@ -23,11 +24,55 @@ const mockTasks = [
 function timerPreviewConfig(styles: TimerStylesConfig) {
   return {
     ...styles,
-    labels: { ...DEFAULT_PHASE_LABELS },
+    labels: { ...DEFAULT_PHASE_LABELS } as Record<string, string>,
     showHours: false,
   };
 }
 
+type Backdrop = "dark" | "light" | "checker";
+
+const backdrops: { id: Backdrop; label: string; className: string; swatch: string }[] = [
+  { id: "dark", label: "Dark backdrop", className: "bg-zinc-900/95 bg-grain", swatch: "bg-zinc-900" },
+  { id: "light", label: "Light backdrop", className: "bg-zinc-100 bg-grain", swatch: "bg-zinc-100" },
+  { id: "checker", label: "Checkerboard backdrop", className: "bg-checker", swatch: "bg-checker" },
+];
+
+function BackdropToggle({
+  value,
+  onChange,
+}: {
+  value: Backdrop;
+  onChange: (v: Backdrop) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1" role="radiogroup" aria-label="Preview backdrop">
+      {backdrops.map((b) => (
+        <button
+          key={b.id}
+          type="button"
+          role="radio"
+          aria-checked={value === b.id}
+          aria-label={b.label}
+          title={b.label}
+          onClick={() => onChange(b.id)}
+          className={cn(
+            "size-5 cursor-pointer overflow-hidden rounded-md border transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+            b.swatch,
+            value === b.id
+              ? "border-primary ring-1 ring-primary/40"
+              : "border-border hover:border-primary/50",
+          )}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * OBS-like preview canvas. Backdrop is switchable (audit L16) — dark stays
+ * the default since streamers design against dark scenes, but light and
+ * checkerboard reveal how a transparent overlay really composites.
+ */
 export function StylePreviewPanel({
   timerStyles,
   taskStyles,
@@ -37,6 +82,7 @@ export function StylePreviewPanel({
 }) {
   const [targetEndTime, setTargetEndTime] = useState<string | null>(null);
   const [pausedRemaining, setPausedRemaining] = useState(DEFAULT_PAUSED_REMAINING);
+  const [backdrop, setBackdrop] = useState<Backdrop>("dark");
 
   // Auto-reset (loop) when countdown reaches 0
   useEffect(() => {
@@ -53,12 +99,20 @@ export function StylePreviewPanel({
     ? { status: "work", targetEndTime, pausedWithRemaining: null, currentCycle: 2, totalCycles: 4 }
     : { status: "paused", targetEndTime: null, pausedWithRemaining: pausedRemaining, currentCycle: 2, totalCycles: 4 };
 
+  const canvasClass = backdrops.find((b) => b.id === backdrop)!.className;
+
   return (
     <div className="flex flex-col gap-6">
+      {/* Canvas controls */}
+      <div className="flex items-center justify-between">
+        <p className="console-label">Preview Canvas</p>
+        <BackdropToggle value={backdrop} onChange={setBackdrop} />
+      </div>
+
       {/* Timer Preview */}
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <p className="text-xs font-medium text-muted-foreground">Timer Preview</p>
+          <p className="console-label">Timer</p>
           <Button
             variant="ghost"
             size="sm"
@@ -90,7 +144,12 @@ export function StylePreviewPanel({
             )}
           </Button>
         </div>
-        <div className="flex items-center justify-center rounded-lg border border-dashed border-zinc-700 bg-zinc-900/80 p-6">
+        <div
+          className={cn(
+            "flex items-center justify-center rounded-lg border border-dashed border-border/60 p-6",
+            canvasClass,
+          )}
+        >
           <TimerDisplay
             config={timerPreviewConfig(timerStyles)}
             state={timerState}
@@ -101,8 +160,13 @@ export function StylePreviewPanel({
 
       {/* Task List Preview */}
       <div>
-        <p className="mb-2 text-xs font-medium text-muted-foreground">Task List Preview</p>
-        <div className="rounded-lg border border-dashed border-zinc-700 bg-zinc-900/80 p-4">
+        <p className="console-label mb-2">Task List</p>
+        <div
+          className={cn(
+            "rounded-lg border border-dashed border-border/60 p-4",
+            canvasClass,
+          )}
+        >
           <div style={{ height: "300px" }}>
             <TaskListDisplay config={taskStyles} tasks={mockTasks} />
           </div>

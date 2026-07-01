@@ -2,32 +2,17 @@
 
 import { useEffect, useState } from "react";
 
+import type { TimerStylesConfig } from "@/lib/config-types";
 import { toHexOpacity, formatTime, roundedRectPath } from "@/lib/timer-utils";
 
-interface RingConfig {
-  enabled: boolean;
-  trackColor: string;
-  trackOpacity: number;
-  fillColor: string;
-  fillOpacity: number;
-  width: number;
-  gap: number;
-}
+// Style shape comes from the shared config source of truth (audit M4);
+// the overlay payload composes it with runtime labels + showHours.
+type RingConfig = TimerStylesConfig["ring"];
 
-interface TimerConfig {
-  dimensions: { width: string; height: string };
-  background: { color: string; opacity: number; borderRadius: string };
-  ring: RingConfig;
-  text: {
-    color: string;
-    outlineColor: string;
-    outlineSize: string;
-    fontFamily: string;
-  };
-  fontSizes: { label: string; time: string; cycle: string };
+type TimerConfig = TimerStylesConfig & {
   labels: Record<string, string>;
   showHours: boolean;
-}
+};
 
 interface TimerState {
   status: string;
