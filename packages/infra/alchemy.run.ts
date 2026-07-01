@@ -1,3 +1,7 @@
+// Run this program under Node (tsx), never Bun — Bun segfaults executing the
+// Alchemy program (same failure as Wolfathon). The package scripts and
+// deploy.yml both invoke it via tsx directly, bypassing the alchemy CLI's
+// runtime detection (which picks bun whenever bun is the package manager).
 import alchemy from "alchemy";
 import { D1Database, Nextjs, Worker } from "alchemy/cloudflare";
 import { config } from "dotenv";
