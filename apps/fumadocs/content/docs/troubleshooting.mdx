@@ -7,28 +7,24 @@ description: Common issues and solutions
 
 ### `bun install` fails
 
-Make sure you have **Bun** installed and you're on **Node.js v20+**:
+Make sure you have **Bun** installed and you're on **Node.js v22+**:
 
 ```bash
 bun --version    # any recent 1.x
-node --version   # Should be v20 or higher
+node --version   # Should be v22 or higher
 ```
 
 Don't have Bun yet? Install it from [bun.sh](https://bun.sh). Update Node.js via
 [nvm](https://github.com/nvm-sh/nvm) or the [official installer](https://nodejs.org/).
 
-### `bun run setup` / `bun run db:start` fails
+### `bun run dev` fails or nothing loads
 
-These start PostgreSQL via Docker Compose. Common issues:
-
-- **Docker not running:** Make sure Docker Desktop (or the Docker daemon) is running, then re-run the command — it's safe to run again.
-- **Port 5432 in use:** Another PostgreSQL instance may be using the port. Stop it or change the port in `packages/db/docker-compose.yml`.
-- **Permission errors:** On Linux, you may need to add your user to the `docker` group: `sudo usermod -aG docker $USER`, then log out and back in.
-
-### `bun run db:push` fails
-
-- **Database not running:** Run `bun run db:start` first.
-- **Wrong DATABASE_URL:** Make sure `DATABASE_URL` in your `.env` matches your PostgreSQL connection string. The default is `postgresql://postgres:password@localhost:5432/dirework`.
+- **Missing `.env` file:** Make sure you copied `.env.example` to `packages/infra/.env`
+  and filled in your Twitch keys and `BETTER_AUTH_SECRET`. See [Getting Started](/docs/getting-started).
+- **Slow first start:** The first run creates the local database and compiles the apps.
+  Give it a minute — later starts are much faster.
+- **Port already in use:** Dirework uses port **3000** (API), **3001** (web app), and
+  **4000** (docs). See [Port already in use](#port-already-in-use) below.
 
 ## Authentication Issues
 
@@ -41,12 +37,16 @@ http://localhost:3001/api/auth/callback/twitch
 http://localhost:3001/api/bot/callback/twitch
 ```
 
-For production, add your domain-based URLs too. See [Twitch OAuth Setup](/docs/twitch-oauth) for details.
+For production, add the same two paths on your workers.dev domain
+(`https://dirework.<your-subdomain>.workers.dev/...`). See [Twitch OAuth Setup](/docs/twitch-oauth) for details.
 
 ### Can't sign in / redirects back to login
 
-- Check that `BETTER_AUTH_URL` matches the URL you're accessing the app from (e.g., `http://localhost:3001`).
+- Check that `BETTER_AUTH_URL` matches the URL you're accessing the app from **exactly** —
+  protocol, host, and port (e.g., `http://localhost:3001` locally,
+  `https://dirework.<your-subdomain>.workers.dev` in production).
 - Check that `CORS_ORIGIN` matches as well.
+- Your Twitch redirect URLs must be on that same origin — a mismatch sends you in a loop.
 - Make sure your Twitch application's **Client Type** is set to **Confidential**.
 
 ### Bot account won't connect
@@ -64,9 +64,13 @@ For production, add your domain-based URLs too. See [Twitch OAuth Setup](/docs/t
 
 ### Overlay not updating in OBS
 
+- Overlays check for changes every **couple of seconds** — a short delay after adding a
+  task or starting the timer is normal. The timer countdown itself ticks smoothly on the
+  overlay, so it never looks laggy.
+- **Did you regenerate the overlay token?** Regenerating kills the old URL — re-copy the
+  fresh URL from the dashboard and paste it into your OBS browser source.
 - OBS browser sources cache aggressively. Right-click the source and click **Refresh cache of current page**.
 - Make sure **"Shutdown source when not visible"** is checked in the browser source settings so it reloads when you switch scenes.
-- Overlays use Server-Sent Events (SSE) for real-time updates. If updates aren't coming through, try refreshing the browser source cache in OBS.
 
 ### Overlay has a white/colored background in OBS
 
@@ -76,10 +80,11 @@ The overlays are designed to be transparent. In OBS browser source settings, mak
 
 ### Timer stuck at 0:00 / not transitioning
 
-The timer relies on the dashboard or overlay page being open to trigger phase transitions. If no client is connected via SSE, the transition won't happen.
+Phase transitions are triggered by the **dashboard** — when the countdown reaches 0, the
+open dashboard page tells the server to move to the next phase.
 
-- Make sure the dashboard page or at least one overlay (timer) is open in a browser
-- Overlays receive state changes via Server-Sent Events (SSE) — transitions happen automatically when the countdown reaches 0
+- Keep the dashboard open in a browser tab while the timer is running
+- The overlays display the timer but don't drive it
 - If the timer is stuck, try clicking **Stop** (square button) and starting a new session
 
 ### Timer starts but only counts down 5 seconds
@@ -108,9 +113,16 @@ If you changed the work duration (e.g. to 50 minutes) but the timer still uses 2
 
 ### Bot not responding to commands
 
-- Make sure you've [connected a bot account](/docs/twitch-oauth#step-5-connect-the-bot-account) in the dashboard.
-- The bot runs inside the overlay browser sources. If the overlays are not active in OBS (or the browser source is shut down), the bot won't be listening.
-- Make sure at least one overlay (timer or task list) is active as a browser source in OBS.
+The bot only listens to chat **while its bot page is open** somewhere. Run through this list:
+
+- **Is the bot page open?** Copy the bot page URL from **Dashboard → Bot** and add it to
+  OBS as a browser source (or keep it open in a pinned browser tab). If OBS has the
+  source shut down — or no one has the page open — the bot hears nothing.
+- **Was the bot token regenerated?** Regenerating the token kills any previously copied
+  bot page URL. Re-copy the fresh URL from **Dashboard → Bot** and update your OBS
+  source or pinned tab.
+- **Is a bot account connected?** Check the **Bot Account** card —
+  [connect a bot account](/docs/twitch-oauth#step-5-connect-the-bot-account) if it isn't.
 
 ### Commands work but messages aren't sent
 
@@ -129,19 +141,21 @@ bun run check-types
 
 ### Changes to Drizzle schema not reflected
 
-After modifying the schema files in `packages/db/src/schema/`, generate and apply migrations:
+After modifying the schema files in `packages/db/src/schema/`, generate a migration:
 
 ```bash
 bun run db:generate
-bun run db:migrate
 ```
+
+Migrations are applied to the local database automatically the next time you run
+`bun run dev` (and to production on deploy).
 
 ### Port already in use
 
-The web app runs on port 3001 and docs on port 4000. If these ports are in use:
+The API runs on port 3000, the web app on 3001, and the docs on 4000. If one of these ports is taken:
 
 - Find what's using the port: `lsof -i :3001`
-- Kill the process or change the port in the respective `package.json` scripts.
+- Kill that process, or change the port in the respective app's dev configuration.
 
 ## Still stuck?
 

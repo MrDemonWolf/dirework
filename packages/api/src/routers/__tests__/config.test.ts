@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildTimerConfig, buildTimerStylesConfig, buildTaskStylesConfig, buildBotConfig } from "../config";
+import { buildTimerConfig, buildTimerStylesConfig, buildTaskStylesConfig, buildBotConfig } from "../../config-shared";
 
 describe("buildTimerConfig", () => {
   const fakeTimerConfig = {

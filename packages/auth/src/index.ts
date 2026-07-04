@@ -1,63 +1,100 @@
 import { count } from "drizzle-orm";
-import { db } from "@dirework/db";
+import { createDb, type DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { nextCookies } from "better-auth/next-js";
 import { APIError } from "better-auth/api";
 
 /** Returns true if an owner account already exists in the database. */
-export async function hasOwner(): Promise<boolean> {
+export async function hasOwner(db: DbClient = createDb()): Promise<boolean> {
   const [row] = await db.select({ count: count() }).from(schema.user);
   return (row?.count ?? 0) > 0;
 }
 
-export const auth = betterAuth({
-  database: drizzleAdapter(db, { provider: "pg", schema }),
+/**
+ * Per-request better-auth factory — Workers isolate per request, so there are
+ * no module-level auth/db singletons. Call inside a request handler.
+ *
+ * Cookie topology: the browser only ever talks to the WEB worker origin
+ * (env.BETTER_AUTH_URL); Next rewrites proxy /api/auth/* same-origin to this
+ * API worker. From the browser's perspective everything is same-origin, so
+ * cookies are plain sameSite=lax + secure + httpOnly — no sameSite=none, no
+ * crossSubDomainCookies (workers.dev is on the Public Suffix List anyway).
+ */
+export function createAuth() {
+  const db = createDb();
 
-  trustedOrigins: [env.CORS_ORIGIN],
-  emailAndPassword: {
-    enabled: false,
-  },
-  socialProviders: {
-    twitch: {
-      clientId: env.TWITCH_CLIENT_ID,
-      clientSecret: env.TWITCH_CLIENT_SECRET,
+  return betterAuth({
+    database: drizzleAdapter(db, { provider: "sqlite", schema }),
+
+    baseURL: env.BETTER_AUTH_URL,
+    secret: env.BETTER_AUTH_SECRET,
+    trustedOrigins: [env.CORS_ORIGIN],
+
+    emailAndPassword: {
+      enabled: false,
     },
-  },
-  session: {
-    expiresIn: 60 * 60 * 24 * 30, // 30 days
-    updateAge: 60 * 60 * 24,
-  },
-  databaseHooks: {
-    user: {
-      create: {
-        before: async (user) => {
-          const [row] = await db.select({ count: count() }).from(schema.user);
-          if ((row?.count ?? 0) > 0) {
-            throw new APIError("FORBIDDEN", {
-              message: "This instance is already claimed. Single-user only.",
-            });
-          }
-          return { data: { ...user, isOwner: true } };
-        },
+    socialProviders: {
+      twitch: {
+        clientId: env.TWITCH_CLIENT_ID,
+        clientSecret: env.TWITCH_CLIENT_SECRET,
+        mapProfileToUser: (profile) => ({
+          twitchId: profile.sub,
+          displayName: profile.preferred_username,
+        }),
       },
     },
     session: {
-      create: {
-        after: async () => {
-          // Provision singleton config rows on every login — onConflictDoNothing is atomic
-          await Promise.all([
-            db.insert(schema.timerConfig).values({}).onConflictDoNothing(),
-            db.insert(schema.timerStyle).values({}).onConflictDoNothing(),
-            db.insert(schema.taskStyle).values({}).onConflictDoNothing(),
-            db.insert(schema.botConfig).values({}).onConflictDoNothing(),
-            db.insert(schema.instanceConfig).values({}).onConflictDoNothing(),
-          ]);
+      expiresIn: 60 * 60 * 24 * 30, // 30 days
+      updateAge: 60 * 60 * 24,
+    },
+    user: {
+      additionalFields: {
+        twitchId: { type: "string", required: false, input: false },
+        displayName: { type: "string", required: false, input: false },
+        isOwner: { type: "boolean", required: false, defaultValue: false, input: false },
+      },
+    },
+    advanced: {
+      defaultCookieAttributes: {
+        sameSite: "lax",
+        secure: true,
+        httpOnly: true,
+      },
+    },
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (user) => {
+            if (await hasOwner(db)) {
+              throw new APIError("FORBIDDEN", {
+                message: "This instance is already claimed. Single-user only.",
+              });
+            }
+            return { data: { ...user, isOwner: true } };
+          },
+        },
+      },
+      session: {
+        create: {
+          after: async () => {
+            // Provision singleton config rows on every login. Explicit id is
+            // required: SQLite rejects an upsert clause on `DEFAULT VALUES`,
+            // and D1 batch keeps it atomic in one round trip.
+            await db.batch([
+              db.insert(schema.timerConfig).values({ id: schema.SINGLETON_ID }).onConflictDoNothing(),
+              db.insert(schema.timerStyle).values({ id: schema.SINGLETON_ID }).onConflictDoNothing(),
+              db.insert(schema.taskStyle).values({ id: schema.SINGLETON_ID }).onConflictDoNothing(),
+              db.insert(schema.botConfig).values({ id: schema.SINGLETON_ID }).onConflictDoNothing(),
+              db.insert(schema.instanceConfig).values({ id: schema.SINGLETON_ID }).onConflictDoNothing(),
+            ]);
+          },
         },
       },
     },
-  },
-  plugins: [nextCookies()],
-});
+  });
+}
+
+export type Auth = ReturnType<typeof createAuth>;
+export type Session = Auth["$Infer"]["Session"];

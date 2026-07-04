@@ -51,6 +51,7 @@ Connect a separate Twitch bot account to handle chat commands.
 - **Customizable bot messages** — Configure response templates for every command
 - **Command aliases** — Create custom aliases for any command
 - **Separate bot account** — Uses its own Twitch account so messages come from the bot, not you
+- **Runs in your browser** — The bot lives in a token-gated browser page you add to OBS (or keep in a pinned tab); no always-on bot server to run
 
 ## OBS Overlays
 
@@ -60,7 +61,7 @@ Two transparent browser source overlays designed for OBS and streaming software.
 - **Task list overlay** — Shows task list with viewer usernames, checkboxes, and auto-scroll
 - **Transparent backgrounds** — Overlays render with no background, layering cleanly over your stream
 - **Unique tokens** — Each overlay has a private token URL; regenerate if compromised
-- **Real-time updates** — Overlays use Server-Sent Events (SSE) for instant updates with no polling delay
+- **Fast updates** — Overlays pick up changes within a couple of seconds, and the timer countdown ticks smoothly on the overlay itself
 - **Toggle previews** — Dashboard previews can be toggled on/off to avoid slow page loads
 
 ## Dashboard
@@ -85,9 +86,9 @@ A single-page control center for your stream.
 ## Self-Hosted and Single-User
 
 - **Single-user per instance** — Each streamer runs their own Dirework instance
-- **Full data ownership** — Your data stays on your server
-- **PostgreSQL backend** — Reliable, battle-tested database
-- **Deploy anywhere** — Dokploy, Coolify, Docker, a VPS, Railway, or any Node.js host
+- **Full data ownership** — Your data lives in your own Cloudflare account
+- **Serverless database** — Cloudflare D1 (SQLite) — no database server to install or babysit
+- **Free to run** — Deploys as two Cloudflare Workers on the free plan; no servers, no Docker
 - **Static docs site** — Documentation builds as a static site, deployable separately
 
 ## Tech Stack
@@ -96,9 +97,12 @@ A single-page control center for your stream.
 | --- | --- |
 | **Framework** | Next.js 16 (App Router, React 19, React Compiler) |
 | **Styling** | Tailwind CSS v4, shadcn/ui components |
-| **API** | tRPC v11 with TanStack React Query |
+| **API** | Hono + tRPC v11 with TanStack React Query |
 | **Auth** | Better Auth with Twitch OAuth |
-| **Database** | Drizzle ORM with PostgreSQL 17 |
+| **Database** | Cloudflare D1 (SQLite) with Drizzle ORM |
+| **Chat Bot** | IRC-over-WebSocket in a token-gated browser page |
+| **Runtime** | Cloudflare Workers (web via OpenNext) |
+| **Deploy** | Alchemy (infrastructure-as-code) + GitHub Actions |
 | **Fonts** | Montserrat (headings/timer) + Roboto (body) |
 | **Docs** | Fumadocs with Orama search |
 | **Build** | Turborepo + Bun workspaces |

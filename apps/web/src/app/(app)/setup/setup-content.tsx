@@ -16,10 +16,11 @@ export default function SetupContent() {
   return (
     <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
-        {/* Focus ring badge */}
+        {/* Focus ring badge — the brand motif */}
         <div className="mb-6 flex justify-center">
           <div className="relative size-20">
-            <svg viewBox="0 0 80 80" className="size-full">
+            <div className="absolute -inset-4 rounded-full bg-primary/10 blur-2xl" aria-hidden />
+            <svg viewBox="0 0 80 80" className="relative size-full">
               <circle
                 cx="40"
                 cy="40"
@@ -48,7 +49,7 @@ export default function SetupContent() {
 
         {/* Heading — warm, plain language */}
         <div className="space-y-3 text-center">
-          <span className="inline-block rounded-full border bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground">
+          <span className="console-label inline-block rounded-full border bg-muted/50 px-3 py-1">
             Welcome — let&apos;s get you set up
           </span>
           <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
@@ -61,8 +62,8 @@ export default function SetupContent() {
         </div>
 
         {/* What you get */}
-        <div className="mt-6 rounded-2xl border bg-card/50 p-5">
-          <p className="mb-4 text-sm font-medium">Here&apos;s what you&apos;re turning on:</p>
+        <div className="mt-6 rounded-2xl border bg-card p-5 shadow-sm">
+          <p className="console-label mb-4">Here&apos;s what you&apos;re turning on</p>
           <ul className="space-y-3">
             {perks.map((perk) => (
               <li key={perk.label} className="flex items-start gap-3 text-sm text-muted-foreground">

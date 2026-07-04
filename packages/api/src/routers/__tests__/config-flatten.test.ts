@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { flattenTimerStyles, flattenTaskStyles } from "../config";
+import { flattenTimerStyles, flattenTaskStyles } from "../../config-shared";
 
 describe("flattenTimerStyles", () => {
   it("should flatten full input to all 19 fields", () => {

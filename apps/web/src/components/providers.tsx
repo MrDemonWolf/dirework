@@ -9,8 +9,9 @@ import { ThemeProvider } from "./theme-provider";
 import { Toaster } from "./ui/sonner";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
+  // Dark is the hero theme — streamers live in dark UIs next to OBS
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
         {children}
         <ReactQueryDevtools />
