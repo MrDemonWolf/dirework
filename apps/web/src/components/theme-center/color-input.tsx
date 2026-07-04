@@ -36,7 +36,7 @@ export function ColorInput({
             const v = e.target.value;
             if (/^#[0-9a-fA-F]{0,6}$/.test(v)) onChange(v);
           }}
-          className="h-8 w-24 font-mono text-xs"
+          className="h-8 w-24 font-mono"
           placeholder="#000000"
         />
       </div>

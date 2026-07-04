@@ -1,7 +1,6 @@
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { auth } from "@dirework/auth";
+import { getServerSession } from "@/lib/server-session";
 
 /**
  * Require an authenticated owner session for a server component / route.
@@ -10,9 +9,7 @@ import { auth } from "@dirework/auth";
  * Use in protected dashboard pages so the session check lives in one place.
  */
 export async function requireSession() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getServerSession();
 
   if (!session?.user) {
     redirect("/");

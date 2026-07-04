@@ -5,9 +5,10 @@ co-working and body-doubling streams. It combines a
 Pomodoro timer, viewer task list, and Twitch chat bot into
 a single self-hosted tool with customizable OBS overlays.
 
-It is open source. If you want the same setup for your own
-channel, fork it and run your own instance — one streamer,
-one instance, zero distractions.
+It is open source and runs entirely on Cloudflare's free
+plan. If you want the same setup for your own channel, fork
+it and deploy your own instance — one streamer, one
+instance, zero distractions.
 
 ## Features
 
@@ -18,18 +19,20 @@ one instance, zero distractions.
 - **Twitch Bot** - Dedicated bot account for chat commands
   like `!task`, `!done`, `!timer start`, and `!time`. Customizable
   wolf-themed response messages, enable/disable toggles for task
-  and timer command groups, and configurable phase labels.
+  and timer command groups, and configurable phase labels. The
+  bot runs in a token-gated browser page (OBS source or pinned
+  tab) — no always-on server needed.
 - **Theme Center** - 11 built-in themes including Liquid
   Glass, Neon Cyberpunk, Sakura, and Retro Terminal with
   full style customization for colors, fonts, and layout.
-- **Live Preview** - See overlay changes in real-time on the
-  dashboard before going live.
+- **Live Preview** - See overlay changes on the dashboard
+  before going live.
 - **Dashboard** - Control the timer, manage tasks, and preview
   overlays from one page.
-- **Bot Settings** - Two-column layout for bot account management,
-  message customization, and command aliases.
-- **Self-Hosted** - Own your data, deploy anywhere, single
-  user per instance.
+- **Bot Settings** - Bot account management, message
+  customization, command aliases, and the bot console link.
+- **Serverless** - Two Cloudflare Workers plus a D1 database.
+  Free plan, no servers, no Docker, single user per instance.
 
 ## Getting Started
 
@@ -39,10 +42,14 @@ account configuration, and OBS setup, see the
 
 1. Clone the repository
 2. Install dependencies with `bun install`
-3. Run `bun run setup` — creates your `.env`, starts PostgreSQL, and loads the schema
-4. Add `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` to `.env`
-5. Start everything with `bun run dev:full`
-6. Open `http://localhost:3001` — on first run you'll be redirected to `/setup` to claim the instance with your Twitch account
+3. Copy `.env.example` to `packages/infra/.env` and fill in
+   `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, and a generated
+   `BETTER_AUTH_SECRET`
+4. Start everything with `bun run dev` (API worker on port 3000,
+   web on port 3001, local D1 database included)
+5. Open `http://localhost:3001` — on first run you'll be
+   redirected to `/setup` to claim the instance with your Twitch
+   account
 
 ## Usage
 
@@ -84,29 +91,32 @@ for all options and customizable bot responses.
 
 Navigate to `/dashboard/bot` to manage your bot account,
 customize all response messages (wolf-themed defaults included),
-enable or disable task and timer command groups, and set up
-command aliases.
+enable or disable task and timer command groups, set up command
+aliases, and copy your bot console link. The bot listens to chat
+while the bot console page is open — add it to OBS as a browser
+source or keep the tab pinned.
 
 ## Tech Stack
 
 | Layer     | Technology                                          |
 | --------- | --------------------------------------------------- |
-| Framework | Next.js 16 (App Router), React 19, TypeScript 5    |
-| Styling   | Tailwind CSS v4, shadcn/ui, Montserrat + Roboto    |
-| API       | tRPC v11, TanStack React Query                     |
-| Auth      | Better Auth (Twitch OAuth)                         |
-| Database  | PostgreSQL 17 + Drizzle ORM                        |
-| Chat Bot  | Twurple (runs inside overlay browser sources)      |
-| Docs      | Fumadocs                                           |
-| Monorepo  | Turborepo + Bun workspaces                         |
+| Framework | Next.js 16 (App Router), React 19, TypeScript 5     |
+| Styling   | Tailwind CSS v4, shadcn/ui                          |
+| API       | Hono + tRPC v11, TanStack React Query               |
+| Auth      | Better Auth (Twitch OAuth)                          |
+| Database  | Cloudflare D1 (SQLite) + Drizzle ORM                |
+| Chat Bot  | IRC-over-WebSocket in a token-gated browser page    |
+| Runtime   | Cloudflare Workers (web via OpenNext)               |
+| Deploy    | Alchemy (infrastructure-as-code) + GitHub Actions   |
+| Docs      | Fumadocs                                            |
+| Monorepo  | Turborepo + Bun workspaces                          |
 
 ## Development
 
 ### Prerequisites
 
-- Node.js 20+
-- Bun 1.0+
-- Docker (for PostgreSQL)
+- Node.js 22+
+- Bun 1.3+
 - A Twitch Developer Application
   ([dev.twitch.tv](https://dev.twitch.tv/console))
 
@@ -125,59 +135,47 @@ command aliases.
    bun install
    ```
 
-3. Run the one-command setup:
+3. Create your environment file:
 
    ```bash
-   bun run setup
+   cp .env.example packages/infra/.env
    ```
 
-   This creates `.env` from `.env.example`, starts PostgreSQL via Docker, and
-   pushes the database schema.
+   Fill in `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` from
+   [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps),
+   and generate `BETTER_AUTH_SECRET` with `openssl rand -base64 32`.
+   Add `http://localhost:3001/api/auth/callback/twitch` and
+   `http://localhost:3001/api/bot/callback/twitch` as redirect URLs
+   on your Twitch app.
 
-4. Add your Twitch credentials to `.env`:
+4. Start everything:
 
    ```bash
-   TWITCH_CLIENT_ID="your_client_id"
-   TWITCH_CLIENT_SECRET="your_client_secret"
+   bun run dev
    ```
 
-   Get them from [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps).
-   Everything else in `.env` already defaults to working local values
-   (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `CORS_ORIGIN`).
-
-5. Start the database and both apps:
-
-   ```bash
-   bun run dev:full
-   ```
-
-   Prefer to wire it up by hand? Use `bun run db:start`, then `bun run db:push`,
-   then `bun run dev`.
+   Alchemy runs the API worker (port 3000), the web app
+   (port 3001), and a local D1 database with migrations applied.
 
 ### Development Scripts
 
-- `bun run setup` - One-command setup: create `.env`, start the database, load the schema
-- `bun run dev:full` - Start the database (if needed) and run all apps together
-- `bun run db` - Bring the database up, wait until ready, and sync the schema (no apps)
-- `bun dev` - Start all apps (web on port 3001, docs on port 4000)
-- `bun build` - Build all apps for production
-- `bun check-types` - Run TypeScript type checking
-- `bun test` - Run unit tests across all packages
-- `bun dev:web` - Start the web app only
-- `bun db:start` - Start PostgreSQL via Docker
-- `bun db:stop` - Stop PostgreSQL
-- `bun run db:push` - Push Drizzle schema to database (dev only, no migration file)
+- `bun run dev` - Start all apps with a local D1 database
+- `bun run dev:web` - Start the web app only
+- `bun run dev:server` - Start the API worker only
+- `bun run build` - Build all apps for production
+- `bun run check-types` - Run TypeScript type checking
+- `bun run test` - Run unit tests across all packages
 - `bun run db:generate` - Generate a new Drizzle migration from schema changes
-- `bun run db:migrate` - Apply pending Drizzle migrations
-- `bun run db:studio` - Open Drizzle Studio
+- `bun run deploy` - Deploy both workers and the database to Cloudflare
+- `bun run destroy` - Tear down the Cloudflare deployment
 
 ### Testing
 
 - **Vitest** for unit testing across all packages
-- Tests cover timer state machine, config build/flatten helpers,
-  round-trip consistency, display utilities, task grouping, and
-  event emitter isolation
-- Run with `bun test`
+- Tests cover the timer state machine, task/timer services,
+  config build/flatten helpers, round-trip consistency, display
+  utilities, task grouping, and token verification
+- Run with `bun run test`
 
 ### Code Quality
 
@@ -190,56 +188,29 @@ command aliases.
 
 ## Deployment
 
-### Docker Compose
+Dirework deploys to Cloudflare Workers via GitHub Actions:
+set five repository secrets, push to `main`, done. Both
+workers, the D1 database, and its migrations are managed by
+[Alchemy](https://alchemy.run).
 
-The easiest way to self-host Dirework in production. Requires
-Docker and Docker Compose.
-
-1. Copy `.env.example` to `.env` and fill in all values:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-   Set `DATABASE_URL` to use the `db` service hostname for
-   Docker networking, and fill in the matching Postgres vars:
-
-   ```bash
-   DATABASE_URL="postgresql://dirework:your-password@db:5432/dirework"
-   POSTGRES_USER="dirework"
-   POSTGRES_PASSWORD="your-password"
-   POSTGRES_DB="dirework"
-   BETTER_AUTH_SECRET="$(openssl rand -base64 32)"
-   BETTER_AUTH_URL="https://your-domain.com"
-   CORS_ORIGIN="https://your-domain.com"
-   TWITCH_CLIENT_ID="your_client_id"
-   TWITCH_CLIENT_SECRET="your_client_secret"
-   ```
-
-2. Start the stack:
-
-   ```bash
-   docker compose up -d
-   ```
-
-3. Open your instance URL — on first run you will be redirected
-   to `/setup` to claim the instance with your Twitch account.
-
-Database migrations run automatically on startup via
-`docker-entrypoint.sh`. No manual migration step required.
+See the **[Deployment guide](https://mrdemonwolf.github.io/dirework/docs/deployment)**
+for the step-by-step walkthrough (Cloudflare API token, Twitch
+redirect URLs, GitHub secrets, and the post-deploy checklist).
 
 ## Project Structure
 
 ```
 dirework/
 ├── apps/
-│   ├── web/           # Next.js app (frontend + API), port 3001
+│   ├── web/           # Next.js app on Workers (dashboard, overlays, bot page), port 3001
+│   ├── server/        # Hono API worker (auth, tRPC, bot OAuth), port 3000
 │   └── fumadocs/      # Documentation site, port 4000
 ├── packages/
-│   ├── api/           # tRPC routers + business logic
+│   ├── api/           # tRPC routers, services, bot command logic
 │   ├── auth/          # Better Auth configuration
-│   ├── db/            # Drizzle schema + client
-│   ├── env/           # Environment variable validation
+│   ├── db/            # Drizzle schema + D1 client + migrations
+│   ├── env/           # Environment bindings + validation
+│   ├── infra/         # Alchemy infrastructure (workers + D1)
 │   └── config/        # Shared TypeScript configuration
 ```
 

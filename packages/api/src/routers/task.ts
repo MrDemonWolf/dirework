@@ -1,28 +1,32 @@
 import { TRPCError } from "@trpc/server";
-import { eq, and, asc, desc, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { MAX_TASK_LEN } from "../config-shared";
 import { protectedProcedure, publicProcedure, router } from "../index";
-import { ee, TASK_LIST_CHANGE } from "../events";
-import * as schema from "@dirework/db/schema";
+import {
+  activateTask,
+  clearAllTasks,
+  clearDoneTasks,
+  clearViewerTasks,
+  createTask,
+  editTask,
+  listTasks,
+  markTaskDone,
+  removeTask,
+  removeTasksByViewer,
+} from "../services/task-service";
+import { tokenInput, verifyOverlayToken } from "../services/tokens";
 
 export const taskRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.db.query.task.findMany({
-      orderBy: [asc(schema.task.priority), asc(schema.task.order)],
-    });
+    return listTasks(ctx.db);
   }),
 
   listByToken: publicProcedure
-    .input(z.object({ token: z.string() }))
+    .input(z.object({ token: tokenInput }))
     .query(async ({ ctx, input }) => {
-      const instance = await ctx.db.query.instanceConfig.findFirst({
-        columns: { overlayTasksToken: true },
-      });
-      if (!instance || instance.overlayTasksToken !== input.token) return [];
-      return ctx.db.query.task.findMany({
-        orderBy: [asc(schema.task.priority), asc(schema.task.order)],
-      });
+      if (!(await verifyOverlayToken(ctx.db, "tasks", input.token))) return [];
+      return listTasks(ctx.db);
     }),
 
   create: protectedProcedure
@@ -32,83 +36,33 @@ export const taskRouter = router({
         authorUsername: z.string(),
         authorDisplayName: z.string(),
         authorColor: z.string().optional(),
-        text: z.string().min(1).max(500),
+        text: z.string().min(1).max(MAX_TASK_LEN),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const owner = await ctx.db.query.user.findFirst({
-        columns: { twitchId: true },
-      });
-      const isBroadcaster = owner?.twitchId === input.authorTwitchId;
-
-      const [lastTask, existingTasks] = await Promise.all([
-        ctx.db.query.task.findFirst({
-          where: eq(schema.task.priority, isBroadcaster ? 0 : 1),
-          orderBy: [desc(schema.task.order)],
-          columns: { order: true },
-        }),
-        ctx.db.query.task.findMany({
-          where: and(
-            eq(schema.task.authorTwitchId, input.authorTwitchId),
-            inArray(schema.task.status, ["pending", "active"]),
-          ),
-          columns: { id: true },
-        }),
-      ]);
-
-      const autoActivate = existingTasks.length === 0;
-
-      const [result] = await ctx.db.insert(schema.task).values({
-        ...input,
-        status: autoActivate ? "active" : "pending",
-        priority: isBroadcaster ? 0 : 1,
-        order: (lastTask?.order ?? 0) + 1,
-      }).returning();
-      ee.emit(TASK_LIST_CHANGE);
-      return result ?? null;
+      return createTask(
+        ctx.db,
+        {
+          twitchId: input.authorTwitchId,
+          username: input.authorUsername,
+          displayName: input.authorDisplayName,
+          color: input.authorColor ?? null,
+        },
+        input.text,
+      );
     }),
 
   markDone: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.db.query.task.findFirst({
-        where: eq(schema.task.id, input.id),
-        columns: { id: true, status: true, authorTwitchId: true },
-      });
-      if (!existing) return null;
-
-      const wasActive = existing.status === "active";
-
-      const [result] = await ctx.db.update(schema.task)
-        .set({ status: "done", completedAt: new Date() })
-        .where(eq(schema.task.id, existing.id))
-        .returning();
-      if (!result) return null;
-
-      if (wasActive) {
-        const nextPending = await ctx.db.query.task.findFirst({
-          where: and(
-            eq(schema.task.authorTwitchId, result.authorTwitchId),
-            eq(schema.task.status, "pending"),
-          ),
-          orderBy: [asc(schema.task.order)],
-        });
-        if (nextPending) {
-          await ctx.db.update(schema.task)
-            .set({ status: "active" })
-            .where(eq(schema.task.id, nextPending.id));
-        }
-      }
-
-      ee.emit(TASK_LIST_CHANGE);
-      return result;
+      return markTaskDone(ctx.db, input.id);
     }),
 
   activate: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const task = await ctx.db.query.task.findFirst({
-        where: eq(schema.task.id, input.id),
+        where: (t, { eq }) => eq(t.id, input.id),
       });
       if (!task) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Task not found" });
@@ -116,42 +70,19 @@ export const taskRouter = router({
       if (task.status === "done") {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot activate a completed task" });
       }
-
-      await ctx.db.update(schema.task)
-        .set({ status: "pending" })
-        .where(and(
-          eq(schema.task.authorTwitchId, task.authorTwitchId),
-          eq(schema.task.status, "active"),
-        ));
-
-      const [result] = await ctx.db.update(schema.task)
-        .set({ status: "active" })
-        .where(eq(schema.task.id, task.id))
-        .returning();
-
-      ee.emit(TASK_LIST_CHANGE);
-      return result ?? null;
+      return activateTask(ctx.db, task);
     }),
 
   edit: protectedProcedure
-    .input(z.object({ id: z.string(), text: z.string().min(1).max(500) }))
+    .input(z.object({ id: z.string(), text: z.string().min(1).max(MAX_TASK_LEN) }))
     .mutation(async ({ ctx, input }) => {
-      const [result] = await ctx.db.update(schema.task)
-        .set({ text: input.text })
-        .where(eq(schema.task.id, input.id))
-        .returning();
-      ee.emit(TASK_LIST_CHANGE);
-      return result ?? null;
+      return editTask(ctx.db, input.id, input.text);
     }),
 
   remove: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const [result] = await ctx.db.delete(schema.task)
-        .where(eq(schema.task.id, input.id))
-        .returning();
-      ee.emit(TASK_LIST_CHANGE);
-      return result ?? null;
+      return removeTask(ctx.db, input.id);
     }),
 
   // ── Broadcaster moderation ────────────────────────────────
@@ -159,50 +90,30 @@ export const taskRouter = router({
   removeByViewer: protectedProcedure
     .input(z.object({ authorTwitchId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const result = await ctx.db.delete(schema.task)
-        .where(eq(schema.task.authorTwitchId, input.authorTwitchId));
-      ee.emit(TASK_LIST_CHANGE);
-      return result;
+      return removeTasksByViewer(ctx.db, input.authorTwitchId);
     }),
 
   moderateEdit: protectedProcedure
-    .input(z.object({ id: z.string(), text: z.string().min(1).max(500) }))
+    .input(z.object({ id: z.string(), text: z.string().min(1).max(MAX_TASK_LEN) }))
     .mutation(async ({ ctx, input }) => {
-      const [result] = await ctx.db.update(schema.task)
-        .set({ text: input.text })
-        .where(eq(schema.task.id, input.id))
-        .returning();
-      ee.emit(TASK_LIST_CHANGE);
-      return result ?? null;
+      return editTask(ctx.db, input.id, input.text);
     }),
 
   moderateRemove: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const [result] = await ctx.db.delete(schema.task)
-        .where(eq(schema.task.id, input.id))
-        .returning();
-      ee.emit(TASK_LIST_CHANGE);
-      return result ?? null;
+      return removeTask(ctx.db, input.id);
     }),
 
   clearAll: protectedProcedure.mutation(async ({ ctx }) => {
-    const result = await ctx.db.delete(schema.task);
-    ee.emit(TASK_LIST_CHANGE);
-    return result;
+    return clearAllTasks(ctx.db);
   }),
 
   clearDone: protectedProcedure.mutation(async ({ ctx }) => {
-    const result = await ctx.db.delete(schema.task)
-      .where(eq(schema.task.status, "done"));
-    ee.emit(TASK_LIST_CHANGE);
-    return result;
+    return clearDoneTasks(ctx.db);
   }),
 
   clearViewers: protectedProcedure.mutation(async ({ ctx }) => {
-    const result = await ctx.db.delete(schema.task)
-      .where(eq(schema.task.priority, 1));
-    ee.emit(TASK_LIST_CHANGE);
-    return result;
+    return clearViewerTasks(ctx.db);
   }),
 });

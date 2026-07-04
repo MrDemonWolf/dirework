@@ -4,81 +4,100 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * ── Focus Console palette ────────────────────────────────────────────────────
+ * Dark is the hero: warm charcoal base (never pure black), soft off-white text,
+ * Twitch purple as a sparing primary accent. Amber = paused/warning,
+ * emerald = live/connected. Light theme remains fully supported.
+ */
+
 :root {
-  --background: oklch(0.97 0.005 260);
-  --foreground: oklch(0.18 0.02 260);
-  --card: oklch(1 0 0 / 60%);
-  --card-foreground: oklch(0.18 0.02 260);
-  --popover: oklch(1 0 0 / 70%);
-  --popover-foreground: oklch(0.18 0.02 260);
-  --primary: oklch(0.577 0.222 283);
+  /* Warm paper light scheme */
+  --background: oklch(0.965 0.004 80);
+  --foreground: oklch(0.24 0.015 300);
+  --card: oklch(0.99 0.002 80);
+  --card-foreground: oklch(0.24 0.015 300);
+  --popover: oklch(0.99 0.002 80);
+  --popover-foreground: oklch(0.24 0.015 300);
+  /* Twitch purple, darkened for AA on light */
+  --primary: oklch(0.51 0.23 293);
   --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.94 0.01 260 / 60%);
-  --secondary-foreground: oklch(0.25 0.04 260);
-  --muted: oklch(0.94 0.008 260 / 50%);
-  --muted-foreground: oklch(0.48 0.03 260);
-  --accent: oklch(0.94 0.02 260 / 50%);
-  --accent-foreground: oklch(0.25 0.1 260);
-  --destructive: oklch(0.58 0.22 27);
-  --border: oklch(0.7 0.02 260 / 20%);
-  --input: oklch(0.7 0.02 260 / 20%);
-  --ring: oklch(0.55 0.2 283);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --radius: 1rem;
-  --sidebar: oklch(0.97 0.005 260 / 70%);
-  --sidebar-foreground: oklch(0.18 0.02 260);
-  --sidebar-primary: oklch(0.577 0.222 283);
+  --secondary: oklch(0.93 0.008 300);
+  --secondary-foreground: oklch(0.3 0.03 300);
+  --muted: oklch(0.93 0.006 80);
+  --muted-foreground: oklch(0.47 0.02 300);
+  --accent: oklch(0.93 0.015 293);
+  --accent-foreground: oklch(0.32 0.1 293);
+  --destructive: oklch(0.55 0.21 27);
+  --success: oklch(0.52 0.14 162);
+  --warning: oklch(0.6 0.14 75);
+  --border: oklch(0.4 0.02 300 / 18%);
+  --input: oklch(0.4 0.02 300 / 22%);
+  --ring: oklch(0.51 0.23 293);
+  --chart-1: oklch(0.6 0.22 293);
+  --chart-2: oklch(0.62 0.15 162);
+  --chart-3: oklch(0.72 0.15 75);
+  --chart-4: oklch(0.55 0.2 27);
+  --chart-5: oklch(0.5 0.03 300);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.96 0.004 80);
+  --sidebar-foreground: oklch(0.24 0.015 300);
+  --sidebar-primary: oklch(0.51 0.23 293);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.94 0.02 260 / 50%);
-  --sidebar-accent-foreground: oklch(0.25 0.1 260);
-  --sidebar-border: oklch(0.7 0.02 260 / 20%);
-  --sidebar-ring: oklch(0.55 0.2 283);
+  --sidebar-accent: oklch(0.93 0.015 293);
+  --sidebar-accent-foreground: oklch(0.32 0.1 293);
+  --sidebar-border: oklch(0.4 0.02 300 / 18%);
+  --sidebar-ring: oklch(0.51 0.23 293);
 }
 
 .dark {
-  --background: oklch(0.13 0.01 260);
-  --foreground: oklch(0.95 0.01 260);
-  --card: oklch(1 0 0 / 6%);
-  --card-foreground: oklch(0.95 0.01 260);
-  --popover: oklch(0.2 0.015 260 / 80%);
-  --popover-foreground: oklch(0.95 0.01 260);
-  --primary: oklch(0.7 0.17 283);
-  --primary-foreground: oklch(0.1 0 0);
-  --secondary: oklch(1 0 0 / 8%);
-  --secondary-foreground: oklch(0.92 0.01 260);
-  --muted: oklch(1 0 0 / 6%);
-  --muted-foreground: oklch(0.6 0.03 260);
-  --accent: oklch(1 0 0 / 8%);
-  --accent-foreground: oklch(0.95 0.01 260);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 10%);
-  --ring: oklch(0.64 0.17 283);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --sidebar: oklch(1 0 0 / 5%);
-  --sidebar-foreground: oklch(0.95 0.01 260);
-  --sidebar-primary: oklch(0.7 0.17 283);
-  --sidebar-primary-foreground: oklch(0.1 0 0);
-  --sidebar-accent: oklch(1 0 0 / 8%);
-  --sidebar-accent-foreground: oklch(0.95 0.01 260);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.64 0.17 283);
+  /* Warm charcoal — near #17161b with a violet-warm tint, never flat black */
+  --background: oklch(0.19 0.009 300);
+  --foreground: oklch(0.93 0.006 80);
+  --card: oklch(0.228 0.011 300);
+  --card-foreground: oklch(0.93 0.006 80);
+  --popover: oklch(0.24 0.012 300);
+  --popover-foreground: oklch(0.93 0.006 80);
+  /* Twitch purple #9146FF family */
+  --primary: oklch(0.585 0.233 293.8);
+  --primary-foreground: oklch(0.98 0.005 293);
+  --secondary: oklch(0.28 0.014 300);
+  --secondary-foreground: oklch(0.9 0.008 80);
+  --muted: oklch(0.265 0.012 300);
+  --muted-foreground: oklch(0.66 0.015 300);
+  --accent: oklch(0.3 0.03 293);
+  --accent-foreground: oklch(0.92 0.02 293);
+  --destructive: oklch(0.68 0.19 25);
+  --success: oklch(0.74 0.16 162);
+  --warning: oklch(0.8 0.15 80);
+  --border: oklch(0.93 0.006 80 / 9%);
+  --input: oklch(0.93 0.006 80 / 12%);
+  --ring: oklch(0.63 0.2 293);
+  --chart-1: oklch(0.66 0.2 293);
+  --chart-2: oklch(0.74 0.16 162);
+  --chart-3: oklch(0.8 0.15 80);
+  --chart-4: oklch(0.68 0.19 25);
+  --chart-5: oklch(0.66 0.015 300);
+  --sidebar: oklch(0.21 0.01 300);
+  --sidebar-foreground: oklch(0.93 0.006 80);
+  --sidebar-primary: oklch(0.585 0.233 293.8);
+  --sidebar-primary-foreground: oklch(0.98 0.005 293);
+  --sidebar-accent: oklch(0.3 0.03 293);
+  --sidebar-accent-foreground: oklch(0.92 0.02 293);
+  --sidebar-border: oklch(0.93 0.006 80 / 9%);
+  --sidebar-ring: oklch(0.63 0.2 293);
 }
 
 @theme inline {
-  --font-sans: var(--font-roboto), sans-serif;
-  --font-heading: var(--font-montserrat), sans-serif;
+  /* IBM Plex Sans body · Montserrat display · IBM Plex Mono numerals/labels */
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-montserrat), var(--font-plex-sans), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
   /* Twitch brand color for the "Sign in / Connect with Twitch" buttons */
   --color-twitch: #9146ff;
   --color-twitch-hover: #7c3ae6;
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -134,7 +153,67 @@
   }
 }
 
-/* Chat-Task-Tic-style dual-container infinite scroll */
+@layer utilities {
+  /* Console section label — small mono, letterspaced, muted */
+  .console-label {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  /* Subtle grain for the OBS-like preview canvas */
+  .bg-grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  }
+
+  /* Checkerboard backdrop (transparency preview) */
+  .bg-checker {
+    background-color: #e8e8ec;
+    background-image:
+      linear-gradient(45deg, #c9c9d1 25%, transparent 25%, transparent 75%, #c9c9d1 75%),
+      linear-gradient(45deg, #c9c9d1 25%, transparent 25%, transparent 75%, #c9c9d1 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 10px 10px;
+  }
+}
+
+/* ── Motion ──────────────────────────────────────────────────────────────── */
+
+/* One orchestrated staggered reveal on dashboard load (CSS only) */
+@keyframes console-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-reveal > * {
+  animation: console-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stagger-reveal > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-reveal > *:nth-child(2) { animation-delay: 60ms; }
+.stagger-reveal > *:nth-child(3) { animation-delay: 120ms; }
+.stagger-reveal > *:nth-child(4) { animation-delay: 180ms; }
+.stagger-reveal > *:nth-child(5) { animation-delay: 240ms; }
+.stagger-reveal > *:nth-child(6) { animation-delay: 300ms; }
+
+/* LED pulse for live status dots — killed by the reduced-motion gate below */
+@keyframes led-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.animate-led-pulse {
+  animation: led-pulse 2.4s ease-in-out infinite;
+}
+
+/* Chat-Task-Tic-style dual-container infinite scroll (overlay) */
 @keyframes scroll-primary {
   0% {
     transform: translateY(0);
@@ -172,5 +251,20 @@
   }
   50% {
     box-shadow: 0 0 12px 4px rgba(59, 130, 246, 0.6);
+  }
+}
+
+/*
+ * Reduced motion: kill every pulse, spin, reveal, and marquee globally.
+ * (Audit M11 — no perpetual motion for users who opted out.)
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

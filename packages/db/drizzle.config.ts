@@ -1,11 +1,16 @@
+import dotenv from "dotenv";
 import { defineConfig } from "drizzle-kit";
 
-const url = process.env.DATABASE_URL;
-if (!url) throw new Error("DATABASE_URL is not set");
+dotenv.config({ path: "../../apps/server/.env" });
 
 export default defineConfig({
-  schema: "./src/schema/index.ts",
-  out: "./drizzle",
-  dialect: "postgresql",
-  dbCredentials: { url },
+  schema: "./src/schema",
+  out: "./src/migrations",
+  dialect: "sqlite",
+  driver: "d1-http",
+  dbCredentials: {
+    accountId: process.env.CLOUDFLARE_ACCOUNT_ID!,
+    databaseId: process.env.CLOUDFLARE_DATABASE_ID!,
+    token: process.env.CLOUDFLARE_D1_TOKEN!,
+  },
 });

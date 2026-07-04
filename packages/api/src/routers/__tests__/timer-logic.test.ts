@@ -112,23 +112,25 @@ describe("computeNextPhase", () => {
     expect(result.nextCycle).toBe(5);
   });
 
-  it("break → finished (past totalCycles)", () => {
+  it("break → finished (past totalCycles, cycle clamped to totalCycles)", () => {
     const result = computeNextPhase(
       { status: "break", currentCycle: 4, totalCycles: 4 },
       defaultConfig,
     );
     expect(result.nextStatus).toBe("finished");
     expect(result.nextDuration).toBeNull();
-    expect(result.nextCycle).toBe(5);
+    // L5: never persist "5 of 4" — the finished cycle is clamped.
+    expect(result.nextCycle).toBe(4);
   });
 
-  it("longBreak → finished (past totalCycles)", () => {
+  it("longBreak → finished (past totalCycles, cycle clamped)", () => {
     const result = computeNextPhase(
       { status: "longBreak", currentCycle: 4, totalCycles: 4 },
       defaultConfig,
     );
     expect(result.nextStatus).toBe("finished");
     expect(result.nextDuration).toBeNull();
+    expect(result.nextCycle).toBe(4);
   });
 
   it("single cycle: work → finished (noLastBreak=true)", () => {

@@ -1,28 +1,32 @@
 "use client";
 
-import { useRef } from "react";
-import { useSubscription } from "@trpc/tanstack-react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 
 import { defaultTaskStyles } from "@/lib/theme-presets";
 import { TaskListDisplay } from "@/components/task-list-display";
-import { trpc } from "@/utils/trpc";
+import { publicTrpc } from "@/utils/trpc";
+
+/** Overlay polling interval — task lists only change on chat/dashboard edits. */
+const POLL_INTERVAL_MS = 2000;
 
 export default function TaskListOverlayPage() {
   const { token } = useParams<{ token: string }>();
 
-  const { data, status } = useSubscription({
-    ...trpc.overlay.onTaskList.subscriptionOptions({ token }),
-    enabled: true,
+  // Polls the api worker directly (token auth, no cookies) — see timer
+  // overlay for rationale. Last successful payload is kept across failed
+  // refetches so the OBS source never blanks on a transient error.
+  const { data, isPending } = useQuery({
+    queryKey: ["overlay", "taskList", token],
+    queryFn: () => publicTrpc.overlay.getTaskList.query({ token }),
+    enabled: Boolean(token),
+    refetchInterval: POLL_INTERVAL_MS,
+    refetchIntervalInBackground: true,
   });
 
-  const lastKnownDataRef = useRef(data);
-  if (data) lastKnownDataRef.current = data;
+  if (isPending) return null;
 
-  const current = data ?? lastKnownDataRef.current;
-  if (!current && (status === "connecting" || status === "idle")) return null;
-
-  const rawTasks = current?.tasks ?? [];
+  const rawTasks = data?.tasks ?? [];
   const tasks = rawTasks as {
     id: string;
     authorTwitchId: string;
@@ -32,7 +36,7 @@ export default function TaskListOverlayPage() {
     status: string;
   }[];
 
-  const displayConfig = current?.taskStyles ?? defaultTaskStyles;
+  const displayConfig = data?.taskStyles ?? defaultTaskStyles;
 
   return (
     <div className="h-screen w-screen bg-transparent p-4">

@@ -35,7 +35,7 @@ export function TimerStyleEditor({
             id="timer-style-dimensions-width"
             value={styles.dimensions.width}
             onChange={(e) => update("dimensions", { width: e.target.value })}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -44,7 +44,7 @@ export function TimerStyleEditor({
             id="timer-style-dimensions-height"
             value={styles.dimensions.height}
             onChange={(e) => update("dimensions", { height: e.target.value })}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
       </SectionGroup>
@@ -76,7 +76,7 @@ export function TimerStyleEditor({
             id="timer-style-bg-border-radius"
             value={styles.background.borderRadius}
             onChange={(e) => update("background", { borderRadius: e.target.value })}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
       </SectionGroup>
@@ -180,7 +180,7 @@ export function TimerStyleEditor({
             id="timer-style-text-outline-size"
             value={styles.text.outlineSize}
             onChange={(e) => update("text", { outlineSize: e.target.value })}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <FontSelect
@@ -197,7 +197,7 @@ export function TimerStyleEditor({
             id="timer-style-font-label"
             value={styles.fontSizes.label}
             onChange={(e) => update("fontSizes", { label: e.target.value })}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -206,7 +206,7 @@ export function TimerStyleEditor({
             id="timer-style-font-time"
             value={styles.fontSizes.time}
             onChange={(e) => update("fontSizes", { time: e.target.value })}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -215,7 +215,7 @@ export function TimerStyleEditor({
             id="timer-style-font-cycle"
             value={styles.fontSizes.cycle}
             onChange={(e) => update("fontSizes", { cycle: e.target.value })}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
       </SectionGroup>

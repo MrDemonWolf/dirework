@@ -5,7 +5,7 @@ import {
   buildTaskStylesConfig,
   flattenTimerStyles,
   flattenTaskStyles,
-} from "../config";
+} from "../../config-shared";
 
 describe("timer styles round-trip", () => {
   it("flatten → add id → build → should match original nested input", () => {

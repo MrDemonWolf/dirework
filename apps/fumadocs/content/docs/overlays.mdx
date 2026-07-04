@@ -38,7 +38,7 @@ The timer overlay shows:
 - Cycle count (e.g. 1/4)
 - Progress ring (circle or rounded rectangle shape)
 
-The timer automatically transitions through phases: starting (5s countdown) → work → break → work → ... → finished. No manual intervention needed once started.
+The timer automatically transitions through phases: starting (5s countdown) → work → break → work → ... → finished. No manual intervention needed once started — just keep the dashboard open in a tab, since it's what nudges the timer into the next phase when the countdown hits 0.
 
 ### Progress Ring Shapes
 
@@ -113,8 +113,11 @@ Apply a preset as a starting point, then customize individual settings to match 
 
 The overlays render with a transparent background by default. In OBS, the browser source will show only the timer or task list widget without any background, making it easy to layer over your stream.
 
-## Real-Time Updates
+## How Updates Work
 
-Both overlays use **Server-Sent Events (SSE)** for instant updates. When you start the timer, add a task, or make any change on the dashboard, the overlay updates immediately — no polling delay.
+Both overlays check for changes every **couple of seconds**. When you start the timer,
+add a task, or make any change on the dashboard, the overlay picks it up within about 2
+seconds.
 
-Under the hood, overlay pages subscribe to tRPC SSE endpoints (`onTimerState` / `onTaskList`). The server pushes changes as they happen via an in-process event bus.
+The timer countdown itself doesn't wait for those checks — it ticks down smoothly on the
+overlay, computed from the timer's end time. Your viewers never see a stuttering clock.

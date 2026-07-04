@@ -18,6 +18,7 @@ import { ThemeBrowser } from "@/components/theme-center/theme-browser";
 import { TimerStyleEditor } from "@/components/theme-center/timer-style-editor";
 import { TaskStyleEditor } from "@/components/theme-center/task-style-editor";
 import { StylePreviewPanel } from "@/components/theme-center/style-preview-panel";
+import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import { trpc } from "@/utils/trpc";
 
 function StylesSkeleton() {
@@ -97,6 +98,9 @@ export default function StylesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
     },
+    onError: (err) => {
+      toast.error(`Couldn't save timer styles: ${err.message}`);
+    },
   });
 
   const updateTaskMutation = useMutation({
@@ -104,12 +108,18 @@ export default function StylesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
     },
+    onError: (err) => {
+      toast.error(`Couldn't save task list styles: ${err.message}`);
+    },
   });
 
   const updatePhaseLabelsMutation = useMutation({
     ...trpc.config.updatePhaseLabels.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
+    },
+    onError: (err) => {
+      toast.error(`Couldn't save phase labels: ${err.message}`);
     },
   });
 
@@ -161,7 +171,7 @@ export default function StylesPage() {
       setHasUnsaved(false);
       toast.success("Styles saved successfully");
     } catch {
-      toast.error("Failed to save styles");
+      // per-mutation onError already surfaced the failure
     }
   }, [timerStyles, taskStyles, phaseLabels, updateTimerMutation, updateTaskMutation, updatePhaseLabelsMutation]);
 
@@ -171,8 +181,10 @@ export default function StylesPage() {
 
   return (
     <div className={cn("container mx-auto max-w-5xl px-4 py-8", hasUnsaved && "pb-24")}>
+      <UnsavedChangesGuard dirty={hasUnsaved} />
+
       <div className="mb-6">
-        <h1 className="font-heading text-2xl font-bold">Theme Center</h1>
+        <h1 className="font-heading text-2xl font-bold tracking-tight">Theme Center</h1>
         <p className="text-sm text-muted-foreground">
           Browse preset themes or customize your overlay styles
         </p>
@@ -180,6 +192,7 @@ export default function StylesPage() {
 
       {/* Theme Browser */}
       <div className="mb-6">
+        <p className="console-label mb-2">Presets</p>
         <ThemeBrowser activeThemeId={activeThemeId} onApply={handleApplyTheme} />
       </div>
 
@@ -231,7 +244,7 @@ export default function StylesPage() {
       {hasUnsaved && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/80 backdrop-blur-2xl">
           <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-            <p className="text-sm text-muted-foreground">You have unsaved changes</p>
+            <p className="console-label">Unsaved changes</p>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"

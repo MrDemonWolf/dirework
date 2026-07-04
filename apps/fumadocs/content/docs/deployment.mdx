@@ -1,240 +1,103 @@
 ---
 title: Deployment
-description: Put Dirework online for your stream
+description: Put Dirework online on Cloudflare Workers
 ---
 
-Ready to run Dirework for real? This guide puts it online so it's available whenever you
-stream. Dirework ships with a **Dockerfile**, so anything that can run a Docker container
-can run it.
+Dirework runs on **Cloudflare Workers** with a **D1** (SQLite) database — two small
+workers and a database, all on Cloudflare's free plan. No servers, no Docker, no
+database to babysit.
 
 <Callout>
-  **The short version:** run a PostgreSQL database, run the Dirework container, point a
-  domain at it with HTTPS, and add that domain to your Twitch app. The
-  [Dokploy](#option-1-dokploy-recommended) guide below does all of this with a few clicks.
+  **The short version:** create a Cloudflare API token, set five GitHub secrets, push to
+  `main`. GitHub Actions deploys both workers and the database for you.
 </Callout>
+
+## What gets deployed
+
+| Piece | Where | What it does |
+|---|---|---|
+| `dirework` | `dirework.<your-subdomain>.workers.dev` | The web app — dashboard, overlays, bot page |
+| `dirework-api` | `dirework-api.<your-subdomain>.workers.dev` | The API — sign-in, tRPC, bot OAuth |
+| `dirework-db` | Cloudflare D1 | Your tasks, timer, and settings |
+
+The web app proxies sign-in and dashboard traffic to the API worker behind the scenes,
+so everything works from the one `dirework.…workers.dev` address.
 
 ## Before you start
 
-You'll need:
-
-- A server you control (a small VPS is plenty) **or** a host that builds from a Dockerfile
-- A domain name — Twitch requires HTTPS for sign-in, and a domain is the easiest way to get it
+- A [Cloudflare account](https://dash.cloudflare.com/sign-up) (free plan is fine)
 - Your two [Twitch keys](/docs/twitch-oauth) (client ID + secret)
+- A fork or copy of the Dirework repository on GitHub
 
-## The settings you'll paste
+## Step 1 — Create a Cloudflare API token
 
-Every deployment uses the same handful of environment variables. Keep these somewhere
-handy — you'll paste them into your host's dashboard:
+1. Cloudflare dashboard → **My Profile → API Tokens → Create Token**
+2. Use the **Edit Cloudflare Workers** template, and add **D1 → Edit** permissions
+3. Copy the token — this is `CLOUDFLARE_API_TOKEN`
 
-```bash
-DATABASE_URL="postgresql://user:password@host:5432/dirework"
-BETTER_AUTH_SECRET="<a-long-random-string>"
-BETTER_AUTH_URL="https://your-domain.com"
-CORS_ORIGIN="https://your-domain.com"
-TWITCH_CLIENT_ID="<your_client_id>"
-TWITCH_CLIENT_SECRET="<your_client_secret>"
-NODE_ENV="production"
-```
-
-<Callout type="warn">
-  Generate a fresh `BETTER_AUTH_SECRET` for production — never reuse the one from your
-  computer. Make one with:
-
-  ```bash
-  openssl rand -base64 32
-  ```
-</Callout>
-
-See [Environment Variables](/docs/environment-variables) for the full list.
-
-## Tell Twitch about your domain
+## Step 2 — Tell Twitch about your domain
 
 In the [Twitch Developer Console](https://dev.twitch.tv/console/apps), open your app and
-add these two redirect URLs (swap in your real domain):
+add these two redirect URLs (swap in your workers.dev subdomain):
 
 ```
-https://your-domain.com/api/auth/callback/twitch
-https://your-domain.com/api/bot/callback/twitch
+https://dirework.<your-subdomain>.workers.dev/api/auth/callback/twitch
+https://dirework.<your-subdomain>.workers.dev/api/bot/callback/twitch
 ```
 
 You can keep your `localhost` URLs in the list too, so local development still works.
 
----
+## Step 3 — Set your GitHub secrets
 
-## Option 1: Dokploy (recommended)
+In your repository: **Settings → Secrets and variables → Actions → New repository secret**.
 
-[Dokploy](https://dokploy.com/) is a free, open-source dashboard you install on your own
-server. It handles the database, builds, domains, and HTTPS for you — no command-line
-juggling once it's set up.
+| Secret | Value |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | the token from Step 1 |
+| `ALCHEMY_PASSWORD` | any long random string — encrypts deploy state (`openssl rand -base64 32`) |
+| `BETTER_AUTH_SECRET` | another long random string (`openssl rand -base64 32`) |
+| `TWITCH_CLIENT_ID` | from the Twitch console |
+| `TWITCH_CLIENT_SECRET` | from the Twitch console |
 
-### Step 1 — Install Dokploy on your server
-
-On a fresh VPS (Ubuntu works great), run the one-line installer from the
-[Dokploy install docs](https://docs.dokploy.com/docs/core/installation):
-
-```bash
-curl -sSL https://dokploy.com/install.sh | sh
-```
-
-✅ When it finishes, open `http://your-server-ip:3000` and create your admin account.
-
-### Step 2 — Create the database
-
-1. In Dokploy, go to **Databases → Create Database → PostgreSQL**
-2. Pick **PostgreSQL 17**, give it a name, and set a password
-3. Click **Create**, then **Deploy**
-
-✅ Open the database's page and copy its **internal connection string** — that's your
-`DATABASE_URL`. It looks like `postgresql://postgres:yourpassword@<internal-host>:5432/postgres`.
-
-### Step 3 — Create the Dirework app
-
-1. Create a **Project**, then inside it **Create Service → Application**
-2. Connect your Git repository (`mrdemonwolf/dirework`) and pick your branch
-3. Under **Build Type**, choose **Dockerfile** — Dirework's `Dockerfile` is auto-detected
-4. Set the **port** to **`3000`** (the container listens there)
-
-### Step 4 — Add your settings
-
-Open the app's **Environment** tab and paste the variables from
-[the settings above](#the-settings-youll-paste). For `DATABASE_URL`, use the internal
-connection string you copied in Step 2.
-
-<Callout type="info">
-  You don't need `SKIP_ENV_VALIDATION` here — the Dockerfile already handles that during
-  the build.
+<Callout type="warn">
+  Generate fresh secrets for production — never reuse the ones from your computer.
 </Callout>
 
-### Step 5 — Add your domain + turn on HTTPS
+If your workers.dev subdomain isn't `mrdemonwolf`, also edit the two URLs at the top of
+`.github/workflows/deploy.yml` (`BETTER_AUTH_URL` and `CORS_ORIGIN`) to match yours.
 
-1. Go to the app's **Domains** tab and add your domain
-2. Point the domain's DNS at your server's IP (an `A` record)
-3. Enable **HTTPS** — Dokploy gets a free certificate for you automatically
+## Step 4 — Push to main
 
-### Step 6 — Deploy
+That's it. Every push to `main` runs the tests and then deploys via
+[Alchemy](https://alchemy.run) — both workers, the D1 database, and its migrations.
+You can also trigger a deploy by hand from the **Actions** tab (**Deploy → Run workflow**).
 
-Hit **Deploy**. Dokploy builds the container, and Dirework **runs its database setup
-automatically** on first start — you don't run any migration commands.
+✅ Visit `https://dirework.<your-subdomain>.workers.dev`. You should see the Dirework
+welcome screen. Click **Claim with Twitch** to become the owner.
 
-✅ Visit your domain. You should see the Dirework welcome screen. Click
-**Claim with Twitch** to become the owner.
+## Deploying from your own machine (optional)
 
-### Updating later
-
-Push to your branch and click **Deploy** again (or turn on auto-deploy in Dokploy).
-Database updates apply themselves on each start.
-
----
-
-## Option 2: Coolify
-
-[Coolify](https://coolify.io/) is another open-source, self-hosted dashboard. The flow
-mirrors Dokploy:
-
-1. Install Coolify on your server ([Coolify install docs](https://coolify.io/docs/installation))
-2. Add a **PostgreSQL 17** database resource and copy its internal connection string
-3. Add an **Application** connected to your Git repo
-4. Set **Build Pack** to **Dockerfile** and the **port** to `3000`
-5. Paste the [environment variables](#the-settings-youll-paste), using the database's
-   internal host for `DATABASE_URL`
-6. Add your domain and enable HTTPS
-7. **Deploy** — migrations run automatically on startup
-
-Dirework also includes a `nixpacks.toml`, so Coolify's Nixpacks build pack works too if
-you prefer it over the Dockerfile.
-
----
-
-## Option 3: Docker on your own server
-
-Prefer the command line? Run it directly with Docker. The repository's `Dockerfile`
-builds a small production image and runs migrations on startup.
-
-### Build and run
+Prefer the command line? Put the same values in `packages/infra/.env`, then:
 
 ```bash
-# from the repo root
-docker build -t dirework .
-
-docker run -d \
-  --name dirework \
-  -p 3000:3000 \
-  --env-file .env \
-  dirework
+bun install
+bun run deploy
 ```
 
-Put your production values in a `.env` file next to the command (see
-[the settings above](#the-settings-youll-paste)).
+To tear everything down again: `bun run destroy`.
 
-### Docker Compose (app + database together)
+## After you're live — quick checklist
 
-```yaml
-services:
-  db:
-    image: postgres:17-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: dirework
-      POSTGRES_PASSWORD: your-secure-password
-      POSTGRES_DB: dirework
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  web:
-    build: .
-    restart: unless-stopped
-    depends_on:
-      - db
-    ports:
-      - "3000:3000"
-    environment:
-      DATABASE_URL: "postgresql://dirework:your-secure-password@db:5432/dirework"
-      BETTER_AUTH_SECRET: "<generate-with-openssl-rand-base64-32>"
-      BETTER_AUTH_URL: "https://your-domain.com"
-      CORS_ORIGIN: "https://your-domain.com"
-      TWITCH_CLIENT_ID: "<your_client_id>"
-      TWITCH_CLIENT_SECRET: "<your_client_secret>"
-      NODE_ENV: "production"
-
-volumes:
-  postgres_data:
-```
-
-```bash
-docker compose up -d
-```
-
-<Callout type="info">
-  Migrations run automatically when the container starts — there's no separate step.
-</Callout>
-
-Put a reverse proxy (Caddy or Nginx) in front for HTTPS, or use a tunnel like Cloudflare
-Tunnel. Caddy is the simplest:
-
-```
-your-domain.com {
-    reverse_proxy 127.0.0.1:3000
-}
-```
-
----
-
-## Production database
-
-The Docker Compose database above is fine for a personal instance. If you'd rather use a
-managed database, point `DATABASE_URL` at any PostgreSQL 17+ provider — Neon, Supabase,
-Railway, or your host's managed database all work. Migrations still run automatically on
-startup.
-
----
-
-## Before you go live — quick checklist
-
-- [ ] `BETTER_AUTH_SECRET` is a fresh, long random value
-- [ ] `BETTER_AUTH_URL` and `CORS_ORIGIN` are your real `https://` domain
-- [ ] Both Twitch redirect URLs are added for your domain
-- [ ] The database is reachable from the app
-- [ ] HTTPS works (required for Twitch sign-in)
+- [ ] Both Twitch redirect URLs point at your `dirework.…workers.dev` domain
 - [ ] You can sign in and claim the instance
-- [ ] Your bot account connects and replies in chat
+- [ ] Your bot account connects (Dashboard → Bot)
+- [ ] The **bot page** is added to OBS as a browser source (or pinned in a tab) — the
+  bot only listens to chat while that page is open. See [Chat Commands](/docs/chat-commands).
 - [ ] The timer and task list overlays show up in OBS
+
+## Free plan limits (you're fine)
+
+Workers' free plan allows 100,000 requests/day. Overlays poll every couple of seconds
+only while OBS has them open — a six-hour stream uses roughly 15–25k requests. D1's free
+tier (5M reads/day) barely notices a single streamer. If you somehow outgrow it, the $5
+Workers paid plan raises every limit.

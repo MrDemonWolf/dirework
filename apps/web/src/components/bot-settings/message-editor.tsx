@@ -7,11 +7,14 @@ import type { TaskMessagesConfig, TimerMessagesConfig } from "@/lib/config-types
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const taskMessageFields: {
-  key: keyof TaskMessagesConfig;
+export interface MessageField {
+  key: string;
   label: string;
+  /** Comma-separated template variables, or "none" */
   placeholder: string;
-}[] = [
+}
+
+export const taskMessageFields: { key: keyof TaskMessagesConfig; label: string; placeholder: string }[] = [
   { key: "taskAdded", label: "Task Added", placeholder: "{task}, {user}" },
   { key: "noTaskAdded", label: "No Task Added", placeholder: "{user}" },
   { key: "noTaskContent", label: "No Task Content", placeholder: "{user}" },
@@ -32,11 +35,7 @@ const taskMessageFields: {
   { key: "help", label: "Help", placeholder: "{user}" },
 ];
 
-const timerMessageFields: {
-  key: keyof TimerMessagesConfig;
-  label: string;
-  placeholder: string;
-}[] = [
+export const timerMessageFields: { key: keyof TimerMessagesConfig; label: string; placeholder: string }[] = [
   { key: "workMsg", label: "Work Started", placeholder: "none" },
   { key: "breakMsg", label: "Break Started", placeholder: "none" },
   { key: "longBreakMsg", label: "Long Break Started", placeholder: "none" },
@@ -53,52 +52,61 @@ const timerMessageFields: {
   { key: "eta", label: "ETA", placeholder: "{time}" },
 ];
 
-export function TaskMessageEditor({
-  messages,
+/**
+ * ONE generic chat-message editor rendered for both the task and timer message
+ * sets (audit L15 — replaces the two near-identical editors).
+ */
+export function MessageEditor<T extends object>({
+  fields,
+  idPrefix,
+  values,
   onChange,
   disabled,
+  disabledNote,
 }: {
-  messages: TaskMessagesConfig;
-  onChange: (messages: TaskMessagesConfig) => void;
+  fields: { key: Extract<keyof T, string>; label: string; placeholder: string }[];
+  idPrefix: string;
+  values: T;
+  onChange: (values: T) => void;
   disabled?: boolean;
+  disabledNote?: string;
 }) {
   const [search, setSearch] = useState("");
 
-  const handleChange = (key: keyof TaskMessagesConfig, value: string) => {
-    onChange({ ...messages, [key]: value });
+  const handleChange = (key: Extract<keyof T, string>, value: string) => {
+    onChange({ ...values, [key]: value });
   };
 
-  const filteredFields = taskMessageFields.filter((f) =>
+  const filteredFields = fields.filter((f) =>
     f.label.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
     <div className="space-y-3">
       <div className="relative">
-        <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
-          className="h-8 pl-8 text-xs"
+          className="h-8 pl-8"
           placeholder="Filter messages..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          aria-label="Filter messages"
         />
       </div>
 
-      {disabled && (
-        <p className="text-xs text-muted-foreground">
-          Task commands are disabled — enable them to edit messages.
-        </p>
+      {disabled && disabledNote && (
+        <p className="text-xs text-muted-foreground">{disabledNote}</p>
       )}
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {filteredFields.map((field) => (
           <div key={field.key} className="space-y-1">
-            <Label htmlFor={`task-${field.key}`} className="text-xs font-medium">
+            <Label htmlFor={`${idPrefix}-${field.key}`} className="text-xs font-medium">
               {field.label}
             </Label>
             <Input
-              id={`task-${field.key}`}
-              value={messages[field.key]}
+              id={`${idPrefix}-${field.key}`}
+              value={values[field.key] as string}
               onChange={(e) => handleChange(field.key, e.target.value)}
               disabled={disabled}
             />
@@ -117,74 +125,12 @@ export function TaskMessageEditor({
           </div>
         ))}
       </div>
-    </div>
-  );
-}
 
-export function TimerMessageEditor({
-  messages,
-  onChange,
-  disabled,
-}: {
-  messages: TimerMessagesConfig;
-  onChange: (messages: TimerMessagesConfig) => void;
-  disabled?: boolean;
-}) {
-  const [search, setSearch] = useState("");
-
-  const handleChange = (key: keyof TimerMessagesConfig, value: string) => {
-    onChange({ ...messages, [key]: value });
-  };
-
-  const filteredFields = timerMessageFields.filter((f) =>
-    f.label.toLowerCase().includes(search.toLowerCase()),
-  );
-
-  return (
-    <div className="space-y-3">
-      <div className="relative">
-        <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-        <Input
-          className="h-8 pl-8 text-xs"
-          placeholder="Filter messages..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-
-      {disabled && (
-        <p className="text-xs text-muted-foreground">
-          Timer commands are disabled — enable them to edit messages.
+      {filteredFields.length === 0 && (
+        <p className="py-2 text-center text-xs text-muted-foreground">
+          No messages match &quot;{search}&quot;.
         </p>
       )}
-
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        {filteredFields.map((field) => (
-          <div key={field.key} className="space-y-1">
-            <Label htmlFor={`timer-${field.key}`} className="text-xs font-medium">
-              {field.label}
-            </Label>
-            <Input
-              id={`timer-${field.key}`}
-              value={messages[field.key]}
-              onChange={(e) => handleChange(field.key, e.target.value)}
-              disabled={disabled}
-            />
-            {field.placeholder !== "none" && (
-              <div className="flex flex-wrap gap-1">
-                {field.placeholder.split(", ").map((v) => (
-                  <code
-                    key={v}
-                    className="rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-muted-foreground"
-                  >
-                    {v}
-                  </code>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

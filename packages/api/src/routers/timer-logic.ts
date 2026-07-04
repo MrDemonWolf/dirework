@@ -92,6 +92,8 @@ export function computeNextPhase(
       nextCycle = input.currentCycle + 1;
       if (nextCycle > input.totalCycles) {
         nextStatus = "finished";
+        // Clamp: never persist currentCycle past totalCycles ("5 of 4").
+        nextCycle = input.totalCycles;
       } else {
         nextStatus = "work";
         nextDuration = config.workDuration;

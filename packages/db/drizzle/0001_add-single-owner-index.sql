@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX "user_single_owner_idx" ON "user" USING btree ("is_owner") WHERE "user"."is_owner" = true;

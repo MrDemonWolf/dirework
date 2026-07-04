@@ -101,7 +101,7 @@ export function TaskStyleEditor({
             id="task-style-header-height"
             value={styles.header.height}
             onChange={(e) => updateNested(["header", "height"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <ColorInput
@@ -136,7 +136,7 @@ export function TaskStyleEditor({
             id="task-style-header-border-width"
             value={styles.header.border.width}
             onChange={(e) => updateNested(["header", "border", "width"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -145,7 +145,7 @@ export function TaskStyleEditor({
             id="task-style-header-border-radius"
             value={styles.header.border.radius}
             onChange={(e) => updateNested(["header", "border", "radius"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -154,7 +154,7 @@ export function TaskStyleEditor({
             id="task-style-header-font-size"
             value={styles.header.fontSize}
             onChange={(e) => updateNested(["header", "fontSize"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <ColorInput
@@ -169,7 +169,7 @@ export function TaskStyleEditor({
             id="task-style-header-padding"
             value={styles.header.padding}
             onChange={(e) => updateNested(["header", "padding"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
       </SectionGroup>
@@ -207,7 +207,7 @@ export function TaskStyleEditor({
             id="task-style-body-border-width"
             value={styles.body.border.width}
             onChange={(e) => updateNested(["body", "border", "width"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -216,7 +216,7 @@ export function TaskStyleEditor({
             id="task-style-body-border-radius"
             value={styles.body.border.radius}
             onChange={(e) => updateNested(["body", "border", "radius"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -225,7 +225,7 @@ export function TaskStyleEditor({
             id="task-style-body-pad-vertical"
             value={styles.body.padding.vertical}
             onChange={(e) => updateNested(["body", "padding", "vertical"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -234,7 +234,7 @@ export function TaskStyleEditor({
             id="task-style-body-pad-horizontal"
             value={styles.body.padding.horizontal}
             onChange={(e) => updateNested(["body", "padding", "horizontal"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
       </SectionGroup>
@@ -272,7 +272,7 @@ export function TaskStyleEditor({
             id="task-style-task-border-width"
             value={styles.task.border.width}
             onChange={(e) => updateNested(["task", "border", "width"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -281,7 +281,7 @@ export function TaskStyleEditor({
             id="task-style-task-border-radius"
             value={styles.task.border.radius}
             onChange={(e) => updateNested(["task", "border", "radius"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -290,7 +290,7 @@ export function TaskStyleEditor({
             id="task-style-task-font-size"
             value={styles.task.fontSize}
             onChange={(e) => updateNested(["task", "fontSize"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <ColorInput
@@ -311,7 +311,7 @@ export function TaskStyleEditor({
             id="task-style-task-padding"
             value={styles.task.padding}
             onChange={(e) => updateNested(["task", "padding"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -320,7 +320,7 @@ export function TaskStyleEditor({
             id="task-style-task-margin-bottom"
             value={styles.task.marginBottom}
             onChange={(e) => updateNested(["task", "marginBottom"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -329,7 +329,7 @@ export function TaskStyleEditor({
             id="task-style-task-max-width"
             value={styles.task.maxWidth}
             onChange={(e) => updateNested(["task", "maxWidth"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
       </SectionGroup>
@@ -370,7 +370,7 @@ export function TaskStyleEditor({
             id="task-style-checkbox-size"
             value={styles.checkbox.size}
             onChange={(e) => updateNested(["checkbox", "size"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <ColorInput
@@ -405,7 +405,7 @@ export function TaskStyleEditor({
             id="task-style-checkbox-border-width"
             value={styles.checkbox.border.width}
             onChange={(e) => updateNested(["checkbox", "border", "width"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -414,7 +414,7 @@ export function TaskStyleEditor({
             id="task-style-checkbox-border-radius"
             value={styles.checkbox.border.radius}
             onChange={(e) => updateNested(["checkbox", "border", "radius"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -423,7 +423,7 @@ export function TaskStyleEditor({
             id="task-style-checkbox-tick-char"
             value={styles.checkbox.tickChar}
             onChange={(e) => updateNested(["checkbox", "tickChar"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -432,7 +432,7 @@ export function TaskStyleEditor({
             id="task-style-checkbox-tick-size"
             value={styles.checkbox.tickSize}
             onChange={(e) => updateNested(["checkbox", "tickSize"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <ColorInput
@@ -447,7 +447,7 @@ export function TaskStyleEditor({
             id="task-style-checkbox-margin-top"
             value={styles.checkbox.margin.top}
             onChange={(e) => updateNested(["checkbox", "margin", "top"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -456,7 +456,7 @@ export function TaskStyleEditor({
             id="task-style-checkbox-margin-left"
             value={styles.checkbox.margin.left}
             onChange={(e) => updateNested(["checkbox", "margin", "left"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -465,7 +465,7 @@ export function TaskStyleEditor({
             id="task-style-checkbox-margin-right"
             value={styles.checkbox.margin.right}
             onChange={(e) => updateNested(["checkbox", "margin", "right"], e.target.value)}
-            className="h-8 w-24 text-xs"
+            className="h-8 w-24"
           />
         </div>
       </SectionGroup>
@@ -478,7 +478,7 @@ export function TaskStyleEditor({
               id="task-style-bullet-char"
               value={styles.bullet.char}
               onChange={(e) => updateNested(["bullet", "char"], e.target.value)}
-              className="h-8 w-24 text-xs"
+              className="h-8 w-24"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -487,7 +487,7 @@ export function TaskStyleEditor({
               id="task-style-bullet-size"
               value={styles.bullet.size}
               onChange={(e) => updateNested(["bullet", "size"], e.target.value)}
-              className="h-8 w-24 text-xs"
+              className="h-8 w-24"
             />
           </div>
           <ColorInput
@@ -502,7 +502,7 @@ export function TaskStyleEditor({
               id="task-style-bullet-margin-top"
               value={styles.bullet.margin.top}
               onChange={(e) => updateNested(["bullet", "margin", "top"], e.target.value)}
-              className="h-8 w-24 text-xs"
+              className="h-8 w-24"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -511,7 +511,7 @@ export function TaskStyleEditor({
               id="task-style-bullet-margin-left"
               value={styles.bullet.margin.left}
               onChange={(e) => updateNested(["bullet", "margin", "left"], e.target.value)}
-              className="h-8 w-24 text-xs"
+              className="h-8 w-24"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -520,7 +520,7 @@ export function TaskStyleEditor({
               id="task-style-bullet-margin-right"
               value={styles.bullet.margin.right}
               onChange={(e) => updateNested(["bullet", "margin", "right"], e.target.value)}
-              className="h-8 w-24 text-xs"
+              className="h-8 w-24"
             />
           </div>
         </SectionGroup>
