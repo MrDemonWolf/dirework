@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
+import { FieldRow } from "./field-row";
 
 const fontOptions = [
   "Montserrat",
@@ -44,22 +44,24 @@ export function FontSelect({
   const id = `font-${label.toLowerCase().replace(/\s+/g, "-")}`;
 
   return (
-    <div className="flex items-center gap-2">
-      <Label htmlFor={id} className="w-28 shrink-0 text-xs text-muted-foreground">
-        {label}
-      </Label>
+    <FieldRow label={label} htmlFor={id}>
       <Select value={value} onValueChange={(v) => { if (v) onChange(v); }}>
-        <SelectTrigger id={id} className="h-8 w-44 text-xs">
+        <SelectTrigger id={id} className="h-8 w-40 text-xs">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           {fontOptions.map((font) => (
-            <SelectItem key={font} value={font} className="text-xs">
+            <SelectItem
+              key={font}
+              value={font}
+              className="text-xs"
+              style={{ fontFamily: `'${font}', sans-serif` }}
+            >
               {font}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
-    </div>
+    </FieldRow>
   );
 }

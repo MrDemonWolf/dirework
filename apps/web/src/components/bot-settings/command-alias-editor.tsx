@@ -59,10 +59,13 @@ export function CommandAliasEditor({
   rows,
   onChange,
   maxRows = 50,
+  knownCommands,
 }: {
   rows: AliasRow[];
   onChange: (rows: AliasRow[]) => void;
   maxRows?: number;
+  /** Built-in command names — unknown targets get a non-blocking warning */
+  knownCommands?: string[];
 }) {
   const keyCounts = new Map<string, number>();
   for (const row of rows) {
@@ -70,6 +73,13 @@ export function CommandAliasEditor({
     if (!key) continue;
     keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1);
   }
+
+  const knownSet = new Set((knownCommands ?? []).map((c) => c.toLowerCase()));
+  const isUnknownCommand = (value: string) => {
+    if (knownSet.size === 0) return false;
+    const base = value.trim().toLowerCase().split(/\s+/)[0] ?? "";
+    return base !== "" && !knownSet.has(base);
+  };
 
   const handleAdd = () => {
     onChange([...rows, { id: nextAliasRowId(), key: "", value: "" }]);
@@ -102,44 +112,54 @@ export function CommandAliasEditor({
         {rows.map((row) => {
           const trimmedKey = row.key.trim();
           const isDuplicate = trimmedKey !== "" && (keyCounts.get(trimmedKey) ?? 0) > 1;
+          const isUnknown = isUnknownCommand(row.value);
           return (
-            <div key={row.id} className="flex items-end gap-2">
-              <div className="flex-1 space-y-1">
-                <Label htmlFor={`${row.id}-key`} className="font-mono text-[11px] tracking-wide uppercase">
-                  Alias
-                </Label>
-                <Input
-                  id={`${row.id}-key`}
-                  value={row.key}
-                  onChange={(e) => handleRowChange(row.id, { key: e.target.value })}
-                  placeholder="!t"
-                  maxLength={50}
-                  aria-invalid={isDuplicate || undefined}
-                  className={cn("font-mono", isDuplicate && "border-destructive")}
-                />
+            <div key={row.id} className="space-y-1">
+              <div className="flex items-end gap-2">
+                <div className="flex-1 space-y-1">
+                  <Label htmlFor={`${row.id}-key`} className="console-label">
+                    Alias
+                  </Label>
+                  <Input
+                    id={`${row.id}-key`}
+                    value={row.key}
+                    onChange={(e) => handleRowChange(row.id, { key: e.target.value })}
+                    placeholder="!t"
+                    maxLength={50}
+                    aria-invalid={isDuplicate || undefined}
+                    aria-describedby={isDuplicate ? "alias-duplicate-error" : undefined}
+                    className={cn("font-mono", isDuplicate && "border-destructive")}
+                  />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <Label htmlFor={`${row.id}-cmd`} className="console-label">
+                    Command
+                  </Label>
+                  <Input
+                    id={`${row.id}-cmd`}
+                    value={row.value}
+                    onChange={(e) => handleRowChange(row.id, { value: e.target.value })}
+                    placeholder="!task"
+                    maxLength={100}
+                    aria-describedby={isUnknown ? `${row.id}-cmd-warning` : undefined}
+                    className="font-mono"
+                  />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => handleRemove(row.id)}
+                  aria-label={`Remove alias ${row.key || "(empty)"}`}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
               </div>
-              <div className="flex-1 space-y-1">
-                <Label htmlFor={`${row.id}-cmd`} className="font-mono text-[11px] tracking-wide uppercase">
-                  Command
-                </Label>
-                <Input
-                  id={`${row.id}-cmd`}
-                  value={row.value}
-                  onChange={(e) => handleRowChange(row.id, { value: e.target.value })}
-                  placeholder="!task"
-                  maxLength={100}
-                  className="font-mono"
-                />
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="shrink-0"
-                onClick={() => handleRemove(row.id)}
-                aria-label={`Remove alias ${row.key || "(empty)"}`}
-              >
-                <Trash2 className="size-4 text-muted-foreground" />
-              </Button>
+              {isUnknown && (
+                <p id={`${row.id}-cmd-warning`} className="text-xs text-warning">
+                  Unknown command — this alias won&apos;t fire.
+                </p>
+              )}
             </div>
           );
         })}
@@ -152,7 +172,7 @@ export function CommandAliasEditor({
           const k = row.key.trim();
           return k !== "" && (keyCounts.get(k) ?? 0) > 1;
         }) && (
-          <p className="text-xs text-destructive" role="alert">
+          <p id="alias-duplicate-error" className="text-xs text-destructive" role="alert">
             Two aliases share the same name — rename or remove one before saving.
           </p>
         )}

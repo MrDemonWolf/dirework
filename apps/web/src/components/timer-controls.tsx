@@ -10,10 +10,11 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { StatusChip, type StatusTone } from "@/components/status-chip";
+import { StatusChip } from "@/components/status-chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { formatClock } from "@/lib/timer-utils";
+import { TIMER_TONES, TIMER_PHASE_COLOR, type TimerStatus } from "@/lib/status-tones";
 import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
 import { trpc } from "@/utils/trpc";
 
@@ -35,21 +36,9 @@ function minutesToMs(min: number): number {
 
 const DEFAULT_LABELS: Record<string, string> = { ...DEFAULT_PHASE_LABELS };
 
-function statusTone(status: string): StatusTone {
-  switch (status) {
-    case "work":
-    case "starting":
-      return "accent";
-    case "break":
-    case "longBreak":
-      return "live";
-    case "paused":
-      return "warn";
-    case "finished":
-      return "live";
-    default:
-      return "idle";
-  }
+/** Narrow an arbitrary status string to a known TimerStatus (idle fallback). */
+function toTimerStatus(status: string): TimerStatus {
+  return status in TIMER_TONES ? (status as TimerStatus) : "idle";
 }
 
 /**
@@ -61,8 +50,8 @@ function CycleDots({ current, total }: { current: number; total: number }) {
   if (total > 10) {
     return (
       <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground">
-        {String(Math.min(current, total)).padStart(2, "0")}
-        <span className="text-muted-foreground/50">/{String(total).padStart(2, "0")}</span>
+        <span className="font-semibold">{String(Math.min(current, total)).padStart(2, "0")}</span>
+        /{String(total).padStart(2, "0")}
       </p>
     );
   }
@@ -100,6 +89,7 @@ interface TimerState {
   totalCycles: number;
   targetEndTime?: string | null;
   pausedWithRemaining?: number | null;
+  pausedFromStatus?: string | null;
 }
 
 interface TimerContextValue {
@@ -118,6 +108,7 @@ interface TimerContextValue {
   isIdle: boolean;
   isPaused: boolean;
   displayTime: string;
+  progressPct: number;
   state: TimerState | null;
   configLabels: Record<string, string>;
   start: { mutate: (args: { totalCycles: number }) => void; isPending: boolean };
@@ -273,6 +264,22 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       ? formatClock(remaining)
       : "--:--";
 
+  // Progress through the current phase (0–100) for the instrument rail.
+  // The phase's full length comes from the configured minutes; while paused we
+  // measure against the phase the timer froze in.
+  const progressPhase = isPaused ? (state?.pausedFromStatus ?? "work") : status;
+  const phaseDurations: Record<string, number> = {
+    starting: config.data?.timerConfig?.startingDuration ?? 5000,
+    work: minutesToMs(workMin),
+    break: minutesToMs(breakMin),
+    longBreak: minutesToMs(longBreakMin),
+  };
+  const totalDuration = phaseDurations[progressPhase];
+  const progressPct =
+    !isIdle && totalDuration && remaining !== null
+      ? Math.min(100, Math.max(0, 100 * (1 - remaining / totalDuration)))
+      : 0;
+
   return (
     <TimerContext.Provider
       value={{
@@ -284,6 +291,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         saveConfig,
         status, isIdle, isPaused,
         displayTime,
+        progressPct,
         state,
         configLabels,
         start, pause, resume, skip, reset,
@@ -295,26 +303,54 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 }
 
 /**
- * The hero timer module — reads like a hardware timer: phase LED chip on top,
- * big tabular digits, cycle dots, then the transport controls.
+ * The hero timer instrument — reads like a hardware timer: phase LED chip on
+ * top, big glowing tabular digits, phase-progress rail, cycle dots, then the
+ * transport controls.
  */
-export function TimerDisplay() {
+export function TimerInstrument() {
   const {
     cycles, workMin, breakMin,
-    status, isIdle, isPaused, displayTime, state, configLabels,
+    status, isIdle, isPaused, displayTime, progressPct, state, configLabels,
     start, pause, resume, skip, reset,
   } = useTimerContext();
 
+  const timerStatus = toTimerStatus(status);
+  const { tone, pulse } = TIMER_TONES[timerStatus];
+  const phaseColor = TIMER_PHASE_COLOR[timerStatus];
+
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-center gap-5">
       <StatusChip
-        tone={statusTone(status)}
+        tone={tone}
         label={configLabels[status] ?? DEFAULT_LABELS[status] ?? status}
-        pulse={status === "work" || status === "starting"}
+        pulse={pulse}
       />
-      <p className="font-heading text-7xl font-bold tabular-nums tracking-tight md:text-8xl">
-        {displayTime}
-      </p>
+      {/* Digits with a static phase-tinted ambient glow */}
+      <div className="relative">
+        <div
+          aria-hidden
+          className="absolute inset-x-0 top-1/2 -z-10 h-32 -translate-y-1/2"
+          style={{
+            background: `radial-gradient(closest-side, color-mix(in oklab, ${phaseColor} 14%, transparent), transparent)`,
+          }}
+        />
+        <span className="font-heading text-7xl font-semibold tracking-tight tabular-nums lg:text-8xl">
+          {displayTime}
+        </span>
+      </div>
+      {/* Phase rail — progress through the current phase */}
+      <div
+        className={cn(
+          "h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-muted",
+          isIdle && "opacity-0",
+        )}
+        role="presentation"
+      >
+        <div
+          className="h-full rounded-full transition-[width] duration-1000 ease-linear"
+          style={{ width: `${progressPct}%`, background: phaseColor }}
+        />
+      </div>
       {state && !isIdle ? (
         <CycleDots current={state.currentCycle} total={state.totalCycles} />
       ) : (
@@ -328,7 +364,7 @@ export function TimerDisplay() {
             size="lg"
             onClick={() => start.mutate({ totalCycles: cycles })}
             disabled={start.isPending}
-            className="gap-2 px-6"
+            className="h-12 gap-2 px-8 text-base"
           >
             <Play className="size-4" />
             Start
@@ -340,7 +376,7 @@ export function TimerDisplay() {
                 size="lg"
                 onClick={() => resume.mutate()}
                 disabled={resume.isPending}
-                className="gap-2 px-6"
+                className="h-12 gap-2 px-8 text-base"
               >
                 <Play className="size-4" />
                 Resume
@@ -351,44 +387,49 @@ export function TimerDisplay() {
                 size="lg"
                 onClick={() => pause.mutate()}
                 disabled={pause.isPending}
-                className="gap-2 px-6"
+                className="h-12 gap-2 px-8 text-base"
               >
                 <Pause className="size-4" />
                 Pause
               </Button>
             )}
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => skip.mutate()}
-                    disabled={skip.isPending}
-                    aria-label="Skip phase"
-                  />
-                }
-              >
-                <SkipForward className="size-4" />
-              </TooltipTrigger>
-              <TooltipContent>Skip to the next phase</TooltipContent>
-            </Tooltip>
-            <ConfirmDialog
-              trigger={
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  disabled={reset.isPending}
-                  aria-label="Stop timer"
+            {/* Segmented skip/stop cluster */}
+            <div className="flex divide-x divide-border/50 overflow-hidden rounded-lg border border-border/50">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => skip.mutate()}
+                      disabled={skip.isPending}
+                      aria-label="Skip phase"
+                      className="h-12 w-12 rounded-none border-0"
+                    />
+                  }
                 >
-                  <Square className="size-4" />
-                </Button>
-              }
-              title="Stop the timer?"
-              description="This ends the current run and resets the timer to idle. Progress in this session is discarded — chat will see the timer disappear from the overlay."
-              confirmLabel="Stop timer"
-              onConfirm={() => reset.mutate()}
-            />
+                  <SkipForward className="size-4" />
+                </TooltipTrigger>
+                <TooltipContent>Skip to the next phase</TooltipContent>
+              </Tooltip>
+              <ConfirmDialog
+                trigger={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={reset.isPending}
+                    aria-label="Stop timer"
+                    className="h-12 w-12 rounded-none border-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Square className="size-4" />
+                  </Button>
+                }
+                title="Stop the timer?"
+                description="This ends the current run and resets the timer to idle. Progress in this session is discarded — chat will see the timer disappear from the overlay."
+                confirmLabel="Stop timer"
+                onConfirm={() => reset.mutate()}
+              />
+            </div>
           </>
         )}
       </div>
@@ -409,7 +450,8 @@ export function TimerSettings() {
   const fields = [
     {
       id: "timer-work-min",
-      label: "Work (min)",
+      label: "Work",
+      unit: "min",
       tooltip: "Duration of each focus session in minutes",
       min: 1,
       max: 120,
@@ -419,7 +461,8 @@ export function TimerSettings() {
     },
     {
       id: "timer-break-min",
-      label: "Break (min)",
+      label: "Break",
+      unit: "min",
       tooltip: "Duration of short breaks between focus sessions",
       min: 1,
       max: 60,
@@ -430,6 +473,7 @@ export function TimerSettings() {
     {
       id: "timer-long-break-min",
       label: "Long break",
+      unit: "min",
       tooltip: "Duration of the extended break in minutes",
       min: 1,
       max: 60,
@@ -439,7 +483,8 @@ export function TimerSettings() {
     },
     {
       id: "timer-long-break-interval",
-      label: "Every (cycles)",
+      label: "Every",
+      unit: "cycles",
       tooltip: "Take a long break after this many focus sessions",
       min: 2,
       max: 20,
@@ -450,6 +495,7 @@ export function TimerSettings() {
     {
       id: "timer-pomos",
       label: "Pomos",
+      unit: null,
       tooltip: "Total number of focus sessions (pomodoros) in this run",
       min: 1,
       max: 99,
@@ -460,15 +506,21 @@ export function TimerSettings() {
   ];
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
+      <div className="console-rule">
+        <span className="console-label">Config</span>
+      </div>
+      {!isIdle && (
+        <StatusChip size="sm" tone="idle" label="Locked while running" className="self-start" />
+      )}
       {fields.map((field) => (
-        <div key={field.id} className="space-y-1">
+        <div key={field.id} className="grid grid-cols-[1fr_4rem_auto] items-center gap-2">
           <Tooltip>
             <TooltipTrigger
               render={
                 <Label
                   htmlFor={field.id}
-                  className="inline-flex items-center gap-1 font-mono text-[11px] tracking-wide text-muted-foreground uppercase"
+                  className="console-label inline-flex items-center gap-1"
                 />
               }
             >
@@ -486,8 +538,9 @@ export function TimerSettings() {
             onChange={(e) => field.set(Number(e.target.value))}
             onBlur={field.save}
             disabled={!isIdle}
-            className="h-8 font-mono tabular-nums"
+            className="h-8 text-right font-mono tabular-nums"
           />
+          {field.unit ? <span className="console-label">{field.unit}</span> : <span aria-hidden />}
         </div>
       ))}
     </div>
@@ -498,7 +551,7 @@ export function TimerControls() {
   return (
     <TimerProvider>
       <div className="flex flex-col items-center gap-6">
-        <TimerDisplay />
+        <TimerInstrument />
         <div className="w-full">
           <TimerSettings />
         </div>

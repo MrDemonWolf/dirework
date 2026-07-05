@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { Pause, Play } from "lucide-react";
 
-import type { TimerStylesConfig, TaskStylesConfig } from "@/lib/config-types";
-import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
+import type { TimerStylesConfig, TaskStylesConfig, PhaseLabelsConfig } from "@/lib/config-types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { TimerDisplay } from "@/components/timer-display";
@@ -21,18 +20,20 @@ const mockTasks = [
   { id: "4", authorTwitchId: "1003", authorDisplayName: "CozyBear", authorColor: "#2dd4bf", text: "Write unit tests for timer", status: "done" },
 ];
 
-function timerPreviewConfig(styles: TimerStylesConfig) {
+function timerPreviewConfig(styles: TimerStylesConfig, labels: PhaseLabelsConfig) {
   return {
     ...styles,
-    labels: { ...DEFAULT_PHASE_LABELS } as Record<string, string>,
+    labels: { ...labels } as Record<string, string>,
     showHours: false,
   };
 }
 
 type Backdrop = "dark" | "light" | "checker";
 
+// Literal backdrop colors are sanctioned here — they simulate external OBS
+// scene content behind the overlay, not app chrome.
 const backdrops: { id: Backdrop; label: string; className: string; swatch: string }[] = [
-  { id: "dark", label: "Dark backdrop", className: "bg-zinc-900/95 bg-grain", swatch: "bg-zinc-900" },
+  { id: "dark", label: "Dark backdrop", className: "bg-[oklch(0.14_0.035_262)] bg-grain", swatch: "bg-[oklch(0.14_0.035_262)]" },
   { id: "light", label: "Light backdrop", className: "bg-zinc-100 bg-grain", swatch: "bg-zinc-100" },
   { id: "checker", label: "Checkerboard backdrop", className: "bg-checker", swatch: "bg-checker" },
 ];
@@ -56,10 +57,10 @@ function BackdropToggle({
           title={b.label}
           onClick={() => onChange(b.id)}
           className={cn(
-            "size-5 cursor-pointer overflow-hidden rounded-md border transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+            "size-6 cursor-pointer overflow-hidden rounded-md border transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
             b.swatch,
             value === b.id
-              ? "border-primary ring-1 ring-primary/40"
+              ? "border-primary ring-2 ring-ring"
               : "border-border hover:border-primary/50",
           )}
         />
@@ -69,16 +70,19 @@ function BackdropToggle({
 }
 
 /**
- * OBS-like preview canvas. Backdrop is switchable (audit L16) — dark stays
- * the default since streamers design against dark scenes, but light and
- * checkerboard reveal how a transparent overlay really composites.
+ * OBS-like preview canvas — the page's hero instrument. Backdrop is
+ * switchable (audit L16): dark stays the default since streamers design
+ * against dark scenes, but light and checkerboard reveal how a transparent
+ * overlay really composites.
  */
 export function StylePreviewPanel({
   timerStyles,
   taskStyles,
+  phaseLabels,
 }: {
   timerStyles: TimerStylesConfig;
   taskStyles: TaskStylesConfig;
+  phaseLabels: PhaseLabelsConfig;
 }) {
   const [targetEndTime, setTargetEndTime] = useState<string | null>(null);
   const [pausedRemaining, setPausedRemaining] = useState(DEFAULT_PAUSED_REMAINING);
@@ -102,17 +106,14 @@ export function StylePreviewPanel({
   const canvasClass = backdrops.find((b) => b.id === backdrop)!.className;
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Canvas controls */}
-      <div className="flex items-center justify-between">
-        <p className="console-label">Preview Canvas</p>
-        <BackdropToggle value={backdrop} onChange={setBackdrop} />
-      </div>
-
-      {/* Timer Preview */}
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <p className="console-label">Timer</p>
+    <div className="panel-hero">
+      <div className="flex flex-col gap-4 px-5 py-5">
+        {/* Canvas controls */}
+        <div className="flex items-center gap-3">
+          <div className="console-rule min-w-0 flex-1">
+            <span className="console-label">Preview Canvas</span>
+          </div>
+          <BackdropToggle value={backdrop} onChange={setBackdrop} />
           <Button
             variant="ghost"
             size="sm"
@@ -144,32 +145,38 @@ export function StylePreviewPanel({
             )}
           </Button>
         </div>
+
+        {/* Timer Preview */}
         <div
           className={cn(
-            "flex items-center justify-center rounded-lg border border-dashed border-border/60 p-6",
+            "panel-inset relative flex items-center justify-center overflow-hidden p-6",
             canvasClass,
           )}
         >
           <TimerDisplay
-            config={timerPreviewConfig(timerStyles)}
+            config={timerPreviewConfig(timerStyles, phaseLabels)}
             state={timerState}
             totalDuration={MOCK_DURATION}
           />
+          <span className="console-label absolute right-2 bottom-1.5">
+            {timerStyles.dimensions.width} × {timerStyles.dimensions.height}
+          </span>
         </div>
-      </div>
 
-      {/* Task List Preview */}
-      <div>
-        <p className="console-label mb-2">Task List</p>
+        {/* Task List Preview */}
+        <div className="console-rule">
+          <span className="console-label">Task List</span>
+        </div>
         <div
           className={cn(
-            "rounded-lg border border-dashed border-border/60 p-4",
+            "panel-inset relative overflow-hidden p-4",
             canvasClass,
           )}
         >
           <div style={{ height: "300px" }}>
             <TaskListDisplay config={taskStyles} tasks={mockTasks} />
           </div>
+          <span className="console-label absolute right-2 bottom-1.5">300px</span>
         </div>
       </div>
     </div>
