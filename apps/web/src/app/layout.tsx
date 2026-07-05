@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 
 import { IBM_Plex_Mono, IBM_Plex_Sans, Montserrat } from "next/font/google";
 
@@ -22,41 +23,54 @@ const montserrat = Montserrat({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(process.env.BETTER_AUTH_URL ?? "http://localhost:3001"),
-  title: {
-    default: "DireWork",
-    template: "%s | DireWork",
-  },
-  description:
-    "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working and body-doubling streams.",
-  keywords: [
-    "pomodoro",
-    "twitch",
-    "timer",
-    "task list",
-    "co-working",
-    "body doubling",
-    "stream overlay",
-    "OBS",
-    "focus timer",
-  ],
-  authors: [{ name: "MrDemonWolf, Inc.", url: "https://www.mrdemonwolf.com" }],
-  creator: "MrDemonWolf, Inc.",
-  openGraph: {
-    title: "DireWork",
+export async function generateMetadata(): Promise<Metadata> {
+  // Default the canonical/OG base to the actual serving origin — i.e. the
+  // deployed Worker URL, read from the request host — so prod metadata is
+  // self-configuring and never leaks localhost. An explicit BETTER_AUTH_URL
+  // still wins when the operator runs behind a custom domain.
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  const base =
+    process.env.BETTER_AUTH_URL ||
+    (host ? `${proto}://${host}` : "http://localhost:3001");
+
+  return {
+    metadataBase: new URL(base),
+    title: {
+      default: "DireWork",
+      template: "%s | DireWork",
+    },
     description:
       "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working and body-doubling streams.",
-    type: "website",
-    siteName: "DireWork",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "DireWork",
-    description:
-      "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working streams.",
-  },
-};
+    keywords: [
+      "pomodoro",
+      "twitch",
+      "timer",
+      "task list",
+      "co-working",
+      "body doubling",
+      "stream overlay",
+      "OBS",
+      "focus timer",
+    ],
+    authors: [{ name: "MrDemonWolf, Inc.", url: "https://www.mrdemonwolf.com" }],
+    creator: "MrDemonWolf, Inc.",
+    openGraph: {
+      title: "DireWork",
+      description:
+        "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working and body-doubling streams.",
+      type: "website",
+      siteName: "DireWork",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "DireWork",
+      description:
+        "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working streams.",
+    },
+  };
+}
 
 export default function RootLayout({
   children,
