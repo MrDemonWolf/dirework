@@ -2,12 +2,12 @@ import type { ThemePreset, TimerStylesConfig, TaskStylesConfig } from "./config-
 
 export const defaultTimerStyles: TimerStylesConfig = {
   dimensions: { width: "250px", height: "250px" },
-  background: { color: "#1c1c1e", opacity: 0.85, borderRadius: "22%" },
+  background: { color: "#091533", opacity: 0.85, borderRadius: "22%" },
   ring: {
     enabled: true,
     trackColor: "#ffffff",
     trackOpacity: 0.1,
-    fillColor: "#34c759",
+    fillColor: "#00aced",
     fillOpacity: 1,
     width: 8,
     gap: 6,
@@ -28,44 +28,44 @@ export const defaultTaskStyles: TaskStylesConfig = {
   scroll: { enabled: true, pixelsPerSecond: 70, gapBetweenLoops: 100 },
   header: {
     height: "52px",
-    background: { color: "#1c1c1e", opacity: 0.95 },
-    border: { color: "#3a3a3c", width: "1px", radius: "12px 12px 0 0" },
+    background: { color: "#091533", opacity: 0.95 },
+    border: { color: "#1b2b52", width: "1px", radius: "12px 12px 0 0" },
     fontSize: "24px",
     fontColor: "#ffffff",
     padding: "12px 16px",
   },
   body: {
-    background: { color: "#1c1c1e", opacity: 0.85 },
-    border: { color: "#3a3a3c", width: "1px", radius: "0 0 12px 12px" },
+    background: { color: "#091533", opacity: 0.85 },
+    border: { color: "#1b2b52", width: "1px", radius: "0 0 12px 12px" },
     padding: { vertical: "6px", horizontal: "6px" },
   },
   task: {
-    background: { color: "#2c2c2e", opacity: 0.9 },
-    border: { color: "#3a3a3c", width: "0px", radius: "10px" },
+    background: { color: "#12244a", opacity: 0.9 },
+    border: { color: "#1b2b52", width: "0px", radius: "10px" },
     fontSize: "22px",
-    fontColor: "#f5f5f7",
-    usernameColor: "#bf5af2",
+    fontColor: "#eaf2ff",
+    usernameColor: "#6b8bf5",
     padding: "10px 14px",
     marginBottom: "4px",
     maxWidth: "100%",
   },
   taskDone: {
-    background: { color: "#1c1c1e", opacity: 0.5 },
-    fontColor: "#8e8e93",
+    background: { color: "#091533", opacity: 0.5 },
+    fontColor: "#7c8db0",
   },
   checkbox: {
     size: "20px",
     background: { color: "#000000", opacity: 0 },
-    border: { color: "#636366", width: "2px", radius: "6px" },
+    border: { color: "#4a5b82", width: "2px", radius: "6px" },
     margin: { top: "4px", left: "2px", right: "8px" },
-    tickChar: "\u2714",
+    tickChar: "✔",
     tickSize: "14px",
-    tickColor: "#34c759",
+    tickColor: "#00aced",
   },
   bullet: {
-    char: "\u2022",
+    char: "•",
     size: "20px",
-    color: "#8e8e93",
+    color: "#7c8db0",
     margin: { top: "0px", left: "2px", right: "8px" },
   },
 };
@@ -85,40 +85,39 @@ function tasks(overrides: Partial<TaskStylesConfig> & { [K in keyof TaskStylesCo
 }
 
 export const themePresets: ThemePreset[] = [
-  // ─── 1. Default (Apple-inspired dark) ────────────────────────────────
+  // ─── 1. Default (MrDemonWolf midnight blue) ──────────────────────────
   {
     id: "default",
     name: "Default",
-    description: "Clean dark theme with Apple-style progress ring",
-    preview: { bg: "#1c1c1e", accent: "#34c759", text: "#ffffff" },
+    description: "MrDemonWolf midnight blue with cerulean accents",
+    preview: { bg: "#091533", accent: "#00aced", text: "#ffffff" },
     timerStyles: { ...defaultTimerStyles },
     taskStyles: { ...defaultTaskStyles },
   },
 
-  // ─── 2. Liquid Glass Light (macOS Tahoe) ────────────────────────────
+  // ─── 2. Ocean Depths (calm navy + teal) ─────────────────────────────
   {
-    id: "glass-light",
-    name: "Liquid Glass",
-    description: "macOS Tahoe light mode — frosted glass widgets",
-    preview: { bg: "#e8ecf0", accent: "#007aff", text: "#000000" },
+    id: "ocean-depths",
+    name: "Ocean Depths",
+    description: "Deep navy and teal with luminous accents",
+    preview: { bg: "#0a1628", accent: "#2dd4bf", text: "#e0f2fe" },
     timerStyles: {
       dimensions: { width: "250px", height: "250px" },
-      background: { color: "#f5f5f7", opacity: 0.82, borderRadius: "22%" },
-      ring: { enabled: true, trackColor: "#d1d1d6", trackOpacity: 0.6, fillColor: "#007aff", fillOpacity: 1, width: 7, gap: 6 },
-      text: { color: "#000000", outlineColor: "#000000", outlineSize: "0px", fontFamily: "Montserrat" },
-      fontSizes: { label: "17px", time: "48px", cycle: "15px" },
+      background: { color: "#0a1628", opacity: 0.88, borderRadius: "22%" },
+      ring: { enabled: true, trackColor: "#2dd4bf", trackOpacity: 0.12, fillColor: "#2dd4bf", fillOpacity: 1, width: 8, gap: 6 },
+      text: { color: "#e0f2fe", outlineColor: "#0a1628", outlineSize: "0px", fontFamily: "Montserrat" },
+      fontSizes: { label: "18px", time: "48px", cycle: "16px" },
     },
     taskStyles: tasks({
-      fonts: { header: "Montserrat", body: "Roboto" },
-      header: { height: "52px", background: { color: "#f5f5f7", opacity: 0.85 }, border: { color: "#c7c7cc", width: "1px", radius: "16px 16px 0 0" }, fontSize: "24px", fontColor: "#000000", padding: "12px 16px" },
-      body: { background: { color: "#f0f0f2", opacity: 0.75 }, border: { color: "#c7c7cc", width: "1px", radius: "0 0 16px 16px" }, padding: { vertical: "6px", horizontal: "6px" } },
-      task: { background: { color: "#ffffff", opacity: 0.65 }, border: { color: "#d1d1d6", width: "1px", radius: "12px" }, fontSize: "22px", fontColor: "#000000", usernameColor: "#007aff", padding: "10px 14px", marginBottom: "4px", maxWidth: "100%" },
-      taskDone: { background: { color: "#f5f5f7", opacity: 0.4 }, fontColor: "#86868b" },
-      checkbox: { size: "20px", background: { color: "#ffffff", opacity: 0.5 }, border: { color: "#c7c7cc", width: "1.5px", radius: "6px" }, margin: { top: "4px", left: "2px", right: "8px" }, tickChar: "\u2714", tickSize: "14px", tickColor: "#007aff" },
+      header: { height: "52px", background: { color: "#0c1e3a", opacity: 0.95 }, border: { color: "#2dd4bf", width: "1px", radius: "12px 12px 0 0" }, fontSize: "24px", fontColor: "#e0f2fe", padding: "12px 16px" },
+      body: { background: { color: "#0a1628", opacity: 0.85 }, border: { color: "#163050", width: "1px", radius: "0 0 12px 12px" }, padding: { vertical: "6px", horizontal: "6px" } },
+      task: { background: { color: "#0e2240", opacity: 0.9 }, border: { color: "#1a3a5f", width: "1px", radius: "10px" }, fontSize: "22px", fontColor: "#e0f2fe", usernameColor: "#2dd4bf", padding: "10px 14px", marginBottom: "4px", maxWidth: "100%" },
+      taskDone: { background: { color: "#0a1628", opacity: 0.5 }, fontColor: "#5a8aaa" },
+      checkbox: { size: "20px", background: { color: "#000000", opacity: 0 }, border: { color: "#2dd4bf", width: "2px", radius: "6px" }, margin: { top: "4px", left: "2px", right: "8px" }, tickChar: "✔", tickSize: "14px", tickColor: "#2dd4bf" },
     }),
   },
 
-  // ─── 3. Liquid Glass Dark (macOS Tahoe) ────────────────────────────
+  // ─── 3. Liquid Glass Dark (macOS Tahoe) ─────────────────────────────
   {
     id: "glass-dark",
     name: "Liquid Glass Dark",
@@ -137,35 +136,11 @@ export const themePresets: ThemePreset[] = [
       body: { background: { color: "#1c1c1e", opacity: 0.72 }, border: { color: "#48484a", width: "1px", radius: "0 0 16px 16px" }, padding: { vertical: "6px", horizontal: "6px" } },
       task: { background: { color: "#3a3a3c", opacity: 0.6 }, border: { color: "#48484a", width: "1px", radius: "12px" }, fontSize: "22px", fontColor: "#f5f5f7", usernameColor: "#0a84ff", padding: "10px 14px", marginBottom: "4px", maxWidth: "100%" },
       taskDone: { background: { color: "#2c2c2e", opacity: 0.4 }, fontColor: "#636366" },
-      checkbox: { size: "20px", background: { color: "#3a3a3c", opacity: 0.4 }, border: { color: "#636366", width: "1.5px", radius: "6px" }, margin: { top: "4px", left: "2px", right: "8px" }, tickChar: "\u2714", tickSize: "14px", tickColor: "#0a84ff" },
+      checkbox: { size: "20px", background: { color: "#3a3a3c", opacity: 0.4 }, border: { color: "#636366", width: "1.5px", radius: "6px" }, margin: { top: "4px", left: "2px", right: "8px" }, tickChar: "✔", tickSize: "14px", tickColor: "#0a84ff" },
     }),
   },
 
-  // ─── 4. Neon Cyberpunk ──────────────────────────────────────────────
-  {
-    id: "neon-cyberpunk",
-    name: "Neon Cyberpunk",
-    description: "Electric neon accents on deep dark backgrounds",
-    preview: { bg: "#0d0221", accent: "#00ff9f", text: "#00ff9f" },
-    timerStyles: {
-      dimensions: { width: "250px", height: "250px" },
-      background: { color: "#0d0221", opacity: 0.9, borderRadius: "22%" },
-      ring: { enabled: true, trackColor: "#00ff9f", trackOpacity: 0.12, fillColor: "#00ff9f", fillOpacity: 1, width: 6, gap: 6 },
-      text: { color: "#e0ffe0", outlineColor: "#00ff9f", outlineSize: "2px", fontFamily: "Montserrat" },
-      fontSizes: { label: "18px", time: "48px", cycle: "16px" },
-    },
-    taskStyles: tasks({
-      fonts: { header: "Montserrat", body: "Roboto" },
-      header: { height: "52px", background: { color: "#0d0221", opacity: 0.95 }, border: { color: "#00ff9f", width: "1px", radius: "2px 2px 0 0" }, fontSize: "24px", fontColor: "#00ff9f", padding: "12px 16px" },
-      body: { background: { color: "#0d0221", opacity: 0.85 }, border: { color: "#1a0a3e", width: "1px", radius: "0 0 2px 2px" }, padding: { vertical: "6px", horizontal: "6px" } },
-      task: { background: { color: "#1a0a3e", opacity: 0.9 }, border: { color: "#00ff9f", width: "1px", radius: "2px" }, fontSize: "22px", fontColor: "#d0ffd0", usernameColor: "#ff006e", padding: "10px 14px", marginBottom: "4px", maxWidth: "100%" },
-      taskDone: { background: { color: "#0d0221", opacity: 0.5 }, fontColor: "#336644" },
-      checkbox: { size: "20px", background: { color: "#000000", opacity: 0 }, border: { color: "#00ff9f", width: "2px", radius: "0px" }, margin: { top: "4px", left: "2px", right: "8px" }, tickChar: "\u2588", tickSize: "14px", tickColor: "#00ff9f" },
-      bullet: { char: ">", size: "20px", color: "#00ff9f", margin: { top: "0px", left: "2px", right: "8px" } },
-    }),
-  },
-
-  // ─── 5. Cozy Cottage ────────────────────────────────────────────────
+  // ─── 4. Cozy Cottage (warm cream + gold) ────────────────────────────
   {
     id: "cozy-cottage",
     name: "Cozy Cottage",
@@ -184,80 +159,11 @@ export const themePresets: ThemePreset[] = [
       body: { background: { color: "#faf3e8", opacity: 0.88 }, border: { color: "#e0d0b8", width: "0px", radius: "0 0 14px 14px" }, padding: { vertical: "6px", horizontal: "6px" } },
       task: { background: { color: "#fff8ee", opacity: 0.95 }, border: { color: "#e8d8c0", width: "1px", radius: "10px" }, fontSize: "22px", fontColor: "#5c3d1a", usernameColor: "#b8860b", padding: "10px 14px", marginBottom: "4px", maxWidth: "100%" },
       taskDone: { background: { color: "#f0e8d8", opacity: 0.6 }, fontColor: "#b0a090" },
-      checkbox: { size: "20px", background: { color: "#fff8ee", opacity: 0.5 }, border: { color: "#d4a843", width: "2px", radius: "6px" }, margin: { top: "4px", left: "2px", right: "8px" }, tickChar: "\u2714", tickSize: "14px", tickColor: "#b8860b" },
+      checkbox: { size: "20px", background: { color: "#fff8ee", opacity: 0.5 }, border: { color: "#d4a843", width: "2px", radius: "6px" }, margin: { top: "4px", left: "2px", right: "8px" }, tickChar: "✔", tickSize: "14px", tickColor: "#b8860b" },
     }),
   },
 
-  // ─── 6. Ocean Depths ────────────────────────────────────────────────
-  {
-    id: "ocean-depths",
-    name: "Ocean Depths",
-    description: "Deep navy and teal with luminous accents",
-    preview: { bg: "#0a1628", accent: "#2dd4bf", text: "#e0f2fe" },
-    timerStyles: {
-      dimensions: { width: "250px", height: "250px" },
-      background: { color: "#0a1628", opacity: 0.88, borderRadius: "22%" },
-      ring: { enabled: true, trackColor: "#2dd4bf", trackOpacity: 0.12, fillColor: "#2dd4bf", fillOpacity: 1, width: 8, gap: 6 },
-      text: { color: "#e0f2fe", outlineColor: "#0a1628", outlineSize: "0px", fontFamily: "Montserrat" },
-      fontSizes: { label: "18px", time: "48px", cycle: "16px" },
-    },
-    taskStyles: tasks({
-      header: { height: "52px", background: { color: "#0c1e3a", opacity: 0.95 }, border: { color: "#2dd4bf", width: "1px", radius: "12px 12px 0 0" }, fontSize: "24px", fontColor: "#e0f2fe", padding: "12px 16px" },
-      body: { background: { color: "#0a1628", opacity: 0.85 }, border: { color: "#163050", width: "1px", radius: "0 0 12px 12px" }, padding: { vertical: "6px", horizontal: "6px" } },
-      task: { background: { color: "#0e2240", opacity: 0.9 }, border: { color: "#1a3a5f", width: "1px", radius: "10px" }, fontSize: "22px", fontColor: "#e0f2fe", usernameColor: "#2dd4bf", padding: "10px 14px", marginBottom: "4px", maxWidth: "100%" },
-      taskDone: { background: { color: "#0a1628", opacity: 0.5 }, fontColor: "#5a8aaa" },
-      checkbox: { size: "20px", background: { color: "#000000", opacity: 0 }, border: { color: "#2dd4bf", width: "2px", radius: "6px" }, margin: { top: "4px", left: "2px", right: "8px" }, tickChar: "\u2714", tickSize: "14px", tickColor: "#2dd4bf" },
-    }),
-  },
-
-  // ─── 7. Sakura ──────────────────────────────────────────────────────
-  {
-    id: "sakura",
-    name: "Sakura",
-    description: "Soft cherry blossom pinks with gentle pastels",
-    preview: { bg: "#fff0f5", accent: "#ec4899", text: "#9d174d" },
-    timerStyles: {
-      dimensions: { width: "250px", height: "250px" },
-      background: { color: "#fff0f5", opacity: 0.92, borderRadius: "22%" },
-      ring: { enabled: true, trackColor: "#f9a8d4", trackOpacity: 0.3, fillColor: "#ec4899", fillOpacity: 0.9, width: 8, gap: 6 },
-      text: { color: "#9d174d", outlineColor: "#ffffff", outlineSize: "0px", fontFamily: "Montserrat" },
-      fontSizes: { label: "18px", time: "48px", cycle: "16px" },
-    },
-    taskStyles: tasks({
-      fonts: { header: "Montserrat", body: "Roboto" },
-      header: { height: "52px", background: { color: "#ec4899", opacity: 0.85 }, border: { color: "#f9a8d4", width: "0px", radius: "14px 14px 0 0" }, fontSize: "24px", fontColor: "#ffffff", padding: "12px 16px" },
-      body: { background: { color: "#fff0f5", opacity: 0.85 }, border: { color: "#fce7f3", width: "0px", radius: "0 0 14px 14px" }, padding: { vertical: "6px", horizontal: "6px" } },
-      task: { background: { color: "#ffffff", opacity: 0.9 }, border: { color: "#fce7f3", width: "1px", radius: "12px" }, fontSize: "22px", fontColor: "#4a1030", usernameColor: "#ec4899", padding: "10px 14px", marginBottom: "4px", maxWidth: "100%" },
-      taskDone: { background: { color: "#fdf2f8", opacity: 0.5 }, fontColor: "#d4a0b8" },
-      checkbox: { size: "20px", background: { color: "#fff0f5", opacity: 0.5 }, border: { color: "#f9a8d4", width: "2px", radius: "50%" }, margin: { top: "4px", left: "2px", right: "8px" }, tickChar: "\u2764", tickSize: "12px", tickColor: "#ec4899" },
-    }),
-  },
-
-  // ─── 8. Retro Terminal ──────────────────────────────────────────────
-  {
-    id: "retro-terminal",
-    name: "Retro Terminal",
-    description: "Green phosphor CRT on pure black",
-    preview: { bg: "#050505", accent: "#33ff33", text: "#33ff33" },
-    timerStyles: {
-      dimensions: { width: "250px", height: "250px" },
-      background: { color: "#050505", opacity: 0.95, borderRadius: "22%" },
-      ring: { enabled: true, trackColor: "#33ff33", trackOpacity: 0.08, fillColor: "#33ff33", fillOpacity: 0.85, width: 4, gap: 8 },
-      text: { color: "#33ff33", outlineColor: "#003300", outlineSize: "1px", fontFamily: "Montserrat" },
-      fontSizes: { label: "18px", time: "48px", cycle: "16px" },
-    },
-    taskStyles: tasks({
-      display: { showDone: true, showCount: true, useCheckboxes: false, crossOnDone: true, numberOfLines: 2 },
-      fonts: { header: "Montserrat", body: "Roboto" },
-      header: { height: "52px", background: { color: "#050505", opacity: 0.95 }, border: { color: "#33ff33", width: "1px", radius: "0px" }, fontSize: "24px", fontColor: "#33ff33", padding: "12px 16px" },
-      body: { background: { color: "#050505", opacity: 0.9 }, border: { color: "#1a3a1a", width: "1px", radius: "0px" }, padding: { vertical: "6px", horizontal: "6px" } },
-      task: { background: { color: "#0a1a0a", opacity: 0.9 }, border: { color: "#1a3a1a", width: "1px", radius: "0px" }, fontSize: "22px", fontColor: "#33ff33", usernameColor: "#66ff66", padding: "10px 14px", marginBottom: "4px", maxWidth: "100%" },
-      taskDone: { background: { color: "#050505", opacity: 0.5 }, fontColor: "#1a661a" },
-      bullet: { char: ">", size: "20px", color: "#33ff33", margin: { top: "0px", left: "2px", right: "8px" } },
-    }),
-  },
-
-  // ─── 9. Minimal Light ───────────────────────────────────────────────
+  // ─── 5. Minimal Light (clean white) ─────────────────────────────────
   {
     id: "minimal-light",
     name: "Minimal Light",
@@ -275,34 +181,11 @@ export const themePresets: ThemePreset[] = [
       body: { background: { color: "#ffffff", opacity: 0.96 }, border: { color: "#e5e7eb", width: "1px", radius: "0 0 10px 10px" }, padding: { vertical: "6px", horizontal: "6px" } },
       task: { background: { color: "#f9fafb", opacity: 0.98 }, border: { color: "#e5e7eb", width: "1px", radius: "8px" }, fontSize: "22px", fontColor: "#111827", usernameColor: "#6366f1", padding: "10px 14px", marginBottom: "4px", maxWidth: "100%" },
       taskDone: { background: { color: "#f3f4f6", opacity: 0.7 }, fontColor: "#9ca3af" },
-      checkbox: { size: "20px", background: { color: "#ffffff", opacity: 1 }, border: { color: "#d1d5db", width: "2px", radius: "6px" }, margin: { top: "4px", left: "2px", right: "8px" }, tickChar: "\u2714", tickSize: "14px", tickColor: "#6366f1" },
+      checkbox: { size: "20px", background: { color: "#ffffff", opacity: 1 }, border: { color: "#d1d5db", width: "2px", radius: "6px" }, margin: { top: "4px", left: "2px", right: "8px" }, tickChar: "✔", tickSize: "14px", tickColor: "#6366f1" },
     }),
   },
 
-  // ─── 10. Sunset ─────────────────────────────────────────────────────
-  {
-    id: "sunset",
-    name: "Sunset",
-    description: "Warm oranges and purples like a dusk sky",
-    preview: { bg: "#1a0a2e", accent: "#ff6b35", text: "#fbbf24" },
-    timerStyles: {
-      dimensions: { width: "250px", height: "250px" },
-      background: { color: "#1a0a2e", opacity: 0.88, borderRadius: "22%" },
-      ring: { enabled: true, trackColor: "#ff6b35", trackOpacity: 0.15, fillColor: "#ff6b35", fillOpacity: 1, width: 8, gap: 6 },
-      text: { color: "#fef3c7", outlineColor: "#1a0a2e", outlineSize: "0px", fontFamily: "Montserrat" },
-      fontSizes: { label: "18px", time: "48px", cycle: "16px" },
-    },
-    taskStyles: tasks({
-      fonts: { header: "Montserrat", body: "Roboto" },
-      header: { height: "52px", background: { color: "#ff6b35", opacity: 0.92 }, border: { color: "#ff8c5a", width: "0px", radius: "12px 12px 0 0" }, fontSize: "24px", fontColor: "#ffffff", padding: "12px 16px" },
-      body: { background: { color: "#1a0a2e", opacity: 0.85 }, border: { color: "#2d1050", width: "0px", radius: "0 0 12px 12px" }, padding: { vertical: "6px", horizontal: "6px" } },
-      task: { background: { color: "#2d1050", opacity: 0.88 }, border: { color: "#3d1870", width: "1px", radius: "10px" }, fontSize: "22px", fontColor: "#fef3c7", usernameColor: "#ff6b35", padding: "10px 14px", marginBottom: "4px", maxWidth: "100%" },
-      taskDone: { background: { color: "#1a0a2e", opacity: 0.5 }, fontColor: "#7a5880" },
-      checkbox: { size: "20px", background: { color: "#000000", opacity: 0 }, border: { color: "#ff6b35", width: "2px", radius: "6px" }, margin: { top: "4px", left: "2px", right: "8px" }, tickChar: "\u2714", tickSize: "14px", tickColor: "#ff6b35" },
-    }),
-  },
-
-  // ─── 11. Twitch Purple ──────────────────────────────────────────────
+  // ─── 6. Twitch Purple (brand) ───────────────────────────────────────
   {
     id: "twitch-purple",
     name: "Twitch Purple",
@@ -320,7 +203,7 @@ export const themePresets: ThemePreset[] = [
       body: { background: { color: "#0e0e10", opacity: 0.9 }, border: { color: "#1f1f23", width: "1px", radius: "0 0 12px 12px" }, padding: { vertical: "6px", horizontal: "6px" } },
       task: { background: { color: "#18181b", opacity: 0.95 }, border: { color: "#26262c", width: "1px", radius: "10px" }, fontSize: "22px", fontColor: "#efeff1", usernameColor: "#bf94ff", padding: "10px 14px", marginBottom: "4px", maxWidth: "100%" },
       taskDone: { background: { color: "#0e0e10", opacity: 0.5 }, fontColor: "#53535f" },
-      checkbox: { size: "20px", background: { color: "#000000", opacity: 0 }, border: { color: "#9146ff", width: "2px", radius: "6px" }, margin: { top: "4px", left: "2px", right: "8px" }, tickChar: "\u2714", tickSize: "14px", tickColor: "#9146ff" },
+      checkbox: { size: "20px", background: { color: "#000000", opacity: 0 }, border: { color: "#9146ff", width: "2px", radius: "6px" }, margin: { top: "4px", left: "2px", right: "8px" }, tickChar: "✔", tickSize: "14px", tickColor: "#9146ff" },
     }),
   },
 ];

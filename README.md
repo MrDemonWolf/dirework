@@ -22,9 +22,9 @@ instance, zero distractions.
   and timer command groups, and configurable phase labels. The
   bot runs in a token-gated browser page (OBS source or pinned
   tab) — no always-on server needed.
-- **Theme Center** - 11 built-in themes including Liquid
-  Glass, Neon Cyberpunk, Sakura, and Retro Terminal with
-  full style customization for colors, fonts, and layout.
+- **Theme Center** - 6 built-in themes including Liquid
+  Glass Dark, Ocean Depths, Cozy Cottage, and Twitch Purple
+  with full style customization for colors, fonts, and layout.
 - **Live Preview** - See overlay changes on the dashboard
   before going live.
 - **Dashboard** - Control the timer, manage tasks, and preview
