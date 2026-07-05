@@ -12,15 +12,18 @@ import { Switch } from "@/components/ui/switch";
 export function FieldRow({
   label,
   htmlFor,
+  labelId,
   children,
 }: {
   label: string;
   htmlFor?: string;
+  /** For non-labelable controls (Slider) that need aria-labelledby instead of htmlFor. */
+  labelId?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="grid grid-cols-[6.5rem_1fr] items-center gap-2">
-      <Label htmlFor={htmlFor} className="text-xs text-muted-foreground">
+      <Label htmlFor={htmlFor} id={labelId} className="text-xs text-muted-foreground">
         {label}
       </Label>
       <div className="flex items-center justify-end gap-2">{children}</div>
@@ -79,10 +82,13 @@ export function SliderRow({
   disabled?: boolean;
   format?: (value: number) => string;
 }) {
+  // Slider isn't a labelable element — htmlFor can't reach it (WCAG 4.1.2),
+  // so the label carries an id and the slider points back via aria-labelledby.
   return (
-    <FieldRow label={label} htmlFor={id}>
+    <FieldRow label={label} labelId={`${id}-label`}>
       <Slider
         id={id}
+        aria-labelledby={`${id}-label`}
         value={[value]}
         onValueChange={(v) => onChange(Array.isArray(v) ? v[0] : v)}
         min={min}
