@@ -14,41 +14,16 @@ import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { StatusChip } from "@/components/status-chip";
 import Loader from "@/components/loader";
 
 const features = [
-  {
-    icon: Timer,
-    title: "Pomodoro Timer",
-    description: "Configurable work/break cycles with OBS overlay",
-  },
-  {
-    icon: ListTodo,
-    title: "Chat Task List",
-    description: "Viewers add tasks via !task command",
-  },
-  {
-    icon: Bot,
-    title: "Twitch Bot",
-    description: "Connect a bot account for chat commands",
-  },
-  {
-    icon: Palette,
-    title: "11 Theme Presets",
-    description: "From Neon Cyberpunk to Cozy Cottage",
-  },
-  {
-    icon: Monitor,
-    title: "OBS Browser Sources",
-    description: "Transparent overlays, just paste the URL",
-  },
-  {
-    icon: Shield,
-    title: "Self-Hosted",
-    description: "Your data, your server",
-  },
+  { icon: Timer, label: "Pomodoro timer" },
+  { icon: ListTodo, label: "Chat task list" },
+  { icon: Bot, label: "Twitch bot" },
+  { icon: Palette, label: "6 themes" },
+  { icon: Monitor, label: "OBS overlays" },
+  { icon: Shield, label: "Self-hosted" },
 ] as const;
 
 /** Decorative hardware-timer module — the product's signature motif. */
@@ -86,9 +61,8 @@ function HomeInner() {
   }, [searchParams]);
 
   return (
-    <div className="flex flex-col items-center">
-      {/* Hero Section */}
-      <section className="flex w-full max-w-5xl flex-col items-center gap-10 px-4 py-16 md:py-24 lg:flex-row lg:justify-between lg:gap-6">
+    <div className="flex min-h-full flex-col items-center justify-center px-4 py-8">
+      <section className="flex w-full max-w-5xl flex-col items-center gap-10 lg:flex-row lg:justify-between lg:gap-6">
         <div className="flex max-w-xl flex-col items-center gap-6 text-center lg:items-start lg:text-left">
           <span className="console-label rounded-full border bg-muted/50 px-3.5 py-1.5">
             Self-hosted · Built for Twitch
@@ -133,34 +107,26 @@ function HomeInner() {
               View on GitHub
             </Button>
           </div>
+
+          {/* Compact feature strip — replaces the old scrolling card grid.
+              console-label voice so it matches the badge + StatusChip idiom. */}
+          <ul className="flex flex-wrap items-center justify-center gap-2 lg:justify-start">
+            {features.map((feature) => (
+              <li
+                key={feature.label}
+                className="console-label flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/30 px-3 py-1.5"
+              >
+                <feature.icon className="size-3.5 text-primary" aria-hidden />
+                {feature.label}
+              </li>
+            ))}
+          </ul>
         </div>
 
         {/* Signature hardware-timer module */}
-        <div className="relative">
+        <div className="relative shrink-0">
           <div className="absolute -inset-8 rounded-full bg-primary/10 blur-3xl" aria-hidden />
           <TimerModuleMock />
-        </div>
-      </section>
-
-      {/* Features Grid */}
-      <section className="w-full max-w-5xl px-4 pb-20">
-        <p className="console-label mb-4">What&apos;s in the box</p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {features.map((feature) => (
-            <Card key={feature.title} className="border-border/50">
-              <CardContent className="flex items-start gap-4 pt-2">
-                <div className="rounded-lg bg-primary/10 p-2.5">
-                  <feature.icon className="size-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {feature.description}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
         </div>
       </section>
     </div>
