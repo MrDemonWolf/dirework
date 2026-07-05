@@ -9,12 +9,12 @@ const perks = [
   { icon: Timer, label: "A Pomodoro timer your viewers can see in OBS" },
   { icon: ListTodo, label: "A shared task list your chat fills in" },
   { icon: Bot, label: "A Twitch bot that runs the commands for you" },
-  { icon: Palette, label: "11 themes — or style every pixel yourself" },
+  { icon: Palette, label: "6 themes — or style every pixel yourself" },
 ];
 
 export default function SetupContent() {
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center px-4 py-8">
+    <div className="flex min-h-full flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
         {/* Focus ring badge — the brand motif */}
         <div className="mb-6 flex justify-center">
