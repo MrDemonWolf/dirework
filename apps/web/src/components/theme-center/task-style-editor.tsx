@@ -66,9 +66,9 @@ export function TaskStyleEditor({
           />
         </div>
         <div className="flex items-center gap-2">
-          <Label htmlFor="task-style-display-max-lines" className="w-28 shrink-0 text-xs text-muted-foreground">Max Lines</Label>
+          <Label id="task-style-display-max-lines-label" className="w-28 shrink-0 text-xs text-muted-foreground">Max Lines</Label>
           <Slider
-            id="task-style-display-max-lines"
+            aria-labelledby="task-style-display-max-lines-label"
             value={[styles.display.numberOfLines]}
             onValueChange={(v) => updateNested(["display", "numberOfLines"], Array.isArray(v) ? v[0] : v)}
             min={1}
@@ -111,9 +111,9 @@ export function TaskStyleEditor({
           onChange={(v) => updateNested(["header", "background", "color"], v)}
         />
         <div className="flex items-center gap-2">
-          <Label htmlFor="task-style-header-bg-opacity" className="w-28 shrink-0 text-xs text-muted-foreground">BG Opacity</Label>
+          <Label id="task-style-header-bg-opacity-label" className="w-28 shrink-0 text-xs text-muted-foreground">BG Opacity</Label>
           <Slider
-            id="task-style-header-bg-opacity"
+            aria-labelledby="task-style-header-bg-opacity-label"
             value={[styles.header.background.opacity * 100]}
             onValueChange={(v) => updateNested(["header", "background", "opacity"], (Array.isArray(v) ? v[0] : v) / 100)}
             min={0}
@@ -182,9 +182,9 @@ export function TaskStyleEditor({
           onChange={(v) => updateNested(["body", "background", "color"], v)}
         />
         <div className="flex items-center gap-2">
-          <Label htmlFor="task-style-body-bg-opacity" className="w-28 shrink-0 text-xs text-muted-foreground">BG Opacity</Label>
+          <Label id="task-style-body-bg-opacity-label" className="w-28 shrink-0 text-xs text-muted-foreground">BG Opacity</Label>
           <Slider
-            id="task-style-body-bg-opacity"
+            aria-labelledby="task-style-body-bg-opacity-label"
             value={[styles.body.background.opacity * 100]}
             onValueChange={(v) => updateNested(["body", "background", "opacity"], (Array.isArray(v) ? v[0] : v) / 100)}
             min={0}
@@ -247,9 +247,9 @@ export function TaskStyleEditor({
           onChange={(v) => updateNested(["task", "background", "color"], v)}
         />
         <div className="flex items-center gap-2">
-          <Label htmlFor="task-style-task-bg-opacity" className="w-28 shrink-0 text-xs text-muted-foreground">BG Opacity</Label>
+          <Label id="task-style-task-bg-opacity-label" className="w-28 shrink-0 text-xs text-muted-foreground">BG Opacity</Label>
           <Slider
-            id="task-style-task-bg-opacity"
+            aria-labelledby="task-style-task-bg-opacity-label"
             value={[styles.task.background.opacity * 100]}
             onValueChange={(v) => updateNested(["task", "background", "opacity"], (Array.isArray(v) ? v[0] : v) / 100)}
             min={0}
@@ -342,9 +342,9 @@ export function TaskStyleEditor({
           onChange={(v) => updateNested(["taskDone", "background", "color"], v)}
         />
         <div className="flex items-center gap-2">
-          <Label htmlFor="task-style-done-bg-opacity" className="w-28 shrink-0 text-xs text-muted-foreground">BG Opacity</Label>
+          <Label id="task-style-done-bg-opacity-label" className="w-28 shrink-0 text-xs text-muted-foreground">BG Opacity</Label>
           <Slider
-            id="task-style-done-bg-opacity"
+            aria-labelledby="task-style-done-bg-opacity-label"
             value={[styles.taskDone.background.opacity * 100]}
             onValueChange={(v) => updateNested(["taskDone", "background", "opacity"], (Array.isArray(v) ? v[0] : v) / 100)}
             min={0}
@@ -380,9 +380,9 @@ export function TaskStyleEditor({
           onChange={(v) => updateNested(["checkbox", "background", "color"], v)}
         />
         <div className="flex items-center gap-2">
-          <Label htmlFor="task-style-checkbox-bg-opacity" className="w-28 shrink-0 text-xs text-muted-foreground">BG Opacity</Label>
+          <Label id="task-style-checkbox-bg-opacity-label" className="w-28 shrink-0 text-xs text-muted-foreground">BG Opacity</Label>
           <Slider
-            id="task-style-checkbox-bg-opacity"
+            aria-labelledby="task-style-checkbox-bg-opacity-label"
             value={[styles.checkbox.background.opacity * 100]}
             onValueChange={(v) => updateNested(["checkbox", "background", "opacity"], (Array.isArray(v) ? v[0] : v) / 100)}
             min={0}
@@ -537,9 +537,9 @@ export function TaskStyleEditor({
           />
         </div>
         <div className="flex items-center gap-2">
-          <Label htmlFor="task-style-scroll-speed" className="w-28 shrink-0 text-xs text-muted-foreground">Speed (px/s)</Label>
+          <Label id="task-style-scroll-speed-label" className="w-28 shrink-0 text-xs text-muted-foreground">Speed (px/s)</Label>
           <Slider
-            id="task-style-scroll-speed"
+            aria-labelledby="task-style-scroll-speed-label"
             value={[styles.scroll.pixelsPerSecond]}
             onValueChange={(v) => updateNested(["scroll", "pixelsPerSecond"], Array.isArray(v) ? v[0] : v)}
             min={0}
@@ -552,9 +552,9 @@ export function TaskStyleEditor({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Label htmlFor="task-style-scroll-loop-gap" className="w-28 shrink-0 text-xs text-muted-foreground">Loop Gap (px)</Label>
+          <Label id="task-style-scroll-loop-gap-label" className="w-28 shrink-0 text-xs text-muted-foreground">Loop Gap (px)</Label>
           <Slider
-            id="task-style-scroll-loop-gap"
+            aria-labelledby="task-style-scroll-loop-gap-label"
             value={[styles.scroll.gapBetweenLoops]}
             onValueChange={(v) => updateNested(["scroll", "gapBetweenLoops"], Array.isArray(v) ? v[0] : v)}
             min={0}
