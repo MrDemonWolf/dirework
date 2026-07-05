@@ -57,9 +57,9 @@ export function TimerStyleEditor({
           onChange={(v) => update("background", { color: v })}
         />
         <div className="flex items-center gap-2">
-          <Label htmlFor="timer-style-bg-opacity" className="w-28 shrink-0 text-xs text-muted-foreground">Opacity</Label>
+          <Label id="timer-style-bg-opacity-label" className="w-28 shrink-0 text-xs text-muted-foreground">Opacity</Label>
           <Slider
-            id="timer-style-bg-opacity"
+            aria-labelledby="timer-style-bg-opacity-label"
             value={[styles.background.opacity * 100]}
             onValueChange={(v) => update("background", { opacity: (Array.isArray(v) ? v[0] : v) / 100 })}
             min={0}
@@ -98,9 +98,9 @@ export function TimerStyleEditor({
           onChange={(v) => update("ring", { fillColor: v })}
         />
         <div className="flex items-center gap-2">
-          <Label htmlFor="timer-style-ring-fill-opacity" className="w-28 shrink-0 text-xs text-muted-foreground">Fill Opacity</Label>
+          <Label id="timer-style-ring-fill-opacity-label" className="w-28 shrink-0 text-xs text-muted-foreground">Fill Opacity</Label>
           <Slider
-            id="timer-style-ring-fill-opacity"
+            aria-labelledby="timer-style-ring-fill-opacity-label"
             value={[styles.ring.fillOpacity * 100]}
             onValueChange={(v) => update("ring", { fillOpacity: (Array.isArray(v) ? v[0] : v) / 100 })}
             min={0}
@@ -118,9 +118,9 @@ export function TimerStyleEditor({
           onChange={(v) => update("ring", { trackColor: v })}
         />
         <div className="flex items-center gap-2">
-          <Label htmlFor="timer-style-ring-track-opacity" className="w-28 shrink-0 text-xs text-muted-foreground">Track Opacity</Label>
+          <Label id="timer-style-ring-track-opacity-label" className="w-28 shrink-0 text-xs text-muted-foreground">Track Opacity</Label>
           <Slider
-            id="timer-style-ring-track-opacity"
+            aria-labelledby="timer-style-ring-track-opacity-label"
             value={[styles.ring.trackOpacity * 100]}
             onValueChange={(v) => update("ring", { trackOpacity: (Array.isArray(v) ? v[0] : v) / 100 })}
             min={0}
@@ -132,9 +132,9 @@ export function TimerStyleEditor({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Label htmlFor="timer-style-ring-width" className="w-28 shrink-0 text-xs text-muted-foreground">Width</Label>
+          <Label id="timer-style-ring-width-label" className="w-28 shrink-0 text-xs text-muted-foreground">Width</Label>
           <Slider
-            id="timer-style-ring-width"
+            aria-labelledby="timer-style-ring-width-label"
             value={[styles.ring.width]}
             onValueChange={(v) => update("ring", { width: Array.isArray(v) ? v[0] : v })}
             min={2}
@@ -146,9 +146,9 @@ export function TimerStyleEditor({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Label htmlFor="timer-style-ring-gap" className="w-28 shrink-0 text-xs text-muted-foreground">Gap</Label>
+          <Label id="timer-style-ring-gap-label" className="w-28 shrink-0 text-xs text-muted-foreground">Gap</Label>
           <Slider
-            id="timer-style-ring-gap"
+            aria-labelledby="timer-style-ring-gap-label"
             value={[styles.ring.gap]}
             onValueChange={(v) => update("ring", { gap: Array.isArray(v) ? v[0] : v })}
             min={0}
