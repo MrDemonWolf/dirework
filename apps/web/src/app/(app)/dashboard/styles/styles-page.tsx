@@ -2,15 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, RotateCcw, Save } from "lucide-react";
 import { toast } from "sonner";
 
 import type { TimerStylesConfig, TaskStylesConfig, PhaseLabelsConfig, ThemePreset } from "@/lib/config-types";
 import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
 import { defaultTimerStyles, defaultTaskStyles, themePresets } from "@/lib/theme-presets";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { SaveBar } from "@/components/save-bar";
+import { StatusChip } from "@/components/status-chip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PhaseLabelsEditor } from "@/components/theme-center/phase-labels-editor";
@@ -23,30 +23,31 @@ import { trpc } from "@/utils/trpc";
 
 function StylesSkeleton() {
   return (
-    <div className="container mx-auto max-w-5xl px-4 py-8">
+    <div className="container mx-auto max-w-6xl px-4 py-8">
       <div className="mb-6 space-y-2">
-        <Skeleton className="h-7 w-36" />
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-9 w-52" />
         <Skeleton className="h-4 w-64" />
       </div>
-      {/* Theme browser skeleton */}
-      <div className="mb-6 flex gap-3 overflow-hidden">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 w-32 shrink-0 rounded-lg" />
-        ))}
-      </div>
-      <Separator className="mb-6" />
-      {/* Two-column skeleton */}
-      <div className="flex flex-col gap-6 lg:flex-row">
-        <div className="w-full lg:w-96 lg:shrink-0">
-          <Skeleton className="mb-4 h-9 w-48" />
-          <div className="space-y-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
+      {/* Preset rail skeleton */}
+      <div className="mb-6 space-y-3">
+        <Skeleton className="h-3 w-16" />
+        <div className="flex gap-3 overflow-hidden p-1">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 w-36 shrink-0 rounded-lg" />
+          ))}
         </div>
-        <div className="flex-1">
-          <Skeleton className="h-[400px] w-full rounded-lg" />
+      </div>
+      {/* Editor + preview column skeleton */}
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <div className="w-full min-w-0 space-y-3 lg:w-[380px] lg:shrink-0">
+          <Skeleton className="h-9 w-40" />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 w-full rounded-xl" />
+          ))}
+        </div>
+        <div className="min-w-0 flex-1">
+          <Skeleton className="h-[560px] w-full rounded-2xl" />
         </div>
       </div>
     </div>
@@ -65,6 +66,9 @@ export default function StylesPage() {
   const [phaseLabels, setPhaseLabels] = useState<PhaseLabelsConfig>(defaultPhaseLabels);
   const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
   const [hasUnsaved, setHasUnsaved] = useState(false);
+
+  // Preset apply held for confirmation while custom edits are unsaved
+  const [pendingTheme, setPendingTheme] = useState<ThemePreset | null>(null);
 
   // Saved state — what's persisted in the database
   const [savedTimerStyles, setSavedTimerStyles] = useState<TimerStylesConfig>(defaultTimerStyles);
@@ -142,12 +146,21 @@ export default function StylesPage() {
     setHasUnsaved(true);
   }, []);
 
-  const handleApplyTheme = useCallback((theme: ThemePreset) => {
+  const applyTheme = useCallback((theme: ThemePreset) => {
     setTimerStyles(theme.timerStyles);
     setTaskStyles(theme.taskStyles);
     setActiveThemeId(theme.id);
     setHasUnsaved(true);
   }, []);
+
+  const handleApplyTheme = useCallback((theme: ThemePreset) => {
+    // Custom edits in progress — confirm before a preset replaces them
+    if (hasUnsaved && activeThemeId === null) {
+      setPendingTheme(theme);
+      return;
+    }
+    applyTheme(theme);
+  }, [hasUnsaved, activeThemeId, applyTheme]);
 
   const handleReset = useCallback(() => {
     setTimerStyles(savedTimerStyles);
@@ -159,19 +172,24 @@ export default function StylesPage() {
   }, [savedTimerStyles, savedTaskStyles, savedPhaseLabels]);
 
   const handleSave = useCallback(async () => {
-    try {
-      await Promise.all([
-        updateTimerMutation.mutateAsync({ timerStyles }),
-        updateTaskMutation.mutateAsync({ taskStyles }),
-        updatePhaseLabelsMutation.mutateAsync(phaseLabels),
-      ]);
-      setSavedTimerStyles(timerStyles);
-      setSavedTaskStyles(taskStyles);
-      setSavedPhaseLabels(phaseLabels);
+    const [timerResult, taskResult, labelsResult] = await Promise.allSettled([
+      updateTimerMutation.mutateAsync({ timerStyles }),
+      updateTaskMutation.mutateAsync({ taskStyles }),
+      updatePhaseLabelsMutation.mutateAsync(phaseLabels),
+    ]);
+
+    // Promote working → saved per slice that actually persisted, so Reset
+    // restores a truthful snapshot even after a partial failure.
+    if (timerResult.status === "fulfilled") setSavedTimerStyles(timerStyles);
+    if (taskResult.status === "fulfilled") setSavedTaskStyles(taskStyles);
+    if (labelsResult.status === "fulfilled") setSavedPhaseLabels(phaseLabels);
+
+    if ([timerResult, taskResult, labelsResult].every((r) => r.status === "fulfilled")) {
       setHasUnsaved(false);
       toast.success("Styles saved successfully");
-    } catch {
-      // per-mutation onError already surfaced the failure
+    } else {
+      // per-mutation onError already surfaced the specifics
+      toast.error("Some changes failed to save — retry.");
     }
   }, [timerStyles, taskStyles, phaseLabels, updateTimerMutation, updateTaskMutation, updatePhaseLabelsMutation]);
 
@@ -180,97 +198,99 @@ export default function StylesPage() {
   }
 
   return (
-    <div className={cn("container mx-auto max-w-5xl px-4 py-8", hasUnsaved && "pb-24")}>
+    <div className={cn("container mx-auto max-w-6xl px-4 py-8", hasUnsaved && "pb-24")}>
       <UnsavedChangesGuard dirty={hasUnsaved} />
 
-      <div className="mb-6">
-        <h1 className="font-heading text-2xl font-bold tracking-tight">Theme Center</h1>
-        <p className="text-sm text-muted-foreground">
-          Browse preset themes or customize your overlay styles
-        </p>
-      </div>
+      <div className="stagger-reveal">
+        {/* Header band */}
+        <div className="mb-6">
+          <div className="flex items-center gap-3">
+            <div className="console-rule min-w-0 flex-1">
+              <span className="console-label">Theme Center</span>
+            </div>
+            {hasUnsaved && <StatusChip tone="warn" label="Unsaved" />}
+          </div>
+          <h1 className="mt-2 font-heading text-3xl font-bold tracking-tight">Theme Center</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Browse preset themes or customize your overlay styles
+          </p>
+        </div>
 
-      {/* Theme Browser */}
-      <div className="mb-6">
-        <p className="console-label mb-2">Presets</p>
-        <ThemeBrowser activeThemeId={activeThemeId} onApply={handleApplyTheme} />
-      </div>
+        {/* Preset rail */}
+        <div className="mb-6">
+          <div className="console-rule mb-3">
+            <span className="console-label">Presets</span>
+          </div>
+          <ThemeBrowser activeThemeId={activeThemeId} onApply={handleApplyTheme} />
+        </div>
 
-      <Separator className="mb-6" />
-
-      {/* Editor + Preview */}
-      <div className="flex flex-col gap-6 lg:flex-row">
-        {/* Editor Column */}
-        <div className="w-full min-w-0 lg:w-96 lg:shrink-0">
-          <Tabs defaultValue="timer">
-            <TabsList>
-              <TabsTrigger value="timer">Timer</TabsTrigger>
-              <TabsTrigger value="tasks">Tasks</TabsTrigger>
-            </TabsList>
-            <TabsContent value="timer">
-              <div className="max-h-[600px] overflow-y-auto pr-1">
-                <TimerStyleEditor
-                  styles={timerStyles}
-                  onChange={handleTimerChange}
-                />
-                <Separator className="my-4" />
-                <PhaseLabelsEditor
-                  labels={phaseLabels}
-                  onChange={handlePhaseLabelsChange}
-                />
-              </div>
-            </TabsContent>
-            <TabsContent value="tasks">
-              <div className="max-h-[600px] overflow-y-auto pr-1">
+        {/* Editor + Preview */}
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          {/* Editor Column */}
+          <div className="w-full min-w-0 lg:w-[380px] lg:shrink-0">
+            <Tabs defaultValue="timer">
+              <TabsList>
+                <TabsTrigger value="timer">Timer</TabsTrigger>
+                <TabsTrigger value="tasks">Tasks</TabsTrigger>
+              </TabsList>
+              <TabsContent value="timer">
+                <div className="space-y-3">
+                  <TimerStyleEditor
+                    styles={timerStyles}
+                    onChange={handleTimerChange}
+                  />
+                  <PhaseLabelsEditor
+                    labels={phaseLabels}
+                    onChange={handlePhaseLabelsChange}
+                  />
+                </div>
+              </TabsContent>
+              <TabsContent value="tasks">
                 <TaskStyleEditor
                   styles={taskStyles}
                   onChange={handleTaskChange}
                 />
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
+              </TabsContent>
+            </Tabs>
+          </div>
 
-        {/* Preview Column */}
-        <div className="flex-1">
-          <StylePreviewPanel
-            timerStyles={timerStyles}
-            taskStyles={taskStyles}
-          />
+          {/* Preview Column — sticky so live feedback survives scrolling;
+              capped to the viewport so short laptops can still scroll to
+              the task-list canvas at the bottom of the panel */}
+          <div className="min-w-0 flex-1 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto">
+            <StylePreviewPanel
+              timerStyles={timerStyles}
+              taskStyles={taskStyles}
+              phaseLabels={phaseLabels}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Sticky Save / Reset Bar */}
-      {hasUnsaved && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/80 backdrop-blur-2xl">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-            <p className="console-label">Unsaved changes</p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleReset}
-                disabled={isSaving}
-              >
-                <RotateCcw className="mr-1.5 size-3.5" />
-                Reset
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSave}
-                disabled={isSaving}
-              >
-                {isSaving ? (
-                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                ) : (
-                  <Save className="mr-1.5 size-3.5" />
-                )}
-                Save Changes
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Guard: applying a preset over unsaved custom edits is destructive */}
+      <ConfirmDialog
+        open={pendingTheme !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingTheme(null);
+        }}
+        title="Replace unsaved edits?"
+        description={
+          pendingTheme
+            ? `Replace your unsaved custom edits with "${pendingTheme.name}"?`
+            : ""
+        }
+        confirmLabel="Apply preset"
+        onConfirm={() => {
+          if (pendingTheme) applyTheme(pendingTheme);
+        }}
+      />
+
+      <SaveBar
+        visible={hasUnsaved}
+        saving={isSaving}
+        onSave={handleSave}
+        onReset={handleReset}
+      />
     </div>
   );
 }

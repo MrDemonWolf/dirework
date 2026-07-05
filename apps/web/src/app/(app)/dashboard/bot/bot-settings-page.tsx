@@ -7,11 +7,8 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
-  Loader2,
   MonitorPlay,
   RefreshCw,
-  RotateCcw,
-  Save,
   Unplug,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -23,23 +20,27 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { SaveBar } from "@/components/save-bar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusChip } from "@/components/status-chip";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  MessageEditor,
   taskMessageFields,
   timerMessageFields,
 } from "@/components/bot-settings/message-editor";
+import {
+  CommandTabPanel,
+  knownAliasTargets,
+  taskCommands,
+  timerCommands,
+} from "@/components/bot-settings/command-tab-panel";
 import {
   CommandAliasEditor,
   aliasesToRows,
@@ -49,93 +50,73 @@ import {
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import { trpc } from "@/utils/trpc";
 
-const taskCommands = [
-  { command: "!task", usage: "!task [task]", description: "Add a task" },
-  { command: "!done", usage: "!done or !done [#]", description: "Mark task done" },
-  { command: "!edit", usage: "!edit [#] [new task]", description: "Edit a task" },
-  { command: "!remove", usage: "!remove [#]", description: "Remove a task" },
-  { command: "!focus", usage: "!focus [#]", description: "Set active task" },
-  { command: "!check", usage: "!check or !check @user", description: "Check current task" },
-  { command: "!next", usage: "!next [task]", description: "Complete & add next task" },
-  { command: "!help", usage: "!help", description: "Show help in chat" },
-  { command: "!clear", usage: "!clear all/done/@user", description: "Clear tasks (mods only)" },
-];
-
-const timerCommands = [
-  { command: "!timer start", usage: "!timer start [cycles]", description: "Start timer" },
-  { command: "!timer pause", usage: "!timer pause", description: "Pause timer" },
-  { command: "!timer resume", usage: "!timer resume", description: "Resume timer" },
-  { command: "!timer skip", usage: "!timer skip", description: "Skip current phase" },
-  { command: "!timer reset", usage: "!timer reset", description: "Reset to idle" },
-  { command: "!timer eta", usage: "!timer eta", description: "Show end time ETA" },
-];
-
-function CommandTable({ commands }: { commands: { command: string; usage: string; description: string }[] }) {
-  return (
-    <table className="w-full text-xs">
-      <thead>
-        <tr className="border-b text-left">
-          <th className="console-label pb-1.5 font-medium">Command</th>
-          <th className="console-label pb-1.5 font-medium">Usage</th>
-          <th className="console-label pb-1.5 font-medium">Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        {commands.map((cmd) => (
-          <tr key={cmd.command} className="border-b last:border-0">
-            <td className="py-1.5 pr-3 font-mono font-medium">{cmd.command}</td>
-            <td className="py-1.5 pr-3 font-mono text-muted-foreground">{cmd.usage}</td>
-            <td className="py-1.5 text-muted-foreground">{cmd.description}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+/** Cheap slice compare for the per-tab dirty indicator dots (spec §5.4). */
+function shallowEqualRecords<T extends object>(a: T, b: T): boolean {
+  const keys = Object.keys(a) as (keyof T)[];
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every((key) => a[key] === b[key]);
 }
 
 function BotSettingsSkeleton() {
   return (
-    <div className="container mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-6 space-y-2">
-        <Skeleton className="h-7 w-36" />
+    <div className="container mx-auto max-w-6xl px-4 py-8">
+      <div className="mb-8 space-y-2">
+        <Skeleton className="h-8 w-44" />
         <Skeleton className="h-4 w-72" />
       </div>
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-5 w-28" />
-            <Skeleton className="h-4 w-56" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-8 w-40" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-5 w-28" />
-            <Skeleton className="h-4 w-64" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-9 w-full" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <Skeleton className="mb-4 h-9 w-72" />
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <div className="flex w-full flex-col gap-6 lg:w-80 lg:shrink-0">
+          <Card className="panel-hero">
+            <CardHeader>
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-6 w-36" />
+              <Skeleton className="h-4 w-full" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </CardContent>
+          </Card>
+          <Card className="panel">
+            <CardHeader>
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-6 w-32" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-8 w-40" />
+            </CardContent>
+          </Card>
+        </div>
+        <div className="min-w-0 flex-1">
+          <Card className="panel">
+            <CardHeader>
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-6 w-52" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="mb-4 h-9 w-72" />
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
 }
 
 /** Bot Console card — the browser page that IS the bot in the CF rebuild. */
-function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
+function BotConsoleCard({
+  hasBotAccount,
+  botName,
+}: {
+  hasBotAccount: boolean;
+  botName: string | null;
+}) {
   const queryClient = useQueryClient();
   const ingestInfo = useQuery(trpc.bot.getIngestInfo.queryOptions());
   const [showUrl, setShowUrl] = useState(false);
@@ -158,6 +139,7 @@ function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
 
   const botToken = ingestInfo.data?.botToken;
   const botUrl = origin && botToken ? `${origin}/bot/${botToken}` : "";
+  const ready = hasBotAccount && Boolean(botToken);
 
   const copyUrl = async () => {
     if (!botUrl) return;
@@ -170,47 +152,57 @@ function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <p className="console-label">Bot Runtime</p>
-        <CardTitle className="font-heading text-base">Bot Console</CardTitle>
+    <Card className="panel-hero">
+      <CardHeader className="border-b border-border/40 px-5">
+        <div className="console-rule">
+          <span className="console-label">Bot Runtime</span>
+        </div>
+        <CardTitle className="font-heading text-lg font-semibold tracking-tight">
+          {botName ?? "Bot console"}
+        </CardTitle>
+        <CardAction>
+          <StatusChip
+            tone={ready ? "accent" : "idle"}
+            label={ready ? "Ready" : "Not configured"}
+          />
+        </CardAction>
         <CardDescription>
-          The bot runs inside a browser page — no server process. Open the tokenized page below
-          and it connects to Twitch chat and answers commands while it stays open.
+          The bot runs inside a browser page — it chats while the page stays open.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 px-5">
         {!hasBotAccount ? (
           <p className="text-sm text-muted-foreground">
-            Connect a bot account above to activate the bot console.
+            Connect a bot account below to activate the bot console.
           </p>
         ) : ingestInfo.isLoading ? (
           <Skeleton className="h-9 w-full" />
         ) : (
           <>
-            <div className="flex flex-wrap gap-x-6 gap-y-1 font-mono text-xs text-muted-foreground">
-              <span>
-                BOT{" "}
-                <span className="text-foreground">
-                  {ingestInfo.data?.botUsername ?? "—"}
-                </span>
+            <div className="grid grid-cols-[3.5rem_1fr] items-baseline gap-y-1">
+              <span className="console-label">Bot</span>
+              <span className="truncate font-mono text-xs text-foreground">
+                {ingestInfo.data?.botUsername ?? "—"}
               </span>
-              <span>
-                CHANNEL{" "}
-                <span className="text-foreground">
-                  #{ingestInfo.data?.channelName ?? "—"}
-                </span>
+              <span className="console-label">Channel</span>
+              <span className="truncate font-mono text-xs text-foreground">
+                #{ingestInfo.data?.channelName ?? "—"}
               </span>
             </div>
 
             <div className="flex items-center gap-1.5">
               <input
-                type={showUrl ? "text" : "password"}
+                type="text"
                 readOnly
-                value={botUrl}
-                className="h-9 flex-1 truncate rounded-lg border bg-muted/30 px-3 font-mono text-base md:h-8 md:text-xs"
-                aria-label="Bot page URL"
+                value={showUrl ? botUrl : "•".repeat(40)}
+                className="panel-inset h-9 min-w-0 flex-1 truncate px-3 font-mono text-base md:h-8 md:text-xs"
+                aria-hidden={showUrl ? undefined : true}
+                tabIndex={showUrl ? undefined : -1}
+                aria-label={showUrl ? "Bot page URL" : undefined}
               />
+              {!showUrl && (
+                <span className="sr-only">Bot page URL hidden — press Show to reveal</span>
+              )}
               <Button
                 variant="outline"
                 size="icon"
@@ -229,12 +221,13 @@ function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
               >
                 <Copy className="size-3.5" />
               </Button>
+              <div aria-hidden className="mx-1 w-px self-stretch bg-border/40" />
               <ConfirmDialog
                 trigger={
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="icon"
-                    className="size-8 shrink-0"
+                    className="size-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     disabled={regenerateBotToken.isPending}
                     aria-label="Regenerate bot page token"
                   >
@@ -250,7 +243,6 @@ function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
 
             <div className="flex flex-wrap items-center gap-2">
               <Button
-                variant="outline"
                 size="sm"
                 nativeButton={false}
                 render={
@@ -263,7 +255,7 @@ function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
               </Button>
             </div>
 
-            <div className="flex items-start gap-2.5 rounded-lg border border-border/60 bg-muted/40 p-3">
+            <div className="panel-inset flex items-start gap-2.5 p-3">
               <MonitorPlay className="mt-0.5 size-4 shrink-0 text-primary" />
               <p className="text-xs/relaxed text-muted-foreground">
                 Add the URL as an OBS browser source or keep the tab pinned — the bot listens
@@ -445,6 +437,20 @@ export default function BotSettingsPage() {
     updateAliasesMutation,
   ]);
 
+  // Per-tab dirty flags for the TabsTrigger indicator dots (spec §5.4)
+  const taskDirty =
+    taskCommandsEnabled !== savedTaskCommandsEnabled ||
+    !shallowEqualRecords(taskMessages, savedTaskMessages);
+  const timerDirty =
+    timerCommandsEnabled !== savedTimerCommandsEnabled ||
+    !shallowEqualRecords(timerMessages, savedTimerMessages);
+  const aliasDirty =
+    aliasRows.length !== savedAliasRows.length ||
+    aliasRows.some(
+      (row, i) =>
+        row.key !== savedAliasRows[i]?.key || row.value !== savedAliasRows[i]?.value,
+    );
+
   if (config.isLoading) {
     return <BotSettingsSkeleton />;
   }
@@ -452,208 +458,198 @@ export default function BotSettingsPage() {
   const botAccount = user.data?.botAccount ?? null;
 
   return (
-    <div className={cn("container mx-auto max-w-5xl px-4 py-8", hasUnsaved && "pb-24")}>
+    <div className={cn("container mx-auto max-w-6xl px-4 py-8", hasUnsaved && "pb-24")}>
       <UnsavedChangesGuard dirty={hasUnsaved} />
 
-      <div className="mb-6">
-        <h1 className="font-heading text-2xl font-bold tracking-tight">Bot Settings</h1>
-        <p className="text-sm text-muted-foreground">
+      <div className="mb-8">
+        <h1 className="font-heading text-3xl font-bold tracking-tight">Bot Settings</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Connect the bot account, run the bot console, and tune its chat responses
         </p>
       </div>
 
-      <div className="stagger-reveal space-y-6">
-        {/* Bot Account */}
-        <Card>
-          <CardHeader>
-            <p className="console-label">Identity</p>
-            <div className="flex items-center gap-2.5">
-              <CardTitle className="font-heading text-base">Bot Account</CardTitle>
+      <div className="stagger-reveal flex flex-col gap-6 lg:flex-row lg:items-start">
+        {/* Left rail — runtime hero above identity */}
+        <div className="flex w-full flex-col gap-6 lg:sticky lg:top-20 lg:max-h-[calc(100vh-5rem)] lg:w-80 lg:shrink-0 lg:overflow-y-auto">
+          {/* Bot Console — the browser-bot runtime */}
+          <BotConsoleCard
+            hasBotAccount={botAccount !== null}
+            botName={botAccount?.displayName ?? null}
+          />
+
+          {/* Bot Account */}
+          <Card className="panel">
+            <CardHeader className="px-5">
+              <div className="console-rule">
+                <span className="console-label">Identity</span>
+              </div>
+              <CardTitle className="font-heading text-lg font-semibold tracking-tight">
+                Bot Account
+              </CardTitle>
+              <CardAction>
+                {botAccount ? (
+                  <StatusChip tone="live" label="Connected" />
+                ) : (
+                  <StatusChip tone="idle" label="Not connected" />
+                )}
+              </CardAction>
+              <CardDescription>The Twitch account the bot chats as</CardDescription>
+            </CardHeader>
+            <CardContent className="px-5">
               {botAccount ? (
-                <StatusChip tone="live" label="Connected" />
-              ) : (
-                <StatusChip tone="idle" label="Not connected" />
-              )}
-            </div>
-            <CardDescription>The Twitch account the bot chats as</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {botAccount ? (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm">
-                    Connected as <span className="font-medium">{botAccount.displayName}</span>
-                  </p>
-                  <p className="font-mono text-xs text-muted-foreground">@{botAccount.username}</p>
-                </div>
-                <ConfirmDialog
-                  trigger={
-                    <Button variant="destructive" size="sm" disabled={disconnectBot.isPending}>
-                      <Unplug className="size-3" />
-                      Disconnect
-                    </Button>
-                  }
-                  title="Disconnect the bot account?"
-                  description="The bot stops responding in chat immediately and its Twitch authorization is revoked. Any open bot page goes offline. You can reconnect the same account later."
-                  confirmLabel="Disconnect bot"
-                  onConfirm={() => disconnectBot.mutate()}
-                />
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  No bot account connected. Sign in with the Twitch account you want chatting —
-                  most streamers use a dedicated second account.
-                </p>
-                <a
-                  href="/api/bot/authorize"
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-twitch px-3 text-sm font-medium text-white hover:bg-twitch-hover"
-                >
-                  <svg className="size-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
-                    <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z" />
-                  </svg>
-                  Connect Bot Account
-                </a>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Bot Console — the browser-bot runtime */}
-        <BotConsoleCard hasBotAccount={botAccount !== null} />
-
-        {/* Unified Settings Card with Tabs */}
-        <Card>
-          <CardContent className="px-4 pt-4 pb-4">
-            <Tabs defaultValue="tasks">
-              <TabsList>
-                <TabsTrigger value="tasks">Task Commands</TabsTrigger>
-                <TabsTrigger value="timer">Timer Commands</TabsTrigger>
-                <TabsTrigger value="aliases">Aliases</TabsTrigger>
-              </TabsList>
-
-              {/* Task Commands Tab */}
-              <TabsContent value="tasks" className="space-y-6">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3">
                   <div>
-                    <p className="text-sm font-medium">Task Commands</p>
-                    <p className="text-xs text-muted-foreground">Viewer task management via chat</p>
+                    <p className="text-sm">
+                      Connected as <span className="font-medium">{botAccount.displayName}</span>
+                    </p>
+                    <p className="font-mono text-xs text-muted-foreground">@{botAccount.username}</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="task-commands-toggle" className="font-mono text-[11px] tracking-wide uppercase">
-                      {taskCommandsEnabled ? "On" : "Off"}
-                    </Label>
-                    <Switch
-                      id="task-commands-toggle"
-                      checked={taskCommandsEnabled}
-                      onCheckedChange={(checked) => { setTaskCommandsEnabled(checked); markUnsaved(); }}
-                    />
-                  </div>
+                  <ConfirmDialog
+                    trigger={
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="self-start"
+                        disabled={disconnectBot.isPending}
+                      >
+                        <Unplug className="size-3" />
+                        Disconnect
+                      </Button>
+                    }
+                    title="Disconnect the bot account?"
+                    description="The bot stops responding in chat immediately and its Twitch authorization is revoked. Any open bot page goes offline. You can reconnect the same account later."
+                    confirmLabel="Disconnect bot"
+                    onConfirm={() => disconnectBot.mutate()}
+                  />
                 </div>
-
-                <Separator />
-
-                <div>
-                  <h3 className="console-label mb-3">Command Reference</h3>
-                  <CommandTable commands={taskCommands} />
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    No bot account connected. Sign in with the Twitch account you want chatting —
+                    most streamers use a dedicated second account.
+                  </p>
+                  <Button
+                    size="sm"
+                    className="bg-twitch text-white hover:bg-twitch-hover"
+                    nativeButton={false}
+                    render={<a href="/api/bot/authorize" />}
+                  >
+                    <svg className="size-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z" />
+                    </svg>
+                    Connect Bot Account
+                  </Button>
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
-                <Separator />
+        {/* Right — chat commands console */}
+        <div className="min-w-0 flex-1">
+          <Card className="panel">
+            <CardHeader className="border-b border-border/40 px-5">
+              <div className="console-rule">
+                <span className="console-label">Chat Commands</span>
+              </div>
+              <CardTitle className="font-heading text-lg font-semibold tracking-tight">
+                Commands &amp; messages
+              </CardTitle>
+              <CardDescription>
+                Toggle command groups, review usage, and tune the bot&apos;s replies
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-5">
+              <Tabs defaultValue="tasks">
+                <TabsList>
+                  <TabsTrigger
+                    value="tasks"
+                    aria-label={taskDirty ? "Task Commands (unsaved changes)" : undefined}
+                  >
+                    Task Commands
+                    {taskDirty && (
+                      <span aria-hidden className="size-1.5 rounded-full bg-warning" />
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="timer"
+                    aria-label={timerDirty ? "Timer Commands (unsaved changes)" : undefined}
+                  >
+                    Timer Commands
+                    {timerDirty && (
+                      <span aria-hidden className="size-1.5 rounded-full bg-warning" />
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="aliases"
+                    aria-label={aliasDirty ? "Aliases (unsaved changes)" : undefined}
+                  >
+                    Aliases
+                    {aliasDirty && (
+                      <span aria-hidden className="size-1.5 rounded-full bg-warning" />
+                    )}
+                  </TabsTrigger>
+                </TabsList>
 
-                <div>
-                  <h3 className="console-label mb-3">Messages</h3>
-                  <MessageEditor
-                    fields={taskMessageFields}
+                {/* Task Commands Tab */}
+                <TabsContent value="tasks">
+                  <CommandTabPanel
+                    title="Task Commands"
+                    subtitle="Viewer task management via chat"
                     idPrefix="task"
-                    values={taskMessages}
-                    onChange={handleTaskMessagesChange}
-                    disabled={!taskCommandsEnabled}
+                    enabled={taskCommandsEnabled}
+                    onEnabledChange={(checked) => {
+                      setTaskCommandsEnabled(checked);
+                      markUnsaved();
+                    }}
+                    commands={taskCommands}
+                    fields={taskMessageFields}
+                    messages={taskMessages}
+                    onMessagesChange={handleTaskMessagesChange}
                     disabledNote="Task commands are disabled — enable them to edit messages."
                   />
-                </div>
-              </TabsContent>
+                </TabsContent>
 
-              {/* Timer Commands Tab */}
-              <TabsContent value="timer" className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">Timer Commands</p>
-                    <p className="text-xs text-muted-foreground">Mod-only timer control via chat</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="timer-commands-toggle" className="font-mono text-[11px] tracking-wide uppercase">
-                      {timerCommandsEnabled ? "On" : "Off"}
-                    </Label>
-                    <Switch
-                      id="timer-commands-toggle"
-                      checked={timerCommandsEnabled}
-                      onCheckedChange={(checked) => { setTimerCommandsEnabled(checked); markUnsaved(); }}
-                    />
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div>
-                  <h3 className="console-label mb-3">Command Reference</h3>
-                  <CommandTable commands={timerCommands} />
-                </div>
-
-                <Separator />
-
-                <div>
-                  <h3 className="console-label mb-3">Messages</h3>
-                  <MessageEditor
-                    fields={timerMessageFields}
+                {/* Timer Commands Tab */}
+                <TabsContent value="timer">
+                  <CommandTabPanel
+                    title="Timer Commands"
+                    subtitle="Mod-only timer control via chat"
                     idPrefix="timer"
-                    values={timerMessages}
-                    onChange={handleTimerMessagesChange}
-                    disabled={!timerCommandsEnabled}
+                    enabled={timerCommandsEnabled}
+                    onEnabledChange={(checked) => {
+                      setTimerCommandsEnabled(checked);
+                      markUnsaved();
+                    }}
+                    commands={timerCommands}
+                    fields={timerMessageFields}
+                    messages={timerMessages}
+                    onMessagesChange={handleTimerMessagesChange}
                     disabledNote="Timer commands are disabled — enable them to edit messages."
                   />
-                </div>
-              </TabsContent>
+                </TabsContent>
 
-              {/* Aliases Tab */}
-              <TabsContent value="aliases">
-                <CommandAliasEditor rows={aliasRows} onChange={handleAliasRowsChange} />
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+                {/* Aliases Tab */}
+                <TabsContent value="aliases">
+                  <CommandAliasEditor
+                    rows={aliasRows}
+                    onChange={handleAliasRowsChange}
+                    knownCommands={knownAliasTargets}
+                  />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Sticky Save / Reset Bar */}
-      {hasUnsaved && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/80 backdrop-blur-2xl">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-            <p className="console-label">Unsaved changes</p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleReset}
-                disabled={isSaving}
-              >
-                <RotateCcw className="mr-1.5 size-3.5" />
-                Reset
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSave}
-                disabled={isSaving}
-              >
-                {isSaving ? (
-                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                ) : (
-                  <Save className="mr-1.5 size-3.5" />
-                )}
-                Save Changes
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SaveBar
+        visible={hasUnsaved}
+        saving={isSaving}
+        onSave={handleSave}
+        onReset={handleReset}
+      />
     </div>
   );
 }

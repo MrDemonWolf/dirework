@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ThemePreset } from "@/lib/config-types";
 import { themePresets } from "@/lib/theme-presets";
@@ -9,6 +9,8 @@ import { ThemeCard } from "./theme-card";
 /**
  * Horizontal preset rail with radiogroup semantics (audit L13):
  * roving tabindex + arrow-key navigation across the swatches.
+ * Arrow keys move focus ONLY — Enter/Space/click applies, so browsing
+ * presets never mutates the working styles.
  */
 export function ThemeBrowser({
   activeThemeId,
@@ -19,11 +21,20 @@ export function ThemeBrowser({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Roving tabindex: the checked card (or the first) is the tab stop
-  const focusIndex = Math.max(
-    0,
-    themePresets.findIndex((t) => t.id === activeThemeId),
+  // Roving tabindex: the focused card (initially the checked one) is the tab stop
+  const [focusedIndex, setFocusedIndex] = useState(() =>
+    Math.max(
+      0,
+      themePresets.findIndex((t) => t.id === activeThemeId),
+    ),
   );
+
+  // Config loads async — re-sync the tab stop when the active theme resolves
+  // or changes so keyboard entry lands on the checked swatch.
+  useEffect(() => {
+    const index = themePresets.findIndex((t) => t.id === activeThemeId);
+    if (index >= 0) setFocusedIndex(index);
+  }, [activeThemeId]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     let delta = 0;
@@ -32,31 +43,41 @@ export function ThemeBrowser({
     else return;
 
     e.preventDefault();
-    const currentIndex = themePresets.findIndex((t) => t.id === activeThemeId);
-    const from = currentIndex === -1 ? 0 : currentIndex;
-    const next = (from + delta + themePresets.length) % themePresets.length;
-    onApply(themePresets[next]!);
+    const next = (focusedIndex + delta + themePresets.length) % themePresets.length;
+    setFocusedIndex(next);
     const radios = containerRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
     radios?.[next]?.focus();
   };
 
   return (
-    <div
-      ref={containerRef}
-      role="radiogroup"
-      aria-label="Theme presets"
-      onKeyDown={handleKeyDown}
-      className="flex gap-3 overflow-x-auto p-1 pb-2"
-    >
-      {themePresets.map((theme, i) => (
-        <ThemeCard
-          key={theme.id}
-          theme={theme}
-          isActive={activeThemeId === theme.id}
-          onApply={() => onApply(theme)}
-          tabIndex={i === focusIndex ? 0 : -1}
-        />
-      ))}
+    <div className="relative">
+      {/* Edge fades — signal the rail scrolls past the viewport */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-background to-transparent"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-background to-transparent"
+      />
+      <div
+        ref={containerRef}
+        role="radiogroup"
+        aria-label="Theme presets"
+        onKeyDown={handleKeyDown}
+        className="flex snap-x snap-mandatory gap-3 overflow-x-auto p-1 pb-2"
+      >
+        {themePresets.map((theme, i) => (
+          <ThemeCard
+            key={theme.id}
+            theme={theme}
+            isActive={activeThemeId === theme.id}
+            onApply={() => onApply(theme)}
+            onFocus={() => setFocusedIndex(i)}
+            tabIndex={i === focusedIndex ? 0 : -1}
+          />
+        ))}
+      </div>
     </div>
   );
 }

@@ -3,24 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Bot, Copy, Eye, EyeOff, ListTodo, RefreshCw, Timer } from "lucide-react";
+import { ArrowRight, Bot, Copy, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DashboardSkeleton } from "@/components/dashboard-skeleton";
 import { StatusChip } from "@/components/status-chip";
 import { TaskManager } from "@/components/task-manager";
-import { TimerProvider, TimerDisplay, TimerSettings } from "@/components/timer-controls";
+import { TimerProvider, TimerInstrument, TimerSettings } from "@/components/timer-controls";
 import { TimerStatusBadge } from "@/components/timer-status-badge";
 import { trpc } from "@/utils/trpc";
 
@@ -40,15 +32,79 @@ function getSubGreeting(): string {
   return "Night owl mode activated.";
 }
 
+function getDateStr(): string {
+  return new Date()
+    .toLocaleDateString("en-US", { weekday: "short", month: "short", day: "2-digit" })
+    .replace(",", "");
+}
+
+/** Inset monitor stage: labeled rule with an eye toggle + square overlay iframe. */
+function OverlayMonitor({
+  label,
+  caption,
+  src,
+  title,
+  show,
+  onToggle,
+}: {
+  label: string;
+  caption?: string;
+  src: string | null;
+  title: string;
+  show: boolean;
+  onToggle: (next: boolean) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-3">
+        <div className="console-rule min-w-0 flex-1">
+          <span className="console-label">{label}</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => onToggle(!show)}
+          aria-pressed={show}
+          aria-label={show ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
+        >
+          {show ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+        </Button>
+      </div>
+      <div
+        className="panel-inset bg-grain relative w-full overflow-hidden"
+        style={{ aspectRatio: "1 / 1" }}
+      >
+        {show && src ? (
+          <iframe
+            src={src}
+            title={title}
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            style={{ border: "none", background: "transparent" }}
+          />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+            <EyeOff className="size-5 text-muted-foreground/40" />
+            <p className="text-xs text-muted-foreground">Monitor is off</p>
+            <Button variant="outline" size="sm" onClick={() => onToggle(true)}>
+              Enable monitor
+            </Button>
+          </div>
+        )}
+        {caption && (
+          <span className="console-label absolute right-2 bottom-1.5">{caption}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function OverlayUrlRow({
-  icon: Icon,
   label,
   path,
   onCopy,
   onRegenerate,
   regenerating,
 }: {
-  icon: typeof Timer;
   label: string;
   path: string;
   onCopy: () => void;
@@ -58,55 +114,55 @@ function OverlayUrlRow({
   const [revealed, setRevealed] = useState(false);
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Icon className="size-4 text-muted-foreground" />
-        <span className="text-sm font-medium">{label}</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <input
-          type={revealed ? "text" : "password"}
-          readOnly
-          value={path}
-          className="h-9 flex-1 truncate rounded-lg border bg-muted/30 px-3 font-mono text-base md:h-8 md:text-xs"
-          aria-label={`${label} URL`}
-        />
-        <Button
-          variant="outline"
-          size="icon"
-          className="size-8 shrink-0"
-          onClick={() => setRevealed((v) => !v)}
-          aria-label={revealed ? `Hide ${label} URL` : `Show ${label} URL`}
-        >
-          {revealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="size-8 shrink-0"
-          onClick={onCopy}
-          aria-label={`Copy ${label} URL`}
-        >
-          <Copy className="size-3.5" />
-        </Button>
-        <ConfirmDialog
-          trigger={
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-8 shrink-0"
-              disabled={regenerating}
-              aria-label={`Regenerate ${label} token`}
-            >
-              <RefreshCw className="size-3.5" />
-            </Button>
-          }
-          title={`Regenerate the ${label.toLowerCase()} token?`}
-          description="The current URL stops working immediately. Any OBS browser source using it will go blank until you copy the new URL and paste it back into OBS."
-          confirmLabel="Regenerate token"
-          onConfirm={onRegenerate}
-        />
-      </div>
+    <div className="flex items-center gap-1.5">
+      <input
+        type="text"
+        readOnly
+        value={revealed ? path : "•".repeat(40)}
+        className="panel-inset h-9 min-w-0 flex-1 truncate px-3 font-mono text-base md:text-xs"
+        aria-hidden={revealed ? undefined : true}
+        tabIndex={revealed ? undefined : -1}
+        aria-label={revealed ? `${label} URL` : undefined}
+      />
+      {!revealed && (
+        <span className="sr-only">{`${label} URL hidden — press Show to reveal`}</span>
+      )}
+      <Button
+        variant="outline"
+        size="icon"
+        className="size-8 shrink-0"
+        onClick={() => setRevealed((v) => !v)}
+        aria-label={revealed ? `Hide ${label} URL` : `Show ${label} URL`}
+      >
+        {revealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        className="size-8 shrink-0"
+        onClick={onCopy}
+        aria-label={`Copy ${label} URL`}
+      >
+        <Copy className="size-3.5" />
+      </Button>
+      <div aria-hidden className="mx-1 w-px self-stretch bg-border/40" />
+      <ConfirmDialog
+        trigger={
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            disabled={regenerating}
+            aria-label={`Regenerate ${label} token`}
+          >
+            <RefreshCw className="size-3.5" />
+          </Button>
+        }
+        title={`Regenerate the ${label.toLowerCase()} token?`}
+        description="The current URL stops working immediately. Any OBS browser source using it will go blank until you copy the new URL and paste it back into OBS."
+        confirmLabel="Regenerate token"
+        onConfirm={onRegenerate}
+      />
     </div>
   );
 }
@@ -151,208 +207,167 @@ export default function Dashboard({
   }
 
   return (
-    <div className="container mx-auto max-w-5xl px-4 py-8">
-      {/* Greeting + Status Badge */}
-      <div className="mb-8 flex flex-wrap items-start justify-between gap-3">
+    <div className="container mx-auto max-w-6xl px-4 py-8">
+      {/* Header band: console kicker + greeting + LED status cluster */}
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
+          <p className="console-label mb-2" suppressHydrationWarning>
+            Console — {getDateStr()}
+          </p>
           <h1 className="font-heading text-3xl font-bold tracking-tight" suppressHydrationWarning>
             {getGreeting()}, {session.user.name}
           </h1>
-          <p className="text-muted-foreground" suppressHydrationWarning>
+          <p className="mt-1 text-sm text-muted-foreground" suppressHydrationWarning>
             {getSubGreeting()}
           </p>
         </div>
-        <TimerStatusBadge />
+        <div className="flex items-center gap-2">
+          <TimerStatusBadge />
+          <StatusChip
+            tone={botAccount ? "accent" : "idle"}
+            label={botAccount ? "Bot ready" : "Bot off"}
+          />
+        </div>
       </div>
 
-      <div className="stagger-reveal grid gap-6">
-        {/* Timer console: hero module + settings + preview */}
-        <Card className="relative overflow-visible">
-          <CardHeader>
-            <p className="console-label">Timer Console</p>
-            <CardTitle className="font-heading text-base">Pomodoro</CardTitle>
-            <CardDescription>Run the focus session your viewers see in OBS</CardDescription>
-            <CardAction>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowTimerPreview((v) => !v)}
-                aria-pressed={showTimerPreview}
-                className="gap-1.5 text-xs text-muted-foreground"
-              >
-                {showTimerPreview ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                Preview
-              </Button>
-            </CardAction>
-          </CardHeader>
-          <CardContent>
-            <TimerProvider>
-              <div className="flex flex-col items-center gap-8 lg:flex-row lg:items-center">
-                {/* Hero timer module */}
-                <div className="flex-1 py-2">
-                  <TimerDisplay />
-                </div>
-                {/* Session settings */}
-                <div className="w-full max-w-56 lg:w-56">
-                  <TimerSettings />
-                </div>
-                {/* OBS-style preview */}
-                <div
-                  className="bg-grain shrink-0 self-center overflow-hidden rounded-xl border border-dashed border-border/60 bg-muted/40"
-                  style={{ width: 280, height: 280 }}
-                >
-                  {showTimerPreview && timerToken ? (
-                    <iframe
-                      src={`/overlay/t/${timerToken}`}
-                      className="pointer-events-none"
-                      style={{ width: 280, height: 280, border: "none", background: "transparent" }}
-                      title="Timer overlay preview"
-                    />
-                  ) : (
-                    <div className="flex h-full flex-col items-center justify-center gap-3">
-                      <EyeOff className="size-5 text-muted-foreground/40" />
-                      <p className="text-sm text-muted-foreground/60">Preview is disabled</p>
-                      <Button variant="outline" size="sm" onClick={() => setShowTimerPreview(true)}>
-                        Enable Preview
-                      </Button>
-                    </div>
-                  )}
-                </div>
+      <div className="stagger-reveal grid gap-6 lg:grid-cols-3">
+        {/* Hero instrument: the timer console — its overlay monitor lives beside it */}
+        <section className="panel-hero lg:col-span-3">
+          <div className="border-b border-border/40 px-5 pt-4 pb-3">
+            <div className="console-rule">
+              <span className="console-label">Timer Console</span>
+            </div>
+            <h2 className="mt-2 font-heading text-lg font-semibold tracking-tight">Pomodoro</h2>
+            <p className="text-sm text-muted-foreground">
+              Run the focus session your viewers see in OBS
+            </p>
+          </div>
+          <TimerProvider>
+            <div className="flex flex-col gap-8 px-5 py-6 lg:flex-row lg:items-stretch">
+              <div className="flex flex-1 items-center justify-center py-2">
+                <TimerInstrument />
               </div>
-            </TimerProvider>
-          </CardContent>
-        </Card>
-
-        {/* Tasks: manager + preview */}
-        <Card>
-          <CardHeader>
-            <p className="console-label">Task Board</p>
-            <CardTitle className="font-heading text-base">Tasks</CardTitle>
-            <CardDescription>Yours and chat&apos;s, grouped by author</CardDescription>
-            <CardAction>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowTasksPreview((v) => !v)}
-                aria-pressed={showTasksPreview}
-                className="gap-1.5 text-xs text-muted-foreground"
-              >
-                {showTasksPreview ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                Preview
-              </Button>
-            </CardAction>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-6 md:flex-row md:items-start">
-              <div className="min-w-0 flex-1">
+              <div className="w-full lg:w-60 lg:shrink-0 lg:border-l lg:border-border/40 lg:pl-6">
+                <TimerSettings />
+              </div>
+              {/* Timer output — the OBS view of THIS timer, right where it's controlled */}
+              <div className="w-full space-y-2 lg:w-72 lg:shrink-0 lg:border-l lg:border-border/40 lg:pl-6">
                 {user.data ? (
-                  <TaskManager
-                    userTwitchId={user.data.twitchId ?? ""}
-                    username={user.data.name}
-                    displayName={user.data.displayName ?? user.data.name}
-                  />
+                  <>
+                    <OverlayMonitor
+                      label="Timer monitor"
+                      src={timerToken ? `/overlay/t/${timerToken}` : null}
+                      title="Timer overlay preview"
+                      show={showTimerPreview}
+                      onToggle={setShowTimerPreview}
+                    />
+                    <OverlayUrlRow
+                      label="Timer Overlay"
+                      path={`/overlay/t/${user.data.overlayTimerToken}`}
+                      onCopy={() => copyUrl(`/overlay/t/${user.data!.overlayTimerToken}`)}
+                      onRegenerate={() => regenerateToken.mutate({ type: "timer" })}
+                      regenerating={regenerateToken.isPending}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Add the URL as a browser source in OBS
+                    </p>
+                  </>
                 ) : (
                   <p className="text-sm text-muted-foreground">Loading...</p>
                 )}
               </div>
-              <div
-                className="bg-grain shrink-0 self-center overflow-hidden rounded-xl border border-dashed border-border/60 bg-muted/40"
-                style={{ width: 350, height: 350 }}
-              >
-                {showTasksPreview && tasksToken ? (
-                  <iframe
-                    src={`/overlay/l/${tasksToken}`}
-                    className="pointer-events-none"
-                    style={{ width: 350, height: 350, border: "none", background: "transparent" }}
-                    title="Task list overlay preview"
-                  />
+            </div>
+          </TimerProvider>
+        </section>
+
+        {/* Task board — its overlay monitor sits right beside it */}
+        <section className="panel min-w-0 lg:col-span-2">
+          {user.data ? (
+            <TaskManager
+              userTwitchId={user.data.twitchId ?? ""}
+              username={user.data.name}
+              displayName={user.data.displayName ?? user.data.name}
+            />
+          ) : (
+            <p className="p-5 text-sm text-muted-foreground">Loading...</p>
+          )}
+        </section>
+
+        {/* Tasks output — the OBS view of the task list */}
+        <section className="panel min-w-0">
+          <div className="border-b border-border/40 px-5 pt-4 pb-3">
+            <div className="console-rule">
+              <span className="console-label">Tasks Output</span>
+            </div>
+            <h2 className="mt-2 font-heading text-lg font-semibold tracking-tight">
+              Task list overlay
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Add the URL as a browser source in OBS
+            </p>
+          </div>
+          <div className="space-y-2 px-5 py-5">
+            {user.data ? (
+              <>
+                <OverlayMonitor
+                  label="Tasks monitor"
+                  src={tasksToken ? `/overlay/l/${tasksToken}` : null}
+                  title="Task list overlay preview"
+                  show={showTasksPreview}
+                  onToggle={setShowTasksPreview}
+                />
+                <OverlayUrlRow
+                  label="Task List Overlay"
+                  path={`/overlay/l/${user.data.overlayTasksToken}`}
+                  onCopy={() => copyUrl(`/overlay/l/${user.data!.overlayTasksToken}`)}
+                  onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
+                  regenerating={regenerateToken.isPending}
+                />
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            )}
+          </div>
+        </section>
+
+        {/* Bot quick status — slim full-width strip */}
+        <section className="panel lg:col-span-3">
+          <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10">
+                <Bot className="size-4.5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                {botAccount ? (
+                  <>
+                    <p className="truncate text-sm font-medium">{botAccount.displayName}</p>
+                    <StatusChip tone="accent" label="Ready" className="mt-1" />
+                  </>
                 ) : (
-                  <div className="flex h-full flex-col items-center justify-center gap-3">
-                    <EyeOff className="size-5 text-muted-foreground/40" />
-                    <p className="text-sm text-muted-foreground/60">Preview is disabled</p>
-                    <Button variant="outline" size="sm" onClick={() => setShowTasksPreview(true)}>
-                      Enable Preview
-                    </Button>
-                  </div>
+                  <>
+                    <p className="text-sm font-medium">No bot account</p>
+                    <StatusChip tone="idle" label="Not connected" className="mt-1" />
+                  </>
                 )}
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-          {/* Overlay URLs */}
-          <Card>
-            <CardHeader>
-              <p className="console-label">Outputs</p>
-              <CardTitle className="font-heading text-base">Overlay URLs</CardTitle>
-              <CardDescription>Add these as browser sources in OBS</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {user.data ? (
-                <div className="space-y-4">
-                  <OverlayUrlRow
-                    icon={Timer}
-                    label="Timer Overlay"
-                    path={`/overlay/t/${user.data.overlayTimerToken}`}
-                    onCopy={() => copyUrl(`/overlay/t/${user.data!.overlayTimerToken}`)}
-                    onRegenerate={() => regenerateToken.mutate({ type: "timer" })}
-                    regenerating={regenerateToken.isPending}
-                  />
-                  <OverlayUrlRow
-                    icon={ListTodo}
-                    label="Task List Overlay"
-                    path={`/overlay/l/${user.data.overlayTasksToken}`}
-                    onCopy={() => copyUrl(`/overlay/l/${user.data!.overlayTasksToken}`)}
-                    onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
-                    regenerating={regenerateToken.isPending}
-                  />
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Loading...</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Bot quick status */}
-          <Card>
-            <CardHeader>
-              <p className="console-label">Chat Bot</p>
-              <CardTitle className="font-heading text-base">Bot</CardTitle>
-              <CardDescription>Chat commands for tasks and the timer</CardDescription>
-            </CardHeader>
-            <CardContent className="flex h-full flex-col justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                  <Bot className="size-4.5 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  {botAccount ? (
-                    <>
-                      <p className="truncate text-sm font-medium">{botAccount.displayName}</p>
-                      <StatusChip tone="live" label="Connected" className="mt-1" />
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-sm font-medium">No bot account</p>
-                      <StatusChip tone="idle" label="Not connected" className="mt-1" />
-                    </>
-                  )}
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-between"
-                nativeButton={false}
-                render={<Link href={"/dashboard/bot" as const} />}
-              >
-                {botAccount ? "Bot settings & console" : "Connect the bot"}
-                <ArrowRight className="size-3.5" />
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+            {botAccount && (
+              <p className="font-mono text-xs text-muted-foreground">
+                !task · !done · !timer · !help
+              </p>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="justify-center gap-2 sm:w-auto"
+              nativeButton={false}
+              render={<Link href={"/dashboard/bot" as const} />}
+            >
+              {botAccount ? "Bot settings & console" : "Connect the bot"}
+              <ArrowRight className="size-3.5" />
+            </Button>
+          </div>
+        </section>
       </div>
     </div>
   );

@@ -2,17 +2,18 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { StatusChip, type StatusTone } from "@/components/status-chip";
+import { StatusChip } from "@/components/status-chip";
+import { TIMER_TONES, type TimerStatus } from "@/lib/status-tones";
 import { trpc } from "@/utils/trpc";
 
-const statusConfig: Record<string, { label: string; tone: StatusTone; pulse: boolean }> = {
-  idle: { label: "Ready", tone: "idle", pulse: false },
-  starting: { label: "Starting", tone: "accent", pulse: true },
-  work: { label: "Focusing", tone: "accent", pulse: true },
-  break: { label: "On Break", tone: "live", pulse: true },
-  longBreak: { label: "On Break", tone: "live", pulse: true },
-  paused: { label: "Paused", tone: "warn", pulse: false },
-  finished: { label: "Finished", tone: "live", pulse: false },
+const statusLabels: Record<TimerStatus, string> = {
+  idle: "Ready",
+  starting: "Starting",
+  work: "Focusing",
+  break: "On Break",
+  longBreak: "On Break",
+  paused: "Paused",
+  finished: "Finished",
 };
 
 export function TimerStatusBadge() {
@@ -21,8 +22,9 @@ export function TimerStatusBadge() {
     refetchInterval: 1000,
   });
 
-  const status = timer.data?.status ?? "idle";
-  const config = statusConfig[status] ?? statusConfig.idle;
+  const raw = timer.data?.status ?? "idle";
+  const status: TimerStatus = raw in TIMER_TONES ? (raw as TimerStatus) : "idle";
+  const { tone, pulse } = TIMER_TONES[status];
 
-  return <StatusChip tone={config.tone} label={config.label} pulse={config.pulse} />;
+  return <StatusChip tone={tone} label={statusLabels[status]} pulse={pulse} />;
 }
