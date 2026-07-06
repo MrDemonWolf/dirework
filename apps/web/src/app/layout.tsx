@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 
 import { IBM_Plex_Mono, IBM_Plex_Sans, Montserrat } from "next/font/google";
 
@@ -23,17 +22,11 @@ const montserrat = Montserrat({
   subsets: ["latin"],
 });
 
-export async function generateMetadata(): Promise<Metadata> {
-  // BETTER_AUTH_URL (the web origin, bound on the worker) is the canonical
-  // base. Only fall back to request headers when it's unset — an
-  // unconditional headers() call would force every page dynamic.
-  let base = process.env.BETTER_AUTH_URL;
-  if (!base) {
-    const h = await headers();
-    const host = h.get("x-forwarded-host") ?? h.get("host");
-    const proto = h.get("x-forwarded-proto") ?? "https";
-    base = host ? `${proto}://${host}` : "http://localhost:3001";
-  }
+export function generateMetadata(): Metadata {
+  // BETTER_AUTH_URL (the web origin, bound on the worker in prod and dev) is
+  // the canonical base — deterministic and request-independent so pages can
+  // render statically. Localhost fallback only covers bare local tooling.
+  const base = process.env.BETTER_AUTH_URL || "http://localhost:3001";
 
   return {
     metadataBase: new URL(base),
