@@ -38,7 +38,7 @@ The timer overlay shows:
 - Cycle count (e.g. 1/4)
 - Progress ring (circle or rounded rectangle shape)
 
-The timer automatically transitions through phases: starting (5s countdown) → work → break → work → ... → finished. Transitions are read-driven, so an open timer overlay in OBS advances the timer on its own (it polls every ~2s) — no dashboard tab needs to stay open. The dashboard or an incoming chat command will nudge it forward too.
+The timer automatically transitions through phases: Starting (5s countdown) → Focus → Break → Focus → … with a Long Break replacing the regular Break every few cycles (4 by default), ending in Done after the final Focus. Transitions are read-driven, so an open timer overlay in OBS advances the timer on its own (it polls every ~2s) — no dashboard tab needs to stay open. The dashboard or an incoming chat command will nudge it forward too.
 
 ### Progress Ring Shapes
 

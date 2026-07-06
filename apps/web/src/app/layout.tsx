@@ -24,16 +24,16 @@ const montserrat = Montserrat({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  // Default the canonical/OG base to the actual serving origin — i.e. the
-  // deployed Worker URL, read from the request host — so prod metadata is
-  // self-configuring and never leaks localhost. An explicit BETTER_AUTH_URL
-  // still wins when the operator runs behind a custom domain.
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "https";
-  const base =
-    process.env.BETTER_AUTH_URL ||
-    (host ? `${proto}://${host}` : "http://localhost:3001");
+  // BETTER_AUTH_URL (the web origin, bound on the worker) is the canonical
+  // base. Only fall back to request headers when it's unset — an
+  // unconditional headers() call would force every page dynamic.
+  let base = process.env.BETTER_AUTH_URL;
+  if (!base) {
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    const proto = h.get("x-forwarded-proto") ?? "https";
+    base = host ? `${proto}://${host}` : "http://localhost:3001";
+  }
 
   return {
     metadataBase: new URL(base),

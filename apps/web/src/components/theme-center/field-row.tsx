@@ -55,7 +55,6 @@ export function TextFieldRow({
         onChange={(e) => onChange(e.target.value)}
         className="h-8 w-28 text-right"
         placeholder={placeholder}
-        inputMode={unit === "px" ? "numeric" : undefined}
       />
       {unit && <span className="console-label">{unit}</span>}
     </FieldRow>

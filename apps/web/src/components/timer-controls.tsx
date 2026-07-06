@@ -14,7 +14,7 @@ import { StatusChip } from "@/components/status-chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { formatClock } from "@/lib/timer-utils";
-import { TIMER_TONES, TIMER_PHASE_COLOR, type TimerStatus } from "@/lib/status-tones";
+import { TIMER_TONES, TIMER_PHASE_COLOR, toTimerStatus } from "@/lib/status-tones";
 import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
 import { trpc } from "@/utils/trpc";
 
@@ -35,11 +35,6 @@ function minutesToMs(min: number): number {
 }
 
 const DEFAULT_LABELS: Record<string, string> = { ...DEFAULT_PHASE_LABELS };
-
-/** Narrow an arbitrary status string to a known TimerStatus (idle fallback). */
-function toTimerStatus(status: string): TimerStatus {
-  return status in TIMER_TONES ? (status as TimerStatus) : "idle";
-}
 
 /**
  * Hardware-module cycle indicator: filled dots for completed pomos, a ringed

@@ -14,6 +14,11 @@ export const TIMER_TONES: Record<TimerStatus, { tone: StatusTone; pulse: boolean
   finished:  { tone: "alt",    pulse: false },
 };
 
+/** Narrow an untrusted status string to a TimerStatus, falling back to idle. */
+export function toTimerStatus(status: string): TimerStatus {
+  return status in TIMER_TONES ? (status as TimerStatus) : "idle";
+}
+
 /** phase → CSS color var for ambient ring/rail/glow (tokens only). */
 export const TIMER_PHASE_COLOR: Record<TimerStatus, string> = {
   idle: "var(--muted-foreground)",
