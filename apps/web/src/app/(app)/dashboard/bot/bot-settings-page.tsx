@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SaveBar } from "@/components/save-bar";
+import { TwitchIcon } from "@/components/icons/twitch-icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusChip } from "@/components/status-chip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -296,7 +297,6 @@ export default function BotSettingsPage() {
   const [taskMessages, setTaskMessages] = useState<TaskMessagesConfig>(DEFAULT_TASK_MESSAGES);
   const [timerMessages, setTimerMessages] = useState<TimerMessagesConfig>(DEFAULT_TIMER_MESSAGES);
   const [aliasRows, setAliasRows] = useState<AliasRow[]>([]);
-  const [hasUnsaved, setHasUnsaved] = useState(false);
 
   // Saved state (for reset)
   const [savedTaskCommandsEnabled, setSavedTaskCommandsEnabled] = useState(true);
@@ -367,21 +367,16 @@ export default function BotSettingsPage() {
     updateMessagesMutation.isPending ||
     updateAliasesMutation.isPending;
 
-  const markUnsaved = useCallback(() => setHasUnsaved(true), []);
-
   const handleTaskMessagesChange = useCallback((newMessages: TaskMessagesConfig) => {
     setTaskMessages(newMessages);
-    setHasUnsaved(true);
   }, []);
 
   const handleTimerMessagesChange = useCallback((newMessages: TimerMessagesConfig) => {
     setTimerMessages(newMessages);
-    setHasUnsaved(true);
   }, []);
 
   const handleAliasRowsChange = useCallback((rows: AliasRow[]) => {
     setAliasRows(rows);
-    setHasUnsaved(true);
   }, []);
 
   const handleReset = useCallback(() => {
@@ -390,7 +385,6 @@ export default function BotSettingsPage() {
     setTaskMessages(savedTaskMessages);
     setTimerMessages(savedTimerMessages);
     setAliasRows(savedAliasRows);
-    setHasUnsaved(false);
   }, [
     savedTaskCommandsEnabled,
     savedTimerCommandsEnabled,
@@ -422,7 +416,6 @@ export default function BotSettingsPage() {
       setSavedTaskMessages(taskMessages);
       setSavedTimerMessages(timerMessages);
       setSavedAliasRows(aliasRows);
-      setHasUnsaved(false);
       toast.success("Bot settings saved");
     } catch {
       // per-mutation onError already surfaced the failure
@@ -450,6 +443,10 @@ export default function BotSettingsPage() {
       (row, i) =>
         row.key !== savedAliasRows[i]?.key || row.value !== savedAliasRows[i]?.value,
     );
+
+  // Single source of truth: the guard + save bar derive from the same
+  // comparisons as the tab dots, so reverting an edit clears them all.
+  const hasUnsaved = taskDirty || timerDirty || aliasDirty;
 
   if (config.isLoading) {
     return <BotSettingsSkeleton />;
@@ -534,9 +531,7 @@ export default function BotSettingsPage() {
                     nativeButton={false}
                     render={<a href="/api/bot/authorize" />}
                   >
-                    <svg className="size-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
-                      <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z" />
-                    </svg>
+                    <TwitchIcon className="size-3.5" />
                     Connect Bot Account
                   </Button>
                 </div>
@@ -598,10 +593,7 @@ export default function BotSettingsPage() {
                     subtitle="Viewer task management via chat"
                     idPrefix="task"
                     enabled={taskCommandsEnabled}
-                    onEnabledChange={(checked) => {
-                      setTaskCommandsEnabled(checked);
-                      markUnsaved();
-                    }}
+                    onEnabledChange={setTaskCommandsEnabled}
                     commands={taskCommands}
                     fields={taskMessageFields}
                     messages={taskMessages}
@@ -617,10 +609,7 @@ export default function BotSettingsPage() {
                     subtitle="Mod-only timer control via chat"
                     idPrefix="timer"
                     enabled={timerCommandsEnabled}
-                    onEnabledChange={(checked) => {
-                      setTimerCommandsEnabled(checked);
-                      markUnsaved();
-                    }}
+                    onEnabledChange={setTimerCommandsEnabled}
                     commands={timerCommands}
                     fields={timerMessageFields}
                     messages={timerMessages}

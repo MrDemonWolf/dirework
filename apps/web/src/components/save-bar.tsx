@@ -2,6 +2,7 @@
 
 import { Loader2, RotateCcw, Save } from "lucide-react";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { StatusChip } from "@/components/status-chip";
 import { Button } from "@/components/ui/button";
 
@@ -34,10 +35,18 @@ export function SaveBar({
       <div className="container mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
         <StatusChip tone="warn" label={label} />
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={onReset} disabled={saving}>
-            <RotateCcw className="size-3.5" />
-            Reset
-          </Button>
+          <ConfirmDialog
+            trigger={
+              <Button variant="outline" size="sm" disabled={saving}>
+                <RotateCcw className="size-3.5" />
+                Reset
+              </Button>
+            }
+            title="Discard unsaved changes?"
+            description="All edits since your last save will be reverted. This cannot be undone."
+            confirmLabel="Discard changes"
+            onConfirm={onReset}
+          />
           <Button size="sm" onClick={onSave} disabled={saving}>
             {saving ? (
               <Loader2 className="size-3.5 animate-spin" />

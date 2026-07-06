@@ -91,8 +91,10 @@ export const themePresets: ThemePreset[] = [
     name: "Default",
     description: "MrDemonWolf midnight blue with cerulean accents",
     preview: { bg: "#091533", accent: "#00aced", text: "#ffffff" },
-    timerStyles: { ...defaultTimerStyles },
-    taskStyles: { ...defaultTaskStyles },
+    // Deep-clone so nested objects (ring, header, checkbox…) aren't shared
+    // with the exported defaults — same isolation the tasks() helper gives.
+    timerStyles: JSON.parse(JSON.stringify(defaultTimerStyles)) as TimerStylesConfig,
+    taskStyles: JSON.parse(JSON.stringify(defaultTaskStyles)) as TaskStylesConfig,
   },
 
   // ─── 2. Ocean Depths (calm navy + teal) ─────────────────────────────

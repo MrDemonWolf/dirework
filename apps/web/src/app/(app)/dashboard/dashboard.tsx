@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Bot, Copy, Eye, EyeOff, RefreshCw } from "lucide-react";
@@ -112,13 +112,21 @@ function OverlayUrlRow({
   regenerating: boolean;
 }) {
   const [revealed, setRevealed] = useState(false);
+  const [origin, setOrigin] = useState("");
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+
+  // Show the full origin-prefixed URL — what the user pastes into OBS.
+  const fullUrl = origin ? `${origin}${path}` : path;
 
   return (
     <div className="flex items-center gap-1.5">
       <input
         type="text"
         readOnly
-        value={revealed ? path : "•".repeat(40)}
+        value={revealed ? fullUrl : "•".repeat(40)}
         className="panel-inset h-9 min-w-0 flex-1 truncate px-3 font-mono text-base md:text-xs"
         aria-hidden={revealed ? undefined : true}
         tabIndex={revealed ? undefined : -1}
