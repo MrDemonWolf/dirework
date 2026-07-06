@@ -4,17 +4,26 @@
 // runtime detection (which picks bun whenever bun is the package manager).
 import alchemy from "alchemy";
 import { D1Database, Nextjs, Worker } from "alchemy/cloudflare";
+import { D1StateStore } from "alchemy/state";
 import { config } from "dotenv";
 
 config({ path: "./.env" });
 config({ path: "../../apps/web/.env" });
 config({ path: "../../apps/server/.env" });
 
-const app = await alchemy("dirework");
+// CI runners are ephemeral — the default local-file state store would lose
+// Alchemy's record of already-created resources between deploys, causing it
+// to try (and fail) to recreate them. D1StateStore persists state in its own
+// small D1 database instead, which is free-tier compatible (no Durable
+// Objects, unlike CloudflareStateStore).
+const app = await alchemy("dirework", {
+  stateStore: (scope) => new D1StateStore(scope),
+});
 
 const db = await D1Database("database", {
   name: "dirework-db",
   migrationsDir: "../../packages/db/src/migrations",
+  adopt: true,
 });
 
 // API worker: dirework-api.<account>.workers.dev
