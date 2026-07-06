@@ -55,6 +55,20 @@ export const server = await Worker("server", {
 export const web = await Nextjs("web", {
   name: "dirework",
   cwd: "../../apps/web",
+  // Alchemy's own esbuild pass over the OpenNext output has no loader for
+  // next/og's compiled default font (Geist-Regular.ttf.bin, pulled in by
+  // apps/web/src/app/opengraph-image.tsx) — add it, keeping Alchemy's
+  // required defaults for the rest.
+  bundle: {
+    minify: true,
+    loader: {
+      ".js": "jsx",
+      ".mjs": "jsx",
+      ".cjs": "jsx",
+      ".sql": "text",
+      ".bin": "binary",
+    },
+  },
   bindings: {
     NEXT_PUBLIC_SERVER_URL: server.url!,
     // Read by the web worker via process.env (OpenNext surfaces bindings there):
