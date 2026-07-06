@@ -27,8 +27,8 @@ describe("defaultTaskStyles", () => {
 });
 
 describe("themePresets", () => {
-  it("should have 11 presets", () => {
-    expect(themePresets).toHaveLength(11);
+  it("should have 6 presets", () => {
+    expect(themePresets).toHaveLength(6);
   });
 
   it("should have unique IDs for all presets", () => {

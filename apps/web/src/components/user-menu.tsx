@@ -1,15 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { ChevronDown, LogOut } from "lucide-react";
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth-client";
+import { TwitchIcon } from "@/components/icons/twitch-icon";
 
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
@@ -25,7 +27,7 @@ export default function UserMenu() {
   if (!session) {
     return (
       <Button
-        variant="outline"
+        className="bg-twitch text-white hover:bg-twitch-hover"
         onClick={() =>
           authClient.signIn.social({
             provider: "twitch",
@@ -33,6 +35,7 @@ export default function UserMenu() {
           })
         }
       >
+        <TwitchIcon className="size-3.5" />
         Sign In
       </Button>
     );
@@ -58,8 +61,14 @@ export default function UserMenu() {
           </div>
         )}
         <span className="text-xs font-medium">{session.user.name}</span>
+        <ChevronDown className="size-3.5 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="bg-card" align="end">
+        {/* Identity header — non-interactive */}
+        <div className="px-2 py-1.5">
+          <p className="text-sm font-medium">{session.user.name}</p>
+        </div>
+        <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => {
             authClient.signOut({

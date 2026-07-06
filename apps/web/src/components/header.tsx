@@ -24,7 +24,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-background/60 backdrop-blur-2xl backdrop-saturate-150">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <div className="flex items-center gap-8">
           <Link
             href="/"
@@ -71,7 +71,7 @@ export default function Header() {
                       "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                       isActive
                         ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                        : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
                     )}
                   >
                     <item.icon className="size-4" />
@@ -104,8 +104,8 @@ export default function Header() {
 
       {/* Mobile nav dropdown */}
       {session && mobileMenuOpen && (
-        <nav className="border-t border-border/40 bg-background/80 backdrop-blur-2xl md:hidden">
-          <div className="mx-auto flex max-w-5xl flex-col gap-1 px-4 py-3">
+        <nav className="animate-[console-rise_0.2s_cubic-bezier(0.22,1,0.36,1)_both] border-t border-border/40 bg-background/80 backdrop-blur-2xl md:hidden">
+          <div className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3">
             {navItems.map((item) => {
               const isActive =
                 item.href === "/dashboard"
@@ -122,7 +122,7 @@ export default function Header() {
                     "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                     isActive
                       ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                      : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
                   )}
                 >
                   <item.icon className="size-4" />

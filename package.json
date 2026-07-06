@@ -40,6 +40,7 @@
     "dev:web": "turbo run dev -F web",
     "dev:server": "turbo run dev -F server",
     "db:generate": "turbo run db:generate -F @dirework/db",
+    "tokens": "bun design-system/scripts/generate.ts",
     "deploy": "turbo run deploy -F @dirework/infra",
     "destroy": "turbo run destroy -F @dirework/infra"
   },

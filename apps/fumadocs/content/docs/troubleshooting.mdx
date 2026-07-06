@@ -80,12 +80,13 @@ The overlays are designed to be transparent. In OBS browser source settings, mak
 
 ### Timer stuck at 0:00 / not transitioning
 
-Phase transitions are triggered by the **dashboard** — when the countdown reaches 0, the
-open dashboard page tells the server to move to the next phase.
+Phase transitions are **read-driven** — any active read advances an overdue timer to its
+next phase. That includes an open timer overlay in OBS (which polls every ~2s), the
+dashboard, or an incoming chat command. There is no always-on server, so *something* has
+to read the timer for it to move.
 
-- Keep the dashboard open in a browser tab while the timer is running
-- The overlays display the timer but don't drive it
-- If the timer is stuck, try clicking **Stop** (square button) and starting a new session
+- Keep a timer overlay live in OBS (or the dashboard open) while the timer is running — either one nudges it forward
+- If the timer is genuinely stuck, try clicking **Stop** (square button) and starting a new session
 
 ### Timer starts but only counts down 5 seconds
 

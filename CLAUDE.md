@@ -158,11 +158,12 @@ don't blank. Two ring shapes: circle + rounded-rect squircle.
 
 Design language: **"Focus Console"** — dark-first instrument panel. Montserrat (display,
 tabular-nums timer digits), IBM Plex Sans (body), IBM Plex Mono (labels/tokens/status).
-Warm charcoal base, Twitch purple accent used sparingly, amber = paused, emerald =
+Warm charcoal base, teal accent used sparingly (Twitch purple reserved for the
+Twitch sign-in/connect buttons), amber = paused, emerald =
 live/connected (LED-style chips). All animation respects `prefers-reduced-motion`;
 inputs ≥16px on touch (iOS zoom). Destructive actions (token regenerate, disconnect,
 clear, stop) always confirm via the AlertDialog primitive. Editors with dirty state use
-the unsaved-changes guard hook. 11 theme presets in `lib/theme-presets.ts`.
+the unsaved-changes guard hook. 6 theme presets in `lib/theme-presets.ts`.
 
 ### Hydration Safety
 
