@@ -33,8 +33,9 @@ jobs:
       BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
       TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
       TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
-      BETTER_AUTH_URL: "https://dirework.mrdemonwolf.workers.dev"
-      CORS_ORIGIN: "https://dirework.mrdemonwolf.workers.dev"
+      BETTER_AUTH_URL: ${{ vars.BETTER_AUTH_URL }}
+      CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
+      NEXT_PUBLIC_SERVER_URL: ${{ vars.NEXT_PUBLIC_SERVER_URL }}
       SKIP_ENV_VALIDATION: "true"
     steps:
       - uses: actions/checkout@v4
