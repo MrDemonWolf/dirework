@@ -5,8 +5,7 @@ Thank you for your interest in contributing to DireWork. This guide covers the s
 ## Prerequisites
 
 - [Bun](https://bun.sh/) v1.1+
-- [Docker](https://www.docker.com/) (for PostgreSQL)
-- [Node.js](https://nodejs.org/) v20+ (for Next.js runtime)
+- [Node.js](https://nodejs.org/) v20+
 - A [Twitch Developer Application](https://dev.twitch.tv/console/apps) for OAuth credentials
 
 ## Setup
@@ -27,30 +26,25 @@ Thank you for your interest in contributing to DireWork. This guide covers the s
 3. **Configure environment variables**:
 
    ```bash
-   cp .env.example .env
+   cp .env.example packages/infra/.env
    ```
 
-   Fill in the required values — see `.env.example` for descriptions.
+   The file must live at `packages/infra/.env` — Alchemy loads it (and also
+   `apps/web/.env` / `apps/server/.env` if present); a repo-root `.env` is never
+   read. Fill in the required values — see `.env.example` for descriptions.
 
-4. **Start the database**:
-
-   ```bash
-   bun run db:start
-   ```
-
-5. **Push the schema** (development only — creates tables without migrations):
-
-   ```bash
-   bun run db:push
-   ```
-
-6. **Start the dev server**:
+4. **Start the dev server**:
 
    ```bash
    bun run dev
    ```
 
-   The web app runs at `http://localhost:3001` and docs at `http://localhost:4000`.
+   This runs Alchemy dev, which provisions a local D1 database and applies
+   migrations automatically — no Docker or PostgreSQL required. The web app runs
+   at `http://localhost:3001` and docs at `http://localhost:4000`.
+
+   > If you change the Drizzle schema, run `bun run db:generate` to produce a new
+   > migration; Alchemy applies it on the next `bun run dev`.
 
 ## Branch Workflow
 

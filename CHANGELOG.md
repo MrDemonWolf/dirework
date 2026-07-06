@@ -27,13 +27,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - Single-owner architecture with a first-time setup flow — the first Twitch account to sign in claims the instance
-- One-command developer setup: `bun run setup` (creates `.env`, starts the database, loads the schema) and `bun run dev:full`
 - Redesigned documentation landing page with a "focus console" theme, three-step quick start, and ADHD-friendly copy
 - Branded loading state (focus-ring spinner) and a warmer first-time setup screen
 - Shared `DEFAULT_PHASE_LABELS` constant and Twitch brand color token to keep timer labels and buttons consistent
 
 ### Changed
-- Rewrote Getting Started, Deployment, and reference docs to match the real stack (Bun + Drizzle + Dockerfile), correcting stale pnpm/Prisma/nixpacks instructions
+- Rewrote Getting Started, Deployment, and reference docs to match the real stack (Bun + Drizzle on Cloudflare D1 + Alchemy/Cloudflare Workers), correcting stale pnpm/Prisma/nixpacks instructions
 - Corrected the bot OAuth callback path in docs to `/api/bot/callback/twitch`
 - Consolidated duplicated timer formatting and route session guards into shared helpers (`formatClock`, `requireSession`)
 

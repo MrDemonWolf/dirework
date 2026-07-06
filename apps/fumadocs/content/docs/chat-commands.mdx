@@ -53,7 +53,7 @@ These commands are always enabled regardless of task or timer command settings.
 
 | Command | Description |
 | --- | --- |
-| `!dwhelp` | Link to this commands reference page |
+| `!dwhelp` | Posts a link to this commands reference page — or, if no docs URL is configured, an inline list of the available commands |
 | `!dwcommands` | Same as `!dwhelp` |
 
 ## Active Task & Focus
@@ -68,7 +68,7 @@ When you add your first task with `!task`, it automatically becomes your **activ
 
 Broadcasters can remap command names in **Bot Settings** (`/dashboard/bot`). For example, you could set `add` to map to `task`, so viewers can use `!add` instead of `!task`.
 
-Aliases only apply to task and timer commands. Meta commands (`!dwhelp`, `!dwcommands`) cannot be aliased.
+Aliases are resolved for every command before it runs, so an alias can remap to any command — task, timer, `!clear`, and even the meta commands (`!dwhelp`, `!dwcommands`). The built-in command names always keep working regardless of your aliases.
 
 ## Task Priority
 
@@ -130,4 +130,4 @@ All bot response messages are customizable from the **Bot Settings** page (`/das
 | `{oldTask}` | The task that was just completed (used in `!next`) |
 | `{newTask}` | The new task now being tracked (used in `!next`) |
 | `{channel}` | The Twitch channel name, used as @mention to ping chat |
-| `{time}` | The estimated end time formatted as local clock time (e.g., `3:45 PM`) |
+| `{time}` | The estimated end time formatted as local clock time (e.g., `03:45 PM`) |
