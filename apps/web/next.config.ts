@@ -1,4 +1,5 @@
 import "@dirework/env/web";
+import { execSync } from "node:child_process";
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 import type { NextConfig } from "next";
 
@@ -11,9 +12,20 @@ initOpenNextCloudflareForDev();
 // `next dev` works without a deployed api worker.
 const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhost:3000";
 
+const commitSha = (() => {
+  try {
+    return execSync("git rev-parse --short HEAD").toString().trim();
+  } catch {
+    return "dev";
+  }
+})();
+
 const nextConfig: NextConfig = {
   typedRoutes: true,
   reactCompiler: true,
+  env: {
+    NEXT_PUBLIC_COMMIT_SHA: commitSha,
+  },
   async rewrites() {
     return [
       // Protected tRPC — browser calls same-origin /rpc/* with cookies,
