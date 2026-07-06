@@ -33,7 +33,7 @@ Each overlay has a unique token. Click the copy button next to each URL to copy 
 ## Timer Overlay
 
 The timer overlay shows:
-- Current phase label (Starting, Focus, Break, Long Break, Done)
+- Current phase label (defaults are wolf-themed and editable in Theme Center — e.g. "Gathering the Pack", "On the Hunt", "Den Rest", "Pack Slumber", "Paws'd", "Hunt Complete")
 - Countdown timer with configurable font
 - Cycle count (e.g. 1/4)
 - Progress ring (circle or rounded rectangle shape)
@@ -45,7 +45,7 @@ The timer automatically transitions through phases: Starting (5s countdown) → 
 The timer supports two progress ring shapes:
 
 - **Circle** — Standard circular ring using SVG `<circle>`
-- **Rounded Rectangle (Squircle)** — macOS-style rounded rectangle using SVG `<rect>` with configurable border radius (default 22%)
+- **Rounded Rectangle (Squircle)** — macOS-style rounded corners, drawn as an SVG `<path>`. The corner radius comes from the **Background border radius** setting (default 22%), which is shared with the container — there is no separate ring radius. Set that value to `50%` to switch the ring to a full circle instead.
 
 ## Task List Overlay
 
@@ -72,10 +72,14 @@ Both overlays are fully customizable through the **Theme Center** at `/dashboard
 | --- | --- |
 | **Dimensions** | Width, height |
 | **Background** | Color, opacity, border radius |
-| **Progress Ring** | Enabled/disabled, track color, fill color, track/fill opacity, width, gap, shape (circle/rounded rect) |
+| **Progress Ring** | Enabled/disabled, track color, fill color, track/fill opacity, width, gap |
 | **Text** | Color, outline color, outline size, font family |
 | **Font Sizes** | Phase label, countdown time, cycle count |
-| **Labels** | Custom text for each phase (Focus, Break, Long Break, Starting, Done) |
+| **Labels** | Custom text for each of the seven phases — Idle, Starting, Work, Break, Long Break, Paused, Finished. Defaults are wolf-themed: "Resting", "Gathering the Pack", "On the Hunt", "Den Rest", "Pack Slumber", "Paws'd", "Hunt Complete". |
+
+> The progress ring has no dedicated shape control — its shape follows the **Background**
+> border radius. Set the border radius to `50%` for a circle; any other value (e.g. `22%`)
+> renders a rounded rectangle (squircle).
 
 ### Task List Overlay Settings
 

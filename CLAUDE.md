@@ -187,7 +187,8 @@ New pure functions → extract to testable modules + add tests.
   **Deploy runs under Node via `npx tsx` — Bun segfaults on the Alchemy program** (same
   lesson as Wolfathon). Secrets: `CLOUDFLARE_API_TOKEN`, `ALCHEMY_PASSWORD`,
   `BETTER_AUTH_SECRET`, `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`. URLs
-  (`BETTER_AUTH_URL`/`CORS_ORIGIN`) are workflow env literals.
+  (`BETTER_AUTH_URL`, `CORS_ORIGIN`, `NEXT_PUBLIC_SERVER_URL`) are GitHub repository
+  **variables**, read by the deploy job via `${{ vars.* }}` (not workflow literals).
 - `.github/workflows/deploy-docs-to-pages.yml` — fumadocs static export → GitHub Pages.
 
 ## Deployment
