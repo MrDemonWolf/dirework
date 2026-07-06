@@ -36,6 +36,10 @@ jobs:
       BETTER_AUTH_URL: "https://dirework.mrdemonwolf.workers.dev"
       CORS_ORIGIN: "https://dirework.mrdemonwolf.workers.dev"
       SKIP_ENV_VALIDATION: "true"
+      # Alchemy refuses the default local state store in CI (orphan-infra guard).
+      # Named resources (D1/Workers) are adopted by name on re-deploy, so a
+      # non-persistent per-run state file is safe here — same as wolfathon.
+      ALCHEMY_CI_STATE_STORE_CHECK: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
