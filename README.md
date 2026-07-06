@@ -17,7 +17,7 @@ instance, zero distractions.
 - **Task List** - Viewers add and manage tasks via chat
   commands, displayed as a scrolling OBS overlay.
 - **Twitch Bot** - Dedicated bot account for chat commands
-  like `!task`, `!done`, `!timer start`, and `!time`. Customizable
+  like `!task`, `!done`, `!timer start`, and `!timer eta`. Customizable
   wolf-themed response messages, enable/disable toggles for task
   and timer command groups, and configurable phase labels. The
   bot runs in a token-gated browser page (OBS source or pinned
@@ -55,37 +55,39 @@ account configuration, and OBS setup, see the
 
 ### Viewer Commands
 
-| Command                | Description                              |
-| ---------------------- | ---------------------------------------- |
-| `!task <text>`         | Add a new task                           |
-| `!done [number]`       | Mark your oldest (or specific) task done |
-| `!edit [number] <text>`| Edit your oldest (or specific) task      |
-| `!remove [number]`     | Remove your oldest (or specific) task    |
-| `!next <text>`         | Complete current task and start a new one|
-| `!check [@user]`       | Show your (or another user's) tasks      |
+| Command                 | Description                                |
+| ----------------------- | ------------------------------------------ |
+| `!task <text>`          | Add a new task                             |
+| `!done [number]`        | Mark your active (or a numbered) task done |
+| `!edit <number> <text>` | Edit the numbered task                     |
+| `!remove <number>`      | Remove the numbered task                   |
+| `!focus <number>`       | Make the numbered task your active task    |
+| `!check [@user]`        | Show your (or another user's) active task  |
+| `!next <text>`          | Complete active task and start a new one   |
+| `!help`                 | Show the command help message              |
 
 ### Mod Commands
 
 | Command          | Description                           |
 | ---------------- | ------------------------------------- |
-| `!clear`         | Clear all tasks                       |
-| `!cleardone`     | Clear completed tasks                 |
-| `!adel @user`    | Remove all tasks from a user          |
+| `!clear all`     | Clear all tasks                       |
+| `!clear done`    | Clear completed tasks                 |
+| `!clear @user`   | Remove all tasks from a specific user |
 
-### Timer Commands
+### Timer Commands (mods only)
 
-| Command               | Description                    |
-| --------------------- | ------------------------------ |
-| `!timer start`        | Start the timer                |
-| `!timer <minutes>`    | Start with specific duration   |
-| `!timer pause/resume` | Pause or resume the timer      |
-| `!timer skip`         | Skip the current phase         |
-| `!timer goal <num>`   | Set pomodoro cycle count       |
-| `!time`               | Show remaining time            |
-| `!eta`                | Show when the timer ends       |
+| Command                 | Description                                 |
+| ----------------------- | ------------------------------------------- |
+| `!timer start [cycles]` | Start the timer (optional cycle count 1-99) |
+| `!timer pause`          | Pause the timer                             |
+| `!timer resume`         | Resume the timer                            |
+| `!timer skip`           | Skip the current phase                      |
+| `!timer reset`          | Reset the timer                             |
+| `!timer eta`            | Show when the timer ends                    |
 
 See the [full command reference](https://mrdemonwolf.github.io/dirework/docs/chat-commands)
-for all options and customizable bot responses.
+for all options and customizable bot responses. Viewers can also run `!dwhelp` or
+`!dwcommands` in chat at any time to get the command list.
 
 ### Bot Configuration
 

@@ -8,8 +8,9 @@ workers and a database, all on Cloudflare's free plan. No servers, no Docker, no
 database to babysit.
 
 <Callout>
-  **The short version:** create a Cloudflare API token, set five GitHub secrets, push to
-  `main`. GitHub Actions deploys both workers and the database for you.
+  **The short version:** create a Cloudflare API token, set five GitHub secrets and three
+  repository variables, push to `main`. GitHub Actions deploys both workers and the
+  database for you.
 </Callout>
 
 ## What gets deployed
@@ -63,8 +64,18 @@ In your repository: **Settings → Secrets and variables → Actions → New rep
   Generate fresh secrets for production — never reuse the ones from your computer.
 </Callout>
 
-If your workers.dev subdomain isn't `mrdemonwolf`, also edit the two URLs at the top of
-`.github/workflows/deploy.yml` (`BETTER_AUTH_URL` and `CORS_ORIGIN`) to match yours.
+### And set these repository variables
+
+Switch to the **Variables** tab (same **Settings → Secrets and variables → Actions**
+page) → **New repository variable**. Swap in your own workers.dev subdomain:
+
+| Variable | Value |
+|---|---|
+| `BETTER_AUTH_URL` | `https://dirework.<your-subdomain>.workers.dev` (your web origin) |
+| `CORS_ORIGIN` | `https://dirework.<your-subdomain>.workers.dev` (same web origin) |
+| `NEXT_PUBLIC_SERVER_URL` | `https://dirework-api.<your-subdomain>.workers.dev` (your API origin) |
+
+The deploy workflow reads these via `${{ vars.* }}` — you don't edit the workflow file.
 
 ## Step 4 — Push to main
 
