@@ -14,14 +14,14 @@ export default async function SetupPage() {
     getServerSession(),
   ]);
 
-  // Instance already claimed — this route no longer exists
-  if (owned) {
-    notFound();
-  }
-
-  // Already signed in (shouldn't happen on fresh install, but handle gracefully)
+  // Already signed in — go straight to the dashboard regardless of claim state.
   if (session?.user) {
     redirect("/dashboard");
+  }
+
+  // Instance already claimed, no session — this route no longer exists.
+  if (owned) {
+    notFound();
   }
 
   return <SetupContent />;
