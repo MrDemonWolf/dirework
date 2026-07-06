@@ -38,7 +38,7 @@ The timer overlay shows:
 - Cycle count (e.g. 1/4)
 - Progress ring (circle or rounded rectangle shape)
 
-The timer automatically transitions through phases: starting (5s countdown) → work → break → work → ... → finished. No manual intervention needed once started — just keep the dashboard open in a tab, since it's what nudges the timer into the next phase when the countdown hits 0.
+The timer automatically transitions through phases: Starting (5s countdown) → Focus → Break → Focus → … with a Long Break replacing the regular Break every few cycles (4 by default), ending in Done after the final Focus. Transitions are read-driven, so an open timer overlay in OBS advances the timer on its own (it polls every ~2s) — no dashboard tab needs to stay open. The dashboard or an incoming chat command will nudge it forward too.
 
 ### Progress Ring Shapes
 
@@ -93,19 +93,14 @@ Both overlays are fully customizable through the **Theme Center** at `/dashboard
 
 ### Theme Presets
 
-The Theme Center includes 11 built-in presets to get you started:
+The Theme Center includes 6 built-in presets to get you started:
 
 1. **Default** — Clean dark style
-2. **Liquid Glass Light** — Translucent light glass
+2. **Ocean Depths** — Deep blue aquatic
 3. **Liquid Glass Dark** — Translucent dark glass
-4. **Neon Cyberpunk** — Bright neon on dark
-5. **Cozy Cottage** — Warm earth tones
-6. **Ocean Depths** — Deep blue aquatic
-7. **Sakura** — Japanese cherry blossom pink
-8. **Retro Terminal** — Green-on-black terminal
-9. **Minimal Light** — Clean white minimal
-10. **Sunset** — Warm orange/red gradient
-11. **Twitch Purple** — Twitch brand colors
+4. **Cozy Cottage** — Warm earth tones
+5. **Minimal Light** — Clean white minimal
+6. **Twitch Purple** — Twitch brand colors
 
 Apply a preset as a starting point, then customize individual settings to match your stream.
 

@@ -311,7 +311,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl">
           <SectionHead
             eyebrow="Theme Center"
-            title={<>Eleven themes. Every pixel yours.</>}
+            title={<>Six themes. Every pixel yours.</>}
             sub="Start from a preset, then tune every color, font, size, and corner radius in a live editor. Or build the look of your whole channel from scratch."
           />
           <div className="mt-12">
@@ -353,7 +353,7 @@ export default function HomePage() {
               {
                 icon: Palette,
                 title: "Theme Center",
-                body: "Visual style editor with 11 presets. Customize every color, font, size, and spacing for both overlays.",
+                body: "Visual style editor with 6 presets. Customize every color, font, size, and spacing for both overlays.",
               },
             ].map(({ icon: Icon, title, body }) => (
               <div

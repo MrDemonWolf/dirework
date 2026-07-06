@@ -4,17 +4,18 @@ import { Timer, ListTodo, Bot, Palette } from "lucide-react";
 
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
+import { TwitchIcon } from "@/components/icons/twitch-icon";
 
 const perks = [
   { icon: Timer, label: "A Pomodoro timer your viewers can see in OBS" },
   { icon: ListTodo, label: "A shared task list your chat fills in" },
   { icon: Bot, label: "A Twitch bot that runs the commands for you" },
-  { icon: Palette, label: "11 themes — or style every pixel yourself" },
+  { icon: Palette, label: "6 themes — or style every pixel yourself" },
 ];
 
 export default function SetupContent() {
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center px-4 py-8">
+    <div className="flex min-h-full flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
         {/* Focus ring badge — the brand motif */}
         <div className="mb-6 flex justify-center">
@@ -88,9 +89,7 @@ export default function SetupContent() {
             })
           }
         >
-          <svg className="size-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
-            <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z" />
-          </svg>
+          <TwitchIcon className="size-4" />
           Claim with Twitch
         </Button>
 

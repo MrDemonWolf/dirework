@@ -79,11 +79,11 @@ No other third-party services receive your data.
 
 ## Data Storage and Security
 
-All data is stored in the PostgreSQL database configured by the instance operator. DireWork does not transmit data to any external storage.
+All data is stored in a Cloudflare D1 (SQLite) database bound to the instance operator's Cloudflare Workers deployment. DireWork does not transmit data to any external storage.
 
 The instance operator is responsible for:
 
-- Securing the server and database.
+- Securing their Cloudflare account and the D1 database binding.
 - Configuring backups and disaster recovery.
 - Protecting bot OAuth tokens, which are sensitive credentials.
 - Complying with applicable data protection laws.

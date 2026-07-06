@@ -48,6 +48,13 @@ export const web = await Nextjs("web", {
   cwd: "../../apps/web",
   bindings: {
     NEXT_PUBLIC_SERVER_URL: server.url!,
+    // Read by the web worker via process.env (OpenNext surfaces bindings there):
+    // metadataBase in app/layout.tsx and the footer legal links in (app)/layout.tsx.
+    BETTER_AUTH_URL: alchemy.env.BETTER_AUTH_URL!,
+    // Optional — plain process.env (alchemy.env throws on unset); "" reads as
+    // falsy so the footer legal links stay hidden when the operator omits them.
+    PRIVACY_POLICY_URL: process.env.PRIVACY_POLICY_URL ?? "",
+    TERMS_OF_SERVICE_URL: process.env.TERMS_OF_SERVICE_URL ?? "",
   },
   dev: {
     env: {

@@ -1,11 +1,8 @@
 "use client";
 
 import type { TimerStylesConfig } from "@/lib/config-types";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
 import { ColorInput } from "./color-input";
+import { SliderRow, SwitchRow, TextFieldRow } from "./field-row";
 import { FontSelect } from "./font-select";
 import { SectionGroup } from "./section-group";
 
@@ -27,26 +24,24 @@ export function TimerStyleEditor({
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-3">
       <SectionGroup title="Dimensions">
-        <div className="flex items-center gap-2">
-          <Label htmlFor="timer-style-dimensions-width" className="w-28 shrink-0 text-xs text-muted-foreground">Width</Label>
-          <Input
-            id="timer-style-dimensions-width"
-            value={styles.dimensions.width}
-            onChange={(e) => update("dimensions", { width: e.target.value })}
-            className="h-8 w-24"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Label htmlFor="timer-style-dimensions-height" className="w-28 shrink-0 text-xs text-muted-foreground">Height</Label>
-          <Input
-            id="timer-style-dimensions-height"
-            value={styles.dimensions.height}
-            onChange={(e) => update("dimensions", { height: e.target.value })}
-            className="h-8 w-24"
-          />
-        </div>
+        <TextFieldRow
+          label="Width"
+          id="timer-style-dimensions-width"
+          value={styles.dimensions.width}
+          onChange={(v) => update("dimensions", { width: v })}
+          unit="px"
+          placeholder="280px"
+        />
+        <TextFieldRow
+          label="Height"
+          id="timer-style-dimensions-height"
+          value={styles.dimensions.height}
+          onChange={(v) => update("dimensions", { height: v })}
+          unit="px"
+          placeholder="280px"
+        />
       </SectionGroup>
 
       <SectionGroup title="Background">
@@ -56,109 +51,79 @@ export function TimerStyleEditor({
           value={styles.background.color}
           onChange={(v) => update("background", { color: v })}
         />
-        <div className="flex items-center gap-2">
-          <Label id="timer-style-bg-opacity-label" className="w-28 shrink-0 text-xs text-muted-foreground">Opacity</Label>
-          <Slider
-            aria-labelledby="timer-style-bg-opacity-label"
-            value={[styles.background.opacity * 100]}
-            onValueChange={(v) => update("background", { opacity: (Array.isArray(v) ? v[0] : v) / 100 })}
-            min={0}
-            max={100}
-            className="w-32"
-          />
-          <span className="w-10 text-right text-xs text-muted-foreground">
-            {Math.round(styles.background.opacity * 100)}%
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Label htmlFor="timer-style-bg-border-radius" className="w-28 shrink-0 text-xs text-muted-foreground">Border Radius</Label>
-          <Input
-            id="timer-style-bg-border-radius"
-            value={styles.background.borderRadius}
-            onChange={(e) => update("background", { borderRadius: e.target.value })}
-            className="h-8 w-24"
-          />
-        </div>
+        <SliderRow
+          label="Opacity"
+          id="timer-style-bg-opacity"
+          value={Math.round(styles.background.opacity * 100)}
+          onChange={(v) => update("background", { opacity: v / 100 })}
+          min={0}
+          max={100}
+          format={(v) => `${v}%`}
+        />
+        <TextFieldRow
+          label="Border Radius"
+          id="timer-style-bg-border-radius"
+          value={styles.background.borderRadius}
+          onChange={(v) => update("background", { borderRadius: v })}
+          placeholder="50%"
+        />
       </SectionGroup>
 
       <SectionGroup title="Progress Ring">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="timer-style-ring-enabled" className="text-xs text-muted-foreground">Enabled</Label>
-          <Switch
-            id="timer-style-ring-enabled"
-            checked={styles.ring.enabled}
-            onCheckedChange={(v) => update("ring", { enabled: v as boolean })}
-            size="sm"
-          />
-        </div>
+        <SwitchRow
+          label="Enabled"
+          id="timer-style-ring-enabled"
+          checked={styles.ring.enabled}
+          onChange={(v) => update("ring", { enabled: v })}
+        />
         <ColorInput
           label="Fill Color"
           id="timer-style-ring-fill-color"
           value={styles.ring.fillColor}
           onChange={(v) => update("ring", { fillColor: v })}
         />
-        <div className="flex items-center gap-2">
-          <Label id="timer-style-ring-fill-opacity-label" className="w-28 shrink-0 text-xs text-muted-foreground">Fill Opacity</Label>
-          <Slider
-            aria-labelledby="timer-style-ring-fill-opacity-label"
-            value={[styles.ring.fillOpacity * 100]}
-            onValueChange={(v) => update("ring", { fillOpacity: (Array.isArray(v) ? v[0] : v) / 100 })}
-            min={0}
-            max={100}
-            className="w-32"
-          />
-          <span className="w-10 text-right text-xs text-muted-foreground">
-            {Math.round(styles.ring.fillOpacity * 100)}%
-          </span>
-        </div>
+        <SliderRow
+          label="Fill Opacity"
+          id="timer-style-ring-fill-opacity"
+          value={Math.round(styles.ring.fillOpacity * 100)}
+          onChange={(v) => update("ring", { fillOpacity: v / 100 })}
+          min={0}
+          max={100}
+          format={(v) => `${v}%`}
+        />
         <ColorInput
           label="Track Color"
           id="timer-style-ring-track-color"
           value={styles.ring.trackColor}
           onChange={(v) => update("ring", { trackColor: v })}
         />
-        <div className="flex items-center gap-2">
-          <Label id="timer-style-ring-track-opacity-label" className="w-28 shrink-0 text-xs text-muted-foreground">Track Opacity</Label>
-          <Slider
-            aria-labelledby="timer-style-ring-track-opacity-label"
-            value={[styles.ring.trackOpacity * 100]}
-            onValueChange={(v) => update("ring", { trackOpacity: (Array.isArray(v) ? v[0] : v) / 100 })}
-            min={0}
-            max={100}
-            className="w-32"
-          />
-          <span className="w-10 text-right text-xs text-muted-foreground">
-            {Math.round(styles.ring.trackOpacity * 100)}%
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Label id="timer-style-ring-width-label" className="w-28 shrink-0 text-xs text-muted-foreground">Width</Label>
-          <Slider
-            aria-labelledby="timer-style-ring-width-label"
-            value={[styles.ring.width]}
-            onValueChange={(v) => update("ring", { width: Array.isArray(v) ? v[0] : v })}
-            min={2}
-            max={20}
-            className="w-32"
-          />
-          <span className="w-10 text-right text-xs text-muted-foreground">
-            {styles.ring.width}px
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Label id="timer-style-ring-gap-label" className="w-28 shrink-0 text-xs text-muted-foreground">Gap</Label>
-          <Slider
-            aria-labelledby="timer-style-ring-gap-label"
-            value={[styles.ring.gap]}
-            onValueChange={(v) => update("ring", { gap: Array.isArray(v) ? v[0] : v })}
-            min={0}
-            max={20}
-            className="w-32"
-          />
-          <span className="w-10 text-right text-xs text-muted-foreground">
-            {styles.ring.gap}px
-          </span>
-        </div>
+        <SliderRow
+          label="Track Opacity"
+          id="timer-style-ring-track-opacity"
+          value={Math.round(styles.ring.trackOpacity * 100)}
+          onChange={(v) => update("ring", { trackOpacity: v / 100 })}
+          min={0}
+          max={100}
+          format={(v) => `${v}%`}
+        />
+        <SliderRow
+          label="Width"
+          id="timer-style-ring-width"
+          value={styles.ring.width}
+          onChange={(v) => update("ring", { width: v })}
+          min={2}
+          max={20}
+          format={(v) => `${v}px`}
+        />
+        <SliderRow
+          label="Gap"
+          id="timer-style-ring-gap"
+          value={styles.ring.gap}
+          onChange={(v) => update("ring", { gap: v })}
+          min={0}
+          max={20}
+          format={(v) => `${v}px`}
+        />
       </SectionGroup>
 
       <SectionGroup title="Text">
@@ -174,15 +139,14 @@ export function TimerStyleEditor({
           value={styles.text.outlineColor}
           onChange={(v) => update("text", { outlineColor: v })}
         />
-        <div className="flex items-center gap-2">
-          <Label htmlFor="timer-style-text-outline-size" className="w-28 shrink-0 text-xs text-muted-foreground">Outline Size</Label>
-          <Input
-            id="timer-style-text-outline-size"
-            value={styles.text.outlineSize}
-            onChange={(e) => update("text", { outlineSize: e.target.value })}
-            className="h-8 w-24"
-          />
-        </div>
+        <TextFieldRow
+          label="Outline Size"
+          id="timer-style-text-outline-size"
+          value={styles.text.outlineSize}
+          onChange={(v) => update("text", { outlineSize: v })}
+          unit="px"
+          placeholder="2px"
+        />
         <FontSelect
           label="Font Family"
           value={styles.text.fontFamily}
@@ -191,33 +155,30 @@ export function TimerStyleEditor({
       </SectionGroup>
 
       <SectionGroup title="Font Sizes">
-        <div className="flex items-center gap-2">
-          <Label htmlFor="timer-style-font-label" className="w-28 shrink-0 text-xs text-muted-foreground">Label</Label>
-          <Input
-            id="timer-style-font-label"
-            value={styles.fontSizes.label}
-            onChange={(e) => update("fontSizes", { label: e.target.value })}
-            className="h-8 w-24"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Label htmlFor="timer-style-font-time" className="w-28 shrink-0 text-xs text-muted-foreground">Time</Label>
-          <Input
-            id="timer-style-font-time"
-            value={styles.fontSizes.time}
-            onChange={(e) => update("fontSizes", { time: e.target.value })}
-            className="h-8 w-24"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Label htmlFor="timer-style-font-cycle" className="w-28 shrink-0 text-xs text-muted-foreground">Cycle</Label>
-          <Input
-            id="timer-style-font-cycle"
-            value={styles.fontSizes.cycle}
-            onChange={(e) => update("fontSizes", { cycle: e.target.value })}
-            className="h-8 w-24"
-          />
-        </div>
+        <TextFieldRow
+          label="Label"
+          id="timer-style-font-label"
+          value={styles.fontSizes.label}
+          onChange={(v) => update("fontSizes", { label: v })}
+          unit="px"
+          placeholder="16px"
+        />
+        <TextFieldRow
+          label="Time"
+          id="timer-style-font-time"
+          value={styles.fontSizes.time}
+          onChange={(v) => update("fontSizes", { time: v })}
+          unit="px"
+          placeholder="48px"
+        />
+        <TextFieldRow
+          label="Cycle"
+          id="timer-style-font-cycle"
+          value={styles.fontSizes.cycle}
+          onChange={(v) => update("fontSizes", { cycle: v })}
+          unit="px"
+          placeholder="14px"
+        />
       </SectionGroup>
     </div>
   );
