@@ -11,31 +11,50 @@ export default function AppLayout({
   const privacyPolicyUrl = process.env.PRIVACY_POLICY_URL;
   const termsOfServiceUrl = process.env.TERMS_OF_SERVICE_URL;
   const showLegalLinks = privacyPolicyUrl || termsOfServiceUrl;
+  const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA;
 
   return (
     <div className="grid min-h-svh grid-rows-[auto_1fr_auto]">
       <Header />
       {children}
       <footer className="border-t border-border/40 py-4 text-center text-xs text-muted-foreground" suppressHydrationWarning>
-        <div>
-          &copy; {new Date().getFullYear()}{" "}
-          <a
-            href="https://github.com/mrdemonwolf/dirework"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium transition-colors hover:text-foreground"
-          >
-            DireWork
-          </a>{" "}
-          by{" "}
-          <a
-            href="https://www.mrdemonwolf.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium transition-colors hover:text-foreground"
-          >
-            MrDemonWolf, Inc.
-          </a>
+        <div className="flex flex-wrap items-center justify-center gap-x-3">
+          <span>
+            &copy; {new Date().getFullYear()}{" "}
+            <a
+              href="https://github.com/mrdemonwolf/dirework"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium transition-colors hover:text-foreground"
+            >
+              DireWork
+            </a>{" "}
+            by{" "}
+            <a
+              href="https://www.mrdemonwolf.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium transition-colors hover:text-foreground"
+            >
+              MrDemonWolf, Inc.
+            </a>
+          </span>
+          {commitSha && (
+            <>
+              <span aria-hidden className="text-muted-foreground/50">
+                &middot;
+              </span>
+              <a
+                href={`https://github.com/mrdemonwolf/dirework/commit/${commitSha}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Deployed commit ${commitSha} — view on GitHub`}
+                className="font-mono transition-colors hover:text-foreground"
+              >
+                {commitSha.slice(0, 7)}
+              </a>
+            </>
+          )}
         </div>
         {showLegalLinks && (
           <div className="mt-2 flex items-center justify-center gap-3">
