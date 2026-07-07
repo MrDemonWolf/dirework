@@ -6,6 +6,7 @@ import {
   Check,
   Cloud,
   Code2,
+  ExternalLink,
   Github,
   Minus,
   MessageSquare,
@@ -546,14 +547,19 @@ bun run dev   # web :3001 · api :3000 · docs :4000`}</pre>
                     <Icon className="w-5 h-5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="dw-display dw-text-1 text-lg mb-1">{title}</h3>
+                    <h3 className="dw-display dw-text-1 text-lg mb-1">
+                      {title}
+                      {external && (
+                        <ExternalLink className="dw-text-2 ml-1 inline size-3.5 align-[-0.1em]" aria-hidden />
+                      )}
+                    </h3>
                     <p className="dw-text-2 text-sm leading-relaxed">{body}</p>
                   </div>
                 </div>
               );
               const cn = "dw-card dw-card-hover panel block";
               return external ? (
-                <a key={title} href={href} target="_blank" rel="noopener noreferrer" className={cn}>
+                <a key={title} href={href} target="_blank" rel="noopener noreferrer" aria-label={`${title} (opens in a new tab)`} className={cn}>
                   {inner}
                 </a>
               ) : (

@@ -25,7 +25,7 @@ export default function AppLayout({
               href="https://github.com/mrdemonwolf/dirework"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-medium transition-colors hover:text-foreground"
+              className="font-medium transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               DireWork
             </a>{" "}
@@ -34,7 +34,7 @@ export default function AppLayout({
               href="https://www.mrdemonwolf.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-medium transition-colors hover:text-foreground"
+              className="font-medium transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               MrDemonWolf, Inc.
             </a>
@@ -49,7 +49,7 @@ export default function AppLayout({
                 target="_blank"
                 rel="noopener noreferrer"
                 title={`Deployed commit ${commitSha} — view on GitHub`}
-                className="font-mono transition-colors hover:text-foreground"
+                className="font-mono transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {commitSha.slice(0, 7)}
               </a>
@@ -63,7 +63,7 @@ export default function AppLayout({
                 href={privacyPolicyUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="transition-colors hover:text-foreground"
+                className="transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Privacy Policy
               </a>
@@ -74,7 +74,7 @@ export default function AppLayout({
                 href={termsOfServiceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="transition-colors hover:text-foreground"
+                className="transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Terms of Service
               </a>

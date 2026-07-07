@@ -125,7 +125,7 @@ export function MessageEditor<T extends object>({
       <div className="relative">
         <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
-          className="h-8 pl-8"
+          className="h-9 pl-8 md:h-8"
           placeholder="Filter messages..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -168,7 +168,7 @@ export function MessageEditor<T extends object>({
                           type="button"
                           onClick={() => insertVariable(field.key, v)}
                           disabled={disabled}
-                          aria-label={`Insert ${v} variable`}
+                          aria-label={`Insert ${v} template variable`}
                           className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
                         >
                           {v}
