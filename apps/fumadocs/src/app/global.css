@@ -3,53 +3,68 @@
 @import "fumadocs-ui/css/preset.css";
 @import "./tokens.generated.css";
 
-/* ──────────────────────────────────────────────────────────
-   Dirework docs. Blue-purple brand (#6E5AF5), Montserrat + Roboto.
-   Liquid-glass surfaces nod to the overlay themes.
-   ────────────────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────────────────
+   Dirework docs — "Focus Console" design language, ported 1:1 from the app
+   (apps/web/src/index.css). Dark is the hero: MrDemonWolf midnight navy base
+   (#091533 family), cool-white text, Cerulean (#00ACED) as the brand accent,
+   Cornflower as the secondary. Twitch purple is reserved for Twitch actions,
+   amber = paused, emerald = live/work phase. IBM Plex Sans body · Montserrat
+   display · IBM Plex Mono labels & numerals.
 
-/* macOS 26 Liquid Glass — Light */
+   The token layer below intentionally KEEPS the old brand / surface / text
+   token names and the dw- class API so the landing widgets keep working — only
+   the values and surface treatments change (flat panels, no liquid glass).
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* ── Fumadocs UI tokens — Light (cool paper, navy cast) ─────────────────── */
 :root {
-  --color-fd-background: hsl(260deg 20% 97%);
-  --color-fd-foreground: hsl(240deg 10% 4%);
-  --color-fd-card: hsl(260deg 20% 99%);
-  --color-fd-card-foreground: hsl(240deg 10% 4%);
-  --color-fd-primary: hsl(248deg 83% 58%);
-  --color-fd-primary-foreground: hsl(0deg 0% 100%);
-  --color-fd-secondary: hsl(260deg 20% 94%);
-  --color-fd-secondary-foreground: hsl(260deg 15% 20%);
-  --color-fd-muted: hsl(260deg 15% 94%);
-  --color-fd-muted-foreground: hsl(240deg 4% 46%);
-  --color-fd-border: hsl(260deg 10% 90%);
-  --color-fd-ring: hsl(248deg 83% 50%);
-  --color-fd-accent: hsl(248deg 30% 96%);
-  --color-fd-accent-foreground: hsl(248deg 50% 45%);
-  --color-fd-overlay: hsl(260deg 20% 0% / 30%);
+  --color-fd-background: oklch(0.97 0.006 240);
+  --color-fd-foreground: oklch(0.23 0.04 260);
+  --color-fd-card: oklch(0.995 0.002 240);
+  --color-fd-card-foreground: oklch(0.23 0.04 260);
+  --color-fd-popover: oklch(0.995 0.002 240);
+  --color-fd-popover-foreground: oklch(0.23 0.04 260);
+  --color-fd-primary: oklch(0.49 0.105 230);
+  --color-fd-primary-foreground: oklch(0.99 0 0);
+  --color-fd-secondary: oklch(0.93 0.012 250);
+  --color-fd-secondary-foreground: oklch(0.3 0.045 255);
+  --color-fd-muted: oklch(0.935 0.01 245);
+  --color-fd-muted-foreground: oklch(0.46 0.035 255);
+  --color-fd-accent: oklch(0.93 0.03 230);
+  --color-fd-accent-foreground: oklch(0.34 0.08 235);
+  --color-fd-border: oklch(0.4 0.03 255 / 18%);
+  --color-fd-ring: oklch(0.52 0.1 230);
+  --color-fd-overlay: oklch(0.23 0.04 260 / 30%);
 
-  --shiki-light: #1a1523;
-  --shiki-light-bg: #f4f3f8;
+  --shiki-light: #14233f;
+  --shiki-light-bg: #eef1f6;
+
+  /* macOS-style control radius for pills / chips / kickers / buttons. */
+  --dw-radius-control: 9px;
 }
 
-/* macOS 26 Liquid Glass — Dark */
+/* ── Fumadocs UI tokens — Dark (midnight navy, the hero) ────────────────── */
 .dark {
-  --color-fd-background: hsl(260deg 15% 6%);
-  --color-fd-foreground: hsl(0deg 0% 98%);
-  --color-fd-muted: hsl(260deg 15% 9%);
-  --color-fd-card: hsl(260deg 15% 10%);
-  --color-fd-card-foreground: hsl(0deg 0% 98%);
-  --color-fd-secondary: hsl(260deg 15% 13%);
-  --color-fd-secondary-foreground: hsl(0deg 0% 98%);
-  --color-fd-muted-foreground: hsl(260deg 10% 72%);
-  --color-fd-primary: hsl(248deg 83% 72%);
-  --color-fd-primary-foreground: hsl(0deg 0% 100%);
-  --color-fd-ring: hsl(248deg 83% 65%);
-  --color-fd-overlay: hsl(260deg 20% 0% / 50%);
-  --color-fd-border: hsl(260deg 15% 18%);
-  --color-fd-accent: hsl(260deg 15% 15%);
-  --color-fd-accent-foreground: hsl(0deg 0% 98%);
+  --color-fd-background: oklch(0.185 0.042 262);
+  --color-fd-foreground: oklch(0.93 0.012 240);
+  --color-fd-card: oklch(0.222 0.046 262);
+  --color-fd-card-foreground: oklch(0.93 0.012 240);
+  --color-fd-popover: oklch(0.235 0.048 262);
+  --color-fd-popover-foreground: oklch(0.93 0.012 240);
+  --color-fd-primary: oklch(0.69 0.13 222);
+  --color-fd-primary-foreground: oklch(0.2 0.05 245);
+  --color-fd-secondary: oklch(0.27 0.05 262);
+  --color-fd-secondary-foreground: oklch(0.9 0.015 240);
+  --color-fd-muted: oklch(0.255 0.045 262);
+  --color-fd-muted-foreground: oklch(0.67 0.03 250);
+  --color-fd-accent: oklch(0.3 0.06 250);
+  --color-fd-accent-foreground: oklch(0.89 0.045 230);
+  --color-fd-border: oklch(0.93 0.012 240 / 10%);
+  --color-fd-ring: oklch(0.65 0.12 225);
+  --color-fd-overlay: oklch(0.12 0.03 262 / 60%);
 
-  --shiki-dark: #e1e4e8;
-  --shiki-dark-bg: #120e1b;
+  --shiki-dark: #dbe4f0;
+  --shiki-dark-bg: #121c33;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -58,40 +73,93 @@
   }
 }
 
-/* ── Semantic brand aliases (mapped onto generated --ds-* tokens) ─────────── */
+/* ── Semantic brand aliases (Focus Console values) ──────────────────────── */
 :root {
-  --brand-50:  var(--ds-color-brand-50);
-  --brand-500: var(--ds-color-brand-500);
-  --brand-600: var(--ds-color-brand-600);
+  --brand-500: #00ACED;            /* Cerulean — brand primary (fills, accents) */
+  --brand-600: #0369A1;            /* darker cerulean — AA-safe as TEXT on light */
+  --brand-50:  oklch(0.49 0.105 230 / 0.10);
+  --accent-cornflower: #6B8BF5;    /* secondary accent */
 
-  --bg-base:    var(--ds-color-surface-base);
-  --bg-surface: var(--ds-color-surface-surface);
-  --bg-elev:    var(--ds-color-surface-elev);
-  --txt-1:      var(--ds-color-text-primary);
-  --txt-2:      var(--ds-color-text-secondary);
-  --hairline:   var(--ds-color-surface-hairline);
+  /* Status-chip + chat-username text colors, flipped per theme so they clear
+     WCAG AA on both the near-white (light) and near-black (dark) chip fills. */
+  --chip-live-fg: #1F7A38;
+  --chip-warn-fg: #9A5B00;
+  --chat-user-1: #1F7A38;          /* green  — ada_codes */
+  --chat-user-2: #0369A1;          /* blue   — pixel_pat */
+  --chat-user-3: #9A5B00;          /* amber  — night_owl */
+
+  --bg-base:    oklch(0.97 0.006 240);
+  --bg-surface: oklch(0.935 0.01 245);
+  --bg-elev:    oklch(0.995 0.002 240);
+  --txt-1:      oklch(0.23 0.04 260);
+  --txt-2:      oklch(0.46 0.035 255);
+  --hairline:   oklch(0.4 0.03 255 / 18%);
+
+  /* Phase + partner colors (from the app design system). */
+  --phase-work:       #34C759;
+  --phase-break:      #00ACED;
+  --phase-long-break: #6B8BF5;
+  --phase-paused:     #FF9F0A;
+  --color-twitch:     #9146FF;
+  --color-twitch-hover: #7C3AE6;
+  --color-live:       #34C759;
 
   --font-display: var(--font-montserrat), "Montserrat", -apple-system,
     BlinkMacSystemFont, system-ui, sans-serif;
-  --font-body: var(--font-roboto), "Roboto", -apple-system, BlinkMacSystemFont,
-    system-ui, sans-serif;
+  --font-body: var(--font-plex-sans), "IBM Plex Sans", -apple-system,
+    BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, "SF Mono",
+    Menlo, Consolas, monospace;
 }
 
-/* ── Typography ──────────────────────────────────────────── */
-.dw-font {
-  font-family: var(--font-body);
+.dark {
+  --brand-500: #29B6F0;            /* brighter cerulean on midnight */
+  --brand-600: #6FCBF6;
+  --brand-50:  oklch(0.69 0.13 222 / 0.14);
+  --accent-cornflower: #8AA4F7;
+
+  --bg-base:    oklch(0.185 0.042 262);
+  --bg-surface: oklch(0.255 0.045 262);
+  --bg-elev:    oklch(0.222 0.046 262);
+  --txt-1:      oklch(0.93 0.012 240);
+  --txt-2:      oklch(0.67 0.03 250);
+  --hairline:   oklch(0.93 0.012 240 / 10%);
+
+  --phase-break: #29B6F0;
+
+  /* On the near-black chip fills the bright saturated hues read fine. */
+  --chip-live-fg: #34C759;
+  --chip-warn-fg: #FF9F0A;
+  --chat-user-1: #34C759;
+  --chat-user-2: #29B6F0;
+  --chat-user-3: #FF9F0A;
 }
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --brand-500: #29B6F0;
+    --brand-600: #6FCBF6;
+    --brand-50:  oklch(0.69 0.13 222 / 0.14);
+    --bg-base:    oklch(0.185 0.042 262);
+    --bg-surface: oklch(0.255 0.045 262);
+    --bg-elev:    oklch(0.222 0.046 262);
+    --txt-1:      oklch(0.93 0.012 240);
+    --txt-2:      oklch(0.67 0.03 250);
+    --hairline:   oklch(0.93 0.012 240 / 10%);
+  }
+}
+
+/* ── Typography ─────────────────────────────────────────────────────────── */
+.dw-font    { font-family: var(--font-body); }
 .dw-display {
   font-family: var(--font-display);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.05;
 }
-.dw-mono {
-  font-family: var(--ds-font-family-mono);
-}
+.dw-mono { font-family: var(--font-mono); }
 
-/* ── Surfaces / text ─────────────────────────────────────── */
+/* ── Surfaces / text utilities ──────────────────────────────────────────── */
 .dw-bg-base    { background-color: var(--bg-base); }
 .dw-bg-surface { background-color: var(--bg-surface); }
 .dw-bg-elev    { background-color: var(--bg-elev); }
@@ -101,57 +169,222 @@
 .dw-text-brand { color: var(--brand-600); }
 .dark .dw-text-brand { color: var(--brand-500); }
 
-/* ── Liquid Glass surface ────────────────────────────────── */
-.dw-glass {
-  background-color: color-mix(in srgb, var(--bg-elev) 65%, transparent);
-  -webkit-backdrop-filter: saturate(180%) blur(30px);
-  backdrop-filter: saturate(180%) blur(30px);
-  border: 1px solid color-mix(in srgb, var(--hairline) 80%, transparent);
-  border-radius: 1.25rem;
-  box-shadow:
-    0 1px 0 0 color-mix(in srgb, #ffffff 60%, transparent) inset,
-    var(--ds-shadow-lg);
-  position: relative;
-}
-.dark .dw-glass {
-  background-color: color-mix(in srgb, var(--bg-elev) 55%, transparent);
-  border-color: color-mix(in srgb, var(--hairline) 70%, transparent);
-  box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.06) inset,
-    var(--ds-shadow-lg);
-}
-.dw-glass::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--brand-500) 8%, transparent) 0%,
-    transparent 32%
-  );
-  pointer-events: none;
+/* ── Console grammar (ported from the app) ──────────────────────────────── */
+
+/* Small mono uppercase section label — the console voice. */
+.console-label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--txt-2);
 }
 
-/* ── Hero headline ───────────────────────────────────────── */
+/* Labeled hairline rule that fills the row. */
+.console-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.console-rule::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: var(--hairline);
+}
+
+/* Workhorse panel — flat card face with a crisp edge. */
+.panel {
+  border-radius: 1.25rem;
+  border: 1px solid var(--hairline);
+  background: var(--bg-elev);
+}
+.dark .panel {
+  box-shadow:
+    inset 0 1px 0 0 oklch(1 0 0 / 0.05),
+    0 1px 2px 0 oklch(0 0 0 / 0.25);
+}
+
+/* Hero instrument — gradient face. One per view. */
+.panel-hero {
+  position: relative;
+  border-radius: 1.25rem;
+  border: 1px solid var(--hairline);
+  background: linear-gradient(
+    to bottom,
+    var(--bg-elev),
+    color-mix(in oklab, var(--bg-elev) 72%, var(--bg-base))
+  );
+  overflow: hidden;
+}
+.dark .panel-hero {
+  box-shadow:
+    inset 0 1px 0 0 oklch(1 0 0 / 0.06),
+    0 8px 24px -12px oklch(0 0 0 / 0.5);
+}
+
+/* Inset well — recessed screens, stages, code + URL wells. */
+.panel-inset {
+  border-radius: 1rem;
+  border: 1px solid var(--hairline);
+  background: color-mix(in oklab, var(--bg-base) 82%, var(--bg-elev));
+}
+.dark .panel-inset {
+  box-shadow: inset 0 1px 3px 0 oklch(0 0 0 / 0.35);
+}
+
+/* Fine grain for hardware-module faces. */
+.bg-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+/* Checkerboard — OBS transparency preview backdrop. */
+.bg-checker {
+  background-color: #0d0d0f;
+  background-image:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.03) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.03) 75%),
+    linear-gradient(45deg, rgba(255, 255, 255, 0.03) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.03) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+}
+
+/* ── LED-style status chip (the app's signature status element) ─────────── */
+.dw-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 9999px;
+  border: 1px solid;
+  padding: 0.2rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.dw-chip-dot { width: 0.375rem; height: 0.375rem; border-radius: 9999px; flex-shrink: 0; }
+.dw-chip-accent { border-color: color-mix(in srgb, var(--brand-500) 30%, transparent); background-color: var(--brand-50); color: var(--brand-600); }
+.dark .dw-chip-accent { color: var(--brand-500); }
+.dw-chip-accent .dw-chip-dot { background-color: var(--brand-500); }
+.dw-chip-live { border-color: color-mix(in srgb, var(--color-live) 30%, transparent); background-color: color-mix(in srgb, var(--color-live) 12%, transparent); color: var(--chip-live-fg); }
+.dw-chip-live .dw-chip-dot { background-color: var(--color-live); }
+.dw-chip-warn { border-color: color-mix(in srgb, var(--phase-paused) 30%, transparent); background-color: color-mix(in srgb, var(--phase-paused) 12%, transparent); color: var(--chip-warn-fg); }
+.dw-chip-warn .dw-chip-dot { background-color: var(--phase-paused); }
+
+/* ── Numbered section kicker — one consistent spine (01 · FOR STREAMERS) ─── */
+.dw-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.3rem 0.8rem 0.3rem 0.35rem;
+  border-radius: var(--dw-radius-control);
+  border: 1px solid var(--hairline);
+  background-color: color-mix(in srgb, var(--bg-elev) 70%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--txt-2);
+}
+.dw-kicker-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.35rem;
+  border-radius: 6px;
+  background-color: var(--brand-50);
+  color: var(--brand-600);
+  letter-spacing: 0;
+}
+.dark .dw-kicker-num { color: var(--brand-500); }
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.dw-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.35rem;
+  border-radius: var(--dw-radius-control);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease,
+    border-color 0.15s ease;
+}
+.dw-btn:active { transform: scale(0.98); }
+.dw-btn-primary { background-color: var(--brand-500); color: #04141f; }
+/* Keep the hover bright enough that the near-black label stays AA-legible
+   (a darker --brand-600 would drop dark-text contrast on hover). */
+.dw-btn-primary:hover { background-color: color-mix(in srgb, var(--brand-500) 85%, #000); }
+.dark .dw-btn-primary { color: #04141f; }
+.dw-btn-twitch { background-color: var(--color-twitch); color: #fff; }
+.dw-btn-twitch:hover { background-color: var(--color-twitch-hover); }
+.dw-btn-secondary {
+  background-color: transparent;
+  color: var(--brand-600);
+  border: 1px solid color-mix(in srgb, var(--brand-500) 45%, var(--hairline));
+}
+.dark .dw-btn-secondary { color: var(--brand-500); }
+.dw-btn-secondary:hover { border-color: var(--brand-500); }
+.dw-btn-ghost {
+  background-color: color-mix(in srgb, var(--bg-surface) 70%, transparent);
+  color: var(--txt-1);
+  border: 1px solid var(--hairline);
+}
+.dw-btn-ghost:hover { border-color: color-mix(in srgb, var(--brand-500) 40%, var(--hairline)); }
+
+/* ── Pill ───────────────────────────────────────────────────────────────── */
+.dw-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--dw-radius-control);
+  border: 1px solid var(--hairline);
+  background-color: color-mix(in srgb, var(--bg-surface) 55%, transparent);
+  color: var(--txt-2);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.dw-pill svg { color: var(--brand-500); }
+
+/* ── Card ───────────────────────────────────────────────────────────────── */
+.dw-card {
+  border-radius: 1.25rem;
+  padding: 2rem;
+  transition: transform 0.25s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.dw-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--brand-500) 35%, var(--hairline)) !important;
+  box-shadow: 0 16px 38px -22px color-mix(in srgb, var(--brand-500) 55%, transparent);
+}
+
+/* ── Hero headline ──────────────────────────────────────────────────────── */
 .dw-hero-headline {
   font-family: var(--font-display);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.03em;
-  line-height: 1.04;
+  line-height: 1.03;
   font-size: clamp(2.25rem, 6vw, 3.75rem);
   margin: 0;
   text-wrap: balance;
 }
 
-/* ── Hero glows ──────────────────────────────────────────── */
+/* ── Hero glows (cerulean) ──────────────────────────────────────────────── */
 .dw-hero-glow {
   position: absolute;
   inset: -10% -10% auto -10%;
   height: 70%;
   background: radial-gradient(
     ellipse 60% 55% at 50% 30%,
-    rgba(110, 90, 245, 0.12) 0%,
+    color-mix(in srgb, var(--brand-500) 12%, transparent) 0%,
     transparent 65%
   );
   pointer-events: none;
@@ -160,7 +393,7 @@
 .dark .dw-hero-glow {
   background: radial-gradient(
     ellipse 60% 55% at 50% 30%,
-    rgba(110, 90, 245, 0.22) 0%,
+    color-mix(in srgb, var(--brand-500) 22%, transparent) 0%,
     transparent 65%
   );
 }
@@ -170,7 +403,7 @@
   z-index: 0;
   background: radial-gradient(
     ellipse 70% 60% at 50% 50%,
-    rgba(110, 90, 245, 0.18) 0%,
+    color-mix(in srgb, var(--brand-500) 18%, transparent) 0%,
     transparent 70%
   );
   filter: blur(8px);
@@ -186,106 +419,56 @@
   50%      { transform: translateY(-7px); }
 }
 
-/* ── Buttons ─────────────────────────────────────────────── */
-.dw-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.85rem 1.4rem;
-  border-radius: var(--ds-radius-pill);
-  font-family: var(--font-body);
-  font-size: 0.95rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
-}
-.dw-btn:active { transform: scale(0.98); }
-.dw-btn-primary {
-  background-color: var(--brand-500);
-  color: #fff;
-}
-.dw-btn-primary:hover { background-color: var(--brand-600); }
-.dark .dw-btn-primary { color: #1a1523; }
-.dw-btn-secondary {
-  background-color: transparent;
-  color: var(--brand-600);
-}
-.dark .dw-btn-secondary { color: var(--brand-500); }
-.dw-btn-secondary:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.dw-btn-ghost {
-  background-color: var(--bg-surface);
-  color: var(--txt-1);
-}
-.dw-btn-ghost:hover {
-  background-color: color-mix(in srgb, var(--bg-surface) 80%, var(--brand-500));
-}
-
-/* ── Card ────────────────────────────────────────────────── */
-.dw-card {
-  background-color: var(--bg-surface);
-  border-radius: 1.25rem;
-  padding: 2rem;
-  transition: transform 0.25s ease;
-}
-.dw-card-hover:hover { transform: translateY(-2px); }
-
-/* ── Pill ────────────────────────────────────────────────── */
-.dw-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.9rem;
-  border-radius: var(--ds-radius-pill);
-  background-color: var(--bg-surface);
-  color: var(--txt-2);
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-/* ── Reveal on load ──────────────────────────────────────── */
+/* ── Reveal on load (staggered) ─────────────────────────────────────────── */
 .dw-reveal {
   opacity: 0;
-  transform: translateY(8px);
-  animation: dw-rise 0.5s ease forwards;
+  transform: translateY(10px);
+  animation: dw-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
-.dw-reveal-1 { animation-delay: 0.05s; }
-.dw-reveal-2 { animation-delay: 0.15s; }
-.dw-reveal-3 { animation-delay: 0.25s; }
+.dw-reveal-1 { animation-delay: 0.04s; }
+.dw-reveal-2 { animation-delay: 0.12s; }
+.dw-reveal-3 { animation-delay: 0.2s; }
 @keyframes dw-rise {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Code block ──────────────────────────────────────────── */
+/* LED pulse for live status dots. */
+@keyframes dw-led-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+.animate-led-pulse { animation: dw-led-pulse 2.4s ease-in-out infinite; }
+
+/* ── Code well ──────────────────────────────────────────────────────────── */
 .dw-code {
-  background-color: var(--bg-elev);
-  color: var(--txt-1);
-  border: 1px solid var(--hairline);
   border-radius: 0.9rem;
+  border: 1px solid var(--hairline);
+  background: color-mix(in oklab, var(--bg-base) 82%, var(--bg-elev));
+  color: var(--txt-1);
   padding: 1.25rem 1.4rem;
-  font-family: var(--ds-font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.82rem;
   line-height: 1.7;
   overflow-x: auto;
 }
-.dark .dw-code { background-color: #120e1b; }
+.dark .dw-code { box-shadow: inset 0 1px 3px 0 oklch(0 0 0 / 0.35); }
 
-/* ── Navbar ──────────────────────────────────────────────── */
+/* ── Navbar ─────────────────────────────────────────────────────────────── */
 #nd-nav {
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  background-color: color-mix(in srgb, var(--bg-base) 72%, transparent);
+  backdrop-filter: saturate(180%) blur(22px);
+  -webkit-backdrop-filter: saturate(180%) blur(22px);
+  background-color: color-mix(in srgb, var(--bg-base) 82%, transparent);
   border-bottom: 1px solid transparent;
   transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+.dark #nd-nav {
+  background-color: color-mix(in srgb, var(--bg-base) 90%, transparent);
 }
 #nd-nav:not([data-transparent="true"]) {
   border-bottom-color: var(--hairline);
 }
 
-/* ── Headings use Montserrat across docs ─────────────────── */
+/* ── Headings use Montserrat across docs ────────────────────────────────── */
 .fd-prose h1,
 .fd-prose h2,
 .fd-prose h3,
@@ -298,7 +481,28 @@
   letter-spacing: -0.02em;
 }
 
-/* ── Focus visible ───────────────────────────────────────── */
+/* ── Skip to content ────────────────────────────────────────────────────── */
+.skip-nav {
+  position: fixed;
+  top: -100%;
+  left: 1rem;
+  z-index: 9999;
+  padding: 0.75rem 1.25rem;
+  background-color: var(--brand-600);
+  color: #fff;
+  border-radius: var(--dw-radius-control);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+.skip-nav:focus {
+  top: 1rem;
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+}
+
+/* ── Focus visible ──────────────────────────────────────────────────────── */
 :focus-visible {
   outline: 2px solid var(--brand-600);
   outline-offset: 2px;
@@ -306,24 +510,97 @@
 }
 .dark :focus-visible { outline-color: var(--brand-500); }
 
-/* ── Docs prose readability ──────────────────────────────── */
+/* ── Smooth anchor scrolling ────────────────────────────────────────────── */
+html { scroll-behavior: smooth; }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Docs prose polish — carry the console aesthetic into MDX pages.
+   ────────────────────────────────────────────────────────────────────────── */
+
 .fd-prose,
 [class*="prose"] { line-height: 1.75; }
+.fd-prose p,
+[class*="prose"] p { margin-bottom: 1.25rem; }
+.fd-prose h2,
+[class*="prose"] h2 {
+  margin-top: 1.9rem;
+  margin-bottom: 0.85rem;
+  scroll-margin-top: 5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.fd-prose h3,
+[class*="prose"] h3 {
+  margin-top: 1.4rem;
+  margin-bottom: 0.7rem;
+  scroll-margin-top: 5rem;
+  font-weight: 650;
+}
+.fd-prose strong,
+[class*="prose"] strong { font-weight: 650; color: var(--txt-1); }
+
+/* Inline code — brand tint on a surface chip. */
 .fd-prose :not(pre) > code,
 [class*="prose"] :not(pre) > code {
   color: var(--brand-600);
-  background-color: var(--bg-surface);
+  background-color: color-mix(in srgb, var(--bg-surface) 70%, transparent);
   padding: 0.15em 0.4em;
   border-radius: 6px;
   font-size: 0.9em;
   font-weight: 500;
+  font-family: var(--font-mono);
 }
 .dark .fd-prose :not(pre) > code,
 .dark [class*="prose"] :not(pre) > code { color: var(--brand-500); }
 
-/* ── Fumadocs Card — match dw-card aesthetic ─────────────── */
+/* Content links — brand, underlined, offset. Skip anchor permalinks + Cards. */
+[class*="prose"] a:not(.peer):not([data-card]),
+.fd-prose a:not(.peer):not([data-card]) {
+  color: var(--brand-600) !important;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--brand-500) 40%, transparent);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  transition: text-decoration-color 0.15s ease, color 0.15s ease;
+}
+.dark [class*="prose"] a:not(.peer):not([data-card]),
+.dark .fd-prose a:not(.peer):not([data-card]) { color: var(--brand-500) !important; }
+[class*="prose"] a:not(.peer):not([data-card]):hover,
+.fd-prose a:not(.peer):not([data-card]):hover {
+  text-decoration-color: var(--brand-500);
+}
+
+/* Lists — branded markers. */
+[class*="prose"] ul > li::marker {
+  color: color-mix(in srgb, var(--brand-500) 70%, var(--txt-2));
+}
+[class*="prose"] ol > li::marker { color: var(--txt-2); font-weight: 600; }
+[class*="prose"] li { margin-block: 0.3rem; }
+
+/* Blockquotes — editorial brand rule on a flat surface. */
+[class*="prose"] blockquote,
+.fd-prose blockquote {
+  border-left: 2px solid var(--brand-500);
+  background-color: color-mix(in srgb, var(--bg-surface) 55%, transparent);
+  border-radius: 0 10px 10px 0;
+  padding: 0.75rem 1rem;
+  margin: 1.25rem 0;
+  color: var(--txt-2);
+  font-style: normal;
+}
+[class*="prose"] blockquote p:last-child { margin-bottom: 0; }
+
+/* Horizontal rules — calm hairline. */
+[class*="prose"] hr,
+.fd-prose hr { border: 0; border-top: 1px solid var(--hairline); margin: 2rem 0; }
+
+/* Active sidebar item gets a touch more weight + breathing room. */
+#nd-sidebar a[data-active="true"] { font-weight: 600; }
+#nd-sidebar a { margin-block: 5px; }
+
+/* Refined Fumadocs Card — flat panel that lifts on hover. */
 .fd-card,
-a[data-card],
+a[data-card]:not(.peer),
 div[data-card] {
   border: 1px solid var(--hairline) !important;
   border-radius: 1rem !important;
@@ -331,65 +608,130 @@ div[data-card] {
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
 .fd-card:hover,
-a[data-card]:hover,
+a[data-card]:not(.peer):hover,
 div[data-card]:hover {
   transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--brand-500) 35%, var(--hairline));
-  box-shadow: 0 12px 32px -16px rgba(110, 90, 245, 0.22);
+  border-color: color-mix(in srgb, var(--brand-500) 45%, var(--hairline)) !important;
+  box-shadow: 0 16px 38px -22px color-mix(in srgb, var(--brand-500) 55%, transparent) !important;
 }
 
-/* ── Tabs — pill segmented control ───────────────────────── */
-[role="tablist"] {
-  background-color: var(--bg-surface) !important;
-  border: 1px solid var(--hairline) !important;
-  border-radius: var(--ds-radius-pill) !important;
-  padding: 4px !important;
-  gap: 2px;
+/* Steps — brand-tinted index circles. */
+.fd-steps [data-step],
+.fd-steps li::before {
+  background-color: var(--brand-50) !important;
+  color: var(--brand-600) !important;
+  border-color: color-mix(in srgb, var(--brand-500) 30%, transparent) !important;
+  font-weight: 600;
 }
-[role="tab"] {
-  border-radius: var(--ds-radius-pill) !important;
-  padding: 0.4rem 1rem !important;
-  font-size: 0.85rem !important;
+
+/* Docs Tabs — flat row with a hairline divider + rounded active highlight. */
+[class*="prose"] [role="tablist"] {
+  background-color: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--hairline) !important;
+  border-radius: 0 !important;
+  padding: 0.5rem !important;
+  gap: 0.25rem !important;
+}
+[class*="prose"] [role="tab"] {
+  border-radius: 9px !important;
+  padding: 0.45rem 0.8rem !important;
+  font-size: 0.82rem !important;
   font-weight: 500;
   color: var(--txt-2) !important;
+  background-color: transparent !important;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
-[role="tab"][data-state="active"],
-[role="tab"][aria-selected="true"] {
+[class*="prose"] [role="tab"]:hover {
+  color: var(--txt-1) !important;
+  background-color: color-mix(in srgb, var(--bg-surface) 60%, transparent) !important;
+}
+[class*="prose"] [role="tab"][data-state="active"],
+[class*="prose"] [role="tab"][aria-selected="true"] {
   background-color: var(--brand-50) !important;
   color: var(--brand-600) !important;
 }
-.dark [role="tab"][data-state="active"],
-.dark [role="tab"][aria-selected="true"] { color: var(--brand-500) !important; }
+.dark [class*="prose"] [role="tab"][data-state="active"],
+.dark [class*="prose"] [role="tab"][aria-selected="true"] { color: var(--brand-500) !important; }
 
-/* ── Accordion — match FaqRow aesthetic ──────────────────── */
+/* Docs tables — flat hairline grid, centered status cells, emphasized labels. */
+[class*="prose"] table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.85rem;
+  border-top: 1px solid var(--hairline);
+  border-left: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+}
+[class*="prose"] table th,
+[class*="prose"] table td {
+  border-right: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  padding: 0.55rem 0.75rem;
+  vertical-align: middle;
+}
+[class*="prose"] table thead th {
+  background-color: var(--bg-surface);
+  color: var(--txt-1);
+  font-weight: 600;
+}
+[class*="prose"] table tbody tr:nth-child(even) td {
+  background-color: color-mix(in srgb, var(--bg-surface) 35%, transparent);
+}
+[class*="prose"] table th:first-child,
+[class*="prose"] table td:first-child {
+  font-weight: 600;
+  color: var(--txt-1);
+}
+
+/* Accordion — match the landing FaqRow aesthetic. */
 div[data-orientation="vertical"][data-state] {
   border: 1px solid var(--hairline) !important;
-  border-radius: 1rem !important;
+  border-radius: 12px !important;
   background-color: var(--bg-elev) !important;
-  margin-bottom: 0.6rem !important;
+  margin-bottom: 0.5rem !important;
   overflow: hidden;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 div[data-orientation="vertical"][data-state="open"] {
   border-color: color-mix(in srgb, var(--brand-500) 30%, var(--hairline)) !important;
-  box-shadow: 0 8px 24px -16px rgba(110, 90, 245, 0.22);
 }
 div[data-orientation="vertical"][data-state] > h3 { margin: 0 !important; }
 div[data-orientation="vertical"][data-state] > h3 > button {
   width: 100%;
-  padding: 1rem 1.25rem !important;
+  padding: 0.85rem 1.1rem !important;
   font-weight: 600 !important;
   color: var(--txt-1) !important;
+  font-size: 0.95rem !important;
 }
-div[data-orientation="vertical"][data-state] > h3 > button > svg {
-  color: var(--brand-500) !important;
+div[data-orientation="vertical"][data-state] > h3 > button > svg { color: var(--brand-500) !important; }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Apple corner geometry — continuous superellipse ("squircle"). Chromium-only
+   today, degrades cleanly to border-radius everywhere else (progressive
+   enhancement). Applied to rectangular rounded surfaces; pills keep true ends.
+   ────────────────────────────────────────────────────────────────────────── */
+@supports (corner-shape: squircle) {
+  .panel,
+  .panel-hero,
+  .panel-inset,
+  .dw-card,
+  .dw-code,
+  .fd-card,
+  a[data-card]:not(.peer),
+  div[data-card] {
+    corner-shape: squircle;
+  }
 }
 
-/* ── Reduced motion ──────────────────────────────────────── */
+/* ── Reduced motion — kill every pulse, reveal, and float ───────────────── */
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
   .dw-reveal,
-  .dw-hero-card-float {
+  .dw-hero-card-float,
+  .animate-led-pulse {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
