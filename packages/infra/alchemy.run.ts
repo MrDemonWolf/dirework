@@ -50,8 +50,9 @@ export const server = await Worker("server", {
 
 // Web worker: dirework.<account>.workers.dev
 // Next.js dashboard + overlays + bot page. Auth/tRPC proxied same-origin to the
-// API worker via next.config rewrites (workers.dev is on the Public Suffix List,
-// so cookies cannot span the two workers).
+// API worker — /rpc via next.config rewrite, /api/auth + /api/bot via route
+// handlers (workers.dev is on the Public Suffix List, so cookies cannot span
+// the two workers).
 export const web = await Nextjs("web", {
   name: "dirework",
   cwd: "../../apps/web",
@@ -63,7 +64,7 @@ export const web = await Nextjs("web", {
   // vague "Uncaught Error: internal error" (10021). Normalize the specifiers
   // to one form right after OpenNext's build so Alchemy's dedup collapses
   // them naturally, then let Alchemy bundle as usual.
-  // next.config bakes the /api/auth|/rpc|/api/bot rewrite targets from
+  // The /rpc rewrite target and the /api/auth|/api/bot proxy handlers bake
   // NEXT_PUBLIC_SERVER_URL at BUILD time; the runtime binding below is too
   // late. The deploy job env var can be empty (unset GH repo var), so inject
   // the api URL Alchemy already resolved and never depend on a GH variable.

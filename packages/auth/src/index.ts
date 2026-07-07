@@ -17,8 +17,10 @@ export async function hasOwner(db: DbClient = createDb()): Promise<boolean> {
  * no module-level auth/db singletons. Call inside a request handler.
  *
  * Cookie topology: the browser only ever talks to the WEB worker origin
- * (env.BETTER_AUTH_URL); Next rewrites proxy /api/auth/* same-origin to this
- * API worker. From the browser's perspective everything is same-origin, so
+ * (env.BETTER_AUTH_URL); the web app's app/api/auth/[...all] route handler
+ * proxies /api/auth/* same-origin to this API worker, forwarding redirects
+ * and Set-Cookie verbatim. From the browser's perspective everything is
+ * same-origin, so
  * cookies are plain sameSite=lax + secure + httpOnly — no sameSite=none, no
  * crossSubDomainCookies (workers.dev is on the Public Suffix List anyway).
  */

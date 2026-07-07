@@ -7,7 +7,8 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 /**
  * Bot-account OAuth flow (second Twitch OAuth, separate from better-auth
  * login). Mounted at /api/bot — the browser reaches it through the web
- * worker's same-origin Next rewrite proxy, so cookies behave same-origin.
+ * worker's same-origin proxy route handler (apps/web app/api/bot/[...path],
+ * redirect: "manual"), so cookies and redirects behave same-origin.
  *
  * Tokens for the bot account are only ever stored in D1 — never logged,
  * never placed in redirect URLs.
