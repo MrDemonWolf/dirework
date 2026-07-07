@@ -62,7 +62,7 @@ export function ColorInput({
         value={draft}
         onChange={(e) => handleTextChange(e.target.value)}
         onBlur={handleBlur}
-        className="h-8 w-24 font-mono"
+        className="h-9 w-24 font-mono md:h-8"
         placeholder="#000000"
       />
     </FieldRow>

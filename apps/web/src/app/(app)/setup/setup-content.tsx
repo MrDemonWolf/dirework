@@ -4,6 +4,7 @@ import { Timer, ListTodo, Bot, Palette } from "lucide-react";
 
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
+import { DevLoginButton } from "@/components/dev-login-button";
 import { TwitchIcon } from "@/components/icons/twitch-icon";
 
 const perks = [
@@ -96,6 +97,10 @@ export default function SetupContent() {
         <p className="mt-4 text-center text-xs text-muted-foreground">
           One streamer, one instance. Once you claim it, this page turns off for good.
         </p>
+
+        <div className="mt-4 flex justify-center">
+          <DevLoginButton />
+        </div>
       </div>
     </div>
   );

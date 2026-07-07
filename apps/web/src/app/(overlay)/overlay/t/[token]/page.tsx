@@ -12,8 +12,12 @@ import { publicTrpc } from "@/utils/trpc";
  * Overlay polling interval. The countdown itself ticks locally inside
  * TimerDisplay (computed from targetEndTime vs Date.now()); polling only
  * picks up phase changes and style edits.
+ *
+ * 3s (not less): the countdown ticks locally from targetEndTime, so the poll
+ * only needs to catch state changes (start/pause/phase/style). Larger interval
+ * = far fewer Worker requests for OBS sources left running (Cloudflare free tier).
  */
-const POLL_INTERVAL_MS = 2000;
+const POLL_INTERVAL_MS = 3000;
 
 const defaultTimerState = {
   status: "idle",

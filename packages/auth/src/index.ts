@@ -6,6 +6,8 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError } from "better-auth/api";
 
+import { devLoginPlugin, isDevLoginEnabled } from "./dev-login";
+
 /** Returns true if an owner account already exists in the database. */
 export async function hasOwner(db: DbClient = createDb()): Promise<boolean> {
   const [row] = await db.select({ count: count() }).from(schema.user);
@@ -37,6 +39,9 @@ export function createAuth() {
     emailAndPassword: {
       enabled: false,
     },
+    // DEV ONLY: the bypass-login endpoint (POST /api/auth/dev-login) exists only
+    // when DEV_LOGIN==="true". Unset in prod → plugin unregistered → route 404s.
+    plugins: isDevLoginEnabled(env.DEV_LOGIN) ? [devLoginPlugin()] : [],
     socialProviders: {
       twitch: {
         clientId: env.TWITCH_CLIENT_ID,

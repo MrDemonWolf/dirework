@@ -14,6 +14,7 @@ import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
+import { DevLoginButton } from "@/components/dev-login-button";
 import { TwitchIcon } from "@/components/icons/twitch-icon";
 import { StatusChip } from "@/components/status-chip";
 import Loader from "@/components/loader";
@@ -106,6 +107,8 @@ function HomeInner() {
               View on GitHub
             </Button>
           </div>
+
+          <DevLoginButton />
 
           {/* Compact feature strip — replaces the old scrolling card grid.
               console-label voice so it matches the badge + StatusChip idiom. */}

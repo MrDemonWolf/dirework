@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { OVERLAY_THEMES, DEFAULT_OVERLAY_THEME, type OverlayTheme } from "./overlay-themes.generated";
+import { hexToRgba } from "./theme-util";
+
 /**
  * Live mock of the Dirework OBS timer overlay (squircle ring shape).
  * Mirrors the real overlay: `roundedRectPath()` + `formatTime()` from
@@ -43,7 +46,11 @@ const STROKE = 8;
 const INSET = STROKE / 2 + 2;
 const RADIUS = SIZE * 0.22;
 
-export function TimerOverlayWidget() {
+export function TimerOverlayWidget({
+  theme = OVERLAY_THEMES[DEFAULT_OVERLAY_THEME],
+}: {
+  theme?: OverlayTheme;
+}) {
   // Start partway through so the ring reads as "in progress" on first paint.
   const [remaining, setRemaining] = useState(18 * 60 + 24);
   const reduced = useRef(false);
@@ -80,7 +87,7 @@ export function TimerOverlayWidget() {
         maxWidth: "100%",
         aspectRatio: "1",
         position: "relative",
-        background: "rgba(28,28,30,0.92)",
+        background: hexToRgba(theme.bg, 0.92),
         borderRadius: "22%",
         boxShadow: "0 24px 60px -24px rgba(0,0,0,0.6)",
         display: "flex",
@@ -97,11 +104,11 @@ export function TimerOverlayWidget() {
         style={{ position: "absolute", inset: 0 }}
         aria-hidden="true"
       >
-        <path d={path} fill="none" stroke="#ffffff" strokeOpacity={0.1} strokeWidth={STROKE} />
+        <path d={path} fill="none" stroke={hexToRgba(theme.text, 0.14)} strokeWidth={STROKE} />
         <path
           d={path}
           fill="none"
-          stroke="#34c759"
+          stroke={theme.accent}
           strokeWidth={STROKE}
           strokeLinecap="round"
           strokeDasharray={dash}
@@ -109,14 +116,14 @@ export function TimerOverlayWidget() {
           style={{ transition: reduced.current ? undefined : "stroke-dashoffset 1s linear" }}
         />
       </svg>
-      <div style={{ position: "relative", textAlign: "center", color: "#fff" }}>
+      <div style={{ position: "relative", textAlign: "center", color: theme.text }}>
         <div
           style={{
             fontSize: 18,
             fontWeight: 600,
             letterSpacing: "0.08em",
             textTransform: "uppercase",
-            color: "#34c759",
+            color: theme.accent,
           }}
         >
           Focus
@@ -131,7 +138,7 @@ export function TimerOverlayWidget() {
         >
           {fmt(remaining)}
         </div>
-        <div style={{ fontSize: 16, color: "rgba(255,255,255,0.6)" }}>Cycle 2 / 4</div>
+        <div style={{ fontSize: 16, color: hexToRgba(theme.text, 0.6) }}>Cycle 2 / 4</div>
       </div>
     </div>
   );

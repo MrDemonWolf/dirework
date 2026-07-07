@@ -134,7 +134,11 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 
   const timer = useQuery({
     ...trpc.timer.get.queryOptions(),
-    refetchInterval: 1000,
+    // The countdown ticks locally from targetEndTime; the poll only syncs state
+    // changes, so 2s is plenty. refetchIntervalInBackground is left false so the
+    // control panel stops polling when its tab is hidden (Cloudflare free tier).
+    refetchInterval: 2000,
+    refetchOnWindowFocus: false,
   });
 
   const config = useQuery(trpc.config.get.queryOptions());

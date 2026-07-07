@@ -98,6 +98,19 @@ The first time you open the app, it sends you to a **setup screen**. Click
   The setup screen only appears once. After you claim the instance, it turns off for good.
 </Callout>
 
+### Skip Twitch while developing
+
+Working on the UI and don't want to sign in with Twitch every time? Set both
+`DEV_LOGIN="true"` and `NEXT_PUBLIC_DEV_LOGIN="true"` in your `.env`, restart
+`bun run dev`, and a **Dev bypass login** button appears on the welcome/setup
+screen. It signs you straight in as the owner — no Twitch round-trip.
+
+<Callout type="warn">
+  Local development only. Leave both unset in production — with `DEV_LOGIN` off the
+  bypass endpoint does not exist, and the button never renders. They are not part
+  of the deploy configuration.
+</Callout>
+
 ## Where to go next
 
 - [Connect your bot account](/docs/twitch-oauth#step-5-connect-the-bot-account) so chat commands work

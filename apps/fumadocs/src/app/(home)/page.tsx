@@ -6,6 +6,7 @@ import {
   Check,
   Cloud,
   Code2,
+  ExternalLink,
   Github,
   Minus,
   MessageSquare,
@@ -20,10 +21,8 @@ import {
   Users,
   X as XIcon,
 } from "lucide-react";
-import { TimerOverlayWidget } from "./_widgets/TimerOverlayWidget";
-import { TaskListWidget } from "./_widgets/TaskListWidget";
 import { ChatCommandWidget } from "./_widgets/ChatCommandWidget";
-import { ThemeGallery } from "./_widgets/ThemeGallery";
+import { OverlayThemePreview } from "./_widgets/OverlayThemePreview";
 
 const GITHUB = "https://github.com/mrdemonwolf/dirework";
 const DISCORD = "https://mrdwolf.net/discord";
@@ -169,33 +168,30 @@ export default function HomePage() {
         <div className="relative z-10 px-6 pt-12 pb-16 sm:pt-20 sm:pb-24">
           <div className="mx-auto max-w-6xl grid lg:grid-cols-[1.05fr_0.95fr] gap-12 lg:gap-16 items-center">
             <div className="text-center lg:text-left">
-              <div className="dw-reveal dw-reveal-1 flex justify-center lg:justify-start">
-                <Chip tone="accent">Self-hosted · Twitch-native · Open source</Chip>
-              </div>
-              <h1 className="dw-reveal dw-reveal-1 dw-hero-headline dw-text-1 mt-5">
+              <h1 className="dw-reveal dw-reveal-1 dw-hero-headline dw-text-1">
                 Focus together,{" "}
                 <span className="dw-text-brand">stream better.</span>
               </h1>
-              <p className="dw-reveal dw-reveal-2 dw-text-2 text-lg sm:text-xl mt-6 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+              <p className="dw-reveal dw-reveal-2 dw-text-2 text-lg sm:text-xl mt-5 max-w-xl mx-auto lg:mx-0 leading-relaxed">
                 A co-working Pomodoro timer and shared task list for your Twitch stream.
                 You run the timer, your chat runs the tasks, and OBS shows it all — on
                 your own Cloudflare account, no SaaS in the middle.
               </p>
-              <div className="dw-reveal dw-reveal-3 mt-8 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
-                <Link href="/docs/getting-started" className="dw-btn dw-btn-primary">
+              <div className="dw-reveal dw-reveal-3 mt-7 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3">
+                <Link href="/docs/getting-started" className="dw-btn dw-btn-primary w-full justify-center sm:w-auto">
                   <Terminal className="w-4 h-4" />
                   Get Started
                 </Link>
-                <Link href="/docs" className="dw-btn dw-btn-secondary">
+                <Link href="/docs" className="dw-btn dw-btn-secondary w-full justify-center sm:w-auto">
                   Read the docs
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
-              <p className="mt-5 dw-mono text-xs dw-text-2 tracking-wide">
+              <p className="mt-4 dw-mono text-[0.7rem] sm:text-xs dw-text-2 tracking-wide">
                 One instance per streamer · Free plan-friendly · No lock-in
               </p>
 
-              <div className="dw-reveal dw-reveal-3 mt-7 flex flex-wrap items-center justify-center lg:justify-start gap-2">
+              <div className="dw-reveal dw-reveal-3 mt-6 flex flex-wrap items-center justify-center lg:justify-start gap-2">
                 <a href={GITHUB} target="_blank" rel="noopener noreferrer" className="dw-pill">
                   <Github className="w-3.5 h-3.5" /> Open source
                 </a>
@@ -306,68 +302,28 @@ export default function HomePage() {
       {/* ═══════════════ OVERLAYS ═══════════════ */}
       <section id="overlays" className="dw-bg-surface px-6 py-14 sm:py-20 lg:py-28 scroll-mt-16">
         <div className="mx-auto max-w-6xl grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
-          <figure
-            className="order-2 md:order-1 mx-auto panel-inset overflow-hidden w-full"
-            style={{ maxWidth: 520 }}
-            aria-label="Timer and task overlays inside an OBS browser source"
-          >
-            <div
-              className="px-4 py-2.5 flex items-center gap-2 text-xs dw-mono dw-text-2"
-              style={{ borderBottom: "1px solid var(--hairline)" }}
-              aria-hidden="true"
-            >
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#ff5f57" }} />
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#febc2e" }} />
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#28c840" }} />
-              <span className="ml-2">/overlay/t/•••</span>
-            </div>
-            <div className="bg-checker" style={{ padding: "28px 24px", display: "flex", justifyContent: "center", gap: 24, flexWrap: "wrap", alignItems: "center" }}>
-              <TimerOverlayWidget />
-              <TaskListWidget />
-            </div>
-          </figure>
+          <div className="order-2 md:order-1">
+            <OverlayThemePreview />
+          </div>
 
           <div className="order-1 md:order-2">
-            <Kicker num="03">OBS overlays</Kicker>
+            <Kicker num="03">Overlays &amp; themes</Kicker>
             <h2 className="dw-display dw-text-1 text-4xl sm:text-5xl mt-5">
               Transparent. Live. Zero refresh.
             </h2>
             <p className="dw-text-2 text-lg mt-5 leading-relaxed">
-              Two browser sources — a timer and a task list — with transparent
-              backgrounds for OBS. Each overlay polls the public API every couple of
-              seconds, so a <code className="dw-mono dw-text-1">!done</code> in chat lands
-              on screen within ~2s. The countdown ticks locally at 100ms for smooth motion.
-              Pick a circle or a macOS-style squircle ring.
+              Two transparent browser sources — a timer and a task list — for OBS.
+              Each polls the public API every couple of seconds, so a{" "}
+              <code className="dw-mono dw-text-1">!done</code> in chat lands on screen
+              within ~2s; the countdown ticks locally at 100ms for smooth motion. Start
+              from one of six presets and tune every color, font, size, and corner radius —
+              pick a theme to preview it live.
             </p>
             <Link
               href="/docs/overlays"
               className="dw-text-brand mt-6 inline-flex items-center gap-1.5 text-sm font-semibold"
             >
               Set up the overlays
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════ THEME CENTER ═══════════════ */}
-      <section id="themes" className="dw-bg-base px-6 py-14 sm:py-20 lg:py-28 scroll-mt-16">
-        <div className="mx-auto max-w-6xl">
-          <SectionHead
-            num="04"
-            eyebrow="Theme Center"
-            title={<>Six themes. Every pixel yours.</>}
-            sub="Start from a preset, then tune every color, font, size, and corner radius in a live editor — or build the look of your whole channel from scratch."
-          />
-          <div className="mt-12">
-            <ThemeGallery />
-          </div>
-          <div className="mt-10 text-center">
-            <Link
-              href="/docs/overlays"
-              className="dw-text-brand inline-flex items-center gap-1.5 text-sm font-semibold"
-            >
-              Customize your overlays
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -437,21 +393,29 @@ export default function HomePage() {
                       Dirework
                     </th>
                     <th className="text-center py-4 px-3 dw-text-2 font-medium" scope="col">
-                      Hosted task widgets
+                      Self-hosted bots
+                      <span className="mt-0.5 block text-[0.7rem] font-normal dw-text-2">
+                        Firebot · Mix It Up · Streamer.bot
+                      </span>
                     </th>
                     <th className="text-center py-4 pl-3 dw-text-2 font-medium" scope="col">
-                      Generic timer bots
+                      Hosted platforms
+                      <span className="mt-0.5 block text-[0.7rem] font-normal dw-text-2">
+                        StreamElements · Streamlabs
+                      </span>
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {[
-                    { feature: "Pomodoro timer + overlay", a: "yes", b: "partial", c: "yes" },
-                    { feature: "Per-viewer task list", a: "yes", b: "yes", c: "no" },
-                    { feature: "Live-updating overlays", a: "yes", b: "partial", c: "no" },
-                    { feature: "Self-hosted / own your data", a: "yes", b: "no", c: "no" },
-                    { feature: "Fully themeable overlays", a: "yes", b: "partial", c: "no" },
-                    { feature: "Open source", a: "yes", b: "no", c: "partial" },
+                    { feature: "Pomodoro + per-viewer task list, built in", a: "yes", b: "partial", c: "partial" },
+                    { feature: "Live overlays, zero refresh", a: "yes", b: "partial", c: "partial" },
+                    { feature: "Runs serverless — no always-on PC", a: "yes", b: "no", c: "yes" },
+                    { feature: "Setup on Mac & Linux, not Windows-only", a: "yes", b: "partial", c: "yes" },
+                    { feature: "Own your data & instance", a: "yes", b: "yes", c: "no" },
+                    { feature: "Free to run", a: "yes", b: "yes", c: "partial" },
+                    { feature: "Fully themeable overlays", a: "yes", b: "partial", c: "partial" },
+                    { feature: "Open source", a: "yes", b: "partial", c: "no" },
                   ].map((row, i, arr) => (
                     <tr
                       key={row.feature}
@@ -473,6 +437,16 @@ export default function HomePage() {
               full feature breakdown
             </Link>
             .
+          </p>
+          <p className="mx-auto mt-3 max-w-2xl text-center text-xs dw-text-2 leading-relaxed">
+            Not sold on hosting a whole app? Honest alternatives worth a look:{" "}
+            <a href="https://firebot.app" target="_blank" rel="noopener noreferrer" className="dw-text-brand font-medium">Firebot</a>{" "}
+            and{" "}
+            <a href="https://mixitupapp.com" target="_blank" rel="noopener noreferrer" className="dw-text-brand font-medium">Mix It Up</a>{" "}
+            (all-in-one bots), or single-purpose OBS overlays like{" "}
+            <a href="https://github.com/jujoco/twitch-multitask-task-list-overlay" target="_blank" rel="noopener noreferrer" className="dw-text-brand font-medium">jujoco&apos;s task list</a>{" "}
+            and{" "}
+            <a href="https://github.com/unfloned/pomodoro-twitch-overlay" target="_blank" rel="noopener noreferrer" className="dw-text-brand font-medium">unfloned&apos;s pomodoro</a>.
           </p>
         </div>
       </section>
@@ -546,14 +520,19 @@ bun run dev   # web :3001 · api :3000 · docs :4000`}</pre>
                     <Icon className="w-5 h-5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="dw-display dw-text-1 text-lg mb-1">{title}</h3>
+                    <h3 className="dw-display dw-text-1 text-lg mb-1">
+                      {title}
+                      {external && (
+                        <ExternalLink className="dw-text-2 ml-1 inline size-3.5 align-[-0.1em]" aria-hidden />
+                      )}
+                    </h3>
                     <p className="dw-text-2 text-sm leading-relaxed">{body}</p>
                   </div>
                 </div>
               );
               const cn = "dw-card dw-card-hover panel block";
               return external ? (
-                <a key={title} href={href} target="_blank" rel="noopener noreferrer" className={cn}>
+                <a key={title} href={href} target="_blank" rel="noopener noreferrer" aria-label={`${title} (opens in a new tab)`} className={cn}>
                   {inner}
                 </a>
               ) : (
