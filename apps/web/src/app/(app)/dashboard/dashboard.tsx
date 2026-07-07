@@ -260,33 +260,39 @@ export default function Dashboard({
                 <TimerSettings />
               </div>
               {/* Timer output — the OBS view of THIS timer, right where it's controlled */}
-              <div className="w-full space-y-2 lg:w-72 lg:shrink-0 lg:border-l lg:border-border/40 lg:pl-6">
+              <div className="w-full lg:w-72 lg:shrink-0 lg:border-l lg:border-border/40 lg:pl-6">
                 {user.data ? (
-                  <>
-                    <OverlayMonitor
-                      label="Timer monitor"
-                      src={timerToken ? `/overlay/t/${timerToken}` : null}
-                      title="Timer overlay preview"
-                      show={showTimerPreview}
-                      onToggle={setShowTimerPreview}
-                    />
-                    <OverlayUrlRow
-                      label="Timer Overlay"
-                      path={`/overlay/t/${user.data.overlayTimerToken}`}
-                      onCopy={() => copyUrl(`/overlay/t/${user.data!.overlayTimerToken}`)}
-                      onRegenerate={() => regenerateToken.mutate({ type: "timer" })}
-                      regenerating={regenerateToken.isPending}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Add the URL as a browser source in OBS
-                    </p>
-                  </>
+                  <OverlayMonitor
+                    label="Timer monitor"
+                    src={timerToken ? `/overlay/t/${timerToken}` : null}
+                    title="Timer overlay preview"
+                    show={showTimerPreview}
+                    onToggle={setShowTimerPreview}
+                  />
                 ) : (
                   <p className="text-sm text-muted-foreground">Loading...</p>
                 )}
               </div>
             </div>
           </TimerProvider>
+          {/* Overlay URL — full-width strip along the bottom so the OBS source URL has room */}
+          {user.data && (
+            <div className="space-y-2 border-t border-border/40 px-5 py-4">
+              <div className="console-rule">
+                <span className="console-label">Timer overlay URL</span>
+              </div>
+              <OverlayUrlRow
+                label="Timer Overlay"
+                path={`/overlay/t/${user.data.overlayTimerToken}`}
+                onCopy={() => copyUrl(`/overlay/t/${user.data!.overlayTimerToken}`)}
+                onRegenerate={() => regenerateToken.mutate({ type: "timer" })}
+                regenerating={regenerateToken.isPending}
+              />
+              <p className="text-xs text-muted-foreground">
+                Add the URL as a browser source in OBS
+              </p>
+            </div>
+          )}
         </section>
 
         {/* Task board — its overlay monitor sits right beside it */}
