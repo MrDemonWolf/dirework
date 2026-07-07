@@ -32,7 +32,11 @@ Two workers + one D1 database, deployed via **Alchemy** (`packages/infra/alchemy
 
 **Same-origin proxy (load-bearing):** `*.workers.dev` is on the Public Suffix List, so
 cookies cannot span the two workers. The web app's `next.config.ts` rewrites
-`/rpc/:path*` → api `/trpc/:path*`, plus `/api/auth/*` and `/api/bot/*` — the browser only
+`/rpc/:path*` → api `/trpc/:path*` (tRPC never redirects, so a rewrite is safe). The
+OAuth routes `/api/auth/*` and `/api/bot/*` are proxied by **route handlers**
+(`apps/web/src/app/api/{auth,bot}/**/route.ts` via `lib/auth-proxy.ts`,
+`redirect: "manual"`) — a rewrite follows upstream 3xx internally and drops the
+redirect's Set-Cookie, which silently breaks the OAuth callbacks. The browser only
 ever sees the web origin for authenticated traffic (sameSite lax cookies). Public
 token-authenticated traffic (overlay polling, bot page) goes DIRECT to the api worker via
 `publicTrpc` (no cookies) to avoid double-hop request burn on the free tier.

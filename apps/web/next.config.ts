@@ -8,8 +8,8 @@ initOpenNextCloudflareForDev();
 
 // API worker origin. workers.dev is on the Public Suffix List, so cookies can
 // never span the web + api workers — authenticated traffic must be proxied
-// same-origin via the rewrites below. Falls back to localhost so plain
-// `next dev` works without a deployed api worker.
+// same-origin. Falls back to localhost so plain `next dev` works without a
+// deployed api worker.
 // `||` not `??`: an empty NEXT_PUBLIC_SERVER_URL (unset GH deploy var) would
 // slip past `??` and make every rewrite target relative -> self-proxy 404s.
 const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000";
@@ -31,13 +31,12 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       // Protected tRPC — browser calls same-origin /rpc/* with cookies,
-      // the web worker proxies to the api worker's /trpc/*.
+      // the web worker proxies to the api worker's /trpc/*. tRPC never
+      // redirects, so a rewrite is safe here. The OAuth routes (/api/auth/*,
+      // /api/bot/*) are NOT rewrites: rewrites follow upstream 3xx and drop
+      // their Set-Cookie — they're proxied by route handlers instead
+      // (src/app/api/{auth,bot}/**/route.ts via lib/auth-proxy.ts).
       { source: "/rpc/:path*", destination: `${serverUrl}/trpc/:path*` },
-      // better-auth (login, session, callbacks) — must be same-origin so the
-      // session cookie is set on the web origin.
-      { source: "/api/auth/:path*", destination: `${serverUrl}/api/auth/:path*` },
-      // Bot-account OAuth (authorize + Twitch callback) lives on the api worker.
-      { source: "/api/bot/:path*", destination: `${serverUrl}/api/bot/:path*` },
     ];
   },
   async headers() {
