@@ -22,7 +22,7 @@ export function FieldRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[6.5rem_1fr] items-center gap-2">
+    <div className="grid grid-cols-[5rem_1fr] items-center gap-2 md:grid-cols-[6.5rem_1fr]">
       <Label htmlFor={htmlFor} id={labelId} className="text-xs text-muted-foreground">
         {label}
       </Label>
@@ -53,7 +53,7 @@ export function TextFieldRow({
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-8 w-28 text-right"
+        className="h-9 w-28 text-right md:h-8"
         placeholder={placeholder}
       />
       {unit && <span className="console-label">{unit}</span>}

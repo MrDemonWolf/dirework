@@ -79,6 +79,29 @@ export default function Layout({ children }: LayoutProps<"/">) {
         </a>
         <Provider>{children}</Provider>
         <Footer />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "SoftwareApplication",
+              name: "Dirework",
+              description:
+                "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working and body-doubling streams.",
+              applicationCategory: "MultimediaApplication",
+              operatingSystem: "Web (Cloudflare Workers)",
+              url: "https://mrdemonwolf.github.io/dirework",
+              isAccessibleForFree: true,
+              offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+              author: {
+                "@type": "Organization",
+                name: "MrDemonWolf, Inc.",
+                url: "https://www.mrdemonwolf.com",
+              },
+              codeRepository: "https://github.com/mrdemonwolf/dirework",
+            }),
+          }}
+        />
       </body>
     </html>
   );

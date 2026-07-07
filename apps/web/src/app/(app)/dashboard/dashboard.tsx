@@ -127,7 +127,7 @@ function OverlayUrlRow({
         type="text"
         readOnly
         value={revealed ? fullUrl : "•".repeat(40)}
-        className="panel-inset h-9 min-w-0 flex-1 truncate px-3 font-mono text-base md:text-xs"
+        className="panel-inset h-9 min-w-0 flex-1 truncate px-3 font-mono text-base md:text-sm"
         aria-hidden={revealed ? undefined : true}
         tabIndex={revealed ? undefined : -1}
         aria-label={revealed ? `${label} URL` : undefined}
@@ -140,6 +140,7 @@ function OverlayUrlRow({
         size="icon"
         className="size-8 shrink-0"
         onClick={() => setRevealed((v) => !v)}
+        aria-pressed={revealed}
         aria-label={revealed ? `Hide ${label} URL` : `Show ${label} URL`}
       >
         {revealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
@@ -259,33 +260,39 @@ export default function Dashboard({
                 <TimerSettings />
               </div>
               {/* Timer output — the OBS view of THIS timer, right where it's controlled */}
-              <div className="w-full space-y-2 lg:w-72 lg:shrink-0 lg:border-l lg:border-border/40 lg:pl-6">
+              <div className="w-full lg:w-72 lg:shrink-0 lg:border-l lg:border-border/40 lg:pl-6">
                 {user.data ? (
-                  <>
-                    <OverlayMonitor
-                      label="Timer monitor"
-                      src={timerToken ? `/overlay/t/${timerToken}` : null}
-                      title="Timer overlay preview"
-                      show={showTimerPreview}
-                      onToggle={setShowTimerPreview}
-                    />
-                    <OverlayUrlRow
-                      label="Timer Overlay"
-                      path={`/overlay/t/${user.data.overlayTimerToken}`}
-                      onCopy={() => copyUrl(`/overlay/t/${user.data!.overlayTimerToken}`)}
-                      onRegenerate={() => regenerateToken.mutate({ type: "timer" })}
-                      regenerating={regenerateToken.isPending}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Add the URL as a browser source in OBS
-                    </p>
-                  </>
+                  <OverlayMonitor
+                    label="Timer monitor"
+                    src={timerToken ? `/overlay/t/${timerToken}` : null}
+                    title="Timer overlay preview"
+                    show={showTimerPreview}
+                    onToggle={setShowTimerPreview}
+                  />
                 ) : (
                   <p className="text-sm text-muted-foreground">Loading...</p>
                 )}
               </div>
             </div>
           </TimerProvider>
+          {/* Overlay URL — full-width strip along the bottom so the OBS source URL has room */}
+          {user.data && (
+            <div className="space-y-2 border-t border-border/40 px-5 py-4">
+              <div className="console-rule">
+                <span className="console-label">Timer overlay URL</span>
+              </div>
+              <OverlayUrlRow
+                label="Timer Overlay"
+                path={`/overlay/t/${user.data.overlayTimerToken}`}
+                onCopy={() => copyUrl(`/overlay/t/${user.data!.overlayTimerToken}`)}
+                onRegenerate={() => regenerateToken.mutate({ type: "timer" })}
+                regenerating={regenerateToken.isPending}
+              />
+              <p className="text-xs text-muted-foreground">
+                Add the URL as a browser source in OBS
+              </p>
+            </div>
+          )}
         </section>
 
         {/* Task board — its overlay monitor sits right beside it */}
@@ -316,27 +323,37 @@ export default function Dashboard({
           </div>
           <div className="space-y-2 px-5 py-5">
             {user.data ? (
-              <>
-                <OverlayMonitor
-                  label="Tasks monitor"
-                  src={tasksToken ? `/overlay/l/${tasksToken}` : null}
-                  title="Task list overlay preview"
-                  show={showTasksPreview}
-                  onToggle={setShowTasksPreview}
-                />
-                <OverlayUrlRow
-                  label="Task List Overlay"
-                  path={`/overlay/l/${user.data.overlayTasksToken}`}
-                  onCopy={() => copyUrl(`/overlay/l/${user.data!.overlayTasksToken}`)}
-                  onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
-                  regenerating={regenerateToken.isPending}
-                />
-              </>
+              <OverlayMonitor
+                label="Tasks monitor"
+                src={tasksToken ? `/overlay/l/${tasksToken}` : null}
+                title="Task list overlay preview"
+                show={showTasksPreview}
+                onToggle={setShowTasksPreview}
+              />
             ) : (
               <p className="text-sm text-muted-foreground">Loading...</p>
             )}
           </div>
         </section>
+
+        {/* Tasks overlay URL — full-width strip, matching the timer overlay URL */}
+        {user.data && (
+          <section className="panel space-y-2 px-5 py-4 lg:col-span-3">
+            <div className="console-rule">
+              <span className="console-label">Tasks overlay URL</span>
+            </div>
+            <OverlayUrlRow
+              label="Task List Overlay"
+              path={`/overlay/l/${user.data.overlayTasksToken}`}
+              onCopy={() => copyUrl(`/overlay/l/${user.data!.overlayTasksToken}`)}
+              onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
+              regenerating={regenerateToken.isPending}
+            />
+            <p className="text-xs text-muted-foreground">
+              Add the URL as a browser source in OBS
+            </p>
+          </section>
+        )}
 
         {/* Bot quick status — slim full-width strip */}
         <section className="panel lg:col-span-3">

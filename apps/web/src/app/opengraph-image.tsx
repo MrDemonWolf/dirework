@@ -9,7 +9,7 @@ export default function OGImage() {
     (
       <div
         style={{
-          background: "linear-gradient(135deg, #0f0a1e 0%, #1a1035 40%, #2d1b69 100%)",
+          background: "linear-gradient(125deg, #123a56 0%, #0E0B16 46%)",
           width: "100%",
           height: "100%",
           display: "flex",
@@ -27,15 +27,15 @@ export default function OGImage() {
           fill="none"
           style={{ marginBottom: 32 }}
         >
-          <path d="M14 30L20 8l10 18" stroke="#a78bfa" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M50 30L44 8l-10 18" stroke="#a78bfa" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M12 30c-1 10 4 18 12 22l8 6 8-6c8-4 13-12 12-22" stroke="#a78bfa" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-          <circle cx="23" cy="36" r="2.5" fill="#a78bfa"/>
-          <circle cx="41" cy="36" r="2.5" fill="#a78bfa"/>
-          <path d="M28 46l4 4 4-4" stroke="#a78bfa" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-          <circle cx="32" cy="24" r="7" stroke="#a78bfa" strokeWidth="2.5"/>
-          <line x1="32" y1="24" x2="32" y2="19" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round"/>
-          <line x1="32" y1="24" x2="36" y2="24" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round"/>
+          <path d="M14 30L20 8l10 18" stroke="#29B6F0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M50 30L44 8l-10 18" stroke="#29B6F0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M12 30c-1 10 4 18 12 22l8 6 8-6c8-4 13-12 12-22" stroke="#29B6F0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+          <circle cx="23" cy="36" r="2.5" fill="#29B6F0"/>
+          <circle cx="41" cy="36" r="2.5" fill="#29B6F0"/>
+          <path d="M28 46l4 4 4-4" stroke="#29B6F0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+          <circle cx="32" cy="24" r="7" stroke="#29B6F0" strokeWidth="2.5"/>
+          <line x1="32" y1="24" x2="32" y2="19" stroke="#29B6F0" strokeWidth="2.5" strokeLinecap="round"/>
+          <line x1="32" y1="24" x2="36" y2="24" stroke="#29B6F0" strokeWidth="2.5" strokeLinecap="round"/>
         </svg>
         <div
           style={{
@@ -51,7 +51,7 @@ export default function OGImage() {
         <div
           style={{
             fontSize: 28,
-            color: "#a78bfa",
+            color: "#29B6F0",
             fontWeight: 500,
           }}
         >

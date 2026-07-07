@@ -127,7 +127,7 @@ export function CommandAliasEditor({
                     placeholder="!t"
                     maxLength={50}
                     aria-invalid={isDuplicate || undefined}
-                    aria-describedby={isDuplicate ? "alias-duplicate-error" : undefined}
+                    aria-describedby={isDuplicate ? `${row.id}-key-duplicate` : undefined}
                     className={cn("font-mono", isDuplicate && "border-destructive")}
                   />
                 </div>
@@ -155,6 +155,11 @@ export function CommandAliasEditor({
                   <Trash2 className="size-4" />
                 </Button>
               </div>
+              {isDuplicate && (
+                <p id={`${row.id}-key-duplicate`} className="text-xs text-destructive">
+                  Duplicate alias — rename or remove one before saving.
+                </p>
+              )}
               {isUnknown && (
                 <p id={`${row.id}-cmd-warning`} className="text-xs text-warning">
                   Unknown command — this alias won&apos;t fire.

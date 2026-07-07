@@ -42,10 +42,10 @@ export const knownAliasTargets: string[] = [
   ]),
 ];
 
-function CommandTable({ commands }: { commands: CommandRow[] }) {
+function CommandTable({ commands, labelledBy }: { commands: CommandRow[]; labelledBy?: string }) {
   return (
     <div className="panel-inset overflow-x-auto p-3">
-      <table className="w-full min-w-[420px] text-xs">
+      <table aria-labelledby={labelledBy} className="w-full min-w-[420px] text-xs">
         <thead>
           <tr className="border-b text-left">
             <th className="console-label pb-1.5 font-medium">Command</th>
@@ -118,9 +118,9 @@ export function CommandTabPanel<T extends object>({
 
       <div className="space-y-3">
         <div className="console-rule">
-          <h3 className="console-label">Command Reference</h3>
+          <h3 id={`${idPrefix}-cmd-ref`} className="console-label">Command Reference</h3>
         </div>
-        <CommandTable commands={commands} />
+        <CommandTable commands={commands} labelledBy={`${idPrefix}-cmd-ref`} />
       </div>
 
       <div className="space-y-3">

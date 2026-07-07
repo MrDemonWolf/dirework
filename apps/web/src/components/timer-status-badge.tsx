@@ -19,7 +19,10 @@ const statusLabels: Record<TimerStatus, string> = {
 export function TimerStatusBadge() {
   const timer = useQuery({
     ...trpc.timer.get.queryOptions(),
-    refetchInterval: 1000,
+    // Shares the timer.get key with the console; 2s + no focus-refetch keeps the
+    // dashboard's request rate low on the Cloudflare free tier.
+    refetchInterval: 2000,
+    refetchOnWindowFocus: false,
   });
 
   const status: TimerStatus = toTimerStatus(timer.data?.status ?? "idle");

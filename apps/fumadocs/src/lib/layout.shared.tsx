@@ -1,6 +1,6 @@
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 
-/** Inline brand mark — a squircle timer ring, the product's signature motif. */
+/** Inline brand mark — the Dirework wolf-and-clock (wolf + Pomodoro). */
 function BrandMark() {
   return (
     <span
@@ -11,27 +11,24 @@ function BrandMark() {
       <svg
         width="26"
         height="26"
-        viewBox="0 0 26 26"
+        viewBox="0 0 64 64"
         fill="none"
+        stroke="var(--brand-500)"
+        strokeWidth={3}
+        strokeLinecap="round"
+        strokeLinejoin="round"
         aria-hidden="true"
         style={{ flexShrink: 0 }}
       >
-        <rect
-          x="2.5"
-          y="2.5"
-          width="21"
-          height="21"
-          rx="7"
-          stroke="var(--hairline)"
-          strokeWidth="2.5"
-        />
-        {/* ~70% progress arc in brand cerulean */}
-        <path
-          d="M13 2.5 h4 a7 7 0 0 1 6.5 7 v7 a7 7 0 0 1 -7 7 h-9"
-          stroke="var(--brand-500)"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-        />
+        <path d="M14 30L20 8l10 18" />
+        <path d="M50 30L44 8l-10 18" />
+        <path d="M12 30c-1 10 4 18 12 22l8 6 8-6c8-4 13-12 12-22" />
+        <circle cx="23" cy="36" r="2.5" fill="var(--brand-500)" stroke="none" />
+        <circle cx="41" cy="36" r="2.5" fill="var(--brand-500)" stroke="none" />
+        <path d="M28 46l4 4 4-4" />
+        <circle cx="32" cy="24" r="7" strokeWidth={2.5} />
+        <line x1="32" y1="24" x2="32" y2="19" strokeWidth={2.5} />
+        <line x1="32" y1="24" x2="36" y2="24" strokeWidth={2.5} />
       </svg>
       <span
         className="dw-display"
@@ -60,8 +57,7 @@ export function baseOptions(): BaseLayoutProps {
       // Landing-section anchors. On the home page these scroll; from any other
       // page they navigate home and then jump to the section.
       { text: "Features", url: "/#features" },
-      { text: "Overlays", url: "/#overlays" },
-      { text: "Themes", url: "/#themes" },
+      { text: "Overlays & Themes", url: "/#overlays" },
       { text: "Compare", url: "/#compare" },
       { text: "Docs", url: "/docs" },
       { text: "Support", url: "https://mrdwolf.net/discord" },

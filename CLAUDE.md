@@ -45,8 +45,10 @@ token-authenticated traffic (overlay polling, bot page) goes DIRECT to the api w
 `createDb()` (packages/db), `createAuth()` (packages/auth), `createContext({ context })`
 (packages/api). Never add module-level db/auth/EventEmitter state.
 
-**Real-time = polling.** Overlays poll public tRPC queries every 2s and compute the
-countdown locally from `targetEndTime`. There is no SSE, no event bus.
+**Real-time = polling.** Overlays poll public tRPC queries every 3s and compute the
+countdown locally from `targetEndTime`. There is no SSE, no event bus. (The
+countdown is local, so the poll only catches state changes; the interval is kept
+high to stay within the Cloudflare free-tier request budget.)
 
 **Twitch bot = browser page.** `/bot/<token>` (token-gated, `instanceConfig.botToken`)
 holds the IRC WebSocket (`wss://irc-ws.chat.twitch.tv`) via `apps/web/src/lib/irc-client.ts`,
@@ -153,7 +155,7 @@ Alchemy (dev and deploy). Never edit applied migrations.
 ### Overlay System
 
 Public routes `/overlay/t/[token]` (timer) and `/overlay/l/[token]` (tasks), transparent
-for OBS. Poll `publicTrpc.overlay.getTimerState` / `getTaskList` every 2s
+for OBS. Poll `publicTrpc.overlay.getTimerState` / `getTaskList` every 3s
 (`refetchIntervalInBackground: true`); timer display ticks locally (100ms) from
 `targetEndTime`. React Query keeps the last payload on failed refetches so OBS sources
 don't blank. Two ring shapes: circle + rounded-rect squircle.
