@@ -7,8 +7,12 @@ import { defaultTaskStyles } from "@/lib/theme-presets";
 import { TaskListDisplay } from "@/components/task-list-display";
 import { publicTrpc } from "@/utils/trpc";
 
-/** Overlay polling interval — task lists only change on chat/dashboard edits. */
-const POLL_INTERVAL_MS = 2000;
+/**
+ * Overlay polling interval — task lists only change on chat/dashboard edits, so
+ * 3s keeps Worker request volume low for always-on OBS sources (Cloudflare free
+ * tier) without a noticeable lag on `!task`/`!done`.
+ */
+const POLL_INTERVAL_MS = 3000;
 
 export default function TaskListOverlayPage() {
   const { token } = useParams<{ token: string }>();
