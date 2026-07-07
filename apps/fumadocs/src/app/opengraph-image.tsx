@@ -26,17 +26,26 @@ export default function OpengraphImage() {
       >
         {/* wordmark */}
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 12,
-              border: "4px solid #29B6F0",
-              borderRightColor: "transparent",
-              transform: "rotate(-45deg)",
-              display: "flex",
-            }}
-          />
+          <svg
+            width="46"
+            height="46"
+            viewBox="0 0 64 64"
+            fill="none"
+            stroke="#29B6F0"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M14 30L20 8l10 18" />
+            <path d="M50 30L44 8l-10 18" />
+            <path d="M12 30c-1 10 4 18 12 22l8 6 8-6c8-4 13-12 12-22" />
+            <circle cx="23" cy="36" r="2.5" fill="#29B6F0" />
+            <circle cx="41" cy="36" r="2.5" fill="#29B6F0" />
+            <path d="M28 46l4 4 4-4" />
+            <circle cx="32" cy="24" r="7" strokeWidth="2.5" />
+            <line x1="32" y1="24" x2="32" y2="19" strokeWidth="2.5" />
+            <line x1="32" y1="24" x2="36" y2="24" strokeWidth="2.5" />
+          </svg>
           <div style={{ fontSize: 34, fontWeight: 800, color: "#F5F3FF" }}>
             Dirework
           </div>
