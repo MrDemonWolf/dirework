@@ -21,10 +21,8 @@ import {
   Users,
   X as XIcon,
 } from "lucide-react";
-import { TimerOverlayWidget } from "./_widgets/TimerOverlayWidget";
-import { TaskListWidget } from "./_widgets/TaskListWidget";
 import { ChatCommandWidget } from "./_widgets/ChatCommandWidget";
-import { ThemeGallery } from "./_widgets/ThemeGallery";
+import { OverlayThemePreview } from "./_widgets/OverlayThemePreview";
 
 const GITHUB = "https://github.com/mrdemonwolf/dirework";
 const DISCORD = "https://mrdwolf.net/discord";
@@ -307,68 +305,28 @@ export default function HomePage() {
       {/* ═══════════════ OVERLAYS ═══════════════ */}
       <section id="overlays" className="dw-bg-surface px-6 py-14 sm:py-20 lg:py-28 scroll-mt-16">
         <div className="mx-auto max-w-6xl grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
-          <figure
-            className="order-2 md:order-1 mx-auto panel-inset overflow-hidden w-full"
-            style={{ maxWidth: 520 }}
-            aria-label="Timer and task overlays inside an OBS browser source"
-          >
-            <div
-              className="px-4 py-2.5 flex items-center gap-2 text-xs dw-mono dw-text-2"
-              style={{ borderBottom: "1px solid var(--hairline)" }}
-              aria-hidden="true"
-            >
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#ff5f57" }} />
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#febc2e" }} />
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#28c840" }} />
-              <span className="ml-2">/overlay/t/•••</span>
-            </div>
-            <div className="bg-checker" style={{ padding: "28px 24px", display: "flex", justifyContent: "center", gap: 24, flexWrap: "wrap", alignItems: "center" }}>
-              <TimerOverlayWidget />
-              <TaskListWidget />
-            </div>
-          </figure>
+          <div className="order-2 md:order-1">
+            <OverlayThemePreview />
+          </div>
 
           <div className="order-1 md:order-2">
-            <Kicker num="03">OBS overlays</Kicker>
+            <Kicker num="03">Overlays &amp; themes</Kicker>
             <h2 className="dw-display dw-text-1 text-4xl sm:text-5xl mt-5">
               Transparent. Live. Zero refresh.
             </h2>
             <p className="dw-text-2 text-lg mt-5 leading-relaxed">
-              Two browser sources — a timer and a task list — with transparent
-              backgrounds for OBS. Each overlay polls the public API every couple of
-              seconds, so a <code className="dw-mono dw-text-1">!done</code> in chat lands
-              on screen within ~2s. The countdown ticks locally at 100ms for smooth motion.
-              Pick a circle or a macOS-style squircle ring.
+              Two transparent browser sources — a timer and a task list — for OBS.
+              Each polls the public API every couple of seconds, so a{" "}
+              <code className="dw-mono dw-text-1">!done</code> in chat lands on screen
+              within ~2s; the countdown ticks locally at 100ms for smooth motion. Start
+              from one of six presets and tune every color, font, size, and corner radius —
+              pick a theme to preview it live.
             </p>
             <Link
               href="/docs/overlays"
               className="dw-text-brand mt-6 inline-flex items-center gap-1.5 text-sm font-semibold"
             >
               Set up the overlays
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════ THEME CENTER ═══════════════ */}
-      <section id="themes" className="dw-bg-base px-6 py-14 sm:py-20 lg:py-28 scroll-mt-16">
-        <div className="mx-auto max-w-6xl">
-          <SectionHead
-            num="04"
-            eyebrow="Theme Center"
-            title={<>Six themes. Every pixel yours.</>}
-            sub="Start from a preset, then tune every color, font, size, and corner radius in a live editor — or build the look of your whole channel from scratch."
-          />
-          <div className="mt-12">
-            <ThemeGallery />
-          </div>
-          <div className="mt-10 text-center">
-            <Link
-              href="/docs/overlays"
-              className="dw-text-brand inline-flex items-center gap-1.5 text-sm font-semibold"
-            >
-              Customize your overlays
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>

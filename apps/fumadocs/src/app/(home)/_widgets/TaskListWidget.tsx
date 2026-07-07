@@ -4,6 +4,9 @@
  * apps/web/src/components/task-list-display.tsx + groupTasksByAuthor().
  */
 
+import { OVERLAY_THEMES, DEFAULT_OVERLAY_THEME, type OverlayTheme } from "./overlay-themes.generated";
+import { hexToRgba } from "./theme-util";
+
 type Task = { text: string; done: boolean };
 type Group = { author: string; color: string; tasks: Task[] };
 
@@ -31,7 +34,7 @@ const GROUPS: Group[] = [
   },
 ];
 
-function CheckBox({ done }: { done: boolean }) {
+function CheckBox({ done, theme }: { done: boolean; theme: OverlayTheme }) {
   return (
     <span
       aria-hidden="true"
@@ -42,11 +45,11 @@ function CheckBox({ done }: { done: boolean }) {
         marginTop: 2,
         marginRight: 8,
         borderRadius: 6,
-        border: `2px solid ${done ? "#34c759" : "#636366"}`,
+        border: `2px solid ${done ? theme.accent : hexToRgba(theme.text, 0.4)}`,
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        color: "#34c759",
+        color: theme.accent,
         fontSize: 12,
         lineHeight: 1,
       }}
@@ -56,7 +59,11 @@ function CheckBox({ done }: { done: boolean }) {
   );
 }
 
-export function TaskListWidget() {
+export function TaskListWidget({
+  theme = OVERLAY_THEMES[DEFAULT_OVERLAY_THEME],
+}: {
+  theme?: OverlayTheme;
+}) {
   return (
     <div
       role="img"
@@ -79,7 +86,7 @@ export function TaskListWidget() {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                background: "rgba(28,28,30,0.95)",
+                background: hexToRgba(theme.bg, 0.95),
                 borderTopLeftRadius: 12,
                 borderTopRightRadius: 12,
                 padding: "10px 14px",
@@ -88,13 +95,13 @@ export function TaskListWidget() {
               }}
             >
               <span style={{ color: g.color }}>{g.author}</span>
-              <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 14 }}>
+              <span style={{ color: hexToRgba(theme.text, 0.55), fontSize: 14 }}>
                 {done}/{g.tasks.length}
               </span>
             </div>
             <div
               style={{
-                background: "rgba(28,28,30,0.85)",
+                background: hexToRgba(theme.bg, 0.85),
                 borderBottomLeftRadius: 12,
                 borderBottomRightRadius: 12,
                 padding: 6,
@@ -106,16 +113,16 @@ export function TaskListWidget() {
                   style={{
                     display: "flex",
                     alignItems: "flex-start",
-                    background: t.done ? "rgba(28,28,30,0.5)" : "rgba(44,44,46,0.9)",
+                    background: t.done ? hexToRgba(theme.text, 0.04) : hexToRgba(theme.text, 0.08),
                     borderRadius: 10,
                     padding: "9px 12px",
                     marginBottom: i === g.tasks.length - 1 ? 0 : 4,
                   }}
                 >
-                  <CheckBox done={t.done} />
+                  <CheckBox done={t.done} theme={theme} />
                   <span
                     style={{
-                      color: t.done ? "#8e8e93" : "#f5f5f7",
+                      color: t.done ? hexToRgba(theme.text, 0.5) : theme.text,
                       fontSize: 15,
                       textDecoration: t.done ? "line-through" : "none",
                       lineHeight: 1.35,

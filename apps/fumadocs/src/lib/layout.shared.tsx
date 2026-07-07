@@ -60,8 +60,7 @@ export function baseOptions(): BaseLayoutProps {
       // Landing-section anchors. On the home page these scroll; from any other
       // page they navigate home and then jump to the section.
       { text: "Features", url: "/#features" },
-      { text: "Overlays", url: "/#overlays" },
-      { text: "Themes", url: "/#themes" },
+      { text: "Overlays & Themes", url: "/#overlays" },
       { text: "Compare", url: "/#compare" },
       { text: "Docs", url: "/docs" },
       { text: "Support", url: "https://mrdwolf.net/discord" },
