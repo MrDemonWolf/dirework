@@ -29,7 +29,7 @@
   --ds-color-surface-hairline: #E5E2EF;
   --ds-color-text-primary: #1A1523;
   --ds-color-text-secondary: #6B6577;
-  --ds-color-text-muted: #9C97A8;
+  --ds-color-text-muted: #78737F;
   --ds-color-partner-twitch: #9146FF;
   --ds-color-partner-twitch-dark: #772CE8;
   --ds-color-partner-discord: #5865F2;
@@ -96,5 +96,5 @@
   --ds-color-surface-hairline: #2A2438;
   --ds-color-text-primary: #F5F3FF;
   --ds-color-text-secondary: #A8A2B8;
-  --ds-color-text-muted: #6B6577;
+  --ds-color-text-muted: #7B7A88;
 }
