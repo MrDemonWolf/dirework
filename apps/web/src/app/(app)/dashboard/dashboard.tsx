@@ -127,7 +127,7 @@ function OverlayUrlRow({
         type="text"
         readOnly
         value={revealed ? fullUrl : "•".repeat(40)}
-        className="panel-inset h-9 min-w-0 flex-1 truncate px-3 font-mono text-base md:text-xs"
+        className="panel-inset h-9 min-w-0 flex-1 truncate px-3 font-mono text-base md:text-sm"
         aria-hidden={revealed ? undefined : true}
         tabIndex={revealed ? undefined : -1}
         aria-label={revealed ? `${label} URL` : undefined}
@@ -140,6 +140,7 @@ function OverlayUrlRow({
         size="icon"
         className="size-8 shrink-0"
         onClick={() => setRevealed((v) => !v)}
+        aria-pressed={revealed}
         aria-label={revealed ? `Hide ${label} URL` : `Show ${label} URL`}
       >
         {revealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
