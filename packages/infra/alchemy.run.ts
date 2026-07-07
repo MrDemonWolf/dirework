@@ -63,7 +63,11 @@ export const web = await Nextjs("web", {
   // vague "Uncaught Error: internal error" (10021). Normalize the specifiers
   // to one form right after OpenNext's build so Alchemy's dedup collapses
   // them naturally, then let Alchemy bundle as usual.
-  build: `bun run opennextjs-cloudflare build && node scripts/fix-duplicate-wasm-specifiers.mjs`,
+  // next.config bakes the /api/auth|/rpc|/api/bot rewrite targets from
+  // NEXT_PUBLIC_SERVER_URL at BUILD time; the runtime binding below is too
+  // late. The deploy job env var can be empty (unset GH repo var), so inject
+  // the api URL Alchemy already resolved and never depend on a GH variable.
+  build: `NEXT_PUBLIC_SERVER_URL=${server.url} bun run opennextjs-cloudflare build && node scripts/fix-duplicate-wasm-specifiers.mjs`,
   bundle: {
     minify: true,
     // Alchemy's own esbuild pass over the OpenNext output has no loader for

@@ -10,7 +10,9 @@ initOpenNextCloudflareForDev();
 // never span the web + api workers — authenticated traffic must be proxied
 // same-origin via the rewrites below. Falls back to localhost so plain
 // `next dev` works without a deployed api worker.
-const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhost:3000";
+// `||` not `??`: an empty NEXT_PUBLIC_SERVER_URL (unset GH deploy var) would
+// slip past `??` and make every rewrite target relative -> self-proxy 404s.
+const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000";
 
 const commitSha = (() => {
   try {
