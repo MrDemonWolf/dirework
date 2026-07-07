@@ -323,27 +323,37 @@ export default function Dashboard({
           </div>
           <div className="space-y-2 px-5 py-5">
             {user.data ? (
-              <>
-                <OverlayMonitor
-                  label="Tasks monitor"
-                  src={tasksToken ? `/overlay/l/${tasksToken}` : null}
-                  title="Task list overlay preview"
-                  show={showTasksPreview}
-                  onToggle={setShowTasksPreview}
-                />
-                <OverlayUrlRow
-                  label="Task List Overlay"
-                  path={`/overlay/l/${user.data.overlayTasksToken}`}
-                  onCopy={() => copyUrl(`/overlay/l/${user.data!.overlayTasksToken}`)}
-                  onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
-                  regenerating={regenerateToken.isPending}
-                />
-              </>
+              <OverlayMonitor
+                label="Tasks monitor"
+                src={tasksToken ? `/overlay/l/${tasksToken}` : null}
+                title="Task list overlay preview"
+                show={showTasksPreview}
+                onToggle={setShowTasksPreview}
+              />
             ) : (
               <p className="text-sm text-muted-foreground">Loading...</p>
             )}
           </div>
         </section>
+
+        {/* Tasks overlay URL — full-width strip, matching the timer overlay URL */}
+        {user.data && (
+          <section className="panel space-y-2 px-5 py-4 lg:col-span-3">
+            <div className="console-rule">
+              <span className="console-label">Tasks overlay URL</span>
+            </div>
+            <OverlayUrlRow
+              label="Task List Overlay"
+              path={`/overlay/l/${user.data.overlayTasksToken}`}
+              onCopy={() => copyUrl(`/overlay/l/${user.data!.overlayTasksToken}`)}
+              onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
+              regenerating={regenerateToken.isPending}
+            />
+            <p className="text-xs text-muted-foreground">
+              Add the URL as a browser source in OBS
+            </p>
+          </section>
+        )}
 
         {/* Bot quick status — slim full-width strip */}
         <section className="panel lg:col-span-3">
