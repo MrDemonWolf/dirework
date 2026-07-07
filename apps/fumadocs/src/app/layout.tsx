@@ -1,4 +1,4 @@
-import { Roboto, Montserrat } from "next/font/google";
+import { IBM_Plex_Sans, IBM_Plex_Mono, Montserrat } from "next/font/google";
 import type { Metadata } from "next";
 
 import { Provider } from "@/components/provider";
@@ -6,11 +6,18 @@ import { Footer } from "@/components/footer";
 
 import "./global.css";
 
-// Match the web app: Montserrat for headings/display, Roboto for body.
-const roboto = Roboto({
+// Match the web app's "Focus Console" type system exactly:
+// Montserrat display · IBM Plex Sans body · IBM Plex Mono labels & numerals.
+const plexSans = IBM_Plex_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "700"],
-  variable: "--font-roboto",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-plex-sans",
+});
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-plex-mono",
 });
 
 const montserrat = Montserrat({
@@ -63,10 +70,13 @@ export default function Layout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${roboto.variable} ${montserrat.variable} ${roboto.className}`}
+      className={`${plexSans.variable} ${plexMono.variable} ${montserrat.variable} ${plexSans.className}`}
       suppressHydrationWarning
     >
-      <body className="flex flex-col min-h-screen">
+      <body className="flex flex-col min-h-screen dw-font">
+        <a href="#nd-page" className="skip-nav">
+          Skip to content
+        </a>
         <Provider>{children}</Provider>
         <Footer />
       </body>

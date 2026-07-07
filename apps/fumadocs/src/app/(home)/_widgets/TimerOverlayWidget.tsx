@@ -77,7 +77,8 @@ export function TimerOverlayWidget() {
       aria-label={`Pomodoro timer overlay: focus, ${fmt(remaining)} remaining`}
       style={{
         width: SIZE,
-        height: SIZE,
+        maxWidth: "100%",
+        aspectRatio: "1",
         position: "relative",
         background: "rgba(28,28,30,0.92)",
         borderRadius: "22%",
@@ -90,8 +91,8 @@ export function TimerOverlayWidget() {
       }}
     >
       <svg
-        width={SIZE}
-        height={SIZE}
+        width="100%"
+        height="100%"
         viewBox={`0 0 ${SIZE} ${SIZE}`}
         style={{ position: "absolute", inset: 0 }}
         aria-hidden="true"
