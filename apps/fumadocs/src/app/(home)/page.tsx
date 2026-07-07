@@ -168,33 +168,30 @@ export default function HomePage() {
         <div className="relative z-10 px-6 pt-12 pb-16 sm:pt-20 sm:pb-24">
           <div className="mx-auto max-w-6xl grid lg:grid-cols-[1.05fr_0.95fr] gap-12 lg:gap-16 items-center">
             <div className="text-center lg:text-left">
-              <div className="dw-reveal dw-reveal-1 flex justify-center lg:justify-start">
-                <Chip tone="accent">Self-hosted · Twitch-native · Open source</Chip>
-              </div>
-              <h1 className="dw-reveal dw-reveal-1 dw-hero-headline dw-text-1 mt-5">
+              <h1 className="dw-reveal dw-reveal-1 dw-hero-headline dw-text-1">
                 Focus together,{" "}
                 <span className="dw-text-brand">stream better.</span>
               </h1>
-              <p className="dw-reveal dw-reveal-2 dw-text-2 text-lg sm:text-xl mt-6 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+              <p className="dw-reveal dw-reveal-2 dw-text-2 text-lg sm:text-xl mt-5 max-w-xl mx-auto lg:mx-0 leading-relaxed">
                 A co-working Pomodoro timer and shared task list for your Twitch stream.
                 You run the timer, your chat runs the tasks, and OBS shows it all — on
                 your own Cloudflare account, no SaaS in the middle.
               </p>
-              <div className="dw-reveal dw-reveal-3 mt-8 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
-                <Link href="/docs/getting-started" className="dw-btn dw-btn-primary">
+              <div className="dw-reveal dw-reveal-3 mt-7 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3">
+                <Link href="/docs/getting-started" className="dw-btn dw-btn-primary w-full justify-center sm:w-auto">
                   <Terminal className="w-4 h-4" />
                   Get Started
                 </Link>
-                <Link href="/docs" className="dw-btn dw-btn-secondary">
+                <Link href="/docs" className="dw-btn dw-btn-secondary w-full justify-center sm:w-auto">
                   Read the docs
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
-              <p className="mt-5 dw-mono text-xs dw-text-2 tracking-wide">
+              <p className="mt-4 dw-mono text-[0.7rem] sm:text-xs dw-text-2 tracking-wide">
                 One instance per streamer · Free plan-friendly · No lock-in
               </p>
 
-              <div className="dw-reveal dw-reveal-3 mt-7 flex flex-wrap items-center justify-center lg:justify-start gap-2">
+              <div className="dw-reveal dw-reveal-3 mt-6 flex flex-wrap items-center justify-center lg:justify-start gap-2">
                 <a href={GITHUB} target="_blank" rel="noopener noreferrer" className="dw-pill">
                   <Github className="w-3.5 h-3.5" /> Open source
                 </a>
@@ -396,21 +393,29 @@ export default function HomePage() {
                       Dirework
                     </th>
                     <th className="text-center py-4 px-3 dw-text-2 font-medium" scope="col">
-                      Hosted task widgets
+                      Self-hosted bots
+                      <span className="mt-0.5 block text-[0.7rem] font-normal dw-text-2">
+                        Firebot · Mix It Up · Streamer.bot
+                      </span>
                     </th>
                     <th className="text-center py-4 pl-3 dw-text-2 font-medium" scope="col">
-                      Generic timer bots
+                      Hosted platforms
+                      <span className="mt-0.5 block text-[0.7rem] font-normal dw-text-2">
+                        StreamElements · Streamlabs
+                      </span>
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {[
-                    { feature: "Pomodoro timer + overlay", a: "yes", b: "partial", c: "yes" },
-                    { feature: "Per-viewer task list", a: "yes", b: "yes", c: "no" },
-                    { feature: "Live-updating overlays", a: "yes", b: "partial", c: "no" },
-                    { feature: "Self-hosted / own your data", a: "yes", b: "no", c: "no" },
-                    { feature: "Fully themeable overlays", a: "yes", b: "partial", c: "no" },
-                    { feature: "Open source", a: "yes", b: "no", c: "partial" },
+                    { feature: "Pomodoro + per-viewer task list, built in", a: "yes", b: "partial", c: "partial" },
+                    { feature: "Live overlays, zero refresh", a: "yes", b: "partial", c: "partial" },
+                    { feature: "Runs serverless — no always-on PC", a: "yes", b: "no", c: "yes" },
+                    { feature: "Setup on Mac & Linux, not Windows-only", a: "yes", b: "partial", c: "yes" },
+                    { feature: "Own your data & instance", a: "yes", b: "yes", c: "no" },
+                    { feature: "Free to run", a: "yes", b: "yes", c: "partial" },
+                    { feature: "Fully themeable overlays", a: "yes", b: "partial", c: "partial" },
+                    { feature: "Open source", a: "yes", b: "partial", c: "no" },
                   ].map((row, i, arr) => (
                     <tr
                       key={row.feature}
@@ -432,6 +437,16 @@ export default function HomePage() {
               full feature breakdown
             </Link>
             .
+          </p>
+          <p className="mx-auto mt-3 max-w-2xl text-center text-xs dw-text-2 leading-relaxed">
+            Not sold on hosting a whole app? Honest alternatives worth a look:{" "}
+            <a href="https://firebot.app" target="_blank" rel="noopener noreferrer" className="dw-text-brand font-medium">Firebot</a>{" "}
+            and{" "}
+            <a href="https://mixitupapp.com" target="_blank" rel="noopener noreferrer" className="dw-text-brand font-medium">Mix It Up</a>{" "}
+            (all-in-one bots), or single-purpose OBS overlays like{" "}
+            <a href="https://github.com/jujoco/twitch-multitask-task-list-overlay" target="_blank" rel="noopener noreferrer" className="dw-text-brand font-medium">jujoco&apos;s task list</a>{" "}
+            and{" "}
+            <a href="https://github.com/unfloned/pomodoro-twitch-overlay" target="_blank" rel="noopener noreferrer" className="dw-text-brand font-medium">unfloned&apos;s pomodoro</a>.
           </p>
         </div>
       </section>
