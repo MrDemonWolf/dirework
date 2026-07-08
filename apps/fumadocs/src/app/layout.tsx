@@ -1,4 +1,5 @@
 import { IBM_Plex_Sans, IBM_Plex_Mono, Montserrat } from "next/font/google";
+import Script from "next/script";
 import type { Metadata } from "next";
 
 import { Provider } from "@/components/provider";
@@ -79,29 +80,28 @@ export default function Layout({ children }: LayoutProps<"/">) {
         </a>
         <Provider>{children}</Provider>
         <Footer />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "SoftwareApplication",
-              name: "Dirework",
-              description:
-                "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working and body-doubling streams.",
-              applicationCategory: "MultimediaApplication",
-              operatingSystem: "Web (Cloudflare Workers)",
-              url: "https://mrdemonwolf.github.io/dirework",
-              isAccessibleForFree: true,
-              offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-              author: {
-                "@type": "Organization",
-                name: "MrDemonWolf, Inc.",
-                url: "https://www.mrdemonwolf.com",
-              },
-              codeRepository: "https://github.com/mrdemonwolf/dirework",
-            }),
-          }}
-        />
+        {/* JSON-LD via next/script (id + beforeInteractive) so it lands in the
+            static HTML for crawlers without React's in-component <script> warning. */}
+        <Script id="dirework-jsonld" type="application/ld+json" strategy="beforeInteractive">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            name: "Dirework",
+            description:
+              "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working and body-doubling streams.",
+            applicationCategory: "MultimediaApplication",
+            operatingSystem: "Web (Cloudflare Workers)",
+            url: "https://mrdemonwolf.github.io/dirework",
+            isAccessibleForFree: true,
+            offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+            author: {
+              "@type": "Organization",
+              name: "MrDemonWolf, Inc.",
+              url: "https://www.mrdemonwolf.com",
+            },
+            codeRepository: "https://github.com/mrdemonwolf/dirework",
+          })}
+        </Script>
       </body>
     </html>
   );
