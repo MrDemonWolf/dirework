@@ -4,7 +4,7 @@
 // runtime detection (which picks bun whenever bun is the package manager).
 import alchemy from "alchemy";
 import { D1Database, Nextjs, Worker } from "alchemy/cloudflare";
-import { D1StateStore } from "alchemy/state";
+import { CloudflareStateStore } from "alchemy/state";
 import { config } from "dotenv";
 
 config({ path: "./.env" });
@@ -13,13 +13,22 @@ config({ path: "../../apps/server/.env" });
 
 // CI runners are ephemeral — the default local-file state store would lose
 // Alchemy's record of already-created resources between deploys, causing it
-// to try (and fail) to recreate them. D1StateStore persists state in its own
-// small D1 database instead, which is free-tier compatible (no Durable
-// Objects, unlike CloudflareStateStore). Only used in CI: it hits the
+// to try (and fail) to recreate them. In CI we persist state in the shared
+// account-wide store: one worker named `alchemy-state`, used by every
+// MrDemonWolf Alchemy app, backed by a SQLite Durable Object (free-tier
+// eligible since Sept 2024). Alchemy namespaces state by app, so dirework
+// lives under the "dirework" scope; requires the same ALCHEMY_STATE_TOKEN
+// across every deployment on the account. Only used in CI: it hits the
 // Cloudflare API, so local `bun run dev` (no CF auth) falls back to the default
 // filesystem state store, which persists fine across local runs.
 const app = await alchemy("dirework", {
-  stateStore: process.env.CI ? (scope) => new D1StateStore(scope) : undefined,
+  stateStore: process.env.CI
+    ? (scope) =>
+        new CloudflareStateStore(scope, {
+          scriptName: "alchemy-state",
+          stateToken: alchemy.secret(process.env.ALCHEMY_STATE_TOKEN),
+        })
+    : undefined,
 });
 
 const db = await D1Database("database", {
@@ -32,6 +41,9 @@ const db = await D1Database("database", {
 // Serves better-auth (/api/auth/*), tRPC (/trpc/*), and bot OAuth routes.
 export const server = await Worker("server", {
   name: "dirework-api",
+  // First deploy against the empty shared state store re-adopts the live
+  // worker instead of trying to create over it.
+  adopt: true,
   cwd: "../../apps/server",
   entrypoint: "src/index.ts",
   compatibility: "node",
@@ -61,6 +73,7 @@ export const server = await Worker("server", {
 // the two workers).
 export const web = await Nextjs("web", {
   name: "dirework",
+  adopt: true, // re-adopt live worker on first deploy against empty shared state
   cwd: "../../apps/web",
   // OpenNext's build inlines next/og (used by opengraph-image.tsx), which
   // imports its .wasm deps under two different specifiers ("foo.wasm" and

@@ -30,6 +30,8 @@ jobs:
       # Alchemy runs under Node via tsx — Bun segfaults on the Alchemy program.
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
+      # Shared across every MrDemonWolf Alchemy app — auths the alchemy-state store.
+      ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
       BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
       TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
       TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
