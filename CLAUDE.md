@@ -192,7 +192,7 @@ New pure functions → extract to testable modules + add tests.
 - `.github/workflows/deploy.yml` — push to main (or manual): test job, then Alchemy deploy.
   **Deploy runs under Node via `npx tsx` — Bun segfaults on the Alchemy program** (same
   lesson as Wolfathon). Secrets: `CLOUDFLARE_API_TOKEN`, `ALCHEMY_PASSWORD`,
-  `ALCHEMY_STATE_TOKEN` (shared account-wide — auths the `alchemy-state` store),
+  `ALCHEMY_STATE_TOKEN` (dirework's own — auths its dedicated `alchemy-state-dirework` store worker),
   `BETTER_AUTH_SECRET`, `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`. URLs
   (`BETTER_AUTH_URL`, `CORS_ORIGIN`, `NEXT_PUBLIC_SERVER_URL`) are GitHub repository
   **variables**, read by the deploy job via `${{ vars.* }}` (not workflow literals).
