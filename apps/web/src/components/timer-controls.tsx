@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { StatusChip } from "@/components/status-chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { formatClock } from "@/lib/timer-utils";
+import { type TimerState, formatClock } from "@/lib/timer-utils";
 import { TIMER_TONES, TIMER_PHASE_COLOR, toTimerStatus } from "@/lib/status-tones";
 import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
 import { trpc } from "@/utils/trpc";
@@ -77,15 +77,6 @@ function CycleDots({ current, total }: { current: number; total: number }) {
 }
 
 // --- Context ---
-
-interface TimerState {
-  status: string;
-  currentCycle: number;
-  totalCycles: number;
-  targetEndTime?: string | null;
-  pausedWithRemaining?: number | null;
-  pausedFromStatus?: string | null;
-}
 
 interface TimerContextValue {
   cycles: number;
