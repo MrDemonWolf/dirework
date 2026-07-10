@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 
 import { defaultTimerStyles } from "@/lib/theme-presets";
 import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
+import { resolvePhaseDuration } from "@/lib/timer-utils";
 import { TimerDisplay } from "@/components/timer-display";
 import { publicTrpc } from "@/utils/trpc";
 
@@ -23,6 +24,7 @@ const defaultTimerState = {
   status: "idle",
   targetEndTime: null,
   pausedWithRemaining: null,
+  pausedFromStatus: null,
   currentCycle: 1,
   totalCycles: 4,
 };
@@ -60,11 +62,23 @@ export default function TimerOverlayPage() {
     showHours: timerConfig?.showHours ?? false,
   };
 
+  // Ring progress measures remaining against the streamer's configured phase
+  // length (paused phases measure against the phase they froze in). Without a
+  // config row TimerDisplay falls back to its built-in defaults.
+  const totalDuration = timerConfig
+    ? (resolvePhaseDuration(
+        timerState.status,
+        timerState.pausedFromStatus,
+        timerConfig,
+      ) ?? undefined)
+    : undefined;
+
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-transparent">
       <TimerDisplay
         config={displayConfig}
-        state={timerState as { status: string; targetEndTime: string | null; pausedWithRemaining: number | null; currentCycle: number; totalCycles: number }}
+        state={timerState as { status: string; targetEndTime: string | null; pausedWithRemaining: number | null; pausedFromStatus: string | null; currentCycle: number; totalCycles: number }}
+        totalDuration={totalDuration}
       />
     </div>
   );

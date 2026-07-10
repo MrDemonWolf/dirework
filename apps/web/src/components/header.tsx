@@ -85,13 +85,15 @@ export default function Header() {
 
         <div className="flex items-center gap-2">
           <ModeToggle />
-          {session && <UserMenu />}
+          {/* UserMenu renders its own signed-out Twitch sign-in button, so the
+              sticky header always offers an entry point — not just the hero CTA. */}
+          <UserMenu />
           {/* Mobile hamburger */}
           {session && (
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden"
+              className="relative after:absolute after:-inset-1.5 md:hidden"
               onClick={() => setMobileMenuOpen((v) => !v)}
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
               aria-expanded={mobileMenuOpen}

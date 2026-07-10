@@ -64,7 +64,8 @@ const LED_CLASS: Record<"green" | "amber" | "red", string> = {
 };
 
 const LINE_CLASS: Record<ActivityKind, string> = {
-  info: "text-zinc-500",
+  // zinc-400 = 7.76:1 on zinc-950; zinc-500 was 4.12:1, below AA for 12px text
+  info: "text-zinc-400",
   chat: "text-zinc-300",
   reply: "text-emerald-300",
   error: "text-red-400",
@@ -105,7 +106,7 @@ function StatCell({
 }) {
   return (
     <div className="bg-zinc-950 px-4 py-2">
-      <div className="text-[10px] tracking-[0.25em] text-zinc-500 uppercase">
+      <div className="text-[10px] tracking-[0.25em] text-zinc-400 uppercase">
         {label}
       </div>
       <div
@@ -257,16 +258,22 @@ export function BotConsole() {
       },
       onAuthFailure: () => {
         if (disposed || revoked) return;
-        // The server refreshes the bot token on demand — refetch the session
-        // for a fresh one and reconnect. Small delay avoids a tight loop.
-        pushActivity("error", "Twitch rejected the chat token — fetching a fresh one");
-        later(bootstrap, 2000);
+        // Twitch rejected the stored token, so its DB expiry can't be trusted
+        // — force the server through the refresh flow instead of letting it
+        // hand back the same dead token. Small delay avoids a tight loop.
+        pushActivity("error", "Twitch rejected the chat token — forcing a refresh");
+        later(() => bootstrap({ forceRefresh: true }), 2000);
       },
     });
 
-    async function bootstrap(): Promise<void> {
+    async function bootstrap(
+      opts: { forceRefresh?: boolean } = {},
+    ): Promise<void> {
       try {
-        const session = await publicTrpc.bot.getSession.query({ token });
+        const session = await publicTrpc.bot.getSession.query({
+          token,
+          forceRefresh: opts.forceRefresh,
+        });
         if (disposed || revoked) return;
         setChannelName(session.channelName);
         setBotUsername(session.botUsername);
@@ -365,7 +372,7 @@ export function BotConsole() {
         >
           {statusText}
         </span>
-        <span className="ml-auto hidden shrink-0 text-[10px] tracking-[0.3em] text-zinc-600 uppercase sm:block">
+        <span className="ml-auto hidden shrink-0 text-[10px] tracking-[0.3em] text-zinc-400 uppercase sm:block">
           Dirework Bot Console
         </span>
       </header>
@@ -392,16 +399,18 @@ export function BotConsole() {
       {/* Activity feed — newest at the bottom, auto-pinned */}
       <div
         ref={logRef}
+        role="log"
+        tabIndex={0}
         aria-label="Activity log"
-        className="flex-1 overflow-y-auto px-4 py-2"
+        className="flex-1 overflow-y-auto px-4 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
       >
         {activity.length === 0 ? (
-          <p className="py-2 text-xs text-zinc-600">waiting for chat…</p>
+          <p className="py-2 text-xs text-zinc-400">waiting for chat…</p>
         ) : (
           <ul className="space-y-0.5 text-xs leading-5">
             {activity.map((line) => (
               <li key={line.id} className="flex gap-2">
-                <span className="shrink-0 tabular-nums text-zinc-600">
+                <span className="shrink-0 tabular-nums text-zinc-400">
                   {line.time}
                 </span>
                 <span className={`break-all ${LINE_CLASS[line.kind]}`}>
