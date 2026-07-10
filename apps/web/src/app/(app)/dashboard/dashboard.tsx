@@ -347,6 +347,25 @@ export default function Dashboard({
           ) : (
             <p className="p-5 text-sm text-muted-foreground">Loading...</p>
           )}
+          {/* Tasks overlay URL — full-width strip along the bottom of the task
+              board, mirroring the timer console's own overlay-URL strip. */}
+          {user.data && (
+            <div className="space-y-2 border-t border-border/40 px-5 py-4">
+              <ConsoleRule label="Tasks overlay URL" className="flex items-center">
+                <SizeChip size="700 × 800" hint="OBS browser source — the list fills it and scrolls when tasks overflow" />
+              </ConsoleRule>
+              <OverlayUrlRow
+                label="Tasks overlay"
+                path={`/overlay/l/${user.data.overlayTasksToken}`}
+                onCopy={() => copyUrl(`/overlay/l/${user.data!.overlayTasksToken}`)}
+                onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
+                regenerating={regenerateToken.isPending}
+              />
+              <p className="text-xs text-muted-foreground">
+                Add the URL as a browser source in OBS
+              </p>
+            </div>
+          )}
         </section>
 
         {/* Tasks output — the OBS view of the task list */}
@@ -374,28 +393,6 @@ export default function Dashboard({
             )}
           </div>
         </section>
-
-        {/* Tasks overlay URL — full-width strip mirroring the timer's, so the
-            OBS source URL has room instead of truncating in the narrow panel. */}
-        {user.data && (
-          <section className="panel lg:col-span-3">
-            <div className="space-y-2 px-5 py-4">
-              <ConsoleRule label="Tasks overlay URL" className="flex items-center">
-                <SizeChip size="700 × 800" hint="OBS browser source — the list fills it and scrolls when tasks overflow" />
-              </ConsoleRule>
-              <OverlayUrlRow
-                label="Tasks overlay"
-                path={`/overlay/l/${user.data.overlayTasksToken}`}
-                onCopy={() => copyUrl(`/overlay/l/${user.data!.overlayTasksToken}`)}
-                onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
-                regenerating={regenerateToken.isPending}
-              />
-              <p className="text-xs text-muted-foreground">
-                Add the URL as a browser source in OBS
-              </p>
-            </div>
-          </section>
-        )}
 
         {/* Bot quick status — slim full-width strip */}
         <section className="panel lg:col-span-3">
