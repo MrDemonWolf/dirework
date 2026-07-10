@@ -41,7 +41,8 @@ function makeDb(opts: DbOptions = {}) {
   const where = vi.fn(() => ({ returning }));
   const set = vi.fn(() => ({ where }));
   const update = vi.fn(() => ({ set }));
-  const del = vi.fn(async () => undefined);
+  const deleteWhere = vi.fn(async () => undefined);
+  const del = vi.fn(() => ({ where: deleteWhere }));
 
   const db = {
     query: {
@@ -52,7 +53,7 @@ function makeDb(opts: DbOptions = {}) {
     delete: del,
   } as unknown as DbClient;
 
-  return { db, update, set, returning, del };
+  return { db, update, set, returning, del, deleteWhere };
 }
 
 const fetchMock = vi.fn();

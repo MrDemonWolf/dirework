@@ -125,7 +125,7 @@ export async function disconnectBotAccount(
     }
   }
 
-  await db.delete(schema.botAccount);
+  await db.delete(schema.botAccount).where(eq(schema.botAccount.id, SINGLETON_ID));
 }
 
 /**
