@@ -1,4 +1,8 @@
-# Dirework - Pomodoro Timer and Task List for Twitch
+<p align="center">
+  <img src="apps/web/src/app/icon.svg" alt="Dirework logo" width="96" height="96" />
+</p>
+
+<h1 align="center">Dirework - Pomodoro Timer and Task List for Twitch</h1>
 
 Dirework is a personal project built for my own Twitch
 co-working and body-doubling streams. It combines a
