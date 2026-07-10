@@ -174,10 +174,12 @@ export function StylePreviewPanel({
             canvasClass,
           )}
         >
-          <div style={{ height: "300px" }}>
+          {/* 700 × 800 keeps the preview at the recommended OBS aspect so the
+              streamer sees roughly what the browser source will show. */}
+          <div className="mx-auto" style={{ width: "100%", maxWidth: "360px", aspectRatio: "700 / 800" }}>
             <TaskListDisplay config={taskStyles} tasks={mockTasks} />
           </div>
-          <span className="console-label absolute right-2 bottom-1.5">300px</span>
+          <span className="console-label absolute right-2 bottom-1.5">700 × 800</span>
         </div>
       </div>
     </div>

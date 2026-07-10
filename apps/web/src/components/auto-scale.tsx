@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
  */
 export function AutoScale({
   children,
-  margin = 0.95,
+  margin = 0.98,
 }: {
   children: React.ReactNode;
   margin?: number;

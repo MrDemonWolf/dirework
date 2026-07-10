@@ -324,7 +324,7 @@ export default function Dashboard({
             <div className="space-y-2 border-t border-border/40 px-5 py-4">
               <div className="console-rule flex items-center">
                 <span className="console-label">Timer overlay URL</span>
-                <SizeChip size="320 × 320" hint="Square OBS browser source — the timer scales to fill it" />
+                <SizeChip size="300 × 300" hint="Square OBS browser source — the timer scales to fill it" />
               </div>
               <OverlayUrlRow
                 label="Timer overlay"
@@ -385,7 +385,7 @@ export default function Dashboard({
             <div className="space-y-2 border-t border-border/40 px-5 py-4">
               <div className="console-rule flex items-center">
                 <span className="console-label">Tasks overlay URL</span>
-                <SizeChip size="360 × 720" hint="Tall OBS browser source — fills the height and scrolls when the list overflows" />
+                <SizeChip size="700 × 800" hint="OBS browser source — the list fills it and scrolls when tasks overflow" />
               </div>
               <OverlayUrlRow
                 label="Tasks overlay"
