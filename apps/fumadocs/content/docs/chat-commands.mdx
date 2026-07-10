@@ -45,7 +45,7 @@ Once you've connected a [bot account](/docs/twitch-oauth#step-5-connect-the-bot-
 | `!timer resume` | Resume the timer |
 | `!timer skip` | Skip the current phase |
 | `!timer reset` | Reset the timer to idle |
-| `!timer eta` | Show estimated end time |
+| `!timer eta` | Show time remaining in the current phase and the whole session |
 
 ## Meta Commands (Always Available)
 
@@ -118,7 +118,7 @@ All bot response messages are customizable from the **Bot Settings** page (`/das
 | Goal Wrong | `The goal needs to be further than the cycle!` | none |
 | Finish Response | `Great work today pack! We hunted well.` | none |
 | Already Starting | `The pack is already moving or the timer is running!` | none |
-| ETA | `The hunt will end at {time}` | `{time}` |
+| ETA | `This phase ends in {phase} · the hunt is done in {time}` | `{phase}`, `{time}` |
 
 ### Message Variables Reference
 
@@ -130,4 +130,5 @@ All bot response messages are customizable from the **Bot Settings** page (`/das
 | `{oldTask}` | The task that was just completed (used in `!next`) |
 | `{newTask}` | The new task now being tracked (used in `!next`) |
 | `{channel}` | The Twitch channel name, used as @mention to ping chat |
-| `{time}` | The estimated end time formatted as local clock time (e.g., `03:45 PM`) |
+| `{phase}` | Time remaining in the current phase, as a relative duration (e.g., `18m`) |
+| `{time}` | Time remaining until the whole session ends, as a relative duration (e.g., `1h 55m`) |

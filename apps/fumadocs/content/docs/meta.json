@@ -3,15 +3,17 @@
   "pages": [
     "index",
     "features",
+    "---Set up---",
     "getting-started",
     "twitch-oauth",
     "environment-variables",
-    "overlays",
-    "chat-commands",
     "deployment",
+    "---Use---",
+    "chat-commands",
+    "overlays",
     "design-system",
     "troubleshooting",
-    "---",
+    "---Legal---",
     "privacy-policy",
     "terms-of-service"
   ]

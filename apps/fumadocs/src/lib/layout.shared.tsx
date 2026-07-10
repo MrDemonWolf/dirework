@@ -54,10 +54,11 @@ export function baseOptions(): BaseLayoutProps {
     },
     githubUrl: "https://github.com/mrdemonwolf/dirework",
     links: [
-      // Landing-section anchors. On the home page these scroll; from any other
-      // page they navigate home and then jump to the section.
-      { text: "Features", url: "/#features" },
+      // Landing-section anchors, in the order the sections appear on the page.
+      // On the home page these scroll; from any other page they navigate home
+      // and then jump to the section.
       { text: "Overlays & Themes", url: "/#overlays" },
+      { text: "Features", url: "/#features" },
       { text: "Compare", url: "/#compare" },
       { text: "Docs", url: "/docs" },
       { text: "Support", url: "https://mrdwolf.net/discord" },
