@@ -1,13 +1,8 @@
-// Default values matching Prisma @default() values for TimerConfig
-export const DEFAULTS = {
-  workDuration: 1500000,
-  breakDuration: 300000,
-  longBreakDuration: 900000,
-  longBreakInterval: 4,
-  startingDuration: 5000,
-  noLastBreak: true,
-  defaultCycles: 4,
-};
+import { TIMER_CONFIG_DEFAULTS } from "@dirework/db/defaults";
+
+// Fallbacks when no timer_config row exists — same object that backs the
+// schema column defaults (single source: packages/db/src/defaults.ts).
+export const DEFAULTS = TIMER_CONFIG_DEFAULTS;
 
 export interface TimerConfigInput {
   workDuration: number;
@@ -45,7 +40,8 @@ export interface PhaseResult {
 
 /**
  * Compute the next phase in the timer state machine.
- * Deduplicates the identical switch logic used by nextPhase and skip.
+ * Deduplicates the identical switch logic used by skip and the lazy
+ * overdue-timer advancement.
  */
 export function computeNextPhase(
   input: PhaseInput,

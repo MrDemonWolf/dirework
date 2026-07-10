@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import type { AnySQLiteColumn, SQLiteTable, SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 
 import type { DbClient } from "@dirework/db";
-import { SINGLETON_ID } from "../config-shared";
+import { SINGLETON_ID } from "@dirework/db/schema";
 
 type SingletonTable = SQLiteTable & { id: AnySQLiteColumn };
 

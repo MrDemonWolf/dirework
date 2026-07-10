@@ -15,7 +15,20 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
  */
 
 const STATE_COOKIE = "bot_oauth_nonce";
-const BOT_SCOPES = ["user:read:chat", "user:write:chat"] as const;
+/**
+ * chat:read / chat:edit — required by the IRC connection the browser bot page
+ * actually uses (wss://irc-ws.chat.twitch.tv; replies go out as PRIVMSG).
+ * user:read:chat / user:write:chat — Helix/EventSub chat scopes, currently
+ * unused but kept so a future move to Helix sends won't force yet another
+ * reconnect. Bot accounts connected before chat:read/chat:edit were added
+ * must be reconnected to pick up the new scopes.
+ */
+const BOT_SCOPES = [
+  "chat:read",
+  "chat:edit",
+  "user:read:chat",
+  "user:write:chat",
+] as const;
 
 interface TwitchTokenResponse {
   access_token: string;

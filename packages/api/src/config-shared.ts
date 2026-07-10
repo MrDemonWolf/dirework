@@ -1,11 +1,20 @@
 // ── Pure shared config module ────────────────────────────────────────────────
-// NO runtime imports of @dirework/env, @dirework/db, or @dirework/auth — this
-// module is imported by Vitest (node) and by apps/web, neither of which can
-// resolve cloudflare:workers. Type-only imports are erased and therefore safe.
-import type { BotConfig, TaskStyle, TimerConfig, TimerStyle } from "@dirework/db";
+// NO runtime imports of @dirework/env or @dirework/auth — this module is
+// imported by Vitest (node) and by apps/web, neither of which can resolve
+// cloudflare:workers. The only runtime deps are zod and the (env-free)
+// @dirework/db schema/defaults modules. Type-only imports are erased and
+// therefore safe.
+import { z } from "zod";
 
-/** Singleton-row primary key used by every one-row config table. */
-export const SINGLETON_ID = "singleton";
+import type { BotConfig, TaskStyle, TimerConfig, TimerStyle } from "@dirework/db";
+import {
+  DEFAULT_PHASE_LABELS as DB_DEFAULT_PHASE_LABELS,
+  DEFAULT_TASK_MESSAGES as DB_DEFAULT_TASK_MESSAGES,
+  DEFAULT_TIMER_MESSAGES as DB_DEFAULT_TIMER_MESSAGES,
+} from "@dirework/db/defaults";
+
+/** Singleton-row primary key used by every one-row config table (single source: packages/db schema). */
+export { SINGLETON_ID } from "@dirework/db/schema";
 
 /** Maximum task text length — enforced by tRPC input schemas AND the chat path. */
 export const MAX_TASK_LEN = 500;
@@ -13,55 +22,111 @@ export const MAX_TASK_LEN = 500;
 /** Per-user open (pending+active) task cap enforced on the chat ingest path. */
 export const CHAT_OPEN_TASK_CAP = 20;
 
+/** Every timer state-machine status — single source for status literals. */
+export const TIMER_STATUSES = [
+  "idle",
+  "starting",
+  "work",
+  "break",
+  "longBreak",
+  "paused",
+  "finished",
+] as const;
+
+export type TimerStatus = (typeof TIMER_STATUSES)[number];
+
+// ── Field maps: nested config keys ↔ flat DB columns (single source) ─────────
+// Build and flatten are both generated from these maps, so they cannot drift.
+
+export const PHASE_LABEL_FIELDS = {
+  idle: "labelIdle",
+  starting: "labelStarting",
+  work: "labelWork",
+  break: "labelBreak",
+  longBreak: "labelLongBreak",
+  paused: "labelPaused",
+  finished: "labelFinished",
+} as const satisfies Record<TimerStatus, keyof TimerConfig>;
+
+export const TASK_MESSAGE_FIELDS = {
+  taskAdded: "msgTaskAdded",
+  noTaskAdded: "msgNoTaskAdded",
+  noTaskContent: "msgNoTaskContent",
+  noTaskToEdit: "msgNoTaskToEdit",
+  taskEdited: "msgTaskEdited",
+  taskRemoved: "msgTaskRemoved",
+  taskNext: "msgTaskNext",
+  adminDeleteTasks: "msgAdminDeleteTasks",
+  taskDone: "msgTaskDone",
+  taskCheck: "msgTaskCheck",
+  taskCheckUser: "msgTaskCheckUser",
+  noTask: "msgNoTask",
+  noTaskOther: "msgNoTaskOther",
+  notMod: "msgNotMod",
+  clearedAll: "msgClearedAll",
+  clearedDone: "msgClearedDone",
+  nextNoContent: "msgNextNoContent",
+  help: "msgHelp",
+} as const satisfies Record<string, keyof BotConfig>;
+
+export const TIMER_MESSAGE_FIELDS = {
+  workMsg: "msgWorkMsg",
+  breakMsg: "msgBreakMsg",
+  longBreakMsg: "msgLongBreakMsg",
+  workRemindMsg: "msgWorkRemindMsg",
+  notRunning: "msgNotRunning",
+  streamStarting: "msgStreamStarting",
+  wrongCommand: "msgWrongCommand",
+  timerRunning: "msgTimerRunning",
+  commandSuccess: "msgCommandSuccess",
+  cycleWrong: "msgCycleWrong",
+  goalWrong: "msgGoalWrong",
+  finishResponse: "msgFinishResponse",
+  alreadyStarting: "msgAlreadyStarting",
+  eta: "msgEta",
+} as const satisfies Record<string, keyof BotConfig>;
+
+/** Nested config object (field-map keys) from a flat DB row (field-map columns). */
+export function buildFromFieldMap<M extends Record<string, string>>(
+  map: M,
+  row: Record<M[keyof M], string>,
+): Record<keyof M, string> {
+  const out = {} as Record<keyof M, string>;
+  for (const key of Object.keys(map) as (keyof M & string)[]) {
+    out[key] = row[map[key] as M[keyof M]];
+  }
+  return out;
+}
+
+/** Flat DB column patch (field-map columns) from a nested config object (field-map keys). */
+export function flattenWithFieldMap<M extends Record<string, string>>(
+  map: M,
+  values: Record<keyof M, string>,
+): Record<M[keyof M], string> {
+  const out = {} as Record<M[keyof M], string>;
+  for (const key of Object.keys(map) as (keyof M & string)[]) {
+    out[map[key] as M[keyof M]] = values[key];
+  }
+  return out;
+}
+
+/** z.object with a z.string() per field-map key — router inputs derive from the same maps. */
+function stringSchemaFromFieldMap<M extends Record<string, string>>(map: M) {
+  const shape = Object.fromEntries(
+    Object.keys(map).map((key) => [key, z.string()]),
+  ) as Record<keyof M & string, z.ZodString>;
+  return z.object(shape);
+}
+
+export const phaseLabelsInputSchema = stringSchemaFromFieldMap(PHASE_LABEL_FIELDS);
+export const taskMessagesInputSchema = stringSchemaFromFieldMap(TASK_MESSAGE_FIELDS);
+export const timerMessagesInputSchema = stringSchemaFromFieldMap(TIMER_MESSAGE_FIELDS);
+
 // ── Shared config types (single source of truth — apps/web imports these) ────
 
-export interface PhaseLabelsConfig {
-  idle: string;
-  starting: string;
-  work: string;
-  break: string;
-  longBreak: string;
-  paused: string;
-  finished: string;
-}
-
-export interface TaskMessagesConfig {
-  taskAdded: string;
-  noTaskAdded: string;
-  noTaskContent: string;
-  noTaskToEdit: string;
-  taskEdited: string;
-  taskRemoved: string;
-  taskNext: string;
-  adminDeleteTasks: string;
-  taskDone: string;
-  taskCheck: string;
-  taskCheckUser: string;
-  noTask: string;
-  noTaskOther: string;
-  notMod: string;
-  clearedAll: string;
-  clearedDone: string;
-  nextNoContent: string;
-  help: string;
-}
-
-export interface TimerMessagesConfig {
-  workMsg: string;
-  breakMsg: string;
-  longBreakMsg: string;
-  workRemindMsg: string;
-  notRunning: string;
-  streamStarting: string;
-  wrongCommand: string;
-  timerRunning: string;
-  commandSuccess: string;
-  cycleWrong: string;
-  goalWrong: string;
-  finishResponse: string;
-  alreadyStarting: string;
-  eta: string;
-}
+export type PhaseLabelsConfig = Record<keyof typeof PHASE_LABEL_FIELDS, string>;
+export type TaskMessagesConfig = Record<keyof typeof TASK_MESSAGE_FIELDS, string>;
+export type TimerMessagesConfig = Record<keyof typeof TIMER_MESSAGE_FIELDS, string>;
 
 export interface BotConfigData {
   taskCommandsEnabled: boolean;
@@ -71,56 +136,13 @@ export interface BotConfigData {
   timer: TimerMessagesConfig;
 }
 
-/** Default phase labels — mirror the schema column defaults. */
-export const DEFAULT_PHASE_LABELS: PhaseLabelsConfig = {
-  idle: "Resting",
-  starting: "Gathering the Pack",
-  work: "On the Hunt",
-  break: "Den Rest",
-  longBreak: "Pack Slumber",
-  paused: "Paws'd",
-  finished: "Hunt Complete",
-};
+// Default values live in @dirework/db/defaults (the same objects back the
+// schema column defaults); the typed re-exports below guarantee they stay in
+// shape-lockstep with the field maps.
 
-/** Default task chat messages — mirror the botConfig schema column defaults. */
-export const DEFAULT_TASK_MESSAGES: TaskMessagesConfig = {
-  taskAdded: 'Awooo! The task "{task}" has been added to the pack, {user}!',
-  noTaskAdded: "You're already on the hunt {user}, use !check to see your current task!",
-  noTaskContent: "Tell the pack what you're working on! Use !task [task] {user}",
-  noTaskToEdit: "No task found in your den to edit {user}",
-  taskEdited: 'The hunt has changed! Task updated to "{task}" {user}',
-  taskRemoved: 'Task "{task}" has been scent-wiped from the list, {user}',
-  taskNext: "Paws-ome work finishing '{oldTask}'! Now tracking '{newTask}', {user}!",
-  adminDeleteTasks: "All of the user's tasks have been cleared from the forest.",
-  taskDone: 'Alpha work! You finished "{task}" {user}!',
-  taskCheck: '{user}, your current scent is on: "{task}"',
-  taskCheckUser: '{user}, {user2} is currently tracking: "{task}"',
-  noTask: "Looks like you aren't tracking anything in the forest right now, {user}",
-  noTaskOther: "The scent is cold... there is no task from that user {user}",
-  notMod: "Grrr! Permission denied, {user}; Only pack leaders (mods) can do that.",
-  clearedAll: "The forest has been cleared of all tasks!",
-  clearedDone: "All finished tasks have been cleared from the den!",
-  nextNoContent: "Don't leave the pack hanging! Try !next [task] {user}",
-  help: "{user} Join the hunt with !task, !remove, !edit, or !done.",
-};
-
-/** Default timer chat messages — mirror the botConfig schema column defaults. */
-export const DEFAULT_TIMER_MESSAGES: TimerMessagesConfig = {
-  workMsg: "Time to hunt some code! Focus mode activated!",
-  breakMsg: "Paws up! Time for a short rest in the den.",
-  longBreakMsg: "The whole pack is taking a long snooze! Back soon!",
-  workRemindMsg: "Get ready to howl at that code @{channel}, focus starts in 25 seconds!",
-  notRunning: "The timer isn't howling yet! Start it up first.",
-  streamStarting: "The Blue Wolf is waking up! Stream starting!",
-  wrongCommand: "My ears didn't catch that... Command not recognized!",
-  timerRunning: "The hunt is already in progress!",
-  commandSuccess: "Paw-fect! Done!",
-  cycleWrong: "The cycle cannot outrun the goal!",
-  goalWrong: "The goal needs to be further than the cycle!",
-  finishResponse: "Great work today pack! We hunted well.",
-  alreadyStarting: "The pack is already moving or the timer is running!",
-  eta: "The hunt will end at {time}",
-};
+export const DEFAULT_PHASE_LABELS: PhaseLabelsConfig = DB_DEFAULT_PHASE_LABELS;
+export const DEFAULT_TASK_MESSAGES: TaskMessagesConfig = DB_DEFAULT_TASK_MESSAGES;
+export const DEFAULT_TIMER_MESSAGES: TimerMessagesConfig = DB_DEFAULT_TIMER_MESSAGES;
 
 // ── Build helpers: flat DB rows → nested frontend objects ─────────────────────
 
@@ -221,15 +243,7 @@ export function buildTimerConfig(tc: TimerConfig) {
     defaultCycles: tc.defaultCycles,
     showHours: tc.showHours,
     noLastBreak: tc.noLastBreak,
-    labels: {
-      idle: tc.labelIdle,
-      starting: tc.labelStarting,
-      work: tc.labelWork,
-      break: tc.labelBreak,
-      longBreak: tc.labelLongBreak,
-      paused: tc.labelPaused,
-      finished: tc.labelFinished,
-    } satisfies PhaseLabelsConfig,
+    labels: buildFromFieldMap(PHASE_LABEL_FIELDS, tc) satisfies PhaseLabelsConfig,
   };
 }
 
@@ -240,62 +254,46 @@ export function buildBotConfig(bc: BotConfig): BotConfigData {
     taskCommandsEnabled: bc.taskCommandsEnabled,
     timerCommandsEnabled: bc.timerCommandsEnabled,
     commandAliases: bc.commandAliases as Record<string, string>,
-    task: {
-      taskAdded: bc.msgTaskAdded,
-      noTaskAdded: bc.msgNoTaskAdded,
-      noTaskContent: bc.msgNoTaskContent,
-      noTaskToEdit: bc.msgNoTaskToEdit,
-      taskEdited: bc.msgTaskEdited,
-      taskRemoved: bc.msgTaskRemoved,
-      taskNext: bc.msgTaskNext,
-      adminDeleteTasks: bc.msgAdminDeleteTasks,
-      taskDone: bc.msgTaskDone,
-      taskCheck: bc.msgTaskCheck,
-      taskCheckUser: bc.msgTaskCheckUser,
-      noTask: bc.msgNoTask,
-      noTaskOther: bc.msgNoTaskOther,
-      notMod: bc.msgNotMod,
-      clearedAll: bc.msgClearedAll,
-      clearedDone: bc.msgClearedDone,
-      nextNoContent: bc.msgNextNoContent,
-      help: bc.msgHelp,
-    },
-    timer: {
-      workMsg: bc.msgWorkMsg,
-      breakMsg: bc.msgBreakMsg,
-      longBreakMsg: bc.msgLongBreakMsg,
-      workRemindMsg: bc.msgWorkRemindMsg,
-      notRunning: bc.msgNotRunning,
-      streamStarting: bc.msgStreamStarting,
-      wrongCommand: bc.msgWrongCommand,
-      timerRunning: bc.msgTimerRunning,
-      commandSuccess: bc.msgCommandSuccess,
-      cycleWrong: bc.msgCycleWrong,
-      goalWrong: bc.msgGoalWrong,
-      finishResponse: bc.msgFinishResponse,
-      alreadyStarting: bc.msgAlreadyStarting,
-      eta: bc.msgEta,
-    },
+    task: buildFromFieldMap(TASK_MESSAGE_FIELDS, bc),
+    timer: buildFromFieldMap(TIMER_MESSAGE_FIELDS, bc),
   };
 }
 
-// ── Flatten helpers: nested frontend objects → flat DB columns ─────────────────
+// ── Style input schemas + flatten: nested objects → flat DB columns ──────────
+// The zod schemas are the single source; the TS input types are z.infer'd from
+// them (the router and the TS interfaces used to duplicate these shapes).
+// Every level is optional to mirror the partial-update flatten behavior.
 
-export interface TimerStylesInput {
-  dimensions?: { width?: string; height?: string };
-  background?: { color?: string; opacity?: number; borderRadius?: string };
-  ring?: {
-    enabled?: boolean;
-    trackColor?: string;
-    trackOpacity?: number;
-    fillColor?: string;
-    fillOpacity?: number;
-    width?: number;
-    gap?: number;
-  };
-  text?: { color?: string; outlineColor?: string; outlineSize?: string; fontFamily?: string };
-  fontSizes?: { label?: string; time?: string; cycle?: string };
-}
+export const timerStylesInputSchema = z.object({
+  dimensions: z.object({ width: z.string().optional(), height: z.string().optional() }).optional(),
+  background: z.object({
+    color: z.string().optional(),
+    opacity: z.number().optional(),
+    borderRadius: z.string().optional(),
+  }).optional(),
+  ring: z.object({
+    enabled: z.boolean().optional(),
+    trackColor: z.string().optional(),
+    trackOpacity: z.number().optional(),
+    fillColor: z.string().optional(),
+    fillOpacity: z.number().optional(),
+    width: z.number().optional(),
+    gap: z.number().optional(),
+  }).optional(),
+  text: z.object({
+    color: z.string().optional(),
+    outlineColor: z.string().optional(),
+    outlineSize: z.string().optional(),
+    fontFamily: z.string().optional(),
+  }).optional(),
+  fontSizes: z.object({
+    label: z.string().optional(),
+    time: z.string().optional(),
+    cycle: z.string().optional(),
+  }).optional(),
+});
+
+export type TimerStylesInput = z.infer<typeof timerStylesInputSchema>;
 
 export function flattenTimerStyles(input: TimerStylesInput) {
   return {
@@ -321,17 +319,82 @@ export function flattenTimerStyles(input: TimerStylesInput) {
   };
 }
 
-export interface TaskStylesInput {
-  display?: { showDone?: boolean; showCount?: boolean; useCheckboxes?: boolean; crossOnDone?: boolean; numberOfLines?: number };
-  fonts?: { header?: string; body?: string };
-  scroll?: { enabled?: boolean; pixelsPerSecond?: number; gapBetweenLoops?: number };
-  header?: { height?: string; background?: { color?: string; opacity?: number }; border?: { color?: string; width?: string; radius?: string }; fontSize?: string; fontColor?: string; padding?: string };
-  body?: { background?: { color?: string; opacity?: number }; border?: { color?: string; width?: string; radius?: string }; padding?: { vertical?: string; horizontal?: string } };
-  task?: { background?: { color?: string; opacity?: number }; border?: { color?: string; width?: string; radius?: string }; fontSize?: string; fontColor?: string; usernameColor?: string; padding?: string; marginBottom?: string; maxWidth?: string };
-  taskDone?: { background?: { color?: string; opacity?: number }; fontColor?: string };
-  checkbox?: { size?: string; background?: { color?: string; opacity?: number }; border?: { color?: string; width?: string; radius?: string }; margin?: { top?: string; left?: string; right?: string }; tickChar?: string; tickSize?: string; tickColor?: string };
-  bullet?: { char?: string; size?: string; color?: string; margin?: { top?: string; left?: string; right?: string } };
-}
+const opacityGroupSchema = z.object({
+  color: z.string().optional(),
+  opacity: z.number().optional(),
+});
+
+const borderGroupSchema = z.object({
+  color: z.string().optional(),
+  width: z.string().optional(),
+  radius: z.string().optional(),
+});
+
+const marginGroupSchema = z.object({
+  top: z.string().optional(),
+  left: z.string().optional(),
+  right: z.string().optional(),
+});
+
+export const taskStylesInputSchema = z.object({
+  display: z.object({
+    showDone: z.boolean().optional(),
+    showCount: z.boolean().optional(),
+    useCheckboxes: z.boolean().optional(),
+    crossOnDone: z.boolean().optional(),
+    numberOfLines: z.number().optional(),
+  }).optional(),
+  fonts: z.object({ header: z.string().optional(), body: z.string().optional() }).optional(),
+  scroll: z.object({
+    enabled: z.boolean().optional(),
+    pixelsPerSecond: z.number().optional(),
+    gapBetweenLoops: z.number().optional(),
+  }).optional(),
+  header: z.object({
+    height: z.string().optional(),
+    background: opacityGroupSchema.optional(),
+    border: borderGroupSchema.optional(),
+    fontSize: z.string().optional(),
+    fontColor: z.string().optional(),
+    padding: z.string().optional(),
+  }).optional(),
+  body: z.object({
+    background: opacityGroupSchema.optional(),
+    border: borderGroupSchema.optional(),
+    padding: z.object({ vertical: z.string().optional(), horizontal: z.string().optional() }).optional(),
+  }).optional(),
+  task: z.object({
+    background: opacityGroupSchema.optional(),
+    border: borderGroupSchema.optional(),
+    fontSize: z.string().optional(),
+    fontColor: z.string().optional(),
+    usernameColor: z.string().optional(),
+    padding: z.string().optional(),
+    marginBottom: z.string().optional(),
+    maxWidth: z.string().optional(),
+  }).optional(),
+  taskDone: z.object({
+    background: opacityGroupSchema.optional(),
+    fontColor: z.string().optional(),
+  }).optional(),
+  checkbox: z.object({
+    size: z.string().optional(),
+    background: opacityGroupSchema.optional(),
+    border: borderGroupSchema.optional(),
+    margin: marginGroupSchema.optional(),
+    tickChar: z.string().optional(),
+    tickSize: z.string().optional(),
+    tickColor: z.string().optional(),
+  }).optional(),
+  bullet: z.object({
+    char: z.string().optional(),
+    size: z.string().optional(),
+    color: z.string().optional(),
+    margin: marginGroupSchema.optional(),
+  }).optional(),
+});
+
+export type TaskStylesInput = z.infer<typeof taskStylesInputSchema>;
 
 export function flattenTaskStyles(input: TaskStylesInput) {
   return {

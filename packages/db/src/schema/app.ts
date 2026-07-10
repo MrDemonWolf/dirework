@@ -2,6 +2,13 @@ import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core
 import { sql } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 
+import {
+  DEFAULT_PHASE_LABELS,
+  DEFAULT_TASK_MESSAGES,
+  DEFAULT_TIMER_MESSAGES,
+  TIMER_CONFIG_DEFAULTS,
+} from "../defaults";
+
 // Singleton pattern: one row per table, primary key pinned to "singleton".
 export const SINGLETON_ID = "singleton";
 
@@ -11,6 +18,10 @@ export const instanceConfig = sqliteTable("instance_config", {
   overlayTasksToken: text("overlay_tasks_token").notNull().unique().$defaultFn(() => crypto.randomUUID()),
   // Secret gate for the browser bot page (/bot/<token>) — mirrors the overlay token model.
   botToken: text("bot_token").notNull().unique().$defaultFn(() => crypto.randomUUID()),
+  // Cached lowercase Twitch *login* of the owner's channel. IRC JOIN requires
+  // the login name, not the display name (better-auth only stores the display
+  // name). Lazily resolved via Helix on bot.getSession.
+  channelLogin: text("channel_login"),
 });
 
 export const botAccount = sqliteTable("bot_account", {
@@ -21,10 +32,12 @@ export const botAccount = sqliteTable("bot_account", {
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token").notNull(),
   expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  // chat:read/chat:edit are required by the IRC bot connection;
+  // user:read:chat/user:write:chat are kept for a future Helix send path.
   scopes: text("scopes", { mode: "json" })
     .$type<string[]>()
     .notNull()
-    .default(["user:read:chat", "user:write:chat"]),
+    .default(["chat:read", "chat:edit", "user:read:chat", "user:write:chat"]),
 });
 
 export const task = sqliteTable("task", {
@@ -54,26 +67,26 @@ export const timerState = sqliteTable("timer_state", {
   pausedWithRemaining: integer("paused_with_remaining"),
   pausedFromStatus: text("paused_from_status"),
   currentCycle: integer("current_cycle").notNull().default(1),
-  totalCycles: integer("total_cycles").notNull().default(4),
+  totalCycles: integer("total_cycles").notNull().default(TIMER_CONFIG_DEFAULTS.defaultCycles),
 });
 
 export const timerConfig = sqliteTable("timer_config", {
   id: text("id").primaryKey().default(SINGLETON_ID),
-  workDuration: integer("work_duration").notNull().default(1500000),
-  breakDuration: integer("break_duration").notNull().default(300000),
-  longBreakDuration: integer("long_break_duration").notNull().default(900000),
-  longBreakInterval: integer("long_break_interval").notNull().default(4),
-  startingDuration: integer("starting_duration").notNull().default(5000),
-  defaultCycles: integer("default_cycles").notNull().default(4),
+  workDuration: integer("work_duration").notNull().default(TIMER_CONFIG_DEFAULTS.workDuration),
+  breakDuration: integer("break_duration").notNull().default(TIMER_CONFIG_DEFAULTS.breakDuration),
+  longBreakDuration: integer("long_break_duration").notNull().default(TIMER_CONFIG_DEFAULTS.longBreakDuration),
+  longBreakInterval: integer("long_break_interval").notNull().default(TIMER_CONFIG_DEFAULTS.longBreakInterval),
+  startingDuration: integer("starting_duration").notNull().default(TIMER_CONFIG_DEFAULTS.startingDuration),
+  defaultCycles: integer("default_cycles").notNull().default(TIMER_CONFIG_DEFAULTS.defaultCycles),
   showHours: integer("show_hours", { mode: "boolean" }).notNull().default(false),
-  noLastBreak: integer("no_last_break", { mode: "boolean" }).notNull().default(true),
-  labelIdle: text("label_idle").notNull().default("Resting"),
-  labelStarting: text("label_starting").notNull().default("Gathering the Pack"),
-  labelWork: text("label_work").notNull().default("On the Hunt"),
-  labelBreak: text("label_break").notNull().default("Den Rest"),
-  labelLongBreak: text("label_long_break").notNull().default("Pack Slumber"),
-  labelPaused: text("label_paused").notNull().default("Paws'd"),
-  labelFinished: text("label_finished").notNull().default("Hunt Complete"),
+  noLastBreak: integer("no_last_break", { mode: "boolean" }).notNull().default(TIMER_CONFIG_DEFAULTS.noLastBreak),
+  labelIdle: text("label_idle").notNull().default(DEFAULT_PHASE_LABELS.idle),
+  labelStarting: text("label_starting").notNull().default(DEFAULT_PHASE_LABELS.starting),
+  labelWork: text("label_work").notNull().default(DEFAULT_PHASE_LABELS.work),
+  labelBreak: text("label_break").notNull().default(DEFAULT_PHASE_LABELS.break),
+  labelLongBreak: text("label_long_break").notNull().default(DEFAULT_PHASE_LABELS.longBreak),
+  labelPaused: text("label_paused").notNull().default(DEFAULT_PHASE_LABELS.paused),
+  labelFinished: text("label_finished").notNull().default(DEFAULT_PHASE_LABELS.finished),
 });
 
 export const timerStyle = sqliteTable("timer_style", {
@@ -85,7 +98,7 @@ export const timerStyle = sqliteTable("timer_style", {
   bgBorderRadius: text("bg_border_radius").notNull().default("22%"),
   ringEnabled: integer("ring_enabled", { mode: "boolean" }).notNull().default(true),
   ringTrackColor: text("ring_track_color").notNull().default("#ffffff"),
-  ringTrackOpacity: real("ring_track_opacity").notNull().default(0.1),
+  ringTrackOpacity: real("ring_track_opacity").notNull().default(0.18),
   ringFillColor: text("ring_fill_color").notNull().default("#00aced"),
   ringFillOpacity: real("ring_fill_opacity").notNull().default(1.0),
   ringWidth: integer("ring_width").notNull().default(8),
@@ -169,36 +182,36 @@ export const botConfig = sqliteTable("bot_config", {
     .$type<Record<string, string>>()
     .notNull()
     .default({}),
-  msgTaskAdded: text("msg_task_added").notNull().default('Awooo! The task "{task}" has been added to the pack, {user}!'),
-  msgNoTaskAdded: text("msg_no_task_added").notNull().default("You're already on the hunt {user}, use !check to see your current task!"),
-  msgNoTaskContent: text("msg_no_task_content").notNull().default("Tell the pack what you're working on! Use !task [task] {user}"),
-  msgNoTaskToEdit: text("msg_no_task_to_edit").notNull().default("No task found in your den to edit {user}"),
-  msgTaskEdited: text("msg_task_edited").notNull().default('The hunt has changed! Task updated to "{task}" {user}'),
-  msgTaskRemoved: text("msg_task_removed").notNull().default('Task "{task}" has been scent-wiped from the list, {user}'),
-  msgTaskNext: text("msg_task_next").notNull().default("Paws-ome work finishing '{oldTask}'! Now tracking '{newTask}', {user}!"),
-  msgAdminDeleteTasks: text("msg_admin_delete_tasks").notNull().default("All of the user's tasks have been cleared from the forest."),
-  msgTaskDone: text("msg_task_done").notNull().default('Alpha work! You finished "{task}" {user}!'),
-  msgTaskCheck: text("msg_task_check").notNull().default('{user}, your current scent is on: "{task}"'),
-  msgTaskCheckUser: text("msg_task_check_user").notNull().default('{user}, {user2} is currently tracking: "{task}"'),
-  msgNoTask: text("msg_no_task").notNull().default("Looks like you aren't tracking anything in the forest right now, {user}"),
-  msgNoTaskOther: text("msg_no_task_other").notNull().default("The scent is cold... there is no task from that user {user}"),
-  msgNotMod: text("msg_not_mod").notNull().default("Grrr! Permission denied, {user}; Only pack leaders (mods) can do that."),
-  msgClearedAll: text("msg_cleared_all").notNull().default("The forest has been cleared of all tasks!"),
-  msgClearedDone: text("msg_cleared_done").notNull().default("All finished tasks have been cleared from the den!"),
-  msgNextNoContent: text("msg_next_no_content").notNull().default("Don't leave the pack hanging! Try !next [task] {user}"),
-  msgHelp: text("msg_help").notNull().default("{user} Join the hunt with !task, !remove, !edit, or !done."),
-  msgWorkMsg: text("msg_work").notNull().default("Time to hunt some code! Focus mode activated!"),
-  msgBreakMsg: text("msg_break").notNull().default("Paws up! Time for a short rest in the den."),
-  msgLongBreakMsg: text("msg_long_break").notNull().default("The whole pack is taking a long snooze! Back soon!"),
-  msgWorkRemindMsg: text("msg_work_remind").notNull().default("Get ready to howl at that code @{channel}, focus starts in 25 seconds!"),
-  msgNotRunning: text("msg_not_running").notNull().default("The timer isn't howling yet! Start it up first."),
-  msgStreamStarting: text("msg_stream_starting").notNull().default("The Blue Wolf is waking up! Stream starting!"),
-  msgWrongCommand: text("msg_wrong_command").notNull().default("My ears didn't catch that... Command not recognized!"),
-  msgTimerRunning: text("msg_timer_running").notNull().default("The hunt is already in progress!"),
-  msgCommandSuccess: text("msg_command_success").notNull().default("Paw-fect! Done!"),
-  msgCycleWrong: text("msg_cycle_wrong").notNull().default("The cycle cannot outrun the goal!"),
-  msgGoalWrong: text("msg_goal_wrong").notNull().default("The goal needs to be further than the cycle!"),
-  msgFinishResponse: text("msg_finish_response").notNull().default("Great work today pack! We hunted well."),
-  msgAlreadyStarting: text("msg_already_starting").notNull().default("The pack is already moving or the timer is running!"),
-  msgEta: text("msg_eta").notNull().default("The hunt will end at {time}"),
+  msgTaskAdded: text("msg_task_added").notNull().default(DEFAULT_TASK_MESSAGES.taskAdded),
+  msgNoTaskAdded: text("msg_no_task_added").notNull().default(DEFAULT_TASK_MESSAGES.noTaskAdded),
+  msgNoTaskContent: text("msg_no_task_content").notNull().default(DEFAULT_TASK_MESSAGES.noTaskContent),
+  msgNoTaskToEdit: text("msg_no_task_to_edit").notNull().default(DEFAULT_TASK_MESSAGES.noTaskToEdit),
+  msgTaskEdited: text("msg_task_edited").notNull().default(DEFAULT_TASK_MESSAGES.taskEdited),
+  msgTaskRemoved: text("msg_task_removed").notNull().default(DEFAULT_TASK_MESSAGES.taskRemoved),
+  msgTaskNext: text("msg_task_next").notNull().default(DEFAULT_TASK_MESSAGES.taskNext),
+  msgAdminDeleteTasks: text("msg_admin_delete_tasks").notNull().default(DEFAULT_TASK_MESSAGES.adminDeleteTasks),
+  msgTaskDone: text("msg_task_done").notNull().default(DEFAULT_TASK_MESSAGES.taskDone),
+  msgTaskCheck: text("msg_task_check").notNull().default(DEFAULT_TASK_MESSAGES.taskCheck),
+  msgTaskCheckUser: text("msg_task_check_user").notNull().default(DEFAULT_TASK_MESSAGES.taskCheckUser),
+  msgNoTask: text("msg_no_task").notNull().default(DEFAULT_TASK_MESSAGES.noTask),
+  msgNoTaskOther: text("msg_no_task_other").notNull().default(DEFAULT_TASK_MESSAGES.noTaskOther),
+  msgNotMod: text("msg_not_mod").notNull().default(DEFAULT_TASK_MESSAGES.notMod),
+  msgClearedAll: text("msg_cleared_all").notNull().default(DEFAULT_TASK_MESSAGES.clearedAll),
+  msgClearedDone: text("msg_cleared_done").notNull().default(DEFAULT_TASK_MESSAGES.clearedDone),
+  msgNextNoContent: text("msg_next_no_content").notNull().default(DEFAULT_TASK_MESSAGES.nextNoContent),
+  msgHelp: text("msg_help").notNull().default(DEFAULT_TASK_MESSAGES.help),
+  msgWorkMsg: text("msg_work").notNull().default(DEFAULT_TIMER_MESSAGES.workMsg),
+  msgBreakMsg: text("msg_break").notNull().default(DEFAULT_TIMER_MESSAGES.breakMsg),
+  msgLongBreakMsg: text("msg_long_break").notNull().default(DEFAULT_TIMER_MESSAGES.longBreakMsg),
+  msgWorkRemindMsg: text("msg_work_remind").notNull().default(DEFAULT_TIMER_MESSAGES.workRemindMsg),
+  msgNotRunning: text("msg_not_running").notNull().default(DEFAULT_TIMER_MESSAGES.notRunning),
+  msgStreamStarting: text("msg_stream_starting").notNull().default(DEFAULT_TIMER_MESSAGES.streamStarting),
+  msgWrongCommand: text("msg_wrong_command").notNull().default(DEFAULT_TIMER_MESSAGES.wrongCommand),
+  msgTimerRunning: text("msg_timer_running").notNull().default(DEFAULT_TIMER_MESSAGES.timerRunning),
+  msgCommandSuccess: text("msg_command_success").notNull().default(DEFAULT_TIMER_MESSAGES.commandSuccess),
+  msgCycleWrong: text("msg_cycle_wrong").notNull().default(DEFAULT_TIMER_MESSAGES.cycleWrong),
+  msgGoalWrong: text("msg_goal_wrong").notNull().default(DEFAULT_TIMER_MESSAGES.goalWrong),
+  msgFinishResponse: text("msg_finish_response").notNull().default(DEFAULT_TIMER_MESSAGES.finishResponse),
+  msgAlreadyStarting: text("msg_already_starting").notNull().default(DEFAULT_TIMER_MESSAGES.alreadyStarting),
+  msgEta: text("msg_eta").notNull().default(DEFAULT_TIMER_MESSAGES.eta),
 });

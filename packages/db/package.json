@@ -19,8 +19,7 @@
     "@dirework/env": "workspace:*",
     "@paralleldrive/cuid2": "^2.2.2",
     "dotenv": "catalog:",
-    "drizzle-orm": "catalog:",
-    "zod": "catalog:"
+    "drizzle-orm": "catalog:"
   },
   "devDependencies": {
     "@dirework/config": "workspace:*",
