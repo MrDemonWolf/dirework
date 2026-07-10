@@ -64,7 +64,7 @@ For production, add the same two paths on your workers.dev domain
 
 ### Overlay not updating in OBS
 
-- Overlays check for changes every **couple of seconds** — a short delay after adding a
+- Overlays check for changes every **few seconds** — a short delay after adding a
   task or starting the timer is normal. The timer countdown itself ticks smoothly on the
   overlay, so it never looks laggy.
 - **Did you regenerate the overlay token?** Regenerating kills the old URL — re-copy the
@@ -81,7 +81,7 @@ The overlays are designed to be transparent. In OBS browser source settings, mak
 ### Timer stuck at 0:00 / not transitioning
 
 Phase transitions are **read-driven** — any active read advances an overdue timer to its
-next phase. That includes an open timer overlay in OBS (which polls every ~2s), the
+next phase. That includes an open timer overlay in OBS (which polls every ~3s), the
 dashboard, or an incoming chat command. There is no always-on server, so *something* has
 to read the timer for it to move.
 
@@ -127,7 +127,7 @@ The bot only listens to chat **while its bot page is open** somewhere. Run throu
 
 ### Commands work but messages aren't sent
 
-- The bot account needs `user:read:chat` and `user:write:chat` scopes. If you connected the bot before these scopes were required, disconnect and reconnect it.
+- The bot account needs the `chat:read` and `chat:edit` scopes (the IRC connection the bot page uses requires them). If you connected the bot before these scopes were required, disconnect and reconnect it.
 - Check that the bot account isn't banned or timed out in your channel.
 
 ## Development Issues

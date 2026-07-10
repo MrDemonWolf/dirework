@@ -21,15 +21,15 @@ Regenerate the outputs from the repo root:
 bun run tokens
 ```
 
-This writes three committed files:
+This writes one committed file:
 
 | Output | Consumed by |
 | --- | --- |
-| `apps/fumadocs/src/app/tokens.generated.css` | Docs `--ds-*` CSS variables |
-| `apps/web/src/tokens.generated.css` | Web app `--ds-*` CSS variables |
 | `apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts` | Landing-page theme gallery |
 
 CI verifies the outputs are in sync: `bun run tokens && git diff --exit-code`. Never edit a generated file by hand.
+
+Shared overlay geometry and clock formatting (`roundedRectPath`, `roundedRectPerimeter`, `formatClock`, `SQUIRCLE_RADIUS`) live in the workspace package `@dirework/overlay-kit` (`packages/overlay-kit`), used by both the real OBS overlays and the docs mocks. A unit test in the web app keeps `tokens.json` in sync with the Theme Center presets and `SQUIRCLE_RADIUS`.
 
 ## Focus Console
 

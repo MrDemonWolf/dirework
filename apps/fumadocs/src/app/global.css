@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "fumadocs-ui/css/ocean.css";
 @import "fumadocs-ui/css/preset.css";
-@import "./tokens.generated.css";
 
 /* ──────────────────────────────────────────────────────────────────────────
    Dirework docs — "Focus Console" design language, ported 1:1 from the app
@@ -174,7 +173,7 @@
 /* Small mono uppercase section label — the console voice. */
 .console-label {
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -353,6 +352,21 @@
   font-weight: 500;
 }
 .dw-pill svg { color: var(--brand-500); }
+
+/* Clickable pills must read as links — static ones stay inert (NN/g:
+   identical styling on link + non-link erodes perceived affordance). */
+.dw-pill-link {
+  color: var(--txt-1);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.dw-pill-link:hover {
+  border-color: color-mix(in srgb, var(--brand-500) 45%, var(--hairline));
+  background-color: color-mix(in srgb, var(--brand-50) 70%, transparent);
+}
+.dw-pill-link:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+}
 
 /* ── Card ───────────────────────────────────────────────────────────────── */
 .dw-card {

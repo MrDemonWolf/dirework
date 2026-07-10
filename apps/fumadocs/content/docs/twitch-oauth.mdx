@@ -157,7 +157,7 @@ This prevents the bot from being rate-limited when sending messages.
 5. Authorize the app
 6. You'll be redirected back to the dashboard with a success message
 
-The bot will have `user:read:chat` and `user:write:chat` permissions — enough to read messages and respond to commands.
+The bot will have `chat:read` and `chat:edit` permissions (plus the Helix chat scopes `user:read:chat` and `user:write:chat`) — enough to read messages and respond to commands.
 
 <Callout>
   **One more thing before the bot talks:** the bot runs in a token-gated browser page,
@@ -173,10 +173,17 @@ Dirework requests specific OAuth scopes for each connection type:
 | Connection | Scopes | Purpose |
 | --- | --- | --- |
 | **Streamer login** | `user:read:email` (Better Auth default) | Authentication, profile info |
-| **Bot account** | `user:read:chat`, `user:write:chat` | Read chat messages, send bot responses |
+| **Bot account** | `chat:read`, `chat:edit` | Read and send chat messages over IRC (the connection the bot page actually uses) |
+| **Bot account** | `user:read:chat`, `user:write:chat` | Helix chat API equivalents — reserved for a future move to Helix sends |
 
 <Callout>
   You don't need to configure scopes manually — Dirework requests them automatically during the OAuth flow. The scopes are minimal by design: only what's needed for the bot to read and write chat messages.
+</Callout>
+
+<Callout type="warn">
+  **Connected your bot before `chat:read`/`chat:edit` were added?** Existing tokens don't
+  gain scopes automatically — disconnect the bot account and connect it again to pick up
+  the new scopes.
 </Callout>
 
 ### If connection fails
