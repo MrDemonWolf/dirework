@@ -1,57 +1,27 @@
 import { describe, it, expect } from "vitest";
-import { z } from "zod";
 
-const overlayTokenSchema = z.object({
-  token: z.string(),
-  type: z.enum(["timer", "tasks"]),
-});
-const regenerateSchema = z.object({ type: z.enum(["timer", "tasks"]) });
+// The REAL router input schema (env-free module) — no hand-copied mirror.
+import { regenerateOverlayTokenInput } from "../input-schemas";
 
 describe("user router input validation", () => {
-  describe("getByOverlayToken", () => {
-    it("accepts valid timer token input", () => {
-      const result = overlayTokenSchema.safeParse({
-        token: crypto.randomUUID(),
-        type: "timer",
-      });
-      expect(result.success).toBe(true);
-    });
-
-    it("accepts valid tasks token input", () => {
-      const result = overlayTokenSchema.safeParse({
-        token: crypto.randomUUID(),
-        type: "tasks",
-      });
-      expect(result.success).toBe(true);
-    });
-
-    it("rejects invalid type", () => {
-      const result = overlayTokenSchema.safeParse({
-        token: crypto.randomUUID(),
-        type: "invalid",
-      });
-      expect(result.success).toBe(false);
-    });
-
-    it("rejects missing token", () => {
-      const result = overlayTokenSchema.safeParse({ type: "timer" });
-      expect(result.success).toBe(false);
-    });
-  });
-
   describe("regenerateOverlayToken", () => {
     it("accepts timer type", () => {
-      const result = regenerateSchema.safeParse({ type: "timer" });
+      const result = regenerateOverlayTokenInput.safeParse({ type: "timer" });
       expect(result.success).toBe(true);
     });
 
     it("accepts tasks type", () => {
-      const result = regenerateSchema.safeParse({ type: "tasks" });
+      const result = regenerateOverlayTokenInput.safeParse({ type: "tasks" });
       expect(result.success).toBe(true);
     });
 
     it("rejects invalid type", () => {
-      const result = regenerateSchema.safeParse({ type: "invalid" });
+      const result = regenerateOverlayTokenInput.safeParse({ type: "invalid" });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects missing type", () => {
+      const result = regenerateOverlayTokenInput.safeParse({});
       expect(result.success).toBe(false);
     });
   });

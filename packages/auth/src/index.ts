@@ -1,5 +1,6 @@
 import { count } from "drizzle-orm";
 import { createDb, type DbClient } from "@dirework/db";
+import { provisionSingletonRows } from "@dirework/db/provision";
 import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
 import { betterAuth } from "better-auth";
@@ -86,22 +87,13 @@ export function createAuth() {
       session: {
         create: {
           after: async () => {
-            // Provision singleton config rows on every login. Explicit id is
-            // required: SQLite rejects an upsert clause on `DEFAULT VALUES`,
-            // and D1 batch keeps it atomic in one round trip.
-            await db.batch([
-              db.insert(schema.timerConfig).values({ id: schema.SINGLETON_ID }).onConflictDoNothing(),
-              db.insert(schema.timerStyle).values({ id: schema.SINGLETON_ID }).onConflictDoNothing(),
-              db.insert(schema.taskStyle).values({ id: schema.SINGLETON_ID }).onConflictDoNothing(),
-              db.insert(schema.botConfig).values({ id: schema.SINGLETON_ID }).onConflictDoNothing(),
-              db.insert(schema.instanceConfig).values({ id: schema.SINGLETON_ID }).onConflictDoNothing(),
-            ]);
+            // Provision singleton config rows on every login — shared
+            // implementation in @dirework/db/provision (also used by the
+            // API's lazy provisioning, so the two paths cannot drift).
+            await provisionSingletonRows(db);
           },
         },
       },
     },
   });
 }
-
-export type Auth = ReturnType<typeof createAuth>;
-export type Session = Auth["$Infer"]["Session"];

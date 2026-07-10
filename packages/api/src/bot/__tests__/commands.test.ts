@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { interpolate, resolveAlias } from "../commands";
+import { formatEtaDuration, interpolate, resolveAlias } from "../commands";
 
 describe("interpolate", () => {
   it("substitutes a single variable", () => {
@@ -37,10 +37,14 @@ describe("interpolate", () => {
     expect(interpolate("", { user: "Frank" })).toBe("");
   });
 
-  it("substitutes {time} for eta-style messages", () => {
-    expect(interpolate("The hunt will end at {time}", { user: "Grace", time: "5:30 PM" })).toBe(
-      "The hunt will end at 5:30 PM",
-    );
+  it("substitutes {phase} and {time} for eta-style messages", () => {
+    expect(
+      interpolate("This phase ends in {phase} · the hunt is done in {time}", {
+        user: "Grace",
+        phase: "18m",
+        time: "1h 55m",
+      }),
+    ).toBe("This phase ends in 18m · the hunt is done in 1h 55m");
   });
 
   it("substitutes {user2} for check-user messages", () => {
@@ -51,6 +55,30 @@ describe("interpolate", () => {
         task: "Write tests",
       }),
     ).toBe('Alice, Bob is currently tracking: "Write tests"');
+  });
+});
+
+describe("formatEtaDuration", () => {
+  it("formats minutes-only durations", () => {
+    expect(formatEtaDuration(18 * 60_000)).toBe("18m");
+  });
+
+  it("formats hour + minute durations", () => {
+    expect(formatEtaDuration((60 + 55) * 60_000)).toBe("1h 55m");
+  });
+
+  it("formats exact-hour durations without a minutes part", () => {
+    expect(formatEtaDuration(2 * 60 * 60_000)).toBe("2h");
+  });
+
+  it("rounds partial minutes up", () => {
+    expect(formatEtaDuration(17 * 60_000 + 30_000)).toBe("18m");
+  });
+
+  it("never goes below 1m, even for zero or negative durations", () => {
+    expect(formatEtaDuration(10_000)).toBe("1m");
+    expect(formatEtaDuration(0)).toBe("1m");
+    expect(formatEtaDuration(-5_000)).toBe("1m");
   });
 });
 

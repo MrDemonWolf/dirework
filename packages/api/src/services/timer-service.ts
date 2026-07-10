@@ -2,16 +2,20 @@ import { and, eq } from "drizzle-orm";
 
 import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
+import { SINGLETON_ID } from "@dirework/db/schema";
 
-import { SINGLETON_ID } from "../config-shared";
+import { type TimerStatus } from "../config-shared";
 import { computeNextPhase, getTimerConfig } from "../routers/timer-logic";
+import { updateSingleton } from "./singleton";
 
 // Single implementation of the timer state machine mutations (audit M1) —
 // called by both the tRPC timer router and the bot ingest path.
 
 export type TimerStateRow = typeof schema.timerState.$inferSelect;
 
-const RUNNING_STATUSES = new Set(["starting", "work", "break", "longBreak"]);
+const RUNNING_STATUSES = new Set<string>(
+  ["starting", "work", "break", "longBreak"] satisfies TimerStatus[],
+);
 
 /**
  * Lazily advance a timer whose targetEndTime has passed. There is no always-on
@@ -100,16 +104,12 @@ export async function pauseTimer(db: DbClient) {
 
   const remaining = Math.max(0, timer.targetEndTime.getTime() - Date.now());
 
-  const [row] = await db.update(schema.timerState)
-    .set({
-      status: "paused",
-      pausedFromStatus: timer.status,
-      pausedWithRemaining: remaining,
-      targetEndTime: null,
-    })
-    .where(eq(schema.timerState.id, SINGLETON_ID))
-    .returning();
-  return row ?? null;
+  return updateSingleton(db, schema.timerState, {
+    status: "paused",
+    pausedFromStatus: timer.status,
+    pausedWithRemaining: remaining,
+    targetEndTime: null,
+  });
 }
 
 /**
@@ -120,26 +120,23 @@ export async function resumeTimer(db: DbClient) {
   const timer = await getTimerState(db);
   if (timer?.pausedWithRemaining == null) return null;
 
-  const [row] = await db.update(schema.timerState)
-    .set({
-      status: timer.pausedFromStatus ?? "work",
-      targetEndTime: new Date(Date.now() + timer.pausedWithRemaining),
-      pausedWithRemaining: null,
-      pausedFromStatus: null,
-    })
-    .where(eq(schema.timerState.id, SINGLETON_ID))
-    .returning();
-  return row ?? null;
+  return updateSingleton(db, schema.timerState, {
+    status: timer.pausedFromStatus ?? "work",
+    targetEndTime: new Date(Date.now() + timer.pausedWithRemaining),
+    pausedWithRemaining: null,
+    pausedFromStatus: null,
+  });
 }
 
-async function advanceTimer(db: DbClient, resolvePaused: boolean) {
+/** Skip to the next phase; a paused timer skips from its pre-pause phase. */
+export async function skipTimer(db: DbClient) {
   const [timer, timerConfigRow] = await Promise.all([
     db.query.timerState.findFirst(),
     db.query.timerConfig.findFirst(),
   ]);
   if (!timer) return null;
 
-  const effectiveStatus = resolvePaused && timer.status === "paused"
+  const effectiveStatus = timer.status === "paused"
     ? (timer.pausedFromStatus ?? "work")
     : timer.status;
 
@@ -154,52 +151,13 @@ async function advanceTimer(db: DbClient, resolvePaused: boolean) {
     return timer;
   }
 
-  const [row] = await db.update(schema.timerState)
-    .set({
-      status: nextStatus,
-      currentCycle: nextCycle,
-      pausedFromStatus: null,
-      pausedWithRemaining: null,
-      targetEndTime: nextDuration ? new Date(Date.now() + nextDuration) : null,
-    })
-    .where(eq(schema.timerState.id, SINGLETON_ID))
-    .returning();
-  return row ?? null;
-}
-
-/** Advance from the current phase (does not resolve a paused phase). */
-export async function nextPhase(db: DbClient) {
-  return advanceTimer(db, false);
-}
-
-/** Skip to the next phase; a paused timer skips from its pre-pause phase. */
-export async function skipTimer(db: DbClient) {
-  return advanceTimer(db, true);
-}
-
-/** Force a specific phase (dashboard escape hatch). */
-export async function transitionTimer(
-  db: DbClient,
-  status: string,
-  durationMs?: number,
-) {
-  const data: Partial<typeof schema.timerState.$inferInsert> = { status };
-
-  if (durationMs) {
-    data.targetEndTime = new Date(Date.now() + durationMs);
-    data.pausedWithRemaining = null;
-  }
-
-  if (status === "idle" || status === "finished") {
-    data.targetEndTime = null;
-    data.pausedWithRemaining = null;
-  }
-
-  const [row] = await db.update(schema.timerState)
-    .set(data)
-    .where(eq(schema.timerState.id, SINGLETON_ID))
-    .returning();
-  return row ?? null;
+  return updateSingleton(db, schema.timerState, {
+    status: nextStatus,
+    currentCycle: nextCycle,
+    pausedFromStatus: null,
+    pausedWithRemaining: null,
+    targetEndTime: nextDuration ? new Date(Date.now() + nextDuration) : null,
+  });
 }
 
 /**
@@ -209,22 +167,25 @@ export async function transitionTimer(
 export async function resetTimer(db: DbClient) {
   const tc = await loadTimerConfig(db);
 
-  const [row] = await db.update(schema.timerState)
-    .set({
-      status: "idle",
-      targetEndTime: null,
-      pausedWithRemaining: null,
-      pausedFromStatus: null,
-      currentCycle: 1,
-      totalCycles: tc.defaultCycles,
-    })
-    .where(eq(schema.timerState.id, SINGLETON_ID))
-    .returning();
-  return row ?? null;
+  return updateSingleton(db, schema.timerState, {
+    status: "idle",
+    targetEndTime: null,
+    pausedWithRemaining: null,
+    pausedFromStatus: null,
+    currentCycle: 1,
+    totalCycles: tc.defaultCycles,
+  });
 }
 
-/** Projected end time of the whole session, or null if not running. */
-export async function getTimerEta(db: DbClient): Promise<Date | null> {
+export interface TimerEta {
+  /** End of the current phase. */
+  phaseEnd: Date;
+  /** Projected end of the whole session. */
+  sessionEnd: Date;
+}
+
+/** Projected end of the current phase + whole session, or null if not running. */
+export async function getTimerEta(db: DbClient): Promise<TimerEta | null> {
   const [timer, timerConfigRow] = await Promise.all([
     maybeAdvanceOverdueTimer(db),
     db.query.timerConfig.findFirst(),
@@ -248,5 +209,8 @@ export async function getTimerEta(db: DbClient): Promise<Date | null> {
     cycle = nextCycle;
   }
 
-  return new Date(Date.now() + totalMs);
+  return {
+    phaseEnd: timer.targetEndTime,
+    sessionEnd: new Date(Date.now() + totalMs),
+  };
 }

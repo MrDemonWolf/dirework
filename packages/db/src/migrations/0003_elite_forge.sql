@@ -1,0 +1,1 @@
+ALTER TABLE `instance_config` ADD `channel_login` text;
