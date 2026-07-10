@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info, Pause, Play, SkipForward, Square } from "lucide-react";
@@ -130,7 +130,6 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const [longBreakMin, setLongBreakMin] = useState(15);
   const [longBreakInterval, setLongBreakInterval] = useState(4);
   const [configLoaded, setConfigLoaded] = useState(false);
-  const transitioningRef = useRef(false);
 
   const timer = useQuery({
     ...trpc.timer.get.queryOptions(),
@@ -151,6 +150,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     ...trpc.config.updateTimerConfig.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
+      // Blur-autosave needs visible confirmation — Styles/Bot get a Save bar,
+      // this surface's only feedback is the toast.
+      toast.success("Timer settings saved");
     },
     onError: (err) => {
       toast.error(`Couldn't save timer settings: ${err.message}`);
@@ -171,6 +173,16 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   }, [config.data, configLoaded]);
 
   const saveConfig = (overrides: Partial<typeof DEFAULT_TIMER_VALUES>) => {
+    // Skip no-op blurs — tabbing through the fields shouldn't fire saves.
+    const tc = config.data?.timerConfig;
+    if (
+      tc &&
+      Object.entries(overrides).every(
+        ([key, value]) => tc[key as keyof typeof tc] === value,
+      )
+    ) {
+      return;
+    }
     updateTimerConfig.mutate(overrides);
   };
 
@@ -186,17 +198,6 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     ...trpc.timer.start.mutationOptions(),
     onSuccess: invalidate,
     onError: mutationError("start"),
-  });
-
-  const nextPhase = useMutation({
-    ...trpc.timer.nextPhase.mutationOptions(),
-    onSuccess: () => {
-      transitioningRef.current = false;
-      invalidate();
-    },
-    onError: () => {
-      transitioningRef.current = false;
-    },
   });
 
   const pause = useMutation({
@@ -238,24 +239,20 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Display-only tick: when the countdown hits zero it just clamps at 00:00.
+    // The SERVER advances phases lazily on read (maybeAdvanceOverdueTimer in
+    // timer-service), and the 2s poll picks the new phase up — the client must
+    // never mutate the phase itself, or two open dashboards race the server's
+    // lazy advance and double-advance past breaks.
     const tick = () => {
       const ms = new Date(state.targetEndTime!).getTime() - Date.now();
       setRemaining(Math.max(0, ms));
-
-      if (ms <= 0 && !transitioningRef.current) {
-        transitioningRef.current = true;
-        nextPhase.mutate();
-      }
     };
 
     tick();
     const interval = setInterval(tick, 100);
     return () => clearInterval(interval);
-  }, [state?.targetEndTime, state?.pausedWithRemaining]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    transitioningRef.current = false;
-  }, [status]);
+  }, [state?.targetEndTime, state?.pausedWithRemaining]);
 
   const displayTime = isIdle
     ? formatClock(minutesToMs(workMin))
@@ -456,7 +453,7 @@ export function TimerSettings() {
       max: 120,
       value: workMin,
       set: setWorkMin,
-      save: () => saveConfig({ workDuration: minutesToMs(workMin) }),
+      save: (v: number) => saveConfig({ workDuration: minutesToMs(v) }),
     },
     {
       id: "timer-break-min",
@@ -467,7 +464,7 @@ export function TimerSettings() {
       max: 60,
       value: breakMin,
       set: setBreakMin,
-      save: () => saveConfig({ breakDuration: minutesToMs(breakMin) }),
+      save: (v: number) => saveConfig({ breakDuration: minutesToMs(v) }),
     },
     {
       id: "timer-long-break-min",
@@ -478,7 +475,7 @@ export function TimerSettings() {
       max: 60,
       value: longBreakMin,
       set: setLongBreakMin,
-      save: () => saveConfig({ longBreakDuration: minutesToMs(longBreakMin) }),
+      save: (v: number) => saveConfig({ longBreakDuration: minutesToMs(v) }),
     },
     {
       id: "timer-long-break-interval",
@@ -489,7 +486,7 @@ export function TimerSettings() {
       max: 20,
       value: longBreakInterval,
       set: setLongBreakInterval,
-      save: () => saveConfig({ longBreakInterval }),
+      save: (v: number) => saveConfig({ longBreakInterval: v }),
     },
     {
       id: "timer-pomos",
@@ -500,7 +497,7 @@ export function TimerSettings() {
       max: 99,
       value: cycles,
       set: setCycles,
-      save: () => saveConfig({ defaultCycles: cycles }),
+      save: (v: number) => saveConfig({ defaultCycles: v }),
     },
   ];
 
@@ -514,6 +511,8 @@ export function TimerSettings() {
       )}
       {fields.map((field) => (
         <div key={field.id} className="grid grid-cols-[1fr_4rem_auto] items-center gap-2">
+          {/* Help rides on aria-describedby (screen readers + keyboard get it,
+              not just mouse hover); the tooltip stays as the pointer surface. */}
           <Tooltip>
             <TooltipTrigger
               render={
@@ -524,7 +523,7 @@ export function TimerSettings() {
               }
             >
               {field.label}
-              <Info className="size-3 text-muted-foreground/60" />
+              <Info className="size-3 text-muted-foreground" aria-hidden />
             </TooltipTrigger>
             <TooltipContent>{field.tooltip}</TooltipContent>
           </Tooltip>
@@ -534,27 +533,24 @@ export function TimerSettings() {
             min={field.min}
             max={field.max}
             value={field.value}
+            aria-describedby={`${field.id}-help`}
             onChange={(e) => field.set(Number(e.target.value))}
-            onBlur={field.save}
+            onBlur={() => {
+              // Clamp instead of saving garbage: a cleared field otherwise
+              // autosaves 0 and bounces off the server with a raw error.
+              const clamped = Math.min(field.max, Math.max(field.min, field.value || field.min));
+              if (clamped !== field.value) field.set(clamped);
+              field.save(clamped);
+            }}
             disabled={!isIdle}
             className="h-8 text-right font-mono tabular-nums"
           />
+          <span id={`${field.id}-help`} className="sr-only">
+            {field.tooltip}
+          </span>
           {field.unit ? <span className="console-label">{field.unit}</span> : <span aria-hidden />}
         </div>
       ))}
     </div>
-  );
-}
-
-export function TimerControls() {
-  return (
-    <TimerProvider>
-      <div className="flex flex-col items-center gap-6">
-        <TimerInstrument />
-        <div className="w-full">
-          <TimerSettings />
-        </div>
-      </div>
-    </TimerProvider>
   );
 }

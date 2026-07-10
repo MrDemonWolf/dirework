@@ -400,26 +400,36 @@ export default function BotSettingsPage() {
       return;
     }
 
-    try {
-      await updateMessagesMutation.mutateAsync({
-        taskCommandsEnabled,
-        timerCommandsEnabled,
-        task: taskMessages,
-        timer: timerMessages,
-      });
-      await updateAliasesMutation.mutateAsync({
-        commandAliases: aliases,
-      });
+    // Save the two groups independently and snapshot each only on ITS
+    // success — the old sequential version marked nothing saved on a partial
+    // failure, so the UI showed the messages as unsaved even though the
+    // server had them, and Reset silently diverged from the server.
+    const results = await Promise.allSettled([
+      updateMessagesMutation
+        .mutateAsync({
+          taskCommandsEnabled,
+          timerCommandsEnabled,
+          task: taskMessages,
+          timer: timerMessages,
+        })
+        .then(() => {
+          setSavedTaskCommandsEnabled(taskCommandsEnabled);
+          setSavedTimerCommandsEnabled(timerCommandsEnabled);
+          setSavedTaskMessages(taskMessages);
+          setSavedTimerMessages(timerMessages);
+        }),
+      updateAliasesMutation
+        .mutateAsync({ commandAliases: aliases })
+        .then(() => {
+          setSavedAliasRows(aliasRows);
+        }),
+    ]);
 
-      setSavedTaskCommandsEnabled(taskCommandsEnabled);
-      setSavedTimerCommandsEnabled(timerCommandsEnabled);
-      setSavedTaskMessages(taskMessages);
-      setSavedTimerMessages(timerMessages);
-      setSavedAliasRows(aliasRows);
+    if (results.every((r) => r.status === "fulfilled")) {
       toast.success("Bot settings saved");
-    } catch {
-      // per-mutation onError already surfaced the failure
     }
+    // Failures were already toasted by each mutation's onError; the failed
+    // group stays dirty so the Save bar keeps offering a retry.
   }, [
     taskCommandsEnabled,
     timerCommandsEnabled,
@@ -448,7 +458,9 @@ export default function BotSettingsPage() {
   // comparisons as the tab dots, so reverting an edit clears them all.
   const hasUnsaved = taskDirty || timerDirty || aliasDirty;
 
-  if (config.isLoading) {
+  // Wait for BOTH queries — rendering on config alone flashed a false
+  // "Not connected / Not configured" while the user query was still loading.
+  if (config.isLoading || user.isLoading) {
     return <BotSettingsSkeleton />;
   }
 

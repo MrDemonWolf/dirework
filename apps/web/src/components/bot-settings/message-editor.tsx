@@ -55,7 +55,7 @@ export const timerMessageFields: {
   { key: "finishResponse", label: "Finish Response", placeholder: "none", group: "Lifecycle" },
   { key: "workRemindMsg", label: "Work Reminder", placeholder: "{channel}", group: "Status" },
   { key: "commandSuccess", label: "Command Success", placeholder: "none", group: "Status" },
-  { key: "eta", label: "ETA", placeholder: "{time}", group: "Status" },
+  { key: "eta", label: "ETA", placeholder: "{phase}, {time}", group: "Status" },
   { key: "notRunning", label: "Not Running", placeholder: "none", group: "Errors" },
   { key: "wrongCommand", label: "Wrong Command", placeholder: "none", group: "Errors" },
   { key: "timerRunning", label: "Timer Running", placeholder: "none", group: "Errors" },

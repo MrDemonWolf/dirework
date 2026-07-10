@@ -45,14 +45,15 @@ function BackdropToggle({
   value: Backdrop;
   onChange: (v: Backdrop) => void;
 }) {
+  // Plain aria-pressed toggles — the old role="radiogroup" promised
+  // arrow-key navigation it never implemented (worse than no semantics).
   return (
-    <div className="flex items-center gap-1" role="radiogroup" aria-label="Preview backdrop">
+    <div className="flex items-center gap-1" role="group" aria-label="Preview backdrop">
       {backdrops.map((b) => (
         <button
           key={b.id}
           type="button"
-          role="radio"
-          aria-checked={value === b.id}
+          aria-pressed={value === b.id}
           aria-label={b.label}
           title={b.label}
           onClick={() => onChange(b.id)}

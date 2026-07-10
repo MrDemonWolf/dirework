@@ -103,8 +103,11 @@ export function CommandTabPanel<T extends object>({
         </div>
         <div className="flex flex-col items-end gap-1">
           <div className="flex items-center gap-2">
+            {/* Label names what the switch controls; the switch itself shows
+                state (a label that flips "On"/"Off" reads as the OPPOSITE
+                action target half the time). */}
             <Label htmlFor={`${idPrefix}-commands-toggle`} className="console-label">
-              {enabled ? "On" : "Off"}
+              Enabled
             </Label>
             <Switch
               id={`${idPrefix}-commands-toggle`}
@@ -118,14 +121,14 @@ export function CommandTabPanel<T extends object>({
 
       <div className="space-y-3">
         <div className="console-rule">
-          <h3 id={`${idPrefix}-cmd-ref`} className="console-label">Command Reference</h3>
+          <h2 id={`${idPrefix}-cmd-ref`} className="console-label">Command Reference</h2>
         </div>
         <CommandTable commands={commands} labelledBy={`${idPrefix}-cmd-ref`} />
       </div>
 
       <div className="space-y-3">
         <div className="console-rule">
-          <h3 className="console-label">Messages</h3>
+          <h2 className="console-label">Messages</h2>
         </div>
         <MessageEditor
           fields={fields}

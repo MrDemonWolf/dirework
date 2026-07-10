@@ -6,7 +6,7 @@ export const defaultTimerStyles: TimerStylesConfig = {
   ring: {
     enabled: true,
     trackColor: "#ffffff",
-    trackOpacity: 0.1,
+    trackOpacity: 0.18,
     fillColor: "#00aced",
     fillOpacity: 1,
     width: 8,

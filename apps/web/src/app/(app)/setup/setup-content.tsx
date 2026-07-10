@@ -1,6 +1,8 @@
 "use client";
 
-import { Timer, ListTodo, Bot, Palette } from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AlertTriangle, Timer, ListTodo, Bot, Palette } from "lucide-react";
 
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
@@ -14,7 +16,20 @@ const perks = [
   { icon: Palette, label: "6 themes — or style every pixel yourself" },
 ];
 
-export default function SetupContent() {
+function SetupInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [signInFailed, setSignInFailed] = useState(false);
+
+  // Surface a failed/cancelled Twitch OAuth inline — previously the error
+  // callback pointed at "/" whose server redirect dropped the query string,
+  // so a failed claim landed back here with zero feedback.
+  useEffect(() => {
+    if (!searchParams.get("error")) return;
+    setSignInFailed(true);
+    router.replace("/setup", { scroll: false });
+  }, [searchParams, router]);
+
   return (
     <div className="flex min-h-full flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
@@ -78,6 +93,21 @@ export default function SetupContent() {
           </ul>
         </div>
 
+        {signInFailed && (
+          <div
+            role="alert"
+            className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3"
+          >
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
+            <div className="text-sm">
+              <p className="font-medium">Twitch sign-in didn&apos;t complete.</p>
+              <p className="mt-0.5 text-muted-foreground">
+                The instance is still unclaimed — try again below.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* CTA */}
         <Button
           size="lg"
@@ -86,7 +116,7 @@ export default function SetupContent() {
             authClient.signIn.social({
               provider: "twitch",
               callbackURL: "/dashboard",
-              errorCallbackURL: "/?error=signin_failed",
+              errorCallbackURL: "/setup?error=signin_failed",
             })
           }
         >
@@ -103,5 +133,14 @@ export default function SetupContent() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SetupContent() {
+  // useSearchParams requires a Suspense boundary in the App Router.
+  return (
+    <Suspense fallback={null}>
+      <SetupInner />
+    </Suspense>
   );
 }

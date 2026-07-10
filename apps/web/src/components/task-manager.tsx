@@ -262,7 +262,8 @@ export function TaskManager({
                             disabled={isDone || doneTaskId === task.id}
                             aria-label={isDone ? `${task.text} (done)` : `Mark "${task.text}" as done`}
                             className={cn(
-                              "flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                              // after:-inset-2.5 = 45px effective touch target on a 20px control
+                              "relative flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors after:absolute after:-inset-2.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                               isDone
                                 ? "border-primary bg-primary text-primary-foreground"
                                 : "border-muted-foreground/40 hover:border-primary disabled:hover:border-muted-foreground/40",
@@ -302,7 +303,7 @@ export function TaskManager({
                                     }}
                                     disabled={activatingTaskId === task.id}
                                     aria-label={`Set "${task.text}" as active`}
-                                    className="opacity-100 transition-opacity focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+                                    className="relative opacity-100 transition-opacity after:absolute after:-inset-2 focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
                                   />
                                 }
                               >
@@ -325,7 +326,7 @@ export function TaskManager({
                             }}
                             disabled={removingTaskId === task.id}
                             aria-label={`Remove "${task.text}"`}
-                            className="text-destructive opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+                            className="relative text-destructive opacity-100 transition-opacity after:absolute after:-inset-2 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
                           >
                             <Trash2 className="size-3" />
                           </Button>
