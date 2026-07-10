@@ -53,7 +53,7 @@ export function SaveBar({
             ) : (
               <Save className="size-3.5" />
             )}
-            Save Changes
+            Save changes
           </Button>
         </div>
       </div>

@@ -10,9 +10,9 @@ import { DevLoginButton } from "@/components/dev-login-button";
 import { TwitchIcon } from "@/components/icons/twitch-icon";
 
 const perks = [
-  { icon: Timer, label: "A Pomodoro timer your viewers can see in OBS" },
+  { icon: Timer, label: "A Pomodoro timer your viewers can see on stream" },
   { icon: ListTodo, label: "A shared task list your chat fills in" },
-  { icon: Bot, label: "A Twitch bot that runs the commands for you" },
+  { icon: Bot, label: "A Twitch bot that answers chat commands for you" },
   { icon: Palette, label: "6 themes — or style every pixel yourself" },
 ];
 
@@ -70,7 +70,7 @@ function SetupInner() {
             Welcome — let&apos;s get you set up
           </span>
           <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-            This instance is all yours
+            This Dirework is all yours
           </h1>
           <p className="text-muted-foreground">
             Sign in with Twitch to claim it. That&apos;s the whole setup — one click and
@@ -102,7 +102,7 @@ function SetupInner() {
             <div className="text-sm">
               <p className="font-medium">Twitch sign-in didn&apos;t complete.</p>
               <p className="mt-0.5 text-muted-foreground">
-                The instance is still unclaimed — try again below.
+                This Dirework is still unclaimed — try again below.
               </p>
             </div>
           </div>
@@ -125,7 +125,7 @@ function SetupInner() {
         </Button>
 
         <p className="mt-4 text-center text-xs text-muted-foreground">
-          One streamer, one instance. Once you claim it, this page turns off for good.
+          One streamer per Dirework. Once you claim it, this page turns off for good.
         </p>
 
         <div className="mt-4 flex justify-center">

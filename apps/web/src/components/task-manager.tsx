@@ -356,7 +356,7 @@ export function TaskManager({
                   Clear done
                 </Button>
               }
-              title="Clear completed tasks?"
+              title="Clear done tasks?"
               description={`This permanently removes ${doneCount} completed ${doneCount === 1 ? "task" : "tasks"} from the list and the overlay.`}
               confirmLabel="Clear done"
               onConfirm={() => clearDone.mutate()}

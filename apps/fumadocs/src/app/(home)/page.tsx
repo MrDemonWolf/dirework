@@ -201,7 +201,7 @@ export default function HomePage() {
                 </Link>
               </div>
               <p className="mt-4 dw-mono text-xs dw-text-2 tracking-wide">
-                One instance per streamer · Free plan-friendly · No lock-in
+                One Dirework per streamer · Free plan-friendly · No lock-in
               </p>
 
               <div className="dw-reveal dw-reveal-3 mt-6 flex flex-wrap items-center justify-center lg:justify-start gap-2">
@@ -256,7 +256,7 @@ export default function HomePage() {
               {
                 icon: Twitch,
                 title: "For streamers",
-                body: "Log in with Twitch, connect a bot account, drop two browser sources in OBS. Run focus sprints without alt-tabbing mid-stream.",
+                body: "Sign in with Twitch, connect a bot account, drop two browser sources in OBS. Run focus sprints without alt-tabbing mid-stream.",
                 href: "/docs/getting-started",
                 cta: "Getting started",
               },
@@ -311,8 +311,8 @@ export default function HomePage() {
               <code className="dw-mono dw-text-1">!done</code>, and{" "}
               <code className="dw-mono dw-text-1">!focus</code>. Mods drive the timer
               with <code className="dw-mono dw-text-1">!timer start</code>. Every
-              command is aliasable and every reply is yours to reword. The bot lives in a
-              token-gated browser page holding a Twitch IRC socket — no extra process to run.
+              command is aliasable and every reply is yours to reword. The bot runs from a
+              private browser page you keep open in OBS or a pinned tab — no extra software to run.
             </p>
             <Link
               href="/docs/chat-commands"
@@ -340,11 +340,11 @@ export default function HomePage() {
             </h2>
             <p className="dw-text-2 text-lg mt-5 leading-relaxed">
               Two transparent browser sources — a timer and a task list — for OBS.
-              Each polls the public API every few seconds, so a{" "}
+              Each checks for changes every few seconds, so a{" "}
               <code className="dw-mono dw-text-1">!done</code> in chat lands on screen
-              within ~3s; the countdown ticks locally at 100ms for smooth motion. Start
-              from one of six presets and tune every color, font, size, and corner radius —
-              pick a theme to preview it live.
+              in about three seconds — and the countdown ticks smoothly on the overlay
+              itself. Start from one of six presets and tune every color, font, size, and
+              corner radius — pick a theme to preview it live.
             </p>
             <Link
               href="/docs/overlays"
@@ -376,7 +376,7 @@ export default function HomePage() {
               {
                 icon: Tv,
                 title: "OBS overlays",
-                body: "Transparent browser sources that poll every ~3s. Circle or squircle progress rings, local 100ms ticks.",
+                body: "Transparent browser sources that update within seconds. Circle or squircle progress rings and a smooth, always-live countdown.",
               },
               {
                 icon: Palette,
@@ -615,7 +615,7 @@ bun run dev   # web :3001 · api :3000 · docs :4000`}</pre>
             />
             <FaqRow
               q="How do the overlays stay in sync?"
-              a={<>The overlays poll the public API every few seconds and the timer ticks locally from its target end time, so a !done lands within ~3s with no flicker. No SSE, no WebSockets to babysit — which is exactly what keeps it on Cloudflare&apos;s free plan.</>}
+              a={<>The overlays check for changes every few seconds, and the countdown ticks on the overlay itself from the timer&apos;s end time — so a !done lands within a few seconds with no flicker. There&apos;s no fragile real-time connection to babysit, which is exactly what keeps it on Cloudflare&apos;s free plan.</>}
             />
             <FaqRow
               q="Is it really free?"
@@ -658,7 +658,7 @@ bun run dev   # web :3001 · api :3000 · docs :4000`}</pre>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link href="/docs/getting-started" className="dw-btn dw-btn-primary">
               <Terminal className="w-4 h-4" />
-              Get Started
+              Get started
             </Link>
             <Link href="/docs" className="dw-btn dw-btn-secondary">
               Read the docs

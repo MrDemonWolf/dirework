@@ -69,7 +69,7 @@ export function TimerStyleEditor({
         />
       </SectionGroup>
 
-      <SectionGroup title="Progress Ring">
+      <SectionGroup title="Progress ring">
         <SwitchRow
           label="Enabled"
           id="timer-style-ring-enabled"
@@ -77,13 +77,13 @@ export function TimerStyleEditor({
           onChange={(v) => update("ring", { enabled: v })}
         />
         <ColorInput
-          label="Fill Color"
+          label="Fill color"
           id="timer-style-ring-fill-color"
           value={styles.ring.fillColor}
           onChange={(v) => update("ring", { fillColor: v })}
         />
         <SliderRow
-          label="Fill Opacity"
+          label="Fill opacity"
           id="timer-style-ring-fill-opacity"
           value={Math.round(styles.ring.fillOpacity * 100)}
           onChange={(v) => update("ring", { fillOpacity: v / 100 })}
@@ -92,13 +92,13 @@ export function TimerStyleEditor({
           format={(v) => `${v}%`}
         />
         <ColorInput
-          label="Track Color"
+          label="Track color"
           id="timer-style-ring-track-color"
           value={styles.ring.trackColor}
           onChange={(v) => update("ring", { trackColor: v })}
         />
         <SliderRow
-          label="Track Opacity"
+          label="Track opacity"
           id="timer-style-ring-track-opacity"
           value={Math.round(styles.ring.trackOpacity * 100)}
           onChange={(v) => update("ring", { trackOpacity: v / 100 })}
@@ -134,13 +134,13 @@ export function TimerStyleEditor({
           onChange={(v) => update("text", { color: v })}
         />
         <ColorInput
-          label="Outline Color"
+          label="Outline color"
           id="timer-style-text-outline-color"
           value={styles.text.outlineColor}
           onChange={(v) => update("text", { outlineColor: v })}
         />
         <TextFieldRow
-          label="Outline Size"
+          label="Outline size"
           id="timer-style-text-outline-size"
           value={styles.text.outlineSize}
           onChange={(v) => update("text", { outlineSize: v })}
@@ -148,15 +148,15 @@ export function TimerStyleEditor({
           placeholder="2px"
         />
         <FontSelect
-          label="Font Family"
+          label="Font family"
           value={styles.text.fontFamily}
           onChange={(v) => update("text", { fontFamily: v })}
         />
       </SectionGroup>
 
-      <SectionGroup title="Font Sizes">
+      <SectionGroup title="Font sizes">
         <TextFieldRow
-          label="Label"
+          label="Phase label"
           id="timer-style-font-label"
           value={styles.fontSizes.label}
           onChange={(v) => update("fontSizes", { label: v })}
@@ -172,7 +172,7 @@ export function TimerStyleEditor({
           placeholder="48px"
         />
         <TextFieldRow
-          label="Cycle"
+          label="Pomo counter"
           id="timer-style-font-cycle"
           value={styles.fontSizes.cycle}
           onChange={(v) => update("fontSizes", { cycle: v })}

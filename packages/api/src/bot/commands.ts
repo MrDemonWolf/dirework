@@ -75,6 +75,14 @@ function isPositionArg(arg: string | undefined): arg is string {
 }
 
 /**
+ * Hardcoded bad-usage reply for !remove/!focus (like the !dwhelp fallback) —
+ * reusing config.task.noTask here would falsely tell a viewer with open tasks
+ * that they aren't tracking anything.
+ */
+const POSITIONAL_USAGE_REPLY = (displayName: string) =>
+  `Give me a task number, ${displayName} — try !remove [number] (or !focus [number]). Check your numbers with !check!`;
+
+/**
  * Resolve a 1-based position arg to the viewer's nth open task — the lookup
  * every positional task command (!done/!edit/!remove/!focus) repeats. Returns
  * null when the position is out of range.
@@ -227,7 +235,9 @@ async function handleTaskRemove(args: string[], ctx: MessageContext): Promise<vo
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   if (!isPositionArg(args[0])) {
-    say(interpolate(config.task.noTask, vars));
+    // Bad usage, not "no tasks" — config.task.noTask would falsely tell a
+    // viewer with open tasks that they aren't tracking anything.
+    say(POSITIONAL_USAGE_REPLY(userInfo.displayName));
     return;
   }
 
@@ -246,7 +256,8 @@ async function handleTaskFocus(args: string[], ctx: MessageContext): Promise<voi
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   if (!isPositionArg(args[0])) {
-    say(interpolate(config.task.noTask, vars));
+    // Bad usage, not "no tasks" — same rationale as handleTaskRemove.
+    say(POSITIONAL_USAGE_REPLY(userInfo.displayName));
     return;
   }
 
@@ -317,11 +328,17 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
   }
 
   await createTask(db, userInfo, newText, { activate: true });
-  say(interpolate(config.task.taskNext, {
-    ...vars,
-    oldTask: activeTask?.text ?? "",
-    newTask: newText,
-  }));
+  // No active task means there is no {oldTask} to announce — fall back to the
+  // plain taskAdded template instead of interpolating empty quotes.
+  if (activeTask) {
+    say(interpolate(config.task.taskNext, {
+      ...vars,
+      oldTask: activeTask.text,
+      newTask: newText,
+    }));
+  } else {
+    say(interpolate(config.task.taskAdded, { ...vars, task: newText }));
+  }
 }
 
 async function handleClear(args: string[], ctx: MessageContext): Promise<void> {

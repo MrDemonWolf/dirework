@@ -5,24 +5,24 @@ description: Everything Dirework can do for your co-working stream
 
 Dirework is a self-hosted Pomodoro timer and task list built specifically for Twitch co-working and body-doubling streams. Here's everything it includes.
 
-## Pomodoro Timer
+## Pomodoro timer
 
 A full-featured Pomodoro timer with automatic phase transitions.
 
-- **Configurable durations** — Set work, break, and long break durations (in minutes) from the dashboard
+- **Configurable durations** — Set Focus, Break, and Long break durations (in minutes) from the dashboard
 - **Long break intervals** — Automatically triggers a long break every N cycles (configurable)
 - **Cycle tracking** — Set the number of pomos per session (1-99)
-- **Automatic phase transitions** — Timer moves through starting, work, break, long break, and finished phases automatically
+- **Automatic phase transitions** — The timer moves through Starting, Focus, Break, and Long break on its own, ending in Done
 - **Pause and resume** — Pause mid-session and resume exactly where you left off (remembers which phase you were in)
 - **Skip phase** — Skip the current phase to advance to the next one
 - **5-second starting countdown** — Brief countdown before work begins so you can get ready
 - **Real-time OBS overlay** — Circular or rounded-rectangle progress ring with countdown, phase label, and cycle count
 
-## Task List
+## Task list
 
 A viewer-interactive task list managed through Twitch chat.
 
-- **Chat commands** — Viewers add, edit, complete, and remove tasks with simple commands like `!task`, `!done`, `!edit`, `!remove`
+- **Chat commands** — Viewers add, edit, complete, and remove tasks with commands like `!task`, `!done`, `!edit`, `!remove`
 - **Multiple tasks per viewer** — Each viewer can have multiple tasks, numbered for easy reference
 - **Task priority** — Broadcaster tasks are pinned to the top, viewer tasks below in order
 - **Broadcaster controls** — Clear all tasks, clear completed tasks, or remove a specific user's tasks
@@ -41,7 +41,7 @@ A visual editor for customizing your overlays, available at `/dashboard/styles`.
 - **Progress ring shapes** — Choose between circle and rounded rectangle (squircle) ring styles
 - **Per-property control** — Every color, size, opacity, font, and spacing value is individually configurable
 
-## Twitch Chat Bot
+## Twitch chat bot
 
 Connect a separate Twitch bot account to handle chat commands.
 
@@ -51,16 +51,16 @@ Connect a separate Twitch bot account to handle chat commands.
 - **Customizable bot messages** — Configure response templates for every command
 - **Command aliases** — Create custom aliases for any command
 - **Separate bot account** — Uses its own Twitch account so messages come from the bot, not you
-- **Runs in your browser** — The bot lives in a token-gated browser page you add to OBS (or keep in a pinned tab); no always-on bot server to run
+- **Runs in your browser** — The bot lives in a private browser page you add to OBS (or keep in a pinned tab); no always-on bot server to run
 
-## OBS Overlays
+## OBS overlays
 
 Two transparent browser source overlays designed for OBS and streaming software.
 
 - **Timer overlay** — Shows phase label, countdown, and cycle count with a configurable progress ring
 - **Task list overlay** — Shows task list with viewer usernames, checkboxes, and auto-scroll
 - **Transparent backgrounds** — Overlays render with no background, layering cleanly over your stream
-- **Unique tokens** — Each overlay has a private token URL; regenerate if compromised
+- **Private overlay URLs** — Each overlay has its own private overlay URL; reset it if it ever leaks
 - **Fast updates** — Overlays pick up changes within a few seconds, and the timer countdown ticks smoothly on the overlay itself
 - **Toggle previews** — Dashboard previews can be toggled on/off to avoid slow page loads
 
@@ -75,15 +75,15 @@ A single-page control center for your stream.
 - **Bot management** — Connect, view status, and disconnect your bot account
 - **Time-of-day greetings** — Personalized greetings based on the time of day
 
-## UI and Design
+## UI and design
 
-- **macOS Liquid Glass theme** — Translucent backgrounds, backdrop blur, and rounded corners inspired by macOS
-- **Blue accent theme** — Blue primary and accent colors throughout the interface
-- **Dark and light mode** — Toggle between themes with a simple switch in the header
+- **Focus Console design** — a dark-first instrument-panel look: midnight-navy base, cerulean accent, and LED-style status chips
+- **Cerulean accent** — a bright cyan-blue accent used sparingly on buttons, links, and active states
+- **Dark and light mode** — Toggle between themes with a switch in the header
 - **Responsive layout** — Works on desktop and mobile
 - **Glass-effect header** — Frosted glass navbar with backdrop blur and saturation
 
-## Self-Hosted and Single-User
+## Self-hosted and single-user
 
 - **Single-user per instance** — Each streamer runs their own Dirework instance
 - **Full data ownership** — Your data lives in your own Cloudflare account
@@ -91,7 +91,7 @@ A single-page control center for your stream.
 - **Free to run** — Deploys as two Cloudflare Workers on the free plan; no servers, no Docker
 - **Static docs site** — Documentation builds as a static site, deployable separately
 
-## Tech Stack
+## Tech stack
 
 | Layer | Technology |
 | --- | --- |
@@ -103,6 +103,6 @@ A single-page control center for your stream.
 | **Chat Bot** | IRC-over-WebSocket in a token-gated browser page |
 | **Runtime** | Cloudflare Workers (web via OpenNext) |
 | **Deploy** | Alchemy (infrastructure-as-code) + GitHub Actions |
-| **Fonts** | Montserrat (headings/timer) + Roboto (body) |
+| **Fonts** | Montserrat (headings/timer) + IBM Plex Sans (body) + IBM Plex Mono (labels) |
 | **Docs** | Fumadocs with Orama search |
 | **Build** | Turborepo + Bun workspaces |

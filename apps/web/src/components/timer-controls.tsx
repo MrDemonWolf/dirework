@@ -351,7 +351,7 @@ export function TimerInstrument() {
         <CycleDots current={state.currentCycle} total={state.totalCycles} />
       ) : (
         <p className="font-mono text-xs tracking-wide text-muted-foreground">
-          {cycles} {cycles === 1 ? "pomo" : "pomos"} &middot; {workMin}m work &middot; {breakMin}m break
+          {cycles} {cycles === 1 ? "pomo" : "pomos"} &middot; {workMin}m focus &middot; {breakMin}m break
         </p>
       )}
       <div className="flex items-center gap-2">
@@ -421,7 +421,7 @@ export function TimerInstrument() {
                   </Button>
                 }
                 title="Stop the timer?"
-                description="This ends the current run and resets the timer to idle. Progress in this session is discarded — chat will see the timer disappear from the overlay."
+                description="This ends the current run and resets the timer. Your progress is lost — chat will see the timer disappear from the overlay."
                 confirmLabel="Stop timer"
                 onConfirm={() => reset.mutate()}
               />
@@ -446,7 +446,7 @@ export function TimerSettings() {
   const fields = [
     {
       id: "timer-work-min",
-      label: "Work",
+      label: "Focus",
       unit: "min",
       tooltip: "Duration of each focus session in minutes",
       min: 1,
@@ -470,7 +470,7 @@ export function TimerSettings() {
       id: "timer-long-break-min",
       label: "Long break",
       unit: "min",
-      tooltip: "Duration of the extended break in minutes",
+      tooltip: "Duration of the long break in minutes",
       min: 1,
       max: 60,
       value: longBreakMin,
@@ -480,7 +480,7 @@ export function TimerSettings() {
     {
       id: "timer-long-break-interval",
       label: "Every",
-      unit: "cycles",
+      unit: "pomos",
       tooltip: "Take a long break after this many focus sessions",
       min: 2,
       max: 20,
@@ -504,7 +504,7 @@ export function TimerSettings() {
   return (
     <div className="flex flex-col gap-3">
       <div className="console-rule">
-        <span className="console-label">Config</span>
+        <span className="console-label">Settings</span>
       </div>
       {!isIdle && (
         <StatusChip size="sm" tone="idle" label="Locked while running" className="self-start" />

@@ -13,7 +13,7 @@ import UserMenu from "./user-menu";
 
 const navItems = [
   { href: "/dashboard" as const, label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/styles" as const, label: "Styles", icon: Palette },
+  { href: "/dashboard/styles" as const, label: "Theme Center", icon: Palette },
   { href: "/dashboard/bot" as const, label: "Bot", icon: Bot },
 ];
 

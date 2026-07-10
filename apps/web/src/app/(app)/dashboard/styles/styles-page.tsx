@@ -186,10 +186,10 @@ export default function StylesPage() {
 
     if ([timerResult, taskResult, labelsResult].every((r) => r.status === "fulfilled")) {
       setHasUnsaved(false);
-      toast.success("Styles saved successfully");
+      toast.success("Styles saved");
     } else {
       // per-mutation onError already surfaced the specifics
-      toast.error("Some changes failed to save — retry.");
+      toast.error("Some changes didn't save — try saving again.");
     }
   }, [timerStyles, taskStyles, phaseLabels, updateTimerMutation, updateTaskMutation, updatePhaseLabelsMutation]);
 
