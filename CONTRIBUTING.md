@@ -4,8 +4,8 @@ Thank you for your interest in contributing to DireWork. This guide covers the s
 
 ## Prerequisites
 
-- [Bun](https://bun.sh/) v1.1+
-- [Node.js](https://nodejs.org/) v20+
+- [Bun](https://bun.sh/) v1.3+
+- [Node.js](https://nodejs.org/) v22+
 - A [Twitch Developer Application](https://dev.twitch.tv/console/apps) for OAuth credentials
 
 ## Setup
