@@ -1,4 +1,5 @@
 import Header from "@/components/header";
+import { VersionBadge } from "@/components/version-badge";
 
 export default function AppLayout({
   children,
@@ -12,6 +13,7 @@ export default function AppLayout({
   const termsOfServiceUrl = process.env.TERMS_OF_SERVICE_URL;
   const showLegalLinks = privacyPolicyUrl || termsOfServiceUrl;
   const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA;
+  const appVersion = process.env.NEXT_PUBLIC_APP_VERSION;
 
   return (
     <div className="grid min-h-svh grid-rows-[auto_1fr_auto]">
@@ -45,22 +47,10 @@ export default function AppLayout({
               MrDemonWolf, Inc.
             </a>
           </span>
-          {commitSha && (
-            <>
-              <span aria-hidden className="text-muted-foreground/50">
-                &middot;
-              </span>
-              <a
-                href={`https://github.com/mrdemonwolf/dirework/commit/${commitSha}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={`Deployed commit ${commitSha} — view on GitHub`}
-                className="font-mono transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {commitSha.slice(0, 7)}
-              </a>
-            </>
-          )}
+          <span aria-hidden className="text-muted-foreground/50">
+            &middot;
+          </span>
+          <VersionBadge version={appVersion} sha={commitSha} />
         </div>
         {showLegalLinks && (
           <div className="mt-2 flex items-center justify-center gap-3">
