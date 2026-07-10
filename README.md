@@ -166,8 +166,7 @@ source or keep the tab pinned.
 ### Development Scripts
 
 - `bun run dev` - Start all apps with a local D1 database
-- `bun run dev:web` - Start the web app only
-- `bun run dev:server` - Start the API worker only
+- `bun run dev:web` - Start only the web app (standalone Next dev on port 3001; the API comes from `bun run dev` or a deployed origin)
 - `bun run build` - Build all apps for production
 - `bun run check-types` - Run TypeScript type checking
 - `bun run test` - Run unit tests across all packages
@@ -195,7 +194,7 @@ source or keep the tab pinned.
 ## Deployment
 
 Dirework deploys to Cloudflare Workers via GitHub Actions:
-set five repository secrets, push to `main`, done. Both
+set six repository secrets, push to `main`, done. Both
 workers, the D1 database, and its migrations are managed by
 [Alchemy](https://alchemy.run).
 
@@ -217,6 +216,7 @@ dirework/
 │   ├── db/            # Drizzle schema + D1 client + migrations
 │   ├── env/           # Environment bindings + validation
 │   ├── infra/         # Alchemy infrastructure (workers + D1)
+│   ├── overlay-kit/   # Shared overlay geometry + clock formatting (web + docs)
 │   └── config/        # Shared TypeScript configuration
 ```
 

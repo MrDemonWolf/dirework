@@ -21,6 +21,23 @@ export interface TimerState {
   pausedFromStatus?: string | null;
 }
 
+/**
+ * Milliseconds left on the timer, computed from state alone (pure — no timers).
+ * A paused timer reports its frozen remaining; a running timer measures
+ * targetEndTime against now (clamped at 0). Returns null when there's nothing
+ * to count (idle / no target). The live tick is driven by `useTimerCountdown`.
+ */
+export function remainingFromState(
+  state: Pick<TimerState, "status" | "targetEndTime" | "pausedWithRemaining"> | null,
+): number | null {
+  if (!state) return null;
+  if (state.status === "paused" && state.pausedWithRemaining != null) {
+    return state.pausedWithRemaining;
+  }
+  if (!state.targetEndTime) return null;
+  return Math.max(0, new Date(state.targetEndTime).getTime() - Date.now());
+}
+
 export function toHexOpacity(opacity: number): string {
   const clamped = Math.min(1, Math.max(0, opacity));
   return Math.round(clamped * 255)

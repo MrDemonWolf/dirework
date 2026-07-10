@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-import type { TimerStylesConfig } from "@/lib/config-types";
+import { TIMER_CONFIG_DEFAULTS, type TimerStylesConfig } from "@/lib/config-types";
 import {
   type TimerState,
   toHexOpacity,
   formatTime,
+  resolvePhaseDuration,
   roundedRectPath,
   roundedRectPerimeter,
 } from "@/lib/timer-utils";
+import { useTimerCountdown } from "@/lib/use-timer-countdown";
 
 // Style shape comes from the shared config source of truth (audit M4);
 // the overlay payload composes it with runtime labels + showHours.
@@ -18,15 +18,6 @@ type RingConfig = TimerStylesConfig["ring"];
 type TimerConfig = TimerStylesConfig & {
   labels: Record<string, string>;
   showHours: boolean;
-};
-
-// Fallback durations for progress calculation — only used when the caller
-// cannot provide totalDuration from the configured timerConfig.
-const STATUS_DURATIONS: Record<string, number> = {
-  work: 25 * 60 * 1000,
-  break: 5 * 60 * 1000,
-  longBreak: 15 * 60 * 1000,
-  starting: 5 * 1000,
 };
 
 function ProgressRing({
@@ -140,30 +131,7 @@ export function TimerDisplay({
   state: TimerState;
   totalDuration?: number;
 }) {
-  const [remaining, setRemaining] = useState(0);
-
-  useEffect(() => {
-    if (state.status === "paused" && state.pausedWithRemaining != null) {
-      setRemaining(state.pausedWithRemaining);
-      return;
-    }
-
-    if (!state.targetEndTime) {
-      setRemaining(0);
-      return;
-    }
-
-    const target = new Date(state.targetEndTime).getTime();
-
-    function tick() {
-      const now = Date.now();
-      setRemaining(Math.max(0, target - now));
-    }
-
-    tick();
-    const interval = setInterval(tick, 100);
-    return () => clearInterval(interval);
-  }, [state.targetEndTime, state.pausedWithRemaining, state.status]);
+  const remaining = useTimerCountdown(state) ?? 0;
 
   // Idle timer isn't counting — show the configured phase length (fed as
   // totalDuration) so the widget reads full during stream setup instead of
@@ -184,10 +152,13 @@ export function TimerDisplay({
   const label = config.labels[state.status] ?? state.status;
 
   // Calculate progress for the ring — a paused timer measures against the
-  // phase it froze in, not the "paused" status itself. Idle shows a full ring.
-  const progressPhase =
-    state.status === "paused" ? (state.pausedFromStatus ?? "work") : state.status;
-  const total = totalDuration ?? STATUS_DURATIONS[progressPhase] ?? 25 * 60 * 1000;
+  // phase it froze in, not the "paused" status itself (resolvePhaseDuration owns
+  // that branch). Without a caller-provided totalDuration, fall back to the
+  // canonical phase defaults. Idle shows a full ring.
+  const total =
+    totalDuration ??
+    resolvePhaseDuration(state.status, state.pausedFromStatus, TIMER_CONFIG_DEFAULTS) ??
+    TIMER_CONFIG_DEFAULTS.workDuration;
   const progress = isIdle ? 1 : total > 0 ? remaining / total : 0;
 
   // Parse size for SVG ring

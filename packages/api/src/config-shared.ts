@@ -11,6 +11,7 @@ import {
   DEFAULT_PHASE_LABELS as DB_DEFAULT_PHASE_LABELS,
   DEFAULT_TASK_MESSAGES as DB_DEFAULT_TASK_MESSAGES,
   DEFAULT_TIMER_MESSAGES as DB_DEFAULT_TIMER_MESSAGES,
+  TIMER_CONFIG_DEFAULTS as DB_TIMER_CONFIG_DEFAULTS,
 } from "@dirework/db/defaults";
 
 /** Singleton-row primary key used by every one-row config table (single source: packages/db schema). */
@@ -143,6 +144,10 @@ export interface BotConfigData {
 export const DEFAULT_PHASE_LABELS: PhaseLabelsConfig = DB_DEFAULT_PHASE_LABELS;
 export const DEFAULT_TASK_MESSAGES: TaskMessagesConfig = DB_DEFAULT_TASK_MESSAGES;
 export const DEFAULT_TIMER_MESSAGES: TimerMessagesConfig = DB_DEFAULT_TIMER_MESSAGES;
+
+/** Canonical timer duration/cycle defaults — single source for the dashboard
+ * controls, the overlay/preview progress fallbacks, and the schema columns. */
+export const TIMER_CONFIG_DEFAULTS = DB_TIMER_CONFIG_DEFAULTS;
 
 // ── Build helpers: flat DB rows → nested frontend objects ─────────────────────
 

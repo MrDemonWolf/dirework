@@ -2,10 +2,11 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, Timer, ListTodo, Bot, Palette } from "lucide-react";
+import { Timer, ListTodo, Bot, Palette } from "lucide-react";
 
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { DevLoginButton } from "@/components/dev-login-button";
 import { TwitchIcon } from "@/components/icons/twitch-icon";
 
@@ -94,18 +95,9 @@ function SetupInner() {
         </div>
 
         {signInFailed && (
-          <div
-            role="alert"
-            className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3"
-          >
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
-            <div className="text-sm">
-              <p className="font-medium">Twitch sign-in didn&apos;t complete.</p>
-              <p className="mt-0.5 text-muted-foreground">
-                This Dirework is still unclaimed — try again below.
-              </p>
-            </div>
-          </div>
+          <Callout className="mt-6" title="Twitch sign-in didn't complete.">
+            This Dirework is still unclaimed — try again below.
+          </Callout>
         )}
 
         {/* CTA */}

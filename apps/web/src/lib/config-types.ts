@@ -19,6 +19,7 @@ export {
   DEFAULT_PHASE_LABELS,
   DEFAULT_TASK_MESSAGES,
   DEFAULT_TIMER_MESSAGES,
+  TIMER_CONFIG_DEFAULTS,
   MAX_TASK_LEN,
 } from "@dirework/api/config-shared";
 

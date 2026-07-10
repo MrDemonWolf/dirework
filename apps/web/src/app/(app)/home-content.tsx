@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  AlertTriangle,
   Bot,
   ExternalLink,
   ListTodo,
@@ -15,6 +14,7 @@ import {
 
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { DevLoginButton } from "@/components/dev-login-button";
 import { TwitchIcon } from "@/components/icons/twitch-icon";
 import { StatusChip } from "@/components/status-chip";
@@ -93,16 +93,9 @@ function HomeInner() {
           </p>
 
           {signInError && (
-            <div
-              role="alert"
-              className="flex w-full max-w-lg items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-left"
-            >
-              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
-              <div className="text-sm">
-                <p className="font-medium">{signInError.title}</p>
-                <p className="mt-0.5 text-muted-foreground">{signInError.hint}</p>
-              </div>
-            </div>
+            <Callout className="w-full max-w-lg text-left" title={signInError.title}>
+              {signInError.hint}
+            </Callout>
           )}
           <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-start">
             <Button

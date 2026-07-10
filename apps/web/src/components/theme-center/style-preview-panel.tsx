@@ -3,15 +3,21 @@
 import { useEffect, useState } from "react";
 import { Pause, Play } from "lucide-react";
 
-import type { TimerStylesConfig, TaskStylesConfig, PhaseLabelsConfig } from "@/lib/config-types";
+import {
+  TIMER_CONFIG_DEFAULTS,
+  type TimerStylesConfig,
+  type TaskStylesConfig,
+  type PhaseLabelsConfig,
+} from "@/lib/config-types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ConsoleRule } from "@/components/console-rule";
 import { TimerDisplay } from "@/components/timer-display";
 import { TaskListDisplay } from "@/components/task-list-display";
 
-const MOCK_DURATION = 25 * 60 * 1000; // 25 minutes
+const MOCK_DURATION = TIMER_CONFIG_DEFAULTS.workDuration; // one focus phase
 
-const DEFAULT_PAUSED_REMAINING = 15 * 60 * 1000; // 15 minutes
+const DEFAULT_PAUSED_REMAINING = TIMER_CONFIG_DEFAULTS.longBreakDuration; // frozen preview
 
 const mockTasks = [
   { id: "1", authorTwitchId: "1001", authorDisplayName: "StreamerWolf", authorColor: null, text: "Fix the auth flow for bot accounts", status: "pending" },
@@ -111,9 +117,7 @@ export function StylePreviewPanel({
       <div className="flex flex-col gap-4 px-5 py-5">
         {/* Canvas controls */}
         <div className="flex items-center gap-3">
-          <div className="console-rule min-w-0 flex-1">
-            <span className="console-label">Preview canvas</span>
-          </div>
+          <ConsoleRule label="Preview canvas" className="min-w-0 flex-1" />
           <BackdropToggle value={backdrop} onChange={setBackdrop} />
           <Button
             variant="ghost"
@@ -165,9 +169,7 @@ export function StylePreviewPanel({
         </div>
 
         {/* Task List Preview */}
-        <div className="console-rule">
-          <span className="console-label">Task list</span>
-        </div>
+        <ConsoleRule label="Task list" />
         <div
           className={cn(
             "panel-inset relative overflow-hidden p-4",

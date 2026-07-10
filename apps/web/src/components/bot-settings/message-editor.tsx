@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Search } from "lucide-react";
 
 import type { TaskMessagesConfig, TimerMessagesConfig } from "@/lib/config-types";
+import { ConsoleRule } from "@/components/console-rule";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -140,9 +141,7 @@ export function MessageEditor<T extends object>({
 
       {groups.map((group) => (
         <div key={group} className="space-y-3">
-          <div className="console-rule">
-            <span className="console-label">{group}</span>
-          </div>
+          <ConsoleRule label={group} />
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {filteredFields
               .filter((field) => field.group === group)

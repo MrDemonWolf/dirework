@@ -9,6 +9,7 @@ import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
 import { defaultTimerStyles, defaultTaskStyles, themePresets } from "@/lib/theme-presets";
 import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { ConsoleRule } from "@/components/console-rule";
 import { SaveBar } from "@/components/save-bar";
 import { StatusChip } from "@/components/status-chip";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -205,9 +206,7 @@ export default function StylesPage() {
         {/* Header band */}
         <div className="mb-6">
           <div className="flex items-center gap-3">
-            <div className="console-rule min-w-0 flex-1">
-              <span className="console-label">Theme Center</span>
-            </div>
+            <ConsoleRule label="Theme Center" className="min-w-0 flex-1" />
             {hasUnsaved && <StatusChip tone="warn" label="Unsaved" />}
           </div>
           <h1 className="mt-2 font-heading text-3xl font-bold tracking-tight">Theme Center</h1>
@@ -218,9 +217,7 @@ export default function StylesPage() {
 
         {/* Preset rail */}
         <div className="mb-6">
-          <div className="console-rule mb-3">
-            <span className="console-label">Presets</span>
-          </div>
+          <ConsoleRule label="Presets" className="mb-3" />
           <ThemeBrowser activeThemeId={activeThemeId} onApply={handleApplyTheme} />
         </div>
 
