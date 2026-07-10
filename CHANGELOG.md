@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.1.0] - 2026-07-10
 
 ### Changed
 - **Rebuilt on Cloudflare Workers** — the entire stack moved from Node.js + PostgreSQL +
@@ -30,6 +30,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Redesigned documentation landing page with a "focus console" theme, three-step quick start, and ADHD-friendly copy
 - Branded loading state (focus-ring spinner) and a warmer first-time setup screen
 - Shared `DEFAULT_PHASE_LABELS` constant and Twitch brand color token to keep timer labels and buttons consistent
+- Footer version readout (`v<version> · <commit>`) that polls the live deploy and
+  prompts a **Reload** when a newer build has shipped — DireWork runs as a rolling
+  build off `main`, so an open dashboard tab can outlive its own code
 
 ### Changed
 - Rewrote Getting Started, Deployment, and reference docs to match the real stack (Bun + Drizzle on Cloudflare D1 + Alchemy/Cloudflare Workers), correcting stale pnpm/Prisma/nixpacks instructions
