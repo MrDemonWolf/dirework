@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { MAX_TASK_LEN } from "@/lib/config-types";
+import { groupTasksByAuthor } from "@/lib/task-utils";
 import { StatusChip } from "@/components/status-chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { trpc } from "@/utils/trpc";
@@ -18,33 +19,6 @@ interface TaskManagerProps {
   userTwitchId: string;
   username: string;
   displayName: string;
-}
-
-interface TaskGroup {
-  authorTwitchId: string;
-  authorDisplayName: string;
-  authorColor: string | null;
-  tasks: Array<{ id: string; text: string; status: string; authorTwitchId: string; authorDisplayName: string; authorColor: string | null }>;
-}
-
-function groupTasksByAuthor(
-  tasks: Array<{ id: string; text: string; status: string; authorTwitchId: string; authorDisplayName: string; authorColor: string | null }>,
-): TaskGroup[] {
-  const groups = new Map<string, TaskGroup>();
-  for (const task of tasks) {
-    let group = groups.get(task.authorTwitchId);
-    if (!group) {
-      group = {
-        authorTwitchId: task.authorTwitchId,
-        authorDisplayName: task.authorDisplayName,
-        authorColor: task.authorColor,
-        tasks: [],
-      };
-      groups.set(task.authorTwitchId, group);
-    }
-    group.tasks.push(task);
-  }
-  return Array.from(groups.values());
 }
 
 /**
@@ -133,8 +107,8 @@ export function TaskManager({
   // Broadcaster group pins first; viewer groups keep list order.
   const groups = groupTasksByAuthor(taskList);
   const orderedGroups = [
-    ...groups.filter((g) => g.authorTwitchId === userTwitchId),
-    ...groups.filter((g) => g.authorTwitchId !== userTwitchId),
+    ...groups.filter((g) => g.authorKey === userTwitchId),
+    ...groups.filter((g) => g.authorKey !== userTwitchId),
   ];
 
   return (
@@ -211,11 +185,10 @@ export function TaskManager({
             </div>
           ) : (
             orderedGroups.map((group) => {
-              const isHost = group.authorTwitchId === userTwitchId;
-              const groupDone = group.tasks.filter((t) => t.status === "done").length;
+              const isHost = group.authorKey === userTwitchId;
               return (
                 <div
-                  key={group.authorTwitchId}
+                  key={group.authorKey}
                   className="overflow-hidden rounded-xl border border-border/40 bg-muted/20"
                 >
                   {/* Author header — Twitch color only ever tints the dot */}
@@ -232,7 +205,7 @@ export function TaskManager({
                     <span className="truncate text-sm font-medium">{group.authorDisplayName}</span>
                     {isHost && <StatusChip size="sm" tone="accent" label="Host" />}
                     <span className="console-label ml-auto shrink-0">
-                      {groupDone}/{group.tasks.length}
+                      {group.done}/{group.tasks.length}
                     </span>
                   </div>
                   <ul className="divide-y divide-border/40">

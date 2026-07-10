@@ -11,7 +11,7 @@ Dirework's variables come in two flavors: **app secrets** the app needs to run, 
 | Environment | Where to put them |
 | --- | --- |
 | **Local development** | `packages/infra/.env` — copy it from `.env.example`. Alchemy loads this file (plus `apps/web/.env` and `apps/server/.env` if present) when you run `bun run dev`. |
-| **Production** | GitHub **Settings → Secrets and variables → Actions**. Sensitive values go under the **Secrets** tab (`CLOUDFLARE_API_TOKEN`, `ALCHEMY_PASSWORD`, `BETTER_AUTH_SECRET`, `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`); the non-secret origins go under the **Variables** tab (`BETTER_AUTH_URL`, `CORS_ORIGIN`, `NEXT_PUBLIC_SERVER_URL`). The [deploy workflow](/docs/deployment) reads both on every push to `main`. |
+| **Production** | GitHub **Settings → Secrets and variables → Actions**. Sensitive values go under the **Secrets** tab (`CLOUDFLARE_API_TOKEN`, `ALCHEMY_PASSWORD`, `ALCHEMY_STATE_TOKEN`, `BETTER_AUTH_SECRET`, `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`); the non-secret origins go under the **Variables** tab (`BETTER_AUTH_URL`, `CORS_ORIGIN`, `NEXT_PUBLIC_SERVER_URL`). The [deploy workflow](/docs/deployment) reads both on every push to `main`. |
 
 ## App secrets
 
@@ -43,6 +43,7 @@ Only needed when deploying to Cloudflare (as GitHub secrets, or in your shell fo
 | --- | --- |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token with **Workers** and **D1** edit permissions |
 | `ALCHEMY_PASSWORD` | Any long random string — encrypts Alchemy's deploy state (`openssl rand -base64 32`) |
+| `ALCHEMY_STATE_TOKEN` | GitHub secret for the Actions deploy; authenticates the `alchemy-state-dirework` CI state store. Not needed for local `bun run deploy`. |
 
 ## Optional variables
 
@@ -52,6 +53,8 @@ Only needed when deploying to Cloudflare (as GitHub secrets, or in your shell fo
 | `PRIVACY_POLICY_URL` | _(unset)_ | URL to your Privacy Policy page. When set, a link appears in the web app's footer. |
 | `TERMS_OF_SERVICE_URL` | _(unset)_ | URL to your Terms of Service page. When set, a link appears in the web app's footer. |
 | `SKIP_ENV_VALIDATION` | _(unset)_ | Set to `"true"` during CI or builds to skip env validation when runtime secrets aren't available. You won't need this locally. |
+| `DEV_LOGIN` | _(unset)_ | Server worker; **local development only**. Enables the `POST /api/auth/dev-login` Twitch-less owner-session bypass. Never set in production. |
+| `NEXT_PUBLIC_DEV_LOGIN` | _(unset)_ | Web build var; **local development only**. Shows the dev-bypass button that calls the dev-login endpoint. Never set in production. |
 
 The legal-page URLs are read by the **web** worker; set them in `apps/web/.env` for
 local development. If neither is set, the footer's legal links row is simply hidden.

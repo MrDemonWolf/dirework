@@ -245,7 +245,9 @@ instance is yours the moment you claim it.
 When deploying to production, make sure to:
 
 - [ ] Set `BETTER_AUTH_URL` and `CORS_ORIGIN` to your web worker's origin — for GitHub
-  Actions deploys these live at the top of `.github/workflows/deploy.yml`
+  Actions deploys, set these as GitHub repository **variables** (repo Settings → Secrets
+  and variables → Actions → Variables); the deploy job consumes them via `${{ vars.* }}`
+  in `deploy.yml` — don't edit the workflow file itself
 - [ ] Add production redirect URLs to your Twitch app:
   - `https://dirework.<your-subdomain>.workers.dev/api/auth/callback/twitch`
   - `https://dirework.<your-subdomain>.workers.dev/api/bot/callback/twitch`

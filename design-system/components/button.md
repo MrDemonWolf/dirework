@@ -14,7 +14,7 @@ Calls to action on the marketing/docs surfaces.
 
 - Shape: `--ds-radius-pill` (fully rounded).
 - Padding: `0.85rem 1.4rem`.
-- Type: `--ds-font-weight-medium`, Roboto.
+- Type: `--ds-font-weight-medium`, IBM Plex Sans.
 - Press feedback: `scale(0.98)` on `:active`.
 
 ## Accessibility

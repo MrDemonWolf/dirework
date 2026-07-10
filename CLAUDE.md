@@ -10,6 +10,8 @@ This file provides guidance for Claude Code when working on the Dirework codebas
 - Pre-migration audit (29 findings, all addressed in the port) → `AUDIT-cloudflare-migration.md`
 - Database schemas → `packages/db/src/schema/` (index.ts, auth.ts, app.ts)
 - Setup guides → `.env.example`, docs `apps/fumadocs/content/docs/deployment.mdx`
+- Contributor setup + branch/PR workflow → `CONTRIBUTING.md`
+- Design system (tokens + component specs) → `design-system/`, docs `apps/fumadocs/content/docs/design-system.mdx`
 
 ## Project Overview
 
@@ -70,15 +72,15 @@ packages/auth      → Better Auth (Twitch OAuth) — createAuth() factory
 packages/db        → Drizzle ORM schema + createDb() (drizzle-orm/d1) + migrations
 packages/env       → cloudflare:workers bindings (server), t3-env (web), dotenv proxy (local tooling)
 packages/infra     → Alchemy IaC (both workers + D1)
+packages/overlay-kit → pure overlay geometry (squircle path) + clock formatting shared by web overlays and docs mocks; zero runtime deps
 packages/config    → Shared TypeScript configuration
 ```
 
 ## Commands
 
 ```bash
-bun run dev           # Alchemy dev: api worker :3000 + web :3001 + local D1 (migrations applied)
-bun run dev:web       # Web app only
-bun run dev:server    # API worker only
+bun run dev           # Alchemy dev: api worker :3000 + web :3001 + local D1 (migrations applied) + docs :4000
+bun run dev:web       # Web app only (standalone Next dev :3001; API comes from `bun run dev` or a deployed origin)
 bun run build         # Build all apps
 bun run check-types   # TypeScript type checking across all packages
 bun run test          # Vitest unit tests across all packages
@@ -158,7 +160,12 @@ Public routes `/overlay/t/[token]` (timer) and `/overlay/l/[token]` (tasks), tra
 for OBS. Poll `publicTrpc.overlay.getTimerState` / `getTaskList` every 3s
 (`refetchIntervalInBackground: true`); timer display ticks locally (100ms) from
 `targetEndTime`. React Query keeps the last payload on failed refetches so OBS sources
-don't blank. Two ring shapes: circle + rounded-rect squircle.
+don't blank. Two ring shapes: circle + rounded-rect squircle. The timer is drawn at a
+fixed pixel size (`config.dimensions`) wrapped in `<AutoScale>` (`components/auto-scale.tsx`),
+which uses a ResizeObserver to scale it up/down to fill the OBS browser source while
+preserving aspect ratio. While idle the overlay renders a full preview (configured work
+length + full ring) instead of blanking, so streamers can position it during setup.
+Recommended OBS source sizes: 320×320 timer, 360×720 tasks.
 
 ### Theme Center & Frontend
 
@@ -170,6 +177,37 @@ live/connected (LED-style chips). All animation respects `prefers-reduced-motion
 inputs ≥16px on touch (iOS zoom). Destructive actions (token regenerate, disconnect,
 clear, stop) always confirm via the AlertDialog primitive. Editors with dirty state use
 the unsaved-changes guard hook. 6 theme presets in `lib/theme-presets.ts`.
+
+### Reuse, libraries & UI workflow
+
+DRY is not just the API layer. Before writing a new web component or helper, grep for an
+existing home and reuse it:
+
+- **UI primitives** — `apps/web/src/components/ui/` (button, card, alert-dialog, input,
+  label, select, tabs, tooltip, switch, slider, dropdown-menu, collapsible, skeleton,
+  sonner). Reuse these instead of hand-rolling markup; add a primitive here when a pattern
+  repeats (e.g. a destructive callout) rather than copy-pasting it.
+- **Shared components** — `confirm-dialog`, `save-bar`, `status-chip`, `timer-status-badge`,
+  `unsaved-changes-guard`, `auto-scale`, `loader`.
+- **Lib helpers** — `lib/utils.ts` (`cn`), `timer-utils` (`resolvePhaseDuration`,
+  ms-from-state), `task-utils` (`groupTasksByAuthor`), `status-tones`, `config-types`;
+  overlay geometry/formatting in `@dirework/overlay-kit`.
+- **Constants** — timer/config defaults come from `@dirework/db/defaults` (re-exported via
+  `@dirework/api/config-shared`); never re-type `25*60*1000` etc. The M1/M3/M4 "don't
+  duplicate" rules apply to the web component layer too, not only services/config.
+
+Skills to use (they exist globally, not in-repo):
+
+- **`/frontend-design`** — invoke when building new UI, so components are distinctive and
+  production-grade, not generic.
+- **`/uiux-review`** — run before shipping any UI change (NN/g heuristics, accessibility,
+  visual hierarchy).
+
+Libraries: prefer a good, well-maintained library over a hand-rolled solution when it
+genuinely fits — don't reinvent. But climb the ladder first: platform/stdlib → an
+already-installed dependency (see the `catalog` in root `package.json`) → a new library.
+Skip adding a dependency only when a few lines clearly beat it. New shared version pins go
+in the workspace catalog.
 
 ### Hydration Safety
 
@@ -214,7 +252,11 @@ Production: `dirework.mrdemonwolf.workers.dev` (web) + `dirework-api.mrdemonwolf
 
 Server worker bindings (typed via `packages/env/env.d.ts` from `alchemy.run.ts`):
 `DB` (D1), `CORS_ORIGIN`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `TWITCH_CLIENT_ID`,
-`TWITCH_CLIENT_SECRET`, `DOCS_URL`. Web worker: `NEXT_PUBLIC_SERVER_URL`.
+`TWITCH_CLIENT_SECRET`, `DOCS_URL`, plus dev-only `DEV_LOGIN` (gates the Twitch-less
+`POST /api/auth/dev-login` owner-session bypass — never set in production). Web worker:
+`NEXT_PUBLIC_SERVER_URL`, `BETTER_AUTH_URL`, optional `PRIVACY_POLICY_URL` /
+`TERMS_OF_SERVICE_URL`, and build-time `NEXT_PUBLIC_DEV_LOGIN` (shows the dev-bypass button).
+Deploy needs a sixth GitHub secret, `ALCHEMY_STATE_TOKEN` (see CI/CD).
 `SKIP_ENV_VALIDATION=true` bypasses t3-env during CI/build.
 
 ## Footer Convention
