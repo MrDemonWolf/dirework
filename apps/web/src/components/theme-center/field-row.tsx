@@ -22,7 +22,7 @@ export function FieldRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[5rem_1fr] items-center gap-2 md:grid-cols-[6.5rem_1fr]">
+    <div className="grid min-h-8 grid-cols-[5rem_1fr] items-center gap-2 md:grid-cols-[6.5rem_1fr]">
       <Label htmlFor={htmlFor} id={labelId} className="text-xs text-muted-foreground">
         {label}
       </Label>
@@ -93,7 +93,8 @@ export function SliderRow({
         min={min}
         max={max}
         disabled={disabled}
-        className="w-28"
+        // Fill the row — a 7rem strip made every slider read as a dot on a hairline
+        className="min-w-24 flex-1"
       />
       <span className="w-10 shrink-0 text-right font-mono text-xs text-muted-foreground">
         {format ? format(value) : value}
