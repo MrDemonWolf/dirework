@@ -13,13 +13,16 @@ config({ path: "../../apps/server/.env" });
 
 // CI runners are ephemeral — the default local-file state store would lose
 // Alchemy's record of already-created resources between deploys, causing it
-// to try (and fail) to recreate them. In CI we persist state in a dedicated
-// CloudflareStateStore worker, `alchemy-state-dirework`, backed by a SQLite
-// Durable Object (free-tier eligible since Sept 2024). Each MrDemonWolf app
-// runs its OWN state worker with its OWN token (the website project does the
-// same with `alchemy-state-mrdemonwolf`) — a per-project worker avoids the
-// token clash you'd get sharing the default account-wide `alchemy-state-service`.
-// So ALCHEMY_STATE_TOKEN here is dirework's own, independent of the other apps.
+// to try (and fail) to recreate them. In CI we persist state in the shared
+// account-wide CloudflareStateStore worker `alchemy-state`, backed by a SQLite
+// Durable Object (free-tier eligible since Sept 2024). Every MrDemonWolf
+// Alchemy app (website, wolfathon, linkden, dirework) points at this ONE
+// worker and authenticates with the SAME shared ALCHEMY_STATE_TOKEN; Alchemy
+// namespaces state by app, so dirework lives under its own "dirework" scope
+// inside it. The shared token is what makes sharing safe — a per-app token
+// against a shared-name worker is the "token is invalid" clash that #30 hit
+// (which #31 worked around with a per-app worker; this reverses that now that
+// the whole fleet shares one token).
 // Only used in CI: it hits the Cloudflare API, so local `bun run dev` (no CF
 // auth) falls back to the default filesystem state store, which persists fine
 // across local runs.
@@ -27,7 +30,7 @@ const app = await alchemy("dirework", {
   stateStore: process.env.CI
     ? (scope) =>
         new CloudflareStateStore(scope, {
-          scriptName: "alchemy-state-dirework",
+          scriptName: "alchemy-state",
           stateToken: alchemy.secret(process.env.ALCHEMY_STATE_TOKEN),
         })
     : undefined,
