@@ -122,7 +122,7 @@ export const taskStyle = sqliteTable("task_style", {
   fontHeader: text("font_header").notNull().default("Montserrat"),
   fontBody: text("font_body").notNull().default("Roboto"),
   scrollEnabled: integer("scroll_enabled", { mode: "boolean" }).notNull().default(true),
-  scrollPixelsPerSecond: integer("scroll_pixels_per_second").notNull().default(70),
+  scrollPixelsPerSecond: integer("scroll_pixels_per_second").notNull().default(40),
   scrollGapBetweenLoops: integer("scroll_gap_between_loops").notNull().default(100),
   headerHeight: text("header_height").notNull().default("52px"),
   headerBgColor: text("header_bg_color").notNull().default("#091533"),

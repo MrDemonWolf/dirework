@@ -25,7 +25,7 @@ export const defaultTaskStyles: TaskStylesConfig = {
     numberOfLines: 2,
   },
   fonts: { header: "Montserrat", body: "Roboto" },
-  scroll: { enabled: true, pixelsPerSecond: 70, gapBetweenLoops: 100 },
+  scroll: { enabled: true, pixelsPerSecond: 40, gapBetweenLoops: 100 },
   header: {
     height: "52px",
     background: { color: "#091533", opacity: 0.95 },

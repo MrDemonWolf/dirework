@@ -99,6 +99,22 @@ function OverlayMonitor({
   );
 }
 
+/** Recommended OBS browser-source dimensions, shown beside each overlay URL. */
+function SizeChip({ size, hint }: { size: string; hint: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <span className="ml-auto shrink-0 cursor-default rounded-full border border-border/60 bg-background/60 px-2 py-0.5 font-mono text-xs text-muted-foreground">
+            {size}
+          </span>
+        }
+      />
+      <TooltipContent>{hint}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function OverlayUrlRow({
   label,
   path,
@@ -306,8 +322,9 @@ export default function Dashboard({
           {/* Overlay URL — full-width strip along the bottom so the OBS source URL has room */}
           {user.data && (
             <div className="space-y-2 border-t border-border/40 px-5 py-4">
-              <div className="console-rule">
+              <div className="console-rule flex items-center">
                 <span className="console-label">Timer overlay URL</span>
+                <SizeChip size="320 × 320" hint="Square OBS browser source — the timer scales to fill it" />
               </div>
               <OverlayUrlRow
                 label="Timer overlay"
@@ -366,8 +383,9 @@ export default function Dashboard({
               detached full-width strip sat opposite to where the timer's URL was. */}
           {user.data && (
             <div className="space-y-2 border-t border-border/40 px-5 py-4">
-              <div className="console-rule">
+              <div className="console-rule flex items-center">
                 <span className="console-label">Tasks overlay URL</span>
+                <SizeChip size="360 × 720" hint="Tall OBS browser source — fills the height and scrolls when the list overflows" />
               </div>
               <OverlayUrlRow
                 label="Tasks overlay"

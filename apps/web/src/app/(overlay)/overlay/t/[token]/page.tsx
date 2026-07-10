@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { defaultTimerStyles } from "@/lib/theme-presets";
 import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
 import { resolvePhaseDuration } from "@/lib/timer-utils";
+import { AutoScale } from "@/components/auto-scale";
 import { TimerDisplay } from "@/components/timer-display";
 import { publicTrpc } from "@/utils/trpc";
 
@@ -64,22 +65,27 @@ export default function TimerOverlayPage() {
 
   // Ring progress measures remaining against the streamer's configured phase
   // length (paused phases measure against the phase they froze in). Without a
-  // config row TimerDisplay falls back to its built-in defaults.
+  // config row TimerDisplay falls back to its built-in defaults. Idle has no
+  // phase of its own — show the work length so the setup preview reads full.
   const totalDuration = timerConfig
-    ? (resolvePhaseDuration(
+    ? ((resolvePhaseDuration(
         timerState.status,
         timerState.pausedFromStatus,
         timerConfig,
-      ) ?? undefined)
+      ) ??
+        (timerState.status === "idle" ? timerConfig.workDuration : undefined)) ??
+      undefined)
     : undefined;
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-transparent">
-      <TimerDisplay
-        config={displayConfig}
-        state={timerState as { status: string; targetEndTime: string | null; pausedWithRemaining: number | null; pausedFromStatus: string | null; currentCycle: number; totalCycles: number }}
-        totalDuration={totalDuration}
-      />
+    <div className="h-screen w-screen bg-transparent">
+      <AutoScale>
+        <TimerDisplay
+          config={displayConfig}
+          state={timerState as { status: string; targetEndTime: string | null; pausedWithRemaining: number | null; pausedFromStatus: string | null; currentCycle: number; totalCycles: number }}
+          totalDuration={totalDuration}
+        />
+      </AutoScale>
     </div>
   );
 }

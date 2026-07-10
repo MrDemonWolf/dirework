@@ -13,7 +13,7 @@ import type { TaskStylesConfig } from "@/lib/config-types";
  */
 function InfiniteScroll({
   children,
-  pixelsPerSecond = 70,
+  pixelsPerSecond = 40,
   gapBetweenLoops = 100,
 }: {
   children: React.ReactNode;
