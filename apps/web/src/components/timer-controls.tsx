@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { ConsoleRule } from "@/components/console-rule";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info, Pause, Play, SkipForward, Square } from "lucide-react";
 import { toast } from "sonner";
@@ -13,18 +14,11 @@ import { Label } from "@/components/ui/label";
 import { StatusChip } from "@/components/status-chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { type TimerState, formatClock } from "@/lib/timer-utils";
+import { type TimerState, formatClock, resolvePhaseDuration } from "@/lib/timer-utils";
+import { useTimerCountdown } from "@/lib/use-timer-countdown";
 import { TIMER_TONES, TIMER_PHASE_COLOR, toTimerStatus } from "@/lib/status-tones";
-import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
+import { DEFAULT_PHASE_LABELS, TIMER_CONFIG_DEFAULTS } from "@/lib/config-types";
 import { trpc } from "@/utils/trpc";
-
-const DEFAULT_TIMER_VALUES = {
-  workDuration: 25 * 60 * 1000,
-  breakDuration: 5 * 60 * 1000,
-  longBreakDuration: 15 * 60 * 1000,
-  longBreakInterval: 4,
-  defaultCycles: 4,
-};
 
 function msToMinutes(ms: number): number {
   return Math.round(ms / 60000);
@@ -89,7 +83,7 @@ interface TimerContextValue {
   setLongBreakMin: (v: number) => void;
   longBreakInterval: number;
   setLongBreakInterval: (v: number) => void;
-  saveConfig: (overrides: Partial<typeof DEFAULT_TIMER_VALUES>) => void;
+  saveConfig: (overrides: Partial<typeof TIMER_CONFIG_DEFAULTS>) => void;
   status: string;
   isIdle: boolean;
   isPaused: boolean;
@@ -115,7 +109,6 @@ function useTimerContext() {
 export function TimerProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [cycles, setCycles] = useState(4);
-  const [remaining, setRemaining] = useState<number | null>(null);
   const [workMin, setWorkMin] = useState(25);
   const [breakMin, setBreakMin] = useState(5);
   const [longBreakMin, setLongBreakMin] = useState(15);
@@ -163,7 +156,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     setConfigLoaded(true);
   }, [config.data, configLoaded]);
 
-  const saveConfig = (overrides: Partial<typeof DEFAULT_TIMER_VALUES>) => {
+  const saveConfig = (overrides: Partial<typeof TIMER_CONFIG_DEFAULTS>) => {
     // Skip no-op blurs — tabbing through the fields shouldn't fire saves.
     const tc = config.data?.timerConfig;
     if (
@@ -220,30 +213,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const isIdle = status === "idle" || status === "finished";
   const isPaused = status === "paused";
 
-  useEffect(() => {
-    if (!state?.targetEndTime) {
-      if (state?.pausedWithRemaining != null) {
-        setRemaining(state.pausedWithRemaining);
-      } else {
-        setRemaining(null);
-      }
-      return;
-    }
-
-    // Display-only tick: when the countdown hits zero it just clamps at 00:00.
-    // The SERVER advances phases lazily on read (maybeAdvanceOverdueTimer in
-    // timer-service), and the 2s poll picks the new phase up — the client must
-    // never mutate the phase itself, or two open dashboards race the server's
-    // lazy advance and double-advance past breaks.
-    const tick = () => {
-      const ms = new Date(state.targetEndTime!).getTime() - Date.now();
-      setRemaining(Math.max(0, ms));
-    };
-
-    tick();
-    const interval = setInterval(tick, 100);
-    return () => clearInterval(interval);
-  }, [state?.targetEndTime, state?.pausedWithRemaining]);
+  const remaining = useTimerCountdown(state);
 
   const displayTime = isIdle
     ? formatClock(minutesToMs(workMin))
@@ -252,16 +222,16 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       : "--:--";
 
   // Progress through the current phase (0–100) for the instrument rail.
-  // The phase's full length comes from the configured minutes; while paused we
-  // measure against the phase the timer froze in.
-  const progressPhase = isPaused ? (state?.pausedFromStatus ?? "work") : status;
-  const phaseDurations: Record<string, number> = {
-    starting: config.data?.timerConfig?.startingDuration ?? 5000,
-    work: minutesToMs(workMin),
-    break: minutesToMs(breakMin),
-    longBreak: minutesToMs(longBreakMin),
-  };
-  const totalDuration = phaseDurations[progressPhase];
+  // The phase's full length comes from the (locally edited) minutes; while
+  // paused we measure against the phase the timer froze in — resolvePhaseDuration
+  // owns that branch. Idle/finished return null and the rail reads empty.
+  const totalDuration = resolvePhaseDuration(status, state?.pausedFromStatus, {
+    workDuration: minutesToMs(workMin),
+    breakDuration: minutesToMs(breakMin),
+    longBreakDuration: minutesToMs(longBreakMin),
+    startingDuration:
+      config.data?.timerConfig?.startingDuration ?? TIMER_CONFIG_DEFAULTS.startingDuration,
+  });
   const progressPct =
     !isIdle && totalDuration && remaining !== null
       ? Math.min(100, Math.max(0, 100 * (1 - remaining / totalDuration)))
@@ -494,9 +464,7 @@ export function TimerSettings() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="console-rule">
-        <span className="console-label">Settings</span>
-      </div>
+      <ConsoleRule label="Settings" />
       {!isIdle && (
         <StatusChip size="sm" tone="idle" label="Locked while running" className="self-start" />
       )}

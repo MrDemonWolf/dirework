@@ -1,5 +1,6 @@
 "use client";
 
+import { ConsoleRule } from "@/components/console-rule";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { MessageEditor } from "@/components/bot-settings/message-editor";
@@ -120,16 +121,12 @@ export function CommandTabPanel<T extends object>({
       </div>
 
       <div className="space-y-3">
-        <div className="console-rule">
-          <h2 id={`${idPrefix}-cmd-ref`} className="console-label">Command reference</h2>
-        </div>
+        <ConsoleRule as="h2" id={`${idPrefix}-cmd-ref`} label="Command reference" />
         <CommandTable commands={commands} labelledBy={`${idPrefix}-cmd-ref`} />
       </div>
 
       <div className="space-y-3">
-        <div className="console-rule">
-          <h2 className="console-label">Messages</h2>
-        </div>
+        <ConsoleRule as="h2" label="Messages" />
         <MessageEditor
           fields={fields}
           idPrefix={idPrefix}
