@@ -2,49 +2,32 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import {
+  SQUIRCLE_RADIUS,
+  formatClock,
+  roundedRectPath,
+  roundedRectPerimeter,
+} from "@dirework/overlay-kit";
+
 import { OVERLAY_THEMES, DEFAULT_OVERLAY_THEME, type OverlayTheme } from "./overlay-themes.generated";
 import { hexToRgba } from "./theme-util";
 
 /**
  * Live mock of the Dirework OBS timer overlay (squircle ring shape).
- * Mirrors the real overlay: `roundedRectPath()` + `formatTime()` from
- * apps/web/src/lib/timer-utils.ts. Animates a fake focus countdown.
+ * Uses the same `@dirework/overlay-kit` helpers as the real overlay
+ * (apps/web). Animates a fake focus countdown.
  */
 
-// Copied from apps/web/src/lib/timer-utils.ts — keep in sync.
-function roundedRectPath(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-): string {
-  r = Math.min(r, w / 2, h / 2);
-  return [
-    `M ${x + w / 2} ${y}`,
-    `L ${x + w - r} ${y}`,
-    `A ${r} ${r} 0 0 1 ${x + w} ${y + r}`,
-    `L ${x + w} ${y + h - r}`,
-    `A ${r} ${r} 0 0 1 ${x + w - r} ${y + h}`,
-    `L ${x + r} ${y + h}`,
-    `A ${r} ${r} 0 0 1 ${x} ${y + h - r}`,
-    `L ${x} ${y + r}`,
-    `A ${r} ${r} 0 0 1 ${x + r} ${y}`,
-    `Z`,
-  ].join(" ");
-}
-
-function fmt(totalSeconds: number) {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+/** Format a seconds count as MM:SS via the shared ms-based clock helper. */
+function fmt(totalSeconds: number): string {
+  return formatClock(totalSeconds * 1000);
 }
 
 const TOTAL = 25 * 60; // 25:00 focus block
 const SIZE = 250;
 const STROKE = 8;
 const INSET = STROKE / 2 + 2;
-const RADIUS = SIZE * 0.22;
+const RADIUS = SIZE * SQUIRCLE_RADIUS;
 
 export function TimerOverlayWidget({
   theme = OVERLAY_THEMES[DEFAULT_OVERLAY_THEME],
@@ -71,10 +54,7 @@ export function TimerOverlayWidget({
 
   const w = SIZE - INSET * 2;
   const path = roundedRectPath(INSET, INSET, w, w, RADIUS);
-  // Perimeter of a rounded square: 4 straight sides + circle of radius r.
-  const straight = 4 * (w - 2 * RADIUS);
-  const corners = 2 * Math.PI * RADIUS;
-  const perimeter = straight + corners;
+  const perimeter = roundedRectPerimeter(w, w, RADIUS);
   const dash = perimeter;
   const offset = perimeter * (1 - progress);
 
@@ -104,7 +84,7 @@ export function TimerOverlayWidget({
         style={{ position: "absolute", inset: 0 }}
         aria-hidden="true"
       >
-        <path d={path} fill="none" stroke={hexToRgba(theme.text, 0.14)} strokeWidth={STROKE} />
+        <path d={path} fill="none" stroke={hexToRgba(theme.text, 0.18)} strokeWidth={STROKE} />
         <path
           d={path}
           fill="none"

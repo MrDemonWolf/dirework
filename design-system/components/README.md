@@ -1,6 +1,6 @@
 # Component Catalog
 
-Shared UI primitives for Dirework's marketing + docs surfaces. These are implemented as `dw-*` utility classes in `apps/fumadocs/src/app/global.css`, backed by the `--ds-*` tokens from `tokens.generated.css`.
+Shared UI primitives for Dirework's marketing + docs surfaces. These are implemented as `dw-*` utility classes in `apps/fumadocs/src/app/global.css`; canonical color/spacing values live in `design-system/tokens.json`.
 
 | Component | Class(es) | Purpose |
 |---|---|---|
