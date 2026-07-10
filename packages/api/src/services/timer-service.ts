@@ -198,7 +198,9 @@ export async function getTimerEta(db: DbClient): Promise<TimerEta | null> {
   let cycle = timer.currentCycle;
   let status = timer.status;
 
-  while (status !== "finished" && cycle <= timer.totalCycles) {
+  // Bounded like maybeAdvanceOverdueTimer — a pathological config can't spin.
+  let guard = 0;
+  while (status !== "finished" && cycle <= timer.totalCycles && guard++ < 100) {
     const { nextStatus, nextDuration, nextCycle } = computeNextPhase(
       { status, currentCycle: cycle, totalCycles: timer.totalCycles },
       tc,

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import type { TimerStylesConfig } from "@/lib/config-types";
 import {
+  type TimerState,
   toHexOpacity,
   formatTime,
   roundedRectPath,
@@ -18,15 +19,6 @@ type TimerConfig = TimerStylesConfig & {
   labels: Record<string, string>;
   showHours: boolean;
 };
-
-interface TimerState {
-  status: string;
-  targetEndTime: string | null;
-  pausedWithRemaining: number | null;
-  pausedFromStatus?: string | null;
-  currentCycle: number;
-  totalCycles: number;
-}
 
 // Fallback durations for progress calculation — only used when the caller
 // cannot provide totalDuration from the configured timerConfig.

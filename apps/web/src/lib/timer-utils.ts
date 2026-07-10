@@ -8,6 +8,19 @@ export {
   roundedRectPerimeter,
 } from "@dirework/overlay-kit";
 
+/**
+ * Timer state payload shape shared by the dashboard controls and the overlay
+ * renderer (was declared separately in both — CodeRabbit follow-up).
+ */
+export interface TimerState {
+  status: string;
+  currentCycle: number;
+  totalCycles: number;
+  targetEndTime?: string | null;
+  pausedWithRemaining?: number | null;
+  pausedFromStatus?: string | null;
+}
+
 export function toHexOpacity(opacity: number): string {
   const clamped = Math.min(1, Math.max(0, opacity));
   return Math.round(clamped * 255)
