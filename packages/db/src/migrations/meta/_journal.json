@@ -50,6 +50,13 @@
       "when": 1783719169426,
       "tag": "0006_brave_thunderbolts",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1783720000000,
+      "tag": "0007_widen_timer_default",
+      "breakpoints": true
     }
   ]
 }

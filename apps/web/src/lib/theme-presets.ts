@@ -1,7 +1,7 @@
 import type { ThemePreset, TimerStylesConfig, TaskStylesConfig } from "./config-types";
 
 export const defaultTimerStyles: TimerStylesConfig = {
-  dimensions: { width: "250px", height: "250px" },
+  dimensions: { width: "300px", height: "300px" },
   background: { color: "#091533", opacity: 0.85, borderRadius: "22%" },
   ring: {
     enabled: true,
@@ -104,7 +104,7 @@ export const themePresets: ThemePreset[] = [
     description: "Deep navy and teal with luminous accents",
     preview: { bg: "#0a1628", accent: "#2dd4bf", text: "#e0f2fe" },
     timerStyles: {
-      dimensions: { width: "250px", height: "250px" },
+      dimensions: { width: "300px", height: "300px" },
       background: { color: "#0a1628", opacity: 0.88, borderRadius: "22%" },
       ring: { enabled: true, trackColor: "#2dd4bf", trackOpacity: 0.12, fillColor: "#2dd4bf", fillOpacity: 1, width: 8, gap: 6 },
       text: { color: "#e0f2fe", outlineColor: "#0a1628", outlineSize: "0px", fontFamily: "Montserrat" },
@@ -126,7 +126,7 @@ export const themePresets: ThemePreset[] = [
     description: "Translucent dark panels with a frosted-glass look",
     preview: { bg: "#1c1c1e", accent: "#0a84ff", text: "#f5f5f7" },
     timerStyles: {
-      dimensions: { width: "250px", height: "250px" },
+      dimensions: { width: "300px", height: "300px" },
       background: { color: "#2c2c2e", opacity: 0.78, borderRadius: "22%" },
       ring: { enabled: true, trackColor: "#48484a", trackOpacity: 0.6, fillColor: "#0a84ff", fillOpacity: 1, width: 7, gap: 6 },
       text: { color: "#f5f5f7", outlineColor: "#000000", outlineSize: "0px", fontFamily: "Montserrat" },
@@ -149,7 +149,7 @@ export const themePresets: ThemePreset[] = [
     description: "Warm earth tones with a soft cream palette",
     preview: { bg: "#faf3e8", accent: "#b8860b", text: "#5c3d1a" },
     timerStyles: {
-      dimensions: { width: "250px", height: "250px" },
+      dimensions: { width: "300px", height: "300px" },
       background: { color: "#faf3e8", opacity: 0.92, borderRadius: "22%" },
       ring: { enabled: true, trackColor: "#d4b896", trackOpacity: 0.3, fillColor: "#b8860b", fillOpacity: 0.9, width: 8, gap: 6 },
       text: { color: "#5c3d1a", outlineColor: "#faf3e8", outlineSize: "0px", fontFamily: "Montserrat" },
@@ -172,7 +172,7 @@ export const themePresets: ThemePreset[] = [
     description: "Ultra-clean white design for readability",
     preview: { bg: "#ffffff", accent: "#6366f1", text: "#111827" },
     timerStyles: {
-      dimensions: { width: "250px", height: "250px" },
+      dimensions: { width: "300px", height: "300px" },
       background: { color: "#ffffff", opacity: 0.96, borderRadius: "22%" },
       ring: { enabled: true, trackColor: "#e5e7eb", trackOpacity: 1, fillColor: "#6366f1", fillOpacity: 1, width: 8, gap: 6 },
       text: { color: "#111827", outlineColor: "#ffffff", outlineSize: "0px", fontFamily: "Montserrat" },
@@ -194,7 +194,7 @@ export const themePresets: ThemePreset[] = [
     description: "Twitch's signature purple on dark panels",
     preview: { bg: "#0e0e10", accent: "#9146ff", text: "#efeff1" },
     timerStyles: {
-      dimensions: { width: "250px", height: "250px" },
+      dimensions: { width: "300px", height: "300px" },
       background: { color: "#0e0e10", opacity: 0.92, borderRadius: "22%" },
       ring: { enabled: true, trackColor: "#9146ff", trackOpacity: 0.15, fillColor: "#9146ff", fillOpacity: 1, width: 8, gap: 6 },
       text: { color: "#efeff1", outlineColor: "#0e0e10", outlineSize: "0px", fontFamily: "Montserrat" },

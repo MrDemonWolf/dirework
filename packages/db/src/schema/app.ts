@@ -91,8 +91,8 @@ export const timerConfig = sqliteTable("timer_config", {
 
 export const timerStyle = sqliteTable("timer_style", {
   id: text("id").primaryKey().default(SINGLETON_ID),
-  width: text("width").notNull().default("250px"),
-  height: text("height").notNull().default("250px"),
+  width: text("width").notNull().default("300px"),
+  height: text("height").notNull().default("300px"),
   bgColor: text("bg_color").notNull().default("#091533"),
   bgOpacity: real("bg_opacity").notNull().default(0.85),
   bgBorderRadius: text("bg_border_radius").notNull().default("22%"),
