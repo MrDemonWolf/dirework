@@ -173,7 +173,13 @@ export function TimerDisplay({
     return () => clearInterval(interval);
   }, [state.targetEndTime, state.pausedWithRemaining, state.status]);
 
-  const { hours, minutes, seconds } = formatTime(remaining, config.showHours);
+  // Idle timer isn't counting — show the configured phase length (fed as
+  // totalDuration) so the widget reads full during stream setup instead of
+  // blanking out. Previously idle rendered nothing at all.
+  const isIdle = state.status === "idle";
+  const displayMs = isIdle ? (totalDuration ?? 0) : remaining;
+
+  const { hours, minutes, seconds } = formatTime(displayMs, config.showHours);
   const timeDisplay = config.showHours
     ? `${hours}:${minutes}:${seconds}`
     : `${minutes}:${seconds}`;
@@ -185,16 +191,12 @@ export function TimerDisplay({
 
   const label = config.labels[state.status] ?? state.status;
 
-  if (state.status === "idle") {
-    return null;
-  }
-
   // Calculate progress for the ring — a paused timer measures against the
-  // phase it froze in, not the "paused" status itself.
+  // phase it froze in, not the "paused" status itself. Idle shows a full ring.
   const progressPhase =
     state.status === "paused" ? (state.pausedFromStatus ?? "work") : state.status;
   const total = totalDuration ?? STATUS_DURATIONS[progressPhase] ?? 25 * 60 * 1000;
-  const progress = total > 0 ? remaining / total : 0;
+  const progress = isIdle ? 1 : total > 0 ? remaining / total : 0;
 
   // Parse size for SVG ring
   const size = parseInt(config.dimensions.width) || 250;

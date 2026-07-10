@@ -43,6 +43,13 @@
       "when": 1783666066014,
       "tag": "0005_unknown_gressill",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1783719169426,
+      "tag": "0006_brave_thunderbolts",
+      "breakpoints": true
     }
   ]
 }
