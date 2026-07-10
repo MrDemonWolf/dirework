@@ -64,7 +64,7 @@ export const server = await Worker("server", {
     DEV_LOGIN: process.env.DEV_LOGIN ?? "false",
   },
   dev: {
-    port: 3000,
+    port: 3100,
   },
 });
 
@@ -119,7 +119,7 @@ export const web = await Nextjs("web", {
   },
   dev: {
     env: {
-      PORT: "3001",
+      PORT: "3101",
     },
   },
 });

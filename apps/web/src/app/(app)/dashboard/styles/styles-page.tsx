@@ -229,7 +229,7 @@ export default function StylesPage() {
           {/* Editor Column */}
           <div className="w-full min-w-0 lg:w-[380px] lg:shrink-0">
             <Tabs defaultValue="timer">
-              <TabsList>
+              <TabsList className="h-9 w-full gap-1">
                 <TabsTrigger value="timer">Timer</TabsTrigger>
                 <TabsTrigger value="tasks">Tasks</TabsTrigger>
               </TabsList>

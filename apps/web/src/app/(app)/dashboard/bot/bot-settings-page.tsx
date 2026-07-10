@@ -568,7 +568,9 @@ export default function BotSettingsPage() {
             </CardHeader>
             <CardContent className="px-5">
               <Tabs defaultValue="tasks">
-                <TabsList>
+                {/* Full-width rail: triggers are flex-1, so the three tabs
+                    share the row equally and resize with it. */}
+                <TabsList className="h-9 w-full gap-1">
                   <TabsTrigger
                     value="tasks"
                     aria-label={taskDirty ? "Task Commands (unsaved changes)" : undefined}
