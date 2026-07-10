@@ -373,10 +373,13 @@ export default function Dashboard({
               <p className="text-sm text-muted-foreground">Loading...</p>
             )}
           </div>
-          {/* Tasks overlay URL lives WITH the panel that explains it — the old
-              detached full-width strip sat opposite to where the timer's URL was. */}
-          {user.data && (
-            <div className="space-y-2 border-t border-border/40 px-5 py-4">
+        </section>
+
+        {/* Tasks overlay URL — full-width strip mirroring the timer's, so the
+            OBS source URL has room instead of truncating in the narrow panel. */}
+        {user.data && (
+          <section className="panel lg:col-span-3">
+            <div className="space-y-2 px-5 py-4">
               <ConsoleRule label="Tasks overlay URL" className="flex items-center">
                 <SizeChip size="700 × 800" hint="OBS browser source — the list fills it and scrolls when tasks overflow" />
               </ConsoleRule>
@@ -387,9 +390,12 @@ export default function Dashboard({
                 onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
                 regenerating={regenerateToken.isPending}
               />
+              <p className="text-xs text-muted-foreground">
+                Add the URL as a browser source in OBS
+              </p>
             </div>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* Bot quick status — slim full-width strip */}
         <section className="panel lg:col-span-3">
