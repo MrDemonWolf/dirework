@@ -27,6 +27,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { ConsoleRule } from "@/components/console-rule";
 import { SaveBar } from "@/components/save-bar";
 import { TwitchIcon } from "@/components/icons/twitch-icon";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -155,9 +156,7 @@ function BotConsoleCard({
   return (
     <Card className="panel-hero">
       <CardHeader className="border-b border-border/40 px-5">
-        <div className="console-rule">
-          <span className="console-label">Console</span>
-        </div>
+        <ConsoleRule label="Console" />
         <CardTitle className="font-heading text-lg font-semibold tracking-tight">
           {botName ?? "Bot console"}
         </CardTitle>
@@ -489,9 +488,7 @@ export default function BotSettingsPage() {
           {/* Bot Account */}
           <Card className="panel">
             <CardHeader className="px-5">
-              <div className="console-rule">
-                <span className="console-label">Identity</span>
-              </div>
+              <ConsoleRule label="Identity" />
               <CardTitle className="font-heading text-lg font-semibold tracking-tight">
                 Bot account
               </CardTitle>
@@ -557,9 +554,7 @@ export default function BotSettingsPage() {
         <div className="min-w-0 flex-1">
           <Card className="panel">
             <CardHeader className="border-b border-border/40 px-5">
-              <div className="console-rule">
-                <span className="console-label">Chat commands</span>
-              </div>
+              <ConsoleRule label="Chat commands" />
               <CardTitle className="font-heading text-lg font-semibold tracking-tight">
                 Commands &amp; messages
               </CardTitle>

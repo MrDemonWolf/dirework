@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { ConsoleRule } from "@/components/console-rule";
 import { Input } from "@/components/ui/input";
 import { MAX_TASK_LEN } from "@/lib/config-types";
 import { StatusChip } from "@/components/status-chip";
@@ -141,9 +142,7 @@ export function TaskManager({
     <div className="flex h-full flex-col">
       {/* Panel header: kicker rule + title + count cluster */}
       <div className="border-b border-border/40 px-5 pt-4 pb-3">
-        <div className="console-rule">
-          <span className="console-label">Task Board</span>
-        </div>
+        <ConsoleRule label="Task Board" />
         <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="font-heading text-lg font-semibold tracking-tight">Tasks</h2>
