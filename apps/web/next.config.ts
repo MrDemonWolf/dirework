@@ -1,7 +1,12 @@
 import "@dirework/env/web";
 import { execSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 import type { NextConfig } from "next";
+
+const { version } = createRequire(import.meta.url)("./package.json") as {
+  version: string;
+};
 
 // Enables `getCloudflareContext()` / worker bindings during `next dev`.
 initOpenNextCloudflareForDev();
@@ -27,6 +32,7 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   env: {
     NEXT_PUBLIC_COMMIT_SHA: commitSha,
+    NEXT_PUBLIC_APP_VERSION: version,
   },
   async rewrites() {
     return [
