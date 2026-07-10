@@ -159,7 +159,7 @@ describe("getFreshChatToken", () => {
 
 describe("disconnectBotAccount", () => {
   it("revokes the access token then deletes the bot account", async () => {
-    const { db, del } = makeDb({ botAccount: makeAccount() });
+    const { db, del, deleteWhere } = makeDb({ botAccount: makeAccount() });
     fetchMock.mockResolvedValueOnce({ ok: true });
 
     await disconnectBotAccount(db, CREDS);
@@ -169,24 +169,28 @@ describe("disconnectBotAccount", () => {
     expect(init.body.get("client_id")).toBe("client-id");
     expect(init.body.get("token")).toBe("old-access");
     expect(del).toHaveBeenCalledTimes(1);
+    // The delete must stay scoped to the singleton row, not the whole table.
+    expect(deleteWhere).toHaveBeenCalledTimes(1);
   });
 
   it("still deletes the account when revocation fails", async () => {
-    const { db, del } = makeDb({ botAccount: makeAccount() });
+    const { db, del, deleteWhere } = makeDb({ botAccount: makeAccount() });
     fetchMock.mockRejectedValueOnce(new Error("network down"));
 
     await disconnectBotAccount(db, CREDS);
 
     expect(del).toHaveBeenCalledTimes(1);
+    expect(deleteWhere).toHaveBeenCalledTimes(1);
   });
 
-  it("skips revocation when no account exists but still clears the table", async () => {
-    const { db, del } = makeDb({ botAccount: undefined });
+  it("skips revocation when no account exists but still clears the row", async () => {
+    const { db, del, deleteWhere } = makeDb({ botAccount: undefined });
 
     await disconnectBotAccount(db, CREDS);
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(del).toHaveBeenCalledTimes(1);
+    expect(deleteWhere).toHaveBeenCalledTimes(1);
   });
 });
 
