@@ -26,14 +26,14 @@ Shared overlay geometry (squircle path/perimeter, `SQUIRCLE_RADIUS`, MM:SS clock
 
 | Namespace | Purpose | Examples |
 |---|---|---|
-| `color.brand.{50…900}` | Primary brand scale (Dirework blue-purple) | `brand500 = #6E5AF5` |
-| `color.brandDark` | Brand overrides for dark mode | `brand500 = #9385FB` |
+| `color.brand.{50…900}` | Primary brand scale (Cerulean) | `brand500 = #00ACED` |
+| `color.brandDark` | Brand overrides for dark mode | `brand500 = #29B6F0` |
 | `color.semantic` | Status colors | `success`, `warning`, `error`, `info` |
 | `color.phase` | Pomodoro phase accents | `work`, `break`, `longBreak`, `paused` |
 | `color.surface.{light,dark}` | Backgrounds, elevation, dividers | `base`, `surface`, `elev`, `hairline` |
 | `color.text.{light,dark}` | Text hierarchy | `primary`, `secondary`, `muted` |
 | `color.partner` | Third-party brand colors | `twitch`, `discord`, `obs` |
-| `font.family` | Typeface stacks | `display` (Montserrat), `sans` (Roboto), `mono` |
+| `font.family` | Typeface stacks | `display` (Montserrat), `sans` (IBM Plex Sans), `mono` |
 | `font.size` | Type scale (px) | `xs=12 … 6xl=60` |
 | `font.weight` | Numeric weights | `regular=400 … extrabold=800` |
 | `space` | Spacing scale (px) | `1=4 … 11=80` |
@@ -45,7 +45,7 @@ Shared overlay geometry (squircle path/perimeter, `SQUIRCLE_RADIUS`, MM:SS clock
 
 ## Brand primary
 
-Dirework's primary brand color is a **blue-leaning purple `#6E5AF5`** (hue ≈ 248°) — a nod to Twitch purple (`#9146FF`, kept under `color.partner.twitch`) without being a copy, nudged toward blue. Dark mode lightens the brand to `#9385FB` for contrast on near-black surfaces. The headings typeface is **Montserrat**; body copy is **Roboto** — matching the web app.
+Dirework's primary brand color is **Cerulean `#00ACED`** — a bright, focused blue used sparingly as the accent (buttons, links, active rings). Twitch purple (`#9146FF`, kept under `color.partner.twitch`) is reserved for Twitch sign-in/connect actions only. Dark mode lightens the brand to `#29B6F0` for contrast on near-black surfaces. The headings typeface is **Montserrat**; body copy is **IBM Plex Sans**; labels and numerals use **IBM Plex Mono** — matching the web app.
 
 ## Overlay themes
 

@@ -25,8 +25,8 @@ Each overlay has its own private URL. Use the copy button next to each one to gr
 3. Name it (e.g. "Dirework Timer" or "Dirework Tasks")
 4. Paste the full overlay URL (e.g. `http://localhost:3001/overlay/t/YOUR_TOKEN`)
 5. Set the dimensions:
-   - **Timer:** 250 x 250 (or match your timer style config)
-   - **Task List:** 400 x 600 (adjust to fit your layout)
+   - **Timer:** 320 x 320 (the timer scales to fill the browser source, so any size works)
+   - **Task List:** 360 x 720
 6. Check **"Shutdown source when not visible"** (recommended — the source reloads cleanly when you switch scenes)
 7. Click **OK**
 
@@ -37,6 +37,8 @@ The timer overlay shows:
 - Countdown timer with configurable font
 - Cycle count (e.g. 1/4)
 - Progress ring (circle or rounded rectangle shape)
+
+While the timer is idle, the overlay shows a full preview — the configured work length plus a full progress ring — rather than appearing blank, so you can position it during setup.
 
 The timer automatically transitions through phases: Starting (5s countdown) → Focus → Break → Focus → … with a Long Break replacing the regular Break every few cycles (4 by default), ending in Done after the final Focus. The timer moves forward whenever something is watching it: an open timer overlay in OBS checks in every few seconds and advances the timer on its own — no dashboard tab needs to stay open. The dashboard or an incoming chat command will nudge it forward too.
 

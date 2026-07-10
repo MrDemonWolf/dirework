@@ -12,10 +12,10 @@ Mirrors `apps/web/src/components/task-list-display.tsx` + `groupTasksByAuthor()`
 
 ## Tokens
 
-- Username accent: theme `username` (default `--ds-color-partner-twitch`-adjacent `#BF5AF2`).
+- Username accent: theme `username` (default Cornflower `#6B8BF5`).
 - Checkbox tick: theme `accent`.
 - Surface/text: theme `bg` / `text`.
-- Body font: `--ds-font-family-sans` (Roboto); header: Montserrat.
+- Body font: `--ds-font-family-sans` (IBM Plex Sans); header: Montserrat.
 
 ## Accessibility
 
