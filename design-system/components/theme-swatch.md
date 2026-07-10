@@ -1,6 +1,6 @@
-# Theme Swatch (ThemeGallery)
+# Theme Swatch (OverlayThemePreview)
 
-Preview grid of the 11 overlay themes. Each swatch renders a theme's `bg`, `accent`, and `text` colors from `OVERLAY_THEMES` (generated from `tokens.json` → `overlay.themes`).
+Preview grid of the 6 overlay themes. Each swatch renders a theme's `bg`, `accent`, and `text` colors from `OVERLAY_THEMES` (generated from `tokens.json` → `overlay.themes`).
 
 ## Anatomy
 

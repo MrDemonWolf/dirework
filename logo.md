@@ -6,7 +6,7 @@ Use the following prompt with an AI image generator (Midjourney, DALL-E, etc.) t
 
 **Prompt:**
 
-Minimalist flat logo for "Dirework", a self-hosted Pomodoro timer and task list app for Twitch streamers. The logo combines a stylized wolf silhouette with a circular timer/progress ring element. The wolf face is geometric and modern, facing forward, with the timer ring wrapping around or integrated into the design. Use a dark background (#1c1c1e) with a bright green accent (#34c759) for the timer ring and clean white (#f5f5f7) for the wolf. No text in the logo itself. Simple, bold, recognizable at small sizes. SVG-friendly clean shapes. Suitable for a favicon, app icon, and documentation header.
+Minimalist flat logo for "Dirework", a self-hosted Pomodoro timer and task list app for Twitch streamers. The logo combines a stylized wolf silhouette with a circular timer/clock element. The wolf face is geometric and modern, facing forward, with the clock integrated into the design. Use a single Cerulean stroke color (#00ACED) for the entire mark on a transparent background. No text in the logo itself. Simple, bold, recognizable at small sizes. SVG-friendly clean shapes. Suitable for a favicon, app icon, and documentation header.
 
 ---
 
@@ -18,7 +18,5 @@ Minimalist flat logo for "Dirework", a self-hosted Pomodoro timer and task list 
 4. **Favicon:** Ultra-simplified wolf head that reads well at 16x16 and 32x32
 
 **Color palette:**
-- Primary: `#34c759` (green — timer/progress)
-- Background: `#1c1c1e` (dark)
-- Text/Icon: `#f5f5f7` (white)
-- Accent: `#0a84ff` (blue — optional secondary)
+- Mark: `#00ACED` (Cerulean — single-color wolf + clock stroke)
+- Background: transparent

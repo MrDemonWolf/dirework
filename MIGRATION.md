@@ -56,8 +56,9 @@ packages/
   env/        env access via Wrangler bindings (drop dotenv).
 ```
 
-Web Worker and API Worker are separate deploys; both bind the same D1 database. D1 is
-single-region SQLite — fine for one streamer.
+Web Worker and API Worker are separate deploys; only the API Worker binds the D1
+database (the Web Worker holds no DB binding and proxies DB-backed traffic to the API
+Worker). D1 is single-region SQLite — fine for one streamer.
 
 ## What carries over vs. gets rebuilt
 
@@ -140,7 +141,7 @@ The target scaffold was generated and studied. Exact idioms to follow when porti
   declares `D1Database("database",{migrationsDir})`, `Worker("server",{cwd:"apps/server",
   entrypoint:"src/index.ts",compatibility:"node",url:true,bindings:{DB, CORS_ORIGIN,
   BETTER_AUTH_SECRET:alchemy.secret.env..., BETTER_AUTH_URL}})`, and `Nextjs("web",{cwd:"apps/web",
-  bindings:{NEXT_PUBLIC_SERVER_URL:server.url, DB, ...}})`. Root scripts `deploy`/`destroy` →
+  bindings:{NEXT_PUBLIC_SERVER_URL:server.url, ...}})`. Root scripts `deploy`/`destroy` →
   `turbo -F @dirework/infra`. Dev via `bun run dev` (alchemy dev).
 - **Per-request factories, NO module singletons** (Workers isolate per request):
   - `createDb() = drizzle(env.DB, { schema })`
