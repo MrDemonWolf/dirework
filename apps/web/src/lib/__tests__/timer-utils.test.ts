@@ -4,9 +4,12 @@ import {
   toHexOpacity,
   formatTime,
   formatClock,
+  remainingFromState,
   resolvePhaseDuration,
   roundedRectPath,
 } from "../timer-utils";
+
+const baseState = { currentCycle: 1, totalCycles: 4 };
 
 describe("toHexOpacity", () => {
   it("should return '00' for opacity 0", () => {
@@ -135,6 +138,42 @@ describe("resolvePhaseDuration", () => {
 
   it("ignores pausedFromStatus while running", () => {
     expect(resolvePhaseDuration("work", "break", durations)).toBe(durations.workDuration);
+  });
+});
+
+describe("remainingFromState", () => {
+  it("returns null when there's no state", () => {
+    expect(remainingFromState(null)).toBeNull();
+  });
+
+  it("returns the frozen remaining for a paused timer", () => {
+    expect(
+      remainingFromState({ ...baseState, status: "paused", pausedWithRemaining: 42000 }),
+    ).toBe(42000);
+  });
+
+  it("returns null when idle / no target to count", () => {
+    expect(remainingFromState({ ...baseState, status: "idle", targetEndTime: null })).toBeNull();
+  });
+
+  it("measures a running timer against targetEndTime, clamped at 0", () => {
+    const now = Date.now();
+    const running = remainingFromState({
+      ...baseState,
+      status: "work",
+      targetEndTime: new Date(now + 60000).toISOString(),
+    });
+    // Allow a few ms of clock drift between the ISO stamp and the internal now.
+    expect(running).toBeGreaterThan(59000);
+    expect(running).toBeLessThanOrEqual(60000);
+
+    expect(
+      remainingFromState({
+        ...baseState,
+        status: "work",
+        targetEndTime: new Date(now - 60000).toISOString(),
+      }),
+    ).toBe(0);
   });
 });
 

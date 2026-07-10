@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { ConsoleRule } from "@/components/console-rule";
 import { DashboardSkeleton } from "@/components/dashboard-skeleton";
 import { StatusChip } from "@/components/status-chip";
 import { TaskManager } from "@/components/task-manager";
@@ -58,9 +59,7 @@ function OverlayMonitor({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-3">
-        <div className="console-rule min-w-0 flex-1">
-          <span className="console-label">{label}</span>
-        </div>
+        <ConsoleRule label={label} className="min-w-0 flex-1" />
         <Button
           variant="ghost"
           size="icon-sm"
@@ -287,9 +286,7 @@ export default function Dashboard({
         {/* Hero instrument: the timer console — its overlay monitor lives beside it */}
         <section className="panel-hero lg:col-span-3">
           <div className="border-b border-border/40 px-5 pt-4 pb-3">
-            <div className="console-rule">
-              <span className="console-label">Timer Console</span>
-            </div>
+            <ConsoleRule label="Timer Console" />
             <h2 className="mt-2 font-heading text-lg font-semibold tracking-tight">Pomodoro</h2>
             <p className="text-sm text-muted-foreground">
               Run the focus session your viewers see in OBS
@@ -322,10 +319,9 @@ export default function Dashboard({
           {/* Overlay URL — full-width strip along the bottom so the OBS source URL has room */}
           {user.data && (
             <div className="space-y-2 border-t border-border/40 px-5 py-4">
-              <div className="console-rule flex items-center">
-                <span className="console-label">Timer overlay URL</span>
+              <ConsoleRule label="Timer overlay URL" className="flex items-center">
                 <SizeChip size="320 × 320" hint="Square OBS browser source — the timer scales to fill it" />
-              </div>
+              </ConsoleRule>
               <OverlayUrlRow
                 label="Timer overlay"
                 path={`/overlay/t/${user.data.overlayTimerToken}`}
@@ -356,9 +352,7 @@ export default function Dashboard({
         {/* Tasks output — the OBS view of the task list */}
         <section className="panel min-w-0">
           <div className="border-b border-border/40 px-5 pt-4 pb-3">
-            <div className="console-rule">
-              <span className="console-label">Tasks Output</span>
-            </div>
+            <ConsoleRule label="Tasks Output" />
             <h2 className="mt-2 font-heading text-lg font-semibold tracking-tight">
               Task list overlay
             </h2>
@@ -383,10 +377,9 @@ export default function Dashboard({
               detached full-width strip sat opposite to where the timer's URL was. */}
           {user.data && (
             <div className="space-y-2 border-t border-border/40 px-5 py-4">
-              <div className="console-rule flex items-center">
-                <span className="console-label">Tasks overlay URL</span>
+              <ConsoleRule label="Tasks overlay URL" className="flex items-center">
                 <SizeChip size="360 × 720" hint="Tall OBS browser source — fills the height and scrolls when the list overflows" />
-              </div>
+              </ConsoleRule>
               <OverlayUrlRow
                 label="Tasks overlay"
                 path={`/overlay/l/${user.data.overlayTasksToken}`}
