@@ -49,5 +49,3 @@ export type OverlayTheme = (typeof OVERLAY_THEMES)[OverlayThemeName];
 export const OVERLAY_THEME_NAMES = ["Default","Ocean Depths","Liquid Glass Dark","Cozy Cottage","Minimal Light","Twitch Purple"] as OverlayThemeName[];
 
 export const DEFAULT_OVERLAY_THEME: OverlayThemeName = "Default";
-
-export const SQUIRCLE_RADIUS = 0.22;

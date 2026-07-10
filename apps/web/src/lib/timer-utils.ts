@@ -1,3 +1,13 @@
+// Shared overlay geometry + clock formatting live in @dirework/overlay-kit
+// (also used by the docs-site overlay mocks). Re-exported here so web imports
+// keep pointing at "@/lib/timer-utils".
+export {
+  SQUIRCLE_RADIUS,
+  formatClock,
+  roundedRectPath,
+  roundedRectPerimeter,
+} from "@dirework/overlay-kit";
+
 export function toHexOpacity(opacity: number): string {
   const clamped = Math.min(1, Math.max(0, opacity));
   return Math.round(clamped * 255)
@@ -20,40 +30,35 @@ export function formatTime(
   };
 }
 
-/**
- * Format milliseconds as a "MM:SS" clock string (minutes can exceed 99).
- * Used by the dashboard timer controls.
- */
-export function formatClock(ms: number): string {
-  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+/** Configured phase lengths (ms) — shape matches the overlay timerConfig payload. */
+export interface PhaseDurations {
+  workDuration: number;
+  breakDuration: number;
+  longBreakDuration: number;
+  startingDuration: number;
 }
 
 /**
- * Build a rounded-rectangle SVG path starting from top-center, going clockwise.
- * This gives us a continuous path we can use with strokeDasharray for progress.
+ * Resolve the full length (ms) of the phase the timer is measuring against.
+ * A paused timer measures against the phase it froze in (pausedFromStatus).
+ * Returns null for phases without a fixed duration (idle/finished/unknown).
  */
-export function roundedRectPath(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-): string {
-  r = Math.min(r, w / 2, h / 2);
-  // Start at top-center, draw clockwise
-  return [
-    `M ${x + w / 2} ${y}`,
-    `L ${x + w - r} ${y}`,
-    `A ${r} ${r} 0 0 1 ${x + w} ${y + r}`,
-    `L ${x + w} ${y + h - r}`,
-    `A ${r} ${r} 0 0 1 ${x + w - r} ${y + h}`,
-    `L ${x + r} ${y + h}`,
-    `A ${r} ${r} 0 0 1 ${x} ${y + h - r}`,
-    `L ${x} ${y + r}`,
-    `A ${r} ${r} 0 0 1 ${x + r} ${y}`,
-    `Z`,
-  ].join(" ");
+export function resolvePhaseDuration(
+  status: string,
+  pausedFromStatus: string | null | undefined,
+  durations: PhaseDurations,
+): number | null {
+  const phase = status === "paused" ? (pausedFromStatus ?? "work") : status;
+  switch (phase) {
+    case "work":
+      return durations.workDuration;
+    case "break":
+      return durations.breakDuration;
+    case "longBreak":
+      return durations.longBreakDuration;
+    case "starting":
+      return durations.startingDuration;
+    default:
+      return null;
+  }
 }

@@ -15,6 +15,10 @@ export interface TaskAuthor {
 
 const OPEN_STATUSES = ["pending", "active"];
 
+/** Case-insensitive author-username predicate (Twitch logins are case-insensitive). */
+const authorUsernameEquals = (username: string) =>
+  sql`lower(${schema.task.authorUsername}) = lower(${username})`;
+
 /** All open (pending or active) tasks for a viewer, in list order (M5). */
 export async function getViewerOpenTasks(db: DbClient, twitchId: string) {
   return db.query.task.findMany({
@@ -41,7 +45,7 @@ export async function getActiveTask(db: DbClient, twitchId: string) {
 export async function findActiveTaskByUsername(db: DbClient, username: string) {
   const task = await db.query.task.findFirst({
     where: and(
-      sql`lower(${schema.task.authorUsername}) = lower(${username})`,
+      authorUsernameEquals(username),
       eq(schema.task.status, "active"),
     ),
   });
@@ -177,15 +181,9 @@ export async function removeTask(db: DbClient, id: string) {
   return removed;
 }
 
-/** Delete every task by Twitch user id (dashboard moderation). */
-export async function removeTasksByViewer(db: DbClient, twitchId: string) {
-  return db.delete(schema.task).where(eq(schema.task.authorTwitchId, twitchId));
-}
-
 /** Delete every task by username, case-insensitive (L9 — ban/timeout/!clear @user). */
 export async function removeTasksByUsername(db: DbClient, username: string) {
-  return db.delete(schema.task)
-    .where(sql`lower(${schema.task.authorUsername}) = lower(${username})`);
+  return db.delete(schema.task).where(authorUsernameEquals(username));
 }
 
 export async function clearAllTasks(db: DbClient) {
@@ -194,10 +192,6 @@ export async function clearAllTasks(db: DbClient) {
 
 export async function clearDoneTasks(db: DbClient) {
   return db.delete(schema.task).where(eq(schema.task.status, "done"));
-}
-
-export async function clearViewerTasks(db: DbClient) {
-  return db.delete(schema.task).where(eq(schema.task.priority, 1));
 }
 
 /** All tasks in overlay/list order (priority, then insertion order). */

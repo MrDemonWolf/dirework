@@ -45,14 +45,15 @@ function BackdropToggle({
   value: Backdrop;
   onChange: (v: Backdrop) => void;
 }) {
+  // Plain aria-pressed toggles — the old role="radiogroup" promised
+  // arrow-key navigation it never implemented (worse than no semantics).
   return (
-    <div className="flex items-center gap-1" role="radiogroup" aria-label="Preview backdrop">
+    <div className="flex items-center gap-1" role="group" aria-label="Preview backdrop">
       {backdrops.map((b) => (
         <button
           key={b.id}
           type="button"
-          role="radio"
-          aria-checked={value === b.id}
+          aria-pressed={value === b.id}
           aria-label={b.label}
           title={b.label}
           onClick={() => onChange(b.id)}
@@ -111,7 +112,7 @@ export function StylePreviewPanel({
         {/* Canvas controls */}
         <div className="flex items-center gap-3">
           <div className="console-rule min-w-0 flex-1">
-            <span className="console-label">Preview Canvas</span>
+            <span className="console-label">Preview canvas</span>
           </div>
           <BackdropToggle value={backdrop} onChange={setBackdrop} />
           <Button
@@ -140,7 +141,7 @@ export function StylePreviewPanel({
             ) : (
               <>
                 <Play className="size-3" />
-                Animate
+                Play
               </>
             )}
           </Button>
@@ -165,7 +166,7 @@ export function StylePreviewPanel({
 
         {/* Task List Preview */}
         <div className="console-rule">
-          <span className="console-label">Task List</span>
+          <span className="console-label">Task list</span>
         </div>
         <div
           className={cn(

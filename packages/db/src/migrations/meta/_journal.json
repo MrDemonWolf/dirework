@@ -8,6 +8,41 @@
       "when": 1782939317061,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1783648926451,
+      "tag": "0001_modern_malcolm_colcord",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1783649356445,
+      "tag": "0002_daily_betty_brant",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1783649425858,
+      "tag": "0003_elite_forge",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1783649486054,
+      "tag": "0004_quiet_bloodscream",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1783666066014,
+      "tag": "0005_unknown_gressill",
+      "breakpoints": true
     }
   ]
 }

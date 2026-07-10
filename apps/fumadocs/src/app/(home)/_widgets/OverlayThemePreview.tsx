@@ -67,7 +67,7 @@ export function OverlayThemePreview() {
               type="button"
               aria-pressed={active}
               onClick={() => setName(n)}
-              className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-500)]"
+              className="inline-flex min-h-10 items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-500)]"
               style={{
                 borderColor: active ? "var(--brand-500)" : "var(--hairline)",
                 background: active ? "var(--brand-50)" : "var(--bg-elev)",

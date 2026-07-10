@@ -5,15 +5,14 @@
  */
 
 import { OVERLAY_THEMES, DEFAULT_OVERLAY_THEME, type OverlayTheme } from "./overlay-themes.generated";
-import { hexToRgba } from "./theme-util";
+import { authorPalette, hexToRgba } from "./theme-util";
 
 type Task = { text: string; done: boolean };
-type Group = { author: string; color: string; tasks: Task[] };
+type Group = { author: string; tasks: Task[] };
 
 const GROUPS: Group[] = [
   {
     author: "streamer",
-    color: "#bf5af2",
     tasks: [
       { text: "Finish the design system docs", done: false },
       { text: "Review overlay PR", done: true },
@@ -21,7 +20,6 @@ const GROUPS: Group[] = [
   },
   {
     author: "ada_codes",
-    color: "#34c759",
     tasks: [
       { text: "Write migration tests", done: false },
       { text: "Coffee refill", done: true },
@@ -29,7 +27,6 @@ const GROUPS: Group[] = [
   },
   {
     author: "pixel_pat",
-    color: "#0a84ff",
     tasks: [{ text: "Sketch new logo concepts", done: false }],
   },
 ];
@@ -77,8 +74,7 @@ export function TaskListWidget({
     >
       {GROUPS.map((g, gi) => {
         const done = g.tasks.filter((t) => t.done).length;
-        const first = gi === 0;
-        const last = gi === GROUPS.length - 1;
+        const authorColor = authorPalette(theme.bg)[gi % 3];
         return (
           <div key={g.author} style={{ marginBottom: gi === GROUPS.length - 1 ? 0 : 10 }}>
             <div
@@ -94,7 +90,7 @@ export function TaskListWidget({
                 fontWeight: 600,
               }}
             >
-              <span style={{ color: g.color }}>{g.author}</span>
+              <span style={{ color: authorColor }}>{g.author}</span>
               <span style={{ color: hexToRgba(theme.text, 0.55), fontSize: 14 }}>
                 {done}/{g.tasks.length}
               </span>

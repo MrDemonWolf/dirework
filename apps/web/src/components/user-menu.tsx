@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, LogOut } from "lucide-react";
+import { Bot, ChevronDown, LayoutDashboard, LogOut, Palette } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -15,6 +16,38 @@ import { TwitchIcon } from "@/components/icons/twitch-icon";
 
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
+
+const menuLinks = [
+  { href: "/dashboard" as const, label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/styles" as const, label: "Theme Center", icon: Palette },
+  { href: "/dashboard/bot" as const, label: "Bot", icon: Bot },
+];
+
+function Avatar({
+  image,
+  name,
+  className,
+}: {
+  image?: string | null;
+  name: string;
+  className: string;
+}) {
+  return image ? (
+    <img
+      src={image}
+      alt=""
+      className={`${className} rounded-full`}
+      referrerPolicy="no-referrer"
+    />
+  ) : (
+    <div
+      aria-hidden
+      className={`${className} flex items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground`}
+    >
+      {name?.charAt(0).toUpperCase()}
+    </div>
+  );
+}
 
 export default function UserMenu() {
   const router = useRouter();
@@ -36,7 +69,7 @@ export default function UserMenu() {
         }
       >
         <TwitchIcon className="size-3.5" />
-        Sign In
+        Sign in
       </Button>
     );
   }
@@ -45,31 +78,39 @@ export default function UserMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <button className="flex cursor-pointer items-center gap-2 rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring" />
+          <button
+            aria-label={`Account menu — ${session.user.name}`}
+            className="flex cursor-pointer items-center gap-2 rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring"
+          />
         }
       >
-        {session.user.image ? (
-          <img
-            src={session.user.image}
-            alt={session.user.name}
-            className="h-8 w-8 rounded-full"
-            referrerPolicy="no-referrer"
-          />
-        ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-            {session.user.name?.charAt(0).toUpperCase()}
-          </div>
-        )}
-        <span className="text-xs font-medium">{session.user.name}</span>
+        <Avatar image={session.user.image} name={session.user.name} className="h-8 w-8" />
+        <span className="hidden text-xs font-medium sm:inline">{session.user.name}</span>
         <ChevronDown className="size-3.5 text-muted-foreground" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="bg-card" align="end">
+      <DropdownMenuContent className="w-56 bg-card" align="end">
         {/* Identity header — non-interactive */}
-        <div className="px-2 py-1.5">
-          <p className="text-sm font-medium">{session.user.name}</p>
+        <div className="flex items-center gap-3 px-2 py-2">
+          <Avatar image={session.user.image} name={session.user.name} className="h-9 w-9" />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{session.user.name}</p>
+            <p className="console-label mt-0.5">Owner</p>
+          </div>
         </div>
         <DropdownMenuSeparator />
+        {menuLinks.map((item) => (
+          <DropdownMenuItem
+            key={item.href}
+            nativeButton={false}
+            render={<Link href={item.href} />}
+          >
+            <item.icon className="size-3.5" />
+            {item.label}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
         <DropdownMenuItem
+          variant="destructive"
           onClick={() => {
             authClient.signOut({
               fetchOptions: {
@@ -81,7 +122,7 @@ export default function UserMenu() {
           }}
         >
           <LogOut className="size-3.5" />
-          Sign Out
+          Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

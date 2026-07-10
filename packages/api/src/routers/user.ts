@@ -1,11 +1,12 @@
 import { count, eq } from "drizzle-orm";
-import { z } from "zod";
 
 import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
 
 import { protectedProcedure, publicProcedure, router } from "../index";
 import { updateSingleton } from "../services/singleton";
+import { disconnectBotAccount } from "../services/twitch-auth";
+import { regenerateOverlayTokenInput } from "./input-schemas";
 
 export const userRouter = router({
   /** Public setup gate: does this single-tenant instance have an owner yet? */
@@ -39,7 +40,7 @@ export const userRouter = router({
   }),
 
   regenerateOverlayToken: protectedProcedure
-    .input(z.object({ type: z.enum(["timer", "tasks"]) }))
+    .input(regenerateOverlayTokenInput)
     .mutation(async ({ ctx, input }) => {
       const token = crypto.randomUUID();
       const set = input.type === "timer"
@@ -50,26 +51,10 @@ export const userRouter = router({
     }),
 
   disconnectBot: protectedProcedure.mutation(async ({ ctx }) => {
-    const botAccount = await ctx.db.query.botAccount.findFirst({
-      columns: { accessToken: true },
+    await disconnectBotAccount(ctx.db, {
+      clientId: env.TWITCH_CLIENT_ID,
+      clientSecret: env.TWITCH_CLIENT_SECRET,
     });
-
-    if (botAccount?.accessToken) {
-      try {
-        await fetch("https://id.twitch.tv/oauth2/revoke", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
-            client_id: env.TWITCH_CLIENT_ID,
-            token: botAccount.accessToken,
-          }),
-        });
-      } catch {
-        // Best-effort revocation — proceed with deletion even if revocation fails
-      }
-    }
-
-    await ctx.db.delete(schema.botAccount);
     return { success: true };
   }),
 });

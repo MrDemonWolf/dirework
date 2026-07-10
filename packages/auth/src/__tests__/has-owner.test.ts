@@ -7,6 +7,11 @@ const { mockSelect, mockDb } = vi.hoisted(() => {
 });
 
 vi.mock("@dirework/db", () => ({ createDb: () => mockDb }));
+// The shared provisioning helper pulls in the real drizzle schema — stub it
+// (drizzle-orm is mocked below with only `count`, so the real one can't load).
+vi.mock("@dirework/db/provision", () => ({
+  provisionSingletonRows: vi.fn(async () => undefined),
+}));
 vi.mock("@dirework/db/schema", () => ({
   SINGLETON_ID: "singleton",
   user: {},

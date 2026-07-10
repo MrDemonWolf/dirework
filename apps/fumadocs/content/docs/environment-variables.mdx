@@ -1,5 +1,5 @@
 ---
-title: Environment Variables
+title: Environment variables
 description: All environment variables used by Dirework
 ---
 
@@ -22,7 +22,7 @@ These are what Dirework itself needs to run:
 | `BETTER_AUTH_SECRET` | Secret key for session encryption (min 32 characters — generate with `openssl rand -base64 32`) |
 | `BETTER_AUTH_URL` | The web app's public origin (local: `http://localhost:3001`, production: `https://dirework.<your-subdomain>.workers.dev`) |
 | `CORS_ORIGIN` | Allowed CORS origin — same value as `BETTER_AUTH_URL` |
-| `NEXT_PUBLIC_SERVER_URL` | Public origin of the **api** worker, baked into the web build (local: `http://localhost:3000`, production: `https://dirework-api.<your-subdomain>.workers.dev`). Alchemy sets this automatically in local dev; in production set it as a GitHub repository Variable. |
+| `NEXT_PUBLIC_SERVER_URL` | Public origin of the **API** worker, baked into the web build (local: `http://localhost:3000`, production: `https://dirework-api.<your-subdomain>.workers.dev`). Alchemy sets this automatically in local dev; in production set it as a GitHub repository Variable. |
 | `TWITCH_CLIENT_ID` | Twitch application client ID from [dev.twitch.tv](https://dev.twitch.tv/console/apps) |
 | `TWITCH_CLIENT_SECRET` | Twitch application client secret |
 
@@ -31,7 +31,7 @@ These are what Dirework itself needs to run:
   secrets — set them as GitHub repository **Variables** (Settings → Secrets and variables →
   Actions → Variables). The deploy workflow reads them via `${{ vars.* }}`. Point
   `BETTER_AUTH_URL`/`CORS_ORIGIN` at your web origin and `NEXT_PUBLIC_SERVER_URL` at your
-  api origin if your subdomain isn't `mrdemonwolf`.
+  API origin — swap in your own workers.dev subdomain.
 </Callout>
 
 ## Deploy secrets
@@ -48,7 +48,7 @@ Only needed when deploying to Cloudflare (as GitHub secrets, or in your shell fo
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `DOCS_URL` | `https://mrdemonwolf.github.io/dirework` | URL to your documentation site. Used by the `!dwhelp` bot command to point viewers at the commands page. |
+| `DOCS_URL` | `https://mrdemonwolf.github.io/dirework` | URL to your documentation site. Used by the `!dwhelp` chat command to point viewers at the commands page. |
 | `PRIVACY_POLICY_URL` | _(unset)_ | URL to your Privacy Policy page. When set, a link appears in the web app's footer. |
 | `TERMS_OF_SERVICE_URL` | _(unset)_ | URL to your Terms of Service page. When set, a link appears in the web app's footer. |
 | `SKIP_ENV_VALIDATION` | _(unset)_ | Set to `"true"` during CI or builds to skip env validation when runtime secrets aren't available. You won't need this locally. |
@@ -77,7 +77,7 @@ CORS_ORIGIN="http://localhost:3001"
 TWITCH_CLIENT_ID="your_client_id_here"
 TWITCH_CLIENT_SECRET="your_client_secret_here"
 
-# Documentation site URL (used by the !dwhelp bot command)
+# Documentation site URL (used by the !dwhelp chat command)
 # DOCS_URL="http://localhost:4000"
 ```
 
@@ -88,7 +88,7 @@ For production deployments:
 - Generate **fresh** secrets for production — never reuse the ones from your computer
 - `BETTER_AUTH_URL` and `CORS_ORIGIN` must point at your web worker
   (`https://dirework.<your-subdomain>.workers.dev`), and `NEXT_PUBLIC_SERVER_URL` at your
-  api worker (`https://dirework-api.<your-subdomain>.workers.dev`) — all set as GitHub
+  API worker (`https://dirework-api.<your-subdomain>.workers.dev`) — all set as GitHub
   repository **Variables**, read by the deploy workflow via `${{ vars.* }}`
 - There is no `DATABASE_URL` — the D1 database is created and bound automatically by Alchemy
-- Update the Twitch OAuth redirect URLs to match your workers.dev domain (see [Twitch OAuth Setup](/docs/twitch-oauth))
+- Update the Twitch OAuth redirect URLs to match your workers.dev domain (see [Twitch integration setup](/docs/twitch-oauth))

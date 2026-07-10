@@ -7,30 +7,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+// Self-hosted faces (public/fonts) — every option renders in its own family,
+// both here and on the overlays, with no Google CDN request.
+import { FONT_OPTIONS } from "@/lib/overlay-font-options";
 import { FieldRow } from "./field-row";
-
-const fontOptions = [
-  "Montserrat",
-  "Roboto",
-  "Inter",
-  "Poppins",
-  "Open Sans",
-  "Lato",
-  "Nunito",
-  "Oswald",
-  "Raleway",
-  "Source Sans 3",
-  "Ubuntu",
-  "Merriweather",
-  "Playfair Display",
-  "Space Grotesk",
-  "DM Sans",
-  "Lexend",
-  "Share Tech Mono",
-  "Fira Code",
-  "JetBrains Mono",
-  "Fredoka One",
-];
 
 export function FontSelect({
   label,
@@ -50,7 +30,7 @@ export function FontSelect({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {fontOptions.map((font) => (
+          {FONT_OPTIONS.map((font) => (
             <SelectItem
               key={font}
               value={font}

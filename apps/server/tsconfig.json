@@ -1,8 +1,7 @@
 {
   "extends": "@dirework/config/tsconfig.base.json",
   "compilerOptions": {
-    "composite": true,
-    "outDir": "dist",
+    "noEmit": true,
     "paths": {
       "@/*": ["./src/*"]
     },

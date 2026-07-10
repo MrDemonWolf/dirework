@@ -15,8 +15,14 @@ export default function AppLayout({
 
   return (
     <div className="grid min-h-svh grid-rows-[auto_1fr_auto]">
+      <a
+        href="#main"
+        className="sr-only z-[60] rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+      >
+        Skip to content
+      </a>
       <Header />
-      {children}
+      <main id="main">{children}</main>
       <footer className="border-t border-border/40 py-4 text-center text-xs text-muted-foreground" suppressHydrationWarning>
         <div className="flex flex-wrap items-center justify-center gap-x-3">
           <span>

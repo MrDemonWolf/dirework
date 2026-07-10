@@ -1,5 +1,5 @@
 ---
-title: Getting Started
+title: Getting started
 description: Run Dirework on your own computer in a few minutes
 ---
 
@@ -55,7 +55,7 @@ Generate the `BETTER_AUTH_SECRET` with one command:
 openssl rand -base64 32
 ```
 
-Don't have the Twitch keys yet? The [Twitch OAuth Setup](/docs/twitch-oauth) page walks
+Don't have the Twitch keys yet? The [Twitch integration setup](/docs/twitch-oauth) page walks
 you through getting them — it takes about two minutes. For local use, add **both** of
 these redirect URLs to your Twitch app:
 
@@ -107,7 +107,7 @@ screen. It signs you straight in as the owner — no Twitch round-trip.
 
 <Callout type="warn">
   Local development only. Leave both unset in production — with `DEV_LOGIN` off the
-  bypass endpoint does not exist, and the button never renders. They are not part
+  bypass endpoint does not exist, and the button never appears. They are not part
   of the deploy configuration.
 </Callout>
 

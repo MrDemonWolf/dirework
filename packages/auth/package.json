@@ -17,8 +17,7 @@
     "@dirework/db": "workspace:*",
     "@dirework/env": "workspace:*",
     "better-auth": "catalog:",
-    "drizzle-orm": "catalog:",
-    "zod": "catalog:"
+    "drizzle-orm": "catalog:"
   },
   "devDependencies": {
     "@dirework/config": "workspace:*",

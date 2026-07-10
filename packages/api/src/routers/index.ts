@@ -1,4 +1,4 @@
-import { publicProcedure, router } from "../index";
+import { router } from "../index";
 
 import { botRouter } from "./bot";
 import { configRouter } from "./config";
@@ -7,10 +7,9 @@ import { taskRouter } from "./task";
 import { timerRouter } from "./timer";
 import { userRouter } from "./user";
 
+// No healthCheck procedure here — the real healthcheck is the api worker's
+// plain `/health` route (apps/server).
 export const appRouter = router({
-  healthCheck: publicProcedure.query(() => {
-    return "OK";
-  }),
   user: userRouter,
   task: taskRouter,
   timer: timerRouter,

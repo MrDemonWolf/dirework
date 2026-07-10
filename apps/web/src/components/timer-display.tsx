@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 
 import type { TimerStylesConfig } from "@/lib/config-types";
-import { toHexOpacity, formatTime, roundedRectPath } from "@/lib/timer-utils";
+import {
+  toHexOpacity,
+  formatTime,
+  roundedRectPath,
+  roundedRectPerimeter,
+} from "@/lib/timer-utils";
 
 // Style shape comes from the shared config source of truth (audit M4);
 // the overlay payload composes it with runtime labels + showHours.
@@ -18,11 +23,13 @@ interface TimerState {
   status: string;
   targetEndTime: string | null;
   pausedWithRemaining: number | null;
+  pausedFromStatus?: string | null;
   currentCycle: number;
   totalCycles: number;
 }
 
-// Default durations for progress calculation when totalDuration is not provided
+// Fallback durations for progress calculation — only used when the caller
+// cannot provide totalDuration from the configured timerConfig.
 const STATUS_DURATIONS: Record<string, number> = {
   work: 25 * 60 * 1000,
   break: 5 * 60 * 1000,
@@ -100,10 +107,7 @@ function ProgressRing({
   const d = roundedRectPath(inset, inset, innerSize, innerSize, cornerRadius);
 
   // Calculate path length for dash animation
-  const straightH = Math.max(0, innerSize - 2 * cornerRadius);
-  const straightV = Math.max(0, innerSize - 2 * cornerRadius);
-  const arcLen = (2 * Math.PI * cornerRadius) / 4;
-  const pathLength = 2 * straightH + 2 * straightV + 4 * arcLen;
+  const pathLength = roundedRectPerimeter(innerSize, innerSize, cornerRadius);
   const offset = pathLength * (1 - Math.min(1, Math.max(0, progress)));
 
   return (
@@ -185,8 +189,11 @@ export function TimerDisplay({
     return null;
   }
 
-  // Calculate progress for the ring
-  const total = totalDuration ?? STATUS_DURATIONS[state.status] ?? 25 * 60 * 1000;
+  // Calculate progress for the ring — a paused timer measures against the
+  // phase it froze in, not the "paused" status itself.
+  const progressPhase =
+    state.status === "paused" ? (state.pausedFromStatus ?? "work") : state.status;
+  const total = totalDuration ?? STATUS_DURATIONS[progressPhase] ?? 25 * 60 * 1000;
   const progress = total > 0 ? remaining / total : 0;
 
   // Parse size for SVG ring
@@ -196,7 +203,7 @@ export function TimerDisplay({
   const ring = config.ring ?? {
     enabled: true,
     trackColor: "#ffffff",
-    trackOpacity: 0.15,
+    trackOpacity: 0.18,
     fillColor: "#ffffff",
     fillOpacity: 0.9,
     width: 8,

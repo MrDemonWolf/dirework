@@ -54,6 +54,44 @@ export function interpolate(template: string, vars: Record<string, string>): str
   return template.replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? `{${key}}`);
 }
 
+/**
+ * Format a millisecond duration as a compact chat-friendly string ("18m",
+ * "1h 55m"). Rounds up to the next whole minute and never goes below "1m" —
+ * the Worker runs in UTC, so ETA announcements must be relative, not
+ * wall-clock times.
+ */
+export function formatEtaDuration(ms: number): string {
+  const totalMinutes = Math.max(1, Math.ceil(ms / 60_000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
+}
+
+/** True when the arg is a 1-based task position ("!done 2", "!remove 1", …). */
+function isPositionArg(arg: string | undefined): arg is string {
+  return arg != null && /^\d+$/.test(arg);
+}
+
+/**
+ * Hardcoded bad-usage reply for !remove/!focus (like the !dwhelp fallback) —
+ * reusing config.task.noTask here would falsely tell a viewer with open tasks
+ * that they aren't tracking anything.
+ */
+const POSITIONAL_USAGE_REPLY = (displayName: string) =>
+  `Give me a task number, ${displayName} — try !remove [number] (or !focus [number]). Check your numbers with !check!`;
+
+/**
+ * Resolve a 1-based position arg to the viewer's nth open task — the lookup
+ * every positional task command (!done/!edit/!remove/!focus) repeats. Returns
+ * null when the position is out of range.
+ */
+async function getTaskAtPosition(db: DbClient, twitchId: string, arg: string) {
+  const viewerTasks = await getViewerOpenTasks(db, twitchId);
+  return viewerTasks[parseInt(arg, 10) - 1] ?? null;
+}
+
 export function resolveAlias(command: string, aliases: Record<string, string>): string {
   for (const [alias, target] of Object.entries(aliases)) {
     if (command === `!${alias}`.toLowerCase()) {
@@ -158,15 +196,9 @@ async function handleTaskDone(args: string[], ctx: MessageContext): Promise<void
   const { config, userInfo, say, db } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
-  let task;
-
-  if (args[0] && /^\d+$/.test(args[0])) {
-    const position = parseInt(args[0], 10);
-    const viewerTasks = await getViewerOpenTasks(db, userInfo.twitchId);
-    task = viewerTasks[position - 1];
-  } else {
-    task = await getActiveTask(db, userInfo.twitchId);
-  }
+  const task = isPositionArg(args[0])
+    ? await getTaskAtPosition(db, userInfo.twitchId, args[0])
+    : await getActiveTask(db, userInfo.twitchId);
 
   if (!task) {
     say(interpolate(config.task.noTask, vars));
@@ -181,17 +213,14 @@ async function handleTaskEdit(args: string[], ctx: MessageContext): Promise<void
   const { config, userInfo, say, db } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
-  const firstArg = args[0];
-  if (args.length < 2 || !firstArg || !/^\d+$/.test(firstArg)) {
+  if (args.length < 2 || !isPositionArg(args[0])) {
     say(interpolate(config.task.noTaskToEdit, vars));
     return;
   }
 
-  const position = parseInt(firstArg, 10);
   const newText = args.slice(1).join(" ").trim().slice(0, MAX_TASK_LEN);
 
-  const viewerTasks = await getViewerOpenTasks(db, userInfo.twitchId);
-  const task = viewerTasks[position - 1];
+  const task = await getTaskAtPosition(db, userInfo.twitchId, args[0]);
   if (!task) {
     say(interpolate(config.task.noTaskToEdit, vars));
     return;
@@ -205,14 +234,14 @@ async function handleTaskRemove(args: string[], ctx: MessageContext): Promise<vo
   const { config, userInfo, say, db } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
-  if (!args[0] || !/^\d+$/.test(args[0])) {
-    say(interpolate(config.task.noTask, vars));
+  if (!isPositionArg(args[0])) {
+    // Bad usage, not "no tasks" — config.task.noTask would falsely tell a
+    // viewer with open tasks that they aren't tracking anything.
+    say(POSITIONAL_USAGE_REPLY(userInfo.displayName));
     return;
   }
 
-  const position = parseInt(args[0], 10);
-  const viewerTasks = await getViewerOpenTasks(db, userInfo.twitchId);
-  const task = viewerTasks[position - 1];
+  const task = await getTaskAtPosition(db, userInfo.twitchId, args[0]);
   if (!task) {
     say(interpolate(config.task.noTask, vars));
     return;
@@ -226,14 +255,13 @@ async function handleTaskFocus(args: string[], ctx: MessageContext): Promise<voi
   const { config, userInfo, say, db } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
-  if (!args[0] || !/^\d+$/.test(args[0])) {
-    say(interpolate(config.task.noTask, vars));
+  if (!isPositionArg(args[0])) {
+    // Bad usage, not "no tasks" — same rationale as handleTaskRemove.
+    say(POSITIONAL_USAGE_REPLY(userInfo.displayName));
     return;
   }
 
-  const position = parseInt(args[0], 10);
-  const viewerTasks = await getViewerOpenTasks(db, userInfo.twitchId);
-  const task = viewerTasks[position - 1];
+  const task = await getTaskAtPosition(db, userInfo.twitchId, args[0]);
   if (!task) {
     say(interpolate(config.task.noTask, vars));
     return;
@@ -300,11 +328,17 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
   }
 
   await createTask(db, userInfo, newText, { activate: true });
-  say(interpolate(config.task.taskNext, {
-    ...vars,
-    oldTask: activeTask?.text ?? "",
-    newTask: newText,
-  }));
+  // No active task means there is no {oldTask} to announce — fall back to the
+  // plain taskAdded template instead of interpolating empty quotes.
+  if (activeTask) {
+    say(interpolate(config.task.taskNext, {
+      ...vars,
+      oldTask: activeTask.text,
+      newTask: newText,
+    }));
+  } else {
+    say(interpolate(config.task.taskAdded, { ...vars, task: newText }));
+  }
 }
 
 async function handleClear(args: string[], ctx: MessageContext): Promise<void> {
@@ -383,14 +417,20 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
     }
 
     case "eta": {
-      const etaDate = await getTimerEta(db);
-      if (!etaDate) {
+      const eta = await getTimerEta(db);
+      if (!eta) {
         say(interpolate(config.timer.notRunning, vars));
         return;
       }
 
-      const timeStr = etaDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-      say(interpolate(config.timer.eta, { ...vars, time: timeStr }));
+      // Relative durations, not wall-clock times — the Worker has no idea
+      // what timezone the channel is in (Date#toLocaleTimeString is UTC here).
+      const now = Date.now();
+      say(interpolate(config.timer.eta, {
+        ...vars,
+        phase: formatEtaDuration(eta.phaseEnd.getTime() - now),
+        time: formatEtaDuration(eta.sessionEnd.getTime() - now),
+      }));
       break;
     }
 

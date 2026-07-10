@@ -14,8 +14,8 @@
     "run_worker_first": false
   },
   "vars": {
-    "NEXT_PUBLIC_SERVER_URL": "http://localhost:3000/",
-    "BETTER_AUTH_URL": "http://localhost:3001",
+    "NEXT_PUBLIC_SERVER_URL": "http://localhost:3100/",
+    "BETTER_AUTH_URL": "http://localhost:3101",
     "PRIVACY_POLICY_URL": "",
     "TERMS_OF_SERVICE_URL": ""
   }

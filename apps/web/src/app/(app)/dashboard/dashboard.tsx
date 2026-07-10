@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Bot, Copy, Eye, EyeOff, RefreshCw } from "lucide-react";
@@ -14,6 +14,7 @@ import { StatusChip } from "@/components/status-chip";
 import { TaskManager } from "@/components/task-manager";
 import { TimerProvider, TimerInstrument, TimerSettings } from "@/components/timer-controls";
 import { TimerStatusBadge } from "@/components/timer-status-badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { trpc } from "@/utils/trpc";
 
 function getGreeting(): string {
@@ -21,7 +22,7 @@ function getGreeting(): string {
   if (hour >= 5 && hour < 12) return "Good morning";
   if (hour >= 12 && hour < 17) return "Good afternoon";
   if (hour >= 17 && hour < 21) return "Good evening";
-  return "Up late? Let's grind";
+  return "Working late";
 }
 
 function getSubGreeting(): string {
@@ -84,9 +85,9 @@ function OverlayMonitor({
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
             <EyeOff className="size-5 text-muted-foreground/40" />
-            <p className="text-xs text-muted-foreground">Monitor is off</p>
+            <p className="text-xs text-muted-foreground">Preview is off</p>
             <Button variant="outline" size="sm" onClick={() => onToggle(true)}>
-              Enable monitor
+              Show preview
             </Button>
           </div>
         )}
@@ -113,21 +114,39 @@ function OverlayUrlRow({
 }) {
   const [revealed, setRevealed] = useState(false);
   const [origin, setOrigin] = useState("");
+  const [flash, setFlash] = useState(false);
+  const prevPath = useRef(path);
 
   useEffect(() => {
     setOrigin(window.location.origin);
   }, []);
 
+  // A changed token used to be invisible behind the mask — regen looked
+  // broken. Now the row reveals the fresh URL and flashes to prove it changed.
+  useEffect(() => {
+    if (prevPath.current === path) return;
+    prevPath.current = path;
+    setRevealed(true);
+    setFlash(true);
+    const timer = setTimeout(() => setFlash(false), 1600);
+    return () => clearTimeout(timer);
+  }, [path]);
+
   // Show the full origin-prefixed URL — what the user pastes into OBS.
   const fullUrl = origin ? `${origin}${path}` : path;
+  // Last 6 chars of the token stay visible while masked, so the current
+  // token is identifiable (and visibly different after a regenerate).
+  const fingerprint = path.slice(-6);
 
   return (
     <div className="flex items-center gap-1.5">
       <input
         type="text"
         readOnly
-        value={revealed ? fullUrl : "•".repeat(40)}
-        className="panel-inset h-9 min-w-0 flex-1 truncate px-3 font-mono text-base md:text-sm"
+        value={revealed ? fullUrl : `${"•".repeat(34)}${fingerprint}`}
+        className={`panel-inset h-9 min-w-0 flex-1 truncate px-3 font-mono text-base transition-shadow md:text-sm ${
+          flash ? "ring-2 ring-success" : ""
+        }`}
         aria-hidden={revealed ? undefined : true}
         tabIndex={revealed ? undefined : -1}
         aria-label={revealed ? `${label} URL` : undefined}
@@ -155,23 +174,32 @@ function OverlayUrlRow({
         <Copy className="size-3.5" />
       </Button>
       <div aria-hidden className="mx-1 w-px self-stretch bg-border/40" />
-      <ConfirmDialog
-        trigger={
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-            disabled={regenerating}
-            aria-label={`Regenerate ${label} token`}
-          >
-            <RefreshCw className="size-3.5" />
-          </Button>
-        }
-        title={`Regenerate the ${label.toLowerCase()} token?`}
-        description="The current URL stops working immediately. Any OBS browser source using it will go blank until you copy the new URL and paste it back into OBS."
-        confirmLabel="Regenerate token"
-        onConfirm={onRegenerate}
-      />
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <span className="inline-flex">
+              <ConfirmDialog
+                trigger={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    disabled={regenerating}
+                    aria-label={`Reset ${label} URL`}
+                  >
+                    <RefreshCw className={`size-3.5 ${regenerating ? "animate-spin" : ""}`} />
+                  </Button>
+                }
+                title={`Reset the ${label.toLowerCase()} URL?`}
+                description="The current URL stops working immediately. Any OBS browser source using it will go blank until you copy the new URL and paste it back into OBS."
+                confirmLabel="Reset URL"
+                onConfirm={onRegenerate}
+              />
+            </span>
+          }
+        />
+        <TooltipContent>Reset URL — the current one stops working</TooltipContent>
+      </Tooltip>
     </div>
   );
 }
@@ -188,10 +216,10 @@ export default function Dashboard({
     ...trpc.user.regenerateOverlayToken.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trpc.user.me.queryKey() });
-      toast.success("Overlay token regenerated — paste the new URL into OBS");
+      toast.success("New overlay URL ready — paste it into OBS");
     },
     onError: (err) => {
-      toast.error(`Couldn't regenerate the token: ${err.message}`);
+      toast.error(`Couldn't reset the URL: ${err.message}`);
     },
   });
 
@@ -200,7 +228,7 @@ export default function Dashboard({
       await navigator.clipboard.writeText(`${window.location.origin}${path}`);
       toast.success("Copied to clipboard");
     } catch {
-      toast.error("Couldn't copy — copy the URL manually");
+      toast.error("Couldn't copy — click Show, then copy the URL yourself");
     }
   };
 
@@ -234,7 +262,7 @@ export default function Dashboard({
           <TimerStatusBadge />
           <StatusChip
             tone={botAccount ? "accent" : "idle"}
-            label={botAccount ? "Bot ready" : "Bot off"}
+            label={botAccount ? "Bot ready" : "Bot not connected"}
           />
         </div>
       </div>
@@ -263,7 +291,7 @@ export default function Dashboard({
               <div className="w-full lg:w-72 lg:shrink-0 lg:border-l lg:border-border/40 lg:pl-6">
                 {user.data ? (
                   <OverlayMonitor
-                    label="Timer monitor"
+                    label="Timer preview"
                     src={timerToken ? `/overlay/t/${timerToken}` : null}
                     title="Timer overlay preview"
                     show={showTimerPreview}
@@ -282,7 +310,7 @@ export default function Dashboard({
                 <span className="console-label">Timer overlay URL</span>
               </div>
               <OverlayUrlRow
-                label="Timer Overlay"
+                label="Timer overlay"
                 path={`/overlay/t/${user.data.overlayTimerToken}`}
                 onCopy={() => copyUrl(`/overlay/t/${user.data!.overlayTimerToken}`)}
                 onRegenerate={() => regenerateToken.mutate({ type: "timer" })}
@@ -324,7 +352,7 @@ export default function Dashboard({
           <div className="space-y-2 px-5 py-5">
             {user.data ? (
               <OverlayMonitor
-                label="Tasks monitor"
+                label="Tasks preview"
                 src={tasksToken ? `/overlay/l/${tasksToken}` : null}
                 title="Task list overlay preview"
                 show={showTasksPreview}
@@ -334,26 +362,23 @@ export default function Dashboard({
               <p className="text-sm text-muted-foreground">Loading...</p>
             )}
           </div>
-        </section>
-
-        {/* Tasks overlay URL — full-width strip, matching the timer overlay URL */}
-        {user.data && (
-          <section className="panel space-y-2 px-5 py-4 lg:col-span-3">
-            <div className="console-rule">
-              <span className="console-label">Tasks overlay URL</span>
+          {/* Tasks overlay URL lives WITH the panel that explains it — the old
+              detached full-width strip sat opposite to where the timer's URL was. */}
+          {user.data && (
+            <div className="space-y-2 border-t border-border/40 px-5 py-4">
+              <div className="console-rule">
+                <span className="console-label">Tasks overlay URL</span>
+              </div>
+              <OverlayUrlRow
+                label="Tasks overlay"
+                path={`/overlay/l/${user.data.overlayTasksToken}`}
+                onCopy={() => copyUrl(`/overlay/l/${user.data!.overlayTasksToken}`)}
+                onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
+                regenerating={regenerateToken.isPending}
+              />
             </div>
-            <OverlayUrlRow
-              label="Task List Overlay"
-              path={`/overlay/l/${user.data.overlayTasksToken}`}
-              onCopy={() => copyUrl(`/overlay/l/${user.data!.overlayTasksToken}`)}
-              onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
-              regenerating={regenerateToken.isPending}
-            />
-            <p className="text-xs text-muted-foreground">
-              Add the URL as a browser source in OBS
-            </p>
-          </section>
-        )}
+          )}
+        </section>
 
         {/* Bot quick status — slim full-width strip */}
         <section className="panel lg:col-span-3">
@@ -388,7 +413,7 @@ export default function Dashboard({
               nativeButton={false}
               render={<Link href={"/dashboard/bot" as const} />}
             >
-              {botAccount ? "Bot settings & console" : "Connect the bot"}
+              {botAccount ? "Bot settings & console" : "Connect bot account"}
               <ArrowRight className="size-3.5" />
             </Button>
           </div>

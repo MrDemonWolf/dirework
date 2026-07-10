@@ -10,13 +10,13 @@ const labelFields: {
   label: string;
   description: string;
 }[] = [
-  { key: "idle", label: "Idle", description: "Shown when timer is ready to start" },
-  { key: "starting", label: "Starting", description: "Shown during countdown before work" },
-  { key: "work", label: "Work", description: "Shown during focus sessions" },
+  { key: "idle", label: "Idle", description: "Shown when the timer is ready to start" },
+  { key: "starting", label: "Starting", description: "Shown during the countdown before focus starts" },
+  { key: "work", label: "Focus", description: "Shown during focus sessions" },
   { key: "break", label: "Break", description: "Shown during short breaks" },
-  { key: "longBreak", label: "Long Break", description: "Shown during long breaks" },
-  { key: "paused", label: "Paused", description: "Shown when timer is paused" },
-  { key: "finished", label: "Finished", description: "Shown when all cycles are done" },
+  { key: "longBreak", label: "Long break", description: "Shown during long breaks" },
+  { key: "paused", label: "Paused", description: "Shown while the timer is paused" },
+  { key: "finished", label: "Finished", description: "Shown when all pomos are done" },
 ];
 
 export function PhaseLabelsEditor({
@@ -31,7 +31,7 @@ export function PhaseLabelsEditor({
   };
 
   return (
-    <SectionGroup title="Phase Labels">
+    <SectionGroup title="Phase labels">
       <p className="text-xs text-muted-foreground">
         Customize the text shown on the timer overlay for each phase.
       </p>

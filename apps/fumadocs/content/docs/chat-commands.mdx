@@ -1,5 +1,5 @@
 ---
-title: Chat Commands
+title: Chat commands
 description: All available Twitch chat commands
 ---
 
@@ -12,11 +12,11 @@ Once you've connected a [bot account](/docs/twitch-oauth#step-5-connect-the-bot-
   the bot goes quiet. If you regenerate the bot token, re-copy the URL.
 </Callout>
 
-## Task Commands (All Viewers)
+## Task commands (all viewers)
 
 | Command | Description |
 | --- | --- |
-| `!task <text>` | Add a new task (auto-activates if it's your first) |
+| `!task <text>` | Add a new task (your first task automatically becomes your active one) |
 | `!done` | Mark your active task as done |
 | `!done <number>` | Mark a specific task by position as done |
 | `!edit <number> <text>` | Edit a specific task by position |
@@ -27,7 +27,7 @@ Once you've connected a [bot account](/docs/twitch-oauth#step-5-connect-the-bot-
 | `!next <text>` | Complete your active task and start a new one |
 | `!help` | Show available commands in chat |
 
-## Task Commands (Broadcaster / Mods)
+## Task commands (broadcaster / mods)
 
 | Command | Description |
 | --- | --- |
@@ -35,7 +35,7 @@ Once you've connected a [bot account](/docs/twitch-oauth#step-5-connect-the-bot-
 | `!clear done` | Clear all completed tasks |
 | `!clear @user` | Remove all tasks from a specific user |
 
-## Timer Commands (Broadcaster / Mods)
+## Timer commands (broadcaster / mods)
 
 | Command | Description |
 | --- | --- |
@@ -45,9 +45,9 @@ Once you've connected a [bot account](/docs/twitch-oauth#step-5-connect-the-bot-
 | `!timer resume` | Resume the timer |
 | `!timer skip` | Skip the current phase |
 | `!timer reset` | Reset the timer to idle |
-| `!timer eta` | Show estimated end time |
+| `!timer eta` | Show time remaining in the current phase and the whole session |
 
-## Meta Commands (Always Available)
+## Meta commands (always available)
 
 These commands are always enabled regardless of task or timer command settings.
 
@@ -56,7 +56,7 @@ These commands are always enabled regardless of task or timer command settings.
 | `!dwhelp` | Posts a link to this commands reference page — or, if no docs URL is configured, an inline list of the available commands |
 | `!dwcommands` | Same as `!dwhelp` |
 
-## Active Task & Focus
+## Active task and focus
 
 When you add your first task with `!task`, it automatically becomes your **active** task. Subsequent tasks are added as **pending**.
 
@@ -64,63 +64,63 @@ When you add your first task with `!task`, it automatically becomes your **activ
 - When you complete a task with `!done`, the next pending task is automatically activated.
 - Use `!focus <number>` to manually switch which task is active. The number is the position in your task list (1-based).
 
-## Command Aliases
+## Command aliases
 
 Broadcasters can remap command names in **Bot Settings** (`/dashboard/bot`). For example, you could set `add` to map to `task`, so viewers can use `!add` instead of `!task`.
 
 Aliases are resolved for every command before it runs, so an alias can remap to any command — task, timer, `!clear`, and even the meta commands (`!dwhelp`, `!dwcommands`). The built-in command names always keep working regardless of your aliases.
 
-## Task Priority
+## Task priority
 
 Tasks created by the broadcaster (stream owner) are pinned to the top of the list. Viewer tasks appear below in the order they were added.
 
-## Bot Responses
+## Bot responses
 
 All bot response messages are customizable from the **Bot Settings** page (`/dashboard/bot`). Task and timer command groups can also be individually enabled or disabled.
 
-### Task Bot Responses
+### Task bot responses
 
 | Message | Default | Variables |
 | --- | --- | --- |
 | Task Added | `Awooo! The task "{task}" has been added to the pack, {user}!` | `{task}`, `{user}` |
-| No Task Added | `You're already on the hunt {user}, use !check to see your current task!` | `{user}` |
-| No Task Content | `Tell the pack what you're working on! Use !task [task] {user}` | `{user}` |
-| No Task to Edit | `No task found in your den to edit {user}` | `{user}` |
+| No Task Added | `Your paws are full, {user}! Finish a task with !done before adding another.` | `{user}` |
+| No Task Content | `Tell the pack what you're working on! Use !task [task], {user}!` | `{user}` |
+| No Task to Edit | `No task in your den to edit, {user} — try !edit [number] [new task]!` | `{user}` |
 | Task Edited | `The hunt has changed! Task updated to "{task}" {user}` | `{task}`, `{user}` |
 | Task Removed | `Task "{task}" has been scent-wiped from the list, {user}` | `{task}`, `{user}` |
 | Task Next | `Paws-ome work finishing '{oldTask}'! Now tracking '{newTask}', {user}!` | `{oldTask}`, `{newTask}`, `{user}` |
 | Admin Delete Tasks | `All of the user's tasks have been cleared from the forest.` | none |
 | Task Done | `Alpha work! You finished "{task}" {user}!` | `{task}`, `{user}` |
-| Task Check | `{user}, your current scent is on: "{task}"` | `{user}`, `{task}` |
+| Task Check | `{user}, you're on the scent of "{task}"` | `{user}`, `{task}` |
 | Task Check User | `{user}, {user2} is currently tracking: "{task}"` | `{user}`, `{user2}`, `{task}` |
-| No Task | `Looks like you aren't tracking anything in the forest right now, {user}` | `{user}` |
-| No Task (Other) | `The scent is cold... there is no task from that user {user}` | `{user}` |
-| Not Mod | `Grrr! Permission denied, {user}; Only pack leaders (mods) can do that.` | `{user}` |
+| No Task | `Looks like you aren't tracking anything in the forest right now, {user} — start a hunt with !task [task]!` | `{user}` |
+| No Task (Other) | `The scent is cold, {user} — that viewer isn't tracking a task right now.` | `{user}` |
+| Not Mod | `Grrr! Permission denied, {user} — only pack leaders (mods) can do that.` | `{user}` |
 | Cleared All | `The forest has been cleared of all tasks!` | none |
 | Cleared Done | `All finished tasks have been cleared from the den!` | none |
-| Next No Content | `Don't leave the pack hanging! Try !next [task] {user}` | `{user}` |
-| Help | `{user} Join the hunt with !task, !remove, !edit, or !done.` | `{user}` |
+| Next No Content | `Don't leave the pack hanging! Try !next [task], {user}!` | `{user}` |
+| Help | `{user}, join the hunt: !task, !done, !edit, !remove, !focus, !check, !next — or !dwhelp for the full list.` | `{user}` |
 
-### Timer Bot Responses
+### Timer bot responses
 
 | Message | Default | Variables |
 | --- | --- | --- |
-| Work Started | `Time to hunt some code! Focus mode activated!` | none |
+| Work Started | `Time to hunt! Focus mode activated!` | none |
 | Break Started | `Paws up! Time for a short rest in the den.` | none |
 | Long Break Started | `The whole pack is taking a long snooze! Back soon!` | none |
-| Work Reminder | `Get ready to howl at that code @{channel}, focus starts in 25 seconds!` | `{channel}` |
+| Focus reminder | `Get ready to howl, @{channel} — focus starts in a moment!` | `{channel}` |
 | Not Running | `The timer isn't howling yet! Start it up first.` | none |
-| Stream Starting | `The Blue Wolf is waking up! Stream starting!` | none |
-| Wrong Command | `My ears didn't catch that... Command not recognized!` | none |
+| Stream Starting | `The pack is waking up! Stream starting!` | none |
+| Wrong Command | `My ears didn't catch that... Try !timer start, pause, resume, skip, reset, or eta.` | none |
 | Timer Running | `The hunt is already in progress!` | none |
 | Command Success | `Paw-fect! Done!` | none |
-| Cycle Wrong | `The cycle cannot outrun the goal!` | none |
+| Cycle Wrong | `That cycle count won't work — pick 1 to 99, like !timer start 4.` | none |
 | Goal Wrong | `The goal needs to be further than the cycle!` | none |
 | Finish Response | `Great work today pack! We hunted well.` | none |
 | Already Starting | `The pack is already moving or the timer is running!` | none |
-| ETA | `The hunt will end at {time}` | `{time}` |
+| ETA | `This phase ends in {phase} · the hunt is done in {time}` | `{phase}`, `{time}` |
 
-### Message Variables Reference
+### Message variables reference
 
 | Variable | Description |
 | --- | --- |
@@ -130,4 +130,5 @@ All bot response messages are customizable from the **Bot Settings** page (`/das
 | `{oldTask}` | The task that was just completed (used in `!next`) |
 | `{newTask}` | The new task now being tracked (used in `!next`) |
 | `{channel}` | The Twitch channel name, used as @mention to ping chat |
-| `{time}` | The estimated end time formatted as local clock time (e.g., `03:45 PM`) |
+| `{phase}` | Time remaining in the current phase, as a relative duration (e.g., `18m`) |
+| `{time}` | Time remaining until the whole session ends, as a relative duration (e.g., `1h 55m`) |

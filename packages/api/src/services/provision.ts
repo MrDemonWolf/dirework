@@ -1,20 +1,16 @@
 import { TRPCError } from "@trpc/server";
 
 import type { DbClient } from "@dirework/db";
+import { provisionSingletonRows } from "@dirework/db/provision";
 import * as schema from "@dirework/db/schema";
 
 /**
- * Lazily provision every singleton config row. All columns have defaults, so
- * inserting `{}` is enough; onConflictDoNothing keeps this idempotent.
+ * Lazily provision every singleton config row and return the config rows.
+ * The insert logic is the shared implementation in @dirework/db/provision
+ * (also used by the auth session-create hook, so the two cannot drift).
  */
 export async function ensureSingletons(db: DbClient) {
-  await Promise.all([
-    db.insert(schema.timerConfig).values({}).onConflictDoNothing(),
-    db.insert(schema.timerStyle).values({}).onConflictDoNothing(),
-    db.insert(schema.taskStyle).values({}).onConflictDoNothing(),
-    db.insert(schema.botConfig).values({}).onConflictDoNothing(),
-    db.insert(schema.instanceConfig).values({}).onConflictDoNothing(),
-  ]);
+  await provisionSingletonRows(db);
 
   const [timerConfigRow, timerStyleRow, taskStyleRow, botConfigRow] = await Promise.all([
     db.query.timerConfig.findFirst(),
