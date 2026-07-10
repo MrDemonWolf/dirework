@@ -72,6 +72,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      {/* Self-hosted overlay/Theme-Center font faces (public/fonts, generated
+          by scripts/fetch-fonts.ts). @font-face is lazy — only families a
+          page actually renders get downloaded, straight from the worker's
+          edge-cached static assets instead of Google's CDN. React hoists and
+          dedupes this stylesheet link. */}
+      <link rel="stylesheet" href="/fonts/fonts.css" precedence="default" />
       <body
         className={`${plexSans.variable} ${plexMono.variable} ${montserrat.variable} antialiased`}
       >
