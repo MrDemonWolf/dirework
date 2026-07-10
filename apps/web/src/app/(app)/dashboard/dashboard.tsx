@@ -320,7 +320,7 @@ export default function Dashboard({
           {user.data && (
             <div className="space-y-2 border-t border-border/40 px-5 py-4">
               <ConsoleRule label="Timer overlay URL" className="flex items-center">
-                <SizeChip size="320 × 320" hint="Square OBS browser source — the timer scales to fill it" />
+                <SizeChip size="300 × 300" hint="Square OBS browser source — the timer scales to fill it" />
               </ConsoleRule>
               <OverlayUrlRow
                 label="Timer overlay"
@@ -378,7 +378,7 @@ export default function Dashboard({
           {user.data && (
             <div className="space-y-2 border-t border-border/40 px-5 py-4">
               <ConsoleRule label="Tasks overlay URL" className="flex items-center">
-                <SizeChip size="360 × 720" hint="Tall OBS browser source — fills the height and scrolls when the list overflows" />
+                <SizeChip size="700 × 800" hint="OBS browser source — the list fills it and scrolls when tasks overflow" />
               </ConsoleRule>
               <OverlayUrlRow
                 label="Tasks overlay"
