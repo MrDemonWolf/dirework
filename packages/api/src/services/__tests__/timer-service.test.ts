@@ -2,7 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { DbClient } from "@dirework/db";
 
-import { maybeAdvanceOverdueTimer, resetTimer, resumeTimer, skipTimer } from "../timer-service";
+import {
+  getTimerEta,
+  maybeAdvanceOverdueTimer,
+  resetTimer,
+  resumeTimer,
+  skipTimer,
+} from "../timer-service";
 
 interface StubOptions {
   timerState?: Record<string, unknown>;
@@ -270,5 +276,27 @@ describe("maybeAdvanceOverdueTimer (lazy read-driven transitions)", () => {
     expect(result?.status).toBe("finished");
     expect(setSpy).toHaveBeenCalledOnce();
     expect((setSpy.mock.calls[0]?.[0] as { targetEndTime: Date | null }).targetEndTime).toBeNull();
+  });
+});
+
+describe("getTimerEta bounded projection (CodeRabbit follow-up)", () => {
+  it("returns a TimerEta via the iteration guard when the session needs >100 transitions", async () => {
+    const { db } = makeDb({
+      timerState: {
+        status: "work",
+        targetEndTime: new Date(Date.now() + 60_000),
+        pausedWithRemaining: null,
+        pausedFromStatus: null,
+        currentCycle: 1,
+        // ~2000 phase transitions without the guard — must not hang.
+        totalCycles: 1000,
+      },
+    });
+
+    const eta = await getTimerEta(db);
+
+    expect(eta).not.toBeNull();
+    expect(eta!.phaseEnd).toBeInstanceOf(Date);
+    expect(eta!.sessionEnd.getTime()).toBeGreaterThan(eta!.phaseEnd.getTime());
   });
 });
