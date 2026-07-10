@@ -4,6 +4,7 @@ import {
   toHexOpacity,
   formatTime,
   formatClock,
+  resolvePhaseDuration,
   roundedRectPath,
 } from "../timer-utils";
 
@@ -96,6 +97,44 @@ describe("formatTime", () => {
   it("should ceil partial seconds", () => {
     const result = formatTime(100, false); // 0.1 seconds → ceil to 1
     expect(result.seconds).toBe("01");
+  });
+});
+
+describe("resolvePhaseDuration", () => {
+  // Non-default configured durations (50-min work) — the bug was falling back
+  // to a hardcoded 25/5/15 map instead of these.
+  const durations = {
+    workDuration: 50 * 60 * 1000,
+    breakDuration: 10 * 60 * 1000,
+    longBreakDuration: 30 * 60 * 1000,
+    startingDuration: 5000,
+  };
+
+  it("resolves each running phase from the configured durations", () => {
+    expect(resolvePhaseDuration("work", null, durations)).toBe(durations.workDuration);
+    expect(resolvePhaseDuration("break", null, durations)).toBe(durations.breakDuration);
+    expect(resolvePhaseDuration("longBreak", null, durations)).toBe(durations.longBreakDuration);
+    expect(resolvePhaseDuration("starting", null, durations)).toBe(durations.startingDuration);
+  });
+
+  it("resolves a paused timer against the phase it froze in", () => {
+    expect(resolvePhaseDuration("paused", "break", durations)).toBe(durations.breakDuration);
+    expect(resolvePhaseDuration("paused", "longBreak", durations)).toBe(durations.longBreakDuration);
+  });
+
+  it("defaults a paused timer with no recorded phase to work", () => {
+    expect(resolvePhaseDuration("paused", null, durations)).toBe(durations.workDuration);
+    expect(resolvePhaseDuration("paused", undefined, durations)).toBe(durations.workDuration);
+  });
+
+  it("returns null for phases without a fixed duration", () => {
+    expect(resolvePhaseDuration("idle", null, durations)).toBeNull();
+    expect(resolvePhaseDuration("finished", null, durations)).toBeNull();
+    expect(resolvePhaseDuration("mystery", null, durations)).toBeNull();
+  });
+
+  it("ignores pausedFromStatus while running", () => {
+    expect(resolvePhaseDuration("work", "break", durations)).toBe(durations.workDuration);
   });
 });
 

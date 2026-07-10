@@ -14,13 +14,13 @@ design-system/
 
 ## Generated outputs
 
-`bun run tokens` (from repo root) regenerates three files. All are committed so consumers never need to run the generator themselves.
+`bun run tokens` (from repo root) regenerates one file. It is committed so consumers never need to run the generator themselves.
 
 | Platform | Output | Consumed by |
 |---|---|---|
-| Docs site | `apps/fumadocs/src/app/tokens.generated.css` | CSS custom properties (`--ds-*`) imported by `global.css` |
-| Web app | `apps/web/src/tokens.generated.css` | CSS custom properties (`--ds-*`), available alongside the shadcn `oklch` theme |
 | Docs widgets | `apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts` | Typed `OVERLAY_THEMES` map powering the landing-page theme gallery |
+
+Shared overlay geometry (squircle path/perimeter, `SQUIRCLE_RADIUS`, MM:SS clock formatting) lives in the pure workspace package `packages/overlay-kit` (`@dirework/overlay-kit`), used by both the real overlays (apps/web) and the docs mocks. A unit test (`apps/web/src/lib/__tests__/theme-palette-sync.test.ts`) asserts `tokens.json` stays in sync with the web app's theme presets and with `SQUIRCLE_RADIUS`.
 
 ## Token namespaces
 
@@ -41,7 +41,7 @@ design-system/
 | `motion.duration` | Animation durations (ms) | `fast=150`, `base=220`, `slow=320` |
 | `motion.easing` | Cubic-beziers | `standard`, `emphasized` |
 | `shadow` | Drop shadows incl. brand glow | `xs … lg`, `glow` |
-| `overlay.themes` | OBS overlay theme swatches | 11 presets `{ bg, accent, text, username }` |
+| `overlay.themes` | OBS overlay theme swatches | 6 presets `{ bg, accent, text, username }` |
 
 ## Brand primary
 
@@ -49,7 +49,7 @@ Dirework's primary brand color is a **blue-leaning purple `#6E5AF5`** (hue ≈ 2
 
 ## Overlay themes
 
-`overlay.themes` mirrors the 11 presets shipped in `apps/web/src/lib/theme-presets.ts`. The full nested style objects live in the app; this file holds only the four swatch colors (`bg`, `accent`, `text`, `username`) each theme exposes, which is all the docs gallery needs. When a preset's preview colors change, update both.
+`overlay.themes` mirrors the 6 presets shipped in `apps/web/src/lib/theme-presets.ts`. The full nested style objects live in the app; this file holds only the four swatch colors (`bg`, `accent`, `text`, `username`) each theme exposes, which is all the docs gallery needs. When a preset's preview colors change, update both — `apps/web/src/lib/__tests__/theme-palette-sync.test.ts` fails CI if they drift.
 
 ## Change process
 

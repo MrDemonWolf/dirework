@@ -5,12 +5,10 @@
   "type": "module",
   "exports": {
     "./server": "./src/server.ts",
-    "./web": "./src/web.ts",
-    "./cloudflare-local": "./src/cloudflare-local.ts"
+    "./web": "./src/web.ts"
   },
   "dependencies": {
     "@t3-oss/env-nextjs": "^0.13.1",
-    "dotenv": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
