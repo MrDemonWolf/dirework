@@ -1,13 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { z } from "zod";
 
-// Mirror the updated schema from the config router
-const commandAliasesSchema = z.object({
-  commandAliases: z.record(z.string().max(50), z.string().max(100)).refine(
-    (obj) => Object.keys(obj).length <= 50,
-    { message: "Maximum of 50 command aliases allowed" },
-  ),
-});
+// The REAL router input schema (env-free module) — no hand-copied mirror.
+import { commandAliasesInput as commandAliasesSchema } from "../input-schemas";
 
 describe("config.updateCommandAliases input validation", () => {
   it("accepts valid aliases", () => {

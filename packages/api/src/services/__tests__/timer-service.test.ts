@@ -214,6 +214,47 @@ describe("maybeAdvanceOverdueTimer (lazy read-driven transitions)", () => {
     );
   });
 
+  it("re-reads instead of double-advancing when the guarded update loses the race", async () => {
+    // Two clients (dashboard + overlay poll) read the same overdue work phase.
+    // The other poller wins the guarded UPDATE (targetEndTime no longer
+    // matches, so returning() is empty); this poller must re-read and accept
+    // the advanced row — never apply its own transition on top (which would
+    // skip the break). This is the property the dashboard relies on now that
+    // its client-side auto-advance mutation is gone.
+    const prevEnd = new Date(Date.now() - 1_000);
+    const overdueWork = { ...base, status: "work", targetEndTime: prevEnd };
+    const advancedByOther = {
+      ...base,
+      status: "break",
+      targetEndTime: new Date(prevEnd.getTime() + config.breakDuration),
+    };
+
+    const findFirst = vi.fn()
+      .mockResolvedValueOnce(overdueWork) // initial read: still overdue
+      .mockResolvedValue(advancedByOther); // re-read after losing the race
+    const setSpy = vi.fn();
+    const db = {
+      query: {
+        timerState: { findFirst },
+        timerConfig: { findFirst: async () => config },
+      },
+      update: () => ({
+        set: (values: Record<string, unknown>) => {
+          setSpy(values);
+          return { where: () => ({ returning: async () => [] }) };
+        },
+      }),
+    } as unknown as DbClient;
+
+    const result = await maybeAdvanceOverdueTimer(db);
+    expect(result?.status).toBe("break");
+    expect(result?.targetEndTime).toEqual(advancedByOther.targetEndTime);
+    // Exactly one (lost) write attempt — the re-read row is in the future, so
+    // the loop exits without stacking a second transition.
+    expect(setSpy).toHaveBeenCalledOnce();
+    expect(findFirst).toHaveBeenCalledTimes(2);
+  });
+
   it("runs an overdue final phase into finished and stops", async () => {
     const prevEnd = new Date(Date.now() - 1_000);
     const { db, setSpy } = makeDb({

@@ -6,7 +6,7 @@ export const defaultTimerStyles: TimerStylesConfig = {
   ring: {
     enabled: true,
     trackColor: "#ffffff",
-    trackOpacity: 0.1,
+    trackOpacity: 0.18,
     fillColor: "#00aced",
     fillOpacity: 1,
     width: 8,
@@ -89,7 +89,7 @@ export const themePresets: ThemePreset[] = [
   {
     id: "default",
     name: "Default",
-    description: "MrDemonWolf midnight blue with cerulean accents",
+    description: "Midnight blue with bright cyan accents",
     preview: { bg: "#091533", accent: "#00aced", text: "#ffffff" },
     // Deep-clone so nested objects (ring, header, checkbox…) aren't shared
     // with the exported defaults — same isolation the tasks() helper gives.
@@ -123,7 +123,7 @@ export const themePresets: ThemePreset[] = [
   {
     id: "glass-dark",
     name: "Liquid Glass Dark",
-    description: "macOS Tahoe dark mode — translucent dark panels",
+    description: "Translucent dark panels with a frosted-glass look",
     preview: { bg: "#1c1c1e", accent: "#0a84ff", text: "#f5f5f7" },
     timerStyles: {
       dimensions: { width: "250px", height: "250px" },
@@ -191,7 +191,7 @@ export const themePresets: ThemePreset[] = [
   {
     id: "twitch-purple",
     name: "Twitch Purple",
-    description: "Official Twitch brand colors and feel",
+    description: "Twitch's signature purple on dark panels",
     preview: { bg: "#0e0e10", accent: "#9146ff", text: "#efeff1" },
     timerStyles: {
       dimensions: { width: "250px", height: "250px" },

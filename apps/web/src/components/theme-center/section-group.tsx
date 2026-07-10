@@ -28,7 +28,7 @@ export function SectionGroup({
         <ChevronDown className="size-3.5 transition-transform [[data-state=open]>&]:rotate-180 [[data-panel-open]>&]:rotate-180" />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="space-y-3 px-3 pt-1 pb-3">{children}</div>
+        <div className="space-y-3 px-4 pt-1.5 pb-4">{children}</div>
       </CollapsibleContent>
     </Collapsible>
   );

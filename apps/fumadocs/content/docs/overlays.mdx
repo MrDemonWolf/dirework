@@ -3,7 +3,7 @@ title: Overlays
 description: How to add Dirework overlays to OBS
 ---
 
-Dirework provides two overlays that you add as **Browser Sources** in OBS (or any streaming software that supports browser sources).
+Dirework provides two overlays that you add as browser sources in OBS (or any streaming software that supports them).
 
 ## Overlay URLs
 
@@ -12,7 +12,7 @@ After signing in, go to your **Dashboard**. In the **Overlay URLs** card you'll 
 - **Timer Overlay** — `/overlay/t/{token}`
 - **Task List Overlay** — `/overlay/l/{token}`
 
-Each overlay has a unique token. Click the copy button next to each URL to copy the full URL.
+Each overlay has its own private URL. Use the copy button next to each one to grab the full overlay URL.
 
 <Callout type="warn">
   Keep your overlay tokens private. Anyone with the URL can view your overlay. If a token is compromised, click the regenerate button to create a new one.
@@ -27,10 +27,10 @@ Each overlay has a unique token. Click the copy button next to each URL to copy 
 5. Set the dimensions:
    - **Timer:** 250 x 250 (or match your timer style config)
    - **Task List:** 400 x 600 (adjust to fit your layout)
-6. **Important:** Check **"Shutdown source when not visible"** (optional but recommended)
+6. Check **"Shutdown source when not visible"** (recommended — the source reloads cleanly when you switch scenes)
 7. Click **OK**
 
-## Timer Overlay
+## Timer overlay
 
 The timer overlay shows:
 - Current phase label (defaults are wolf-themed and editable in Theme Center — e.g. "Gathering the Pack", "On the Hunt", "Den Rest", "Pack Slumber", "Paws'd", "Hunt Complete")
@@ -38,16 +38,16 @@ The timer overlay shows:
 - Cycle count (e.g. 1/4)
 - Progress ring (circle or rounded rectangle shape)
 
-The timer automatically transitions through phases: Starting (5s countdown) → Focus → Break → Focus → … with a Long Break replacing the regular Break every few cycles (4 by default), ending in Done after the final Focus. Transitions are read-driven, so an open timer overlay in OBS advances the timer on its own (it polls every ~2s) — no dashboard tab needs to stay open. The dashboard or an incoming chat command will nudge it forward too.
+The timer automatically transitions through phases: Starting (5s countdown) → Focus → Break → Focus → … with a Long Break replacing the regular Break every few cycles (4 by default), ending in Done after the final Focus. The timer moves forward whenever something is watching it: an open timer overlay in OBS checks in every few seconds and advances the timer on its own — no dashboard tab needs to stay open. The dashboard or an incoming chat command will nudge it forward too.
 
-### Progress Ring Shapes
+### Progress ring shapes
 
 The timer supports two progress ring shapes:
 
 - **Circle** — Standard circular ring using SVG `<circle>`
 - **Rounded Rectangle (Squircle)** — macOS-style rounded corners, drawn as an SVG `<path>`. The corner radius comes from the **Background border radius** setting (default 22%), which is shared with the container — there is no separate ring radius. Set that value to `50%` to switch the ring to a full circle instead.
 
-## Task List Overlay
+## Task list overlay
 
 The task list overlay shows:
 - Header with "Tasks" title and completion count
@@ -56,9 +56,9 @@ The task list overlay shows:
 - Checkboxes (or bullets) for task status
 - Completed tasks with strikethrough text
 
-When scroll is enabled, the task list auto-scrolls using a dual-container infinite scroll animation. Scroll can be disabled in the Theme Center to use standard overflow scrolling instead.
+When scroll is enabled, the task list loops in a smooth, continuous scroll so every task gets screen time. You can turn scroll off in the Theme Center to show a fixed list instead.
 
-## Dashboard Preview
+## Dashboard preview
 
 The dashboard includes live preview iframes for both overlays. Use the **Preview** toggle button on each card to show or hide the preview. Previews are hidden by default to keep the page fast.
 
@@ -66,7 +66,7 @@ The dashboard includes live preview iframes for both overlays. Use the **Preview
 
 Both overlays are fully customizable through the **Theme Center** at `/dashboard/styles`. This is a visual editor with a live preview panel.
 
-### Timer Overlay Settings
+### Timer overlay settings
 
 | Category | Options |
 | --- | --- |
@@ -75,13 +75,13 @@ Both overlays are fully customizable through the **Theme Center** at `/dashboard
 | **Progress Ring** | Enabled/disabled, track color, fill color, track/fill opacity, width, gap |
 | **Text** | Color, outline color, outline size, font family |
 | **Font Sizes** | Phase label, countdown time, cycle count |
-| **Labels** | Custom text for each of the seven phases — Idle, Starting, Work, Break, Long Break, Paused, Finished. Defaults are wolf-themed: "Resting", "Gathering the Pack", "On the Hunt", "Den Rest", "Pack Slumber", "Paws'd", "Hunt Complete". |
+| **Labels** | Custom text for each of the seven phases — Idle, Starting, Focus, Break, Long break, Paused, Done. Defaults are wolf-themed: "Resting", "Gathering the Pack", "On the Hunt", "Den Rest", "Pack Slumber", "Paws'd", "Hunt Complete". |
 
 > The progress ring has no dedicated shape control — its shape follows the **Background**
 > border radius. Set the border radius to `50%` for a circle; any other value (e.g. `22%`)
 > renders a rounded rectangle (squircle).
 
-### Task List Overlay Settings
+### Task list overlay settings
 
 | Category | Options |
 | --- | --- |
@@ -95,7 +95,7 @@ Both overlays are fully customizable through the **Theme Center** at `/dashboard
 | **Checkboxes** | Size, background, border, margin, tick character, tick size, tick color |
 | **Bullets** | Character, size, color, margin |
 
-### Theme Presets
+### Theme presets
 
 The Theme Center includes 6 built-in presets to get you started:
 
@@ -108,14 +108,14 @@ The Theme Center includes 6 built-in presets to get you started:
 
 Apply a preset as a starting point, then customize individual settings to match your stream.
 
-## Transparent Background
+## Transparent background
 
 The overlays render with a transparent background by default. In OBS, the browser source will show only the timer or task list widget without any background, making it easy to layer over your stream.
 
-## How Updates Work
+## How updates work
 
-Both overlays check for changes every **couple of seconds**. When you start the timer,
-add a task, or make any change on the dashboard, the overlay picks it up within about 2
+Both overlays check for changes every **few seconds**. When you start the timer,
+add a task, or make any change on the dashboard, the overlay picks it up within a few
 seconds.
 
 The timer countdown itself doesn't wait for those checks — it ticks down smoothly on the

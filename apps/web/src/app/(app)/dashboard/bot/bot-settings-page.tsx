@@ -131,10 +131,10 @@ function BotConsoleCard({
     ...trpc.bot.regenerateBotToken.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trpc.bot.getIngestInfo.queryKey() });
-      toast.success("Bot page token regenerated — the old URL no longer works");
+      toast.success("Bot page URL reset — the old one no longer works");
     },
     onError: (err) => {
-      toast.error(`Couldn't regenerate the bot token: ${err.message}`);
+      toast.error(`Couldn't reset the bot page URL: ${err.message}`);
     },
   });
 
@@ -148,7 +148,7 @@ function BotConsoleCard({
       await navigator.clipboard.writeText(botUrl);
       toast.success("Bot page URL copied");
     } catch {
-      toast.error("Couldn't copy — copy the URL manually");
+      toast.error("Couldn't copy — click Show, then copy the URL yourself");
     }
   };
 
@@ -156,7 +156,7 @@ function BotConsoleCard({
     <Card className="panel-hero">
       <CardHeader className="border-b border-border/40 px-5">
         <div className="console-rule">
-          <span className="console-label">Bot Runtime</span>
+          <span className="console-label">Console</span>
         </div>
         <CardTitle className="font-heading text-lg font-semibold tracking-tight">
           {botName ?? "Bot console"}
@@ -164,7 +164,7 @@ function BotConsoleCard({
         <CardAction>
           <StatusChip
             tone={ready ? "accent" : "idle"}
-            label={ready ? "Ready" : "Not configured"}
+            label={ready ? "Ready" : "Not set up"}
           />
         </CardAction>
         <CardDescription>
@@ -230,14 +230,14 @@ function BotConsoleCard({
                     size="icon"
                     className="size-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     disabled={regenerateBotToken.isPending}
-                    aria-label="Regenerate bot page token"
+                    aria-label="Reset bot page URL"
                   >
                     <RefreshCw className="size-3.5" />
                   </Button>
                 }
-                title="Regenerate the bot page token?"
+                title="Reset the bot page URL?"
                 description="The current bot page URL stops working immediately. Any OBS browser source or pinned tab running the bot goes offline until you open the new URL."
-                confirmLabel="Regenerate token"
+                confirmLabel="Reset URL"
                 onConfirm={() => regenerateBotToken.mutate()}
               />
             </div>
@@ -282,11 +282,11 @@ export default function BotSettingsPage() {
   useEffect(() => {
     const botStatus = searchParams.get("bot");
     if (botStatus === "connected") {
-      toast.success("Bot account connected successfully!");
+      toast.success("Bot account connected");
       router.replace("/dashboard/bot");
     } else if (botStatus === "error") {
       const reason = searchParams.get("reason") ?? "unknown";
-      toast.error(`Failed to connect bot account: ${reason}`);
+      toast.error(`Couldn't connect the bot account (${reason}). Try again.`);
       router.replace("/dashboard/bot");
     }
   }, [searchParams, router]);
@@ -339,7 +339,7 @@ export default function BotSettingsPage() {
       toast.success("Bot account disconnected");
     },
     onError: (err) => {
-      toast.error(`Couldn't disconnect the bot: ${err.message}`);
+      toast.error(`Couldn't disconnect the bot account: ${err.message}`);
     },
   });
 
@@ -400,26 +400,36 @@ export default function BotSettingsPage() {
       return;
     }
 
-    try {
-      await updateMessagesMutation.mutateAsync({
-        taskCommandsEnabled,
-        timerCommandsEnabled,
-        task: taskMessages,
-        timer: timerMessages,
-      });
-      await updateAliasesMutation.mutateAsync({
-        commandAliases: aliases,
-      });
+    // Save the two groups independently and snapshot each only on ITS
+    // success — the old sequential version marked nothing saved on a partial
+    // failure, so the UI showed the messages as unsaved even though the
+    // server had them, and Reset silently diverged from the server.
+    const results = await Promise.allSettled([
+      updateMessagesMutation
+        .mutateAsync({
+          taskCommandsEnabled,
+          timerCommandsEnabled,
+          task: taskMessages,
+          timer: timerMessages,
+        })
+        .then(() => {
+          setSavedTaskCommandsEnabled(taskCommandsEnabled);
+          setSavedTimerCommandsEnabled(timerCommandsEnabled);
+          setSavedTaskMessages(taskMessages);
+          setSavedTimerMessages(timerMessages);
+        }),
+      updateAliasesMutation
+        .mutateAsync({ commandAliases: aliases })
+        .then(() => {
+          setSavedAliasRows(aliasRows);
+        }),
+    ]);
 
-      setSavedTaskCommandsEnabled(taskCommandsEnabled);
-      setSavedTimerCommandsEnabled(timerCommandsEnabled);
-      setSavedTaskMessages(taskMessages);
-      setSavedTimerMessages(timerMessages);
-      setSavedAliasRows(aliasRows);
+    if (results.every((r) => r.status === "fulfilled")) {
       toast.success("Bot settings saved");
-    } catch {
-      // per-mutation onError already surfaced the failure
     }
+    // Failures were already toasted by each mutation's onError; the failed
+    // group stays dirty so the Save bar keeps offering a retry.
   }, [
     taskCommandsEnabled,
     timerCommandsEnabled,
@@ -448,7 +458,9 @@ export default function BotSettingsPage() {
   // comparisons as the tab dots, so reverting an edit clears them all.
   const hasUnsaved = taskDirty || timerDirty || aliasDirty;
 
-  if (config.isLoading) {
+  // Wait for BOTH queries — rendering on config alone flashed a false
+  // "Not connected / Not configured" while the user query was still loading.
+  if (config.isLoading || user.isLoading) {
     return <BotSettingsSkeleton />;
   }
 
@@ -459,7 +471,7 @@ export default function BotSettingsPage() {
       <UnsavedChangesGuard dirty={hasUnsaved} />
 
       <div className="mb-8">
-        <h1 className="font-heading text-3xl font-bold tracking-tight">Bot Settings</h1>
+        <h1 className="font-heading text-3xl font-bold tracking-tight">Bot settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Connect the bot account, run the bot console, and tune its chat responses
         </p>
@@ -481,7 +493,7 @@ export default function BotSettingsPage() {
                 <span className="console-label">Identity</span>
               </div>
               <CardTitle className="font-heading text-lg font-semibold tracking-tight">
-                Bot Account
+                Bot account
               </CardTitle>
               <CardAction>
                 {botAccount ? (
@@ -490,7 +502,7 @@ export default function BotSettingsPage() {
                   <StatusChip tone="idle" label="Not connected" />
                 )}
               </CardAction>
-              <CardDescription>The Twitch account the bot chats as</CardDescription>
+              <CardDescription>The Twitch account that talks in your chat</CardDescription>
             </CardHeader>
             <CardContent className="px-5">
               {botAccount ? (
@@ -522,8 +534,9 @@ export default function BotSettingsPage() {
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    No bot account connected. Sign in with the Twitch account you want chatting —
-                    most streamers use a dedicated second account.
+                    No bot account connected yet. Sign in with the account the bot should chat
+                    from — most streamers use a separate second account so replies don&apos;t post
+                    as them.
                   </p>
                   <Button
                     size="sm"
@@ -532,7 +545,7 @@ export default function BotSettingsPage() {
                     render={<a href="/api/bot/authorize" />}
                   >
                     <TwitchIcon className="size-3.5" />
-                    Connect Bot Account
+                    Connect bot account
                   </Button>
                 </div>
               )}
@@ -545,7 +558,7 @@ export default function BotSettingsPage() {
           <Card className="panel">
             <CardHeader className="border-b border-border/40 px-5">
               <div className="console-rule">
-                <span className="console-label">Chat Commands</span>
+                <span className="console-label">Chat commands</span>
               </div>
               <CardTitle className="font-heading text-lg font-semibold tracking-tight">
                 Commands &amp; messages
@@ -556,21 +569,23 @@ export default function BotSettingsPage() {
             </CardHeader>
             <CardContent className="px-5">
               <Tabs defaultValue="tasks">
-                <TabsList>
+                {/* Full-width rail: triggers are flex-1, so the three tabs
+                    share the row equally and resize with it. */}
+                <TabsList className="h-9 w-full gap-1">
                   <TabsTrigger
                     value="tasks"
-                    aria-label={taskDirty ? "Task Commands (unsaved changes)" : undefined}
+                    aria-label={taskDirty ? "Task commands (unsaved changes)" : undefined}
                   >
-                    Task Commands
+                    Task commands
                     {taskDirty && (
                       <span aria-hidden className="size-1.5 rounded-full bg-warning" />
                     )}
                   </TabsTrigger>
                   <TabsTrigger
                     value="timer"
-                    aria-label={timerDirty ? "Timer Commands (unsaved changes)" : undefined}
+                    aria-label={timerDirty ? "Timer commands (unsaved changes)" : undefined}
                   >
-                    Timer Commands
+                    Timer commands
                     {timerDirty && (
                       <span aria-hidden className="size-1.5 rounded-full bg-warning" />
                     )}
@@ -589,8 +604,8 @@ export default function BotSettingsPage() {
                 {/* Task Commands Tab */}
                 <TabsContent value="tasks">
                   <CommandTabPanel
-                    title="Task Commands"
-                    subtitle="Viewer task management via chat"
+                    title="Task commands"
+                    subtitle="Viewers manage their tasks from chat"
                     idPrefix="task"
                     enabled={taskCommandsEnabled}
                     onEnabledChange={setTaskCommandsEnabled}
@@ -605,8 +620,8 @@ export default function BotSettingsPage() {
                 {/* Timer Commands Tab */}
                 <TabsContent value="timer">
                   <CommandTabPanel
-                    title="Timer Commands"
-                    subtitle="Mod-only timer control via chat"
+                    title="Timer commands"
+                    subtitle="Mods control the timer from chat"
                     idPrefix="timer"
                     enabled={timerCommandsEnabled}
                     onEnabledChange={setTimerCommandsEnabled}

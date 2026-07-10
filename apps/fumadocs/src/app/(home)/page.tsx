@@ -120,11 +120,24 @@ function TimerModuleMock() {
 type CellState = "yes" | "no" | "partial";
 function CompareCell({ state }: { state: CellState }) {
   const Icon = state === "yes" ? Check : state === "partial" ? Minus : XIcon;
-  const color = state === "yes" ? "var(--brand-600)" : "var(--txt-2)";
-  const bg = state === "yes" ? "var(--brand-50)" : "color-mix(in srgb, var(--bg-surface) 60%, transparent)";
+  // Three visually distinct verdicts: brand yes, amber partial, muted no —
+  // color + icon shape together, so neither carries the meaning alone.
+  const color =
+    state === "yes"
+      ? "var(--brand-600)"
+      : state === "partial"
+        ? "var(--chip-warn-fg)"
+        : "var(--txt-2)";
+  const bg =
+    state === "yes"
+      ? "var(--brand-50)"
+      : state === "partial"
+        ? "color-mix(in srgb, var(--phase-paused) 14%, transparent)"
+        : "color-mix(in srgb, var(--bg-surface) 60%, transparent)";
   return (
     <div className="flex items-center justify-center">
       <span
+        role="img"
         className="inline-flex items-center justify-center w-7 h-7 rounded-full"
         style={{ backgroundColor: bg, color }}
         aria-label={state === "yes" ? "Yes" : state === "no" ? "No" : "Partial"}
@@ -187,19 +200,33 @@ export default function HomePage() {
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
-              <p className="mt-4 dw-mono text-[0.7rem] sm:text-xs dw-text-2 tracking-wide">
-                One instance per streamer · Free plan-friendly · No lock-in
+              <p className="mt-4 dw-mono text-xs dw-text-2 tracking-wide">
+                One Dirework per streamer · Free plan-friendly · No lock-in
               </p>
 
               <div className="dw-reveal dw-reveal-3 mt-6 flex flex-wrap items-center justify-center lg:justify-start gap-2">
-                <a href={GITHUB} target="_blank" rel="noopener noreferrer" className="dw-pill">
+                <a
+                  href={GITHUB}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Open source on GitHub (opens in a new tab)"
+                  className="dw-pill dw-pill-link"
+                >
                   <Github className="w-3.5 h-3.5" /> Open source
+                  <ExternalLink className="w-3 h-3 opacity-60" aria-hidden="true" />
                 </a>
                 <span className="dw-pill">
                   <Shield className="w-3.5 h-3.5" /> Your data, your Cloudflare
                 </span>
-                <a href={DISCORD} target="_blank" rel="noopener noreferrer" className="dw-pill">
+                <a
+                  href={DISCORD}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Discord community (opens in a new tab)"
+                  className="dw-pill dw-pill-link"
+                >
                   <Radio className="w-3.5 h-3.5" /> Discord community
+                  <ExternalLink className="w-3 h-3 opacity-60" aria-hidden="true" />
                 </a>
               </div>
             </div>
@@ -229,7 +256,7 @@ export default function HomePage() {
               {
                 icon: Twitch,
                 title: "For streamers",
-                body: "Log in with Twitch, connect a bot account, drop two browser sources in OBS. Run focus sprints without alt-tabbing mid-stream.",
+                body: "Sign in with Twitch, connect a bot account, drop two browser sources in OBS. Run focus sprints without alt-tabbing mid-stream.",
                 href: "/docs/getting-started",
                 cta: "Getting started",
               },
@@ -284,8 +311,8 @@ export default function HomePage() {
               <code className="dw-mono dw-text-1">!done</code>, and{" "}
               <code className="dw-mono dw-text-1">!focus</code>. Mods drive the timer
               with <code className="dw-mono dw-text-1">!timer start</code>. Every
-              command is aliasable and every reply is yours to reword. The bot lives in a
-              token-gated browser page holding a Twitch IRC socket — no extra process to run.
+              command is aliasable and every reply is yours to reword. The bot runs from a
+              private browser page you keep open in OBS or a pinned tab — no extra software to run.
             </p>
             <Link
               href="/docs/chat-commands"
@@ -313,11 +340,11 @@ export default function HomePage() {
             </h2>
             <p className="dw-text-2 text-lg mt-5 leading-relaxed">
               Two transparent browser sources — a timer and a task list — for OBS.
-              Each polls the public API every couple of seconds, so a{" "}
+              Each checks for changes every few seconds, so a{" "}
               <code className="dw-mono dw-text-1">!done</code> in chat lands on screen
-              within ~2s; the countdown ticks locally at 100ms for smooth motion. Start
-              from one of six presets and tune every color, font, size, and corner radius —
-              pick a theme to preview it live.
+              in about three seconds — and the countdown ticks smoothly on the overlay
+              itself. Start from one of six presets and tune every color, font, size, and
+              corner radius — pick a theme to preview it live.
             </p>
             <Link
               href="/docs/overlays"
@@ -331,9 +358,9 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════ FEATURES GRID ═══════════════ */}
-      <section id="features" className="dw-bg-surface px-6 py-14 sm:py-20 lg:py-28 scroll-mt-16">
+      <section id="features" className="dw-bg-base px-6 py-14 sm:py-20 lg:py-28 scroll-mt-16">
         <div className="mx-auto max-w-6xl">
-          <SectionHead num="05" eyebrow="What's in the box" title={<>Everything a focus stream needs.</>} />
+          <SectionHead num="04" eyebrow="What's in the box" title={<>Everything a focus stream needs.</>} />
           <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
               {
@@ -349,7 +376,7 @@ export default function HomePage() {
               {
                 icon: Tv,
                 title: "OBS overlays",
-                body: "Transparent browser sources that poll every ~2s. Circle or squircle progress rings, local 100ms ticks.",
+                body: "Transparent browser sources that update within seconds. Circle or squircle progress rings and a smooth, always-live countdown.",
               },
               {
                 icon: Palette,
@@ -373,15 +400,20 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════ COMPARISON ═══════════════ */}
-      <section id="compare" className="dw-bg-base px-6 py-14 sm:py-20 lg:py-28 scroll-mt-16">
+      <section id="compare" className="dw-bg-surface px-6 py-14 sm:py-20 lg:py-28 scroll-mt-16">
         <div className="mx-auto max-w-5xl">
           <SectionHead
-            num="06"
+            num="05"
             eyebrow="Honest comparison"
             title={<>Why self-host Dirework?</>}
             sub="Hosted task widgets are convenient until they're not. Dirework trades a one-time setup for full ownership — on Cloudflare's free plan."
           />
-          <div className="mt-12 overflow-x-auto">
+          <div
+            className="mt-12 overflow-x-auto focus-visible:outline-2 focus-visible:outline-[var(--brand-500)]"
+            tabIndex={0}
+            role="region"
+            aria-label="Feature comparison table (scrolls horizontally)"
+          >
             <div className="dw-card panel min-w-[600px]" style={{ padding: "1.5rem 2rem" }}>
               <table className="w-full text-sm">
                 <thead>
@@ -453,7 +485,7 @@ export default function HomePage() {
 
       {/* ═══════════════ SELF-HOST / DEV ═══════════════ */}
       <section
-        className="dw-bg-surface px-6 py-14 sm:py-20 lg:py-28 relative overflow-hidden"
+        className="dw-bg-base px-6 py-14 sm:py-20 lg:py-28 relative overflow-hidden"
         style={{
           backgroundImage:
             "radial-gradient(color-mix(in srgb, var(--hairline) 70%, transparent) 1px, transparent 1px)",
@@ -462,7 +494,7 @@ export default function HomePage() {
       >
         <div className="mx-auto max-w-5xl relative">
           <SectionHead
-            num="07"
+            num="06"
             eyebrow="For self-hosters & devs"
             title={
               <>
@@ -491,7 +523,7 @@ bun run dev   # web :3001 · api :3000 · docs :4000`}</pre>
               <ul className="space-y-2.5 text-sm dw-text-1">
                 {[
                   "Next.js 16 (App Router, React 19) on Workers via OpenNext",
-                  "Hono API worker + tRPC v11 (overlays poll every 2s)",
+                  "Hono API worker + tRPC v11 (overlays poll every 3s)",
                   "Better Auth — Twitch OAuth, 30-day sessions",
                   "Drizzle ORM on Cloudflare D1 (SQLite)",
                   "Alchemy IaC + GitHub Actions deploy",
@@ -546,9 +578,9 @@ bun run dev   # web :3001 · api :3000 · docs :4000`}</pre>
       </section>
 
       {/* ═══════════════ FAQ ═══════════════ */}
-      <section id="faq" className="dw-bg-base px-6 py-14 sm:py-20 lg:py-28 scroll-mt-16">
+      <section id="faq" className="dw-bg-surface px-6 py-14 sm:py-20 lg:py-28 scroll-mt-16">
         <div className="mx-auto max-w-3xl">
-          <SectionHead num="08" eyebrow="Questions, answered" title={<>Anything else?</>} sub="Short answers here. Longer ones live in the docs." />
+          <SectionHead num="07" eyebrow="Questions, answered" title={<>Anything else?</>} sub="Short answers here. Longer ones live in the docs." />
           <div className="mt-12 space-y-3">
             <FaqRow
               q="Do I need to host it myself?"
@@ -583,7 +615,7 @@ bun run dev   # web :3001 · api :3000 · docs :4000`}</pre>
             />
             <FaqRow
               q="How do the overlays stay in sync?"
-              a={<>The overlays poll the public API every couple of seconds and the timer ticks locally from its target end time, so a !done lands within ~2s with no flicker. No SSE, no WebSockets to babysit — which is exactly what keeps it on Cloudflare&apos;s free plan.</>}
+              a={<>The overlays check for changes every few seconds, and the countdown ticks on the overlay itself from the timer&apos;s end time — so a !done lands within a few seconds with no flicker. There&apos;s no fragile real-time connection to babysit, which is exactly what keeps it on Cloudflare&apos;s free plan.</>}
             />
             <FaqRow
               q="Is it really free?"
@@ -610,7 +642,7 @@ bun run dev   # web :3001 · api :3000 · docs :4000`}</pre>
       </section>
 
       {/* ═══════════════ CTA ═══════════════ */}
-      <section className="dw-bg-surface px-6 py-28 sm:py-36">
+      <section className="dw-bg-base px-6 py-28 sm:py-36">
         <div className="mx-auto max-w-4xl text-center">
           <div
             className="w-12 h-12 rounded-2xl inline-flex items-center justify-center mb-6 mx-auto"
@@ -626,7 +658,7 @@ bun run dev   # web :3001 · api :3000 · docs :4000`}</pre>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link href="/docs/getting-started" className="dw-btn dw-btn-primary">
               <Terminal className="w-4 h-4" />
-              Get Started
+              Get started
             </Link>
             <Link href="/docs" className="dw-btn dw-btn-secondary">
               Read the docs

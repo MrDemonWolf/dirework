@@ -1,94 +1,35 @@
 import { describe, it, expect } from "vitest";
-import { z } from "zod";
 
-const timerStatusEnum = z.enum([
-  "idle",
-  "starting",
-  "work",
-  "break",
-  "longBreak",
-  "paused",
-  "finished",
-]);
+// The REAL router input schema (env-free module) — the old transition-schema
+// mirror died with the timer.transition procedure.
+import { timerStartInput } from "../input-schemas";
 
-const transitionSchema = z.object({
-  status: timerStatusEnum,
-  durationMs: z.number().optional(),
-});
-
-describe("timer.transition input validation", () => {
-  describe("valid status values", () => {
-    const validStatuses = [
-      "idle",
-      "starting",
-      "work",
-      "break",
-      "longBreak",
-      "paused",
-      "finished",
-    ] as const;
-
-    it.each(validStatuses)('accepts "%s" as a valid status', (status) => {
-      const result = transitionSchema.safeParse({ status });
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.status).toBe(status);
-      }
-    });
+describe("timer.start input validation", () => {
+  it("accepts an empty input (totalCycles optional)", () => {
+    const result = timerStartInput.safeParse({});
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.totalCycles).toBeUndefined();
+    }
   });
 
-  describe("invalid status values", () => {
-    const invalidStatuses = ["invalid", "WORK", "running", "", "Work"];
-
-    it.each(invalidStatuses)('rejects "%s" as an invalid status', (status) => {
-      const result = transitionSchema.safeParse({ status });
-      expect(result.success).toBe(false);
-    });
+  it.each([1, 4, 99])("accepts totalCycles=%d", (totalCycles) => {
+    const result = timerStartInput.safeParse({ totalCycles });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.totalCycles).toBe(totalCycles);
+    }
   });
 
-  describe("durationMs is optional", () => {
-    it("succeeds when durationMs is omitted", () => {
-      const result = transitionSchema.safeParse({ status: "work" });
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.durationMs).toBeUndefined();
-      }
-    });
-
-    it("succeeds when durationMs is a valid number", () => {
-      const result = transitionSchema.safeParse({
-        status: "work",
-        durationMs: 25000,
-      });
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.durationMs).toBe(25000);
-      }
-    });
+  it.each([0, -1, 100])("rejects out-of-range totalCycles=%d", (totalCycles) => {
+    expect(timerStartInput.safeParse({ totalCycles }).success).toBe(false);
   });
 
-  describe("durationMs must be a number", () => {
-    it("rejects a string for durationMs", () => {
-      const result = transitionSchema.safeParse({
-        status: "work",
-        durationMs: "25000",
-      });
-      expect(result.success).toBe(false);
-    });
+  it("rejects a non-integer totalCycles", () => {
+    expect(timerStartInput.safeParse({ totalCycles: 2.5 }).success).toBe(false);
   });
 
-  describe("extra fields are stripped", () => {
-    it("strips unrecognized fields from the parsed output", () => {
-      const result = transitionSchema.safeParse({
-        status: "idle",
-        durationMs: 5000,
-        extraField: "should be removed",
-      });
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data).toEqual({ status: "idle", durationMs: 5000 });
-        expect("extraField" in result.data).toBe(false);
-      }
-    });
+  it("rejects a string totalCycles", () => {
+    expect(timerStartInput.safeParse({ totalCycles: "4" }).success).toBe(false);
   });
 });

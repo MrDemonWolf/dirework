@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import type { DbClient } from "@dirework/db";
@@ -46,4 +47,25 @@ export async function verifyBotToken(db: DbClient, token: string): Promise<boole
   });
   if (!instance) return false;
   return constantTimeEqual(instance.botToken, token);
+}
+
+/**
+ * Overlay-gate envelope: run `load` only when the token matches; otherwise
+ * resolve null (overlays render blank instead of erroring in OBS).
+ */
+export async function withOverlayToken<T>(
+  db: DbClient,
+  kind: "timer" | "tasks",
+  token: string,
+  load: () => Promise<T>,
+): Promise<T | null> {
+  if (!(await verifyOverlayToken(db, kind, token))) return null;
+  return load();
+}
+
+/** Bot-gate envelope: throw UNAUTHORIZED unless the bot-page token matches. */
+export async function requireBotToken(db: DbClient, token: string): Promise<void> {
+  if (!(await verifyBotToken(db, token))) {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid bot token" });
+  }
 }

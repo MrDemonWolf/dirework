@@ -3,7 +3,7 @@
  * `@dirework/api/config-shared` (audit M3/M4: these interfaces used to be
  * hand-maintained duplicates that drifted from the API package).
  *
- * Only web-only composition types (ThemePreset, AppConfig) live here.
+ * Only web-only composition types (ThemePreset) live here.
  */
 export type {
   TimerStylesConfig,
@@ -22,17 +22,7 @@ export {
   MAX_TASK_LEN,
 } from "@dirework/api/config-shared";
 
-import type { TaskStylesConfig, TimerStylesConfig, TimerConfigData, BotConfigData } from "@dirework/api/config-shared";
-
-export type CommandAliasesConfig = Record<string, string>;
-
-/** Full config shape returned by config.get */
-export interface AppConfig {
-  timerConfig: TimerConfigData;
-  timerStyles: TimerStylesConfig;
-  taskStyles: TaskStylesConfig;
-  botConfig: BotConfigData;
-}
+import type { TaskStylesConfig, TimerStylesConfig } from "@dirework/api/config-shared";
 
 export interface ThemePreset {
   id: string;

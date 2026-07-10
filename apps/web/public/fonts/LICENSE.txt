@@ -1,0 +1,6 @@
+The font files in this directory are latin subsets of Google Fonts families,
+self-hosted for Dirework's OBS overlays and Theme Center. Each family is
+licensed under the SIL Open Font License 1.1 or Apache License 2.0 by its
+respective author — see https://fonts.google.com/ for per-family details.
+
+Families: Montserrat, Roboto, Inter, Poppins, Open Sans, Lato, Nunito, Oswald, Raleway, Source Sans 3, Ubuntu, Merriweather, Playfair Display, Space Grotesk, DM Sans, Lexend, Share Tech Mono, Fira Code, JetBrains Mono, Fredoka One

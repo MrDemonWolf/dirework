@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
+import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
 
@@ -9,8 +10,8 @@ import { buildBotConfig } from "../config-shared";
 import { protectedProcedure, publicProcedure, router } from "../index";
 import { ensureBotConfig, ensureInstanceConfig } from "../services/provision";
 import { removeTasksByUsername } from "../services/task-service";
-import { tokenInput, verifyBotToken } from "../services/tokens";
-import { getFreshChatToken } from "../services/twitch-auth";
+import { requireBotToken, tokenInput } from "../services/tokens";
+import { getFreshChatToken, resolveChannelLogin } from "../services/twitch-auth";
 import { updateSingleton } from "../services/singleton";
 
 // The browser bot page (/bot/<token>) holds the Twitch IRC-over-WebSocket
@@ -30,6 +31,17 @@ const ingestInput = z.object({
   targetUsername: z.string().min(1).max(64).optional(),
 });
 
+/** The owner-user + bot-account singleton lookups the bot procedures repeat. */
+async function loadOwnerAndBotAccount(db: DbClient) {
+  const [owner, botAccount] = await Promise.all([
+    db.query.user.findFirst({
+      columns: { name: true, displayName: true, twitchId: true },
+    }),
+    db.query.botAccount.findFirst({ columns: { username: true } }),
+  ]);
+  return { owner: owner ?? null, botAccount: botAccount ?? null };
+}
+
 export const botRouter = router({
   /**
    * Bot page bootstrap: validates the secret bot token and returns what the
@@ -37,16 +49,17 @@ export const botRouter = router({
    * it is near/past expiry. NEVER returns the refresh token.
    */
   getSession: publicProcedure
-    .input(z.object({ token: tokenInput }))
+    .input(z.object({
+      token: tokenInput,
+      // Set by the bot page after Twitch rejects the stored token (IRC auth
+      // failure) — bypasses the expiry check so recovery never hands back the
+      // same dead token.
+      forceRefresh: z.boolean().optional(),
+    }))
     .query(async ({ ctx, input }) => {
-      if (!(await verifyBotToken(ctx.db, input.token))) {
-        throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid bot token" });
-      }
+      await requireBotToken(ctx.db, input.token);
 
-      const [botAccount, owner] = await Promise.all([
-        ctx.db.query.botAccount.findFirst({ columns: { username: true } }),
-        ctx.db.query.user.findFirst({ columns: { name: true } }),
-      ]);
+      const { owner, botAccount } = await loadOwnerAndBotAccount(ctx.db);
 
       if (!botAccount) {
         throw new TRPCError({ code: "NOT_FOUND", message: "No bot account connected" });
@@ -55,13 +68,29 @@ export const botRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Instance has no owner" });
       }
 
-      const chatToken = await getFreshChatToken(ctx.db);
+      const creds = {
+        clientId: env.TWITCH_CLIENT_ID,
+        clientSecret: env.TWITCH_CLIENT_SECRET,
+      };
+      const chatToken = await getFreshChatToken(ctx.db, creds, {
+        forceRefresh: input.forceRefresh,
+      });
       if (!chatToken) {
         throw new TRPCError({ code: "UNAUTHORIZED", message: "Bot chat token unavailable" });
       }
 
+      // IRC JOIN needs the owner's lowercase *login*, not the display name.
+      const channelName = await resolveChannelLogin(
+        ctx.db,
+        { clientId: creds.clientId, accessToken: chatToken },
+        {
+          twitchId: owner.twitchId,
+          fallbackName: owner.displayName ?? owner.name,
+        },
+      );
+
       return {
-        channelName: owner.name,
+        channelName,
         botUsername: botAccount.username,
         chatToken,
       };
@@ -74,9 +103,7 @@ export const botRouter = router({
   ingest: publicProcedure
     .input(ingestInput)
     .mutation(async ({ ctx, input }): Promise<{ replies: string[] }> => {
-      if (!(await verifyBotToken(ctx.db, input.token))) {
-        throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid bot token" });
-      }
+      await requireBotToken(ctx.db, input.token);
 
       // Moderation piggyback (L9): CLEARCHAT (ban/timeout) → drop the user's tasks.
       if (input.kind === "clearchat") {
@@ -129,11 +156,7 @@ export const botRouter = router({
    */
   getIngestInfo: protectedProcedure.query(async ({ ctx }) => {
     const instance = await ensureInstanceConfig(ctx.db);
-
-    const [botAccount, owner] = await Promise.all([
-      ctx.db.query.botAccount.findFirst({ columns: { username: true } }),
-      ctx.db.query.user.findFirst({ columns: { name: true } }),
-    ]);
+    const { owner, botAccount } = await loadOwnerAndBotAccount(ctx.db);
 
     return {
       botToken: instance.botToken,

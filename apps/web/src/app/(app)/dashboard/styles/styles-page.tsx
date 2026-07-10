@@ -186,10 +186,10 @@ export default function StylesPage() {
 
     if ([timerResult, taskResult, labelsResult].every((r) => r.status === "fulfilled")) {
       setHasUnsaved(false);
-      toast.success("Styles saved successfully");
+      toast.success("Styles saved");
     } else {
       // per-mutation onError already surfaced the specifics
-      toast.error("Some changes failed to save — retry.");
+      toast.error("Some changes didn't save — try saving again.");
     }
   }, [timerStyles, taskStyles, phaseLabels, updateTimerMutation, updateTaskMutation, updatePhaseLabelsMutation]);
 
@@ -229,7 +229,7 @@ export default function StylesPage() {
           {/* Editor Column */}
           <div className="w-full min-w-0 lg:w-[380px] lg:shrink-0">
             <Tabs defaultValue="timer">
-              <TabsList>
+              <TabsList className="h-9 w-full gap-1">
                 <TabsTrigger value="timer">Timer</TabsTrigger>
                 <TabsTrigger value="tasks">Tasks</TabsTrigger>
               </TabsList>

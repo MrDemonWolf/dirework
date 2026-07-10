@@ -8,13 +8,11 @@
     "destroy": "tsx alchemy.run.ts --destroy"
   },
   "dependencies": {
-    "dotenv": "catalog:",
-    "zod": "catalog:"
+    "dotenv": "catalog:"
   },
   "devDependencies": {
     "@dirework/config": "workspace:*",
     "alchemy": "catalog:",
-    "drizzle-orm": "catalog:",
     "tsx": "^4.19.2",
     "typescript": "catalog:"
   }
