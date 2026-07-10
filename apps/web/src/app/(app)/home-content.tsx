@@ -53,11 +53,11 @@ function TimerModuleMock() {
 
 const SIGN_IN_ERRORS: Record<string, { title: string; hint: string }> = {
   instance_claimed: {
-    title: "This instance is already claimed by another account.",
-    hint: "Dirework is single-streamer: sign in with the account that claimed it, or deploy your own instance.",
+    title: "This Dirework already belongs to a different Twitch account.",
+    hint: "Each Dirework belongs to one streamer. Sign in with the account that claimed it, or deploy your own copy.",
   },
   signin_failed: {
-    title: "Sign in with Twitch didn't complete.",
+    title: "Twitch sign-in didn't complete.",
     hint: "Nothing was changed — try the button again. If it keeps failing, check that the Twitch app's redirect URL matches this site.",
   },
 };

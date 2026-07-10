@@ -27,13 +27,13 @@ export function TaskStyleEditor({
     <div className="space-y-3">
       <SectionGroup title="Display">
         <SwitchRow
-          label="Show Done"
+          label="Show done tasks"
           id="task-style-display-show-done"
           checked={styles.display.showDone}
           onChange={(v) => update("display", { showDone: v })}
         />
         <SwitchRow
-          label="Show Count"
+          label="Show task count"
           id="task-style-display-show-count"
           checked={styles.display.showCount}
           onChange={(v) => update("display", { showCount: v })}
@@ -50,13 +50,13 @@ export function TaskStyleEditor({
           </p>
         )}
         <SwitchRow
-          label="Cross on Done"
+          label="Cross out done tasks"
           id="task-style-display-cross-on-done"
           checked={styles.display.crossOnDone}
           onChange={(v) => update("display", { crossOnDone: v })}
         />
         <SliderRow
-          label="Max Lines"
+          label="Lines per task"
           id="task-style-display-max-lines"
           value={styles.display.numberOfLines}
           onChange={(v) => update("display", { numberOfLines: v })}
@@ -67,12 +67,12 @@ export function TaskStyleEditor({
 
       <SectionGroup title="Fonts">
         <FontSelect
-          label="Header Font"
+          label="Header font"
           value={styles.fonts.header}
           onChange={(v) => update("fonts", { header: v })}
         />
         <FontSelect
-          label="Body Font"
+          label="Body font"
           value={styles.fonts.body}
           onChange={(v) => update("fonts", { body: v })}
         />
@@ -96,7 +96,7 @@ export function TaskStyleEditor({
           }
         />
         <SliderRow
-          label="BG Opacity"
+          label="Background opacity"
           id="task-style-header-bg-opacity"
           value={Math.round(styles.header.background.opacity * 100)}
           onChange={(v) =>
@@ -107,13 +107,13 @@ export function TaskStyleEditor({
           format={(v) => `${v}%`}
         />
         <ColorInput
-          label="Border Color"
+          label="Border color"
           id="task-style-header-border-color"
           value={styles.header.border.color}
           onChange={(v) => update("header", { border: { ...styles.header.border, color: v } })}
         />
         <TextFieldRow
-          label="Border Width"
+          label="Border width"
           id="task-style-header-border-width"
           value={styles.header.border.width}
           onChange={(v) => update("header", { border: { ...styles.header.border, width: v } })}
@@ -121,14 +121,14 @@ export function TaskStyleEditor({
           placeholder="2px"
         />
         <TextFieldRow
-          label="Border Radius"
+          label="Border radius"
           id="task-style-header-border-radius"
           value={styles.header.border.radius}
           onChange={(v) => update("header", { border: { ...styles.header.border, radius: v } })}
           placeholder="8px"
         />
         <TextFieldRow
-          label="Font Size"
+          label="Font size"
           id="task-style-header-font-size"
           value={styles.header.fontSize}
           onChange={(v) => update("header", { fontSize: v })}
@@ -136,7 +136,7 @@ export function TaskStyleEditor({
           placeholder="24px"
         />
         <ColorInput
-          label="Font Color"
+          label="Font color"
           id="task-style-header-font-color"
           value={styles.header.fontColor}
           onChange={(v) => update("header", { fontColor: v })}
@@ -160,7 +160,7 @@ export function TaskStyleEditor({
           }
         />
         <SliderRow
-          label="BG Opacity"
+          label="Background opacity"
           id="task-style-body-bg-opacity"
           value={Math.round(styles.body.background.opacity * 100)}
           onChange={(v) =>
@@ -171,13 +171,13 @@ export function TaskStyleEditor({
           format={(v) => `${v}%`}
         />
         <ColorInput
-          label="Border Color"
+          label="Border color"
           id="task-style-body-border-color"
           value={styles.body.border.color}
           onChange={(v) => update("body", { border: { ...styles.body.border, color: v } })}
         />
         <TextFieldRow
-          label="Border Width"
+          label="Border width"
           id="task-style-body-border-width"
           value={styles.body.border.width}
           onChange={(v) => update("body", { border: { ...styles.body.border, width: v } })}
@@ -185,14 +185,14 @@ export function TaskStyleEditor({
           placeholder="2px"
         />
         <TextFieldRow
-          label="Border Radius"
+          label="Border radius"
           id="task-style-body-border-radius"
           value={styles.body.border.radius}
           onChange={(v) => update("body", { border: { ...styles.body.border, radius: v } })}
           placeholder="8px"
         />
         <TextFieldRow
-          label="Pad Vertical"
+          label="Vertical padding"
           id="task-style-body-pad-vertical"
           value={styles.body.padding.vertical}
           onChange={(v) =>
@@ -202,7 +202,7 @@ export function TaskStyleEditor({
           placeholder="10px"
         />
         <TextFieldRow
-          label="Pad Horizontal"
+          label="Horizontal padding"
           id="task-style-body-pad-horizontal"
           value={styles.body.padding.horizontal}
           onChange={(v) =>
@@ -213,7 +213,7 @@ export function TaskStyleEditor({
         />
       </SectionGroup>
 
-      <SectionGroup title="Task Item">
+      <SectionGroup title="Task item">
         <ColorInput
           label="Background"
           id="task-style-task-bg-color"
@@ -223,7 +223,7 @@ export function TaskStyleEditor({
           }
         />
         <SliderRow
-          label="BG Opacity"
+          label="Background opacity"
           id="task-style-task-bg-opacity"
           value={Math.round(styles.task.background.opacity * 100)}
           onChange={(v) =>
@@ -234,13 +234,13 @@ export function TaskStyleEditor({
           format={(v) => `${v}%`}
         />
         <ColorInput
-          label="Border Color"
+          label="Border color"
           id="task-style-task-border-color"
           value={styles.task.border.color}
           onChange={(v) => update("task", { border: { ...styles.task.border, color: v } })}
         />
         <TextFieldRow
-          label="Border Width"
+          label="Border width"
           id="task-style-task-border-width"
           value={styles.task.border.width}
           onChange={(v) => update("task", { border: { ...styles.task.border, width: v } })}
@@ -248,14 +248,14 @@ export function TaskStyleEditor({
           placeholder="2px"
         />
         <TextFieldRow
-          label="Border Radius"
+          label="Border radius"
           id="task-style-task-border-radius"
           value={styles.task.border.radius}
           onChange={(v) => update("task", { border: { ...styles.task.border, radius: v } })}
           placeholder="8px"
         />
         <TextFieldRow
-          label="Font Size"
+          label="Font size"
           id="task-style-task-font-size"
           value={styles.task.fontSize}
           onChange={(v) => update("task", { fontSize: v })}
@@ -263,13 +263,13 @@ export function TaskStyleEditor({
           placeholder="16px"
         />
         <ColorInput
-          label="Font Color"
+          label="Font color"
           id="task-style-task-font-color"
           value={styles.task.fontColor}
           onChange={(v) => update("task", { fontColor: v })}
         />
         <ColorInput
-          label="Username Color"
+          label="Username color"
           id="task-style-task-username-color"
           value={styles.task.usernameColor}
           onChange={(v) => update("task", { usernameColor: v })}
@@ -282,7 +282,7 @@ export function TaskStyleEditor({
           placeholder="8px"
         />
         <TextFieldRow
-          label="Margin Bottom"
+          label="Margin bottom"
           id="task-style-task-margin-bottom"
           value={styles.task.marginBottom}
           onChange={(v) => update("task", { marginBottom: v })}
@@ -290,7 +290,7 @@ export function TaskStyleEditor({
           placeholder="8px"
         />
         <TextFieldRow
-          label="Max Width"
+          label="Max width"
           id="task-style-task-max-width"
           value={styles.task.maxWidth}
           onChange={(v) => update("task", { maxWidth: v })}
@@ -299,7 +299,7 @@ export function TaskStyleEditor({
         />
       </SectionGroup>
 
-      <SectionGroup title="Done State" defaultOpen={false}>
+      <SectionGroup title="Done tasks" defaultOpen={false}>
         <ColorInput
           label="Background"
           id="task-style-done-bg-color"
@@ -309,7 +309,7 @@ export function TaskStyleEditor({
           }
         />
         <SliderRow
-          label="BG Opacity"
+          label="Background opacity"
           id="task-style-done-bg-opacity"
           value={Math.round(styles.taskDone.background.opacity * 100)}
           onChange={(v) =>
@@ -320,7 +320,7 @@ export function TaskStyleEditor({
           format={(v) => `${v}%`}
         />
         <ColorInput
-          label="Font Color"
+          label="Font color"
           id="task-style-done-font-color"
           value={styles.taskDone.fontColor}
           onChange={(v) => update("taskDone", { fontColor: v })}
@@ -345,7 +345,7 @@ export function TaskStyleEditor({
           }
         />
         <SliderRow
-          label="BG Opacity"
+          label="Background opacity"
           id="task-style-checkbox-bg-opacity"
           value={Math.round(styles.checkbox.background.opacity * 100)}
           onChange={(v) =>
@@ -356,7 +356,7 @@ export function TaskStyleEditor({
           format={(v) => `${v}%`}
         />
         <ColorInput
-          label="Border Color"
+          label="Border color"
           id="task-style-checkbox-border-color"
           value={styles.checkbox.border.color}
           onChange={(v) =>
@@ -364,7 +364,7 @@ export function TaskStyleEditor({
           }
         />
         <TextFieldRow
-          label="Border Width"
+          label="Border width"
           id="task-style-checkbox-border-width"
           value={styles.checkbox.border.width}
           onChange={(v) =>
@@ -374,7 +374,7 @@ export function TaskStyleEditor({
           placeholder="2px"
         />
         <TextFieldRow
-          label="Border Radius"
+          label="Border radius"
           id="task-style-checkbox-border-radius"
           value={styles.checkbox.border.radius}
           onChange={(v) =>
@@ -383,13 +383,13 @@ export function TaskStyleEditor({
           placeholder="4px"
         />
         <TextFieldRow
-          label="Tick Character"
+          label="Tick character"
           id="task-style-checkbox-tick-char"
           value={styles.checkbox.tickChar}
           onChange={(v) => update("checkbox", { tickChar: v })}
         />
         <TextFieldRow
-          label="Tick Size"
+          label="Tick size"
           id="task-style-checkbox-tick-size"
           value={styles.checkbox.tickSize}
           onChange={(v) => update("checkbox", { tickSize: v })}
@@ -397,13 +397,13 @@ export function TaskStyleEditor({
           placeholder="14px"
         />
         <ColorInput
-          label="Tick Color"
+          label="Tick color"
           id="task-style-checkbox-tick-color"
           value={styles.checkbox.tickColor}
           onChange={(v) => update("checkbox", { tickColor: v })}
         />
         <TextFieldRow
-          label="Margin Top"
+          label="Margin top"
           id="task-style-checkbox-margin-top"
           value={styles.checkbox.margin.top}
           onChange={(v) =>
@@ -413,7 +413,7 @@ export function TaskStyleEditor({
           placeholder="2px"
         />
         <TextFieldRow
-          label="Margin Left"
+          label="Margin left"
           id="task-style-checkbox-margin-left"
           value={styles.checkbox.margin.left}
           onChange={(v) =>
@@ -423,7 +423,7 @@ export function TaskStyleEditor({
           placeholder="0px"
         />
         <TextFieldRow
-          label="Margin Right"
+          label="Margin right"
           id="task-style-checkbox-margin-right"
           value={styles.checkbox.margin.right}
           onChange={(v) =>
@@ -457,7 +457,7 @@ export function TaskStyleEditor({
             onChange={(v) => update("bullet", { color: v })}
           />
           <TextFieldRow
-            label="Margin Top"
+            label="Margin top"
             id="task-style-bullet-margin-top"
             value={styles.bullet.margin.top}
             onChange={(v) =>
@@ -467,7 +467,7 @@ export function TaskStyleEditor({
             placeholder="2px"
           />
           <TextFieldRow
-            label="Margin Left"
+            label="Margin left"
             id="task-style-bullet-margin-left"
             value={styles.bullet.margin.left}
             onChange={(v) =>
@@ -477,7 +477,7 @@ export function TaskStyleEditor({
             placeholder="0px"
           />
           <TextFieldRow
-            label="Margin Right"
+            label="Margin right"
             id="task-style-bullet-margin-right"
             value={styles.bullet.margin.right}
             onChange={(v) =>
@@ -506,7 +506,7 @@ export function TaskStyleEditor({
           disabled={!styles.scroll.enabled}
         />
         <SliderRow
-          label="Loop Gap"
+          label="Loop gap"
           id="task-style-scroll-loop-gap"
           value={styles.scroll.gapBetweenLoops}
           onChange={(v) => update("scroll", { gapBetweenLoops: v })}

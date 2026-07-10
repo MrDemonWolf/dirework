@@ -97,14 +97,14 @@ export function CommandAliasEditor({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-medium">Command Aliases</p>
+          <p className="text-sm font-medium">Command aliases</p>
           <p className="text-xs text-muted-foreground">
-            Map custom command names to built-in commands (e.g. &quot;!t&quot; to &quot;!task&quot;)
+            Add short names for chat commands (e.g. &quot;!t&quot; runs &quot;!task&quot;)
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={handleAdd} disabled={rows.length >= maxRows}>
           <Plus className="size-3.5" />
-          Add Alias
+          Add alias
         </Button>
       </div>
 
@@ -162,7 +162,7 @@ export function CommandAliasEditor({
               )}
               {isUnknown && (
                 <p id={`${row.id}-cmd-warning`} className="text-xs text-warning">
-                  Unknown command — this alias won&apos;t fire.
+                  Unknown command — this alias won&apos;t work.
                 </p>
               )}
             </div>
@@ -170,7 +170,7 @@ export function CommandAliasEditor({
         })}
         {rows.length === 0 && (
           <p className="py-4 text-center text-xs text-muted-foreground">
-            No aliases configured. Click &quot;Add Alias&quot; to create one.
+            No aliases yet. Click &quot;Add alias&quot; to create one.
           </p>
         )}
         {rows.some((row) => {

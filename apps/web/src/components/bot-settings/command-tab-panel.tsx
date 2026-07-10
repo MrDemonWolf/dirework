@@ -27,8 +27,8 @@ export const timerCommands: CommandRow[] = [
   { command: "!timer pause", usage: "!timer pause", description: "Pause timer" },
   { command: "!timer resume", usage: "!timer resume", description: "Resume timer" },
   { command: "!timer skip", usage: "!timer skip", description: "Skip current phase" },
-  { command: "!timer reset", usage: "!timer reset", description: "Reset to idle" },
-  { command: "!timer eta", usage: "!timer eta", description: "Show end time ETA" },
+  { command: "!timer reset", usage: "!timer reset", description: "Stop and reset the timer" },
+  { command: "!timer eta", usage: "!timer eta", description: "Show when the timer ends" },
 ];
 
 /**
@@ -115,13 +115,13 @@ export function CommandTabPanel<T extends object>({
               onCheckedChange={onEnabledChange}
             />
           </div>
-          <p className="text-xs text-muted-foreground">Saved with the Save bar below.</p>
+          <p className="text-xs text-muted-foreground">Saves when you press Save below.</p>
         </div>
       </div>
 
       <div className="space-y-3">
         <div className="console-rule">
-          <h2 id={`${idPrefix}-cmd-ref`} className="console-label">Command Reference</h2>
+          <h2 id={`${idPrefix}-cmd-ref`} className="console-label">Command reference</h2>
         </div>
         <CommandTable commands={commands} labelledBy={`${idPrefix}-cmd-ref`} />
       </div>

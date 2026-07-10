@@ -69,7 +69,7 @@ export default function UserMenu() {
         }
       >
         <TwitchIcon className="size-3.5" />
-        Sign In
+        Sign in
       </Button>
     );
   }
@@ -94,7 +94,7 @@ export default function UserMenu() {
           <Avatar image={session.user.image} name={session.user.name} className="h-9 w-9" />
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{session.user.name}</p>
-            <p className="console-label mt-0.5">Instance owner</p>
+            <p className="console-label mt-0.5">Owner</p>
           </div>
         </div>
         <DropdownMenuSeparator />
@@ -122,7 +122,7 @@ export default function UserMenu() {
           }}
         >
           <LogOut className="size-3.5" />
-          Sign Out
+          Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

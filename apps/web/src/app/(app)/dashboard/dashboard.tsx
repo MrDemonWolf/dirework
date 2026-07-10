@@ -22,7 +22,7 @@ function getGreeting(): string {
   if (hour >= 5 && hour < 12) return "Good morning";
   if (hour >= 12 && hour < 17) return "Good afternoon";
   if (hour >= 17 && hour < 21) return "Good evening";
-  return "Up late? Let's grind";
+  return "Working late";
 }
 
 function getSubGreeting(): string {
@@ -85,9 +85,9 @@ function OverlayMonitor({
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
             <EyeOff className="size-5 text-muted-foreground/40" />
-            <p className="text-xs text-muted-foreground">Monitor is off</p>
+            <p className="text-xs text-muted-foreground">Preview is off</p>
             <Button variant="outline" size="sm" onClick={() => onToggle(true)}>
-              Enable monitor
+              Show preview
             </Button>
           </div>
         )}
@@ -185,20 +185,20 @@ function OverlayUrlRow({
                     size="icon"
                     className="size-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     disabled={regenerating}
-                    aria-label={`Regenerate ${label} token`}
+                    aria-label={`Reset ${label} URL`}
                   >
                     <RefreshCw className={`size-3.5 ${regenerating ? "animate-spin" : ""}`} />
                   </Button>
                 }
-                title={`Regenerate the ${label.toLowerCase()} token?`}
+                title={`Reset the ${label.toLowerCase()} URL?`}
                 description="The current URL stops working immediately. Any OBS browser source using it will go blank until you copy the new URL and paste it back into OBS."
-                confirmLabel="Regenerate token"
+                confirmLabel="Reset URL"
                 onConfirm={onRegenerate}
               />
             </span>
           }
         />
-        <TooltipContent>Regenerate token — invalidates the current URL</TooltipContent>
+        <TooltipContent>Reset URL — the current one stops working</TooltipContent>
       </Tooltip>
     </div>
   );
@@ -216,10 +216,10 @@ export default function Dashboard({
     ...trpc.user.regenerateOverlayToken.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trpc.user.me.queryKey() });
-      toast.success("Overlay token regenerated — paste the new URL into OBS");
+      toast.success("New overlay URL ready — paste it into OBS");
     },
     onError: (err) => {
-      toast.error(`Couldn't regenerate the token: ${err.message}`);
+      toast.error(`Couldn't reset the URL: ${err.message}`);
     },
   });
 
@@ -228,7 +228,7 @@ export default function Dashboard({
       await navigator.clipboard.writeText(`${window.location.origin}${path}`);
       toast.success("Copied to clipboard");
     } catch {
-      toast.error("Couldn't copy — copy the URL manually");
+      toast.error("Couldn't copy — click Show, then copy the URL yourself");
     }
   };
 
@@ -262,7 +262,7 @@ export default function Dashboard({
           <TimerStatusBadge />
           <StatusChip
             tone={botAccount ? "accent" : "idle"}
-            label={botAccount ? "Bot ready" : "Bot off"}
+            label={botAccount ? "Bot ready" : "Bot not connected"}
           />
         </div>
       </div>
@@ -291,7 +291,7 @@ export default function Dashboard({
               <div className="w-full lg:w-72 lg:shrink-0 lg:border-l lg:border-border/40 lg:pl-6">
                 {user.data ? (
                   <OverlayMonitor
-                    label="Timer monitor"
+                    label="Timer preview"
                     src={timerToken ? `/overlay/t/${timerToken}` : null}
                     title="Timer overlay preview"
                     show={showTimerPreview}
@@ -310,7 +310,7 @@ export default function Dashboard({
                 <span className="console-label">Timer overlay URL</span>
               </div>
               <OverlayUrlRow
-                label="Timer Overlay"
+                label="Timer overlay"
                 path={`/overlay/t/${user.data.overlayTimerToken}`}
                 onCopy={() => copyUrl(`/overlay/t/${user.data!.overlayTimerToken}`)}
                 onRegenerate={() => regenerateToken.mutate({ type: "timer" })}
@@ -352,7 +352,7 @@ export default function Dashboard({
           <div className="space-y-2 px-5 py-5">
             {user.data ? (
               <OverlayMonitor
-                label="Tasks monitor"
+                label="Tasks preview"
                 src={tasksToken ? `/overlay/l/${tasksToken}` : null}
                 title="Task list overlay preview"
                 show={showTasksPreview}
@@ -370,7 +370,7 @@ export default function Dashboard({
                 <span className="console-label">Tasks overlay URL</span>
               </div>
               <OverlayUrlRow
-                label="Task List Overlay"
+                label="Tasks overlay"
                 path={`/overlay/l/${user.data.overlayTasksToken}`}
                 onCopy={() => copyUrl(`/overlay/l/${user.data!.overlayTasksToken}`)}
                 onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
@@ -413,7 +413,7 @@ export default function Dashboard({
               nativeButton={false}
               render={<Link href={"/dashboard/bot" as const} />}
             >
-              {botAccount ? "Bot settings & console" : "Connect the bot"}
+              {botAccount ? "Bot settings & console" : "Connect bot account"}
               <ArrowRight className="size-3.5" />
             </Button>
           </div>

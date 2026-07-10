@@ -3,7 +3,7 @@ title: Troubleshooting
 description: Common issues and solutions
 ---
 
-## Setup Issues
+## Setup issues
 
 ### `bun install` fails
 
@@ -20,13 +20,13 @@ Don't have Bun yet? Install it from [bun.sh](https://bun.sh). Update Node.js via
 ### `bun run dev` fails or nothing loads
 
 - **Missing `.env` file:** Make sure you copied `.env.example` to `packages/infra/.env`
-  and filled in your Twitch keys and `BETTER_AUTH_SECRET`. See [Getting Started](/docs/getting-started).
+  and filled in your Twitch keys and `BETTER_AUTH_SECRET`. See [Getting started](/docs/getting-started).
 - **Slow first start:** The first run creates the local database and compiles the apps.
   Give it a minute — later starts are much faster.
 - **Port already in use:** Dirework uses port **3000** (API), **3001** (web app), and
   **4000** (docs). See [Port already in use](#port-already-in-use) below.
 
-## Authentication Issues
+## Authentication issues
 
 ### "Invalid redirect URI" from Twitch
 
@@ -38,7 +38,7 @@ http://localhost:3001/api/bot/callback/twitch
 ```
 
 For production, add the same two paths on your workers.dev domain
-(`https://dirework.<your-subdomain>.workers.dev/...`). See [Twitch OAuth Setup](/docs/twitch-oauth) for details.
+(`https://dirework.<your-subdomain>.workers.dev/...`). See [Twitch integration setup](/docs/twitch-oauth) for details.
 
 ### Can't sign in / redirects back to login
 
@@ -54,11 +54,11 @@ For production, add the same two paths on your workers.dev domain
 - You need to sign in to a **different** Twitch account when connecting the bot. The bot account cannot be the same as the streamer account.
 - Make sure the second redirect URL (`/api/bot/callback/twitch`) is registered in your Twitch application.
 
-## Overlay Issues
+## Overlay issues
 
 ### Overlay shows a blank page
 
-- Make sure the timer or task list has been used at least once. The timer overlay is blank when idle (by default it shows a placeholder).
+- The timer overlay is blank on purpose while the timer is idle — start a timer session and it appears.
 - Check that the overlay URL is correct. Copy it from the **Overlay URLs** card in the dashboard.
 - Try opening the overlay URL directly in your browser to see if it loads.
 
@@ -76,25 +76,24 @@ For production, add the same two paths on your workers.dev domain
 
 The overlays are designed to be transparent. In OBS browser source settings, make sure **Custom CSS** is not overriding the background. The default CSS should be fine — just leave it empty or at the OBS default.
 
-## Timer Issues
+## Timer issues
 
 ### Timer stuck at 0:00 / not transitioning
 
-Phase transitions are **read-driven** — any active read advances an overdue timer to its
-next phase. That includes an open timer overlay in OBS (which polls every ~3s), the
-dashboard, or an incoming chat command. There is no always-on server, so *something* has
-to read the timer for it to move.
+The timer only moves forward while something is watching it — an open timer overlay in
+OBS (which checks in every few seconds), an open dashboard, or an incoming chat command.
+There is no always-on server, so *something* has to be watching for the timer to advance.
 
 - Keep a timer overlay live in OBS (or the dashboard open) while the timer is running — either one nudges it forward
 - If the timer is genuinely stuck, try clicking **Stop** (square button) and starting a new session
 
 ### Timer starts but only counts down 5 seconds
 
-This is the **starting phase** — a 5-second countdown before the work phase begins. After the starting countdown reaches 0, the timer automatically transitions to the work phase (25 minutes by default). If it doesn't transition, see the issue above.
+This is the **starting phase** — a 5-second countdown before Focus begins. After the countdown reaches 0, the timer automatically moves into the Focus phase (25 minutes by default). If it doesn't, see the issue above.
 
 ### Timer settings not saving
 
-Timer duration settings (work, break, long break, interval, pomos) are saved when you click out of the input field (on blur). Make sure to:
+Timer duration settings (Focus, Break, Long break, interval, pomos) are saved when you click out of the input field. Make sure to:
 
 1. Change the value in the input
 2. Click somewhere else or tab out of the field
@@ -110,7 +109,7 @@ If you changed the work duration (e.g. to 50 minutes) but the timer still uses 2
 - Stop any running timer session with the stop button
 - Start a new session — the timer reads durations from the database when starting
 
-## Chat Bot Issues
+## Chat bot issues
 
 ### Bot not responding to commands
 
@@ -122,7 +121,7 @@ The bot only listens to chat **while its bot page is open** somewhere. Run throu
 - **Was the bot token regenerated?** Regenerating the token kills any previously copied
   bot page URL. Re-copy the fresh URL from **Dashboard → Bot** and update your OBS
   source or pinned tab.
-- **Is a bot account connected?** Check the **Bot Account** card —
+- **Is a bot account connected?** Check the **Bot account** card —
   [connect a bot account](/docs/twitch-oauth#step-5-connect-the-bot-account) if it isn't.
 
 ### Commands work but messages aren't sent
@@ -130,7 +129,7 @@ The bot only listens to chat **while its bot page is open** somewhere. Run throu
 - The bot account needs the `chat:read` and `chat:edit` scopes (the IRC connection the bot page uses requires them). If you connected the bot before these scopes were required, disconnect and reconnect it.
 - Check that the bot account isn't banned or timed out in your channel.
 
-## Development Issues
+## Development issues
 
 ### TypeScript errors after pulling changes
 

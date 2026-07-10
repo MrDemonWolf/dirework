@@ -202,7 +202,7 @@ export function BotConsole() {
             await new Promise((resolve) => setTimeout(resolve, 1000));
             continue;
           }
-          pushActivity("error", "ingest failed after retry — line dropped");
+          pushActivity("error", "couldn't send that command to Dirework — message dropped");
         }
       }
       return [];
@@ -261,7 +261,7 @@ export function BotConsole() {
         // Twitch rejected the stored token, so its DB expiry can't be trusted
         // — force the server through the refresh flow instead of letting it
         // hand back the same dead token. Small delay avoids a tight loop.
-        pushActivity("error", "Twitch rejected the chat token — forcing a refresh");
+        pushActivity("error", "Twitch rejected the bot's login — refreshing it");
         later(() => bootstrap({ forceRefresh: true }), 2000);
       },
     });
@@ -299,7 +299,7 @@ export function BotConsole() {
           return;
         }
         const reason = err instanceof TRPCClientError ? err.message : "network error";
-        pushActivity("error", `session fetch failed (${reason}) — retrying in 5s`);
+        pushActivity("error", `couldn't reach Dirework (${reason}) — retrying in 5s`);
         later(bootstrap, 5000);
       }
     }
@@ -322,11 +322,11 @@ export function BotConsole() {
           aria-hidden="true"
         />
         <h1 className="text-xl font-bold tracking-[0.2em] text-red-400 uppercase">
-          {phase === "invalid" ? "Invalid bot link" : "Link revoked"}
+          {phase === "invalid" ? "Invalid bot link" : "Link reset"}
         </h1>
         {phase === "revoked" ? (
           <p className="max-w-sm text-sm text-zinc-400">
-            Copy the new one from the dashboard.
+            This URL was reset. Copy the new one from Bot settings.
           </p>
         ) : null}
       </main>
@@ -352,7 +352,7 @@ export function BotConsole() {
           : ircStatus === "reconnecting"
             ? "Reconnecting"
             : ircStatus === "auth-failed"
-              ? "Refreshing auth"
+              ? "Refreshing login"
               : ircStatus === "closed"
                 ? "Offline"
                 : "Starting";

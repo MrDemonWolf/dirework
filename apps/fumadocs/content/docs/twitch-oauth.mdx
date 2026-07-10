@@ -1,6 +1,6 @@
 ---
-title: Twitch Integration Setup
-description: Complete guide to setting up Twitch OAuth, bot account, and all integrations
+title: Twitch integration setup
+description: Create a Twitch application, sign in, and connect your bot account
 ---
 
 This guide walks you through every step of setting up Twitch integration for Dirework — from creating the Twitch application to connecting your bot account.
@@ -16,7 +16,7 @@ Both use the **same** Twitch application, but different redirect URLs.
 
 ---
 
-## Step 1: Create a Twitch Application
+## Step 1: Create a Twitch application
 
 1. Go to the [Twitch Developer Console](https://dev.twitch.tv/console)
 2. Log in with your **main Twitch account** (the streamer account)
@@ -68,7 +68,7 @@ After creating the app:
 
 ---
 
-## Step 2: Configure Environment Variables
+## Step 2: Configure environment variables
 
 Create or edit your `packages/infra/.env` file (copy it from `.env.example` if you
 haven't yet) and add the Twitch credentials:
@@ -104,7 +104,7 @@ openssl rand -base64 32
 
 ---
 
-## Step 3: Sign In
+## Step 3: Sign in
 
 1. Start the app with `bun run dev`
 2. Open [http://localhost:3001](http://localhost:3001)
@@ -119,7 +119,7 @@ If sign-in fails, check:
 
 ---
 
-## Step 4: Create a Bot Account on Twitch
+## Step 4: Create a bot account on Twitch
 
 The bot account is a **separate Twitch account** that sends messages in your chat. You cannot use the same account for both streamer login and bot.
 
@@ -148,11 +148,11 @@ This prevents the bot from being rate-limited when sending messages.
 
 ---
 
-## Step 5: Connect the Bot Account
+## Step 5: Connect the bot account
 
 1. Go to your Dirework dashboard at [http://localhost:3001/dashboard](http://localhost:3001/dashboard)
-2. Find the **Bot Account** card
-3. Click **Connect Bot Account**
+2. Find the **Bot account** card
+3. Click **Connect bot account**
 4. You'll be redirected to Twitch — **sign in with the bot account** (not your streamer account)
 5. Authorize the app
 6. You'll be redirected back to the dashboard with a success message
@@ -163,10 +163,10 @@ The bot will have `chat:read` and `chat:edit` permissions (plus the Helix chat s
   **One more thing before the bot talks:** the bot runs in a token-gated browser page,
   not on a server. Copy the bot page URL from **Dashboard → Bot** and add it to OBS as a
   browser source (or keep it in a pinned tab). The bot listens to chat only while that
-  page is open. See [Chat Commands](/docs/chat-commands) for the full command list.
+  page is open. See [Chat commands](/docs/chat-commands) for the full command list.
 </Callout>
 
-### OAuth Scopes
+### OAuth scopes
 
 Dirework requests specific OAuth scopes for each connection type:
 
@@ -203,14 +203,14 @@ Common issues:
 
 ---
 
-## Step 6: Set Up OBS Overlays
+## Step 6: Set up OBS overlays
 
 After signing in, your dashboard shows **Overlay URLs**:
 
 1. Copy the **Timer Overlay** URL
 2. In OBS, add a **Browser Source**
-3. Paste the URL as: `http://localhost:3001/overlay/t/YOUR_TOKEN`
-4. Set width to `400` and height to `400`
+3. Paste the overlay URL (it looks like `http://localhost:3001/overlay/t/YOUR_TOKEN`)
+4. Set width and height to `250` (or match the timer size you set in the Theme Center)
 5. Check **"Shutdown source when not visible"**
 6. Repeat for the **Task List Overlay** URL
 
@@ -218,12 +218,12 @@ See the [Overlays guide](/docs/overlays) for more details.
 
 ---
 
-## Redirect URLs Reference
+## Redirect URLs reference
 
 | URL Pattern | Purpose | When it's used |
 | --- | --- | --- |
-| `{BETTER_AUTH_URL}/api/auth/callback/twitch` | Streamer login | When you click "Sign In" |
-| `{BETTER_AUTH_URL}/api/bot/callback/twitch` | Bot account connection | When you click "Connect Bot Account" |
+| `{BETTER_AUTH_URL}/api/auth/callback/twitch` | Streamer login | When you sign in with Twitch |
+| `{BETTER_AUTH_URL}/api/bot/callback/twitch` | Bot account connection | When you click "Connect bot account" |
 
 For local development, `BETTER_AUTH_URL` = `http://localhost:3001`
 
@@ -240,7 +240,7 @@ instance is yours the moment you claim it.
 
 ---
 
-## Production Checklist
+## Production checklist
 
 When deploying to production, make sure to:
 
