@@ -339,21 +339,14 @@ export default function Dashboard({
         {/* Task board — hero console mirroring the timer: board + live preview
             beside it, overlay URL strip along the bottom */}
         <section className="panel-hero min-w-0 lg:col-span-3">
-          <div className="flex flex-col lg:flex-row lg:items-stretch">
-            <div className="min-w-0 flex-1">
-              {user.data ? (
-                <TaskManager
-                  userTwitchId={user.data.twitchId ?? ""}
-                  username={user.data.name}
-                  displayName={user.data.displayName ?? user.data.name}
-                />
-              ) : (
-                <p className="p-5 text-sm text-muted-foreground">Loading...</p>
-              )}
-            </div>
-            {/* Tasks output — the OBS view of THIS list, right where it's managed */}
-            <div className="w-full border-t border-border/40 p-5 lg:w-72 lg:shrink-0 lg:border-t-0 lg:border-l">
-              {user.data ? (
+          {user.data ? (
+            <TaskManager
+              userTwitchId={user.data.twitchId ?? ""}
+              username={user.data.name}
+              displayName={user.data.displayName ?? user.data.name}
+              // Tasks output — the OBS view of THIS list, top-aligned beside the
+              // add-task block, mirroring the timer console's settings|preview row.
+              preview={
                 <OverlayMonitor
                   label="Tasks preview"
                   src={tasksToken ? `/overlay/l/${tasksToken}` : null}
@@ -361,11 +354,11 @@ export default function Dashboard({
                   show={showTasksPreview}
                   onToggle={setShowTasksPreview}
                 />
-              ) : (
-                <p className="text-sm text-muted-foreground">Loading...</p>
-              )}
-            </div>
-          </div>
+              }
+            />
+          ) : (
+            <p className="p-5 text-sm text-muted-foreground">Loading...</p>
+          )}
           {/* Tasks overlay URL — full-width strip along the bottom, mirroring
               the timer console's own overlay-URL strip. */}
           {user.data && (
