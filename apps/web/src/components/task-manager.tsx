@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Focus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -20,6 +20,8 @@ interface TaskManagerProps {
   userTwitchId: string;
   username: string;
   displayName: string;
+  /** Overlay preview, rendered beside the add-task + list body (mirrors the timer console). */
+  preview?: ReactNode;
 }
 
 /**
@@ -31,6 +33,7 @@ export function TaskManager({
   userTwitchId,
   username,
   displayName,
+  preview,
 }: TaskManagerProps) {
   const queryClient = useQueryClient();
   const [newTask, setNewTask] = useState("");
@@ -135,6 +138,11 @@ export function TaskManager({
         </div>
       </div>
 
+      {/* Board body + overlay preview, side by side and top-aligned — mirrors the
+          timer console (settings | preview) so the preview sits beside the
+          add-task block instead of ballooning down the full list height. */}
+      <div className="flex flex-1 flex-col lg:flex-row lg:items-start">
+        <div className="flex min-w-0 flex-1 flex-col">
       {/* Body: add form + grouped list */}
       <div className="flex-1 space-y-4 px-5 py-5">
         <form onSubmit={handleSubmit} className="flex gap-2">
@@ -352,6 +360,13 @@ export function TaskManager({
           />
         </div>
       )}
+        </div>
+        {preview && (
+          <div className="w-full border-t border-border/40 p-5 lg:w-72 lg:shrink-0 lg:border-t-0 lg:border-l lg:border-border/40">
+            {preview}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

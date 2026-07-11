@@ -469,7 +469,7 @@ export function TimerSettings() {
         <StatusChip size="sm" tone="idle" label="Locked while running" className="self-start" />
       )}
       {fields.map((field) => (
-        <div key={field.id} className="grid grid-cols-[1fr_4rem_3.5rem] items-center gap-2">
+        <div key={field.id} className="grid grid-cols-[6.75rem_3rem_auto] items-center gap-2">
           {/* Help rides on aria-describedby (screen readers + keyboard get it,
               not just mouse hover); the tooltip stays as the pointer surface. */}
           <Tooltip>
@@ -477,7 +477,7 @@ export function TimerSettings() {
               render={
                 <Label
                   htmlFor={field.id}
-                  className="console-label inline-flex items-center gap-1"
+                  className="console-label inline-flex items-center gap-1 whitespace-nowrap"
                 />
               }
             >
