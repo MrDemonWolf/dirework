@@ -16,7 +16,7 @@ export function DashboardSkeleton() {
         </div>
       </div>
 
-      <div className="stagger-reveal grid gap-6 lg:grid-cols-3">
+      <div className="stagger-reveal grid items-start gap-6 lg:grid-cols-3">
         {/* Timer hero skeleton */}
         <div className="panel-hero lg:col-span-3">
           <div className="space-y-2 border-b border-border/40 px-5 pt-4 pb-3">
