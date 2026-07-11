@@ -282,7 +282,7 @@ export default function Dashboard({
         </div>
       </div>
 
-      <div className="stagger-reveal grid gap-6 lg:grid-cols-3">
+      <div className="stagger-reveal grid items-start gap-6 lg:grid-cols-3">
         {/* Hero instrument: the timer console — its overlay monitor lives beside it */}
         <section className="panel-hero lg:col-span-3">
           <div className="border-b border-border/40 px-5 pt-4 pb-3">
