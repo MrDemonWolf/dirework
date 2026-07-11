@@ -336,19 +336,38 @@ export default function Dashboard({
           )}
         </section>
 
-        {/* Task board — its overlay monitor sits right beside it */}
-        <section className="panel min-w-0 lg:col-span-2">
-          {user.data ? (
-            <TaskManager
-              userTwitchId={user.data.twitchId ?? ""}
-              username={user.data.name}
-              displayName={user.data.displayName ?? user.data.name}
-            />
-          ) : (
-            <p className="p-5 text-sm text-muted-foreground">Loading...</p>
-          )}
-          {/* Tasks overlay URL — full-width strip along the bottom of the task
-              board, mirroring the timer console's own overlay-URL strip. */}
+        {/* Task board — hero console mirroring the timer: board + live preview
+            beside it, overlay URL strip along the bottom */}
+        <section className="panel-hero min-w-0 lg:col-span-3">
+          <div className="flex flex-col lg:flex-row lg:items-stretch">
+            <div className="min-w-0 flex-1">
+              {user.data ? (
+                <TaskManager
+                  userTwitchId={user.data.twitchId ?? ""}
+                  username={user.data.name}
+                  displayName={user.data.displayName ?? user.data.name}
+                />
+              ) : (
+                <p className="p-5 text-sm text-muted-foreground">Loading...</p>
+              )}
+            </div>
+            {/* Tasks output — the OBS view of THIS list, right where it's managed */}
+            <div className="w-full border-t border-border/40 p-5 lg:w-72 lg:shrink-0 lg:border-t-0 lg:border-l">
+              {user.data ? (
+                <OverlayMonitor
+                  label="Tasks preview"
+                  src={tasksToken ? `/overlay/l/${tasksToken}` : null}
+                  title="Task list overlay preview"
+                  show={showTasksPreview}
+                  onToggle={setShowTasksPreview}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">Loading...</p>
+              )}
+            </div>
+          </div>
+          {/* Tasks overlay URL — full-width strip along the bottom, mirroring
+              the timer console's own overlay-URL strip. */}
           {user.data && (
             <div className="space-y-2 border-t border-border/40 px-5 py-4">
               <ConsoleRule label="Tasks overlay URL" className="flex items-center">
@@ -366,32 +385,6 @@ export default function Dashboard({
               </p>
             </div>
           )}
-        </section>
-
-        {/* Tasks output — the OBS view of the task list */}
-        <section className="panel min-w-0">
-          <div className="border-b border-border/40 px-5 pt-4 pb-3">
-            <ConsoleRule label="Tasks Output" />
-            <h2 className="mt-2 font-heading text-lg font-semibold tracking-tight">
-              Task list overlay
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Add the URL as a browser source in OBS
-            </p>
-          </div>
-          <div className="space-y-2 px-5 py-5">
-            {user.data ? (
-              <OverlayMonitor
-                label="Tasks preview"
-                src={tasksToken ? `/overlay/l/${tasksToken}` : null}
-                title="Task list overlay preview"
-                show={showTasksPreview}
-                onToggle={setShowTasksPreview}
-              />
-            ) : (
-              <p className="text-sm text-muted-foreground">Loading...</p>
-            )}
-          </div>
         </section>
 
         {/* Bot quick status — slim full-width strip */}
