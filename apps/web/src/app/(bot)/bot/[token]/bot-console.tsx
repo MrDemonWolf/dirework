@@ -155,6 +155,17 @@ export function BotConsole() {
     let disposed = false;
     let revoked = false;
     let wasLive = false;
+    let currentChatToken: string | null = null;
+    // Bounds the auth-failure recovery loop (P0.5): a refreshable-but-rejected
+    // token would otherwise retry every 2s forever. After this many consecutive
+    // failed recoveries (no successful connect between them) we stop and require
+    // a manual reconnect.
+    let authRecoveryAttempts = 0;
+    const MAX_AUTH_RECOVERY = 5;
+    // Hourly liveness check — validates the token against Twitch and reconnects
+    // only if it was rotated. Catches a revoked-but-unexpired token.
+    const REVALIDATE_INTERVAL_MS = 60 * 60 * 1000;
+    let revalidateTimer: ReturnType<typeof setInterval> | null = null;
     const pendingTimers = new Set<ReturnType<typeof setTimeout>>();
 
     const later = (fn: () => void, ms: number) => {
@@ -213,6 +224,7 @@ export function BotConsole() {
         if (disposed || revoked) return;
         setIrcStatus(status);
         if (status === "connected") {
+          authRecoveryAttempts = 0; // a clean connect clears the recovery budget
           setConnectedAt((prev) => prev ?? Date.now());
           pushActivity("info", "connected to Twitch IRC");
         }
@@ -261,6 +273,15 @@ export function BotConsole() {
         // Twitch rejected the stored token, so its DB expiry can't be trusted
         // — force the server through the refresh flow instead of letting it
         // hand back the same dead token. Small delay avoids a tight loop.
+        authRecoveryAttempts += 1;
+        if (authRecoveryAttempts > MAX_AUTH_RECOVERY) {
+          pushActivity(
+            "error",
+            "Twitch keeps rejecting the bot login — reconnect the bot account from the dashboard",
+          );
+          enterRevoked();
+          return;
+        }
         pushActivity("error", "Twitch rejected the bot's login — refreshing it");
         later(() => bootstrap({ forceRefresh: true }), 2000);
       },
@@ -279,12 +300,14 @@ export function BotConsole() {
         setBotUsername(session.botUsername);
         setPhase("live");
         wasLive = true;
+        currentChatToken = session.chatToken;
         client.connect({
           botUsername: session.botUsername,
           channelName: session.channelName,
           // Memory only — handed straight to the IRC client, never rendered.
           chatToken: session.chatToken,
         });
+        startRevalidateLoop();
       } catch (err) {
         if (disposed || revoked) return;
         if (isUnauthorized(err)) {
@@ -304,12 +327,48 @@ export function BotConsole() {
       }
     }
 
+    function startRevalidateLoop(): void {
+      if (revalidateTimer) return;
+      revalidateTimer = setInterval(() => {
+        if (disposed || revoked) return;
+        void revalidate();
+      }, REVALIDATE_INTERVAL_MS);
+    }
+
+    async function revalidate(): Promise<void> {
+      try {
+        const session = await publicTrpc.bot.getSession.query({ token, revalidate: true });
+        if (disposed || revoked) return;
+        // Only reconnect when the token actually rotated — an unchanged token
+        // means the socket is still valid and must not be churned hourly.
+        if (session.chatToken !== currentChatToken) {
+          currentChatToken = session.chatToken;
+          setChannelName(session.channelName);
+          setBotUsername(session.botUsername);
+          pushActivity("info", "chat token refreshed — reconnecting");
+          client.connect({
+            botUsername: session.botUsername,
+            channelName: session.channelName,
+            chatToken: session.chatToken,
+          });
+        }
+      } catch (err) {
+        if (disposed || revoked) return;
+        if (isUnauthorized(err)) {
+          enterRevoked();
+          return;
+        }
+        // Transient — the next hourly tick retries.
+      }
+    }
+
     pushActivity("info", "bot console starting");
     void bootstrap();
 
     return () => {
       disposed = true;
       for (const timer of pendingTimers) clearTimeout(timer);
+      if (revalidateTimer) clearInterval(revalidateTimer);
       client.dispose();
     };
   }, [token]);

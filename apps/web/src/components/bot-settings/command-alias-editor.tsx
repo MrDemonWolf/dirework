@@ -2,6 +2,8 @@
 
 import { Plus, Trash2 } from "lucide-react";
 
+import { normalizeAliasToken } from "@dirework/api/config-shared";
+
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,8 +36,12 @@ export function aliasesToRows(aliases: Record<string, string>): AliasRow[] {
 }
 
 /**
- * Collapse rows to the persisted object shape. Rows with an empty alias are
- * dropped; duplicate aliases are reported so the caller can block the save.
+ * Collapse rows to the persisted object shape. Keys and targets are normalized
+ * to canonical form (leading "!" stripped, lowercased) via the shared
+ * normalizer so what we persist matches what the chat resolver and the server
+ * alias validator expect — this is the client half of the "!!task" fix. Rows
+ * with an empty alias are dropped; duplicate aliases (after normalization) are
+ * reported so the caller can block the save.
  */
 export function rowsToAliases(rows: AliasRow[]): {
   aliases: Record<string, string>;
@@ -44,13 +50,13 @@ export function rowsToAliases(rows: AliasRow[]): {
   const aliases: Record<string, string> = {};
   const duplicates: string[] = [];
   for (const row of rows) {
-    const key = row.key.trim();
+    const key = normalizeAliasToken(row.key);
     if (!key) continue;
     if (key in aliases) {
       duplicates.push(key);
       continue;
     }
-    aliases[key] = row.value.trim();
+    aliases[key] = normalizeAliasToken(row.value);
   }
   return { aliases, duplicates };
 }
@@ -69,15 +75,15 @@ export function CommandAliasEditor({
 }) {
   const keyCounts = new Map<string, number>();
   for (const row of rows) {
-    const key = row.key.trim();
+    const key = normalizeAliasToken(row.key);
     if (!key) continue;
     keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1);
   }
 
-  const knownSet = new Set((knownCommands ?? []).map((c) => c.toLowerCase()));
+  const knownSet = new Set((knownCommands ?? []).map(normalizeAliasToken));
   const isUnknownCommand = (value: string) => {
     if (knownSet.size === 0) return false;
-    const base = value.trim().toLowerCase().split(/\s+/)[0] ?? "";
+    const base = normalizeAliasToken(value);
     return base !== "" && !knownSet.has(base);
   };
 
@@ -110,8 +116,8 @@ export function CommandAliasEditor({
 
       <div className="space-y-2">
         {rows.map((row) => {
-          const trimmedKey = row.key.trim();
-          const isDuplicate = trimmedKey !== "" && (keyCounts.get(trimmedKey) ?? 0) > 1;
+          const normalizedKey = normalizeAliasToken(row.key);
+          const isDuplicate = normalizedKey !== "" && (keyCounts.get(normalizedKey) ?? 0) > 1;
           const isUnknown = isUnknownCommand(row.value);
           return (
             <div key={row.id} className="space-y-1">
@@ -174,7 +180,7 @@ export function CommandAliasEditor({
           </p>
         )}
         {rows.some((row) => {
-          const k = row.key.trim();
+          const k = normalizeAliasToken(row.key);
           return k !== "" && (keyCounts.get(k) ?? 0) > 1;
         }) && (
           <p id="alias-duplicate-error" className="text-xs text-destructive" role="alert">

@@ -1,7 +1,7 @@
 import type { DbClient } from "@dirework/db";
 
 import type { BotConfigData } from "../config-shared";
-import { CHAT_OPEN_TASK_CAP, MAX_TASK_LEN } from "../config-shared";
+import { CHAT_OPEN_TASK_CAP, MAX_TASK_LEN, normalizeAliasToken } from "../config-shared";
 import {
   activateTask,
   clearAllTasks,
@@ -92,10 +92,19 @@ async function getTaskAtPosition(db: DbClient, twitchId: string, arg: string) {
   return viewerTasks[parseInt(arg, 10) - 1] ?? null;
 }
 
+/**
+ * Resolve a chat command through the configured aliases. Stored keys/targets are
+ * normalized (leading "!" stripped, lowercased) via the shared normalizer, so
+ * both canonical `{ t: "task" }` and legacy `{ "!t": "!task" }` records resolve
+ * `!t` → `!task` — never the old `!!task`. The incoming command is kept verbatim
+ * and only matched against `!<normalized-key>`, so a bare "focus" (no "!") is not
+ * a command and stays unchanged.
+ */
 export function resolveAlias(command: string, aliases: Record<string, string>): string {
+  const cmd = command.toLowerCase();
   for (const [alias, target] of Object.entries(aliases)) {
-    if (command === `!${alias}`.toLowerCase()) {
-      return `!${target}`.toLowerCase();
+    if (cmd === `!${normalizeAliasToken(alias)}`) {
+      return `!${normalizeAliasToken(target)}`;
     }
   }
   return command;

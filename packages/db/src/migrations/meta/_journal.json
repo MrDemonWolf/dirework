@@ -57,6 +57,13 @@
       "when": 1783720000000,
       "tag": "0007_widen_timer_default",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1784833276204,
+      "tag": "0008_mixed_lady_vermin",
+      "breakpoints": true
     }
   ]
 }

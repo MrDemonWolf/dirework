@@ -3,7 +3,8 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@dirework/api": "workspace:*",
@@ -20,6 +21,7 @@
     "@types/node": "^22.13.14",
     "alchemy": "catalog:",
     "typescript": "catalog:",
+    "vitest": "catalog:",
     "wrangler": "catalog:"
   }
 }
