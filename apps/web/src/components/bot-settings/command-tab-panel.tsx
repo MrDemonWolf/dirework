@@ -1,5 +1,7 @@
 "use client";
 
+import { KNOWN_ALIAS_TARGETS } from "@dirework/api/config-shared";
+
 import { ConsoleRule } from "@/components/console-rule";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -33,15 +35,11 @@ export const timerCommands: CommandRow[] = [
 ];
 
 /**
- * Built-in command names an alias can target — timer subcommands collapse to
- * their base "!timer" token. Used by the alias editor's unknown-command hint.
+ * Built-in command names an alias can target. Single source is
+ * config-shared.KNOWN_ALIAS_TARGETS (canonical, no leading "!") so the editor's
+ * unknown-command hint agrees exactly with the server-side alias validator.
  */
-export const knownAliasTargets: string[] = [
-  ...new Set([
-    ...taskCommands.map((c) => c.command),
-    ...timerCommands.map((c) => c.command.split(" ")[0] ?? c.command),
-  ]),
-];
+export const knownAliasTargets: string[] = [...KNOWN_ALIAS_TARGETS];
 
 function CommandTable({ commands, labelledBy }: { commands: CommandRow[]; labelledBy?: string }) {
   return (

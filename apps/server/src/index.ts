@@ -5,12 +5,12 @@ import { env } from "@dirework/env/server";
 import { trpcServer } from "@hono/trpc-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
 import { botOAuth } from "./routes/bot-oauth";
+import { requestLogger } from "./lib/logger";
 
 const app = new Hono();
 
-app.use(logger());
+app.use(requestLogger());
 app.use(
   "/*",
   cors({

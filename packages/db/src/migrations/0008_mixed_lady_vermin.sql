@@ -1,0 +1,1 @@
+ALTER TABLE `bot_account` ADD `refresh_locked_until` integer;

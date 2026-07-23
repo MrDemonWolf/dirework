@@ -55,6 +55,9 @@ export const botRouter = router({
       // failure) — bypasses the expiry check so recovery never hands back the
       // same dead token.
       forceRefresh: z.boolean().optional(),
+      // Set by the bot page's hourly liveness tick — validates a still-unexpired
+      // token against Twitch and refreshes only if it has been revoked.
+      revalidate: z.boolean().optional(),
     }))
     .query(async ({ ctx, input }) => {
       await requireBotToken(ctx.db, input.token);
@@ -74,6 +77,7 @@ export const botRouter = router({
       };
       const chatToken = await getFreshChatToken(ctx.db, creds, {
         forceRefresh: input.forceRefresh,
+        revalidate: input.revalidate,
       });
       if (!chatToken) {
         throw new TRPCError({ code: "UNAUTHORIZED", message: "Bot chat token unavailable" });

@@ -10,14 +10,27 @@
  * logged, never surfaced through callbacks).
  */
 
+import { RateLimiter } from "./rate-limiter";
+
 const TWITCH_IRC_URL = "wss://irc-ws.chat.twitch.tv:443";
 
 /**
- * Minimum spacing between outbound PRIVMSGs. Twitch allows 20 messages / 30s
- * for a regular (non-verified) bot account — ~750ms spacing keeps us safely
- * under that without assuming verified-bot limits.
+ * Outbound throttle: a rolling token bucket, conservative for a regular
+ * (non-verified, non-mod) bot account — 20 messages / 30s AND ≤1 message/sec to
+ * the channel. Replaces the old fixed 750ms spacer, which allowed no burst and
+ * yet did not actually enforce the 30s window under sustained load.
  */
-const SEND_INTERVAL_MS = 750;
+const SEND_WINDOW_MS = 30_000;
+const SEND_MAX_IN_WINDOW = 20;
+const SEND_MIN_GAP_MS = 1_000;
+
+/**
+ * Hard cap on the outbound queue. A reply storm (or a wedged socket) must not
+ * grow memory without bound; past this we drop the OLDEST queued reply (it is
+ * the most stale and least worth sending late) and warn.
+ * ponytail: fixed cap; make it configurable only if a real workload needs it.
+ */
+const MAX_QUEUE = 100;
 
 /** Twitch hard-caps chat messages at 500 characters. */
 const MAX_SAY_LENGTH = 500;
@@ -182,10 +195,14 @@ export class TwitchIrcClient {
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-  /** Outbound PRIVMSG queue, throttled to one message per SEND_INTERVAL_MS. */
+  /** Outbound PRIVMSG queue, drained under the rolling rate limiter. */
   private sendQueue: string[] = [];
   private sendTimer: ReturnType<typeof setTimeout> | null = null;
-  private lastSentAt = 0;
+  private readonly limiter = new RateLimiter({
+    windowMs: SEND_WINDOW_MS,
+    maxInWindow: SEND_MAX_IN_WINDOW,
+    minGapMs: SEND_MIN_GAP_MS,
+  });
   private joined = false;
 
   constructor(callbacks: IrcClientCallbacks = {}) {
@@ -224,10 +241,15 @@ export class TwitchIrcClient {
     this.disposed = true;
   }
 
-  /** Queue a chat message; sent as PRIVMSG with rate-limit throttling. */
+  /** Queue a chat message; sent as PRIVMSG under the rolling rate limiter. */
   say(text: string): void {
     const trimmed = text.trim();
     if (!trimmed || this.disposed) return;
+    if (this.sendQueue.length >= MAX_QUEUE) {
+      // Overflow policy: drop the oldest queued reply and warn.
+      this.sendQueue.shift();
+      this.callbacks.onError?.("Chat send queue full — dropped the oldest queued message");
+    }
     this.sendQueue.push(trimmed.slice(0, MAX_SAY_LENGTH));
     this.scheduleSend();
   }
@@ -389,7 +411,7 @@ export class TwitchIrcClient {
 
   private scheduleSend(): void {
     if (this.sendTimer || this.sendQueue.length === 0) return;
-    const wait = Math.max(0, this.lastSentAt + SEND_INTERVAL_MS - Date.now());
+    const wait = Math.max(0, this.limiter.nextAllowed(Date.now()) - Date.now());
     this.sendTimer = setTimeout(() => {
       this.sendTimer = null;
       this.flushOne();
@@ -410,7 +432,7 @@ export class TwitchIrcClient {
     const text = this.sendQueue.shift();
     if (text === undefined) return;
     this.sendRaw(`PRIVMSG #${this.creds.channelName.toLowerCase()} :${text}`);
-    this.lastSentAt = Date.now();
+    this.limiter.record(Date.now());
     if (this.sendQueue.length > 0) this.scheduleSend();
   }
 
