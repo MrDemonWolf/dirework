@@ -94,7 +94,6 @@ export default function UserMenu() {
           <Avatar image={session.user.image} name={session.user.name} className="h-9 w-9" />
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{session.user.name}</p>
-            <p className="console-label mt-0.5">Owner</p>
           </div>
         </div>
         <DropdownMenuSeparator />
