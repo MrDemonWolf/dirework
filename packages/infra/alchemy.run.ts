@@ -32,6 +32,13 @@ const app = await alchemy("dirework", {
         new CloudflareStateStore(scope, {
           scriptName: "alchemy-state",
           stateToken: alchemy.secret(process.env.ALCHEMY_STATE_TOKEN),
+          // Reclaim the shared `alchemy-state` worker's token. It was first
+          // provisioned with a now-defunct token, so a plain deploy fails with
+          // "[CloudflareStateStore] The token is invalid". forceUpdate overwrites
+          // the worker's token with our shared ALCHEMY_STATE_TOKEN, so the whole
+          // fleet (website, wolfathon, linkden) then authenticates against it.
+          // Idempotent while the fleet shares one token; safe to leave in.
+          forceUpdate: true,
         })
     : undefined,
 });
