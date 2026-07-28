@@ -132,7 +132,21 @@ Web app: `@/` → `apps/web/src/`. Internal packages: `@dirework/api`, `@direwor
 ### tRPC / API layer
 
 Routers in `packages/api/src/routers/` (`user`, `task`, `timer`, `config`, `overlay`, `bot`).
-`publicProcedure` (overlays + bot page, token-gated) vs `protectedProcedure` (session).
+Three tiers: `publicProcedure` (overlays + bot page, token-gated),
+`protectedProcedure` (valid session), and **`ownerProcedure`** (session AND
+`user.isOwner`, fails closed with FORBIDDEN). Every dashboard/config/task/timer/
+token/bot-account procedure uses `ownerProcedure` — being signed in is not
+authorization. Only genuinely public, token-gated procedures stay
+`publicProcedure`.
+
+**Task mutations are atomic.** `activateTask` / `markTaskDone` run their
+multi-step work in ONE `db.batch` (atomic on D1), `promoteNextPending` is a
+single guarded UPDATE with a subquery, and a **partial unique index**
+(`task_one_active_per_author_idx`) makes "≤1 active task per Twitch user" a DB
+invariant. `createTask` catches the resulting UNIQUE violation and falls back to
+`pending` rather than dropping the chat message. Bot ingest is serialized
+client-side (a promise chain in `bot-console.tsx`) so chat commands apply in
+order. List ordering tiebreaks on `id` so concurrent creates sort deterministically.
 
 **Services own mutations** (`packages/api/src/services/`): `task-service`, `timer-service`,
 `overlay-service`, `twitch-auth`, `tokens`, `singleton`, `provision`. Both tRPC routers and
@@ -140,6 +154,20 @@ Routers in `packages/api/src/routers/` (`user`, `task`, `timer`, `config`, `over
 or command handler (audit M1). Pure logic (timer-logic.ts, config-shared.ts, services)
 must not import `@dirework/env/server` — Vitest runs in Node and cannot resolve
 `cloudflare:workers`.
+
+**Validation is centralized** in `config-shared.ts`: `cssColorSchema`,
+`cssLengthSchema`, `fontFamilySchema`, `opacitySchema`, `chatMessageSchema`.
+The CSS ones are **allowlists, not length caps** — style values are interpolated
+into overlay CSS, so `;`/`{}`/`url()` must never survive validation. Chat
+messages are bounded by **UTF-8 bytes** (`truncateToBytes`, `MAX_CHAT_BYTES`),
+never characters — an IRC line caps at 512 bytes, so 500 emoji would overflow it.
+
+**Abuse protections:** Cloudflare rate-limit bindings (`RL_AUTH`, `RL_BOT`,
+`RL_TOKEN`, `RL_OVERLAY` — separate buckets so a flood on one can't starve
+overlay polling) applied in `apps/server/src/lib/rate-limit.ts`; a global
+`bodyLimit`; streamed (not buffered) proxy bodies with a 413 pre-check in
+`auth-proxy.ts`; and `AbortSignal.timeout` on every outbound Twitch fetch. The
+limiter **fails open** if a binding is absent — it's a brake, not a dependency.
 
 Token gates: `verifyOverlayToken` / `verifyBotToken` (constant-time compare, bounded
 zod inputs). Never return `accessToken`/`refreshToken` from any procedure (audit H1).
@@ -241,7 +269,15 @@ twitch-auth), `packages/api/src/routers/__tests__/` (timer-logic, config build/f
 round-trip, aliases), `apps/web/src/lib/__tests__/` (timer-utils, task-utils, theme-presets,
 config-types, rate-limiter), `apps/server/src/lib/__tests__/` (logger redaction),
 `packages/auth/src/__tests__/has-owner.test.ts`.
-New pure functions → extract to testable modules + add tests.
+`packages/api/src/__tests__/app-router.test.ts` drives the REAL `appRouter` via
+`createCaller` (auth, owner authorization, validation, DB effects, error
+mapping). This works because `packages/api/vitest.config.ts` aliases
+`cloudflare:workers` to a stub — without it, any chain touching
+`@dirework/env/server` can't load under Node and router tests degrade into
+schema-only checks.
+New pure functions → extract to testable modules + add tests. **Never assert on
+an object literal the test itself constructed** — that passes with the
+implementation deleted; drive the real function instead.
 
 ## CI/CD
 
