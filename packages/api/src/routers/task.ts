@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 
-import { protectedProcedure, router } from "../index";
+import { ownerProcedure, router } from "../index";
 import {
   activateTask,
   clearAllTasks,
@@ -13,11 +13,11 @@ import {
 import { taskCreateInput, taskIdInput } from "./input-schemas";
 
 export const taskRouter = router({
-  list: protectedProcedure.query(async ({ ctx }) => {
+  list: ownerProcedure.query(async ({ ctx }) => {
     return listTasks(ctx.db);
   }),
 
-  create: protectedProcedure
+  create: ownerProcedure
     .input(taskCreateInput)
     .mutation(async ({ ctx, input }) => {
       return createTask(
@@ -32,13 +32,13 @@ export const taskRouter = router({
       );
     }),
 
-  markDone: protectedProcedure
+  markDone: ownerProcedure
     .input(taskIdInput)
     .mutation(async ({ ctx, input }) => {
       return markTaskDone(ctx.db, input.id);
     }),
 
-  activate: protectedProcedure
+  activate: ownerProcedure
     .input(taskIdInput)
     .mutation(async ({ ctx, input }) => {
       const task = await ctx.db.query.task.findFirst({
@@ -53,17 +53,17 @@ export const taskRouter = router({
       return activateTask(ctx.db, task);
     }),
 
-  remove: protectedProcedure
+  remove: ownerProcedure
     .input(taskIdInput)
     .mutation(async ({ ctx, input }) => {
       return removeTask(ctx.db, input.id);
     }),
 
-  clearAll: protectedProcedure.mutation(async ({ ctx }) => {
+  clearAll: ownerProcedure.mutation(async ({ ctx }) => {
     return clearAllTasks(ctx.db);
   }),
 
-  clearDone: protectedProcedure.mutation(async ({ ctx }) => {
+  clearDone: ownerProcedure.mutation(async ({ ctx }) => {
     return clearDoneTasks(ctx.db);
   }),
 });

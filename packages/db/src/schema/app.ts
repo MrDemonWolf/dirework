@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, index, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 
@@ -64,6 +64,13 @@ export const task = sqliteTable("task", {
   index("task_status_idx").on(table.status),
   index("task_priority_order_idx").on(table.priority, table.order),
   index("task_author_idx").on(table.authorTwitchId),
+  // "At most one active task per Twitch user" as a DB invariant, not just an
+  // application convention (P1.7). Chat ingest is concurrent, so a check-then-act
+  // in the service could otherwise leave a viewer with two active tasks. Partial
+  // index: only rows with status='active' participate.
+  uniqueIndex("task_one_active_per_author_idx")
+    .on(table.authorTwitchId)
+    .where(sql`${table.status} = 'active'`),
 ]);
 
 export const timerState = sqliteTable("timer_state", {
@@ -206,18 +213,10 @@ export const botConfig = sqliteTable("bot_config", {
   msgClearedDone: text("msg_cleared_done").notNull().default(DEFAULT_TASK_MESSAGES.clearedDone),
   msgNextNoContent: text("msg_next_no_content").notNull().default(DEFAULT_TASK_MESSAGES.nextNoContent),
   msgHelp: text("msg_help").notNull().default(DEFAULT_TASK_MESSAGES.help),
-  msgWorkMsg: text("msg_work").notNull().default(DEFAULT_TIMER_MESSAGES.workMsg),
-  msgBreakMsg: text("msg_break").notNull().default(DEFAULT_TIMER_MESSAGES.breakMsg),
-  msgLongBreakMsg: text("msg_long_break").notNull().default(DEFAULT_TIMER_MESSAGES.longBreakMsg),
-  msgWorkRemindMsg: text("msg_work_remind").notNull().default(DEFAULT_TIMER_MESSAGES.workRemindMsg),
   msgNotRunning: text("msg_not_running").notNull().default(DEFAULT_TIMER_MESSAGES.notRunning),
-  msgStreamStarting: text("msg_stream_starting").notNull().default(DEFAULT_TIMER_MESSAGES.streamStarting),
   msgWrongCommand: text("msg_wrong_command").notNull().default(DEFAULT_TIMER_MESSAGES.wrongCommand),
   msgTimerRunning: text("msg_timer_running").notNull().default(DEFAULT_TIMER_MESSAGES.timerRunning),
   msgCommandSuccess: text("msg_command_success").notNull().default(DEFAULT_TIMER_MESSAGES.commandSuccess),
   msgCycleWrong: text("msg_cycle_wrong").notNull().default(DEFAULT_TIMER_MESSAGES.cycleWrong),
-  msgGoalWrong: text("msg_goal_wrong").notNull().default(DEFAULT_TIMER_MESSAGES.goalWrong),
-  msgFinishResponse: text("msg_finish_response").notNull().default(DEFAULT_TIMER_MESSAGES.finishResponse),
-  msgAlreadyStarting: text("msg_already_starting").notNull().default(DEFAULT_TIMER_MESSAGES.alreadyStarting),
   msgEta: text("msg_eta").notNull().default(DEFAULT_TIMER_MESSAGES.eta),
 });

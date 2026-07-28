@@ -2,7 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { DbClient } from "@dirework/db";
 
-import { createTask, promoteNextPending, resolveTaskPlacement } from "../task-service";
+import {
+  activateTask,
+  createTask,
+  markTaskDone,
+  promoteNextPending,
+  resolveTaskPlacement,
+} from "../task-service";
 
 interface StubOptions {
   ownerTwitchId?: string | null;
@@ -10,11 +16,16 @@ interface StubOptions {
   taskFindFirst?: Record<string, unknown>;
   /** Returned by task.findMany (open tasks). */
   openTasks?: Record<string, unknown>[];
+  /** Override what a guarded UPDATE ... returning() yields (e.g. [] = CAS lost). */
+  updateReturns?: Record<string, unknown>[];
+  /** Make the first insert fail with a UNIQUE violation (concurrent create). */
+  failFirstInsertUnique?: boolean;
 }
 
 function makeDb(opts: StubOptions) {
   const insertSpy = vi.fn();
   const updateSpy = vi.fn();
+  let insertCalls = 0;
   const db = {
     query: {
       user: {
@@ -29,7 +40,18 @@ function makeDb(opts: StubOptions) {
     insert: () => ({
       values: (values: Record<string, unknown>) => {
         insertSpy(values);
-        return { returning: async () => [{ id: "new-task", ...values }] };
+        insertCalls += 1;
+        const shouldFail = opts.failFirstInsertUnique && insertCalls === 1;
+        return {
+          returning: async () => {
+            if (shouldFail) {
+              throw new Error(
+                "D1_ERROR: UNIQUE constraint failed: task.author_twitch_id",
+              );
+            }
+            return [{ id: "new-task", ...values }];
+          },
+        };
       },
     }),
     update: () => ({
@@ -37,7 +59,8 @@ function makeDb(opts: StubOptions) {
         updateSpy(values);
         return {
           where: () => ({
-            returning: async () => [{ ...opts.taskFindFirst, ...values }],
+            returning: async () =>
+              opts.updateReturns ?? [{ ...opts.taskFindFirst, ...values }],
           }),
         };
       },
@@ -73,7 +96,7 @@ describe("resolveTaskPlacement (audit M6)", () => {
   });
 });
 
-describe("promoteNextPending (audit M5)", () => {
+describe("promoteNextPending (audit M5 / P1.7 single statement)", () => {
   it("promotes the first pending task to active", async () => {
     const { db, updateSpy } = makeDb({
       taskFindFirst: { id: "t1", status: "pending", authorTwitchId: "456" },
@@ -83,10 +106,14 @@ describe("promoteNextPending (audit M5)", () => {
     expect(updateSpy).toHaveBeenCalledWith({ status: "active" });
   });
 
-  it("returns null (no write) when nothing is pending", async () => {
-    const { db, updateSpy } = makeDb({ taskFindFirst: undefined });
+  it("returns null when the guarded UPDATE matches no row", async () => {
+    // P1.7: promotion is now ONE guarded UPDATE (target chosen by subquery,
+    // plus a not-exists guard on an already-active task) instead of a
+    // find-then-update pair, so "nothing to promote" surfaces as an empty
+    // returning() rather than a skipped write. That's what removes the race
+    // where two concurrent promotions could both find the same pending task.
+    const { db } = makeDb({ updateReturns: [] });
     expect(await promoteNextPending(db, "456")).toBeNull();
-    expect(updateSpy).not.toHaveBeenCalled();
   });
 });
 
@@ -123,5 +150,130 @@ describe("createTask", () => {
     });
     await createTask(db, author, "next task", { activate: true });
     expect(insertSpy.mock.calls[0]?.[0]).toMatchObject({ status: "active" });
+  });
+
+  // ── P1.7 concurrency ──────────────────────────────────────────────────────
+  it("falls back to pending when a concurrent create wins the active slot", async () => {
+    // Two !task commands from the same viewer both read "no open tasks" and
+    // both try to insert an active row. The partial unique index rejects the
+    // loser; it must still create the task, just queued as pending — never
+    // drop the message and never end up with two active tasks.
+    const { db, insertSpy } = makeDb({
+      ownerTwitchId: "123",
+      openTasks: [],
+      failFirstInsertUnique: true,
+    });
+
+    const task = await createTask(db, author, "racing task");
+
+    expect(insertSpy).toHaveBeenCalledTimes(2);
+    expect(insertSpy.mock.calls[0]?.[0]).toMatchObject({ status: "active" });
+    expect(insertSpy.mock.calls[1]?.[0]).toMatchObject({ status: "pending" });
+    expect(task).toMatchObject({ text: "racing task", status: "pending" });
+  });
+
+  it("rethrows a non-unique insert failure instead of silently retrying", async () => {
+    const db = {
+      query: {
+        user: { findFirst: async () => ({ twitchId: "123" }) },
+        task: { findFirst: async () => undefined, findMany: async () => [] },
+      },
+      insert: () => ({
+        values: () => ({
+          returning: async () => {
+            throw new Error("D1_ERROR: database is locked");
+          },
+        }),
+      }),
+    } as unknown as DbClient;
+
+    await expect(createTask(db, author, "boom")).rejects.toThrow(/database is locked/);
+  });
+});
+
+// ── P1.7: activate / markDone are single atomic batches ─────────────────────
+/**
+ * db.batch stub: records the statements handed to it and returns each one's
+ * pre-staged result. The point of these tests is that the multi-step task
+ * mutations go through ONE batch (atomic on D1) rather than sequential awaits
+ * that another chat command could interleave with.
+ */
+function makeBatchDb(opts: {
+  taskFindFirst?: Record<string, unknown>;
+  batchResults: unknown[];
+}) {
+  const batchSpy = vi.fn();
+  const setSpy = vi.fn();
+  const stmt = () => ({
+    set: (values: Record<string, unknown>) => {
+      setSpy(values);
+      // returning() has to serve BOTH uses: a statement handed to db.batch, and
+      // a directly-awaited chain (the non-active markTaskDone path). An array
+      // works for both — batch just collects it, await destructures it.
+      return { where: () => ({ returning: () => [{ __stmt: values, ...values }] }) };
+    },
+  });
+  const db = {
+    query: { task: { findFirst: async () => opts.taskFindFirst } },
+    update: stmt,
+    batch: async (statements: unknown[]) => {
+      batchSpy(statements);
+      return opts.batchResults;
+    },
+  } as unknown as DbClient;
+  return { db, batchSpy, setSpy };
+}
+
+describe("activateTask atomicity (P1.7)", () => {
+  it("demotes and activates in ONE batch, demote first", async () => {
+    const { db, batchSpy, setSpy } = makeBatchDb({
+      batchResults: [[], [{ id: "t2", status: "active" }]],
+    });
+
+    const result = await activateTask(db, { id: "t2", authorTwitchId: "456" });
+
+    expect(batchSpy).toHaveBeenCalledOnce();
+    expect(batchSpy.mock.calls[0]?.[0]).toHaveLength(2);
+    // Demote must precede activate so the single-active slot is free when the
+    // unique index checks the activate.
+    expect(setSpy.mock.calls[0]?.[0]).toMatchObject({ status: "pending" });
+    expect(setSpy.mock.calls[1]?.[0]).toMatchObject({ status: "active" });
+    expect(result).toMatchObject({ id: "t2", status: "active" });
+  });
+});
+
+describe("markTaskDone atomicity (P1.7)", () => {
+  it("completes and promotes in ONE batch when the task was active", async () => {
+    const { db, batchSpy, setSpy } = makeBatchDb({
+      taskFindFirst: { id: "t1", status: "active", authorTwitchId: "456" },
+      batchResults: [[{ id: "t1", status: "done" }], [{ id: "t2", status: "active" }]],
+    });
+
+    const done = await markTaskDone(db, "t1");
+
+    expect(batchSpy).toHaveBeenCalledOnce();
+    expect(batchSpy.mock.calls[0]?.[0]).toHaveLength(2);
+    expect(setSpy.mock.calls[0]?.[0]).toMatchObject({ status: "done" });
+    expect(setSpy.mock.calls[1]?.[0]).toMatchObject({ status: "active" });
+    expect(done).toMatchObject({ id: "t1", status: "done" });
+  });
+
+  it("does not batch a promote when the task was merely pending", async () => {
+    // Completing a pending task frees no active slot, so promoting would
+    // wrongly activate a second task.
+    const { db, batchSpy } = makeBatchDb({
+      taskFindFirst: { id: "t3", status: "pending", authorTwitchId: "456" },
+      batchResults: [],
+    });
+
+    await markTaskDone(db, "t3");
+
+    expect(batchSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns null for a task that does not exist", async () => {
+    const { db, batchSpy } = makeBatchDb({ taskFindFirst: undefined, batchResults: [] });
+    expect(await markTaskDone(db, "nope")).toBeNull();
+    expect(batchSpy).not.toHaveBeenCalled();
   });
 });

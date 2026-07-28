@@ -98,37 +98,19 @@ export default function StylesPage() {
     setActiveThemeId(matchedPreset);
   }, [config.data]);
 
-  const updateTimerMutation = useMutation({
-    ...trpc.config.updateTimerStyles.mutationOptions(),
+  // ONE atomic mutation for the whole Theme Center — styles and phase labels
+  // used to be three independent requests that could persist partially.
+  const saveStylesMutation = useMutation({
+    ...trpc.config.updateStyles.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
     },
     onError: (err) => {
-      toast.error(`Couldn't save timer styles: ${err.message}`);
+      toast.error(`Couldn't save styles: ${err.message}`);
     },
   });
 
-  const updateTaskMutation = useMutation({
-    ...trpc.config.updateTaskStyles.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
-    },
-    onError: (err) => {
-      toast.error(`Couldn't save task list styles: ${err.message}`);
-    },
-  });
-
-  const updatePhaseLabelsMutation = useMutation({
-    ...trpc.config.updatePhaseLabels.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
-    },
-    onError: (err) => {
-      toast.error(`Couldn't save phase labels: ${err.message}`);
-    },
-  });
-
-  const isSaving = updateTimerMutation.isPending || updateTaskMutation.isPending || updatePhaseLabelsMutation.isPending;
+  const isSaving = saveStylesMutation.isPending;
 
   const handleTimerChange = useCallback((newStyles: TimerStylesConfig) => {
     setTimerStyles(newStyles);
@@ -173,26 +155,19 @@ export default function StylesPage() {
   }, [savedTimerStyles, savedTaskStyles, savedPhaseLabels]);
 
   const handleSave = useCallback(async () => {
-    const [timerResult, taskResult, labelsResult] = await Promise.allSettled([
-      updateTimerMutation.mutateAsync({ timerStyles }),
-      updateTaskMutation.mutateAsync({ taskStyles }),
-      updatePhaseLabelsMutation.mutateAsync(phaseLabels),
-    ]);
-
-    // Promote working → saved per slice that actually persisted, so Reset
-    // restores a truthful snapshot even after a partial failure.
-    if (timerResult.status === "fulfilled") setSavedTimerStyles(timerStyles);
-    if (taskResult.status === "fulfilled") setSavedTaskStyles(taskStyles);
-    if (labelsResult.status === "fulfilled") setSavedPhaseLabels(phaseLabels);
-
-    if ([timerResult, taskResult, labelsResult].every((r) => r.status === "fulfilled")) {
+    try {
+      // Atomic server-side: either all three slices persist or none do, so the
+      // saved snapshot below can never diverge from what the server holds.
+      await saveStylesMutation.mutateAsync({ timerStyles, taskStyles, phaseLabels });
+      setSavedTimerStyles(timerStyles);
+      setSavedTaskStyles(taskStyles);
+      setSavedPhaseLabels(phaseLabels);
       setHasUnsaved(false);
       toast.success("Styles saved");
-    } else {
-      // per-mutation onError already surfaced the specifics
-      toast.error("Some changes didn't save — try saving again.");
+    } catch {
+      // onError already surfaced the specifics; nothing persisted.
     }
-  }, [timerStyles, taskStyles, phaseLabels, updateTimerMutation, updateTaskMutation, updatePhaseLabelsMutation]);
+  }, [timerStyles, taskStyles, phaseLabels, saveStylesMutation]);
 
   if (config.isLoading) {
     return <StylesSkeleton />;

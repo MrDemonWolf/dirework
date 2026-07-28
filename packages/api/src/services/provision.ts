@@ -2,7 +2,6 @@ import { TRPCError } from "@trpc/server";
 
 import type { DbClient } from "@dirework/db";
 import { provisionSingletonRows } from "@dirework/db/provision";
-import * as schema from "@dirework/db/schema";
 
 /**
  * Lazily provision every singleton config row and return the config rows.
@@ -30,9 +29,14 @@ export async function ensureSingletons(db: DbClient) {
   };
 }
 
-/** Ensure the instanceConfig singleton exists and return it. */
+/**
+ * Ensure the instanceConfig singleton exists and return it. Provisioning goes
+ * through the shared `provisionSingletonRows` — these used to run their own
+ * `insert().values({})` (no explicit id, relying on a column default), a second
+ * provisioning path that could drift from the shared one.
+ */
 export async function ensureInstanceConfig(db: DbClient) {
-  await db.insert(schema.instanceConfig).values({}).onConflictDoNothing();
+  await provisionSingletonRows(db);
   const instance = await db.query.instanceConfig.findFirst();
   if (!instance) {
     throw new TRPCError({
@@ -45,7 +49,7 @@ export async function ensureInstanceConfig(db: DbClient) {
 
 /** Ensure the botConfig singleton exists and return it. */
 export async function ensureBotConfig(db: DbClient) {
-  await db.insert(schema.botConfig).values({}).onConflictDoNothing();
+  await provisionSingletonRows(db);
   const botConfigRow = await db.query.botConfig.findFirst();
   if (!botConfigRow) {
     throw new TRPCError({

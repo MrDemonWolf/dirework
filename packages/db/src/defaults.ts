@@ -51,20 +51,21 @@ export const DEFAULT_TASK_MESSAGES = {
   help: "{user}, join the hunt: !task, !done, !edit, !remove, !focus, !check, !next — or !dwhelp for the full list.",
 };
 
-/** Default timer chat messages (bot_config msg_* columns). */
+/**
+ * Default timer chat messages (bot_config msg_* columns).
+ *
+ * Every message here is actually sent by a `!timer` command handler. Phase
+ * *announcement* messages (work/break/longBreak/workRemind/streamStarting) and
+ * the goal/finish/already-starting responses were removed in the P1 cleanup:
+ * Workers has no always-on process, so nothing could ever fire them — they were
+ * editable in the dashboard and silently did nothing. Do not re-add a message
+ * here without an emit site in packages/api/src/bot/commands.ts.
+ */
 export const DEFAULT_TIMER_MESSAGES = {
-  workMsg: "Time to hunt! Focus mode activated!",
-  breakMsg: "Paws up! Time for a short rest in the den.",
-  longBreakMsg: "The whole pack is taking a long snooze! Back soon!",
-  workRemindMsg: "Get ready to howl, @{channel} — focus starts in a moment!",
   notRunning: "The timer isn't howling yet! Start it up first.",
-  streamStarting: "The pack is waking up! Stream starting!",
   wrongCommand: "My ears didn't catch that... Try !timer start, pause, resume, skip, reset, or eta.",
   timerRunning: "The hunt is already in progress!",
   commandSuccess: "Paw-fect! Done!",
   cycleWrong: "That cycle count won't work — pick 1 to 99, like !timer start 4.",
-  goalWrong: "The goal needs to be further than the cycle!",
-  finishResponse: "Great work today pack! We hunted well.",
-  alreadyStarting: "The pack is already moving or the timer is running!",
   eta: "This phase ends in {phase} · the hunt is done in {time}",
 };

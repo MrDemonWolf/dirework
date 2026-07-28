@@ -3,7 +3,7 @@
 // deploy.yml both invoke it via tsx directly, bypassing the alchemy CLI's
 // runtime detection (which picks bun whenever bun is the package manager).
 import alchemy from "alchemy";
-import { D1Database, Nextjs, Worker } from "alchemy/cloudflare";
+import { D1Database, Nextjs, RateLimit, Worker } from "alchemy/cloudflare";
 import { CloudflareStateStore } from "alchemy/state";
 import { config } from "dotenv";
 
@@ -39,6 +39,41 @@ const db = await D1Database("database", {
   adopt: true,
 });
 
+// Rate-limit bindings (P1.8). Cloudflare's rate limiter is per-namespace and
+// per-colo; `period` may only be 10 or 60 seconds. Namespace ids must be stable
+// and unique per binding — changing one resets its counters.
+//
+// Limits are sized for a SINGLE streamer's instance: the dashboard is used by
+// one person, the bot page is one browser tab, and overlays poll on a fixed 3s
+// interval. They exist to blunt brute-force and scripted abuse of the public
+// token-gated routes, not to shape legitimate traffic.
+const authRateLimit = RateLimit({
+  // Login + OAuth callbacks. One human signing in; anything faster is scripted.
+  namespace_id: 1001,
+  simple: { limit: 20, period: 60 },
+});
+
+const botRateLimit = RateLimit({
+  // bot.getSession bootstrap + bot.ingest. Chat can burst, so this is generous
+  // but still far below what a flood would need.
+  namespace_id: 1002,
+  simple: { limit: 300, period: 60 },
+});
+
+const tokenVerifyRateLimit = RateLimit({
+  // Guards token-gated entry points against enumeration of the 32-char secrets.
+  namespace_id: 1003,
+  simple: { limit: 60, period: 60 },
+});
+
+const overlayRateLimit = RateLimit({
+  // Overlays poll every 3s → ~20 req/min per source, two sources per streamer.
+  // Deliberately separate (and higher) so overlay polling can never be starved
+  // by traffic hitting the other buckets.
+  namespace_id: 1004,
+  simple: { limit: 120, period: 60 },
+});
+
 // API worker: dirework-api.<account>.workers.dev
 // Serves better-auth (/api/auth/*), tRPC (/trpc/*), and bot OAuth routes.
 export const server = await Worker("server", {
@@ -52,6 +87,10 @@ export const server = await Worker("server", {
   url: true,
   bindings: {
     DB: db,
+    RL_AUTH: authRateLimit,
+    RL_BOT: botRateLimit,
+    RL_TOKEN: tokenVerifyRateLimit,
+    RL_OVERLAY: overlayRateLimit,
     CORS_ORIGIN: alchemy.env.CORS_ORIGIN!,
     BETTER_AUTH_SECRET: alchemy.secret.env.BETTER_AUTH_SECRET!,
     BETTER_AUTH_URL: alchemy.env.BETTER_AUTH_URL!,
