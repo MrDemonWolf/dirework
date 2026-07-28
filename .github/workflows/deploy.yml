@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      force_state_token:
+        description: "One-time recovery: overwrite the shared alchemy-state worker's token with ALCHEMY_STATE_TOKEN. Leave false for normal deploys."
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-production
@@ -32,6 +37,10 @@ jobs:
       ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
       # Shared across every MrDemonWolf Alchemy app — auths the alchemy-state store.
       ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
+      # One-time recovery switch — true only when manually dispatched with the
+      # force_state_token input. Normal push deploys leave it false so the state
+      # worker's token is never needlessly rewritten. See packages/infra/alchemy.run.ts.
+      ALCHEMY_STATE_FORCE_UPDATE: ${{ inputs.force_state_token || false }}
       BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
       TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
       TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}

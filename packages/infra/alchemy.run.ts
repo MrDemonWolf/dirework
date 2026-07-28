@@ -32,6 +32,15 @@ const app = await alchemy("dirework", {
         new CloudflareStateStore(scope, {
           scriptName: "alchemy-state",
           stateToken: alchemy.secret(process.env.ALCHEMY_STATE_TOKEN),
+          // One-time state-token recovery. The shared `alchemy-state` worker can
+          // end up carrying a stale token (e.g. it was first provisioned with a
+          // now-defunct value), making a normal deploy fail with
+          // "[CloudflareStateStore] The token is invalid". Trigger recovery by
+          // running the Deploy workflow manually with force_state_token=true
+          // (sets ALCHEMY_STATE_FORCE_UPDATE) for ONE deploy — it overwrites the
+          // worker's token with our shared ALCHEMY_STATE_TOKEN and reclaims it.
+          // Off for normal push deploys, so the token is never needlessly rewritten.
+          forceUpdate: process.env.ALCHEMY_STATE_FORCE_UPDATE === "true",
         })
     : undefined,
 });
