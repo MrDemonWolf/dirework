@@ -50,7 +50,7 @@ Only needed when deploying to Cloudflare (as GitHub secrets, or in your shell fo
 | --- | --- |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token with **Workers** and **D1** edit permissions |
 | `ALCHEMY_PASSWORD` | Any long random string — encrypts Alchemy's deploy state (`openssl rand -base64 32`) |
-| `ALCHEMY_STATE_TOKEN` | **Dirework's own** token — authenticates its dedicated `alchemy-state-dirework` CI state store. Generate any long random string (`openssl rand -base64 32`) and set it once as a GitHub secret. Not a shared/account-wide token, and not needed for local `bun run deploy` (local runs use filesystem state). |
+| `ALCHEMY_STATE_TOKEN` | Authenticates the **shared, account-wide** `alchemy-state` CI store worker. Every MrDemonWolf Alchemy app points at that one worker with this **same** token (Alchemy namespaces state per app), which is precisely what makes sharing safe — a per-app token against the shared worker is the "token is invalid" clash. Set it once as a GitHub secret; not needed for local `bun run deploy` (local runs use filesystem state). |
 
 ## Optional variables
 
