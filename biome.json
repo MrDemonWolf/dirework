@@ -1,0 +1,97 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.6/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.js",
+      "**/*.mjs",
+      "**/*.json",
+      "!**/node_modules/**",
+      "!**/.next/**",
+      "!**/.open-next/**",
+      "!**/.turbo/**",
+      "!**/.source/**",
+      "!**/out/**",
+      "!**/dist/**",
+      "!**/.wrangler/**",
+      "!**/.alchemy/**",
+      "!packages/db/src/migrations/**",
+      "!apps/web/public/**",
+      "!**/tsconfig*.json"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "always"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error",
+        "noUnusedFunctionParameters": "error",
+        "noUnusedPrivateClassMembers": "error",
+        "useExhaustiveDependencies": "warn"
+      },
+      "suspicious": {
+        "noExplicitAny": "warn",
+        "noArrayIndexKey": "warn",
+        "noTsIgnore": "warn",
+        "noConfusingVoidType": "warn",
+        "noConsole": { "level": "warn", "options": { "allow": ["warn", "error"] } },
+        "useBiomeIgnoreFolder": "off"
+      },
+      "style": {
+        "useConst": "error",
+        "noNonNullAssertion": "off",
+        "useImportType": "error"
+      },
+      "complexity": {
+        "noImportantStyles": "off",
+        "noBannedTypes": "warn"
+      },
+      "a11y": {
+        "noSvgWithoutTitle": "warn",
+        "useSemanticElements": "warn",
+        "useAriaPropsSupportedByRole": "warn"
+      }
+    }
+  },
+  "assist": {
+    "actions": { "source": { "organizeImports": "off" } }
+  },
+  "overrides": [
+    {
+      "includes": ["**/*.test.ts", "**/*.test.tsx", "**/__tests__/**"],
+      "linter": {
+        "rules": {
+          "suspicious": { "noExplicitAny": "off" }
+        }
+      }
+    },
+    {
+      "includes": ["apps/server/**", "packages/infra/**", "apps/web/scripts/**", "design-system/**"],
+      "linter": {
+        "rules": {
+          "suspicious": { "noConsole": "off" }
+        }
+      }
+    }
+  ]
+}

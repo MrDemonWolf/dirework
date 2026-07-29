@@ -72,16 +72,18 @@ export const defaultTaskStyles: TaskStylesConfig = {
 
 // --- Helper to build a full task styles config quickly ---
 function tasks(overrides: Partial<TaskStylesConfig> & { [K in keyof TaskStylesConfig]?: Partial<TaskStylesConfig[K]> }): TaskStylesConfig {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const base = JSON.parse(JSON.stringify(defaultTaskStyles)) as any;
+  // Deep-clone then shallow-merge each top-level group. Typed as an index map
+  // rather than `any` so the dynamic key access below stays checked.
+  const base = JSON.parse(JSON.stringify(defaultTaskStyles)) as Record<string, unknown>;
   for (const [k, v] of Object.entries(overrides)) {
-    if (v && typeof v === "object" && !Array.isArray(v) && base[k] && typeof base[k] === "object") {
-      Object.assign(base[k], v);
+    const existing = base[k];
+    if (v && typeof v === "object" && !Array.isArray(v) && existing && typeof existing === "object") {
+      Object.assign(existing, v);
     } else {
       base[k] = v;
     }
   }
-  return base as TaskStylesConfig;
+  return base as unknown as TaskStylesConfig;
 }
 
 export const themePresets: ThemePreset[] = [

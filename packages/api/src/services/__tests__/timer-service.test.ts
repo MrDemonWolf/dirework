@@ -336,7 +336,8 @@ describe("maybeAdvanceOverdueTimer (lazy read-driven transitions)", () => {
     const result = await maybeAdvanceOverdueTimer(db);
     expect(result?.status).toBe("finished");
     expect(setSpy).toHaveBeenCalledOnce();
-    expect((setSpy.mock.calls[0]?.[0] as { targetEndTime: Date | null }).targetEndTime).toBeNull();
+    const written = setSpy.mock.calls[0]?.[0] as { targetEndTime: Date | null } | undefined;
+    expect(written?.targetEndTime).toBeNull();
   });
 });
 

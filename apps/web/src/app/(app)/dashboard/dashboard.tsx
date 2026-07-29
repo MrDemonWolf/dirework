@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Bot, Copy, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
-import { authClient } from "@/lib/auth-client";
+import type { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ConsoleRule } from "@/components/console-rule";

@@ -147,7 +147,7 @@ export function BotConsole() {
   useEffect(() => {
     const el = logRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [activity]);
+  }, []);
 
   useEffect(() => {
     if (!token) return;
@@ -475,7 +475,6 @@ export function BotConsole() {
       <div
         ref={logRef}
         role="log"
-        tabIndex={0}
         aria-label="Activity log"
         className="flex-1 overflow-y-auto px-4 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
       >

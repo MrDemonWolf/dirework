@@ -5,7 +5,7 @@ import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 import { SINGLETON_ID } from "@dirework/db/schema";
 
-import { type TimerStatus } from "../config-shared";
+import type { TimerStatus } from "../config-shared";
 import { computeNextPhase, getTimerConfig } from "../routers/timer-logic";
 import { updateSingleton } from "./singleton";
 

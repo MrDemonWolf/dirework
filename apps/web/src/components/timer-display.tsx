@@ -162,7 +162,7 @@ export function TimerDisplay({
   const progress = isIdle ? 1 : total > 0 ? remaining / total : 0;
 
   // Parse size for SVG ring
-  const size = parseInt(config.dimensions.width) || 250;
+  const size = parseInt(config.dimensions.width, 10) || 250;
 
   // Check if ring config exists (backward compat)
   const ring = config.ring ?? {

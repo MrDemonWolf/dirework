@@ -35,7 +35,7 @@ describe("cssColorSchema", () => {
   ])("rejects %j", (v) => expect(cssColorSchema.safeParse(v).success).toBe(false));
 
   it("rejects an over-long value", () => {
-    expect(cssColorSchema.safeParse("#" + "a".repeat(200)).success).toBe(false);
+    expect(cssColorSchema.safeParse(`#${"a".repeat(200)}`).success).toBe(false);
   });
 });
 

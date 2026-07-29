@@ -45,7 +45,7 @@ export function useTimerCountdown(state: TimerState | null): number | null {
     // state is intentionally excluded — the primitive fields below fully
     // determine the countdown, and its object identity churns every poll.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetEndTime, pausedWithRemaining, status]);
+  }, [targetEndTime, pausedWithRemaining, status, state]);
 
   return remaining;
 }

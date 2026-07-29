@@ -33,6 +33,7 @@ function Avatar({
   className: string;
 }) {
   return image ? (
+    // biome-ignore lint/performance/noImgElement: Twitch-CDN avatar — next/image would need remotePatterns plus the Workers image optimizer; a plain img with no-referrer is smaller and safer.
     <img
       src={image}
       alt=""
@@ -79,6 +80,7 @@ export default function UserMenu() {
       <DropdownMenuTrigger
         render={
           <button
+            type="button"
             aria-label={`Account menu — ${session.user.name}`}
             className="flex cursor-pointer items-center gap-2 rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring"
           />
