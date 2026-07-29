@@ -32,6 +32,12 @@ export const botAccount = sqliteTable("bot_account", {
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token").notNull(),
   expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  // Coarse advisory lease serializing concurrent OAuth refreshes (P0.5): Twitch
+  // invalidates the old refresh token on rotation, so two refreshes racing with
+  // the same token would have one rejected. A caller CAS-acquires this lease
+  // before hitting Twitch; others wait for the winner to publish the new token.
+  // Nullable = unlocked. ponytail: single global lease — fine for one bot page.
+  refreshLockedUntil: integer("refresh_locked_until", { mode: "timestamp_ms" }),
   // chat:read/chat:edit are required by the IRC bot connection;
   // user:read:chat/user:write:chat are kept for a future Helix send path.
   scopes: text("scopes", { mode: "json" })

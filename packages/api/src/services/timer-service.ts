@@ -1,4 +1,5 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
+import type { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 
 import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
@@ -16,6 +17,33 @@ export type TimerStateRow = typeof schema.timerState.$inferSelect;
 const RUNNING_STATUSES = new Set<string>(
   ["starting", "work", "break", "longBreak"] satisfies TimerStatus[],
 );
+
+/**
+ * Compare-and-swap on the timer singleton, guarded on the exact
+ * (status, currentCycle, targetEndTime) that was read. If any of the three
+ * changed between read and write — a concurrent overdue-advance or a manual
+ * skip — the UPDATE matches no row and returns undefined, so the caller re-reads
+ * instead of clobbering. This is what stops a `!timer skip` from acting on stale
+ * state and double-advancing past a phase the lazy overdue-advance already moved
+ * (P0.2). targetEndTime is nullable (paused/idle), hence the isNull branch.
+ */
+function casTimer(
+  db: DbClient,
+  prev: Pick<TimerStateRow, "status" | "currentCycle" | "targetEndTime">,
+  values: SQLiteUpdateSetSource<typeof schema.timerState>,
+) {
+  return db.update(schema.timerState)
+    .set(values)
+    .where(and(
+      eq(schema.timerState.id, SINGLETON_ID),
+      eq(schema.timerState.status, prev.status),
+      eq(schema.timerState.currentCycle, prev.currentCycle),
+      prev.targetEndTime === null
+        ? isNull(schema.timerState.targetEndTime)
+        : eq(schema.timerState.targetEndTime, prev.targetEndTime),
+    ))
+    .returning();
+}
 
 /**
  * Lazily advance a timer whose targetEndTime has passed. There is no always-on
@@ -48,19 +76,13 @@ export async function maybeAdvanceOverdueTimer(db: DbClient): Promise<TimerState
     );
 
     const prevEnd = timer.targetEndTime;
-    const [row] = await db.update(schema.timerState)
-      .set({
-        status: nextStatus,
-        currentCycle: nextCycle,
-        pausedFromStatus: null,
-        pausedWithRemaining: null,
-        targetEndTime: nextDuration ? new Date(prevEnd.getTime() + nextDuration) : null,
-      })
-      .where(and(
-        eq(schema.timerState.id, SINGLETON_ID),
-        eq(schema.timerState.targetEndTime, prevEnd),
-      ))
-      .returning();
+    const [row] = await casTimer(db, timer, {
+      status: nextStatus,
+      currentCycle: nextCycle,
+      pausedFromStatus: null,
+      pausedWithRemaining: null,
+      targetEndTime: nextDuration ? new Date(prevEnd.getTime() + nextDuration) : null,
+    });
 
     // Guarded update lost (another poller advanced first) → re-read and retry.
     timer = row ?? (await db.query.timerState.findFirst()) ?? null;
@@ -151,13 +173,18 @@ export async function skipTimer(db: DbClient) {
     return timer;
   }
 
-  return updateSingleton(db, schema.timerState, {
+  // Guarded CAS on the state we read (P0.2): if a concurrent overdue-advance
+  // already moved past this phase, our UPDATE matches no row — that advance
+  // already satisfied the skip intent, so return the current state instead of
+  // clobbering it (which would skip a second phase).
+  const [row] = await casTimer(db, timer, {
     status: nextStatus,
     currentCycle: nextCycle,
     pausedFromStatus: null,
     pausedWithRemaining: null,
     targetEndTime: nextDuration ? new Date(Date.now() + nextDuration) : null,
   });
+  return row ?? (await db.query.timerState.findFirst()) ?? null;
 }
 
 /**

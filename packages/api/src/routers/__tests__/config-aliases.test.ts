@@ -58,10 +58,49 @@ describe("config.updateCommandAliases input validation", () => {
     expect(Object.keys(result.commandAliases)).toHaveLength(1);
   });
 
-  it("accepts value at exactly 100 characters", () => {
+  // ── P0.3: normalization + semantic validation ─────────────────────────────
+  it("normalizes the UI example {'!t':'!task'} to canonical {t:'task'}", () => {
     const result = commandAliasesSchema.parse({
-      commandAliases: { focus: "a".repeat(100) },
+      commandAliases: { "!t": "!task" },
     });
-    expect(result.commandAliases.focus).toHaveLength(100);
+    expect(result.commandAliases).toEqual({ t: "task" });
+  });
+
+  it("normalizes mixed-case and whitespace", () => {
+    const result = commandAliasesSchema.parse({
+      commandAliases: { "  !GO ": "  TASK  " },
+    });
+    expect(result.commandAliases).toEqual({ go: "task" });
+  });
+
+  it("rejects a recursive alias (key === target)", () => {
+    expect(() =>
+      commandAliasesSchema.parse({ commandAliases: { task: "task" } }),
+    ).toThrow(/recursive/);
+  });
+
+  it("rejects an unknown target command", () => {
+    expect(() =>
+      commandAliasesSchema.parse({ commandAliases: { t: "nope" } }),
+    ).toThrow(/unknown-target/);
+  });
+
+  it("rejects duplicate keys that collapse after normalization", () => {
+    expect(() =>
+      commandAliasesSchema.parse({ commandAliases: { "!t": "task", t: "done" } }),
+    ).toThrow(/duplicate/);
+  });
+
+  it("rejects an empty target", () => {
+    expect(() =>
+      commandAliasesSchema.parse({ commandAliases: { t: "!" } }),
+    ).toThrow(/empty/);
+  });
+
+  it("accepts a target that maps to the !timer command", () => {
+    const result = commandAliasesSchema.parse({
+      commandAliases: { pomo: "timer" },
+    });
+    expect(result.commandAliases).toEqual({ pomo: "timer" });
   });
 });

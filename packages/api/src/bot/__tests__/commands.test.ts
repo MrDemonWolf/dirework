@@ -120,6 +120,18 @@ describe("resolveAlias", () => {
     // resolveAlias compares command (lowercased) to `!${alias}`.toLowerCase()
     expect(resolveAlias("!focus", { Focus: "task" })).toBe("!task");
   });
+
+  // ── P0.3 regression: the "!!task" double-bang bug ──────────────────────────
+  it("resolves the exact UI example !t → !task (canonical no-! storage)", () => {
+    expect(resolveAlias("!t", { t: "task" })).toBe("!task");
+  });
+
+  it("resolves legacy !-prefixed storage without producing !!task", () => {
+    // Old dashboards persisted keys/values WITH the "!". Must still resolve to
+    // a single-bang command, never "!!t"/"!!task".
+    expect(resolveAlias("!t", { "!t": "!task" })).toBe("!task");
+    expect(resolveAlias("!t", { "!t": "!task" })).not.toContain("!!");
+  });
 });
 
 describe("interpolate edge cases", () => {

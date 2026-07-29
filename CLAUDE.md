@@ -57,7 +57,23 @@ holds the IRC WebSocket (`wss://irc-ws.chat.twitch.tv`) via `apps/web/src/lib/ir
 relays `!`-prefixed chat to `bot.ingest` (stateless, runs command logic against D1), and
 sends back the returned replies. Bot lives only while that page is open (OBS browser
 source or pinned tab). Chat token comes from `bot.getSession` (server refreshes it; the
-refresh token and client secret never reach the browser).
+refresh token and client secret never reach the browser). Outbound replies are throttled
+by a rolling token bucket (`apps/web/src/lib/rate-limiter.ts`: 20 msgs/30s + ≥1s gap,
+bounded queue) — never a fixed spacer. The page revalidates the chat token hourly
+(`getSession({ revalidate: true })` → Twitch `/oauth2/validate`) and bounds the
+auth-failure recovery loop.
+
+**Command aliases** are stored **canonically without a leading `!`** (`{ t: "task" }`).
+`normalizeAliases` / `normalizeAliasToken` + `KNOWN_ALIAS_TARGETS` in
+`packages/api/src/config-shared.ts` are the single source shared by the chat resolver
+(`resolveAlias`), the `commandAliasesInput` schema, and the dashboard editor — they accept
+either form and reject empty/duplicate/recursive/unknown targets. (Fixes the old `!!task`
+bug where the UI stored `!t → !task` and the resolver re-prefixed `!`.)
+
+**API request logging** uses a structured, redacted middleware
+(`apps/server/src/lib/logger.ts`), NOT `hono/logger`: it logs only
+`{ id, method, path, status, ms }` with the query string stripped, so OAuth codes/state
+and tokens can never reach logs. It also stamps an `x-request-id` response header.
 
 ## Monorepo Structure
 
@@ -135,7 +151,9 @@ timerState, timerConfig, timerStyle, taskStyle, botConfig), `index.ts` (relation
 SQLite idioms: booleans `integer({mode:"boolean"})`, timestamps `integer({mode:"timestamp_ms"})`
 with `unixepoch('subsecond')*1000` defaults, JSON columns `text({mode:"json"}).$type<T>()`
 (commandAliases, scopes), opacities `real`, cuid2 ids. Config rows are singletons
-(`SINGLETON_ID`), lazily provisioned; all columns have defaults. The API maps flat DB
+(`SINGLETON_ID`), lazily provisioned; all columns have defaults. `botAccount` carries a
+nullable `refreshLockedUntil` lease that serializes concurrent Twitch OAuth refreshes
+(P0.5 — Twitch invalidates the old refresh token on rotation). The API maps flat DB
 columns ↔ nested config objects via build/flatten helpers in
 `packages/api/src/config-shared.ts`.
 
@@ -216,10 +234,12 @@ Switch placeholders pre-mount; `suppressHydrationWarning` on time-of-day greetin
 
 ## Testing
 
-Vitest across `packages/api`, `packages/auth`, `apps/web` — run `bun run test`.
-Key suites: `packages/api/src/services/__tests__/` (tokens, timer-service, task-service),
-`packages/api/src/routers/__tests__/` (timer-logic, config build/flatten/round-trip),
-`apps/web/src/lib/__tests__/` (timer-utils, task-utils, theme-presets, config-types),
+Vitest across `packages/api`, `packages/auth`, `apps/web`, `apps/server` — run
+`bun run test`.
+Key suites: `packages/api/src/services/__tests__/` (tokens, timer-service, task-service,
+twitch-auth), `packages/api/src/routers/__tests__/` (timer-logic, config build/flatten/
+round-trip, aliases), `apps/web/src/lib/__tests__/` (timer-utils, task-utils, theme-presets,
+config-types, rate-limiter), `apps/server/src/lib/__tests__/` (logger redaction),
 `packages/auth/src/__tests__/has-owner.test.ts`.
 New pure functions → extract to testable modules + add tests.
 
