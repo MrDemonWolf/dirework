@@ -7,7 +7,8 @@
     "start": "next start",
     "dev:bare": "next dev --port 3001",
     "test": "vitest run",
-    "check-types": "tsc --noEmit",
+    "check-types": "rm -rf .next/dev/types && SKIP_ENV_VALIDATION=true next typegen && tsc --noEmit",
+    "clean": "rm -rf .next .open-next .turbo",
     "fetch-fonts": "bun scripts/fetch-fonts.ts"
   },
   "dependencies": {

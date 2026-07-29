@@ -5,7 +5,6 @@ import {
   BookOpen,
   Check,
   Cloud,
-  Code2,
   ExternalLink,
   Github,
   Minus,
@@ -410,7 +409,6 @@ export default function HomePage() {
           />
           <div
             className="mt-12 overflow-x-auto focus-visible:outline-2 focus-visible:outline-[var(--brand-500)]"
-            tabIndex={0}
             role="region"
             aria-label="Feature comparison table (scrolls horizontally)"
           >
@@ -544,6 +542,7 @@ bun run dev   # web :3001 · api :3000 · docs :4000`}</pre>
               { icon: Github, title: "GitHub", body: "Star the repo, open an issue, or send a PR.", href: GITHUB, external: true },
             ].map(({ icon: Icon, title, body, href, external }) => {
               const inner = (
+                // biome-ignore lint/correctness/useJsxKeyInIterable: held in a local, not the mapped element — keys live on the a/Link returned below.
                 <div className="flex items-start gap-4">
                   <div
                     className="w-10 h-10 rounded-xl inline-flex items-center justify-center shrink-0"

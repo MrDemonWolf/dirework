@@ -40,7 +40,7 @@ export function UnsavedChangesGuard({ dirty }: { dirty: boolean }) {
       if (anchor.target === "_blank" || anchor.hasAttribute("download")) return;
 
       const href = anchor.getAttribute("href");
-      if (!href || !href.startsWith("/")) return; // external links hit beforeunload
+      if (!href?.startsWith("/")) return; // external links hit beforeunload
       if (href === window.location.pathname + window.location.search) return;
 
       e.preventDefault();

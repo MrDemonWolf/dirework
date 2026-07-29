@@ -46,7 +46,7 @@ function InfiniteScroll({
     const observer = new ResizeObserver(check);
     observer.observe(primary);
     return () => observer.disconnect();
-  }, [children, pixelsPerSecond, gapBetweenLoops]);
+  }, [pixelsPerSecond, gapBetweenLoops]);
 
   return (
     <div ref={wrapperRef} className="relative flex-1 overflow-hidden">
@@ -252,7 +252,7 @@ export function TaskListDisplay({
     ? tasks
     : tasks.filter((t) => t.status !== "done");
   const groups = groupTasksByAuthor(displayTasks);
-  const pendingTasks = tasks.filter((t) => t.status !== "done");
+  const _pendingTasks = tasks.filter((t) => t.status !== "done");
   const doneTasks = tasks.filter((t) => t.status === "done");
 
   return (

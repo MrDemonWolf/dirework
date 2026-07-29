@@ -284,7 +284,7 @@ async function handleTaskCheck(args: string[], ctx: MessageContext): Promise<voi
   const { config, userInfo, say, db } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
-  if (args[0] && args[0].startsWith("@")) {
+  if (args[0]?.startsWith("@")) {
     const targetTask = await findActiveTaskByUsername(db, args[0].slice(1));
 
     if (!targetTask) {
@@ -367,7 +367,7 @@ async function handleClear(args: string[], ctx: MessageContext): Promise<void> {
   } else if (sub === "done") {
     await clearDoneTasks(db);
     say(interpolate(config.task.clearedDone, vars));
-  } else if (sub && sub.startsWith("@")) {
+  } else if (sub?.startsWith("@")) {
     await removeTasksByUsername(db, sub.slice(1));
     say(interpolate(config.task.adminDeleteTasks, vars));
   }
