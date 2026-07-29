@@ -3,7 +3,7 @@ import { count, eq } from "drizzle-orm";
 import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
 
-import { protectedProcedure, publicProcedure, router } from "../index";
+import { ownerProcedure, publicProcedure, router } from "../index";
 import { updateSingleton } from "../services/singleton";
 import { disconnectBotAccount } from "../services/twitch-auth";
 import { regenerateOverlayTokenInput } from "./input-schemas";
@@ -15,7 +15,7 @@ export const userRouter = router({
     return (row?.count ?? 0) > 0;
   }),
 
-  me: protectedProcedure.query(async ({ ctx }) => {
+  me: ownerProcedure.query(async ({ ctx }) => {
     const [user, instance, botAccount] = await Promise.all([
       ctx.db.query.user.findFirst({
         where: eq(schema.user.id, ctx.session.user.id),
@@ -39,7 +39,7 @@ export const userRouter = router({
     };
   }),
 
-  regenerateOverlayToken: protectedProcedure
+  regenerateOverlayToken: ownerProcedure
     .input(regenerateOverlayTokenInput)
     .mutation(async ({ ctx, input }) => {
       const token = crypto.randomUUID();
@@ -50,7 +50,7 @@ export const userRouter = router({
       return { token };
     }),
 
-  disconnectBot: protectedProcedure.mutation(async ({ ctx }) => {
+  disconnectBot: ownerProcedure.mutation(async ({ ctx }) => {
     await disconnectBotAccount(ctx.db, {
       clientId: env.TWITCH_CLIENT_ID,
       clientSecret: env.TWITCH_CLIENT_SECRET,

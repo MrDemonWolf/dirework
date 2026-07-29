@@ -10,6 +10,8 @@
  * logged, never surfaced through callbacks).
  */
 
+import { MAX_CHAT_BYTES, truncateToBytes } from "@dirework/api/config-shared";
+
 import { RateLimiter } from "./rate-limiter";
 
 const TWITCH_IRC_URL = "wss://irc-ws.chat.twitch.tv:443";
@@ -32,8 +34,9 @@ const SEND_MIN_GAP_MS = 1_000;
  */
 const MAX_QUEUE = 100;
 
-/** Twitch hard-caps chat messages at 500 characters. */
-const MAX_SAY_LENGTH = 500;
+// Message length is bounded by UTF-8 BYTES via truncateToBytes, not by
+// characters: an IRC line is capped at 512 bytes, so 500 multi-byte glyphs
+// would overflow the wire limit and get mangled. See MAX_CHAT_BYTES.
 
 const MAX_BACKOFF_MS = 30_000;
 
@@ -250,7 +253,7 @@ export class TwitchIrcClient {
       this.sendQueue.shift();
       this.callbacks.onError?.("Chat send queue full — dropped the oldest queued message");
     }
-    this.sendQueue.push(trimmed.slice(0, MAX_SAY_LENGTH));
+    this.sendQueue.push(truncateToBytes(trimmed, MAX_CHAT_BYTES));
     this.scheduleSend();
   }
 

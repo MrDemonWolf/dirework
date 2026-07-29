@@ -81,6 +81,90 @@ export const TIMER_STATUSES = [
 
 export type TimerStatus = (typeof TIMER_STATUSES)[number];
 
+// ── Shared validation primitives (P1.10) ────────────────────────────────────
+// Style values are interpolated into CSS on the overlay pages, so these are
+// ALLOWLISTS, not just length caps: no ";", "{", "}", "url(", backslashes or
+// comments can survive them, which closes CSS injection through a saved config.
+// They are deliberately permissive enough to accept every shipped default.
+
+/** #rgb / #rgba / #rrggbb / #rrggbbaa, rgb()/rgba()/hsl()/hsla(), or a safe keyword. */
+const CSS_COLOR_RE =
+  /^(#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|(?:rgb|hsl)a?\(\s*[0-9.,%\s/deg]+\)|transparent|currentcolor|inherit|none|[a-z]{3,20})$/i;
+
+export const cssColorSchema = z.string().trim().max(64).regex(CSS_COLOR_RE, "Invalid CSS color");
+
+/**
+ * 1–4 space-separated CSS lengths — shorthands like "12px 12px 0 0" (border
+ * radius) and "10px 14px" (padding) are stored in single columns.
+ */
+const CSS_LENGTH_TOKEN = String.raw`(?:auto|0|[+-]?\d{1,5}(?:\.\d{1,4})?(?:px|%|r?em|v[hw]|ch|pt))`;
+const CSS_LENGTH_RE = new RegExp(`^${CSS_LENGTH_TOKEN}(?: ${CSS_LENGTH_TOKEN}){0,3}$`, "i");
+
+export const cssLengthSchema = z
+  .string()
+  .trim()
+  .max(64)
+  .regex(CSS_LENGTH_RE, "Invalid CSS length");
+
+/** Font family name(s). No quotes/semicolons — the overlay wraps it itself. */
+export const fontFamilySchema = z
+  .string()
+  .trim()
+  .max(120)
+  .regex(/^[a-z0-9 ,'-]+$/i, "Invalid font family");
+
+/** A single decorative glyph (bullet "•", tick "✔"). */
+export const glyphSchema = z.string().min(1).max(8);
+
+/** Opacity 0–1. min/max also rejects NaN and ±Infinity. */
+export const opacitySchema = z.number().min(0).max(1);
+
+/** Bounded, finite integer helper for numeric style/config fields. */
+const boundedInt = (min: number, max: number) => z.number().int().min(min).max(max);
+
+// ── Twitch protocol limits ──────────────────────────────────────────────────
+// An IRC line is capped at 512 BYTES including command overhead and CRLF, and
+// Twitch caps the visible message at 500 characters. Message templates expand
+// at send time ({user}, {task}, …), so templates are capped well below the wire
+// limit to leave interpolation headroom.
+
+/** Max bytes for a fully-interpolated chat message put on the wire. */
+export const MAX_CHAT_BYTES = 450;
+/** Max bytes for a stored message TEMPLATE, leaving room for interpolation. */
+export const MAX_MESSAGE_TEMPLATE_BYTES = 300;
+
+export function utf8ByteLength(value: string): number {
+  return new TextEncoder().encode(value).length;
+}
+
+/**
+ * Truncate to at most `maxBytes` UTF-8 bytes WITHOUT splitting a character.
+ * A plain `.slice(n)` counts UTF-16 code units, so 500 emoji is ~2000 bytes and
+ * gets mangled or rejected by Twitch — this is the byte-correct version.
+ */
+export function truncateToBytes(value: string, maxBytes: number = MAX_CHAT_BYTES): string {
+  if (utf8ByteLength(value) <= maxBytes) return value;
+  let out = "";
+  let bytes = 0;
+  // Iterating the string yields whole code points, so surrogate pairs and
+  // combining sequences are never cut in half.
+  for (const ch of value) {
+    const size = utf8ByteLength(ch);
+    if (bytes + size > maxBytes) break;
+    out += ch;
+    bytes += size;
+  }
+  return out;
+}
+
+/** A stored chat-message template, bounded by UTF-8 bytes rather than chars. */
+export const chatMessageSchema = z
+  .string()
+  .max(500)
+  .refine((v) => utf8ByteLength(v) <= MAX_MESSAGE_TEMPLATE_BYTES, {
+    message: `Message must be at most ${MAX_MESSAGE_TEMPLATE_BYTES} bytes`,
+  });
+
 // ── Field maps: nested config keys ↔ flat DB columns (single source) ─────────
 // Build and flatten are both generated from these maps, so they cannot drift.
 
@@ -115,20 +199,15 @@ export const TASK_MESSAGE_FIELDS = {
   help: "msgHelp",
 } as const satisfies Record<string, keyof BotConfig>;
 
+// Only messages with a real emit site in bot/commands.ts belong here — see the
+// note on DEFAULT_TIMER_MESSAGES about the phase-announcement fields removed in
+// the P1 cleanup (nothing on Workers could ever fire them).
 export const TIMER_MESSAGE_FIELDS = {
-  workMsg: "msgWorkMsg",
-  breakMsg: "msgBreakMsg",
-  longBreakMsg: "msgLongBreakMsg",
-  workRemindMsg: "msgWorkRemindMsg",
   notRunning: "msgNotRunning",
-  streamStarting: "msgStreamStarting",
   wrongCommand: "msgWrongCommand",
   timerRunning: "msgTimerRunning",
   commandSuccess: "msgCommandSuccess",
   cycleWrong: "msgCycleWrong",
-  goalWrong: "msgGoalWrong",
-  finishResponse: "msgFinishResponse",
-  alreadyStarting: "msgAlreadyStarting",
   eta: "msgEta",
 } as const satisfies Record<string, keyof BotConfig>;
 
@@ -156,11 +235,16 @@ export function flattenWithFieldMap<M extends Record<string, string>>(
   return out;
 }
 
-/** z.object with a z.string() per field-map key — router inputs derive from the same maps. */
+/**
+ * z.object with one bounded message field per field-map key — router inputs
+ * derive from the same maps. Fields are capped by UTF-8 BYTES (not characters)
+ * so a template of multi-byte glyphs can't blow past the IRC line limit once
+ * interpolated. See chatMessageSchema.
+ */
 function stringSchemaFromFieldMap<M extends Record<string, string>>(map: M) {
   const shape = Object.fromEntries(
-    Object.keys(map).map((key) => [key, z.string()]),
-  ) as Record<keyof M & string, z.ZodString>;
+    Object.keys(map).map((key) => [key, chatMessageSchema]),
+  ) as Record<keyof M & string, typeof chatMessageSchema>;
   return z.object(shape);
 }
 
@@ -315,31 +399,34 @@ export function buildBotConfig(bc: BotConfig): BotConfigData {
 // Every level is optional to mirror the partial-update flatten behavior.
 
 export const timerStylesInputSchema = z.object({
-  dimensions: z.object({ width: z.string().optional(), height: z.string().optional() }).optional(),
+  dimensions: z.object({
+    width: cssLengthSchema.optional(),
+    height: cssLengthSchema.optional(),
+  }).optional(),
   background: z.object({
-    color: z.string().optional(),
-    opacity: z.number().optional(),
-    borderRadius: z.string().optional(),
+    color: cssColorSchema.optional(),
+    opacity: opacitySchema.optional(),
+    borderRadius: cssLengthSchema.optional(),
   }).optional(),
   ring: z.object({
     enabled: z.boolean().optional(),
-    trackColor: z.string().optional(),
-    trackOpacity: z.number().optional(),
-    fillColor: z.string().optional(),
-    fillOpacity: z.number().optional(),
-    width: z.number().optional(),
-    gap: z.number().optional(),
+    trackColor: cssColorSchema.optional(),
+    trackOpacity: opacitySchema.optional(),
+    fillColor: cssColorSchema.optional(),
+    fillOpacity: opacitySchema.optional(),
+    width: boundedInt(0, 200).optional(),
+    gap: boundedInt(0, 200).optional(),
   }).optional(),
   text: z.object({
-    color: z.string().optional(),
-    outlineColor: z.string().optional(),
-    outlineSize: z.string().optional(),
-    fontFamily: z.string().optional(),
+    color: cssColorSchema.optional(),
+    outlineColor: cssColorSchema.optional(),
+    outlineSize: cssLengthSchema.optional(),
+    fontFamily: fontFamilySchema.optional(),
   }).optional(),
   fontSizes: z.object({
-    label: z.string().optional(),
-    time: z.string().optional(),
-    cycle: z.string().optional(),
+    label: cssLengthSchema.optional(),
+    time: cssLengthSchema.optional(),
+    cycle: cssLengthSchema.optional(),
   }).optional(),
 });
 
@@ -370,20 +457,20 @@ export function flattenTimerStyles(input: TimerStylesInput) {
 }
 
 const opacityGroupSchema = z.object({
-  color: z.string().optional(),
-  opacity: z.number().optional(),
+  color: cssColorSchema.optional(),
+  opacity: opacitySchema.optional(),
 });
 
 const borderGroupSchema = z.object({
-  color: z.string().optional(),
-  width: z.string().optional(),
-  radius: z.string().optional(),
+  color: cssColorSchema.optional(),
+  width: cssLengthSchema.optional(),
+  radius: cssLengthSchema.optional(),
 });
 
 const marginGroupSchema = z.object({
-  top: z.string().optional(),
-  left: z.string().optional(),
-  right: z.string().optional(),
+  top: cssLengthSchema.optional(),
+  left: cssLengthSchema.optional(),
+  right: cssLengthSchema.optional(),
 });
 
 export const taskStylesInputSchema = z.object({
@@ -392,54 +479,60 @@ export const taskStylesInputSchema = z.object({
     showCount: z.boolean().optional(),
     useCheckboxes: z.boolean().optional(),
     crossOnDone: z.boolean().optional(),
-    numberOfLines: z.number().optional(),
+    numberOfLines: boundedInt(1, 100).optional(),
   }).optional(),
-  fonts: z.object({ header: z.string().optional(), body: z.string().optional() }).optional(),
+  fonts: z.object({
+    header: fontFamilySchema.optional(),
+    body: fontFamilySchema.optional(),
+  }).optional(),
   scroll: z.object({
     enabled: z.boolean().optional(),
-    pixelsPerSecond: z.number().optional(),
-    gapBetweenLoops: z.number().optional(),
+    pixelsPerSecond: boundedInt(1, 1000).optional(),
+    gapBetweenLoops: boundedInt(0, 5000).optional(),
   }).optional(),
   header: z.object({
-    height: z.string().optional(),
+    height: cssLengthSchema.optional(),
     background: opacityGroupSchema.optional(),
     border: borderGroupSchema.optional(),
-    fontSize: z.string().optional(),
-    fontColor: z.string().optional(),
-    padding: z.string().optional(),
+    fontSize: cssLengthSchema.optional(),
+    fontColor: cssColorSchema.optional(),
+    padding: cssLengthSchema.optional(),
   }).optional(),
   body: z.object({
     background: opacityGroupSchema.optional(),
     border: borderGroupSchema.optional(),
-    padding: z.object({ vertical: z.string().optional(), horizontal: z.string().optional() }).optional(),
+    padding: z.object({
+      vertical: cssLengthSchema.optional(),
+      horizontal: cssLengthSchema.optional(),
+    }).optional(),
   }).optional(),
   task: z.object({
     background: opacityGroupSchema.optional(),
     border: borderGroupSchema.optional(),
-    fontSize: z.string().optional(),
-    fontColor: z.string().optional(),
-    usernameColor: z.string().optional(),
-    padding: z.string().optional(),
-    marginBottom: z.string().optional(),
-    maxWidth: z.string().optional(),
+    fontSize: cssLengthSchema.optional(),
+    fontColor: cssColorSchema.optional(),
+    usernameColor: cssColorSchema.optional(),
+    padding: cssLengthSchema.optional(),
+    marginBottom: cssLengthSchema.optional(),
+    maxWidth: cssLengthSchema.optional(),
   }).optional(),
   taskDone: z.object({
     background: opacityGroupSchema.optional(),
-    fontColor: z.string().optional(),
+    fontColor: cssColorSchema.optional(),
   }).optional(),
   checkbox: z.object({
-    size: z.string().optional(),
+    size: cssLengthSchema.optional(),
     background: opacityGroupSchema.optional(),
     border: borderGroupSchema.optional(),
     margin: marginGroupSchema.optional(),
-    tickChar: z.string().optional(),
-    tickSize: z.string().optional(),
-    tickColor: z.string().optional(),
+    tickChar: glyphSchema.optional(),
+    tickSize: cssLengthSchema.optional(),
+    tickColor: cssColorSchema.optional(),
   }).optional(),
   bullet: z.object({
-    char: z.string().optional(),
-    size: z.string().optional(),
-    color: z.string().optional(),
+    char: glyphSchema.optional(),
+    size: cssLengthSchema.optional(),
+    color: cssColorSchema.optional(),
     margin: marginGroupSchema.optional(),
   }).optional(),
 });

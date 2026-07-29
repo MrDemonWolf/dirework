@@ -26,7 +26,9 @@ export async function getViewerOpenTasks(db: DbClient, twitchId: string) {
       eq(schema.task.authorTwitchId, twitchId),
       inArray(schema.task.status, OPEN_STATUSES),
     ),
-    orderBy: [asc(schema.task.order)],
+    // id tiebreaks equal `order` values so positional commands (!done 2) are
+    // stable — see listTasks.
+    orderBy: [asc(schema.task.order), asc(schema.task.id)],
   });
 }
 
@@ -67,21 +69,40 @@ export async function resolveTaskPlacement(db: DbClient, authorTwitchId: string)
   return { isBroadcaster, priority, nextOrder: (lastTask?.order ?? 0) + 1 };
 }
 
-/** Promote the viewer's first pending task to active (M5). */
-export async function promoteNextPending(db: DbClient, twitchId: string) {
-  const nextPending = await db.query.task.findFirst({
-    where: and(
-      eq(schema.task.authorTwitchId, twitchId),
-      eq(schema.task.status, "pending"),
-    ),
-    orderBy: [asc(schema.task.order)],
-  });
-  if (!nextPending) return null;
+/**
+ * SQL for "the viewer's next pending task", as a subquery. Ordering is
+ * (order, id) so it stays deterministic when two tasks created concurrently
+ * land on the same `order` value.
+ */
+function nextPendingIdSql(twitchId: string) {
+  return sql`(select ${schema.task.id} from ${schema.task}
+    where ${schema.task.authorTwitchId} = ${twitchId}
+      and ${schema.task.status} = 'pending'
+    order by ${schema.task.order} asc, ${schema.task.id} asc
+    limit 1)`;
+}
 
-  const [promoted] = await db.update(schema.task)
+/**
+ * Promote the viewer's first pending task to active (M5) as ONE statement —
+ * the old find-then-update pair could promote two tasks when two commands
+ * raced. Safe to include in a db.batch.
+ */
+export function promoteNextPendingStmt(db: DbClient, twitchId: string) {
+  return db.update(schema.task)
     .set({ status: "active" })
-    .where(eq(schema.task.id, nextPending.id))
+    .where(and(
+      eq(schema.task.id, nextPendingIdSql(twitchId)),
+      // Belt-and-braces with the partial unique index: never promote while the
+      // viewer already holds an active task.
+      sql`not exists (select 1 from ${schema.task}
+        where ${schema.task.authorTwitchId} = ${twitchId}
+          and ${schema.task.status} = 'active')`,
+    ))
     .returning();
+}
+
+export async function promoteNextPending(db: DbClient, twitchId: string) {
+  const [promoted] = await promoteNextPendingStmt(db, twitchId);
   return promoted ?? null;
 }
 
@@ -100,17 +121,41 @@ export async function createTask(
     resolveTaskPlacement(db, author.twitchId),
   ]);
 
-  const [row] = await db.insert(schema.task).values({
+  const values = {
     authorTwitchId: author.twitchId,
     authorUsername: author.username,
     authorDisplayName: author.displayName,
     authorColor: author.color ?? null,
     text,
-    status: opts?.activate || openTasks.length === 0 ? "active" : "pending",
     priority: placement.priority,
     order: placement.nextOrder,
-  }).returning();
-  return row ?? null;
+  };
+  const wantsActive = opts?.activate || openTasks.length === 0;
+
+  if (!wantsActive) {
+    const [row] = await db.insert(schema.task).values({ ...values, status: "pending" }).returning();
+    return row ?? null;
+  }
+
+  // The read above is a check-then-act: a concurrent !task from the same viewer
+  // can also observe "no open tasks" and try to insert an active row. The
+  // partial unique index makes the loser fail instead of creating a second
+  // active task, so fall back to pending — the task is still created, it just
+  // queues behind the one that won (P1.7).
+  try {
+    const [row] = await db.insert(schema.task).values({ ...values, status: "active" }).returning();
+    return row ?? null;
+  } catch (err) {
+    if (!isUniqueViolation(err)) throw err;
+    const [row] = await db.insert(schema.task).values({ ...values, status: "pending" }).returning();
+    return row ?? null;
+  }
+}
+
+/** SQLite/D1 surface UNIQUE constraint failures as a message, not a code. */
+function isUniqueViolation(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /UNIQUE constraint failed/i.test(message);
 }
 
 /** Mark a task done WITHOUT promoting the next pending one (used by !next). */
@@ -122,22 +167,35 @@ export async function completeTask(db: DbClient, id: string) {
   return updated ?? null;
 }
 
-/** Mark a task done; if it was active, promote the author's next pending task. */
+/**
+ * Mark a task done; if it was active, promote the author's next pending task.
+ * Complete + promote run in ONE db.batch (atomic on D1), so the viewer is never
+ * momentarily left with zero active tasks and a concurrent command can't slot a
+ * second task into the gap. Statement order matters: completing frees the
+ * single-active slot before the promote claims it.
+ */
 export async function markTaskDone(db: DbClient, id: string) {
   const existing = await db.query.task.findFirst({
     where: eq(schema.task.id, id),
-    columns: { id: true, status: true },
+    columns: { id: true, status: true, authorTwitchId: true },
   });
   if (!existing) return null;
 
-  const wasActive = existing.status === "active";
-  const updated = await completeTask(db, existing.id);
-  if (!updated) return null;
-
-  if (wasActive) {
-    await promoteNextPending(db, updated.authorTwitchId);
+  if (existing.status !== "active") {
+    return completeTask(db, existing.id);
   }
-  return updated;
+
+  const [completedRows] = await db.batch([
+    db.update(schema.task)
+      .set({ status: "done", completedAt: new Date() })
+      // Guarded: if another request already completed it, we don't double-apply
+      // and the paired promote is a no-op via its own not-exists guard.
+      .where(and(eq(schema.task.id, existing.id), eq(schema.task.status, "active")))
+      .returning(),
+    promoteNextPendingStmt(db, existing.authorTwitchId),
+  ]);
+
+  return completedRows[0] ?? null;
 }
 
 /** Update a task's text. */
@@ -149,26 +207,38 @@ export async function editTask(db: DbClient, id: string, text: string) {
   return updated ?? null;
 }
 
-/** Make `task` the author's single active task (demotes any other active). */
+/**
+ * Make `task` the author's single active task (demotes any other active).
+ * Both statements run in ONE db.batch so the demote and the activate can't be
+ * interleaved by a concurrent !focus — which previously could leave the viewer
+ * with zero or two active tasks. Demote runs first to free the single-active
+ * slot enforced by the partial unique index.
+ */
 export async function activateTask(
   db: DbClient,
   task: { id: string; authorTwitchId: string },
 ) {
-  await db.update(schema.task)
-    .set({ status: "pending" })
-    .where(and(
-      eq(schema.task.authorTwitchId, task.authorTwitchId),
-      eq(schema.task.status, "active"),
-    ));
-
-  const [activated] = await db.update(schema.task)
-    .set({ status: "active" })
-    .where(eq(schema.task.id, task.id))
-    .returning();
-  return activated ?? null;
+  const [, activatedRows] = await db.batch([
+    db.update(schema.task)
+      .set({ status: "pending" })
+      .where(and(
+        eq(schema.task.authorTwitchId, task.authorTwitchId),
+        eq(schema.task.status, "active"),
+      )),
+    db.update(schema.task)
+      .set({ status: "active" })
+      .where(eq(schema.task.id, task.id))
+      .returning(),
+  ]);
+  return activatedRows[0] ?? null;
 }
 
-/** Delete a task; if it was active, promote the author's next pending task. */
+/**
+ * Delete a task; if it was active, promote the author's next pending task.
+ * The delete must resolve first to learn the author, so this is a read-then-
+ * batch rather than one batch; the promote carries its own not-exists guard, so
+ * a concurrent promote can't produce a second active task.
+ */
 export async function removeTask(db: DbClient, id: string) {
   const [removed] = await db.delete(schema.task)
     .where(eq(schema.task.id, id))
@@ -194,9 +264,14 @@ export async function clearDoneTasks(db: DbClient) {
   return db.delete(schema.task).where(eq(schema.task.status, "done"));
 }
 
-/** All tasks in overlay/list order (priority, then insertion order). */
+/**
+ * All tasks in overlay/list order (priority, then insertion order). `id` is the
+ * final tiebreaker so the order is deterministic when two tasks created
+ * concurrently resolve to the same `order` value — without it the overlay and
+ * the dashboard could disagree on which comes first (P1.7).
+ */
 export async function listTasks(db: DbClient) {
   return db.query.task.findMany({
-    orderBy: [asc(schema.task.priority), asc(schema.task.order)],
+    orderBy: [asc(schema.task.priority), asc(schema.task.order), asc(schema.task.id)],
   });
 }

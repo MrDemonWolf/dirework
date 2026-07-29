@@ -1,7 +1,9 @@
 import { TRPCError } from "@trpc/server";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import * as schema from "@dirework/db/schema";
+import { SINGLETON_ID } from "@dirework/db/schema";
 
 import {
   buildBotConfig,
@@ -18,7 +20,7 @@ import {
   TIMER_MESSAGE_FIELDS,
   timerStylesInputSchema,
 } from "../config-shared";
-import { protectedProcedure, router } from "../index";
+import { ownerProcedure, router } from "../index";
 import { ensureSingletons } from "../services/provision";
 import { updateSingleton } from "../services/singleton";
 import { commandAliasesInput, updateMessagesInput, updateTimerConfigInput } from "./input-schemas";
@@ -28,7 +30,7 @@ import { commandAliasesInput, updateMessagesInput, updateTimerConfigInput } from
 // the TS types, and the DB mapping cannot drift) and ./input-schemas.
 
 export const configRouter = router({
-  get: protectedProcedure.query(async ({ ctx }) => {
+  get: ownerProcedure.query(async ({ ctx }) => {
     const config = await ensureSingletons(ctx.db);
     return {
       timerConfig: buildTimerConfig(config.timerConfig),
@@ -38,7 +40,7 @@ export const configRouter = router({
     };
   }),
 
-  updateTimerConfig: protectedProcedure
+  updateTimerConfig: ownerProcedure
     .input(updateTimerConfigInput)
     .mutation(async ({ ctx, input }) => {
       await ensureSingletons(ctx.db);
@@ -47,7 +49,7 @@ export const configRouter = router({
       return buildTimerConfig(updated);
     }),
 
-  updateTimerStyles: protectedProcedure
+  updateTimerStyles: ownerProcedure
     .input(z.object({ timerStyles: timerStylesInputSchema }))
     .mutation(async ({ ctx, input }) => {
       await ensureSingletons(ctx.db);
@@ -57,7 +59,7 @@ export const configRouter = router({
       return buildTimerStylesConfig(updated);
     }),
 
-  updateTaskStyles: protectedProcedure
+  updateTaskStyles: ownerProcedure
     .input(z.object({ taskStyles: taskStylesInputSchema }))
     .mutation(async ({ ctx, input }) => {
       await ensureSingletons(ctx.db);
@@ -67,7 +69,7 @@ export const configRouter = router({
       return buildTaskStylesConfig(updated);
     }),
 
-  updateMessages: protectedProcedure
+  updateMessages: ownerProcedure
     .input(updateMessagesInput)
     .mutation(async ({ ctx, input }) => {
       await ensureSingletons(ctx.db);
@@ -79,7 +81,7 @@ export const configRouter = router({
       });
     }),
 
-  updatePhaseLabels: protectedProcedure
+  updatePhaseLabels: ownerProcedure
     .input(phaseLabelsInputSchema)
     .mutation(async ({ ctx, input }) => {
       await ensureSingletons(ctx.db);
@@ -90,7 +92,7 @@ export const configRouter = router({
       );
     }),
 
-  updateCommandAliases: protectedProcedure
+  updateCommandAliases: ownerProcedure
     .input(commandAliasesInput)
     .mutation(async ({ ctx, input }) => {
       await ensureSingletons(ctx.db);
@@ -98,5 +100,59 @@ export const configRouter = router({
       return updateSingleton(ctx.db, schema.botConfig, {
         commandAliases: input.commandAliases,
       });
+    }),
+
+  /**
+   * Save the whole Theme Center in ONE mutation (P1.10). The styles page used
+   * to fire updateTimerStyles + updateTaskStyles + updatePhaseLabels as three
+   * independent requests, so a failure of any one left the config half-written
+   * and the UI's saved-state snapshot diverged from the server. `db.batch` puts
+   * both style rows and the labels in a single atomic D1 round trip.
+   */
+  updateStyles: ownerProcedure
+    .input(z.object({
+      timerStyles: timerStylesInputSchema,
+      taskStyles: taskStylesInputSchema,
+      phaseLabels: phaseLabelsInputSchema,
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await ensureSingletons(ctx.db);
+      await ctx.db.batch([
+        ctx.db.update(schema.timerStyle)
+          .set(flattenTimerStyles(input.timerStyles))
+          .where(eq(schema.timerStyle.id, SINGLETON_ID)),
+        ctx.db.update(schema.taskStyle)
+          .set(flattenTaskStyles(input.taskStyles))
+          .where(eq(schema.taskStyle.id, SINGLETON_ID)),
+        ctx.db.update(schema.timerConfig)
+          .set(flattenWithFieldMap(PHASE_LABEL_FIELDS, input.phaseLabels))
+          .where(eq(schema.timerConfig.id, SINGLETON_ID)),
+      ]);
+
+      const config = await ensureSingletons(ctx.db);
+      return {
+        timerStyles: buildTimerStylesConfig(config.timerStyle),
+        taskStyles: buildTaskStylesConfig(config.taskStyle),
+        timerConfig: buildTimerConfig(config.timerConfig),
+      };
+    }),
+
+  /**
+   * Save messages + command aliases together (P1.10) — same partial-persistence
+   * problem as updateStyles, both targeting the bot_config row.
+   */
+  updateBotSettings: ownerProcedure
+    .input(updateMessagesInput.extend(commandAliasesInput.shape))
+    .mutation(async ({ ctx, input }) => {
+      await ensureSingletons(ctx.db);
+      const updated = await updateSingleton(ctx.db, schema.botConfig, {
+        taskCommandsEnabled: input.taskCommandsEnabled,
+        timerCommandsEnabled: input.timerCommandsEnabled,
+        commandAliases: input.commandAliases,
+        ...flattenWithFieldMap(TASK_MESSAGE_FIELDS, input.task),
+        ...flattenWithFieldMap(TIMER_MESSAGE_FIELDS, input.timer),
+      });
+      if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found" });
+      return buildBotConfig(updated);
     }),
 });

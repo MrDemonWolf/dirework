@@ -33,12 +33,15 @@ export const regenerateOverlayTokenInput = z.object({
   type: z.enum(["timer", "tasks"]),
 });
 
+/** 24h — an upper bound on any single phase; also rejects NaN/Infinity. */
+const MAX_PHASE_MS = 24 * 60 * 60 * 1000;
+
 export const updateTimerConfigInput = z.object({
-  workDuration: z.number().int().min(1000).optional(),
-  breakDuration: z.number().int().min(1000).optional(),
-  longBreakDuration: z.number().int().min(1000).optional(),
-  longBreakInterval: z.number().int().min(1).optional(),
-  startingDuration: z.number().int().min(0).optional(),
+  workDuration: z.number().int().min(1000).max(MAX_PHASE_MS).optional(),
+  breakDuration: z.number().int().min(1000).max(MAX_PHASE_MS).optional(),
+  longBreakDuration: z.number().int().min(1000).max(MAX_PHASE_MS).optional(),
+  longBreakInterval: z.number().int().min(1).max(99).optional(),
+  startingDuration: z.number().int().min(0).max(MAX_PHASE_MS).optional(),
   defaultCycles: z.number().int().min(1).max(99).optional(),
   showHours: z.boolean().optional(),
   noLastBreak: z.boolean().optional(),

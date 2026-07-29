@@ -67,20 +67,9 @@ describe("task router input schemas", () => {
     });
   });
 
-  describe("priority logic convention", () => {
-    const BROADCASTER_PRIORITY = 0;
-    const VIEWER_PRIORITY = 1;
-
-    it("broadcaster priority is 0 (pinned to top)", () => {
-      expect(BROADCASTER_PRIORITY).toBe(0);
-    });
-
-    it("viewer priority is 1", () => {
-      expect(VIEWER_PRIORITY).toBe(1);
-    });
-
-    it("broadcaster priority sorts before viewer priority", () => {
-      expect(BROADCASTER_PRIORITY).toBeLessThan(VIEWER_PRIORITY);
-    });
-  });
+  // The old "priority logic convention" block lived here: it declared its own
+  // BROADCASTER_PRIORITY/VIEWER_PRIORITY constants and asserted 0 === 0 and
+  // 0 < 1, which held no matter what the service did. The real derivation is
+  // covered against resolveTaskPlacement in
+  // services/__tests__/task-service.test.ts.
 });

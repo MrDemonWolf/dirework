@@ -19,6 +19,15 @@ const REFRESH_WAIT_STEPS = 25; // ~10s total
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /**
+ * Every outbound Twitch call is time-boxed (P1.8). Without this, a hung
+ * id.twitch.tv/api.twitch.tv response pins the whole Worker request until the
+ * platform kills it, and a stalled refresh would hold the refresh lease for its
+ * full duration.
+ */
+export const TWITCH_FETCH_TIMEOUT_MS = 10_000;
+const withTimeout = () => AbortSignal.timeout(TWITCH_FETCH_TIMEOUT_MS);
+
+/**
  * Twitch app credentials, passed in by callers that can read env (routers,
  * Hono routes). This service stays env-free so Vitest can import it in Node
  * (`cloudflare:workers` does not resolve outside the Workers runtime).
@@ -83,6 +92,7 @@ export async function refreshBotToken(
         grant_type: "refresh_token",
         refresh_token: account.refreshToken,
       }),
+      signal: withTimeout(),
     });
 
     if (!res.ok) {
@@ -156,6 +166,7 @@ export async function validateChatToken(token: string): Promise<boolean> {
   try {
     const res = await fetch("https://id.twitch.tv/oauth2/validate", {
       headers: { Authorization: `OAuth ${token}` },
+      signal: withTimeout(),
     });
     if (res.status === 401) return false;
     return true;
@@ -224,6 +235,7 @@ export async function disconnectBotAccount(
           client_id: creds.clientId,
           token: account.accessToken,
         }),
+        signal: withTimeout(),
       });
     } catch {
       // Best-effort revocation — proceed with deletion even if revocation fails
@@ -260,6 +272,7 @@ export async function resolveChannelLogin(
             Authorization: `Bearer ${helix.accessToken}`,
             "Client-Id": helix.clientId,
           },
+          signal: withTimeout(),
         },
       );
       if (res.ok) {

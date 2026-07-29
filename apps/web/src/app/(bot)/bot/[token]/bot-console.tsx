@@ -199,7 +199,7 @@ export function BotConsole() {
      * are retried once, then logged to the activity feed — they never crash
      * the socket loop. UNAUTHORIZED means the bot link was revoked.
      */
-    const ingest = async (input: IngestInput): Promise<string[]> => {
+    const ingestOnce = async (input: IngestInput): Promise<string[]> => {
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
           const result = await publicTrpc.bot.ingest.mutate(input);
@@ -217,6 +217,22 @@ export function BotConsole() {
         }
       }
       return [];
+    };
+
+    /**
+     * Chat commands are relayed ONE AT A TIME (P1.7). Ingest used to be fired
+     * as a detached async call per PRIVMSG, so two commands from the same
+     * viewer could execute against the same DB snapshot and interleave — e.g.
+     * "!done" and "!task" racing over which task ends up active. Chaining on a
+     * promise preserves chat order and keeps the bot to one in-flight mutation.
+     */
+    let ingestChain: Promise<unknown> = Promise.resolve();
+    const ingest = (input: IngestInput): Promise<string[]> => {
+      const next = ingestChain.then(() => ingestOnce(input));
+      // Keep the chain alive even if a link rejects, or every later command
+      // would inherit the rejection and silently stop being processed.
+      ingestChain = next.catch(() => undefined);
+      return next;
     };
 
     const client = new TwitchIrcClient({

@@ -1,4 +1,4 @@
-import { protectedProcedure, router } from "../index";
+import { ownerProcedure, router } from "../index";
 import {
   getTimerState,
   pauseTimer,
@@ -10,29 +10,29 @@ import {
 import { timerStartInput } from "./input-schemas";
 
 export const timerRouter = router({
-  get: protectedProcedure.query(async ({ ctx }) => {
+  get: ownerProcedure.query(async ({ ctx }) => {
     return getTimerState(ctx.db);
   }),
 
-  start: protectedProcedure
+  start: ownerProcedure
     .input(timerStartInput)
     .mutation(async ({ ctx, input }) => {
       return startTimer(ctx.db, { totalCycles: input.totalCycles });
     }),
 
-  pause: protectedProcedure.mutation(async ({ ctx }) => {
+  pause: ownerProcedure.mutation(async ({ ctx }) => {
     return pauseTimer(ctx.db);
   }),
 
-  resume: protectedProcedure.mutation(async ({ ctx }) => {
+  resume: ownerProcedure.mutation(async ({ ctx }) => {
     return resumeTimer(ctx.db);
   }),
 
-  skip: protectedProcedure.mutation(async ({ ctx }) => {
+  skip: ownerProcedure.mutation(async ({ ctx }) => {
     return skipTimer(ctx.db);
   }),
 
-  reset: protectedProcedure.mutation(async ({ ctx }) => {
+  reset: ownerProcedure.mutation(async ({ ctx }) => {
     return resetTimer(ctx.db);
   }),
 });

@@ -183,19 +183,11 @@ describe("buildBotConfig", () => {
     msgClearedDone: "p",
     msgNextNoContent: "q",
     msgHelp: "r",
-    msgWorkMsg: "w1",
-    msgBreakMsg: "w2",
-    msgLongBreakMsg: "w3",
-    msgWorkRemindMsg: "w4",
     msgNotRunning: "w5",
-    msgStreamStarting: "w6",
     msgWrongCommand: "w7",
     msgTimerRunning: "w8",
     msgCommandSuccess: "w9",
     msgCycleWrong: "w10",
-    msgGoalWrong: "w11",
-    msgFinishResponse: "w12",
-    msgAlreadyStarting: "w13",
     msgEta: "w14",
   };
 
@@ -207,8 +199,19 @@ describe("buildBotConfig", () => {
     expect(result.task.taskAdded).toBe("a");
     expect(result.task.help).toBe("r");
     expect(Object.keys(result.task)).toHaveLength(18);
-    expect(result.timer.workMsg).toBe("w1");
+    expect(result.timer.notRunning).toBe("w5");
     expect(result.timer.eta).toBe("w14");
-    expect(Object.keys(result.timer)).toHaveLength(14);
+    // Only the 6 timer messages with a real emit site survive the P1 cleanup.
+    expect(Object.keys(result.timer)).toHaveLength(6);
+  });
+
+  it("exposes no timer message without an emit site (P1 dead-config guard)", () => {
+    const result = buildBotConfig(fakeBotConfig);
+    for (const removed of [
+      "workMsg", "breakMsg", "longBreakMsg", "workRemindMsg",
+      "streamStarting", "goalWrong", "finishResponse", "alreadyStarting",
+    ]) {
+      expect(result.timer).not.toHaveProperty(removed);
+    }
   });
 });
