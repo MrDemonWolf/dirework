@@ -342,29 +342,19 @@ export default function BotSettingsPage() {
     },
   });
 
-  const updateMessagesMutation = useMutation({
-    ...trpc.config.updateMessages.mutationOptions(),
+  // Messages + aliases save together in one atomic mutation (both live on the
+  // bot_config row) so a save can never persist half the page.
+  const saveBotSettingsMutation = useMutation({
+    ...trpc.config.updateBotSettings.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
     },
     onError: (err) => {
-      toast.error(`Couldn't save messages: ${err.message}`);
+      toast.error(`Couldn't save bot settings: ${err.message}`);
     },
   });
 
-  const updateAliasesMutation = useMutation({
-    ...trpc.config.updateCommandAliases.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
-    },
-    onError: (err) => {
-      toast.error(`Couldn't save aliases: ${err.message}`);
-    },
-  });
-
-  const isSaving =
-    updateMessagesMutation.isPending ||
-    updateAliasesMutation.isPending;
+  const isSaving = saveBotSettingsMutation.isPending;
 
   const handleTaskMessagesChange = useCallback((newMessages: TaskMessagesConfig) => {
     setTaskMessages(newMessages);
@@ -399,44 +389,34 @@ export default function BotSettingsPage() {
       return;
     }
 
-    // Save the two groups independently and snapshot each only on ITS
-    // success — the old sequential version marked nothing saved on a partial
-    // failure, so the UI showed the messages as unsaved even though the
-    // server had them, and Reset silently diverged from the server.
-    const results = await Promise.allSettled([
-      updateMessagesMutation
-        .mutateAsync({
-          taskCommandsEnabled,
-          timerCommandsEnabled,
-          task: taskMessages,
-          timer: timerMessages,
-        })
-        .then(() => {
-          setSavedTaskCommandsEnabled(taskCommandsEnabled);
-          setSavedTimerCommandsEnabled(timerCommandsEnabled);
-          setSavedTaskMessages(taskMessages);
-          setSavedTimerMessages(timerMessages);
-        }),
-      updateAliasesMutation
-        .mutateAsync({ commandAliases: aliases })
-        .then(() => {
-          setSavedAliasRows(aliasRows);
-        }),
-    ]);
-
-    if (results.every((r) => r.status === "fulfilled")) {
+    // ONE atomic mutation: messages and aliases both live on the bot_config
+    // row, so saving them as two requests could persist one and drop the other,
+    // leaving the UI's saved snapshot out of sync with the server.
+    try {
+      await saveBotSettingsMutation.mutateAsync({
+        taskCommandsEnabled,
+        timerCommandsEnabled,
+        task: taskMessages,
+        timer: timerMessages,
+        commandAliases: aliases,
+      });
+      setSavedTaskCommandsEnabled(taskCommandsEnabled);
+      setSavedTimerCommandsEnabled(timerCommandsEnabled);
+      setSavedTaskMessages(taskMessages);
+      setSavedTimerMessages(timerMessages);
+      setSavedAliasRows(aliasRows);
       toast.success("Bot settings saved");
+    } catch {
+      // onError already toasted; nothing persisted, so everything stays dirty
+      // and the Save bar keeps offering a retry.
     }
-    // Failures were already toasted by each mutation's onError; the failed
-    // group stays dirty so the Save bar keeps offering a retry.
   }, [
     taskCommandsEnabled,
     timerCommandsEnabled,
     taskMessages,
     timerMessages,
     aliasRows,
-    updateMessagesMutation,
-    updateAliasesMutation,
+    saveBotSettingsMutation,
   ]);
 
   // Per-tab dirty flags for the TabsTrigger indicator dots (spec §5.4)

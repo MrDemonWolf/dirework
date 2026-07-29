@@ -1,3 +1,4 @@
+import { TWITCH_FETCH_TIMEOUT_MS } from "@dirework/api/services/twitch-auth";
 import { createAuth } from "@dirework/auth";
 import { createDb, schema } from "@dirework/db";
 import { env } from "@dirework/env/server";
@@ -174,6 +175,7 @@ botOAuth.get("/callback/twitch", async (c) => {
       grant_type: "authorization_code",
       redirect_uri: `${env.BETTER_AUTH_URL}/api/bot/callback/twitch`,
     }),
+    signal: AbortSignal.timeout(TWITCH_FETCH_TIMEOUT_MS),
   });
 
   if (!tokenRes.ok) {
@@ -191,6 +193,7 @@ botOAuth.get("/callback/twitch", async (c) => {
       Authorization: `Bearer ${tokens.access_token}`,
       "Client-Id": env.TWITCH_CLIENT_ID,
     },
+    signal: AbortSignal.timeout(TWITCH_FETCH_TIMEOUT_MS),
   });
 
   if (!userRes.ok) {

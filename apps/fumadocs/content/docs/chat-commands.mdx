@@ -105,20 +105,21 @@ All bot response messages are customizable from the **Bot Settings** page (`/das
 
 | Message | Default | Variables |
 | --- | --- | --- |
-| Work Started | `Time to hunt! Focus mode activated!` | none |
-| Break Started | `Paws up! Time for a short rest in the den.` | none |
-| Long Break Started | `The whole pack is taking a long snooze! Back soon!` | none |
-| Focus reminder | `Get ready to howl, @{channel} — focus starts in a moment!` | `{channel}` |
 | Not Running | `The timer isn't howling yet! Start it up first.` | none |
-| Stream Starting | `The pack is waking up! Stream starting!` | none |
 | Wrong Command | `My ears didn't catch that... Try !timer start, pause, resume, skip, reset, or eta.` | none |
 | Timer Running | `The hunt is already in progress!` | none |
 | Command Success | `Paw-fect! Done!` | none |
 | Cycle Wrong | `That cycle count won't work — pick 1 to 99, like !timer start 4.` | none |
-| Goal Wrong | `The goal needs to be further than the cycle!` | none |
-| Finish Response | `Great work today pack! We hunted well.` | none |
-| Already Starting | `The pack is already moving or the timer is running!` | none |
 | ETA | `This phase ends in {phase} · the hunt is done in {time}` | `{phase}`, `{time}` |
+
+<Callout type="info">
+  The bot replies to `!timer` commands, but does not announce phase changes on
+  its own. Dirework runs on Cloudflare Workers with no always-on process, so
+  there is nothing to fire a message when a focus block ends — the overlay is
+  what shows the current phase. Editable "focus started" / "break started" /
+  "stream starting" / "timer finished" messages used to exist here but never
+  sent anything, so they were removed.
+</Callout>
 
 ### Message variables reference
 

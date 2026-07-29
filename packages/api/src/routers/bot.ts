@@ -7,7 +7,7 @@ import { env } from "@dirework/env/server";
 
 import { handleMessage } from "../bot/commands";
 import { buildBotConfig } from "../config-shared";
-import { protectedProcedure, publicProcedure, router } from "../index";
+import { ownerProcedure, publicProcedure, router } from "../index";
 import { ensureBotConfig, ensureInstanceConfig } from "../services/provision";
 import { removeTasksByUsername } from "../services/task-service";
 import { requireBotToken, tokenInput } from "../services/tokens";
@@ -158,7 +158,7 @@ export const botRouter = router({
    * Dashboard info for building the /bot/<token> URL. Owner-authenticated —
    * this is the only place the bot page token leaves the server.
    */
-  getIngestInfo: protectedProcedure.query(async ({ ctx }) => {
+  getIngestInfo: ownerProcedure.query(async ({ ctx }) => {
     const instance = await ensureInstanceConfig(ctx.db);
     const { owner, botAccount } = await loadOwnerAndBotAccount(ctx.db);
 
@@ -170,7 +170,7 @@ export const botRouter = router({
   }),
 
   /** Rotate the bot page token (invalidates any previously copied URL). */
-  regenerateBotToken: protectedProcedure.mutation(async ({ ctx }) => {
+  regenerateBotToken: ownerProcedure.mutation(async ({ ctx }) => {
     await ensureInstanceConfig(ctx.db);
     const botToken = crypto.randomUUID();
     await updateSingleton(ctx.db, schema.instanceConfig, { botToken });

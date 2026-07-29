@@ -49,20 +49,16 @@ export const timerMessageFields: {
   placeholder: string;
   group: string;
 }[] = [
-  { key: "workMsg", label: "Focus started", placeholder: "none", group: "Phase changes" },
-  { key: "breakMsg", label: "Break started", placeholder: "none", group: "Phase changes" },
-  { key: "longBreakMsg", label: "Long break started", placeholder: "none", group: "Phase changes" },
-  { key: "streamStarting", label: "Stream starting", placeholder: "none", group: "Phase changes" },
-  { key: "finishResponse", label: "Timer finished", placeholder: "none", group: "Phase changes" },
-  { key: "workRemindMsg", label: "Focus reminder", placeholder: "{channel}", group: "Status" },
+  // Only messages the bot actually sends. The old "Phase changes" group
+  // (focus/break/long-break/stream-starting/finished) was removed in the P1
+  // cleanup — Workers has no always-on process to fire phase announcements, so
+  // those fields were editable and did nothing.
   { key: "commandSuccess", label: "Command success", placeholder: "none", group: "Status" },
   { key: "eta", label: "ETA", placeholder: "{phase}, {time}", group: "Status" },
   { key: "notRunning", label: "Timer not running", placeholder: "none", group: "Errors" },
   { key: "wrongCommand", label: "Unknown command", placeholder: "none", group: "Errors" },
   { key: "timerRunning", label: "Timer already running", placeholder: "none", group: "Errors" },
   { key: "cycleWrong", label: "Invalid cycle count", placeholder: "none", group: "Errors" },
-  { key: "goalWrong", label: "Invalid goal", placeholder: "none", group: "Errors" },
-  { key: "alreadyStarting", label: "Already starting", placeholder: "none", group: "Errors" },
 ];
 
 /**
