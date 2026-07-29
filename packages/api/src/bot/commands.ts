@@ -139,9 +139,13 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
 
   if (command === "!dwhelp" || command === "!dwcommands") {
     if (ctx.docsUrl) {
-      say(`${userInfo.displayName}, check out all the commands here: ${ctx.docsUrl}/docs/chat-commands`);
+      say(
+        `${userInfo.displayName}, check out all the commands here: ${ctx.docsUrl}/docs/chat-commands`,
+      );
     } else {
-      say(`${userInfo.displayName}, available commands: !task, !done, !edit, !remove, !focus, !check, !next, !help, !clear (mods), !timer (mods)`);
+      say(
+        `${userInfo.displayName}, available commands: !task, !done, !edit, !remove, !focus, !check, !next, !help, !clear (mods), !timer (mods)`,
+      );
     }
     return;
   }
@@ -284,7 +288,7 @@ async function handleTaskCheck(args: string[], ctx: MessageContext): Promise<voi
   const { config, userInfo, say, db } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
-  if (args[0] && args[0].startsWith("@")) {
+  if (args[0]?.startsWith("@")) {
     const targetTask = await findActiveTaskByUsername(db, args[0].slice(1));
 
     if (!targetTask) {
@@ -292,11 +296,13 @@ async function handleTaskCheck(args: string[], ctx: MessageContext): Promise<voi
       return;
     }
 
-    say(interpolate(config.task.taskCheckUser, {
-      ...vars,
-      user2: targetTask.authorDisplayName,
-      task: targetTask.text,
-    }));
+    say(
+      interpolate(config.task.taskCheckUser, {
+        ...vars,
+        user2: targetTask.authorDisplayName,
+        task: targetTask.text,
+      }),
+    );
     return;
   }
 
@@ -340,11 +346,13 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
   // No active task means there is no {oldTask} to announce — fall back to the
   // plain taskAdded template instead of interpolating empty quotes.
   if (activeTask) {
-    say(interpolate(config.task.taskNext, {
-      ...vars,
-      oldTask: activeTask.text,
-      newTask: newText,
-    }));
+    say(
+      interpolate(config.task.taskNext, {
+        ...vars,
+        oldTask: activeTask.text,
+        newTask: newText,
+      }),
+    );
   } else {
     say(interpolate(config.task.taskAdded, { ...vars, task: newText }));
   }
@@ -367,7 +375,7 @@ async function handleClear(args: string[], ctx: MessageContext): Promise<void> {
   } else if (sub === "done") {
     await clearDoneTasks(db);
     say(interpolate(config.task.clearedDone, vars));
-  } else if (sub && sub.startsWith("@")) {
+  } else if (sub?.startsWith("@")) {
     await removeTasksByUsername(db, sub.slice(1));
     say(interpolate(config.task.adminDeleteTasks, vars));
   }
@@ -435,11 +443,13 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
       // Relative durations, not wall-clock times — the Worker has no idea
       // what timezone the channel is in (Date#toLocaleTimeString is UTC here).
       const now = Date.now();
-      say(interpolate(config.timer.eta, {
-        ...vars,
-        phase: formatEtaDuration(eta.phaseEnd.getTime() - now),
-        time: formatEtaDuration(eta.sessionEnd.getTime() - now),
-      }));
+      say(
+        interpolate(config.timer.eta, {
+          ...vars,
+          phase: formatEtaDuration(eta.phaseEnd.getTime() - now),
+          time: formatEtaDuration(eta.sessionEnd.getTime() - now),
+        }),
+      );
       break;
     }
 

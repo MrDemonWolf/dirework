@@ -11,7 +11,11 @@ const labelFields: {
   description: string;
 }[] = [
   { key: "idle", label: "Idle", description: "Shown when the timer is ready to start" },
-  { key: "starting", label: "Starting", description: "Shown during the countdown before focus starts" },
+  {
+    key: "starting",
+    label: "Starting",
+    description: "Shown during the countdown before focus starts",
+  },
   { key: "work", label: "Focus", description: "Shown during focus sessions" },
   { key: "break", label: "Break", description: "Shown during short breaks" },
   { key: "longBreak", label: "Long break", description: "Shown during long breaks" },

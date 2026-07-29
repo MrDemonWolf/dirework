@@ -5,7 +5,7 @@ import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 import { SINGLETON_ID } from "@dirework/db/schema";
 
-import { type TimerStatus } from "../config-shared";
+import type { TimerStatus } from "../config-shared";
 import { computeNextPhase, getTimerConfig } from "../routers/timer-logic";
 import { updateSingleton } from "./singleton";
 
@@ -14,9 +14,12 @@ import { updateSingleton } from "./singleton";
 
 export type TimerStateRow = typeof schema.timerState.$inferSelect;
 
-const RUNNING_STATUSES = new Set<string>(
-  ["starting", "work", "break", "longBreak"] satisfies TimerStatus[],
-);
+const RUNNING_STATUSES = new Set<string>([
+  "starting",
+  "work",
+  "break",
+  "longBreak",
+] satisfies TimerStatus[]);
 
 /**
  * Compare-and-swap on the timer singleton, guarded on the exact
@@ -32,16 +35,19 @@ function casTimer(
   prev: Pick<TimerStateRow, "status" | "currentCycle" | "targetEndTime">,
   values: SQLiteUpdateSetSource<typeof schema.timerState>,
 ) {
-  return db.update(schema.timerState)
+  return db
+    .update(schema.timerState)
     .set(values)
-    .where(and(
-      eq(schema.timerState.id, SINGLETON_ID),
-      eq(schema.timerState.status, prev.status),
-      eq(schema.timerState.currentCycle, prev.currentCycle),
-      prev.targetEndTime === null
-        ? isNull(schema.timerState.targetEndTime)
-        : eq(schema.timerState.targetEndTime, prev.targetEndTime),
-    ))
+    .where(
+      and(
+        eq(schema.timerState.id, SINGLETON_ID),
+        eq(schema.timerState.status, prev.status),
+        eq(schema.timerState.currentCycle, prev.currentCycle),
+        prev.targetEndTime === null
+          ? isNull(schema.timerState.targetEndTime)
+          : eq(schema.timerState.targetEndTime, prev.targetEndTime),
+      ),
+    )
     .returning();
 }
 
@@ -112,7 +118,8 @@ export async function startTimer(db: DbClient, opts?: { totalCycles?: number }) 
     totalCycles: opts?.totalCycles ?? tc.defaultCycles,
   };
 
-  const [row] = await db.insert(schema.timerState)
+  const [row] = await db
+    .insert(schema.timerState)
     .values(values)
     .onConflictDoUpdate({ target: schema.timerState.id, set: values })
     .returning();
@@ -158,9 +165,8 @@ export async function skipTimer(db: DbClient) {
   ]);
   if (!timer) return null;
 
-  const effectiveStatus = timer.status === "paused"
-    ? (timer.pausedFromStatus ?? "work")
-    : timer.status;
+  const effectiveStatus =
+    timer.status === "paused" ? (timer.pausedFromStatus ?? "work") : timer.status;
 
   const tc = getTimerConfig(timerConfigRow ?? null);
   const { nextStatus, nextDuration, nextCycle } = computeNextPhase(

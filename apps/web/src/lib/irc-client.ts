@@ -390,16 +390,16 @@ export class TwitchIrcClient {
     // PRIVMSGs back, but a streamer chatting from the bot account would loop.
     if (this.creds && username === this.creds.botUsername.toLowerCase()) return;
 
-    const badges = msg.tags["badges"] ?? "";
+    const badges = msg.tags.badges ?? "";
     const isBroadcaster = badges.includes("broadcaster/");
-    const isMod = msg.tags["mod"] === "1" || badges.includes("moderator/");
+    const isMod = msg.tags.mod === "1" || badges.includes("moderator/");
 
     this.callbacks.onChat?.({
       username,
       displayName: msg.tags["display-name"] || undefined,
       twitchId,
       message: text,
-      color: msg.tags["color"] || undefined,
+      color: msg.tags.color || undefined,
       isMod,
       isBroadcaster,
     });
@@ -423,12 +423,7 @@ export class TwitchIrcClient {
 
   private flushOne(): void {
     if (this.sendQueue.length === 0) return;
-    if (
-      !this.creds ||
-      !this.joined ||
-      !this.ws ||
-      this.ws.readyState !== WebSocket.OPEN
-    ) {
+    if (!this.creds || !this.joined || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
       // Not ready — keep the queue; the 001 handler re-schedules on rejoin.
       return;
     }

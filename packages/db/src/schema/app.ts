@@ -14,10 +14,19 @@ export const SINGLETON_ID = "singleton";
 
 export const instanceConfig = sqliteTable("instance_config", {
   id: text("id").primaryKey().default(SINGLETON_ID),
-  overlayTimerToken: text("overlay_timer_token").notNull().unique().$defaultFn(() => crypto.randomUUID()),
-  overlayTasksToken: text("overlay_tasks_token").notNull().unique().$defaultFn(() => crypto.randomUUID()),
+  overlayTimerToken: text("overlay_timer_token")
+    .notNull()
+    .unique()
+    .$defaultFn(() => crypto.randomUUID()),
+  overlayTasksToken: text("overlay_tasks_token")
+    .notNull()
+    .unique()
+    .$defaultFn(() => crypto.randomUUID()),
   // Secret gate for the browser bot page (/bot/<token>) — mirrors the overlay token model.
-  botToken: text("bot_token").notNull().unique().$defaultFn(() => crypto.randomUUID()),
+  botToken: text("bot_token")
+    .notNull()
+    .unique()
+    .$defaultFn(() => crypto.randomUUID()),
   // Cached lowercase Twitch *login* of the owner's channel. IRC JOIN requires
   // the login name, not the display name (better-auth only stores the display
   // name). Lazily resolved via Helix on bot.getSession.
@@ -46,32 +55,38 @@ export const botAccount = sqliteTable("bot_account", {
     .default(["chat:read", "chat:edit", "user:read:chat", "user:write:chat"]),
 });
 
-export const task = sqliteTable("task", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
-  authorTwitchId: text("author_twitch_id").notNull(),
-  authorUsername: text("author_username").notNull(),
-  authorDisplayName: text("author_display_name").notNull(),
-  authorColor: text("author_color"),
-  text: text("text").notNull(),
-  status: text("status").notNull().default("pending"),
-  priority: integer("priority").notNull().default(1),
-  order: integer("order").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
-    .notNull()
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
-  completedAt: integer("completed_at", { mode: "timestamp_ms" }),
-}, (table) => [
-  index("task_status_idx").on(table.status),
-  index("task_priority_order_idx").on(table.priority, table.order),
-  index("task_author_idx").on(table.authorTwitchId),
-  // "At most one active task per Twitch user" as a DB invariant, not just an
-  // application convention (P1.7). Chat ingest is concurrent, so a check-then-act
-  // in the service could otherwise leave a viewer with two active tasks. Partial
-  // index: only rows with status='active' participate.
-  uniqueIndex("task_one_active_per_author_idx")
-    .on(table.authorTwitchId)
-    .where(sql`${table.status} = 'active'`),
-]);
+export const task = sqliteTable(
+  "task",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    authorTwitchId: text("author_twitch_id").notNull(),
+    authorUsername: text("author_username").notNull(),
+    authorDisplayName: text("author_display_name").notNull(),
+    authorColor: text("author_color"),
+    text: text("text").notNull(),
+    status: text("status").notNull().default("pending"),
+    priority: integer("priority").notNull().default(1),
+    order: integer("order").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
+    completedAt: integer("completed_at", { mode: "timestamp_ms" }),
+  },
+  (table) => [
+    index("task_status_idx").on(table.status),
+    index("task_priority_order_idx").on(table.priority, table.order),
+    index("task_author_idx").on(table.authorTwitchId),
+    // "At most one active task per Twitch user" as a DB invariant, not just an
+    // application convention (P1.7). Chat ingest is concurrent, so a check-then-act
+    // in the service could otherwise leave a viewer with two active tasks. Partial
+    // index: only rows with status='active' participate.
+    uniqueIndex("task_one_active_per_author_idx")
+      .on(table.authorTwitchId)
+      .where(sql`${table.status} = 'active'`),
+  ],
+);
 
 export const timerState = sqliteTable("timer_state", {
   id: text("id").primaryKey().default(SINGLETON_ID),
@@ -87,12 +102,20 @@ export const timerConfig = sqliteTable("timer_config", {
   id: text("id").primaryKey().default(SINGLETON_ID),
   workDuration: integer("work_duration").notNull().default(TIMER_CONFIG_DEFAULTS.workDuration),
   breakDuration: integer("break_duration").notNull().default(TIMER_CONFIG_DEFAULTS.breakDuration),
-  longBreakDuration: integer("long_break_duration").notNull().default(TIMER_CONFIG_DEFAULTS.longBreakDuration),
-  longBreakInterval: integer("long_break_interval").notNull().default(TIMER_CONFIG_DEFAULTS.longBreakInterval),
-  startingDuration: integer("starting_duration").notNull().default(TIMER_CONFIG_DEFAULTS.startingDuration),
+  longBreakDuration: integer("long_break_duration")
+    .notNull()
+    .default(TIMER_CONFIG_DEFAULTS.longBreakDuration),
+  longBreakInterval: integer("long_break_interval")
+    .notNull()
+    .default(TIMER_CONFIG_DEFAULTS.longBreakInterval),
+  startingDuration: integer("starting_duration")
+    .notNull()
+    .default(TIMER_CONFIG_DEFAULTS.startingDuration),
   defaultCycles: integer("default_cycles").notNull().default(TIMER_CONFIG_DEFAULTS.defaultCycles),
   showHours: integer("show_hours", { mode: "boolean" }).notNull().default(false),
-  noLastBreak: integer("no_last_break", { mode: "boolean" }).notNull().default(TIMER_CONFIG_DEFAULTS.noLastBreak),
+  noLastBreak: integer("no_last_break", { mode: "boolean" })
+    .notNull()
+    .default(TIMER_CONFIG_DEFAULTS.noLastBreak),
   labelIdle: text("label_idle").notNull().default(DEFAULT_PHASE_LABELS.idle),
   labelStarting: text("label_starting").notNull().default(DEFAULT_PHASE_LABELS.starting),
   labelWork: text("label_work").notNull().default(DEFAULT_PHASE_LABELS.work),
@@ -129,7 +152,9 @@ export const taskStyle = sqliteTable("task_style", {
   id: text("id").primaryKey().default(SINGLETON_ID),
   displayShowDone: integer("display_show_done", { mode: "boolean" }).notNull().default(true),
   displayShowCount: integer("display_show_count", { mode: "boolean" }).notNull().default(true),
-  displayUseCheckboxes: integer("display_use_checkboxes", { mode: "boolean" }).notNull().default(true),
+  displayUseCheckboxes: integer("display_use_checkboxes", { mode: "boolean" })
+    .notNull()
+    .default(true),
   displayCrossOnDone: integer("display_cross_on_done", { mode: "boolean" }).notNull().default(true),
   displayNumberOfLines: integer("display_number_of_lines").notNull().default(2),
   fontHeader: text("font_header").notNull().default("Montserrat"),
@@ -189,34 +214,50 @@ export const taskStyle = sqliteTable("task_style", {
 
 export const botConfig = sqliteTable("bot_config", {
   id: text("id").primaryKey().default(SINGLETON_ID),
-  taskCommandsEnabled: integer("task_commands_enabled", { mode: "boolean" }).notNull().default(true),
-  timerCommandsEnabled: integer("timer_commands_enabled", { mode: "boolean" }).notNull().default(true),
+  taskCommandsEnabled: integer("task_commands_enabled", { mode: "boolean" })
+    .notNull()
+    .default(true),
+  timerCommandsEnabled: integer("timer_commands_enabled", { mode: "boolean" })
+    .notNull()
+    .default(true),
   commandAliases: text("command_aliases", { mode: "json" })
     .$type<Record<string, string>>()
     .notNull()
     .default({}),
   msgTaskAdded: text("msg_task_added").notNull().default(DEFAULT_TASK_MESSAGES.taskAdded),
   msgNoTaskAdded: text("msg_no_task_added").notNull().default(DEFAULT_TASK_MESSAGES.noTaskAdded),
-  msgNoTaskContent: text("msg_no_task_content").notNull().default(DEFAULT_TASK_MESSAGES.noTaskContent),
-  msgNoTaskToEdit: text("msg_no_task_to_edit").notNull().default(DEFAULT_TASK_MESSAGES.noTaskToEdit),
+  msgNoTaskContent: text("msg_no_task_content")
+    .notNull()
+    .default(DEFAULT_TASK_MESSAGES.noTaskContent),
+  msgNoTaskToEdit: text("msg_no_task_to_edit")
+    .notNull()
+    .default(DEFAULT_TASK_MESSAGES.noTaskToEdit),
   msgTaskEdited: text("msg_task_edited").notNull().default(DEFAULT_TASK_MESSAGES.taskEdited),
   msgTaskRemoved: text("msg_task_removed").notNull().default(DEFAULT_TASK_MESSAGES.taskRemoved),
   msgTaskNext: text("msg_task_next").notNull().default(DEFAULT_TASK_MESSAGES.taskNext),
-  msgAdminDeleteTasks: text("msg_admin_delete_tasks").notNull().default(DEFAULT_TASK_MESSAGES.adminDeleteTasks),
+  msgAdminDeleteTasks: text("msg_admin_delete_tasks")
+    .notNull()
+    .default(DEFAULT_TASK_MESSAGES.adminDeleteTasks),
   msgTaskDone: text("msg_task_done").notNull().default(DEFAULT_TASK_MESSAGES.taskDone),
   msgTaskCheck: text("msg_task_check").notNull().default(DEFAULT_TASK_MESSAGES.taskCheck),
-  msgTaskCheckUser: text("msg_task_check_user").notNull().default(DEFAULT_TASK_MESSAGES.taskCheckUser),
+  msgTaskCheckUser: text("msg_task_check_user")
+    .notNull()
+    .default(DEFAULT_TASK_MESSAGES.taskCheckUser),
   msgNoTask: text("msg_no_task").notNull().default(DEFAULT_TASK_MESSAGES.noTask),
   msgNoTaskOther: text("msg_no_task_other").notNull().default(DEFAULT_TASK_MESSAGES.noTaskOther),
   msgNotMod: text("msg_not_mod").notNull().default(DEFAULT_TASK_MESSAGES.notMod),
   msgClearedAll: text("msg_cleared_all").notNull().default(DEFAULT_TASK_MESSAGES.clearedAll),
   msgClearedDone: text("msg_cleared_done").notNull().default(DEFAULT_TASK_MESSAGES.clearedDone),
-  msgNextNoContent: text("msg_next_no_content").notNull().default(DEFAULT_TASK_MESSAGES.nextNoContent),
+  msgNextNoContent: text("msg_next_no_content")
+    .notNull()
+    .default(DEFAULT_TASK_MESSAGES.nextNoContent),
   msgHelp: text("msg_help").notNull().default(DEFAULT_TASK_MESSAGES.help),
   msgNotRunning: text("msg_not_running").notNull().default(DEFAULT_TIMER_MESSAGES.notRunning),
   msgWrongCommand: text("msg_wrong_command").notNull().default(DEFAULT_TIMER_MESSAGES.wrongCommand),
   msgTimerRunning: text("msg_timer_running").notNull().default(DEFAULT_TIMER_MESSAGES.timerRunning),
-  msgCommandSuccess: text("msg_command_success").notNull().default(DEFAULT_TIMER_MESSAGES.commandSuccess),
+  msgCommandSuccess: text("msg_command_success")
+    .notNull()
+    .default(DEFAULT_TIMER_MESSAGES.commandSuccess),
   msgCycleWrong: text("msg_cycle_wrong").notNull().default(DEFAULT_TIMER_MESSAGES.cycleWrong),
   msgEta: text("msg_eta").notNull().default(DEFAULT_TIMER_MESSAGES.eta),
 });

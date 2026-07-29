@@ -40,15 +40,15 @@ export default function Header() {
               strokeLinejoin="round"
               className="size-6"
             >
-              <path d="M14 30L20 8l10 18"/>
-              <path d="M50 30L44 8l-10 18"/>
-              <path d="M12 30c-1 10 4 18 12 22l8 6 8-6c8-4 13-12 12-22"/>
-              <circle cx="23" cy="36" r="2.5" fill="currentColor" stroke="none"/>
-              <circle cx="41" cy="36" r="2.5" fill="currentColor" stroke="none"/>
-              <path d="M28 46l4 4 4-4"/>
-              <circle cx="32" cy="24" r="7" strokeWidth="2.5"/>
-              <line x1="32" y1="24" x2="32" y2="19" strokeWidth="2.5"/>
-              <line x1="32" y1="24" x2="36" y2="24" strokeWidth="2.5"/>
+              <path d="M14 30L20 8l10 18" />
+              <path d="M50 30L44 8l-10 18" />
+              <path d="M12 30c-1 10 4 18 12 22l8 6 8-6c8-4 13-12 12-22" />
+              <circle cx="23" cy="36" r="2.5" fill="currentColor" stroke="none" />
+              <circle cx="41" cy="36" r="2.5" fill="currentColor" stroke="none" />
+              <path d="M28 46l4 4 4-4" />
+              <circle cx="32" cy="24" r="7" strokeWidth="2.5" />
+              <line x1="32" y1="24" x2="32" y2="19" strokeWidth="2.5" />
+              <line x1="32" y1="24" x2="36" y2="24" strokeWidth="2.5" />
             </svg>
             DireWork
           </Link>

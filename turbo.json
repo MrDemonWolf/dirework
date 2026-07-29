@@ -7,11 +7,11 @@
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
-    "lint": {
-      "dependsOn": ["^lint"]
-    },
     "check-types": {
       "dependsOn": ["^check-types"]
+    },
+    "clean": {
+      "cache": false
     },
     "dev": {
       "cache": false,
@@ -23,6 +23,10 @@
     },
     "test": {
       "dependsOn": []
+    },
+    "test:coverage": {
+      "dependsOn": [],
+      "outputs": ["coverage/**"]
     },
     "db:generate": {
       "cache": false

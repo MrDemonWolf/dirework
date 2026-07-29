@@ -6,16 +6,24 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   ci:
+    uses: ./.github/workflows/verify.yml
+
+  # Fails the PR when a dependency change pulls in a known-vulnerable package.
+  # PR-only: it diffs the manifest against the base branch.
+  dependency-review:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    env:
-      SKIP_ENV_VALIDATION: "true"
-      NEXT_PUBLIC_SERVER_URL: "http://localhost:3000"
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - run: bun run check-types
-      - run: bun run build
-      - run: bun run test
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure

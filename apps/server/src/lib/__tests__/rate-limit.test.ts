@@ -55,9 +55,14 @@ describe("clientKey", () => {
 
 /** Minimal Hono-ish context for exercising the middleware directly. */
 function makeCtx(url: string, env: Record<string, unknown>, headers: Record<string, string> = {}) {
+  // `get` mirrors Hono's context store, where the logger middleware stashes the
+  // request id — the limiter reads it from there rather than from c.res, which
+  // does not exist yet at middleware time.
+  const store: Record<string, unknown> = { requestId: "test-request-id" };
   return {
     req: { url, raw: { headers: new Headers(headers) } },
     env,
+    get: (key: string) => store[key],
     json: (body: unknown, status: number) => ({ body, status }),
   };
 }

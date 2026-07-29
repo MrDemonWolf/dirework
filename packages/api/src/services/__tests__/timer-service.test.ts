@@ -156,7 +156,8 @@ describe("skipTimer guarded CAS vs concurrent overdue-advance (P0.2)", () => {
       targetEndTime: new Date(Date.now() + config.breakDuration),
     };
 
-    const findFirst = vi.fn()
+    const findFirst = vi
+      .fn()
       .mockResolvedValueOnce(workRow) // skip's initial read
       .mockResolvedValue(advancedByPoll); // re-read after the lost CAS
     const setSpy = vi.fn();
@@ -296,7 +297,8 @@ describe("maybeAdvanceOverdueTimer (lazy read-driven transitions)", () => {
       targetEndTime: new Date(prevEnd.getTime() + config.breakDuration),
     };
 
-    const findFirst = vi.fn()
+    const findFirst = vi
+      .fn()
       .mockResolvedValueOnce(overdueWork) // initial read: still overdue
       .mockResolvedValue(advancedByOther); // re-read after losing the race
     const setSpy = vi.fn();
@@ -336,7 +338,8 @@ describe("maybeAdvanceOverdueTimer (lazy read-driven transitions)", () => {
     const result = await maybeAdvanceOverdueTimer(db);
     expect(result?.status).toBe("finished");
     expect(setSpy).toHaveBeenCalledOnce();
-    expect((setSpy.mock.calls[0]?.[0] as { targetEndTime: Date | null }).targetEndTime).toBeNull();
+    const written = setSpy.mock.calls[0]?.[0] as { targetEndTime: Date | null } | undefined;
+    expect(written?.targetEndTime).toBeNull();
   });
 });
 

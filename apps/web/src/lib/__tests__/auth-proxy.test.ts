@@ -1,11 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  buildTargetUrl,
-  forwardHeaders,
-  MAX_PROXY_BODY_BYTES,
-  proxyToApi,
-} from "../auth-proxy";
+import { buildTargetUrl, forwardHeaders, MAX_PROXY_BODY_BYTES, proxyToApi } from "../auth-proxy";
 
 const API = "https://dirework-api.mrdemonwolf.workers.dev";
 
@@ -78,7 +73,9 @@ describe("proxyToApi body limits and upstream failures (P1.8)", () => {
   });
 
   it("allows a body at exactly the limit", async () => {
-    globalThis.fetch = vi.fn(async () => new Response("ok", { status: 200 })) as unknown as typeof fetch;
+    globalThis.fetch = vi.fn(
+      async () => new Response("ok", { status: 200 }),
+    ) as unknown as typeof fetch;
 
     const req = new Request("https://dirework.example/api/auth/sign-in", {
       method: "POST",

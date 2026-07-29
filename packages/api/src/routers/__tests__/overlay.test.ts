@@ -3,10 +3,7 @@ import { z } from "zod";
 
 import type { DbClient } from "@dirework/db";
 
-import {
-  loadTaskOverlayPayload,
-  loadTimerOverlayPayload,
-} from "../../services/overlay-service";
+import { loadTaskOverlayPayload, loadTimerOverlayPayload } from "../../services/overlay-service";
 import { tokenInput, withOverlayToken } from "../../services/tokens";
 
 const tokenSchema = z.object({ token: tokenInput });

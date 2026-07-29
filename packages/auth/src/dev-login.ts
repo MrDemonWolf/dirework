@@ -35,34 +35,30 @@ export function devLoginPlugin(): BetterAuthPlugin {
   return {
     id: "dev-login",
     endpoints: {
-      devLogin: createAuthEndpoint(
-        "/dev-login",
-        { method: "POST" },
-        async (ctx) => {
-          const adapter = ctx.context.internalAdapter;
+      devLogin: createAuthEndpoint("/dev-login", { method: "POST" }, async (ctx) => {
+        const adapter = ctx.context.internalAdapter;
 
-          // Single-user instance — the sole existing user IS the owner.
-          const [owner] = await adapter.listUsers(1, 0);
-          const user = owner ?? (await adapter.createUser({ ...DEV_USER }));
+        // Single-user instance — the sole existing user IS the owner.
+        const [owner] = await adapter.listUsers(1, 0);
+        const user = owner ?? (await adapter.createUser({ ...DEV_USER }));
 
-          if (!user) {
-            throw new APIError("INTERNAL_SERVER_ERROR", {
-              message: "dev-login: failed to resolve a user",
-            });
-          }
+        if (!user) {
+          throw new APIError("INTERNAL_SERVER_ERROR", {
+            message: "dev-login: failed to resolve a user",
+          });
+        }
 
-          // dontRememberMe=false → full 30-day session (session.expiresIn).
-          const session = await adapter.createSession(user.id, false);
-          if (!session) {
-            throw new APIError("INTERNAL_SERVER_ERROR", {
-              message: "dev-login: failed to create a session",
-            });
-          }
+        // dontRememberMe=false → full 30-day session (session.expiresIn).
+        const session = await adapter.createSession(user.id, false);
+        if (!session) {
+          throw new APIError("INTERNAL_SERVER_ERROR", {
+            message: "dev-login: failed to create a session",
+          });
+        }
 
-          await setSessionCookie(ctx, { session, user });
-          return ctx.json({ ok: true });
-        },
-      ),
+        await setSessionCookie(ctx, { session, user });
+        return ctx.json({ ok: true });
+      }),
     },
   };
 }

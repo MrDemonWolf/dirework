@@ -155,9 +155,7 @@ export function TaskStyleEditor({
           label="Background"
           id="task-style-body-bg-color"
           value={styles.body.background.color}
-          onChange={(v) =>
-            update("body", { background: { ...styles.body.background, color: v } })
-          }
+          onChange={(v) => update("body", { background: { ...styles.body.background, color: v } })}
         />
         <SliderRow
           label="Background opacity"
@@ -195,9 +193,7 @@ export function TaskStyleEditor({
           label="Vertical padding"
           id="task-style-body-pad-vertical"
           value={styles.body.padding.vertical}
-          onChange={(v) =>
-            update("body", { padding: { ...styles.body.padding, vertical: v } })
-          }
+          onChange={(v) => update("body", { padding: { ...styles.body.padding, vertical: v } })}
           unit="px"
           placeholder="10px"
         />
@@ -205,9 +201,7 @@ export function TaskStyleEditor({
           label="Horizontal padding"
           id="task-style-body-pad-horizontal"
           value={styles.body.padding.horizontal}
-          onChange={(v) =>
-            update("body", { padding: { ...styles.body.padding, horizontal: v } })
-          }
+          onChange={(v) => update("body", { padding: { ...styles.body.padding, horizontal: v } })}
           unit="px"
           placeholder="10px"
         />
@@ -218,9 +212,7 @@ export function TaskStyleEditor({
           label="Background"
           id="task-style-task-bg-color"
           value={styles.task.background.color}
-          onChange={(v) =>
-            update("task", { background: { ...styles.task.background, color: v } })
-          }
+          onChange={(v) => update("task", { background: { ...styles.task.background, color: v } })}
         />
         <SliderRow
           label="Background opacity"
@@ -359,17 +351,13 @@ export function TaskStyleEditor({
           label="Border color"
           id="task-style-checkbox-border-color"
           value={styles.checkbox.border.color}
-          onChange={(v) =>
-            update("checkbox", { border: { ...styles.checkbox.border, color: v } })
-          }
+          onChange={(v) => update("checkbox", { border: { ...styles.checkbox.border, color: v } })}
         />
         <TextFieldRow
           label="Border width"
           id="task-style-checkbox-border-width"
           value={styles.checkbox.border.width}
-          onChange={(v) =>
-            update("checkbox", { border: { ...styles.checkbox.border, width: v } })
-          }
+          onChange={(v) => update("checkbox", { border: { ...styles.checkbox.border, width: v } })}
           unit="px"
           placeholder="2px"
         />
@@ -377,9 +365,7 @@ export function TaskStyleEditor({
           label="Border radius"
           id="task-style-checkbox-border-radius"
           value={styles.checkbox.border.radius}
-          onChange={(v) =>
-            update("checkbox", { border: { ...styles.checkbox.border, radius: v } })
-          }
+          onChange={(v) => update("checkbox", { border: { ...styles.checkbox.border, radius: v } })}
           placeholder="4px"
         />
         <TextFieldRow
@@ -406,9 +392,7 @@ export function TaskStyleEditor({
           label="Margin top"
           id="task-style-checkbox-margin-top"
           value={styles.checkbox.margin.top}
-          onChange={(v) =>
-            update("checkbox", { margin: { ...styles.checkbox.margin, top: v } })
-          }
+          onChange={(v) => update("checkbox", { margin: { ...styles.checkbox.margin, top: v } })}
           unit="px"
           placeholder="2px"
         />
@@ -416,9 +400,7 @@ export function TaskStyleEditor({
           label="Margin left"
           id="task-style-checkbox-margin-left"
           value={styles.checkbox.margin.left}
-          onChange={(v) =>
-            update("checkbox", { margin: { ...styles.checkbox.margin, left: v } })
-          }
+          onChange={(v) => update("checkbox", { margin: { ...styles.checkbox.margin, left: v } })}
           unit="px"
           placeholder="0px"
         />
@@ -426,9 +408,7 @@ export function TaskStyleEditor({
           label="Margin right"
           id="task-style-checkbox-margin-right"
           value={styles.checkbox.margin.right}
-          onChange={(v) =>
-            update("checkbox", { margin: { ...styles.checkbox.margin, right: v } })
-          }
+          onChange={(v) => update("checkbox", { margin: { ...styles.checkbox.margin, right: v } })}
           unit="px"
           placeholder="8px"
         />
@@ -460,9 +440,7 @@ export function TaskStyleEditor({
             label="Margin top"
             id="task-style-bullet-margin-top"
             value={styles.bullet.margin.top}
-            onChange={(v) =>
-              update("bullet", { margin: { ...styles.bullet.margin, top: v } })
-            }
+            onChange={(v) => update("bullet", { margin: { ...styles.bullet.margin, top: v } })}
             unit="px"
             placeholder="2px"
           />
@@ -470,9 +448,7 @@ export function TaskStyleEditor({
             label="Margin left"
             id="task-style-bullet-margin-left"
             value={styles.bullet.margin.left}
-            onChange={(v) =>
-              update("bullet", { margin: { ...styles.bullet.margin, left: v } })
-            }
+            onChange={(v) => update("bullet", { margin: { ...styles.bullet.margin, left: v } })}
             unit="px"
             placeholder="0px"
           />
@@ -480,9 +456,7 @@ export function TaskStyleEditor({
             label="Margin right"
             id="task-style-bullet-margin-right"
             value={styles.bullet.margin.right}
-            onChange={(v) =>
-              update("bullet", { margin: { ...styles.bullet.margin, right: v } })
-            }
+            onChange={(v) => update("bullet", { margin: { ...styles.bullet.margin, right: v } })}
             unit="px"
             placeholder="8px"
           />

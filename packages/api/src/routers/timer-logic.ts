@@ -43,10 +43,7 @@ export interface PhaseResult {
  * Deduplicates the identical switch logic used by skip and the lazy
  * overdue-timer advancement.
  */
-export function computeNextPhase(
-  input: PhaseInput,
-  config: TimerConfigInput,
-): PhaseResult {
+export function computeNextPhase(input: PhaseInput, config: TimerConfigInput): PhaseResult {
   let nextStatus: string;
   let nextDuration: number | null = null;
   let nextCycle = input.currentCycle;
@@ -62,24 +59,13 @@ export function computeNextPhase(
         if (config.noLastBreak) {
           nextStatus = "finished";
         } else {
-          nextStatus =
-            input.currentCycle % config.longBreakInterval === 0
-              ? "longBreak"
-              : "break";
+          nextStatus = input.currentCycle % config.longBreakInterval === 0 ? "longBreak" : "break";
           nextDuration =
-            nextStatus === "longBreak"
-              ? config.longBreakDuration
-              : config.breakDuration;
+            nextStatus === "longBreak" ? config.longBreakDuration : config.breakDuration;
         }
       } else {
-        nextStatus =
-          input.currentCycle % config.longBreakInterval === 0
-            ? "longBreak"
-            : "break";
-        nextDuration =
-          nextStatus === "longBreak"
-            ? config.longBreakDuration
-            : config.breakDuration;
+        nextStatus = input.currentCycle % config.longBreakInterval === 0 ? "longBreak" : "break";
+        nextDuration = nextStatus === "longBreak" ? config.longBreakDuration : config.breakDuration;
       }
       break;
 

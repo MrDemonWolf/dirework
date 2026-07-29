@@ -56,7 +56,7 @@ In your repository: **Settings → Secrets and variables → Actions → New rep
 |---|---|
 | `CLOUDFLARE_API_TOKEN` | the token from Step 1 |
 | `ALCHEMY_PASSWORD` | any long random string — encrypts deploy state (`openssl rand -base64 32`) |
-| `ALCHEMY_STATE_TOKEN` | any long random string (`openssl rand -base64 32`) — authenticates Dirework's dedicated `alchemy-state-dirework` CI state store. Required for GitHub Actions deploys. |
+| `ALCHEMY_STATE_TOKEN` | authenticates the **shared** account-wide `alchemy-state` CI store worker — the same token every MrDemonWolf Alchemy app uses. Required for GitHub Actions deploys. |
 | `BETTER_AUTH_SECRET` | another long random string (`openssl rand -base64 32`) |
 | `TWITCH_CLIENT_ID` | from the Twitch console |
 | `TWITCH_CLIENT_SECRET` | from the Twitch console |
@@ -74,14 +74,23 @@ page) → **New repository variable**. Swap in your own workers.dev subdomain:
 |---|---|
 | `BETTER_AUTH_URL` | `https://dirework.<your-subdomain>.workers.dev` (your web origin) |
 | `CORS_ORIGIN` | `https://dirework.<your-subdomain>.workers.dev` (same web origin) |
-| `NEXT_PUBLIC_SERVER_URL` | `https://dirework-api.<your-subdomain>.workers.dev` (your API origin) |
 
 The deploy workflow reads these via `${{ vars.* }}` — you don't edit the workflow file.
+It checks every required secret and variable before touching Cloudflare, so a missing
+one fails immediately with a list of what's absent rather than half-way through.
+
+<Callout type="warn">
+  There is deliberately **no `NEXT_PUBLIC_SERVER_URL` variable**. Alchemy resolves the API
+  worker's URL during the deploy and injects it into both the web build and the runtime
+  binding. Setting it as a repository Variable does nothing — and a stale value there is
+  actively misleading when you're debugging. It's a local-development variable only.
+</Callout>
 
 ## Step 4 — Push to main
 
-That's it. Every push to `main` runs the tests and then deploys via
-[Alchemy](https://alchemy.run) — both workers, the D1 database, and its migrations.
+That's it. Every push to `main` runs the full verification pipeline — lint, type check,
+tests with coverage thresholds, and a production build — and only then deploys via
+[Alchemy](https://alchemy.run): both workers, the D1 database, and its migrations.
 You can also trigger a deploy by hand from the **Actions** tab (**Deploy → Run workflow**).
 
 ✅ Visit `https://dirework.<your-subdomain>.workers.dev`. You should see the Dirework

@@ -16,10 +16,6 @@ export async function updateSingleton<TTable extends SingletonTable>(
   table: TTable,
   values: SQLiteUpdateSetSource<TTable>,
 ): Promise<TTable["$inferSelect"] | null> {
-  const [row] = await db
-    .update(table)
-    .set(values)
-    .where(eq(table.id, SINGLETON_ID))
-    .returning();
+  const [row] = await db.update(table).set(values).where(eq(table.id, SINGLETON_ID)).returning();
   return (row as TTable["$inferSelect"] | undefined) ?? null;
 }

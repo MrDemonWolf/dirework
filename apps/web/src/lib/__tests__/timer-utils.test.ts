@@ -122,7 +122,9 @@ describe("resolvePhaseDuration", () => {
 
   it("resolves a paused timer against the phase it froze in", () => {
     expect(resolvePhaseDuration("paused", "break", durations)).toBe(durations.breakDuration);
-    expect(resolvePhaseDuration("paused", "longBreak", durations)).toBe(durations.longBreakDuration);
+    expect(resolvePhaseDuration("paused", "longBreak", durations)).toBe(
+      durations.longBreakDuration,
+    );
   });
 
   it("defaults a paused timer with no recorded phase to work", () => {
@@ -147,9 +149,9 @@ describe("remainingFromState", () => {
   });
 
   it("returns the frozen remaining for a paused timer", () => {
-    expect(
-      remainingFromState({ ...baseState, status: "paused", pausedWithRemaining: 42000 }),
-    ).toBe(42000);
+    expect(remainingFromState({ ...baseState, status: "paused", pausedWithRemaining: 42000 })).toBe(
+      42000,
+    );
   });
 
   it("returns null when idle / no target to count", () => {

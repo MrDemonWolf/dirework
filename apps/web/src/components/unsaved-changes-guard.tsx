@@ -32,7 +32,14 @@ export function UnsavedChangesGuard({ dirty }: { dirty: boolean }) {
 
     const handleClickCapture = (e: MouseEvent) => {
       // Respect modified clicks (new tab etc.) and non-primary buttons
-      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+      if (
+        e.defaultPrevented ||
+        e.button !== 0 ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.shiftKey ||
+        e.altKey
+      ) {
         return;
       }
       const anchor = (e.target as HTMLElement | null)?.closest?.("a[href]");
@@ -40,7 +47,7 @@ export function UnsavedChangesGuard({ dirty }: { dirty: boolean }) {
       if (anchor.target === "_blank" || anchor.hasAttribute("download")) return;
 
       const href = anchor.getAttribute("href");
-      if (!href || !href.startsWith("/")) return; // external links hit beforeunload
+      if (!href?.startsWith("/")) return; // external links hit beforeunload
       if (href === window.location.pathname + window.location.search) return;
 
       e.preventDefault();

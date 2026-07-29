@@ -35,10 +35,7 @@ export async function getViewerOpenTasks(db: DbClient, twitchId: string) {
 /** The viewer's currently active task, if any. */
 export async function getActiveTask(db: DbClient, twitchId: string) {
   const task = await db.query.task.findFirst({
-    where: and(
-      eq(schema.task.authorTwitchId, twitchId),
-      eq(schema.task.status, "active"),
-    ),
+    where: and(eq(schema.task.authorTwitchId, twitchId), eq(schema.task.status, "active")),
   });
   return task ?? null;
 }
@@ -46,10 +43,7 @@ export async function getActiveTask(db: DbClient, twitchId: string) {
 /** Case-insensitive lookup of another user's active task (for !check @user). */
 export async function findActiveTaskByUsername(db: DbClient, username: string) {
   const task = await db.query.task.findFirst({
-    where: and(
-      authorUsernameEquals(username),
-      eq(schema.task.status, "active"),
-    ),
+    where: and(authorUsernameEquals(username), eq(schema.task.status, "active")),
   });
   return task ?? null;
 }
@@ -88,16 +82,19 @@ function nextPendingIdSql(twitchId: string) {
  * raced. Safe to include in a db.batch.
  */
 export function promoteNextPendingStmt(db: DbClient, twitchId: string) {
-  return db.update(schema.task)
+  return db
+    .update(schema.task)
     .set({ status: "active" })
-    .where(and(
-      eq(schema.task.id, nextPendingIdSql(twitchId)),
-      // Belt-and-braces with the partial unique index: never promote while the
-      // viewer already holds an active task.
-      sql`not exists (select 1 from ${schema.task}
+    .where(
+      and(
+        eq(schema.task.id, nextPendingIdSql(twitchId)),
+        // Belt-and-braces with the partial unique index: never promote while the
+        // viewer already holds an active task.
+        sql`not exists (select 1 from ${schema.task}
         where ${schema.task.authorTwitchId} = ${twitchId}
           and ${schema.task.status} = 'active')`,
-    ))
+      ),
+    )
     .returning();
 }
 
@@ -133,7 +130,10 @@ export async function createTask(
   const wantsActive = opts?.activate || openTasks.length === 0;
 
   if (!wantsActive) {
-    const [row] = await db.insert(schema.task).values({ ...values, status: "pending" }).returning();
+    const [row] = await db
+      .insert(schema.task)
+      .values({ ...values, status: "pending" })
+      .returning();
     return row ?? null;
   }
 
@@ -143,11 +143,17 @@ export async function createTask(
   // active task, so fall back to pending — the task is still created, it just
   // queues behind the one that won (P1.7).
   try {
-    const [row] = await db.insert(schema.task).values({ ...values, status: "active" }).returning();
+    const [row] = await db
+      .insert(schema.task)
+      .values({ ...values, status: "active" })
+      .returning();
     return row ?? null;
   } catch (err) {
     if (!isUniqueViolation(err)) throw err;
-    const [row] = await db.insert(schema.task).values({ ...values, status: "pending" }).returning();
+    const [row] = await db
+      .insert(schema.task)
+      .values({ ...values, status: "pending" })
+      .returning();
     return row ?? null;
   }
 }
@@ -160,7 +166,8 @@ function isUniqueViolation(err: unknown): boolean {
 
 /** Mark a task done WITHOUT promoting the next pending one (used by !next). */
 export async function completeTask(db: DbClient, id: string) {
-  const [updated] = await db.update(schema.task)
+  const [updated] = await db
+    .update(schema.task)
     .set({ status: "done", completedAt: new Date() })
     .where(eq(schema.task.id, id))
     .returning();
@@ -186,7 +193,8 @@ export async function markTaskDone(db: DbClient, id: string) {
   }
 
   const [completedRows] = await db.batch([
-    db.update(schema.task)
+    db
+      .update(schema.task)
       .set({ status: "done", completedAt: new Date() })
       // Guarded: if another request already completed it, we don't double-apply
       // and the paired promote is a no-op via its own not-exists guard.
@@ -200,7 +208,8 @@ export async function markTaskDone(db: DbClient, id: string) {
 
 /** Update a task's text. */
 export async function editTask(db: DbClient, id: string, text: string) {
-  const [updated] = await db.update(schema.task)
+  const [updated] = await db
+    .update(schema.task)
     .set({ text })
     .where(eq(schema.task.id, id))
     .returning();
@@ -214,21 +223,15 @@ export async function editTask(db: DbClient, id: string, text: string) {
  * with zero or two active tasks. Demote runs first to free the single-active
  * slot enforced by the partial unique index.
  */
-export async function activateTask(
-  db: DbClient,
-  task: { id: string; authorTwitchId: string },
-) {
+export async function activateTask(db: DbClient, task: { id: string; authorTwitchId: string }) {
   const [, activatedRows] = await db.batch([
-    db.update(schema.task)
+    db
+      .update(schema.task)
       .set({ status: "pending" })
-      .where(and(
-        eq(schema.task.authorTwitchId, task.authorTwitchId),
-        eq(schema.task.status, "active"),
-      )),
-    db.update(schema.task)
-      .set({ status: "active" })
-      .where(eq(schema.task.id, task.id))
-      .returning(),
+      .where(
+        and(eq(schema.task.authorTwitchId, task.authorTwitchId), eq(schema.task.status, "active")),
+      ),
+    db.update(schema.task).set({ status: "active" }).where(eq(schema.task.id, task.id)).returning(),
   ]);
   return activatedRows[0] ?? null;
 }
@@ -240,9 +243,7 @@ export async function activateTask(
  * a concurrent promote can't produce a second active task.
  */
 export async function removeTask(db: DbClient, id: string) {
-  const [removed] = await db.delete(schema.task)
-    .where(eq(schema.task.id, id))
-    .returning();
+  const [removed] = await db.delete(schema.task).where(eq(schema.task.id, id)).returning();
   if (!removed) return null;
 
   if (removed.status === "active") {

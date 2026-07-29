@@ -25,7 +25,12 @@ export function FontSelect({
 
   return (
     <FieldRow label={label} htmlFor={id}>
-      <Select value={value} onValueChange={(v) => { if (v) onChange(v); }}>
+      <Select
+        value={value}
+        onValueChange={(v) => {
+          if (v) onChange(v);
+        }}
+      >
         <SelectTrigger id={id} className="h-8 w-40 text-xs">
           <SelectValue />
         </SelectTrigger>

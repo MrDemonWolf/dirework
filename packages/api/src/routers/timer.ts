@@ -14,11 +14,9 @@ export const timerRouter = router({
     return getTimerState(ctx.db);
   }),
 
-  start: ownerProcedure
-    .input(timerStartInput)
-    .mutation(async ({ ctx, input }) => {
-      return startTimer(ctx.db, { totalCycles: input.totalCycles });
-    }),
+  start: ownerProcedure.input(timerStartInput).mutation(async ({ ctx, input }) => {
+    return startTimer(ctx.db, { totalCycles: input.totalCycles });
+  }),
 
   pause: ownerProcedure.mutation(async ({ ctx }) => {
     return pauseTimer(ctx.db);

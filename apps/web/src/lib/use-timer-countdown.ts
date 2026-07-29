@@ -18,9 +18,7 @@ import { type TimerState, remainingFromState } from "@/lib/timer-utils";
  * want a number coalesce with `?? 0`.
  */
 export function useTimerCountdown(state: TimerState | null): number | null {
-  const [remaining, setRemaining] = useState<number | null>(() =>
-    remainingFromState(state),
-  );
+  const [remaining, setRemaining] = useState<number | null>(() => remainingFromState(state));
 
   const targetEndTime = state?.targetEndTime;
   const pausedWithRemaining = state?.pausedWithRemaining;
@@ -28,10 +26,7 @@ export function useTimerCountdown(state: TimerState | null): number | null {
 
   useEffect(() => {
     // Static (paused / idle / no target): set once, no interval.
-    if (
-      !targetEndTime ||
-      (status === "paused" && pausedWithRemaining != null)
-    ) {
+    if (!targetEndTime || (status === "paused" && pausedWithRemaining != null)) {
       setRemaining(remainingFromState(state));
       return;
     }
@@ -45,7 +40,7 @@ export function useTimerCountdown(state: TimerState | null): number | null {
     // state is intentionally excluded — the primitive fields below fully
     // determine the countdown, and its object identity churns every poll.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetEndTime, pausedWithRemaining, status]);
+  }, [targetEndTime, pausedWithRemaining, status, state]);
 
   return remaining;
 }

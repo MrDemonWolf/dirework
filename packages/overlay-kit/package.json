@@ -9,7 +9,8 @@
   },
   "scripts": {
     "test": "vitest run",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@dirework/config": "workspace:*",

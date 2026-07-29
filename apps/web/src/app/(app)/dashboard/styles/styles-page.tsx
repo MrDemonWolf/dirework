@@ -4,7 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import type { TimerStylesConfig, TaskStylesConfig, PhaseLabelsConfig, ThemePreset } from "@/lib/config-types";
+import type {
+  TimerStylesConfig,
+  TaskStylesConfig,
+  PhaseLabelsConfig,
+  ThemePreset,
+} from "@/lib/config-types";
 import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
 import { defaultTimerStyles, defaultTaskStyles, themePresets } from "@/lib/theme-presets";
 import { cn } from "@/lib/utils";
@@ -136,14 +141,17 @@ export default function StylesPage() {
     setHasUnsaved(true);
   }, []);
 
-  const handleApplyTheme = useCallback((theme: ThemePreset) => {
-    // Custom edits in progress — confirm before a preset replaces them
-    if (hasUnsaved && activeThemeId === null) {
-      setPendingTheme(theme);
-      return;
-    }
-    applyTheme(theme);
-  }, [hasUnsaved, activeThemeId, applyTheme]);
+  const handleApplyTheme = useCallback(
+    (theme: ThemePreset) => {
+      // Custom edits in progress — confirm before a preset replaces them
+      if (hasUnsaved && activeThemeId === null) {
+        setPendingTheme(theme);
+        return;
+      }
+      applyTheme(theme);
+    },
+    [hasUnsaved, activeThemeId, applyTheme],
+  );
 
   const handleReset = useCallback(() => {
     setTimerStyles(savedTimerStyles);
@@ -207,21 +215,12 @@ export default function StylesPage() {
               </TabsList>
               <TabsContent value="timer">
                 <div className="space-y-3">
-                  <TimerStyleEditor
-                    styles={timerStyles}
-                    onChange={handleTimerChange}
-                  />
-                  <PhaseLabelsEditor
-                    labels={phaseLabels}
-                    onChange={handlePhaseLabelsChange}
-                  />
+                  <TimerStyleEditor styles={timerStyles} onChange={handleTimerChange} />
+                  <PhaseLabelsEditor labels={phaseLabels} onChange={handlePhaseLabelsChange} />
                 </div>
               </TabsContent>
               <TabsContent value="tasks">
-                <TaskStyleEditor
-                  styles={taskStyles}
-                  onChange={handleTaskChange}
-                />
+                <TaskStyleEditor styles={taskStyles} onChange={handleTaskChange} />
               </TabsContent>
             </Tabs>
           </div>
@@ -247,9 +246,7 @@ export default function StylesPage() {
         }}
         title="Replace unsaved edits?"
         description={
-          pendingTheme
-            ? `Replace your unsaved custom edits with "${pendingTheme.name}"?`
-            : ""
+          pendingTheme ? `Replace your unsaved custom edits with "${pendingTheme.name}"?` : ""
         }
         confirmLabel="Apply preset"
         onConfirm={() => {
@@ -257,12 +254,7 @@ export default function StylesPage() {
         }}
       />
 
-      <SaveBar
-        visible={hasUnsaved}
-        saving={isSaving}
-        onSave={handleSave}
-        onReset={handleReset}
-      />
+      <SaveBar visible={hasUnsaved} saving={isSaving} onSave={handleSave} onReset={handleReset} />
     </div>
   );
 }

@@ -117,12 +117,7 @@ export function SwitchRow({
 }) {
   return (
     <FieldRow label={label} htmlFor={id}>
-      <Switch
-        id={id}
-        checked={checked}
-        onCheckedChange={(v) => onChange(v as boolean)}
-        size="sm"
-      />
+      <Switch id={id} checked={checked} onCheckedChange={(v) => onChange(v as boolean)} size="sm" />
     </FieldRow>
   );
 }

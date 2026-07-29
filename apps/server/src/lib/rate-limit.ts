@@ -1,5 +1,8 @@
 import type { MiddlewareHandler } from "hono";
 
+import { getRequestId } from "./logger";
+import { recordMetric } from "./telemetry";
+
 /**
  * Cloudflare rate-limit enforcement (P1.8).
  *
@@ -79,8 +82,11 @@ export const rateLimiter = (): MiddlewareHandler => async (c, next) => {
 
   const { success } = await binding.limit({ key: clientKey(c.req.raw.headers, bucket) });
   if (!success) {
-    // No detail about which bucket or what the limit is — that only helps
-    // someone tuning an attack.
+    // Counter carries the BUCKET (a fixed, non-identifying name) so a flood is
+    // visible in telemetry — never the client key, which contains an IP.
+    recordMetric("ratelimit.rejected", { requestId: getRequestId(c), label: bucket });
+    // The response says nothing about which bucket or what the limit is — that
+    // only helps someone tuning an attack.
     return c.json({ error: "Too many requests" }, 429);
   }
 

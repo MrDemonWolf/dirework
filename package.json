@@ -28,7 +28,8 @@
       "@types/react": "^19.2.17",
       "@types/react-dom": "^19.2.3",
       "tailwindcss": "^4.3.1",
-      "vitest": "^4.0.18"
+      "vitest": "^4.0.18",
+      "@biomejs/biome": "^2.5.6"
     }
   },
   "type": "module",
@@ -37,6 +38,11 @@
     "build": "turbo run build",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "clean": "turbo run clean && rm -rf .turbo",
     "dev:web": "turbo run dev:bare -F web",
     "db:generate": "turbo run db:generate -F @dirework/db",
     "tokens": "bun design-system/scripts/generate.ts",
@@ -44,9 +50,11 @@
     "destroy": "turbo run destroy -F @dirework/infra"
   },
   "devDependencies": {
+    "@biomejs/biome": "catalog:",
     "@cloudflare/workers-types": "catalog:",
     "@dirework/config": "workspace:*",
     "@types/node": "^22.13.14",
+    "@vitest/coverage-v8": "^4.1.10",
     "turbo": "^2.6.3",
     "typescript": "catalog:",
     "vitest": "catalog:"

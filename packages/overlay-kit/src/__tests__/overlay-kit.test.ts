@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  SQUIRCLE_RADIUS,
-  formatClock,
-  roundedRectPath,
-  roundedRectPerimeter,
-} from "../index";
+import { SQUIRCLE_RADIUS, formatClock, roundedRectPath, roundedRectPerimeter } from "../index";
 
 describe("SQUIRCLE_RADIUS", () => {
   it("is the canonical 22% squircle fraction", () => {
@@ -48,9 +43,7 @@ describe("roundedRectPerimeter", () => {
   });
 
   it("clamps the radius the same way roundedRectPath does", () => {
-    expect(roundedRectPerimeter(100, 50, 100)).toBeCloseTo(
-      roundedRectPerimeter(100, 50, 25),
-    );
+    expect(roundedRectPerimeter(100, 50, 100)).toBeCloseTo(roundedRectPerimeter(100, 50, 25));
   });
 
   it("clamps negative radii to zero", () => {
