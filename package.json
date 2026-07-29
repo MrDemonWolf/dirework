@@ -38,6 +38,10 @@
     "build": "turbo run build",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
     "clean": "turbo run clean && rm -rf .turbo",
     "dev:web": "turbo run dev:bare -F web",
     "db:generate": "turbo run db:generate -F @dirework/db",
@@ -50,6 +54,7 @@
     "@cloudflare/workers-types": "catalog:",
     "@dirework/config": "workspace:*",
     "@types/node": "^22.13.14",
+    "@vitest/coverage-v8": "^4.1.10",
     "turbo": "^2.6.3",
     "typescript": "catalog:",
     "vitest": "catalog:"

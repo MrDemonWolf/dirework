@@ -1,0 +1,45 @@
+version: 2
+
+updates:
+  # GitHub Actions are SHA-pinned, so they cannot pick up security fixes on
+  # their own — Dependabot is what keeps those pins moving (it rewrites the SHA
+  # and the trailing # vN comment together).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(actions)"
+    labels: [dependencies, github-actions]
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels: [dependencies]
+    groups:
+      # One PR per ecosystem cluster instead of a swarm of single-package PRs.
+      dev-tooling:
+        patterns:
+          - "@biomejs/*"
+          - "vitest"
+          - "@vitest/*"
+          - "typescript"
+          - "turbo"
+          - "tsx"
+      cloudflare:
+        patterns:
+          - "alchemy"
+          - "wrangler"
+          - "@opennextjs/*"
+          - "@cloudflare/*"
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+          - "next"

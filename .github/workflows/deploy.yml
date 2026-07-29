@@ -5,47 +5,71 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: deploy-production
   cancel-in-progress: false
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    env:
-      SKIP_ENV_VALIDATION: "true"
-      NEXT_PUBLIC_SERVER_URL: "http://localhost:3000"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - run: bun run check-types
-      - run: bun run test
+  # The same reusable pipeline the PR gate runs, build included — a deploy must
+  # never ship code that could not be built. Previously deploy ran only
+  # check-types + test, so a build-breaking change could reach production.
+  verify:
+    uses: ./.github/workflows/verify.yml
+    with:
+      run-build: true
 
   deploy:
-    needs: test
+    needs: verify
     runs-on: ubuntu-latest
     environment: production
     env:
-      # Alchemy runs under Node via tsx — Bun segfaults on the Alchemy program.
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
-      # Shared across every MrDemonWolf Alchemy app — auths the alchemy-state store.
+      # Dirework's OWN state token — it auths this app's dedicated
+      # `alchemy-state-dirework` store worker, NOT a shared account-wide store.
+      # See packages/infra/alchemy.run.ts and the deployment docs.
       ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
       BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
       TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
       TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
       BETTER_AUTH_URL: ${{ vars.BETTER_AUTH_URL }}
       CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
-      NEXT_PUBLIC_SERVER_URL: ${{ vars.NEXT_PUBLIC_SERVER_URL }}
+      # NEXT_PUBLIC_SERVER_URL is deliberately NOT passed: Alchemy injects the
+      # api worker's resolved URL at both build and runtime (alchemy.run.ts), so
+      # a GH variable here would be dead config that looks load-bearing.
       SKIP_ENV_VALIDATION: "true"
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - run: bun install --frozen-lockfile
+
+      # Fail loudly and early on missing deploy config, rather than part-way
+      # through provisioning Cloudflare resources.
+      - name: Validate required deploy configuration
+        run: |
+          missing=()
+          for var in CLOUDFLARE_API_TOKEN ALCHEMY_PASSWORD ALCHEMY_STATE_TOKEN \
+                     BETTER_AUTH_SECRET TWITCH_CLIENT_ID TWITCH_CLIENT_SECRET \
+                     BETTER_AUTH_URL CORS_ORIGIN; do
+            if [ -z "${!var}" ]; then missing+=("$var"); fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing required deploy configuration: ${missing[*]}"
+            echo "Secrets: CLOUDFLARE_API_TOKEN, ALCHEMY_PASSWORD, ALCHEMY_STATE_TOKEN, BETTER_AUTH_SECRET, TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET"
+            echo "Variables: BETTER_AUTH_URL, CORS_ORIGIN"
+            exit 1
+          fi
+
+      # Alchemy MUST run under Node — Bun segfaults on the Alchemy program.
+      # Invokes the lockfile-pinned local tsx binary explicitly under `node`
+      # instead of `npx -y tsx`, which fetched an unpinned tsx at deploy time
+      # (supply-chain risk) and left the runtime to npx's own resolution.
       - name: Deploy via Alchemy (Node + tsx)
         working-directory: packages/infra
-        run: npx -y tsx alchemy.run.ts
+        run: node ./node_modules/.bin/tsx alchemy.run.ts

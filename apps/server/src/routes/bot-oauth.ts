@@ -1,4 +1,5 @@
 import { TWITCH_FETCH_TIMEOUT_MS } from "@dirework/api/services/twitch-auth";
+import { recordError, recordMetric } from "../lib/telemetry";
 import { createAuth } from "@dirework/auth";
 import { createDb, schema } from "@dirework/db";
 import { env } from "@dirework/env/server";
@@ -173,7 +174,9 @@ botOAuth.get("/callback/twitch", async (c) => {
   });
 
   if (!tokenRes.ok) {
-    console.error("[BotOAuth] Twitch token exchange failed:", tokenRes.status);
+    // Status only — the response body of a failed token exchange can echo the
+    // submitted code/secret.
+    recordMetric("oauth.failure", { label: `token_exchange_${tokenRes.status}` });
     return c.redirect(
       errorRedirect("Token exchange failed — check redirect URI matches Twitch app"),
     );
@@ -222,8 +225,11 @@ botOAuth.get("/callback/twitch", async (c) => {
         target: schema.botAccount.id,
         set: botAccountValues,
       });
-  } catch (err) {
-    console.error("[BotOAuth] Failed to save bot account:", err);
+  } catch (error) {
+    // Redacted: a raw D1 error echoes the failing statement, which here carries
+    // the bot's access and refresh tokens.
+    recordMetric("db.error", { label: "bot_account_upsert" });
+    recordError({ error, url: c.req.url, reason: "bot_account_upsert" });
     return c.redirect(errorRedirect("Database error saving bot account"));
   }
 

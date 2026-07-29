@@ -27,6 +27,36 @@ const commitSha = (() => {
   }
 })();
 
+/**
+ * Content Security Policy.
+ *
+ * Shipped in **Report-Only** mode first (P2.16): the overlays run inside OBS
+ * browser sources and the bot page holds a Twitch IRC WebSocket, so a blocking
+ * policy that is even slightly wrong takes a live stream's overlay down. Collect
+ * violation reports, confirm they're clean, then switch the header name to
+ * `Content-Security-Policy`.
+ *
+ * `unsafe-inline`/`unsafe-eval` on script-src are required by Next's hydration
+ * bootstrap without a nonce; tightening those needs nonce-based CSP via
+ * middleware, which is the natural follow-up once this is enforcing.
+ */
+const cspDirectives = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  // Twitch profile images (better-auth stores the CDN URL on the session user).
+  "img-src 'self' data: blob: https://static-cdn.jtvnw.net",
+  "font-src 'self' data:",
+  // Direct browser traffic: the api worker (publicTrpc for overlays + bot page)
+  // and the Twitch IRC WebSocket the bot page owns.
+  `connect-src 'self' ${serverUrl} wss://irc-ws.chat.twitch.tv`,
+  // OAuth hops leave the page entirely, so they belong in form-action, not connect-src.
+  "form-action 'self' https://id.twitch.tv",
+  "frame-ancestors 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+].join("; ");
+
 const nextConfig: NextConfig = {
   typedRoutes: true,
   reactCompiler: true,
@@ -58,6 +88,9 @@ const nextConfig: NextConfig = {
             key: "Strict-Transport-Security",
             value: "max-age=63072000; includeSubDomains; preload",
           },
+          // Report-Only for now — see cspDirectives. Rename this key to
+          // "Content-Security-Policy" to enforce once reports are clean.
+          { key: "Content-Security-Policy-Report-Only", value: cspDirectives },
         ],
       },
     ];

@@ -73,7 +73,21 @@ bug where the UI stored `!t → !task` and the resolver re-prefixed `!`.)
 **API request logging** uses a structured, redacted middleware
 (`apps/server/src/lib/logger.ts`), NOT `hono/logger`: it logs only
 `{ id, method, path, status, ms }` with the query string stripped, so OAuth codes/state
-and tokens can never reach logs. It also stamps an `x-request-id` response header.
+and tokens can never reach logs. It stamps an `x-request-id` response header AND puts the
+id on the Hono context (`getRequestId(c)`) — downstream middleware needs it before a
+response exists, so reading `c.res` there is too late.
+
+**Telemetry** (`apps/server/src/lib/telemetry.ts`) emits one JSON line per event, which is
+how Workers observability ingests it. `recordMetric` takes a name from a CLOSED union and
+a label matching a safe-token regex; `recordError` logs the error's *name* only — never
+its message or stack, because a D1 error echoes SQL (and task text), and a fetch error
+echoes the URL (and OAuth codes). Wired at: the rate limiter (429s), the tRPC `onError`
+hook (procedure failures — tRPC errors never reach `app.onError`), the bot OAuth
+token-exchange and account-upsert paths, and the readiness probe. Bot reconnects happen in
+the browser and are deliberately NOT reported back (it would burn free-tier requests).
+
+**`/health` is liveness, `/ready` is readiness.** `/health` has no dependencies, so a D1
+outage can't make the worker look dead; `/ready` pings D1 and returns 503 when it can't.
 
 ## Monorepo Structure
 
@@ -281,15 +295,26 @@ implementation deleted; drive the real function instead.
 
 ## CI/CD
 
-- `.github/workflows/ci.yml` — push (dev/main) + PRs: install → check-types → build → test.
-  `SKIP_ENV_VALIDATION=true`, dummy `NEXT_PUBLIC_SERVER_URL`.
-- `.github/workflows/deploy.yml` — push to main (or manual): test job, then Alchemy deploy.
-  **Deploy runs under Node via `npx tsx` — Bun segfaults on the Alchemy program** (same
-  lesson as Wolfathon). Secrets: `CLOUDFLARE_API_TOKEN`, `ALCHEMY_PASSWORD`,
-  `ALCHEMY_STATE_TOKEN` (dirework's own — auths its dedicated `alchemy-state-dirework` store worker),
-  `BETTER_AUTH_SECRET`, `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`. URLs
-  (`BETTER_AUTH_URL`, `CORS_ORIGIN`, `NEXT_PUBLIC_SERVER_URL`) are GitHub repository
-  **variables**, read by the deploy job via `${{ vars.* }}` (not workflow literals).
+**All actions are SHA-pinned** (with a trailing `# vN` comment); Dependabot moves the
+pins. Every workflow declares minimal `permissions`.
+
+- `.github/workflows/verify.yml` — **the single verification pipeline**
+  (install → lint → check-types → test:coverage → build), called via `workflow_call`.
+  CI and deploy both use it, so the deploy gate cannot drift from the PR gate. `build`
+  is skippable via the `run-build` input.
+- `.github/workflows/ci.yml` — push (dev/main) + PRs: calls `verify.yml`, plus a
+  `dependency-review` job on PRs (fails on high-severity advisories).
+- `.github/workflows/deploy.yml` — push to main (or manual): `verify.yml` **including the
+  build**, then validates required secrets/vars, then Alchemy deploy.
+  **Deploy runs under Node via the lockfile-pinned local `tsx`
+  (`node ./node_modules/.bin/tsx`) — Bun segfaults on the Alchemy program** (same lesson
+  as Wolfathon), and `npx -y` would fetch an unpinned tsx at deploy time.
+  Secrets: `CLOUDFLARE_API_TOKEN`, `ALCHEMY_PASSWORD`, `ALCHEMY_STATE_TOKEN` (dirework's
+  own — auths its dedicated `alchemy-state-dirework` store worker; NOT shared across
+  apps), `BETTER_AUTH_SECRET`, `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`. Repository
+  **variables**: `BETTER_AUTH_URL`, `CORS_ORIGIN`.
+  **`NEXT_PUBLIC_SERVER_URL` is deliberately NOT a deploy variable** — Alchemy injects the
+  api worker's resolved URL at build and runtime, so setting it would be dead config.
 - `.github/workflows/deploy-docs-to-pages.yml` — fumadocs static export → GitHub Pages.
 
 ## Deployment
@@ -307,13 +332,16 @@ Production: `dirework.mrdemonwolf.workers.dev` (web) + `dirework-api.mrdemonwolf
 ## Environment Variables
 
 Server worker bindings (typed via `packages/env/env.d.ts` from `alchemy.run.ts`):
-`DB` (D1), `CORS_ORIGIN`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `TWITCH_CLIENT_ID`,
+`DB` (D1), the four rate-limit bindings (`RL_AUTH`, `RL_BOT`, `RL_TOKEN`, `RL_OVERLAY`),
+`CORS_ORIGIN`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `TWITCH_CLIENT_ID`,
 `TWITCH_CLIENT_SECRET`, `DOCS_URL`, plus dev-only `DEV_LOGIN` (gates the Twitch-less
 `POST /api/auth/dev-login` owner-session bypass — never set in production). Web worker:
 `NEXT_PUBLIC_SERVER_URL`, `BETTER_AUTH_URL`, optional `PRIVACY_POLICY_URL` /
 `TERMS_OF_SERVICE_URL`, and build-time `NEXT_PUBLIC_DEV_LOGIN` (shows the dev-bypass button).
 Deploy needs a sixth GitHub secret, `ALCHEMY_STATE_TOKEN` (see CI/CD).
-`SKIP_ENV_VALIDATION=true` bypasses t3-env during CI/build.
+`NEXT_PUBLIC_SERVER_URL` is **local-only** — Alchemy injects it in production; never set
+it as a GitHub variable. `SKIP_ENV_VALIDATION=true` bypasses t3-env during CI/build and
+is baked into the `check-types` scripts so a fresh clone can type-check.
 
 ## Footer Convention
 

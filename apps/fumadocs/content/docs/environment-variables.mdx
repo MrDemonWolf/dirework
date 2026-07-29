@@ -11,7 +11,7 @@ Dirework's variables come in two flavors: **app secrets** the app needs to run, 
 | Environment | Where to put them |
 | --- | --- |
 | **Local development** | `packages/infra/.env` — copy it from `.env.example`. Alchemy loads this file (plus `apps/web/.env` and `apps/server/.env` if present) when you run `bun run dev`. |
-| **Production** | GitHub **Settings → Secrets and variables → Actions**. Sensitive values go under the **Secrets** tab (`CLOUDFLARE_API_TOKEN`, `ALCHEMY_PASSWORD`, `ALCHEMY_STATE_TOKEN`, `BETTER_AUTH_SECRET`, `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`); the non-secret origins go under the **Variables** tab (`BETTER_AUTH_URL`, `CORS_ORIGIN`, `NEXT_PUBLIC_SERVER_URL`). The [deploy workflow](/docs/deployment) reads both on every push to `main`. |
+| **Production** | GitHub **Settings → Secrets and variables → Actions**. Sensitive values go under the **Secrets** tab (`CLOUDFLARE_API_TOKEN`, `ALCHEMY_PASSWORD`, `ALCHEMY_STATE_TOKEN`, `BETTER_AUTH_SECRET`, `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`); the non-secret origins go under the **Variables** tab (`BETTER_AUTH_URL`, `CORS_ORIGIN`). The [deploy workflow](/docs/deployment) reads both on every push to `main`, and fails fast with a clear message if any are missing. |
 
 ## App secrets
 
@@ -22,16 +22,23 @@ These are what Dirework itself needs to run:
 | `BETTER_AUTH_SECRET` | Secret key for session encryption (min 32 characters — generate with `openssl rand -base64 32`) |
 | `BETTER_AUTH_URL` | The web app's public origin (local: `http://localhost:3001`, production: `https://dirework.<your-subdomain>.workers.dev`) |
 | `CORS_ORIGIN` | Allowed CORS origin — same value as `BETTER_AUTH_URL` |
-| `NEXT_PUBLIC_SERVER_URL` | Public origin of the **API** worker, baked into the web build (local: `http://localhost:3000`, production: `https://dirework-api.<your-subdomain>.workers.dev`). Alchemy sets this automatically in local dev; in production set it as a GitHub repository Variable. |
+| `NEXT_PUBLIC_SERVER_URL` | Public origin of the **API** worker, baked into the web build (local: `http://localhost:3000`). **Local only** — in production Alchemy injects the API worker's resolved URL itself, so you do *not* set this anywhere for a deploy. |
 | `TWITCH_CLIENT_ID` | Twitch application client ID from [dev.twitch.tv](https://dev.twitch.tv/console/apps) |
 | `TWITCH_CLIENT_SECRET` | Twitch application client secret |
 
 <Callout>
-  In production, `BETTER_AUTH_URL`, `CORS_ORIGIN`, and `NEXT_PUBLIC_SERVER_URL` aren't
-  secrets — set them as GitHub repository **Variables** (Settings → Secrets and variables →
-  Actions → Variables). The deploy workflow reads them via `${{ vars.* }}`. Point
-  `BETTER_AUTH_URL`/`CORS_ORIGIN` at your web origin and `NEXT_PUBLIC_SERVER_URL` at your
-  API origin — swap in your own workers.dev subdomain.
+  In production, `BETTER_AUTH_URL` and `CORS_ORIGIN` aren't secrets — set them as GitHub
+  repository **Variables** (Settings → Secrets and variables → Actions → Variables). The
+  deploy workflow reads them via `${{ vars.* }}`. Point both at your web origin — swap in
+  your own workers.dev subdomain.
+</Callout>
+
+<Callout type="warn">
+  **Don't set `NEXT_PUBLIC_SERVER_URL` as a GitHub Variable.** Alchemy resolves the API
+  worker's URL during the deploy and injects it into both the web build and the runtime
+  binding, so a repository Variable is ignored — it looks load-bearing while doing nothing,
+  and a stale value there is misleading when debugging. It is a local-development variable
+  only.
 </Callout>
 
 ## Deploy secrets
@@ -43,7 +50,7 @@ Only needed when deploying to Cloudflare (as GitHub secrets, or in your shell fo
 | --- | --- |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token with **Workers** and **D1** edit permissions |
 | `ALCHEMY_PASSWORD` | Any long random string — encrypts Alchemy's deploy state (`openssl rand -base64 32`) |
-| `ALCHEMY_STATE_TOKEN` | GitHub secret for the Actions deploy; authenticates the `alchemy-state-dirework` CI state store. Not needed for local `bun run deploy`. |
+| `ALCHEMY_STATE_TOKEN` | **Dirework's own** token — authenticates its dedicated `alchemy-state-dirework` CI state store. Generate any long random string (`openssl rand -base64 32`) and set it once as a GitHub secret. Not a shared/account-wide token, and not needed for local `bun run deploy` (local runs use filesystem state). |
 
 ## Optional variables
 
@@ -90,8 +97,11 @@ For production deployments:
 
 - Generate **fresh** secrets for production — never reuse the ones from your computer
 - `BETTER_AUTH_URL` and `CORS_ORIGIN` must point at your web worker
-  (`https://dirework.<your-subdomain>.workers.dev`), and `NEXT_PUBLIC_SERVER_URL` at your
-  API worker (`https://dirework-api.<your-subdomain>.workers.dev`) — all set as GitHub
-  repository **Variables**, read by the deploy workflow via `${{ vars.* }}`
+  (`https://dirework.<your-subdomain>.workers.dev`) — set as GitHub repository
+  **Variables**, read by the deploy workflow via `${{ vars.* }}`
+- Do **not** set `NEXT_PUBLIC_SERVER_URL` for production — Alchemy injects the API
+  worker's URL itself (see the warning above)
+- The deploy workflow validates every required secret and variable up front and fails
+  with an explicit list if any are missing
 - There is no `DATABASE_URL` — the D1 database is created and bound automatically by Alchemy
 - Update the Twitch OAuth redirect URLs to match your workers.dev domain (see [Twitch integration setup](/docs/twitch-oauth))
