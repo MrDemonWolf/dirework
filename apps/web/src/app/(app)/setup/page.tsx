@@ -9,10 +9,7 @@ export const metadata = {
 };
 
 export default async function SetupPage() {
-  const [owned, session] = await Promise.all([
-    getInstanceOwned(),
-    getServerSession(),
-  ]);
+  const [owned, session] = await Promise.all([getInstanceOwned(), getServerSession()]);
 
   // Already signed in — go straight to the dashboard regardless of claim state.
   if (session?.user) {

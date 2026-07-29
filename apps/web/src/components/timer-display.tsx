@@ -140,9 +140,7 @@ export function TimerDisplay({
   const displayMs = isIdle ? (totalDuration ?? 0) : remaining;
 
   const { hours, minutes, seconds } = formatTime(displayMs, config.showHours);
-  const timeDisplay = config.showHours
-    ? `${hours}:${minutes}:${seconds}`
-    : `${minutes}:${seconds}`;
+  const timeDisplay = config.showHours ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
 
   const textShadow =
     config.text.outlineSize !== "0px"
@@ -162,7 +160,7 @@ export function TimerDisplay({
   const progress = isIdle ? 1 : total > 0 ? remaining / total : 0;
 
   // Parse size for SVG ring
-  const size = parseInt(config.dimensions.width) || 250;
+  const size = parseInt(config.dimensions.width, 10) || 250;
 
   // Check if ring config exists (backward compat)
   const ring = config.ring ?? {

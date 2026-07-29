@@ -49,16 +49,18 @@ export const botRouter = router({
    * it is near/past expiry. NEVER returns the refresh token.
    */
   getSession: publicProcedure
-    .input(z.object({
-      token: tokenInput,
-      // Set by the bot page after Twitch rejects the stored token (IRC auth
-      // failure) — bypasses the expiry check so recovery never hands back the
-      // same dead token.
-      forceRefresh: z.boolean().optional(),
-      // Set by the bot page's hourly liveness tick — validates a still-unexpired
-      // token against Twitch and refreshes only if it has been revoked.
-      revalidate: z.boolean().optional(),
-    }))
+    .input(
+      z.object({
+        token: tokenInput,
+        // Set by the bot page after Twitch rejects the stored token (IRC auth
+        // failure) — bypasses the expiry check so recovery never hands back the
+        // same dead token.
+        forceRefresh: z.boolean().optional(),
+        // Set by the bot page's hourly liveness tick — validates a still-unexpired
+        // token against Twitch and refreshes only if it has been revoked.
+        revalidate: z.boolean().optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       await requireBotToken(ctx.db, input.token);
 

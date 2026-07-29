@@ -1,8 +1,4 @@
-export default function OverlayLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function OverlayLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       {/* Load Google Fonts used by overlay widgets */}

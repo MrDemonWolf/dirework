@@ -74,8 +74,8 @@ function SetupInner() {
             This Dirework is all yours
           </h1>
           <p className="text-muted-foreground">
-            Sign in with Twitch to claim it. That&apos;s the whole setup — one click and
-            you&apos;re the owner. No forms, no passwords to remember.
+            Sign in with Twitch to claim it. That&apos;s the whole setup — one click and you&apos;re
+            the owner. No forms, no passwords to remember.
           </p>
         </div>
 

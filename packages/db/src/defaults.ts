@@ -63,7 +63,8 @@ export const DEFAULT_TASK_MESSAGES = {
  */
 export const DEFAULT_TIMER_MESSAGES = {
   notRunning: "The timer isn't howling yet! Start it up first.",
-  wrongCommand: "My ears didn't catch that... Try !timer start, pause, resume, skip, reset, or eta.",
+  wrongCommand:
+    "My ears didn't catch that... Try !timer start, pause, resume, skip, reset, or eta.",
   timerRunning: "The hunt is already in progress!",
   commandSuccess: "Paw-fect! Done!",
   cycleWrong: "That cycle count won't work — pick 1 to 99, like !timer start 4.",

@@ -22,10 +22,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { TRPCClientError } from "@trpc/client";
 
-import {
-  TwitchIrcClient,
-  type IrcStatus,
-} from "@/lib/irc-client";
+import { TwitchIrcClient, type IrcStatus } from "@/lib/irc-client";
 import { publicTrpc } from "@/utils/trpc";
 
 /** Lines kept in the activity feed. */
@@ -106,13 +103,9 @@ function StatCell({
 }) {
   return (
     <div className="bg-zinc-950 px-4 py-2">
-      <div className="text-[10px] tracking-[0.25em] text-zinc-400 uppercase">
-        {label}
-      </div>
+      <div className="text-[10px] tracking-[0.25em] text-zinc-400 uppercase">{label}</div>
       <div
-        className={`truncate text-sm tabular-nums ${
-          accent ? "text-emerald-300" : "text-zinc-200"
-        }`}
+        className={`truncate text-sm tabular-nums ${accent ? "text-emerald-300" : "text-zinc-200"}`}
       >
         {value}
       </div>
@@ -147,7 +140,7 @@ export function BotConsole() {
   useEffect(() => {
     const el = logRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [activity]);
+  }, []);
 
   useEffect(() => {
     if (!token) return;
@@ -303,9 +296,7 @@ export function BotConsole() {
       },
     });
 
-    async function bootstrap(
-      opts: { forceRefresh?: boolean } = {},
-    ): Promise<void> {
+    async function bootstrap(opts: { forceRefresh?: boolean } = {}): Promise<void> {
       try {
         const session = await publicTrpc.bot.getSession.query({
           token,
@@ -392,10 +383,7 @@ export function BotConsole() {
   if (phase === "invalid" || phase === "revoked") {
     return (
       <main className="flex h-dvh w-full flex-col items-center justify-center gap-4 bg-zinc-950 px-6 text-center font-mono">
-        <span
-          className={`h-4 w-4 rounded-full ${LED_CLASS.red}`}
-          aria-hidden="true"
-        />
+        <span className={`h-4 w-4 rounded-full ${LED_CLASS.red}`} aria-hidden="true" />
         <h1 className="text-xl font-bold tracking-[0.2em] text-red-400 uppercase">
           {phase === "invalid" ? "Invalid bot link" : "Link reset"}
         </h1>
@@ -458,9 +446,7 @@ export function BotConsole() {
         <StatCell label="Bot" value={botUsername || "—"} />
         <StatCell
           label="Uptime"
-          value={
-            connectedAt && nowTick ? formatUptime(nowTick - connectedAt) : "—"
-          }
+          value={connectedAt && nowTick ? formatUptime(nowTick - connectedAt) : "—"}
         />
       </div>
 
@@ -475,7 +461,6 @@ export function BotConsole() {
       <div
         ref={logRef}
         role="log"
-        tabIndex={0}
         aria-label="Activity log"
         className="flex-1 overflow-y-auto px-4 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
       >
@@ -485,12 +470,8 @@ export function BotConsole() {
           <ul className="space-y-0.5 text-xs leading-5">
             {activity.map((line) => (
               <li key={line.id} className="flex gap-2">
-                <span className="shrink-0 tabular-nums text-zinc-400">
-                  {line.time}
-                </span>
-                <span className={`break-all ${LINE_CLASS[line.kind]}`}>
-                  {line.text}
-                </span>
+                <span className="shrink-0 tabular-nums text-zinc-400">{line.time}</span>
+                <span className={`break-all ${LINE_CLASS[line.kind]}`}>{line.text}</span>
               </li>
             ))}
           </ul>

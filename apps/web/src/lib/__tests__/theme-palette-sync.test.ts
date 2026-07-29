@@ -49,9 +49,7 @@ describe("design-system tokens.json ↔ theme-presets.ts palette sync", () => {
   const tokenThemes = tokens.overlay.themes;
 
   it("defines the same theme names in both sources", () => {
-    expect(themePresets.map((p) => p.name).sort()).toEqual(
-      Object.keys(tokenThemes).sort(),
-    );
+    expect(themePresets.map((p) => p.name).sort()).toEqual(Object.keys(tokenThemes).sort());
   });
 
   for (const preset of themePresets) {
@@ -66,9 +64,7 @@ describe("design-system tokens.json ↔ theme-presets.ts palette sync", () => {
       });
 
       it("matches the task username color", () => {
-        expect(norm(preset.taskStyles.task.usernameColor)).toBe(
-          norm(tokenTheme!.username),
-        );
+        expect(norm(preset.taskStyles.task.usernameColor)).toBe(norm(tokenTheme!.username));
       });
     });
   }

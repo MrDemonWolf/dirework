@@ -39,8 +39,8 @@ function CycleDots({ current, total }: { current: number; total: number }) {
   if (total > 10) {
     return (
       <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground">
-        <span className="font-semibold">{String(Math.min(current, total)).padStart(2, "0")}</span>
-        /{String(total).padStart(2, "0")}
+        <span className="font-semibold">{String(Math.min(current, total)).padStart(2, "0")}</span>/
+        {String(total).padStart(2, "0")}
       </p>
     );
   }
@@ -161,9 +161,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     const tc = config.data?.timerConfig;
     if (
       tc &&
-      Object.entries(overrides).every(
-        ([key, value]) => tc[key as keyof typeof tc] === value,
-      )
+      Object.entries(overrides).every(([key, value]) => tc[key as keyof typeof tc] === value)
     ) {
       return;
     }
@@ -240,18 +238,29 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   return (
     <TimerContext.Provider
       value={{
-        cycles, setCycles,
-        workMin, setWorkMin,
-        breakMin, setBreakMin,
-        longBreakMin, setLongBreakMin,
-        longBreakInterval, setLongBreakInterval,
+        cycles,
+        setCycles,
+        workMin,
+        setWorkMin,
+        breakMin,
+        setBreakMin,
+        longBreakMin,
+        setLongBreakMin,
+        longBreakInterval,
+        setLongBreakInterval,
         saveConfig,
-        status, isIdle, isPaused,
+        status,
+        isIdle,
+        isPaused,
         displayTime,
         progressPct,
         state,
         configLabels,
-        start, pause, resume, skip, reset,
+        start,
+        pause,
+        resume,
+        skip,
+        reset,
       }}
     >
       {children}
@@ -266,9 +275,21 @@ export function TimerProvider({ children }: { children: ReactNode }) {
  */
 export function TimerInstrument() {
   const {
-    cycles, workMin, breakMin,
-    status, isIdle, isPaused, displayTime, progressPct, state, configLabels,
-    start, pause, resume, skip, reset,
+    cycles,
+    workMin,
+    breakMin,
+    status,
+    isIdle,
+    isPaused,
+    displayTime,
+    progressPct,
+    state,
+    configLabels,
+    start,
+    pause,
+    resume,
+    skip,
+    reset,
   } = useTimerContext();
 
   const timerStatus = toTimerStatus(status);
@@ -312,7 +333,8 @@ export function TimerInstrument() {
         <CycleDots current={state.currentCycle} total={state.totalCycles} />
       ) : (
         <p className="font-mono text-xs tracking-wide text-muted-foreground">
-          {cycles} {cycles === 1 ? "pomo" : "pomos"} &middot; {workMin}m focus &middot; {breakMin}m break
+          {cycles} {cycles === 1 ? "pomo" : "pomos"} &middot; {workMin}m focus &middot; {breakMin}m
+          break
         </p>
       )}
       <div className="flex items-center gap-2">
@@ -396,12 +418,18 @@ export function TimerInstrument() {
 
 export function TimerSettings() {
   const {
-    workMin, setWorkMin,
-    breakMin, setBreakMin,
-    longBreakMin, setLongBreakMin,
-    longBreakInterval, setLongBreakInterval,
-    cycles, setCycles,
-    saveConfig, isIdle,
+    workMin,
+    setWorkMin,
+    breakMin,
+    setBreakMin,
+    longBreakMin,
+    setLongBreakMin,
+    longBreakInterval,
+    setLongBreakInterval,
+    cycles,
+    setCycles,
+    saveConfig,
+    isIdle,
   } = useTimerContext();
 
   const fields = [

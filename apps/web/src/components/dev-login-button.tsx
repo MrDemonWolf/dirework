@@ -28,9 +28,7 @@ export function DevLoginButton() {
       if (!res.ok) throw new Error(`dev-login failed (${res.status})`);
       window.location.href = "/dashboard";
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Dev login failed. Is DEV_LOGIN set?",
-      );
+      toast.error(err instanceof Error ? err.message : "Dev login failed. Is DEV_LOGIN set?");
       setLoading(false);
     }
   }

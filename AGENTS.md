@@ -187,15 +187,24 @@ New pure functions → extract to testable modules + add tests.
 
 ## CI/CD
 
-- `.github/workflows/ci.yml` — push (dev/main) + PRs: install → check-types → build → test.
-  `SKIP_ENV_VALIDATION=true`, dummy `NEXT_PUBLIC_SERVER_URL`.
-- `.github/workflows/deploy.yml` — push to main (or manual): test job, then Alchemy deploy.
-  **Deploy runs under Node via `npx tsx` — Bun segfaults on the Alchemy program** (same
-  lesson as Wolfathon). Secrets: `CLOUDFLARE_API_TOKEN`, `ALCHEMY_PASSWORD`,
-  `ALCHEMY_STATE_TOKEN` (dirework's own — auths its dedicated `alchemy-state-dirework` store worker),
-  `BETTER_AUTH_SECRET`, `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`. URLs
-  (`BETTER_AUTH_URL`, `CORS_ORIGIN`, `NEXT_PUBLIC_SERVER_URL`) are GitHub repository
-  **variables**, read by the deploy job via `${{ vars.* }}` (not workflow literals).
+**All actions are SHA-pinned** (with a trailing `# vN` comment); Dependabot moves the
+pins. Every workflow declares minimal `permissions`.
+
+- `.github/workflows/verify.yml` — **the single verification pipeline**
+  (install → lint → check-types → test:coverage → build), called via `workflow_call`.
+  CI and deploy both use it, so the deploy gate cannot drift from the PR gate.
+- `.github/workflows/ci.yml` — push (dev/main) + PRs: calls `verify.yml`, plus a
+  `dependency-review` job on PRs.
+- `.github/workflows/deploy.yml` — push to main (or manual): `verify.yml` **including the
+  build**, then validates required secrets/vars, then Alchemy deploy.
+  **Deploy runs under Node via the lockfile-pinned local `tsx`
+  (`node ./node_modules/.bin/tsx`) — Bun segfaults on the Alchemy program** (same lesson
+  as Wolfathon). Secrets: `CLOUDFLARE_API_TOKEN`, `ALCHEMY_PASSWORD`,
+  `ALCHEMY_STATE_TOKEN` (**shared fleet token** — auths the shared account-wide
+  `alchemy-state` store worker), `BETTER_AUTH_SECRET`, `TWITCH_CLIENT_ID`,
+  `TWITCH_CLIENT_SECRET`. Repository **variables**: `BETTER_AUTH_URL`, `CORS_ORIGIN`.
+  **`NEXT_PUBLIC_SERVER_URL` is NOT a deploy variable** — Alchemy injects the api
+  worker's resolved URL at build and runtime.
 - `.github/workflows/deploy-docs-to-pages.yml` — fumadocs static export → GitHub Pages.
 
 ## Deployment

@@ -12,7 +12,7 @@ vi.mock("better-auth/cookies", () => ({ setSessionCookie: vi.fn() }));
 import { isDevLoginEnabled } from "../dev-login";
 
 describe("isDevLoginEnabled", () => {
-  it("is true only for the exact string \"true\"", () => {
+  it('is true only for the exact string "true"', () => {
     expect(isDevLoginEnabled("true")).toBe(true);
   });
 

@@ -14,13 +14,7 @@ const POLL_MS = 5 * 60 * 1000;
  * web worker is *currently* serving; when it no longer matches the SHA baked
  * into this tab, a newer deploy shipped and this tab is stale — offers a Reload.
  */
-export function VersionBadge({
-  version,
-  sha,
-}: {
-  version?: string;
-  sha?: string;
-}) {
+export function VersionBadge({ version, sha }: { version?: string; sha?: string }) {
   const [stale, setStale] = useState(false);
 
   const check = useCallback(async () => {
@@ -72,7 +66,10 @@ export function VersionBadge({
           onClick={() => window.location.reload()}
           className="inline-flex items-center gap-1.5 rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 font-mono text-[11px] font-medium tracking-[0.08em] text-warning uppercase transition-colors hover:bg-warning/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <span aria-hidden className="size-1.5 shrink-0 animate-led-pulse rounded-full bg-warning" />
+          <span
+            aria-hidden
+            className="size-1.5 shrink-0 animate-led-pulse rounded-full bg-warning"
+          />
           New version — Reload
         </button>
       )}

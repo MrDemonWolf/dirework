@@ -43,9 +43,8 @@ export const userRouter = router({
     .input(regenerateOverlayTokenInput)
     .mutation(async ({ ctx, input }) => {
       const token = crypto.randomUUID();
-      const set = input.type === "timer"
-        ? { overlayTimerToken: token }
-        : { overlayTasksToken: token };
+      const set =
+        input.type === "timer" ? { overlayTimerToken: token } : { overlayTasksToken: token };
       await updateSingleton(ctx.db, schema.instanceConfig, set);
       return { token };
     }),

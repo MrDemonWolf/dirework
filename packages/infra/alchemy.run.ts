@@ -90,8 +90,8 @@ const overlayRateLimit = RateLimit({
 // Serves better-auth (/api/auth/*), tRPC (/trpc/*), and bot OAuth routes.
 export const server = await Worker("server", {
   name: "dirework-api",
-  // First deploy against the empty shared state store re-adopts the live
-  // worker instead of trying to create over it.
+  // First deploy against an empty state store re-adopts the live worker
+  // instead of trying to create over it.
   adopt: true,
   cwd: "../../apps/server",
   entrypoint: "src/index.ts",
@@ -126,7 +126,7 @@ export const server = await Worker("server", {
 // the two workers).
 export const web = await Nextjs("web", {
   name: "dirework",
-  adopt: true, // re-adopt live worker on first deploy against empty shared state
+  adopt: true, // re-adopt live worker on first deploy against an empty state store
   cwd: "../../apps/web",
   // OpenNext's build inlines next/og (used by opengraph-image.tsx), which
   // imports its .wasm deps under two different specifiers ("foo.wasm" and

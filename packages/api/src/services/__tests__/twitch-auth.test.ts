@@ -95,11 +95,13 @@ describe("refreshBotToken", () => {
   it("exchanges the refresh token with the supplied credentials and persists the result", async () => {
     const updatedRow = makeAccount({ accessToken: "new-access" });
     const { db, set } = makeDb({ botAccount: makeAccount(), updatedRow });
-    fetchMock.mockResolvedValueOnce(okJson({
-      access_token: "new-access",
-      refresh_token: "new-refresh",
-      expires_in: 3600,
-    }));
+    fetchMock.mockResolvedValueOnce(
+      okJson({
+        access_token: "new-access",
+        refresh_token: "new-refresh",
+        expires_in: 3600,
+      }),
+    );
 
     const result = await refreshBotToken(db, CREDS);
 
@@ -110,10 +112,12 @@ describe("refreshBotToken", () => {
     expect(init.body.get("client_secret")).toBe("client-secret");
     expect(init.body.get("grant_type")).toBe("refresh_token");
     expect(init.body.get("refresh_token")).toBe("old-refresh");
-    expect(set).toHaveBeenCalledWith(expect.objectContaining({
-      accessToken: "new-access",
-      refreshToken: "new-refresh",
-    }));
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accessToken: "new-access",
+        refreshToken: "new-refresh",
+      }),
+    );
   });
 
   it("keeps the old refresh token when Twitch omits one", async () => {
@@ -122,9 +126,11 @@ describe("refreshBotToken", () => {
 
     await refreshBotToken(db, CREDS);
 
-    expect(set).toHaveBeenCalledWith(expect.objectContaining({
-      refreshToken: "old-refresh",
-    }));
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        refreshToken: "old-refresh",
+      }),
+    );
   });
 
   it("throws UNAUTHORIZED when Twitch rejects the refresh", async () => {
@@ -141,20 +147,24 @@ describe("refreshBotToken", () => {
       botAccount: makeAccount(),
       updatedRow: makeAccount({ accessToken: "new-access", refreshToken: "rotated-refresh" }),
     });
-    fetchMock.mockResolvedValueOnce(okJson({
-      access_token: "new-access",
-      refresh_token: "rotated-refresh",
-      expires_in: 3600,
-    }));
+    fetchMock.mockResolvedValueOnce(
+      okJson({
+        access_token: "new-access",
+        refresh_token: "rotated-refresh",
+        expires_in: 3600,
+      }),
+    );
 
     await refreshBotToken(db, CREDS);
 
     // The token persist rotates the refresh token AND clears the lease.
-    expect(set).toHaveBeenCalledWith(expect.objectContaining({
-      accessToken: "new-access",
-      refreshToken: "rotated-refresh",
-      refreshLockedUntil: null,
-    }));
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accessToken: "new-access",
+        refreshToken: "rotated-refresh",
+        refreshLockedUntil: null,
+      }),
+    );
   });
 
   it("serializes concurrent refreshes: a loser waits for the winner, not Twitch", async () => {
@@ -326,10 +336,7 @@ describe("resolveChannelLogin", () => {
       await resolveChannelLogin(db, helix, { twitchId: "42", fallbackName: "MrDemonWolf" }),
     ).toBe("mrdemonwolf");
 
-    const [url, init] = fetchMock.mock.calls[0] as [
-      string,
-      { headers: Record<string, string> },
-    ];
+    const [url, init] = fetchMock.mock.calls[0] as [string, { headers: Record<string, string> }];
     expect(url).toBe("https://api.twitch.tv/helix/users?id=42");
     expect(init.headers.Authorization).toBe("Bearer chat-token");
     expect(init.headers["Client-Id"]).toBe("client-id");
@@ -339,9 +346,9 @@ describe("resolveChannelLogin", () => {
   it("falls back to the lowercased display name when there is no twitchId", async () => {
     const { db } = makeDb({ instanceConfig: { channelLogin: null } });
 
-    expect(
-      await resolveChannelLogin(db, helix, { twitchId: null, fallbackName: "DevUser" }),
-    ).toBe("devuser");
+    expect(await resolveChannelLogin(db, helix, { twitchId: null, fallbackName: "DevUser" })).toBe(
+      "devuser",
+    );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

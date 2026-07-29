@@ -1,4 +1,5 @@
 import { TWITCH_FETCH_TIMEOUT_MS } from "@dirework/api/services/twitch-auth";
+import { recordError, recordMetric } from "../lib/telemetry";
 import { createAuth } from "@dirework/auth";
 import { createDb, schema } from "@dirework/db";
 import { env } from "@dirework/env/server";
@@ -24,12 +25,7 @@ const STATE_COOKIE = "bot_oauth_nonce";
  * reconnect. Bot accounts connected before chat:read/chat:edit were added
  * must be reconnected to pick up the new scopes.
  */
-const BOT_SCOPES = [
-  "chat:read",
-  "chat:edit",
-  "user:read:chat",
-  "user:write:chat",
-] as const;
+const BOT_SCOPES = ["chat:read", "chat:edit", "user:read:chat", "user:write:chat"] as const;
 
 interface TwitchTokenResponse {
   access_token: string;
@@ -63,8 +59,7 @@ function encodeState(payload: { userId: string; nonce: string }): string {
 function decodeState(state: string): { userId: string; nonce: string } | null {
   try {
     const base64 =
-      state.replace(/-/g, "+").replace(/_/g, "/") +
-      "=".repeat((4 - (state.length % 4)) % 4);
+      state.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (state.length % 4)) % 4);
     const binary = atob(base64);
     const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
     const decoded: unknown = JSON.parse(new TextDecoder().decode(bytes));
@@ -179,7 +174,9 @@ botOAuth.get("/callback/twitch", async (c) => {
   });
 
   if (!tokenRes.ok) {
-    console.error("[BotOAuth] Twitch token exchange failed:", tokenRes.status);
+    // Status only — the response body of a failed token exchange can echo the
+    // submitted code/secret.
+    recordMetric("oauth.failure", { label: `token_exchange_${tokenRes.status}` });
     return c.redirect(
       errorRedirect("Token exchange failed — check redirect URI matches Twitch app"),
     );
@@ -228,8 +225,11 @@ botOAuth.get("/callback/twitch", async (c) => {
         target: schema.botAccount.id,
         set: botAccountValues,
       });
-  } catch (err) {
-    console.error("[BotOAuth] Failed to save bot account:", err);
+  } catch (error) {
+    // Redacted: a raw D1 error echoes the failing statement, which here carries
+    // the bot's access and refresh tokens.
+    recordMetric("db.error", { label: "bot_account_upsert" });
+    recordError({ error, url: c.req.url, reason: "bot_account_upsert" });
     return c.redirect(errorRedirect("Database error saving bot account"));
   }
 

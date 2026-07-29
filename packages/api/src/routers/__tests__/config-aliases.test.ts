@@ -74,15 +74,15 @@ describe("config.updateCommandAliases input validation", () => {
   });
 
   it("rejects a recursive alias (key === target)", () => {
-    expect(() =>
-      commandAliasesSchema.parse({ commandAliases: { task: "task" } }),
-    ).toThrow(/recursive/);
+    expect(() => commandAliasesSchema.parse({ commandAliases: { task: "task" } })).toThrow(
+      /recursive/,
+    );
   });
 
   it("rejects an unknown target command", () => {
-    expect(() =>
-      commandAliasesSchema.parse({ commandAliases: { t: "nope" } }),
-    ).toThrow(/unknown-target/);
+    expect(() => commandAliasesSchema.parse({ commandAliases: { t: "nope" } })).toThrow(
+      /unknown-target/,
+    );
   });
 
   it("rejects duplicate keys that collapse after normalization", () => {
@@ -92,9 +92,7 @@ describe("config.updateCommandAliases input validation", () => {
   });
 
   it("rejects an empty target", () => {
-    expect(() =>
-      commandAliasesSchema.parse({ commandAliases: { t: "!" } }),
-    ).toThrow(/empty/);
+    expect(() => commandAliasesSchema.parse({ commandAliases: { t: "!" } })).toThrow(/empty/);
   });
 
   it("accepts a target that maps to the !timer command", () => {

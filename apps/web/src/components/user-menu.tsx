@@ -33,12 +33,8 @@ function Avatar({
   className: string;
 }) {
   return image ? (
-    <img
-      src={image}
-      alt=""
-      className={`${className} rounded-full`}
-      referrerPolicy="no-referrer"
-    />
+    // biome-ignore lint/performance/noImgElement: Twitch-CDN avatar — next/image would need remotePatterns plus the Workers image optimizer; a plain img with no-referrer is smaller and safer.
+    <img src={image} alt="" className={`${className} rounded-full`} referrerPolicy="no-referrer" />
   ) : (
     <div
       aria-hidden
@@ -79,6 +75,7 @@ export default function UserMenu() {
       <DropdownMenuTrigger
         render={
           <button
+            type="button"
             aria-label={`Account menu — ${session.user.name}`}
             className="flex cursor-pointer items-center gap-2 rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring"
           />
@@ -98,11 +95,7 @@ export default function UserMenu() {
         </div>
         <DropdownMenuSeparator />
         {menuLinks.map((item) => (
-          <DropdownMenuItem
-            key={item.href}
-            nativeButton={false}
-            render={<Link href={item.href} />}
-          >
+          <DropdownMenuItem key={item.href} nativeButton={false} render={<Link href={item.href} />}>
             <item.icon className="size-3.5" />
             {item.label}
           </DropdownMenuItem>

@@ -17,10 +17,19 @@ import {
 import { updateTimerConfigInput } from "../input-schemas";
 
 describe("cssColorSchema", () => {
-  it.each(["#000000", "#ffffff", "#00aced", "#fff", "#ffffffcc", "rgb(0, 0, 0)", "rgba(1,2,3,0.5)", "hsl(210 50% 40%)", "transparent", "currentColor", "red"])(
-    "accepts %s",
-    (v) => expect(cssColorSchema.safeParse(v).success).toBe(true),
-  );
+  it.each([
+    "#000000",
+    "#ffffff",
+    "#00aced",
+    "#fff",
+    "#ffffffcc",
+    "rgb(0, 0, 0)",
+    "rgba(1,2,3,0.5)",
+    "hsl(210 50% 40%)",
+    "transparent",
+    "currentColor",
+    "red",
+  ])("accepts %s", (v) => expect(cssColorSchema.safeParse(v).success).toBe(true));
 
   // These are the reason the field is an allowlist: every one of them would be
   // injected verbatim into the overlay's inline CSS.
@@ -35,35 +44,43 @@ describe("cssColorSchema", () => {
   ])("rejects %j", (v) => expect(cssColorSchema.safeParse(v).success).toBe(false));
 
   it("rejects an over-long value", () => {
-    expect(cssColorSchema.safeParse("#" + "a".repeat(200)).success).toBe(false);
+    expect(cssColorSchema.safeParse(`#${"a".repeat(200)}`).success).toBe(false);
   });
 });
 
 describe("cssLengthSchema", () => {
-  it.each(["0", "0px", "10px", "100%", "22%", "1.5rem", "48px", "auto", "12px 16px", "0 0 12px 12px", "12px 12px 0 0", "-4px"])(
-    "accepts %s",
-    (v) => expect(cssLengthSchema.safeParse(v).success).toBe(true),
-  );
+  it.each([
+    "0",
+    "0px",
+    "10px",
+    "100%",
+    "22%",
+    "1.5rem",
+    "48px",
+    "auto",
+    "12px 16px",
+    "0 0 12px 12px",
+    "12px 12px 0 0",
+    "-4px",
+  ])("accepts %s", (v) => expect(cssLengthSchema.safeParse(v).success).toBe(true));
 
   it.each([
     "10px; color: red",
     "calc(100% - 10px)",
     "10px 10px 10px 10px 10px", // more than 4 tokens
-    "10",                        // bare number with no unit
+    "10", // bare number with no unit
     "url(x)",
     "",
   ])("rejects %j", (v) => expect(cssLengthSchema.safeParse(v).success).toBe(false));
 });
 
 describe("fontFamilySchema", () => {
-  it.each(["Montserrat", "Roboto", "IBM Plex Sans", "Helvetica, Arial"])(
-    "accepts %s",
-    (v) => expect(fontFamilySchema.safeParse(v).success).toBe(true),
+  it.each(["Montserrat", "Roboto", "IBM Plex Sans", "Helvetica, Arial"])("accepts %s", (v) =>
+    expect(fontFamilySchema.safeParse(v).success).toBe(true),
   );
 
-  it.each(['Roboto"; background: url(evil)', "Roboto; }", "font\\face"])(
-    "rejects %j",
-    (v) => expect(fontFamilySchema.safeParse(v).success).toBe(false),
+  it.each(['Roboto"; background: url(evil)', "Roboto; }", "font\\face"])("rejects %j", (v) =>
+    expect(fontFamilySchema.safeParse(v).success).toBe(false),
   );
 });
 
@@ -113,11 +130,46 @@ describe("style schemas accept every shipped default", () => {
 
   it("accepts every shipped string default individually", () => {
     // Pulled from the .default() values across timer_style / task_style.
-    const colors = ["#000000", "#00aced", "#091533", "#12244a", "#1b2b52", "#4a5b82", "#6b8bf5", "#7c8db0", "#eaf2ff", "#ffffff"];
-    const lengths = ["0 0 12px 12px", "0px", "100%", "10px", "10px 14px", "12px 12px 0 0", "12px 16px", "14px", "16px", "18px", "1px", "20px", "22%", "22px", "24px", "2px", "300px", "48px", "4px", "52px", "6px", "8px"];
+    const colors = [
+      "#000000",
+      "#00aced",
+      "#091533",
+      "#12244a",
+      "#1b2b52",
+      "#4a5b82",
+      "#6b8bf5",
+      "#7c8db0",
+      "#eaf2ff",
+      "#ffffff",
+    ];
+    const lengths = [
+      "0 0 12px 12px",
+      "0px",
+      "100%",
+      "10px",
+      "10px 14px",
+      "12px 12px 0 0",
+      "12px 16px",
+      "14px",
+      "16px",
+      "18px",
+      "1px",
+      "20px",
+      "22%",
+      "22px",
+      "24px",
+      "2px",
+      "300px",
+      "48px",
+      "4px",
+      "52px",
+      "6px",
+      "8px",
+    ];
     for (const c of colors) expect(cssColorSchema.safeParse(c).success, c).toBe(true);
     for (const l of lengths) expect(cssLengthSchema.safeParse(l).success, l).toBe(true);
-    for (const f of ["Montserrat", "Roboto"]) expect(fontFamilySchema.safeParse(f).success, f).toBe(true);
+    for (const f of ["Montserrat", "Roboto"])
+      expect(fontFamilySchema.safeParse(f).success, f).toBe(true);
   });
 });
 
@@ -130,7 +182,9 @@ describe("numeric style bounds", () => {
   });
 
   it("rejects an absurd scroll speed", () => {
-    expect(taskStylesInputSchema.safeParse({ scroll: { pixelsPerSecond: 1e9 } }).success).toBe(false);
+    expect(taskStylesInputSchema.safeParse({ scroll: { pixelsPerSecond: 1e9 } }).success).toBe(
+      false,
+    );
   });
 
   it("rejects a negative line count", () => {
@@ -144,11 +198,15 @@ describe("timer duration bounds", () => {
   });
 
   it("rejects a duration beyond 24h", () => {
-    expect(updateTimerConfigInput.safeParse({ workDuration: 25 * 60 * 60 * 1000 }).success).toBe(false);
+    expect(updateTimerConfigInput.safeParse({ workDuration: 25 * 60 * 60 * 1000 }).success).toBe(
+      false,
+    );
   });
 
   it("rejects non-finite durations", () => {
-    expect(updateTimerConfigInput.safeParse({ breakDuration: Number.POSITIVE_INFINITY }).success).toBe(false);
+    expect(
+      updateTimerConfigInput.safeParse({ breakDuration: Number.POSITIVE_INFINITY }).success,
+    ).toBe(false);
     expect(updateTimerConfigInput.safeParse({ breakDuration: Number.NaN }).success).toBe(false);
   });
 });

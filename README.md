@@ -168,8 +168,12 @@ source or keep the tab pinned.
 - `bun run dev` - Start all apps with a local D1 database
 - `bun run dev:web` - Start only the web app (standalone Next dev on port 3001; the API comes from `bun run dev` or a deployed origin)
 - `bun run build` - Build all apps for production
+- `bun run lint` - Lint and format-check with Biome
+- `bun run lint:fix` - Apply Biome's safe lint fixes and formatting
 - `bun run check-types` - Run TypeScript type checking
 - `bun run test` - Run unit tests across all packages
+- `bun run test:coverage` - Run tests with coverage thresholds enforced
+- `bun run clean` - Remove generated build and type artifacts
 - `bun run db:generate` - Generate a new Drizzle migration from schema changes
 - `bun run deploy` - Deploy both workers and the database to Cloudflare
 - `bun run destroy` - Tear down the Cloudflare deployment
@@ -185,11 +189,14 @@ source or keep the tab pinned.
 ### Code Quality
 
 - **TypeScript** in strict mode across all packages
+- **Biome** for linting and formatting, enforced in CI
 - **Drizzle ORM** for type-safe database access
 - **tRPC** for end-to-end type-safe API layer
 - **t3-env** for environment variable validation
 - **Turborepo** for monorepo build orchestration
-- **GitHub Actions** CI runs type checks, builds, and tests on every push
+- **GitHub Actions** runs one shared verification pipeline (lint, type check, tests with
+  coverage thresholds, production build) on every push, and again before any deploy.
+  Actions are SHA-pinned and kept current by Dependabot.
 
 ## Deployment
 
