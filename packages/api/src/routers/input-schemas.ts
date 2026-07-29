@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   MAX_TASK_LEN,
+  normalizeAliases,
   taskMessagesInputSchema,
   timerMessagesInputSchema,
 } from "../config-shared";
@@ -51,8 +52,23 @@ export const updateMessagesInput = z.object({
 });
 
 export const commandAliasesInput = z.object({
-  commandAliases: z.record(z.string().max(50), z.string().max(100)).refine(
-    (obj) => Object.keys(obj).length <= 50,
-    { message: "Maximum of 50 command aliases allowed" },
-  ),
+  // Normalizes keys/targets to canonical form (no leading "!") and rejects
+  // empty / duplicate / recursive / unknown-target aliases via the SAME shared
+  // validator the dashboard editor uses (config-shared.normalizeAliases).
+  commandAliases: z
+    .record(z.string().max(50), z.string().max(100))
+    .refine((obj) => Object.keys(obj).length <= 50, {
+      message: "Maximum of 50 command aliases allowed",
+    })
+    .transform((obj, ctx) => {
+      const { aliases, issues } = normalizeAliases(obj);
+      if (issues.length > 0) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Invalid aliases: ${issues.map((i) => `${i.key} (${i.reason})`).join(", ")}`,
+        });
+        return z.NEVER;
+      }
+      return aliases;
+    }),
 });

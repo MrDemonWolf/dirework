@@ -56,12 +56,13 @@
         "@types/node": "^22.13.14",
         "alchemy": "catalog:",
         "typescript": "catalog:",
+        "vitest": "catalog:",
         "wrangler": "catalog:",
       },
     },
     "apps/web": {
       "name": "web",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "dependencies": {
         "@base-ui/react": "^1.0.0",
         "@dirework/api": "workspace:*",

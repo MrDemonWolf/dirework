@@ -7,6 +7,7 @@ import {
   getFreshChatToken,
   refreshBotToken,
   resolveChannelLogin,
+  validateChatToken,
   type TwitchCredentials,
 } from "../twitch-auth";
 
@@ -37,9 +38,22 @@ interface DbOptions {
 
 /** Minimal drizzle-shaped mock covering findFirst / update / delete chains. */
 function makeDb(opts: DbOptions = {}) {
-  const returning = vi.fn(async () => (opts.updatedRow ? [opts.updatedRow] : []));
+  let lastSet: Record<string, unknown> | null = null;
+  // The refresh flow issues TWO updates: a lease-acquire CAS (set carries only
+  // refreshLockedUntil, no tokens) and the token persist (carries accessToken).
+  // The lease CAS must "succeed" (return the account row) so the caller proceeds
+  // to the Twitch exchange; the persist returns the caller-supplied updatedRow.
+  const returning = vi.fn(async () => {
+    const isLeaseAcquire =
+      !!lastSet && "refreshLockedUntil" in lastSet && !("accessToken" in lastSet);
+    if (isLeaseAcquire) return opts.botAccount ? [opts.botAccount] : [];
+    return opts.updatedRow ? [opts.updatedRow] : [];
+  });
   const where = vi.fn(() => ({ returning }));
-  const set = vi.fn(() => ({ where }));
+  const set = vi.fn((v: Record<string, unknown>) => {
+    lastSet = v;
+    return { where };
+  });
   const update = vi.fn(() => ({ set }));
   const deleteWhere = vi.fn(async () => undefined);
   const del = vi.fn(() => ({ where: deleteWhere }));
@@ -121,6 +135,79 @@ describe("refreshBotToken", () => {
       code: "UNAUTHORIZED",
     });
   });
+
+  it("persists the rotated refresh token and releases the lease", async () => {
+    const { db, set } = makeDb({
+      botAccount: makeAccount(),
+      updatedRow: makeAccount({ accessToken: "new-access", refreshToken: "rotated-refresh" }),
+    });
+    fetchMock.mockResolvedValueOnce(okJson({
+      access_token: "new-access",
+      refresh_token: "rotated-refresh",
+      expires_in: 3600,
+    }));
+
+    await refreshBotToken(db, CREDS);
+
+    // The token persist rotates the refresh token AND clears the lease.
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({
+      accessToken: "new-access",
+      refreshToken: "rotated-refresh",
+      refreshLockedUntil: null,
+    }));
+  });
+
+  it("serializes concurrent refreshes: a loser waits for the winner, not Twitch", async () => {
+    vi.useFakeTimers();
+    try {
+      const rotated = makeAccount({
+        accessToken: "winner-access",
+        refreshToken: "rotated-refresh",
+        refreshLockedUntil: null,
+      });
+      let reads = 0;
+      const findFirst = vi.fn(async () => {
+        reads += 1;
+        // First read = pre-refresh state; later reads = winner's rotated row.
+        return reads === 1 ? makeAccount() : rotated;
+      });
+      // Lease CAS acquires nothing → this caller is the loser.
+      const returning = vi.fn(async () => [] as unknown[]);
+      const db = {
+        query: { botAccount: { findFirst } },
+        update: () => ({ set: () => ({ where: () => ({ returning }) }) }),
+      } as unknown as DbClient;
+
+      const promise = refreshBotToken(db, CREDS);
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      expect(fetchMock).not.toHaveBeenCalled(); // never fired a 2nd refresh
+      expect(result?.accessToken).toBe("winner-access");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("validateChatToken", () => {
+  it("returns false when Twitch reports the token revoked (401)", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 401 });
+    expect(await validateChatToken("tok")).toBe(false);
+    const [url, init] = fetchMock.mock.calls[0] as [string, { headers: Record<string, string> }];
+    expect(url).toBe("https://id.twitch.tv/oauth2/validate");
+    expect(init.headers.Authorization).toBe("OAuth tok");
+  });
+
+  it("returns true when Twitch still honors the token", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200 });
+    expect(await validateChatToken("tok")).toBe(true);
+  });
+
+  it("returns true on a transient network error (no needless refresh)", async () => {
+    fetchMock.mockRejectedValueOnce(new Error("network down"));
+    expect(await validateChatToken("tok")).toBe(true);
+  });
 });
 
 describe("getFreshChatToken", () => {
@@ -154,6 +241,28 @@ describe("getFreshChatToken", () => {
 
     expect(await getFreshChatToken(db, CREDS, { forceRefresh: true })).toBe("new-access");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("revalidate keeps a fresh, still-valid token without refreshing", async () => {
+    const { db } = makeDb({ botAccount: makeAccount() });
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200 }); // /validate
+
+    expect(await getFreshChatToken(db, CREDS, { revalidate: true })).toBe("old-access");
+    expect(fetchMock).toHaveBeenCalledTimes(1); // only /validate, no refresh
+    expect((fetchMock.mock.calls[0] as [string])[0]).toBe("https://id.twitch.tv/oauth2/validate");
+  });
+
+  it("revalidate refreshes a fresh-looking token that Twitch has revoked", async () => {
+    const updatedRow = makeAccount({ accessToken: "new-access" });
+    const { db } = makeDb({ botAccount: makeAccount(), updatedRow });
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 401 }) // /validate → revoked
+      .mockResolvedValueOnce(okJson({ access_token: "new-access", expires_in: 3600 })); // refresh
+
+    expect(await getFreshChatToken(db, CREDS, { revalidate: true })).toBe("new-access");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect((fetchMock.mock.calls[0] as [string])[0]).toBe("https://id.twitch.tv/oauth2/validate");
+    expect((fetchMock.mock.calls[1] as [string])[0]).toBe("https://id.twitch.tv/oauth2/token");
   });
 });
 

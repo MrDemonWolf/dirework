@@ -123,6 +123,67 @@ describe("skipTimer no-op guard (audit L6)", () => {
   });
 });
 
+describe("skipTimer guarded CAS vs concurrent overdue-advance (P0.2)", () => {
+  const config = {
+    workDuration: 10_000,
+    breakDuration: 5_000,
+    longBreakDuration: 20_000,
+    longBreakInterval: 4,
+    startingDuration: 1_000,
+    noLastBreak: false,
+    defaultCycles: 4,
+  };
+
+  it("does not double-advance when an overdue-advance wins the race first", async () => {
+    // Operator hits !timer skip on a work phase that is simultaneously being
+    // auto-advanced by an overlay poll. skip reads work → computes break, but
+    // the poll already moved the row to break, so the guarded CAS matches no
+    // row (returning []). skip must re-read and return that break state — NOT
+    // apply its own work→break on top of the already-advanced row, which would
+    // land the timer a whole phase further along (skipped break).
+    const workRow = {
+      id: "singleton",
+      status: "work",
+      targetEndTime: new Date(Date.now() - 1_000),
+      pausedWithRemaining: null,
+      pausedFromStatus: null,
+      currentCycle: 1,
+      totalCycles: 4,
+    };
+    const advancedByPoll = {
+      ...workRow,
+      status: "break",
+      targetEndTime: new Date(Date.now() + config.breakDuration),
+    };
+
+    const findFirst = vi.fn()
+      .mockResolvedValueOnce(workRow) // skip's initial read
+      .mockResolvedValue(advancedByPoll); // re-read after the lost CAS
+    const setSpy = vi.fn();
+    const db = {
+      query: {
+        timerState: { findFirst },
+        timerConfig: { findFirst: async () => config },
+      },
+      update: () => ({
+        set: (values: Record<string, unknown>) => {
+          setSpy(values);
+          return { where: () => ({ returning: async () => [] }) }; // CAS lost
+        },
+      }),
+    } as unknown as DbClient;
+
+    const result = await skipTimer(db);
+
+    // One (lost) write attempt, then accept the poll's advanced state.
+    expect(setSpy).toHaveBeenCalledOnce();
+    expect(setSpy.mock.calls[0]?.[0]).toMatchObject({ status: "break" });
+    expect(result?.status).toBe("break");
+    expect(result?.currentCycle).toBe(1);
+    expect(result?.targetEndTime).toEqual(advancedByPoll.targetEndTime);
+  });
+});
+
 describe("resetTimer uses configured defaultCycles (audit L4)", () => {
   it("resets totalCycles to timerConfig.defaultCycles, not a literal 4", async () => {
     const { db, setSpy } = makeDb({

@@ -23,6 +23,51 @@ export const MAX_TASK_LEN = 500;
 /** Per-user open (pending+active) task cap enforced on the chat ingest path. */
 export const CHAT_OPEN_TASK_CAP = 20;
 
+// ── Command aliases (single source, env-free) ────────────────────────────────
+// Canonical bot command names an alias may target — stored WITHOUT the leading
+// "!". The chat resolver, the tRPC input schema, and the dashboard editor all
+// normalize through this so the three can never disagree on whether the "!" is
+// part of the token (the "!!task" bug: the UI stored "!t"→"!task", the resolver
+// re-prefixed "!" and produced "!!t"/"!!task").
+export const KNOWN_ALIAS_TARGETS = [
+  "task", "done", "edit", "remove", "focus", "check", "next", "help", "clear", "timer",
+] as const;
+
+/** Strip any leading "!", trim, lowercase, take the first token → canonical alias/target. */
+export function normalizeAliasToken(raw: string): string {
+  return raw.trim().replace(/^!+/, "").trim().toLowerCase().split(/\s+/)[0] ?? "";
+}
+
+export type AliasIssueReason = "empty" | "duplicate" | "recursive" | "unknown-target";
+export interface AliasIssue { key: string; reason: AliasIssueReason; }
+
+/**
+ * Normalize a raw alias record (keys/values with or without "!") into canonical
+ * form and collect validation issues. Reused by the router input schema AND the
+ * dashboard editor so client and server validate identically. Rejects empty
+ * tokens, duplicate keys (after normalization), self-recursion, and targets that
+ * are not real commands.
+ */
+export function normalizeAliases(raw: Record<string, string>): {
+  aliases: Record<string, string>;
+  issues: AliasIssue[];
+} {
+  const aliases: Record<string, string> = {};
+  const issues: AliasIssue[] = [];
+  const known = new Set<string>(KNOWN_ALIAS_TARGETS);
+
+  for (const [rawKey, rawValue] of Object.entries(raw)) {
+    const key = normalizeAliasToken(rawKey);
+    const target = normalizeAliasToken(rawValue);
+    if (!key || !target) { issues.push({ key: rawKey || "(empty)", reason: "empty" }); continue; }
+    if (key in aliases) { issues.push({ key, reason: "duplicate" }); continue; }
+    if (key === target) { issues.push({ key, reason: "recursive" }); continue; }
+    if (!known.has(target)) { issues.push({ key, reason: "unknown-target" }); continue; }
+    aliases[key] = target;
+  }
+  return { aliases, issues };
+}
+
 /** Every timer state-machine status — single source for status literals. */
 export const TIMER_STATUSES = [
   "idle",
