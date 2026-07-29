@@ -9,7 +9,8 @@
     "test": "vitest run",
     "check-types": "rm -rf .next/dev/types && SKIP_ENV_VALIDATION=true next typegen && tsc --noEmit",
     "clean": "rm -rf .next .open-next .turbo",
-    "fetch-fonts": "bun scripts/fetch-fonts.ts"
+    "fetch-fonts": "bun scripts/fetch-fonts.ts",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",

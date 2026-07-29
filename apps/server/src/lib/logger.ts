@@ -37,10 +37,23 @@ export function buildRequestLog(opts: {
   };
 }
 
+/** Context key holding the current request id, for correlated telemetry. */
+export const REQUEST_ID_KEY = "requestId";
+
+/** Read the current request id, if the logger middleware has run. */
+export function getRequestId(c: { get: (key: string) => unknown }): string | undefined {
+  const id = c.get(REQUEST_ID_KEY);
+  return typeof id === "string" ? id : undefined;
+}
+
 export const requestLogger = (): MiddlewareHandler => async (c, next) => {
   const id = crypto.randomUUID();
   const start = Date.now();
   c.header("x-request-id", id);
+  // Stash on the context too: downstream middleware needs the id BEFORE a
+  // response exists, so reading it back off c.res would be too late (and, in
+  // Hono, forces a placeholder Response into existence).
+  c.set(REQUEST_ID_KEY, id);
 
   await next();
 
