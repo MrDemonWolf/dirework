@@ -36,24 +36,25 @@ describe("themePresets", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it.each(
-    themePresets.map((p) => [p.id, p] as const),
-  )("preset '%s' should have required properties", (_id, preset) => {
-    expect(preset.id).toBeTruthy();
-    expect(preset.name).toBeTruthy();
-    expect(preset.description).toBeTruthy();
-    expect(preset.preview).toHaveProperty("bg");
-    expect(preset.preview).toHaveProperty("accent");
-    expect(preset.preview).toHaveProperty("text");
-    expect(preset.timerStyles).toHaveProperty("dimensions");
-    expect(preset.timerStyles).toHaveProperty("background");
-    expect(preset.timerStyles).toHaveProperty("ring");
-    expect(preset.timerStyles).toHaveProperty("text");
-    expect(preset.timerStyles).toHaveProperty("fontSizes");
-    expect(preset.taskStyles).toHaveProperty("display");
-    expect(preset.taskStyles).toHaveProperty("header");
-    expect(preset.taskStyles).toHaveProperty("body");
-    expect(preset.taskStyles).toHaveProperty("task");
-    expect(preset.taskStyles).toHaveProperty("taskDone");
-  });
+  it.each(themePresets.map((p) => [p.id, p] as const))(
+    "preset '%s' should have required properties",
+    (_id, preset) => {
+      expect(preset.id).toBeTruthy();
+      expect(preset.name).toBeTruthy();
+      expect(preset.description).toBeTruthy();
+      expect(preset.preview).toHaveProperty("bg");
+      expect(preset.preview).toHaveProperty("accent");
+      expect(preset.preview).toHaveProperty("text");
+      expect(preset.timerStyles).toHaveProperty("dimensions");
+      expect(preset.timerStyles).toHaveProperty("background");
+      expect(preset.timerStyles).toHaveProperty("ring");
+      expect(preset.timerStyles).toHaveProperty("text");
+      expect(preset.timerStyles).toHaveProperty("fontSizes");
+      expect(preset.taskStyles).toHaveProperty("display");
+      expect(preset.taskStyles).toHaveProperty("header");
+      expect(preset.taskStyles).toHaveProperty("body");
+      expect(preset.taskStyles).toHaveProperty("task");
+      expect(preset.taskStyles).toHaveProperty("taskDone");
+    },
+  );
 });

@@ -3,11 +3,7 @@ import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 /** Inline brand mark — the Dirework wolf-and-clock (wolf + Pomodoro). */
 function BrandMark() {
   return (
-    <span
-      data-dw-brand
-      className="inline-flex items-center gap-2.5"
-      style={{ lineHeight: 1 }}
-    >
+    <span data-dw-brand className="inline-flex items-center gap-2.5" style={{ lineHeight: 1 }}>
       <svg
         width="26"
         height="26"

@@ -48,11 +48,7 @@ export function SaveBar({
             onConfirm={onReset}
           />
           <Button size="sm" onClick={onSave} disabled={saving}>
-            {saving ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Save className="size-3.5" />
-            )}
+            {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
             Save changes
           </Button>
         </div>

@@ -105,10 +105,12 @@ function TaskItem({
         maxWidth: config.task.maxWidth,
         opacity: isDone ? 0.6 : 1,
         transition: "opacity 300ms",
-        ...(isActive ? {
-          boxShadow: `0 0 8px 2px ${config.task.border.color}80`,
-          animation: "active-glow 2s ease-in-out infinite",
-        } : {}),
+        ...(isActive
+          ? {
+              boxShadow: `0 0 8px 2px ${config.task.border.color}80`,
+              animation: "active-glow 2s ease-in-out infinite",
+            }
+          : {}),
       }}
     >
       {/* Checkbox or bullet */}
@@ -165,8 +167,7 @@ function TaskItem({
           WebkitLineClamp: config.display.numberOfLines,
           WebkitBoxOrient: "vertical",
           overflow: "hidden",
-          textDecoration:
-            isDone && config.display.crossOnDone ? "line-through" : "none",
+          textDecoration: isDone && config.display.crossOnDone ? "line-through" : "none",
         }}
       >
         {task.text}
@@ -175,13 +176,7 @@ function TaskItem({
   );
 }
 
-function AuthorGroup({
-  group,
-  config,
-}: {
-  group: TaskGroup;
-  config: TaskStylesConfig;
-}) {
+function AuthorGroup({ group, config }: { group: TaskGroup; config: TaskStylesConfig }) {
   const authorColor = group.authorColor || config.task.usernameColor || "#ffffff";
 
   return (
@@ -230,36 +225,20 @@ function AuthorGroup({
 
       {/* Tasks */}
       {group.tasks.map((task, i) => (
-        <TaskItem
-          key={task.id}
-          task={task}
-          config={config}
-          isLast={i === group.tasks.length - 1}
-        />
+        <TaskItem key={task.id} task={task} config={config} isLast={i === group.tasks.length - 1} />
       ))}
     </div>
   );
 }
 
-export function TaskListDisplay({
-  config,
-  tasks,
-}: {
-  config: TaskStylesConfig;
-  tasks: Task[];
-}) {
-  const displayTasks = config.display.showDone
-    ? tasks
-    : tasks.filter((t) => t.status !== "done");
+export function TaskListDisplay({ config, tasks }: { config: TaskStylesConfig; tasks: Task[] }) {
+  const displayTasks = config.display.showDone ? tasks : tasks.filter((t) => t.status !== "done");
   const groups = groupTasksByAuthor(displayTasks);
   const _pendingTasks = tasks.filter((t) => t.status !== "done");
   const doneTasks = tasks.filter((t) => t.status === "done");
 
   return (
-    <div
-      className="flex h-full w-full flex-col"
-      style={{ fontFamily: config.fonts.body }}
-    >
+    <div className="flex h-full w-full flex-col" style={{ fontFamily: config.fonts.body }}>
       {/* Header */}
       <div
         className="flex flex-shrink-0 items-center justify-between"

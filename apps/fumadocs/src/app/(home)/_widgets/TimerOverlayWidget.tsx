@@ -9,7 +9,11 @@ import {
   roundedRectPerimeter,
 } from "@dirework/overlay-kit";
 
-import { OVERLAY_THEMES, DEFAULT_OVERLAY_THEME, type OverlayTheme } from "./overlay-themes.generated";
+import {
+  OVERLAY_THEMES,
+  DEFAULT_OVERLAY_THEME,
+  type OverlayTheme,
+} from "./overlay-themes.generated";
 import { hexToRgba } from "./theme-util";
 
 /**

@@ -27,18 +27,58 @@ export const taskMessageFields: {
   { key: "noTaskAdded", label: "Task limit reached", placeholder: "{user}", group: "Adding" },
   { key: "noTaskContent", label: "No task text (!task)", placeholder: "{user}", group: "Adding" },
   { key: "taskDone", label: "Task done", placeholder: "{task}, {user}", group: "Completing" },
-  { key: "taskNext", label: "Next task started", placeholder: "{oldTask}, {newTask}, {user}", group: "Completing" },
-  { key: "nextNoContent", label: "No task text (!next)", placeholder: "{user}", group: "Completing" },
+  {
+    key: "taskNext",
+    label: "Next task started",
+    placeholder: "{oldTask}, {newTask}, {user}",
+    group: "Completing",
+  },
+  {
+    key: "nextNoContent",
+    label: "No task text (!next)",
+    placeholder: "{user}",
+    group: "Completing",
+  },
   { key: "taskCheck", label: "Task check", placeholder: "{user}, {task}", group: "Completing" },
-  { key: "taskCheckUser", label: "Task check (other user)", placeholder: "{user}, {user2}, {task}", group: "Completing" },
-  { key: "taskEdited", label: "Task edited", placeholder: "{task}, {user}", group: "Editing & removing" },
-  { key: "taskRemoved", label: "Task removed", placeholder: "{task}, {user}", group: "Editing & removing" },
-  { key: "noTaskToEdit", label: "No task to edit", placeholder: "{user}", group: "Editing & removing" },
+  {
+    key: "taskCheckUser",
+    label: "Task check (other user)",
+    placeholder: "{user}, {user2}, {task}",
+    group: "Completing",
+  },
+  {
+    key: "taskEdited",
+    label: "Task edited",
+    placeholder: "{task}, {user}",
+    group: "Editing & removing",
+  },
+  {
+    key: "taskRemoved",
+    label: "Task removed",
+    placeholder: "{task}, {user}",
+    group: "Editing & removing",
+  },
+  {
+    key: "noTaskToEdit",
+    label: "No task to edit",
+    placeholder: "{user}",
+    group: "Editing & removing",
+  },
   { key: "clearedAll", label: "Cleared all", placeholder: "none", group: "Editing & removing" },
   { key: "clearedDone", label: "Cleared done", placeholder: "none", group: "Editing & removing" },
-  { key: "adminDeleteTasks", label: "Mod cleared user's tasks", placeholder: "none", group: "Editing & removing" },
+  {
+    key: "adminDeleteTasks",
+    label: "Mod cleared user's tasks",
+    placeholder: "none",
+    group: "Editing & removing",
+  },
   { key: "noTask", label: "No task", placeholder: "{user}", group: "Errors & limits" },
-  { key: "noTaskOther", label: "No task (other user)", placeholder: "{user}", group: "Errors & limits" },
+  {
+    key: "noTaskOther",
+    label: "No task (other user)",
+    placeholder: "{user}",
+    group: "Errors & limits",
+  },
   { key: "notMod", label: "Not a mod", placeholder: "{user}", group: "Errors & limits" },
   { key: "help", label: "Help", placeholder: "{user}", group: "Errors & limits" },
 ];
@@ -131,9 +171,7 @@ export function MessageEditor<T extends object>({
         />
       </div>
 
-      {disabled && disabledNote && (
-        <p className="text-xs text-muted-foreground">{disabledNote}</p>
-      )}
+      {disabled && disabledNote && <p className="text-xs text-muted-foreground">{disabledNote}</p>}
 
       {groups.map((group) => (
         <div key={group} className="space-y-3">

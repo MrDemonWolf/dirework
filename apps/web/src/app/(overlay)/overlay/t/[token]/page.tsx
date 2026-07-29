@@ -68,12 +68,8 @@ export default function TimerOverlayPage() {
   // config row TimerDisplay falls back to its built-in defaults. Idle has no
   // phase of its own — show the work length so the setup preview reads full.
   const totalDuration = timerConfig
-    ? ((resolvePhaseDuration(
-        timerState.status,
-        timerState.pausedFromStatus,
-        timerConfig,
-      ) ??
-        (timerState.status === "idle" ? timerConfig.workDuration : undefined)) ??
+    ? (resolvePhaseDuration(timerState.status, timerState.pausedFromStatus, timerConfig) ??
+      (timerState.status === "idle" ? timerConfig.workDuration : undefined) ??
       undefined)
     : undefined;
 
@@ -82,7 +78,16 @@ export default function TimerOverlayPage() {
       <AutoScale>
         <TimerDisplay
           config={displayConfig}
-          state={timerState as { status: string; targetEndTime: string | null; pausedWithRemaining: number | null; pausedFromStatus: string | null; currentCycle: number; totalCycles: number }}
+          state={
+            timerState as {
+              status: string;
+              targetEndTime: string | null;
+              pausedWithRemaining: number | null;
+              pausedFromStatus: string | null;
+              currentCycle: number;
+              totalCycles: number;
+            }
+          }
           totalDuration={totalDuration}
         />
       </AutoScale>

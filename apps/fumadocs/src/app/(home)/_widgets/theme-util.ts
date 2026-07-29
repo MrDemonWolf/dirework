@@ -2,7 +2,13 @@
  *  theme's bg/text/accent at any opacity for tracks, task rows, muted text. */
 export function hexToRgba(hex: string, alpha: number): string {
   const h = hex.replace("#", "");
-  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const full =
+    h.length === 3
+      ? h
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : h;
   const r = parseInt(full.slice(0, 2), 16);
   const g = parseInt(full.slice(2, 4), 16);
   const b = parseInt(full.slice(4, 6), 16);
@@ -12,7 +18,13 @@ export function hexToRgba(hex: string, alpha: number): string {
 /** WCAG relative luminance of a hex color (0 = black, 1 = white). */
 export function relativeLuminance(hex: string): number {
   const h = hex.replace("#", "");
-  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const full =
+    h.length === 3
+      ? h
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : h;
   const [r, g, b] = [0, 2, 4].map((i) => {
     const c = parseInt(full.slice(i, i + 2), 16) / 255;
     return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;

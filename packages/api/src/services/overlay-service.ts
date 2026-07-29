@@ -1,10 +1,6 @@
 import type { DbClient } from "@dirework/db";
 
-import {
-  buildTaskStylesConfig,
-  buildTimerConfig,
-  buildTimerStylesConfig,
-} from "../config-shared";
+import { buildTaskStylesConfig, buildTimerConfig, buildTimerStylesConfig } from "../config-shared";
 import { listTasks } from "./task-service";
 import { maybeAdvanceOverdueTimer } from "./timer-service";
 
@@ -27,10 +23,7 @@ export async function loadTimerOverlayPayload(db: DbClient) {
 }
 
 export async function loadTaskOverlayPayload(db: DbClient) {
-  const [tasks, taskStyleRow] = await Promise.all([
-    listTasks(db),
-    db.query.taskStyle.findFirst(),
-  ]);
+  const [tasks, taskStyleRow] = await Promise.all([listTasks(db), db.query.taskStyle.findFirst()]);
 
   return {
     tasks,

@@ -69,17 +69,15 @@ export const configRouter = router({
       return buildTaskStylesConfig(updated);
     }),
 
-  updateMessages: ownerProcedure
-    .input(updateMessagesInput)
-    .mutation(async ({ ctx, input }) => {
-      await ensureSingletons(ctx.db);
-      return updateSingleton(ctx.db, schema.botConfig, {
-        taskCommandsEnabled: input.taskCommandsEnabled,
-        timerCommandsEnabled: input.timerCommandsEnabled,
-        ...flattenWithFieldMap(TASK_MESSAGE_FIELDS, input.task),
-        ...flattenWithFieldMap(TIMER_MESSAGE_FIELDS, input.timer),
-      });
-    }),
+  updateMessages: ownerProcedure.input(updateMessagesInput).mutation(async ({ ctx, input }) => {
+    await ensureSingletons(ctx.db);
+    return updateSingleton(ctx.db, schema.botConfig, {
+      taskCommandsEnabled: input.taskCommandsEnabled,
+      timerCommandsEnabled: input.timerCommandsEnabled,
+      ...flattenWithFieldMap(TASK_MESSAGE_FIELDS, input.task),
+      ...flattenWithFieldMap(TIMER_MESSAGE_FIELDS, input.timer),
+    });
+  }),
 
   updatePhaseLabels: ownerProcedure
     .input(phaseLabelsInputSchema)
@@ -110,21 +108,26 @@ export const configRouter = router({
    * both style rows and the labels in a single atomic D1 round trip.
    */
   updateStyles: ownerProcedure
-    .input(z.object({
-      timerStyles: timerStylesInputSchema,
-      taskStyles: taskStylesInputSchema,
-      phaseLabels: phaseLabelsInputSchema,
-    }))
+    .input(
+      z.object({
+        timerStyles: timerStylesInputSchema,
+        taskStyles: taskStylesInputSchema,
+        phaseLabels: phaseLabelsInputSchema,
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       await ensureSingletons(ctx.db);
       await ctx.db.batch([
-        ctx.db.update(schema.timerStyle)
+        ctx.db
+          .update(schema.timerStyle)
           .set(flattenTimerStyles(input.timerStyles))
           .where(eq(schema.timerStyle.id, SINGLETON_ID)),
-        ctx.db.update(schema.taskStyle)
+        ctx.db
+          .update(schema.taskStyle)
           .set(flattenTaskStyles(input.taskStyles))
           .where(eq(schema.taskStyle.id, SINGLETON_ID)),
-        ctx.db.update(schema.timerConfig)
+        ctx.db
+          .update(schema.timerConfig)
           .set(flattenWithFieldMap(PHASE_LABEL_FIELDS, input.phaseLabels))
           .where(eq(schema.timerConfig.id, SINGLETON_ID)),
       ]);

@@ -32,7 +32,14 @@ export function UnsavedChangesGuard({ dirty }: { dirty: boolean }) {
 
     const handleClickCapture = (e: MouseEvent) => {
       // Respect modified clicks (new tab etc.) and non-primary buttons
-      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+      if (
+        e.defaultPrevented ||
+        e.button !== 0 ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.shiftKey ||
+        e.altKey
+      ) {
         return;
       }
       const anchor = (e.target as HTMLElement | null)?.closest?.("a[href]");

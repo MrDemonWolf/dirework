@@ -8,9 +8,9 @@ describe("interpolate", () => {
   });
 
   it("substitutes multiple variables", () => {
-    expect(
-      interpolate('Task "{task}" added for {user}!', { user: "Bob", task: "Fix bug" }),
-    ).toBe('Task "Fix bug" added for Bob!');
+    expect(interpolate('Task "{task}" added for {user}!', { user: "Bob", task: "Fix bug" })).toBe(
+      'Task "Fix bug" added for Bob!',
+    );
   });
 
   it("substitutes the same variable multiple times", () => {
@@ -28,9 +28,7 @@ describe("interpolate", () => {
   });
 
   it("handles a template with no placeholders", () => {
-    expect(interpolate("No placeholders here.", { user: "Eve" })).toBe(
-      "No placeholders here.",
-    );
+    expect(interpolate("No placeholders here.", { user: "Eve" })).toBe("No placeholders here.");
   });
 
   it("handles an empty template", () => {

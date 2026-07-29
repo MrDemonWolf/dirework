@@ -86,7 +86,12 @@
       }
     },
     {
-      "includes": ["apps/server/**", "packages/infra/**", "apps/web/scripts/**", "design-system/**"],
+      "includes": [
+        "apps/server/**",
+        "packages/infra/**",
+        "apps/web/scripts/**",
+        "design-system/**"
+      ],
       "linter": {
         "rules": {
           "suspicious": { "noConsole": "off" }

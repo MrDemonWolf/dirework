@@ -10,14 +10,7 @@ export default function Loader() {
       aria-label="Loading"
     >
       <svg viewBox="0 0 48 48" className="size-8 animate-spin [animation-duration:1.1s]">
-        <circle
-          cx="24"
-          cy="24"
-          r="20"
-          fill="none"
-          className="stroke-border"
-          strokeWidth="5"
-        />
+        <circle cx="24" cy="24" r="20" fill="none" className="stroke-border" strokeWidth="5" />
         <circle
           cx="24"
           cy="24"

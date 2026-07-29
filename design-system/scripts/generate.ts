@@ -19,9 +19,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..", "..");
-const tokens = JSON.parse(
-  readFileSync(resolve(ROOT, "design-system/tokens.json"), "utf8"),
-);
+const tokens = JSON.parse(readFileSync(resolve(ROOT, "design-system/tokens.json"), "utf8"));
 
 const BANNER_LINES = [
   "Dirework Design System — GENERATED FILE. Do not edit by hand.",
@@ -63,8 +61,5 @@ function generateOverlayThemes(): string {
 
 // ── Emit ──────────────────────────────────────────────────────────────────
 console.log("Generating Dirework design tokens…");
-write(
-  "apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts",
-  generateOverlayThemes(),
-);
+write("apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts", generateOverlayThemes());
 console.log("Done.");

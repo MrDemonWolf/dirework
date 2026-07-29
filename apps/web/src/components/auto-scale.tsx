@@ -46,10 +46,7 @@ export function AutoScale({
       ref={containerRef}
       className="flex h-full w-full items-center justify-center overflow-hidden"
     >
-      <div
-        ref={childRef}
-        style={{ transform: `scale(${scale})`, transformOrigin: "center" }}
-      >
+      <div ref={childRef} style={{ transform: `scale(${scale})`, transformOrigin: "center" }}>
         {children}
       </div>
     </div>
