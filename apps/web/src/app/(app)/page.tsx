@@ -4,10 +4,7 @@ import { getInstanceOwned, getServerSession } from "@/lib/server-session";
 import HomeContent from "./home-content";
 
 export default async function Home() {
-  const [owned, session] = await Promise.all([
-    getInstanceOwned(),
-    getServerSession(),
-  ]);
+  const [owned, session] = await Promise.all([getInstanceOwned(), getServerSession()]);
 
   if (session?.user) {
     redirect("/dashboard");

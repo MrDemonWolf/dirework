@@ -74,20 +74,14 @@ describe("computeNextPhase", () => {
 
   it("work → break (last cycle, noLastBreak=false)", () => {
     const config = { ...defaultConfig, noLastBreak: false };
-    const result = computeNextPhase(
-      { status: "work", currentCycle: 3, totalCycles: 3 },
-      config,
-    );
+    const result = computeNextPhase({ status: "work", currentCycle: 3, totalCycles: 3 }, config);
     expect(result.nextStatus).toBe("break");
     expect(result.nextDuration).toBe(config.breakDuration);
   });
 
   it("work → longBreak (last cycle, noLastBreak=false, on interval)", () => {
     const config = { ...defaultConfig, noLastBreak: false };
-    const result = computeNextPhase(
-      { status: "work", currentCycle: 4, totalCycles: 4 },
-      config,
-    );
+    const result = computeNextPhase({ status: "work", currentCycle: 4, totalCycles: 4 }, config);
     expect(result.nextStatus).toBe("longBreak");
     expect(result.nextDuration).toBe(config.longBreakDuration);
   });
@@ -143,10 +137,7 @@ describe("computeNextPhase", () => {
 
   it("single cycle: work → break (noLastBreak=false)", () => {
     const config = { ...defaultConfig, noLastBreak: false };
-    const result = computeNextPhase(
-      { status: "work", currentCycle: 1, totalCycles: 1 },
-      config,
-    );
+    const result = computeNextPhase({ status: "work", currentCycle: 1, totalCycles: 1 }, config);
     expect(result.nextStatus).toBe("break");
   });
 

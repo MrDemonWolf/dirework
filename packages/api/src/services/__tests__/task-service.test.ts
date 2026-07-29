@@ -45,9 +45,7 @@ function makeDb(opts: StubOptions) {
         return {
           returning: async () => {
             if (shouldFail) {
-              throw new Error(
-                "D1_ERROR: UNIQUE constraint failed: task.author_twitch_id",
-              );
+              throw new Error("D1_ERROR: UNIQUE constraint failed: task.author_twitch_id");
             }
             return [{ id: "new-task", ...values }];
           },
@@ -59,8 +57,7 @@ function makeDb(opts: StubOptions) {
         updateSpy(values);
         return {
           where: () => ({
-            returning: async () =>
-              opts.updateReturns ?? [{ ...opts.taskFindFirst, ...values }],
+            returning: async () => opts.updateReturns ?? [{ ...opts.taskFindFirst, ...values }],
           }),
         };
       },
@@ -198,10 +195,7 @@ describe("createTask", () => {
  * mutations go through ONE batch (atomic on D1) rather than sequential awaits
  * that another chat command could interleave with.
  */
-function makeBatchDb(opts: {
-  taskFindFirst?: Record<string, unknown>;
-  batchResults: unknown[];
-}) {
+function makeBatchDb(opts: { taskFindFirst?: Record<string, unknown>; batchResults: unknown[] }) {
   const batchSpy = vi.fn();
   const setSpy = vi.fn();
   const stmt = () => ({

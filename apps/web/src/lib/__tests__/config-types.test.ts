@@ -39,7 +39,13 @@ describe("TimerStylesConfig shape", () => {
 
 describe("TaskStylesConfig shape", () => {
   const config: TaskStylesConfig = {
-    display: { showDone: true, showCount: true, useCheckboxes: true, crossOnDone: true, numberOfLines: 2 },
+    display: {
+      showDone: true,
+      showCount: true,
+      useCheckboxes: true,
+      crossOnDone: true,
+      numberOfLines: 2,
+    },
     fonts: { header: "Montserrat", body: "Roboto" },
     scroll: { enabled: true, pixelsPerSecond: 70, gapBetweenLoops: 100 },
     header: {
@@ -94,7 +100,15 @@ describe("TaskStylesConfig shape", () => {
   it("should have all top-level groups", () => {
     expect(Object.keys(config)).toEqual(
       expect.arrayContaining([
-        "display", "fonts", "scroll", "header", "body", "task", "taskDone", "checkbox", "bullet",
+        "display",
+        "fonts",
+        "scroll",
+        "header",
+        "body",
+        "task",
+        "taskDone",
+        "checkbox",
+        "bullet",
       ]),
     );
   });

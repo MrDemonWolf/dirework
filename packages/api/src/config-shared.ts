@@ -30,7 +30,16 @@ export const CHAT_OPEN_TASK_CAP = 20;
 // part of the token (the "!!task" bug: the UI stored "!t"→"!task", the resolver
 // re-prefixed "!" and produced "!!t"/"!!task").
 export const KNOWN_ALIAS_TARGETS = [
-  "task", "done", "edit", "remove", "focus", "check", "next", "help", "clear", "timer",
+  "task",
+  "done",
+  "edit",
+  "remove",
+  "focus",
+  "check",
+  "next",
+  "help",
+  "clear",
+  "timer",
 ] as const;
 
 /** Strip any leading "!", trim, lowercase, take the first token → canonical alias/target. */
@@ -39,7 +48,10 @@ export function normalizeAliasToken(raw: string): string {
 }
 
 export type AliasIssueReason = "empty" | "duplicate" | "recursive" | "unknown-target";
-export interface AliasIssue { key: string; reason: AliasIssueReason; }
+export interface AliasIssue {
+  key: string;
+  reason: AliasIssueReason;
+}
 
 /**
  * Normalize a raw alias record (keys/values with or without "!") into canonical
@@ -59,10 +71,22 @@ export function normalizeAliases(raw: Record<string, string>): {
   for (const [rawKey, rawValue] of Object.entries(raw)) {
     const key = normalizeAliasToken(rawKey);
     const target = normalizeAliasToken(rawValue);
-    if (!key || !target) { issues.push({ key: rawKey || "(empty)", reason: "empty" }); continue; }
-    if (key in aliases) { issues.push({ key, reason: "duplicate" }); continue; }
-    if (key === target) { issues.push({ key, reason: "recursive" }); continue; }
-    if (!known.has(target)) { issues.push({ key, reason: "unknown-target" }); continue; }
+    if (!key || !target) {
+      issues.push({ key: rawKey || "(empty)", reason: "empty" });
+      continue;
+    }
+    if (key in aliases) {
+      issues.push({ key, reason: "duplicate" });
+      continue;
+    }
+    if (key === target) {
+      issues.push({ key, reason: "recursive" });
+      continue;
+    }
+    if (!known.has(target)) {
+      issues.push({ key, reason: "unknown-target" });
+      continue;
+    }
     aliases[key] = target;
   }
   return { aliases, issues };
@@ -100,11 +124,7 @@ export const cssColorSchema = z.string().trim().max(64).regex(CSS_COLOR_RE, "Inv
 const CSS_LENGTH_TOKEN = String.raw`(?:auto|0|[+-]?\d{1,5}(?:\.\d{1,4})?(?:px|%|r?em|v[hw]|ch|pt))`;
 const CSS_LENGTH_RE = new RegExp(`^${CSS_LENGTH_TOKEN}(?: ${CSS_LENGTH_TOKEN}){0,3}$`, "i");
 
-export const cssLengthSchema = z
-  .string()
-  .trim()
-  .max(64)
-  .regex(CSS_LENGTH_RE, "Invalid CSS length");
+export const cssLengthSchema = z.string().trim().max(64).regex(CSS_LENGTH_RE, "Invalid CSS length");
 
 /** Font family name(s). No quotes/semicolons — the overlay wraps it itself. */
 export const fontFamilySchema = z
@@ -323,7 +343,11 @@ export function buildTaskStylesConfig(s: TaskStyle) {
     header: {
       height: s.headerHeight,
       background: { color: s.headerBgColor, opacity: s.headerBgOpacity },
-      border: { color: s.headerBorderColor, width: s.headerBorderWidth, radius: s.headerBorderRadius },
+      border: {
+        color: s.headerBorderColor,
+        width: s.headerBorderWidth,
+        radius: s.headerBorderRadius,
+      },
       fontSize: s.headerFontSize,
       fontColor: s.headerFontColor,
       padding: s.headerPadding,
@@ -350,8 +374,16 @@ export function buildTaskStylesConfig(s: TaskStyle) {
     checkbox: {
       size: s.checkboxSize,
       background: { color: s.checkboxBgColor, opacity: s.checkboxBgOpacity },
-      border: { color: s.checkboxBorderColor, width: s.checkboxBorderWidth, radius: s.checkboxBorderRadius },
-      margin: { top: s.checkboxMarginTop, left: s.checkboxMarginLeft, right: s.checkboxMarginRight },
+      border: {
+        color: s.checkboxBorderColor,
+        width: s.checkboxBorderWidth,
+        radius: s.checkboxBorderRadius,
+      },
+      margin: {
+        top: s.checkboxMarginTop,
+        left: s.checkboxMarginLeft,
+        right: s.checkboxMarginRight,
+      },
       tickChar: s.checkboxTickChar,
       tickSize: s.checkboxTickSize,
       tickColor: s.checkboxTickColor,
@@ -399,35 +431,45 @@ export function buildBotConfig(bc: BotConfig): BotConfigData {
 // Every level is optional to mirror the partial-update flatten behavior.
 
 export const timerStylesInputSchema = z.object({
-  dimensions: z.object({
-    width: cssLengthSchema.optional(),
-    height: cssLengthSchema.optional(),
-  }).optional(),
-  background: z.object({
-    color: cssColorSchema.optional(),
-    opacity: opacitySchema.optional(),
-    borderRadius: cssLengthSchema.optional(),
-  }).optional(),
-  ring: z.object({
-    enabled: z.boolean().optional(),
-    trackColor: cssColorSchema.optional(),
-    trackOpacity: opacitySchema.optional(),
-    fillColor: cssColorSchema.optional(),
-    fillOpacity: opacitySchema.optional(),
-    width: boundedInt(0, 200).optional(),
-    gap: boundedInt(0, 200).optional(),
-  }).optional(),
-  text: z.object({
-    color: cssColorSchema.optional(),
-    outlineColor: cssColorSchema.optional(),
-    outlineSize: cssLengthSchema.optional(),
-    fontFamily: fontFamilySchema.optional(),
-  }).optional(),
-  fontSizes: z.object({
-    label: cssLengthSchema.optional(),
-    time: cssLengthSchema.optional(),
-    cycle: cssLengthSchema.optional(),
-  }).optional(),
+  dimensions: z
+    .object({
+      width: cssLengthSchema.optional(),
+      height: cssLengthSchema.optional(),
+    })
+    .optional(),
+  background: z
+    .object({
+      color: cssColorSchema.optional(),
+      opacity: opacitySchema.optional(),
+      borderRadius: cssLengthSchema.optional(),
+    })
+    .optional(),
+  ring: z
+    .object({
+      enabled: z.boolean().optional(),
+      trackColor: cssColorSchema.optional(),
+      trackOpacity: opacitySchema.optional(),
+      fillColor: cssColorSchema.optional(),
+      fillOpacity: opacitySchema.optional(),
+      width: boundedInt(0, 200).optional(),
+      gap: boundedInt(0, 200).optional(),
+    })
+    .optional(),
+  text: z
+    .object({
+      color: cssColorSchema.optional(),
+      outlineColor: cssColorSchema.optional(),
+      outlineSize: cssLengthSchema.optional(),
+      fontFamily: fontFamilySchema.optional(),
+    })
+    .optional(),
+  fontSizes: z
+    .object({
+      label: cssLengthSchema.optional(),
+      time: cssLengthSchema.optional(),
+      cycle: cssLengthSchema.optional(),
+    })
+    .optional(),
 });
 
 export type TimerStylesInput = z.infer<typeof timerStylesInputSchema>;
@@ -438,7 +480,9 @@ export function flattenTimerStyles(input: TimerStylesInput) {
     ...(input.dimensions?.height != null && { height: input.dimensions.height }),
     ...(input.background?.color != null && { bgColor: input.background.color }),
     ...(input.background?.opacity != null && { bgOpacity: input.background.opacity }),
-    ...(input.background?.borderRadius != null && { bgBorderRadius: input.background.borderRadius }),
+    ...(input.background?.borderRadius != null && {
+      bgBorderRadius: input.background.borderRadius,
+    }),
     ...(input.ring?.enabled != null && { ringEnabled: input.ring.enabled }),
     ...(input.ring?.trackColor != null && { ringTrackColor: input.ring.trackColor }),
     ...(input.ring?.trackOpacity != null && { ringTrackOpacity: input.ring.trackOpacity }),
@@ -474,67 +518,87 @@ const marginGroupSchema = z.object({
 });
 
 export const taskStylesInputSchema = z.object({
-  display: z.object({
-    showDone: z.boolean().optional(),
-    showCount: z.boolean().optional(),
-    useCheckboxes: z.boolean().optional(),
-    crossOnDone: z.boolean().optional(),
-    numberOfLines: boundedInt(1, 100).optional(),
-  }).optional(),
-  fonts: z.object({
-    header: fontFamilySchema.optional(),
-    body: fontFamilySchema.optional(),
-  }).optional(),
-  scroll: z.object({
-    enabled: z.boolean().optional(),
-    pixelsPerSecond: boundedInt(1, 1000).optional(),
-    gapBetweenLoops: boundedInt(0, 5000).optional(),
-  }).optional(),
-  header: z.object({
-    height: cssLengthSchema.optional(),
-    background: opacityGroupSchema.optional(),
-    border: borderGroupSchema.optional(),
-    fontSize: cssLengthSchema.optional(),
-    fontColor: cssColorSchema.optional(),
-    padding: cssLengthSchema.optional(),
-  }).optional(),
-  body: z.object({
-    background: opacityGroupSchema.optional(),
-    border: borderGroupSchema.optional(),
-    padding: z.object({
-      vertical: cssLengthSchema.optional(),
-      horizontal: cssLengthSchema.optional(),
-    }).optional(),
-  }).optional(),
-  task: z.object({
-    background: opacityGroupSchema.optional(),
-    border: borderGroupSchema.optional(),
-    fontSize: cssLengthSchema.optional(),
-    fontColor: cssColorSchema.optional(),
-    usernameColor: cssColorSchema.optional(),
-    padding: cssLengthSchema.optional(),
-    marginBottom: cssLengthSchema.optional(),
-    maxWidth: cssLengthSchema.optional(),
-  }).optional(),
-  taskDone: z.object({
-    background: opacityGroupSchema.optional(),
-    fontColor: cssColorSchema.optional(),
-  }).optional(),
-  checkbox: z.object({
-    size: cssLengthSchema.optional(),
-    background: opacityGroupSchema.optional(),
-    border: borderGroupSchema.optional(),
-    margin: marginGroupSchema.optional(),
-    tickChar: glyphSchema.optional(),
-    tickSize: cssLengthSchema.optional(),
-    tickColor: cssColorSchema.optional(),
-  }).optional(),
-  bullet: z.object({
-    char: glyphSchema.optional(),
-    size: cssLengthSchema.optional(),
-    color: cssColorSchema.optional(),
-    margin: marginGroupSchema.optional(),
-  }).optional(),
+  display: z
+    .object({
+      showDone: z.boolean().optional(),
+      showCount: z.boolean().optional(),
+      useCheckboxes: z.boolean().optional(),
+      crossOnDone: z.boolean().optional(),
+      numberOfLines: boundedInt(1, 100).optional(),
+    })
+    .optional(),
+  fonts: z
+    .object({
+      header: fontFamilySchema.optional(),
+      body: fontFamilySchema.optional(),
+    })
+    .optional(),
+  scroll: z
+    .object({
+      enabled: z.boolean().optional(),
+      pixelsPerSecond: boundedInt(1, 1000).optional(),
+      gapBetweenLoops: boundedInt(0, 5000).optional(),
+    })
+    .optional(),
+  header: z
+    .object({
+      height: cssLengthSchema.optional(),
+      background: opacityGroupSchema.optional(),
+      border: borderGroupSchema.optional(),
+      fontSize: cssLengthSchema.optional(),
+      fontColor: cssColorSchema.optional(),
+      padding: cssLengthSchema.optional(),
+    })
+    .optional(),
+  body: z
+    .object({
+      background: opacityGroupSchema.optional(),
+      border: borderGroupSchema.optional(),
+      padding: z
+        .object({
+          vertical: cssLengthSchema.optional(),
+          horizontal: cssLengthSchema.optional(),
+        })
+        .optional(),
+    })
+    .optional(),
+  task: z
+    .object({
+      background: opacityGroupSchema.optional(),
+      border: borderGroupSchema.optional(),
+      fontSize: cssLengthSchema.optional(),
+      fontColor: cssColorSchema.optional(),
+      usernameColor: cssColorSchema.optional(),
+      padding: cssLengthSchema.optional(),
+      marginBottom: cssLengthSchema.optional(),
+      maxWidth: cssLengthSchema.optional(),
+    })
+    .optional(),
+  taskDone: z
+    .object({
+      background: opacityGroupSchema.optional(),
+      fontColor: cssColorSchema.optional(),
+    })
+    .optional(),
+  checkbox: z
+    .object({
+      size: cssLengthSchema.optional(),
+      background: opacityGroupSchema.optional(),
+      border: borderGroupSchema.optional(),
+      margin: marginGroupSchema.optional(),
+      tickChar: glyphSchema.optional(),
+      tickSize: cssLengthSchema.optional(),
+      tickColor: cssColorSchema.optional(),
+    })
+    .optional(),
+  bullet: z
+    .object({
+      char: glyphSchema.optional(),
+      size: cssLengthSchema.optional(),
+      color: cssColorSchema.optional(),
+      margin: marginGroupSchema.optional(),
+    })
+    .optional(),
 });
 
 export type TaskStylesInput = z.infer<typeof taskStylesInputSchema>;
@@ -543,17 +607,29 @@ export function flattenTaskStyles(input: TaskStylesInput) {
   return {
     ...(input.display?.showDone != null && { displayShowDone: input.display.showDone }),
     ...(input.display?.showCount != null && { displayShowCount: input.display.showCount }),
-    ...(input.display?.useCheckboxes != null && { displayUseCheckboxes: input.display.useCheckboxes }),
+    ...(input.display?.useCheckboxes != null && {
+      displayUseCheckboxes: input.display.useCheckboxes,
+    }),
     ...(input.display?.crossOnDone != null && { displayCrossOnDone: input.display.crossOnDone }),
-    ...(input.display?.numberOfLines != null && { displayNumberOfLines: input.display.numberOfLines }),
+    ...(input.display?.numberOfLines != null && {
+      displayNumberOfLines: input.display.numberOfLines,
+    }),
     ...(input.fonts?.header != null && { fontHeader: input.fonts.header }),
     ...(input.fonts?.body != null && { fontBody: input.fonts.body }),
     ...(input.scroll?.enabled != null && { scrollEnabled: input.scroll.enabled }),
-    ...(input.scroll?.pixelsPerSecond != null && { scrollPixelsPerSecond: input.scroll.pixelsPerSecond }),
-    ...(input.scroll?.gapBetweenLoops != null && { scrollGapBetweenLoops: input.scroll.gapBetweenLoops }),
+    ...(input.scroll?.pixelsPerSecond != null && {
+      scrollPixelsPerSecond: input.scroll.pixelsPerSecond,
+    }),
+    ...(input.scroll?.gapBetweenLoops != null && {
+      scrollGapBetweenLoops: input.scroll.gapBetweenLoops,
+    }),
     ...(input.header?.height != null && { headerHeight: input.header.height }),
-    ...(input.header?.background?.color != null && { headerBgColor: input.header.background.color }),
-    ...(input.header?.background?.opacity != null && { headerBgOpacity: input.header.background.opacity }),
+    ...(input.header?.background?.color != null && {
+      headerBgColor: input.header.background.color,
+    }),
+    ...(input.header?.background?.opacity != null && {
+      headerBgOpacity: input.header.background.opacity,
+    }),
     ...(input.header?.border?.color != null && { headerBorderColor: input.header.border.color }),
     ...(input.header?.border?.width != null && { headerBorderWidth: input.header.border.width }),
     ...(input.header?.border?.radius != null && { headerBorderRadius: input.header.border.radius }),
@@ -561,14 +637,22 @@ export function flattenTaskStyles(input: TaskStylesInput) {
     ...(input.header?.fontColor != null && { headerFontColor: input.header.fontColor }),
     ...(input.header?.padding != null && { headerPadding: input.header.padding }),
     ...(input.body?.background?.color != null && { bodyBgColor: input.body.background.color }),
-    ...(input.body?.background?.opacity != null && { bodyBgOpacity: input.body.background.opacity }),
+    ...(input.body?.background?.opacity != null && {
+      bodyBgOpacity: input.body.background.opacity,
+    }),
     ...(input.body?.border?.color != null && { bodyBorderColor: input.body.border.color }),
     ...(input.body?.border?.width != null && { bodyBorderWidth: input.body.border.width }),
     ...(input.body?.border?.radius != null && { bodyBorderRadius: input.body.border.radius }),
-    ...(input.body?.padding?.vertical != null && { bodyPaddingVertical: input.body.padding.vertical }),
-    ...(input.body?.padding?.horizontal != null && { bodyPaddingHorizontal: input.body.padding.horizontal }),
+    ...(input.body?.padding?.vertical != null && {
+      bodyPaddingVertical: input.body.padding.vertical,
+    }),
+    ...(input.body?.padding?.horizontal != null && {
+      bodyPaddingHorizontal: input.body.padding.horizontal,
+    }),
     ...(input.task?.background?.color != null && { taskBgColor: input.task.background.color }),
-    ...(input.task?.background?.opacity != null && { taskBgOpacity: input.task.background.opacity }),
+    ...(input.task?.background?.opacity != null && {
+      taskBgOpacity: input.task.background.opacity,
+    }),
     ...(input.task?.border?.color != null && { taskBorderColor: input.task.border.color }),
     ...(input.task?.border?.width != null && { taskBorderWidth: input.task.border.width }),
     ...(input.task?.border?.radius != null && { taskBorderRadius: input.task.border.radius }),
@@ -578,18 +662,34 @@ export function flattenTaskStyles(input: TaskStylesInput) {
     ...(input.task?.padding != null && { taskPadding: input.task.padding }),
     ...(input.task?.marginBottom != null && { taskMarginBottom: input.task.marginBottom }),
     ...(input.task?.maxWidth != null && { taskMaxWidth: input.task.maxWidth }),
-    ...(input.taskDone?.background?.color != null && { taskDoneBgColor: input.taskDone.background.color }),
-    ...(input.taskDone?.background?.opacity != null && { taskDoneBgOpacity: input.taskDone.background.opacity }),
+    ...(input.taskDone?.background?.color != null && {
+      taskDoneBgColor: input.taskDone.background.color,
+    }),
+    ...(input.taskDone?.background?.opacity != null && {
+      taskDoneBgOpacity: input.taskDone.background.opacity,
+    }),
     ...(input.taskDone?.fontColor != null && { taskDoneFontColor: input.taskDone.fontColor }),
     ...(input.checkbox?.size != null && { checkboxSize: input.checkbox.size }),
-    ...(input.checkbox?.background?.color != null && { checkboxBgColor: input.checkbox.background.color }),
-    ...(input.checkbox?.background?.opacity != null && { checkboxBgOpacity: input.checkbox.background.opacity }),
-    ...(input.checkbox?.border?.color != null && { checkboxBorderColor: input.checkbox.border.color }),
-    ...(input.checkbox?.border?.width != null && { checkboxBorderWidth: input.checkbox.border.width }),
-    ...(input.checkbox?.border?.radius != null && { checkboxBorderRadius: input.checkbox.border.radius }),
+    ...(input.checkbox?.background?.color != null && {
+      checkboxBgColor: input.checkbox.background.color,
+    }),
+    ...(input.checkbox?.background?.opacity != null && {
+      checkboxBgOpacity: input.checkbox.background.opacity,
+    }),
+    ...(input.checkbox?.border?.color != null && {
+      checkboxBorderColor: input.checkbox.border.color,
+    }),
+    ...(input.checkbox?.border?.width != null && {
+      checkboxBorderWidth: input.checkbox.border.width,
+    }),
+    ...(input.checkbox?.border?.radius != null && {
+      checkboxBorderRadius: input.checkbox.border.radius,
+    }),
     ...(input.checkbox?.margin?.top != null && { checkboxMarginTop: input.checkbox.margin.top }),
     ...(input.checkbox?.margin?.left != null && { checkboxMarginLeft: input.checkbox.margin.left }),
-    ...(input.checkbox?.margin?.right != null && { checkboxMarginRight: input.checkbox.margin.right }),
+    ...(input.checkbox?.margin?.right != null && {
+      checkboxMarginRight: input.checkbox.margin.right,
+    }),
     ...(input.checkbox?.tickChar != null && { checkboxTickChar: input.checkbox.tickChar }),
     ...(input.checkbox?.tickSize != null && { checkboxTickSize: input.checkbox.tickSize }),
     ...(input.checkbox?.tickColor != null && { checkboxTickColor: input.checkbox.tickColor }),

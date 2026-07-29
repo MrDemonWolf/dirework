@@ -1,11 +1,7 @@
 import Header from "@/components/header";
 import { VersionBadge } from "@/components/version-badge";
 
-export default function AppLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Plain worker vars surfaced through process.env by OpenNext — the web
   // worker has no @dirework/env/server (that module is cloudflare:workers +
   // D1 bindings owned by the api worker).
@@ -25,7 +21,10 @@ export default function AppLayout({
       </a>
       <Header />
       <main id="main">{children}</main>
-      <footer className="border-t border-border/40 py-4 text-center text-xs text-muted-foreground" suppressHydrationWarning>
+      <footer
+        className="border-t border-border/40 py-4 text-center text-xs text-muted-foreground"
+        suppressHydrationWarning
+      >
         <div className="flex flex-wrap items-center justify-center gap-x-3">
           <span>
             &copy; {new Date().getFullYear()}{" "}

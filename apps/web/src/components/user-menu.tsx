@@ -34,12 +34,7 @@ function Avatar({
 }) {
   return image ? (
     // biome-ignore lint/performance/noImgElement: Twitch-CDN avatar — next/image would need remotePatterns plus the Workers image optimizer; a plain img with no-referrer is smaller and safer.
-    <img
-      src={image}
-      alt=""
-      className={`${className} rounded-full`}
-      referrerPolicy="no-referrer"
-    />
+    <img src={image} alt="" className={`${className} rounded-full`} referrerPolicy="no-referrer" />
   ) : (
     <div
       aria-hidden
@@ -100,11 +95,7 @@ export default function UserMenu() {
         </div>
         <DropdownMenuSeparator />
         {menuLinks.map((item) => (
-          <DropdownMenuItem
-            key={item.href}
-            nativeButton={false}
-            render={<Link href={item.href} />}
-          >
+          <DropdownMenuItem key={item.href} nativeButton={false} render={<Link href={item.href} />}>
             <item.icon className="size-3.5" />
             {item.label}
           </DropdownMenuItem>

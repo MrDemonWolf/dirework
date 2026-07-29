@@ -6,9 +6,30 @@ import type { Task } from "../task-utils";
 describe("groupTasksByAuthor", () => {
   it("should group tasks by authorTwitchId", () => {
     const tasks: Task[] = [
-      { id: "1", authorTwitchId: "tw1", authorDisplayName: "Alice", authorColor: "#ff0000", text: "Task A", status: "pending" },
-      { id: "2", authorTwitchId: "tw1", authorDisplayName: "Alice", authorColor: "#ff0000", text: "Task B", status: "done" },
-      { id: "3", authorTwitchId: "tw2", authorDisplayName: "Bob", authorColor: "#00ff00", text: "Task C", status: "pending" },
+      {
+        id: "1",
+        authorTwitchId: "tw1",
+        authorDisplayName: "Alice",
+        authorColor: "#ff0000",
+        text: "Task A",
+        status: "pending",
+      },
+      {
+        id: "2",
+        authorTwitchId: "tw1",
+        authorDisplayName: "Alice",
+        authorColor: "#ff0000",
+        text: "Task B",
+        status: "done",
+      },
+      {
+        id: "3",
+        authorTwitchId: "tw2",
+        authorDisplayName: "Bob",
+        authorColor: "#00ff00",
+        text: "Task C",
+        status: "pending",
+      },
     ];
 
     const groups = groupTasksByAuthor(tasks);
@@ -21,8 +42,20 @@ describe("groupTasksByAuthor", () => {
 
   it("should fall back to authorDisplayName when authorTwitchId is missing", () => {
     const tasks: Task[] = [
-      { id: "1", authorDisplayName: "Charlie", authorColor: null, text: "Task A", status: "pending" },
-      { id: "2", authorDisplayName: "Charlie", authorColor: null, text: "Task B", status: "pending" },
+      {
+        id: "1",
+        authorDisplayName: "Charlie",
+        authorColor: null,
+        text: "Task A",
+        status: "pending",
+      },
+      {
+        id: "2",
+        authorDisplayName: "Charlie",
+        authorColor: null,
+        text: "Task B",
+        status: "pending",
+      },
     ];
 
     const groups = groupTasksByAuthor(tasks);
@@ -32,9 +65,30 @@ describe("groupTasksByAuthor", () => {
 
   it("should count pending and done correctly", () => {
     const tasks: Task[] = [
-      { id: "1", authorTwitchId: "tw1", authorDisplayName: "Alice", authorColor: null, text: "A", status: "pending" },
-      { id: "2", authorTwitchId: "tw1", authorDisplayName: "Alice", authorColor: null, text: "B", status: "done" },
-      { id: "3", authorTwitchId: "tw1", authorDisplayName: "Alice", authorColor: null, text: "C", status: "done" },
+      {
+        id: "1",
+        authorTwitchId: "tw1",
+        authorDisplayName: "Alice",
+        authorColor: null,
+        text: "A",
+        status: "pending",
+      },
+      {
+        id: "2",
+        authorTwitchId: "tw1",
+        authorDisplayName: "Alice",
+        authorColor: null,
+        text: "B",
+        status: "done",
+      },
+      {
+        id: "3",
+        authorTwitchId: "tw1",
+        authorDisplayName: "Alice",
+        authorColor: null,
+        text: "C",
+        status: "done",
+      },
     ];
 
     const groups = groupTasksByAuthor(tasks);
@@ -49,9 +103,30 @@ describe("groupTasksByAuthor", () => {
 
   it("should preserve task order within groups", () => {
     const tasks: Task[] = [
-      { id: "1", authorTwitchId: "tw1", authorDisplayName: "Alice", authorColor: null, text: "First", status: "pending" },
-      { id: "2", authorTwitchId: "tw1", authorDisplayName: "Alice", authorColor: null, text: "Second", status: "pending" },
-      { id: "3", authorTwitchId: "tw1", authorDisplayName: "Alice", authorColor: null, text: "Third", status: "pending" },
+      {
+        id: "1",
+        authorTwitchId: "tw1",
+        authorDisplayName: "Alice",
+        authorColor: null,
+        text: "First",
+        status: "pending",
+      },
+      {
+        id: "2",
+        authorTwitchId: "tw1",
+        authorDisplayName: "Alice",
+        authorColor: null,
+        text: "Second",
+        status: "pending",
+      },
+      {
+        id: "3",
+        authorTwitchId: "tw1",
+        authorDisplayName: "Alice",
+        authorColor: null,
+        text: "Third",
+        status: "pending",
+      },
     ];
 
     const groups = groupTasksByAuthor(tasks);
@@ -62,8 +137,22 @@ describe("groupTasksByAuthor", () => {
 
   it("should use first task's color and displayName for the group", () => {
     const tasks: Task[] = [
-      { id: "1", authorTwitchId: "tw1", authorDisplayName: "Alice", authorColor: "#ff0000", text: "A", status: "pending" },
-      { id: "2", authorTwitchId: "tw1", authorDisplayName: "ALICE", authorColor: "#00ff00", text: "B", status: "pending" },
+      {
+        id: "1",
+        authorTwitchId: "tw1",
+        authorDisplayName: "Alice",
+        authorColor: "#ff0000",
+        text: "A",
+        status: "pending",
+      },
+      {
+        id: "2",
+        authorTwitchId: "tw1",
+        authorDisplayName: "ALICE",
+        authorColor: "#00ff00",
+        text: "B",
+        status: "pending",
+      },
     ];
 
     const groups = groupTasksByAuthor(tasks);
@@ -73,9 +162,30 @@ describe("groupTasksByAuthor", () => {
 
   it("should treat non-done statuses as pending count", () => {
     const tasks: Task[] = [
-      { id: "1", authorTwitchId: "tw1", authorDisplayName: "Alice", authorColor: null, text: "A", status: "pending" },
-      { id: "2", authorTwitchId: "tw1", authorDisplayName: "Alice", authorColor: null, text: "B", status: "in_progress" },
-      { id: "3", authorTwitchId: "tw1", authorDisplayName: "Alice", authorColor: null, text: "C", status: "done" },
+      {
+        id: "1",
+        authorTwitchId: "tw1",
+        authorDisplayName: "Alice",
+        authorColor: null,
+        text: "A",
+        status: "pending",
+      },
+      {
+        id: "2",
+        authorTwitchId: "tw1",
+        authorDisplayName: "Alice",
+        authorColor: null,
+        text: "B",
+        status: "in_progress",
+      },
+      {
+        id: "3",
+        authorTwitchId: "tw1",
+        authorDisplayName: "Alice",
+        authorColor: null,
+        text: "C",
+        status: "done",
+      },
     ];
 
     const groups = groupTasksByAuthor(tasks);

@@ -66,15 +66,18 @@ export async function refreshBotToken(
 
   const now = Date.now();
   // Acquire the lease: only succeeds if unlocked or the previous lease expired.
-  const [leased] = await db.update(schema.botAccount)
+  const [leased] = await db
+    .update(schema.botAccount)
     .set({ refreshLockedUntil: new Date(now + REFRESH_LEASE_MS) })
-    .where(and(
-      eq(schema.botAccount.id, SINGLETON_ID),
-      or(
-        isNull(schema.botAccount.refreshLockedUntil),
-        lt(schema.botAccount.refreshLockedUntil, new Date(now)),
+    .where(
+      and(
+        eq(schema.botAccount.id, SINGLETON_ID),
+        or(
+          isNull(schema.botAccount.refreshLockedUntil),
+          lt(schema.botAccount.refreshLockedUntil, new Date(now)),
+        ),
       ),
-    ))
+    )
     .returning();
 
   if (!leased) {
@@ -104,13 +107,15 @@ export async function refreshBotToken(
 
     const data = (await res.json()) as TwitchTokenResponse;
 
-    const [updated] = await db.update(schema.botAccount)
+    const [updated] = await db
+      .update(schema.botAccount)
       .set({
         accessToken: data.access_token,
         refreshToken: data.refresh_token ?? account.refreshToken,
-        expiresAt: data.expires_in != null
-          ? new Date(Date.now() + data.expires_in * 1000)
-          : account.expiresAt,
+        expiresAt:
+          data.expires_in != null
+            ? new Date(Date.now() + data.expires_in * 1000)
+            : account.expiresAt,
         scopes: data.scope ?? account.scopes,
         refreshLockedUntil: null, // release the lease
       })
@@ -127,7 +132,8 @@ export async function refreshBotToken(
 /** Clear the refresh lease (best-effort — never throws over a failed refresh). */
 async function releaseRefreshLease(db: DbClient): Promise<void> {
   try {
-    await db.update(schema.botAccount)
+    await db
+      .update(schema.botAccount)
       .set({ refreshLockedUntil: null })
       .where(eq(schema.botAccount.id, SINGLETON_ID));
   } catch {
@@ -218,10 +224,7 @@ export async function getFreshChatToken(
  * Disconnect the bot account: best-effort revoke the access token at Twitch,
  * then delete the singleton row. Revocation failures never block deletion.
  */
-export async function disconnectBotAccount(
-  db: DbClient,
-  creds: TwitchCredentials,
-): Promise<void> {
+export async function disconnectBotAccount(db: DbClient, creds: TwitchCredentials): Promise<void> {
   const account = await db.query.botAccount.findFirst({
     columns: { accessToken: true },
   });

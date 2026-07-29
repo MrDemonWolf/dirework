@@ -140,9 +140,7 @@ export function TimerDisplay({
   const displayMs = isIdle ? (totalDuration ?? 0) : remaining;
 
   const { hours, minutes, seconds } = formatTime(displayMs, config.showHours);
-  const timeDisplay = config.showHours
-    ? `${hours}:${minutes}:${seconds}`
-    : `${minutes}:${seconds}`;
+  const timeDisplay = config.showHours ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
 
   const textShadow =
     config.text.outlineSize !== "0px"

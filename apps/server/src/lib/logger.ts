@@ -21,9 +21,13 @@ export interface RequestLog {
  * Build the log record from a raw request URL. The whole point is that only the
  * pathname survives — `new URL(url).pathname` strips `?code=…&state=…` etc.
  */
-export function buildRequestLog(
-  opts: { id: string; method: string; url: string; status: number; ms: number },
-): RequestLog {
+export function buildRequestLog(opts: {
+  id: string;
+  method: string;
+  url: string;
+  status: number;
+  ms: number;
+}): RequestLog {
   return {
     id: opts.id,
     method: opts.method,

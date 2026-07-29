@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { buildTimerConfig, buildTimerStylesConfig, buildTaskStylesConfig, buildBotConfig } from "../../config-shared";
+import {
+  buildTimerConfig,
+  buildTimerStylesConfig,
+  buildTaskStylesConfig,
+  buildBotConfig,
+} from "../../config-shared";
 
 describe("buildTimerConfig", () => {
   const fakeTimerConfig = {
@@ -208,8 +213,14 @@ describe("buildBotConfig", () => {
   it("exposes no timer message without an emit site (P1 dead-config guard)", () => {
     const result = buildBotConfig(fakeBotConfig);
     for (const removed of [
-      "workMsg", "breakMsg", "longBreakMsg", "workRemindMsg",
-      "streamStarting", "goalWrong", "finishResponse", "alreadyStarting",
+      "workMsg",
+      "breakMsg",
+      "longBreakMsg",
+      "workRemindMsg",
+      "streamStarting",
+      "goalWrong",
+      "finishResponse",
+      "alreadyStarting",
     ]) {
       expect(result.timer).not.toHaveProperty(removed);
     }

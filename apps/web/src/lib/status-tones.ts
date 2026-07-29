@@ -1,17 +1,23 @@
 import type { StatusTone } from "@/components/status-chip";
 
 export type TimerStatus =
-  | "idle" | "starting" | "work" | "break" | "longBreak" | "paused" | "finished";
+  | "idle"
+  | "starting"
+  | "work"
+  | "break"
+  | "longBreak"
+  | "paused"
+  | "finished";
 
 /** phase → chip tone + pulse. Pulse ONLY while time is actually elapsing. */
 export const TIMER_TONES: Record<TimerStatus, { tone: StatusTone; pulse: boolean }> = {
-  idle:      { tone: "idle",   pulse: false },
-  starting:  { tone: "accent", pulse: true  },
-  work:      { tone: "live",   pulse: true  },   // emerald = ON AIR
-  break:     { tone: "accent", pulse: true  },   // cerulean
-  longBreak: { tone: "alt",    pulse: true  },   // cornflower (new tone)
-  paused:    { tone: "warn",   pulse: false },   // amber, frozen — no pulse
-  finished:  { tone: "alt",    pulse: false },
+  idle: { tone: "idle", pulse: false },
+  starting: { tone: "accent", pulse: true },
+  work: { tone: "live", pulse: true }, // emerald = ON AIR
+  break: { tone: "accent", pulse: true }, // cerulean
+  longBreak: { tone: "alt", pulse: true }, // cornflower (new tone)
+  paused: { tone: "warn", pulse: false }, // amber, frozen — no pulse
+  finished: { tone: "alt", pulse: false },
 };
 
 /** Narrow an untrusted status string to a TimerStatus, falling back to idle. */

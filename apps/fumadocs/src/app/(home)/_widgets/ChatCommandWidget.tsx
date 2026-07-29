@@ -10,9 +10,19 @@ type Line =
 // Username colors are theme-aware CSS vars (defined in global.css) so they
 // clear WCAG AA on both the near-white and near-black chat panel.
 const LINES: Line[] = [
-  { kind: "cmd", user: "ada_codes", color: "var(--chat-user-1)", text: "!task write migration tests" },
+  {
+    kind: "cmd",
+    user: "ada_codes",
+    color: "var(--chat-user-1)",
+    text: "!task write migration tests",
+  },
   { kind: "bot", text: "@ada_codes added task #1 and set it as your focus ✅" },
-  { kind: "cmd", user: "pixel_pat", color: "var(--chat-user-2)", text: "!task sketch logo concepts" },
+  {
+    kind: "cmd",
+    user: "pixel_pat",
+    color: "var(--chat-user-2)",
+    text: "!task sketch logo concepts",
+  },
   { kind: "cmd", user: "ada_codes", color: "var(--chat-user-1)", text: "!done" },
   { kind: "bot", text: "@ada_codes nice — task #1 complete 🎉" },
   { kind: "cmd", user: "night_owl", color: "var(--chat-user-3)", text: "!timer eta" },

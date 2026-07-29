@@ -4,19 +4,14 @@ import { describe, expect, it } from "vitest";
 
 import { FONT_OPTIONS } from "../overlay-font-options";
 
-const fontsCss = readFileSync(
-  path.join(__dirname, "../../../public/fonts/fonts.css"),
-  "utf8",
-);
+const fontsCss = readFileSync(path.join(__dirname, "../../../public/fonts/fonts.css"), "utf8");
 
 describe("self-hosted overlay fonts", () => {
   // Guards the picker ↔ public/fonts drift: adding a family to FONT_OPTIONS
   // without re-running `bun run fetch-fonts` would silently fall back again.
   it("ships an @font-face for every picker option", () => {
     for (const family of FONT_OPTIONS) {
-      expect(fontsCss, `missing @font-face for "${family}"`).toContain(
-        `font-family: "${family}";`,
-      );
+      expect(fontsCss, `missing @font-face for "${family}"`).toContain(`font-family: "${family}";`);
     }
   });
 

@@ -22,13 +22,7 @@ function clampRadius(w: number, h: number, r: number): number {
  * Build a rounded-rectangle SVG path starting from top-center, going clockwise.
  * This gives us a continuous path we can use with strokeDasharray for progress.
  */
-export function roundedRectPath(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-): string {
+export function roundedRectPath(x: number, y: number, w: number, h: number, r: number): string {
   r = clampRadius(w, h, r);
   // Start at top-center, draw clockwise
   return [

@@ -90,9 +90,7 @@ function OverlayMonitor({
             </Button>
           </div>
         )}
-        {caption && (
-          <span className="console-label absolute right-2 bottom-1.5">{caption}</span>
-        )}
+        {caption && <span className="console-label absolute right-2 bottom-1.5">{caption}</span>}
       </div>
     </div>
   );
@@ -166,9 +164,7 @@ function OverlayUrlRow({
         tabIndex={revealed ? undefined : -1}
         aria-label={revealed ? `${label} URL` : undefined}
       />
-      {!revealed && (
-        <span className="sr-only">{`${label} URL hidden — press Show to reveal`}</span>
-      )}
+      {!revealed && <span className="sr-only">{`${label} URL hidden — press Show to reveal`}</span>}
       <Button
         variant="outline"
         size="icon"
@@ -219,11 +215,7 @@ function OverlayUrlRow({
   );
 }
 
-export default function Dashboard({
-  session,
-}: {
-  session: typeof authClient.$Infer.Session;
-}) {
+export default function Dashboard({ session }: { session: typeof authClient.$Infer.Session }) {
   const queryClient = useQueryClient();
   const user = useQuery(trpc.user.me.queryOptions());
 
@@ -320,7 +312,10 @@ export default function Dashboard({
           {user.data && (
             <div className="space-y-2 border-t border-border/40 px-5 py-4">
               <ConsoleRule label="Timer overlay URL" className="flex items-center">
-                <SizeChip size="300 × 300" hint="Square OBS browser source — the timer scales to fill it" />
+                <SizeChip
+                  size="300 × 300"
+                  hint="Square OBS browser source — the timer scales to fill it"
+                />
               </ConsoleRule>
               <OverlayUrlRow
                 label="Timer overlay"
@@ -364,7 +359,10 @@ export default function Dashboard({
           {user.data && (
             <div className="space-y-2 border-t border-border/40 px-5 py-4">
               <ConsoleRule label="Tasks overlay URL" className="flex items-center">
-                <SizeChip size="700 × 800" hint="OBS browser source — the list fills it and scrolls when tasks overflow" />
+                <SizeChip
+                  size="700 × 800"
+                  hint="OBS browser source — the list fills it and scrolls when tasks overflow"
+                />
               </ConsoleRule>
               <OverlayUrlRow
                 label="Tasks overlay"

@@ -2,15 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Copy,
-  ExternalLink,
-  Eye,
-  EyeOff,
-  MonitorPlay,
-  RefreshCw,
-  Unplug,
-} from "lucide-react";
+import { Copy, ExternalLink, Eye, EyeOff, MonitorPlay, RefreshCw, Unplug } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
@@ -33,10 +25,7 @@ import { TwitchIcon } from "@/components/icons/twitch-icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusChip } from "@/components/status-chip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  taskMessageFields,
-  timerMessageFields,
-} from "@/components/bot-settings/message-editor";
+import { taskMessageFields, timerMessageFields } from "@/components/bot-settings/message-editor";
 import {
   CommandTabPanel,
   knownAliasTargets,
@@ -161,10 +150,7 @@ function BotConsoleCard({
           {botName ?? "Bot console"}
         </CardTitle>
         <CardAction>
-          <StatusChip
-            tone={ready ? "accent" : "idle"}
-            label={ready ? "Ready" : "Not set up"}
-          />
+          <StatusChip tone={ready ? "accent" : "idle"} label={ready ? "Ready" : "Not set up"} />
         </CardAction>
         <CardDescription>
           The bot runs inside a browser page — it chats while the page stays open.
@@ -245,9 +231,7 @@ function BotConsoleCard({
               <Button
                 size="sm"
                 nativeButton={false}
-                render={
-                  <a href={botUrl || "#"} target="_blank" rel="noopener noreferrer" />
-                }
+                render={<a href={botUrl || "#"} target="_blank" rel="noopener noreferrer" />}
                 disabled={!botUrl}
               >
                 <ExternalLink className="size-3.5" />
@@ -258,9 +242,8 @@ function BotConsoleCard({
             <div className="panel-inset flex items-start gap-2.5 p-3">
               <MonitorPlay className="mt-0.5 size-4 shrink-0 text-primary" />
               <p className="text-xs/relaxed text-muted-foreground">
-                Add the URL as an OBS browser source or keep the tab pinned — the bot listens
-                while this page is open. The URL contains a secret token, so treat it like a
-                stream key.
+                Add the URL as an OBS browser source or keep the tab pinned — the bot listens while
+                this page is open. The URL contains a secret token, so treat it like a stream key.
               </p>
             </div>
           </>
@@ -300,8 +283,10 @@ export default function BotSettingsPage() {
   // Saved state (for reset)
   const [savedTaskCommandsEnabled, setSavedTaskCommandsEnabled] = useState(true);
   const [savedTimerCommandsEnabled, setSavedTimerCommandsEnabled] = useState(true);
-  const [savedTaskMessages, setSavedTaskMessages] = useState<TaskMessagesConfig>(DEFAULT_TASK_MESSAGES);
-  const [savedTimerMessages, setSavedTimerMessages] = useState<TimerMessagesConfig>(DEFAULT_TIMER_MESSAGES);
+  const [savedTaskMessages, setSavedTaskMessages] =
+    useState<TaskMessagesConfig>(DEFAULT_TASK_MESSAGES);
+  const [savedTimerMessages, setSavedTimerMessages] =
+    useState<TimerMessagesConfig>(DEFAULT_TIMER_MESSAGES);
   const [savedAliasRows, setSavedAliasRows] = useState<AliasRow[]>([]);
 
   // Once config loads, extract values
@@ -385,7 +370,9 @@ export default function BotSettingsPage() {
   const handleSave = useCallback(async () => {
     const { aliases, duplicates } = rowsToAliases(aliasRows);
     if (duplicates.length > 0) {
-      toast.error(`Duplicate ${duplicates.length === 1 ? "alias" : "aliases"}: ${duplicates.join(", ")} — rename or remove before saving.`);
+      toast.error(
+        `Duplicate ${duplicates.length === 1 ? "alias" : "aliases"}: ${duplicates.join(", ")} — rename or remove before saving.`,
+      );
       return;
     }
 
@@ -429,8 +416,7 @@ export default function BotSettingsPage() {
   const aliasDirty =
     aliasRows.length !== savedAliasRows.length ||
     aliasRows.some(
-      (row, i) =>
-        row.key !== savedAliasRows[i]?.key || row.value !== savedAliasRows[i]?.value,
+      (row, i) => row.key !== savedAliasRows[i]?.key || row.value !== savedAliasRows[i]?.value,
     );
 
   // Single source of truth: the guard + save bar derive from the same
@@ -488,7 +474,9 @@ export default function BotSettingsPage() {
                     <p className="text-sm">
                       Connected as <span className="font-medium">{botAccount.displayName}</span>
                     </p>
-                    <p className="font-mono text-xs text-muted-foreground">@{botAccount.username}</p>
+                    <p className="font-mono text-xs text-muted-foreground">
+                      @{botAccount.username}
+                    </p>
                   </div>
                   <ConfirmDialog
                     trigger={
@@ -511,9 +499,9 @@ export default function BotSettingsPage() {
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    No bot account connected yet. Sign in with the account the bot should chat
-                    from — most streamers use a separate second account so replies don&apos;t post
-                    as them.
+                    No bot account connected yet. Sign in with the account the bot should chat from
+                    — most streamers use a separate second account so replies don&apos;t post as
+                    them.
                   </p>
                   <Button
                     size="sm"
@@ -552,9 +540,7 @@ export default function BotSettingsPage() {
                     aria-label={taskDirty ? "Task commands (unsaved changes)" : undefined}
                   >
                     Task commands
-                    {taskDirty && (
-                      <span aria-hidden className="size-1.5 rounded-full bg-warning" />
-                    )}
+                    {taskDirty && <span aria-hidden className="size-1.5 rounded-full bg-warning" />}
                   </TabsTrigger>
                   <TabsTrigger
                     value="timer"
@@ -623,12 +609,7 @@ export default function BotSettingsPage() {
       </div>
 
       {/* Sticky Save / Reset Bar */}
-      <SaveBar
-        visible={hasUnsaved}
-        saving={isSaving}
-        onSave={handleSave}
-        onReset={handleReset}
-      />
+      <SaveBar visible={hasUnsaved} saving={isSaving} onSave={handleSave} onReset={handleReset} />
     </div>
   );
 }

@@ -106,7 +106,9 @@ describe("authentication (appRouter)", () => {
   });
 
   it("leaves genuinely public procedures reachable", async () => {
-    const { caller: anon } = caller(null, { instanceConfig: { overlayTimerToken: "t".repeat(32) } });
+    const { caller: anon } = caller(null, {
+      instanceConfig: { overlayTimerToken: "t".repeat(32) },
+    });
     // A wrong overlay token resolves null (OBS renders blank) rather than throwing.
     await expect(anon.overlay.getTimerState({ token: "x".repeat(32) })).resolves.toBeNull();
   });
@@ -122,9 +124,9 @@ describe("authorization — non-owner cannot read secrets or mutate (P1.9)", () 
   it("blocks a non-owner from rotating tokens", async () => {
     const { caller: rando, updated } = caller(nonOwnerSession);
     await expect(rando.bot.regenerateBotToken()).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(
-      rando.user.regenerateOverlayToken({ type: "timer" }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(rando.user.regenerateOverlayToken({ type: "timer" })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
     expect(updated).toHaveLength(0);
   });
 
@@ -140,9 +142,9 @@ describe("authorization — non-owner cannot read secrets or mutate (P1.9)", () 
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(rando.timer.reset()).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(rando.task.clearAll()).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(
-      rando.config.updateTimerConfig({ workDuration: 60_000 }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(rando.config.updateTimerConfig({ workDuration: 60_000 })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
 
     // Nothing reached the database.
     expect(inserted).toHaveLength(0);
@@ -248,17 +250,17 @@ describe("error behaviour", () => {
     const { caller: anon } = caller(null, {
       instanceConfig: { botToken: "b".repeat(32) },
     });
-    await expect(
-      anon.bot.getSession({ token: "z".repeat(32) }),
-    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(anon.bot.getSession({ token: "z".repeat(32) })).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
   });
 
   it("bot.ingest rejects clearchat without a target username", async () => {
     const token = "b".repeat(32);
     const { caller: anon } = caller(null, { instanceConfig: { botToken: token } });
-    await expect(
-      anon.bot.ingest({ token, kind: "clearchat" }),
-    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(anon.bot.ingest({ token, kind: "clearchat" })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
   });
 
   it("does not leak the stored token value in the rejection", async () => {

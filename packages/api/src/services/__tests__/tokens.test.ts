@@ -68,11 +68,15 @@ describe("verifyOverlayToken", () => {
 
 describe("verifyBotToken", () => {
   it("accepts the matching bot token", async () => {
-    expect(await verifyBotToken(makeDb({ botToken: "bot-token-12345" }), "bot-token-12345")).toBe(true);
+    expect(await verifyBotToken(makeDb({ botToken: "bot-token-12345" }), "bot-token-12345")).toBe(
+      true,
+    );
   });
 
   it("rejects a mismatched bot token", async () => {
-    expect(await verifyBotToken(makeDb({ botToken: "bot-token-12345" }), "other-token-123")).toBe(false);
+    expect(await verifyBotToken(makeDb({ botToken: "bot-token-12345" }), "other-token-123")).toBe(
+      false,
+    );
   });
 
   it("rejects when no instance config row exists", async () => {

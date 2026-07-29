@@ -20,10 +20,38 @@ const MOCK_DURATION = TIMER_CONFIG_DEFAULTS.workDuration; // one focus phase
 const DEFAULT_PAUSED_REMAINING = TIMER_CONFIG_DEFAULTS.longBreakDuration; // frozen preview
 
 const mockTasks = [
-  { id: "1", authorTwitchId: "1001", authorDisplayName: "StreamerWolf", authorColor: null, text: "Fix the auth flow for bot accounts", status: "pending" },
-  { id: "2", authorTwitchId: "1002", authorDisplayName: "ViewerFox", authorColor: "#ff6b35", text: "Review the PR for overlay updates", status: "pending" },
-  { id: "3", authorTwitchId: "1002", authorDisplayName: "ViewerFox", authorColor: "#ff6b35", text: "Update the README docs", status: "pending" },
-  { id: "4", authorTwitchId: "1003", authorDisplayName: "CozyBear", authorColor: "#2dd4bf", text: "Write unit tests for timer", status: "done" },
+  {
+    id: "1",
+    authorTwitchId: "1001",
+    authorDisplayName: "StreamerWolf",
+    authorColor: null,
+    text: "Fix the auth flow for bot accounts",
+    status: "pending",
+  },
+  {
+    id: "2",
+    authorTwitchId: "1002",
+    authorDisplayName: "ViewerFox",
+    authorColor: "#ff6b35",
+    text: "Review the PR for overlay updates",
+    status: "pending",
+  },
+  {
+    id: "3",
+    authorTwitchId: "1002",
+    authorDisplayName: "ViewerFox",
+    authorColor: "#ff6b35",
+    text: "Update the README docs",
+    status: "pending",
+  },
+  {
+    id: "4",
+    authorTwitchId: "1003",
+    authorDisplayName: "CozyBear",
+    authorColor: "#2dd4bf",
+    text: "Write unit tests for timer",
+    status: "done",
+  },
 ];
 
 function timerPreviewConfig(styles: TimerStylesConfig, labels: PhaseLabelsConfig) {
@@ -39,18 +67,22 @@ type Backdrop = "dark" | "light" | "checker";
 // Literal backdrop colors are sanctioned here — they simulate external OBS
 // scene content behind the overlay, not app chrome.
 const backdrops: { id: Backdrop; label: string; className: string; swatch: string }[] = [
-  { id: "dark", label: "Dark backdrop", className: "bg-[oklch(0.14_0.035_262)] bg-grain", swatch: "bg-[oklch(0.14_0.035_262)]" },
-  { id: "light", label: "Light backdrop", className: "bg-zinc-100 bg-grain", swatch: "bg-zinc-100" },
+  {
+    id: "dark",
+    label: "Dark backdrop",
+    className: "bg-[oklch(0.14_0.035_262)] bg-grain",
+    swatch: "bg-[oklch(0.14_0.035_262)]",
+  },
+  {
+    id: "light",
+    label: "Light backdrop",
+    className: "bg-zinc-100 bg-grain",
+    swatch: "bg-zinc-100",
+  },
   { id: "checker", label: "Checkerboard backdrop", className: "bg-checker", swatch: "bg-checker" },
 ];
 
-function BackdropToggle({
-  value,
-  onChange,
-}: {
-  value: Backdrop;
-  onChange: (v: Backdrop) => void;
-}) {
+function BackdropToggle({ value, onChange }: { value: Backdrop; onChange: (v: Backdrop) => void }) {
   // Plain aria-pressed toggles — the old role="radiogroup" promised
   // arrow-key navigation it never implemented (worse than no semantics).
   return (
@@ -108,7 +140,13 @@ export function StylePreviewPanel({
 
   const timerState = targetEndTime
     ? { status: "work", targetEndTime, pausedWithRemaining: null, currentCycle: 2, totalCycles: 4 }
-    : { status: "paused", targetEndTime: null, pausedWithRemaining: pausedRemaining, currentCycle: 2, totalCycles: 4 };
+    : {
+        status: "paused",
+        targetEndTime: null,
+        pausedWithRemaining: pausedRemaining,
+        currentCycle: 2,
+        totalCycles: 4,
+      };
 
   const canvasClass = backdrops.find((b) => b.id === backdrop)!.className;
 
@@ -170,15 +208,13 @@ export function StylePreviewPanel({
 
         {/* Task List Preview */}
         <ConsoleRule label="Task list" />
-        <div
-          className={cn(
-            "panel-inset relative overflow-hidden p-4",
-            canvasClass,
-          )}
-        >
+        <div className={cn("panel-inset relative overflow-hidden p-4", canvasClass)}>
           {/* 700 × 800 keeps the preview at the recommended OBS aspect so the
               streamer sees roughly what the browser source will show. */}
-          <div className="mx-auto" style={{ width: "100%", maxWidth: "360px", aspectRatio: "700 / 800" }}>
+          <div
+            className="mx-auto"
+            style={{ width: "100%", maxWidth: "360px", aspectRatio: "700 / 800" }}
+          >
             <TaskListDisplay config={taskStyles} tasks={mockTasks} />
           </div>
           <span className="console-label absolute right-2 bottom-1.5">700 × 800</span>

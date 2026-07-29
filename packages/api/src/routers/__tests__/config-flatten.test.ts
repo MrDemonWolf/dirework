@@ -68,7 +68,13 @@ describe("flattenTimerStyles", () => {
 describe("flattenTaskStyles", () => {
   it("should flatten full input to all expected fields", () => {
     const result = flattenTaskStyles({
-      display: { showDone: true, showCount: true, useCheckboxes: true, crossOnDone: false, numberOfLines: 3 },
+      display: {
+        showDone: true,
+        showCount: true,
+        useCheckboxes: true,
+        crossOnDone: false,
+        numberOfLines: 3,
+      },
       fonts: { header: "Montserrat", body: "Roboto" },
       scroll: { enabled: true, pixelsPerSecond: 70, gapBetweenLoops: 100 },
       header: {

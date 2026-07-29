@@ -24,12 +24,7 @@ const STATE_COOKIE = "bot_oauth_nonce";
  * reconnect. Bot accounts connected before chat:read/chat:edit were added
  * must be reconnected to pick up the new scopes.
  */
-const BOT_SCOPES = [
-  "chat:read",
-  "chat:edit",
-  "user:read:chat",
-  "user:write:chat",
-] as const;
+const BOT_SCOPES = ["chat:read", "chat:edit", "user:read:chat", "user:write:chat"] as const;
 
 interface TwitchTokenResponse {
   access_token: string;
@@ -63,8 +58,7 @@ function encodeState(payload: { userId: string; nonce: string }): string {
 function decodeState(state: string): { userId: string; nonce: string } | null {
   try {
     const base64 =
-      state.replace(/-/g, "+").replace(/_/g, "/") +
-      "=".repeat((4 - (state.length % 4)) % 4);
+      state.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (state.length % 4)) % 4);
     const binary = atob(base64);
     const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
     const decoded: unknown = JSON.parse(new TextDecoder().decode(bytes));

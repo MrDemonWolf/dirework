@@ -4,10 +4,6 @@
  * layout's <html>/<body>; it only pins the dark instrument-panel background
  * so the page never flashes the app theme.
  */
-export default function BotLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function BotLayout({ children }: { children: React.ReactNode }) {
   return <div className="min-h-dvh bg-zinc-950">{children}</div>;
 }

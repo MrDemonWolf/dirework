@@ -4,7 +4,11 @@
  * apps/web/src/components/task-list-display.tsx + groupTasksByAuthor().
  */
 
-import { OVERLAY_THEMES, DEFAULT_OVERLAY_THEME, type OverlayTheme } from "./overlay-themes.generated";
+import {
+  OVERLAY_THEMES,
+  DEFAULT_OVERLAY_THEME,
+  type OverlayTheme,
+} from "./overlay-themes.generated";
 import { authorPalette, hexToRgba } from "./theme-util";
 
 type Task = { text: string; done: boolean };

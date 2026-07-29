@@ -423,12 +423,7 @@ export class TwitchIrcClient {
 
   private flushOne(): void {
     if (this.sendQueue.length === 0) return;
-    if (
-      !this.creds ||
-      !this.joined ||
-      !this.ws ||
-      this.ws.readyState !== WebSocket.OPEN
-    ) {
+    if (!this.creds || !this.joined || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
       // Not ready — keep the queue; the 001 handler re-schedules on rejoin.
       return;
     }

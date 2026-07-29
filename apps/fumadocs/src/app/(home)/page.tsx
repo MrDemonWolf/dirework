@@ -81,9 +81,7 @@ function SectionHead({
         <Kicker num={num}>{eyebrow}</Kicker>
       </div>
       <h2 className="dw-display dw-text-1 text-4xl sm:text-5xl mt-5">{title}</h2>
-      {sub ? (
-        <p className="dw-text-2 text-lg sm:text-xl mt-5 leading-relaxed">{sub}</p>
-      ) : null}
+      {sub ? <p className="dw-text-2 text-lg sm:text-xl mt-5 leading-relaxed">{sub}</p> : null}
     </div>
   );
 }
@@ -98,14 +96,15 @@ function TimerModuleMock() {
       <Chip tone="live" pulse>
         Focus
       </Chip>
-      <p className="dw-display dw-text-1 text-6xl font-bold tabular-nums tracking-tight">
-        18:32
-      </p>
+      <p className="dw-display dw-text-1 text-6xl font-bold tabular-nums tracking-tight">18:32</p>
       <div className="flex items-center gap-2">
         <span className="size-2 rounded-full" style={{ background: "var(--phase-work)" }} />
         <span
           className="size-2 rounded-full"
-          style={{ background: "var(--phase-work)", boxShadow: "0 0 0 3px color-mix(in srgb, var(--phase-work) 25%, transparent)" }}
+          style={{
+            background: "var(--phase-work)",
+            boxShadow: "0 0 0 3px color-mix(in srgb, var(--phase-work) 25%, transparent)",
+          }}
         />
         <span className="size-2 rounded-full border" style={{ borderColor: "var(--hairline)" }} />
         <span className="size-2 rounded-full border" style={{ borderColor: "var(--hairline)" }} />
@@ -181,20 +180,25 @@ export default function HomePage() {
           <div className="mx-auto max-w-6xl grid lg:grid-cols-[1.05fr_0.95fr] gap-12 lg:gap-16 items-center">
             <div className="text-center lg:text-left">
               <h1 className="dw-reveal dw-reveal-1 dw-hero-headline dw-text-1">
-                Focus together,{" "}
-                <span className="dw-text-brand">stream better.</span>
+                Focus together, <span className="dw-text-brand">stream better.</span>
               </h1>
               <p className="dw-reveal dw-reveal-2 dw-text-2 text-lg sm:text-xl mt-5 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                A co-working Pomodoro timer and shared task list for your Twitch stream.
-                You run the timer, your chat runs the tasks, and OBS shows it all — on
-                your own Cloudflare account, no SaaS in the middle.
+                A co-working Pomodoro timer and shared task list for your Twitch stream. You run the
+                timer, your chat runs the tasks, and OBS shows it all — on your own Cloudflare
+                account, no SaaS in the middle.
               </p>
               <div className="dw-reveal dw-reveal-3 mt-7 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3">
-                <Link href="/docs/getting-started" className="dw-btn dw-btn-primary w-full justify-center sm:w-auto">
+                <Link
+                  href="/docs/getting-started"
+                  className="dw-btn dw-btn-primary w-full justify-center sm:w-auto"
+                >
                   <Terminal className="w-4 h-4" />
                   Get Started
                 </Link>
-                <Link href="/docs" className="dw-btn dw-btn-secondary w-full justify-center sm:w-auto">
+                <Link
+                  href="/docs"
+                  className="dw-btn dw-btn-secondary w-full justify-center sm:w-auto"
+                >
                   Read the docs
                   <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -305,13 +309,12 @@ export default function HomePage() {
               Chat is the control panel.
             </h2>
             <p className="dw-text-2 text-lg mt-5 leading-relaxed">
-              Viewers run their own tasks with{" "}
-              <code className="dw-mono dw-text-1">!task</code>,{" "}
+              Viewers run their own tasks with <code className="dw-mono dw-text-1">!task</code>,{" "}
               <code className="dw-mono dw-text-1">!done</code>, and{" "}
-              <code className="dw-mono dw-text-1">!focus</code>. Mods drive the timer
-              with <code className="dw-mono dw-text-1">!timer start</code>. Every
-              command is aliasable and every reply is yours to reword. The bot runs from a
-              private browser page you keep open in OBS or a pinned tab — no extra software to run.
+              <code className="dw-mono dw-text-1">!focus</code>. Mods drive the timer with{" "}
+              <code className="dw-mono dw-text-1">!timer start</code>. Every command is aliasable
+              and every reply is yours to reword. The bot runs from a private browser page you keep
+              open in OBS or a pinned tab — no extra software to run.
             </p>
             <Link
               href="/docs/chat-commands"
@@ -338,11 +341,10 @@ export default function HomePage() {
               Transparent. Live. Zero refresh.
             </h2>
             <p className="dw-text-2 text-lg mt-5 leading-relaxed">
-              Two transparent browser sources — a timer and a task list — for OBS.
-              Each checks for changes every few seconds, so a{" "}
-              <code className="dw-mono dw-text-1">!done</code> in chat lands on screen
-              in about three seconds — and the countdown ticks smoothly on the overlay
-              itself. Start from one of six presets and tune every color, font, size, and
+              Two transparent browser sources — a timer and a task list — for OBS. Each checks for
+              changes every few seconds, so a <code className="dw-mono dw-text-1">!done</code> in
+              chat lands on screen in about three seconds — and the countdown ticks smoothly on the
+              overlay itself. Start from one of six presets and tune every color, font, size, and
               corner radius — pick a theme to preview it live.
             </p>
             <Link
@@ -359,7 +361,11 @@ export default function HomePage() {
       {/* ═══════════════ FEATURES GRID ═══════════════ */}
       <section id="features" className="dw-bg-base px-6 py-14 sm:py-20 lg:py-28 scroll-mt-16">
         <div className="mx-auto max-w-6xl">
-          <SectionHead num="04" eyebrow="What's in the box" title={<>Everything a focus stream needs.</>} />
+          <SectionHead
+            num="04"
+            eyebrow="What's in the box"
+            title={<>Everything a focus stream needs.</>}
+          />
           <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
               {
@@ -438,10 +444,25 @@ export default function HomePage() {
                 </thead>
                 <tbody>
                   {[
-                    { feature: "Pomodoro + per-viewer task list, built in", a: "yes", b: "partial", c: "partial" },
-                    { feature: "Live overlays, zero refresh", a: "yes", b: "partial", c: "partial" },
+                    {
+                      feature: "Pomodoro + per-viewer task list, built in",
+                      a: "yes",
+                      b: "partial",
+                      c: "partial",
+                    },
+                    {
+                      feature: "Live overlays, zero refresh",
+                      a: "yes",
+                      b: "partial",
+                      c: "partial",
+                    },
                     { feature: "Runs serverless — no always-on PC", a: "yes", b: "no", c: "yes" },
-                    { feature: "Setup on Mac & Linux, not Windows-only", a: "yes", b: "partial", c: "yes" },
+                    {
+                      feature: "Setup on Mac & Linux, not Windows-only",
+                      a: "yes",
+                      b: "partial",
+                      c: "yes",
+                    },
                     { feature: "Own your data & instance", a: "yes", b: "yes", c: "no" },
                     { feature: "Free to run", a: "yes", b: "yes", c: "partial" },
                     { feature: "Fully themeable overlays", a: "yes", b: "partial", c: "partial" },
@@ -449,12 +470,22 @@ export default function HomePage() {
                   ].map((row, i, arr) => (
                     <tr
                       key={row.feature}
-                      style={i < arr.length - 1 ? { borderBottom: "1px solid var(--hairline)" } : undefined}
+                      style={
+                        i < arr.length - 1
+                          ? { borderBottom: "1px solid var(--hairline)" }
+                          : undefined
+                      }
                     >
                       <td className="py-4 pr-4 dw-text-1">{row.feature}</td>
-                      <td className="py-4 px-3"><CompareCell state={row.a as CellState} /></td>
-                      <td className="py-4 px-3"><CompareCell state={row.b as CellState} /></td>
-                      <td className="py-4 pl-3"><CompareCell state={row.c as CellState} /></td>
+                      <td className="py-4 px-3">
+                        <CompareCell state={row.a as CellState} />
+                      </td>
+                      <td className="py-4 px-3">
+                        <CompareCell state={row.b as CellState} />
+                      </td>
+                      <td className="py-4 pl-3">
+                        <CompareCell state={row.c as CellState} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -470,13 +501,42 @@ export default function HomePage() {
           </p>
           <p className="mx-auto mt-3 max-w-2xl text-center text-xs dw-text-2 leading-relaxed">
             Not sold on hosting a whole app? Honest alternatives worth a look:{" "}
-            <a href="https://firebot.app" target="_blank" rel="noopener noreferrer" className="dw-text-brand font-medium">Firebot</a>{" "}
+            <a
+              href="https://firebot.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="dw-text-brand font-medium"
+            >
+              Firebot
+            </a>{" "}
             and{" "}
-            <a href="https://mixitupapp.com" target="_blank" rel="noopener noreferrer" className="dw-text-brand font-medium">Mix It Up</a>{" "}
+            <a
+              href="https://mixitupapp.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="dw-text-brand font-medium"
+            >
+              Mix It Up
+            </a>{" "}
             (all-in-one bots), or single-purpose OBS overlays like{" "}
-            <a href="https://github.com/jujoco/twitch-multitask-task-list-overlay" target="_blank" rel="noopener noreferrer" className="dw-text-brand font-medium">jujoco&apos;s task list</a>{" "}
+            <a
+              href="https://github.com/jujoco/twitch-multitask-task-list-overlay"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="dw-text-brand font-medium"
+            >
+              jujoco&apos;s task list
+            </a>{" "}
             and{" "}
-            <a href="https://github.com/unfloned/pomodoro-twitch-overlay" target="_blank" rel="noopener noreferrer" className="dw-text-brand font-medium">unfloned&apos;s pomodoro</a>.
+            <a
+              href="https://github.com/unfloned/pomodoro-twitch-overlay"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="dw-text-brand font-medium"
+            >
+              unfloned&apos;s pomodoro
+            </a>
+            .
           </p>
         </div>
       </section>
@@ -527,7 +587,11 @@ bun run dev   # web :3001 · api :3000 · docs :4000`}</pre>
                   "Alchemy IaC + GitHub Actions deploy",
                 ].map((item) => (
                   <li key={item} className="flex gap-2.5">
-                    <Check className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "var(--brand-500)" }} aria-hidden="true" />
+                    <Check
+                      className="w-4 h-4 mt-0.5 shrink-0"
+                      style={{ color: "var(--brand-500)" }}
+                      aria-hidden="true"
+                    />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -537,9 +601,27 @@ bun run dev   # web :3001 · api :3000 · docs :4000`}</pre>
 
           <div className="mt-8 grid sm:grid-cols-3 gap-4">
             {[
-              { icon: BookOpen, title: "Environment variables", body: "Every var explained, with safe defaults.", href: "/docs/environment-variables", external: false },
-              { icon: Cloud, title: "Deployment", body: "Cloudflare Workers + D1 via Alchemy, step by step.", href: "/docs/deployment", external: false },
-              { icon: Github, title: "GitHub", body: "Star the repo, open an issue, or send a PR.", href: GITHUB, external: true },
+              {
+                icon: BookOpen,
+                title: "Environment variables",
+                body: "Every var explained, with safe defaults.",
+                href: "/docs/environment-variables",
+                external: false,
+              },
+              {
+                icon: Cloud,
+                title: "Deployment",
+                body: "Cloudflare Workers + D1 via Alchemy, step by step.",
+                href: "/docs/deployment",
+                external: false,
+              },
+              {
+                icon: Github,
+                title: "GitHub",
+                body: "Star the repo, open an issue, or send a PR.",
+                href: GITHUB,
+                external: true,
+              },
             ].map(({ icon: Icon, title, body, href, external }) => {
               const inner = (
                 // biome-ignore lint/correctness/useJsxKeyInIterable: held in a local, not the mapped element — keys live on the a/Link returned below.
@@ -554,7 +636,10 @@ bun run dev   # web :3001 · api :3000 · docs :4000`}</pre>
                     <h3 className="dw-display dw-text-1 text-lg mb-1">
                       {title}
                       {external && (
-                        <ExternalLink className="dw-text-2 ml-1 inline size-3.5 align-[-0.1em]" aria-hidden />
+                        <ExternalLink
+                          className="dw-text-2 ml-1 inline size-3.5 align-[-0.1em]"
+                          aria-hidden
+                        />
                       )}
                     </h3>
                     <p className="dw-text-2 text-sm leading-relaxed">{body}</p>
@@ -563,7 +648,14 @@ bun run dev   # web :3001 · api :3000 · docs :4000`}</pre>
               );
               const cn = "dw-card dw-card-hover panel block";
               return external ? (
-                <a key={title} href={href} target="_blank" rel="noopener noreferrer" aria-label={`${title} (opens in a new tab)`} className={cn}>
+                <a
+                  key={title}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${title} (opens in a new tab)`}
+                  className={cn}
+                >
                   {inner}
                 </a>
               ) : (
@@ -579,14 +671,19 @@ bun run dev   # web :3001 · api :3000 · docs :4000`}</pre>
       {/* ═══════════════ FAQ ═══════════════ */}
       <section id="faq" className="dw-bg-surface px-6 py-14 sm:py-20 lg:py-28 scroll-mt-16">
         <div className="mx-auto max-w-3xl">
-          <SectionHead num="07" eyebrow="Questions, answered" title={<>Anything else?</>} sub="Short answers here. Longer ones live in the docs." />
+          <SectionHead
+            num="07"
+            eyebrow="Questions, answered"
+            title={<>Anything else?</>}
+            sub="Short answers here. Longer ones live in the docs."
+          />
           <div className="mt-12 space-y-3">
             <FaqRow
               q="Do I need to host it myself?"
               a={
                 <>
-                  Yes — Dirework is self-hosted, one instance per streamer. That&apos;s
-                  the trade for owning your data and never hitting a paywall. The{" "}
+                  Yes — Dirework is self-hosted, one instance per streamer. That&apos;s the trade
+                  for owning your data and never hitting a paywall. The{" "}
                   <Link href="/docs/deployment" className="dw-text-brand font-semibold">
                     deployment guide
                   </Link>{" "}
@@ -596,15 +693,19 @@ bun run dev   # web :3001 · api :3000 · docs :4000`}</pre>
             />
             <FaqRow
               q="Does it work with anything other than Twitch?"
-              a={<>Not today. Login and the chat bot are built on Twitch OAuth and IRC. Other platforms aren&apos;t supported yet.</>}
+              a={
+                <>
+                  Not today. Login and the chat bot are built on Twitch OAuth and IRC. Other
+                  platforms aren&apos;t supported yet.
+                </>
+              }
             />
             <FaqRow
               q="Can viewers really edit the task list?"
               a={
                 <>
-                  Each viewer manages their own tasks from chat — add, focus, complete,
-                  edit, remove. Broadcaster and mods get clear-all and per-user controls.
-                  See the{" "}
+                  Each viewer manages their own tasks from chat — add, focus, complete, edit,
+                  remove. Broadcaster and mods get clear-all and per-user controls. See the{" "}
                   <Link href="/docs/chat-commands" className="dw-text-brand font-semibold">
                     chat commands
                   </Link>
@@ -614,25 +715,42 @@ bun run dev   # web :3001 · api :3000 · docs :4000`}</pre>
             />
             <FaqRow
               q="How do the overlays stay in sync?"
-              a={<>The overlays check for changes every few seconds, and the countdown ticks on the overlay itself from the timer&apos;s end time — so a !done lands within a few seconds with no flicker. There&apos;s no fragile real-time connection to babysit, which is exactly what keeps it on Cloudflare&apos;s free plan.</>}
+              a={
+                <>
+                  The overlays check for changes every few seconds, and the countdown ticks on the
+                  overlay itself from the timer&apos;s end time — so a !done lands within a few
+                  seconds with no flicker. There&apos;s no fragile real-time connection to babysit,
+                  which is exactly what keeps it on Cloudflare&apos;s free plan.
+                </>
+              }
             />
             <FaqRow
               q="Is it really free?"
               a={
                 <>
                   Yes. Open source on{" "}
-                  <a href={GITHUB} target="_blank" rel="noopener noreferrer" className="dw-text-brand font-semibold">
+                  <a
+                    href={GITHUB}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="dw-text-brand font-semibold"
+                  >
                     GitHub
                   </a>
-                  , and it fits inside Cloudflare&apos;s free Workers + D1 tiers. No premium
-                  tier, no telemetry.
+                  , and it fits inside Cloudflare&apos;s free Workers + D1 tiers. No premium tier,
+                  no telemetry.
                 </>
               }
             />
           </div>
           <p className="mt-10 text-center text-sm dw-text-2">
             More questions?{" "}
-            <a href={DISCORD} target="_blank" rel="noopener noreferrer" className="dw-text-brand font-semibold">
+            <a
+              href={DISCORD}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="dw-text-brand font-semibold"
+            >
               Ask in Discord
             </a>
             .
@@ -663,12 +781,19 @@ bun run dev   # web :3001 · api :3000 · docs :4000`}</pre>
               Read the docs
               <ArrowRight className="w-4 h-4" />
             </Link>
-            <a href={GITHUB} target="_blank" rel="noopener noreferrer" className="dw-btn dw-btn-ghost">
+            <a
+              href={GITHUB}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="dw-btn dw-btn-ghost"
+            >
               <Github className="w-4 h-4" />
               Star on GitHub
             </a>
           </div>
-          <p className="mt-5 dw-mono text-xs dw-text-2 tracking-wide">Self-hosted · Open source · Built for co-working streams</p>
+          <p className="mt-5 dw-mono text-xs dw-text-2 tracking-wide">
+            Self-hosted · Open source · Built for co-working streams
+          </p>
         </div>
       </section>
     </div>
