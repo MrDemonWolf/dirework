@@ -88,8 +88,8 @@ function BotSettingsSkeleton() {
             <CardContent>
               <Skeleton className="mb-4 h-9 w-72" />
               <div className="space-y-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-10 w-full" />
+                {["bot-field-1", "bot-field-2", "bot-field-3", "bot-field-4"].map((key) => (
+                  <Skeleton key={key} className="h-10 w-full" />
                 ))}
               </div>
             </CardContent>

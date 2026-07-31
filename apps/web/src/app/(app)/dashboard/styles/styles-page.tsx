@@ -39,8 +39,8 @@ function StylesSkeleton() {
       <div className="mb-6 space-y-3">
         <Skeleton className="h-3 w-16" />
         <div className="flex gap-3 overflow-hidden p-1">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-32 w-36 shrink-0 rounded-lg" />
+          {["preset-1", "preset-2", "preset-3", "preset-4", "preset-5"].map((key) => (
+            <Skeleton key={key} className="h-32 w-36 shrink-0 rounded-lg" />
           ))}
         </div>
       </div>
@@ -48,8 +48,8 @@ function StylesSkeleton() {
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         <div className="w-full min-w-0 space-y-3 lg:w-[380px] lg:shrink-0">
           <Skeleton className="h-9 w-40" />
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-xl" />
+          {["editor-1", "editor-2", "editor-3", "editor-4"].map((key) => (
+            <Skeleton key={key} className="h-24 w-full rounded-xl" />
           ))}
         </div>
         <div className="min-w-0 flex-1">

@@ -413,9 +413,8 @@ export default function HomePage() {
             title={<>Why self-host Dirework?</>}
             sub="Hosted task widgets are convenient until they're not. Dirework trades a one-time setup for full ownership — on Cloudflare's free plan."
           />
-          <div
+          <section
             className="mt-12 overflow-x-auto focus-visible:outline-2 focus-visible:outline-[var(--brand-500)]"
-            role="region"
             aria-label="Feature comparison table (scrolls horizontally)"
           >
             <div className="dw-card panel min-w-[600px]" style={{ padding: "1.5rem 2rem" }}>
@@ -491,7 +490,7 @@ export default function HomePage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </section>
           <p className="mt-5 text-center text-xs dw-text-2">
             Partial means &quot;depends on the tool or your plan.&quot; See the{" "}
             <Link href="/docs/features" className="dw-text-brand font-semibold">

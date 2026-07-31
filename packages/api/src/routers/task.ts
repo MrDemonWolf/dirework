@@ -21,10 +21,10 @@ export const taskRouter = router({
     return createTask(
       ctx.db,
       {
-        twitchId: input.authorTwitchId,
-        username: input.authorUsername,
-        displayName: input.authorDisplayName,
-        color: input.authorColor ?? null,
+        twitchId: ctx.session.user.twitchId ?? ctx.session.user.id,
+        username: ctx.session.user.name,
+        displayName: ctx.session.user.displayName ?? ctx.session.user.name,
+        color: null,
       },
       input.text,
     );

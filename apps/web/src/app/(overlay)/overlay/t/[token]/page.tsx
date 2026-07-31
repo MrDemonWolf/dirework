@@ -39,7 +39,7 @@ export default function TimerOverlayPage() {
   // blank the OBS source.
   const { data, isPending } = useQuery({
     queryKey: ["overlay", "timerState", token],
-    queryFn: () => publicTrpc.overlay.getTimerState.query({ token }),
+    queryFn: () => publicTrpc.overlay.getTimerState.mutate({ token }),
     enabled: Boolean(token),
     refetchInterval: POLL_INTERVAL_MS,
     refetchIntervalInBackground: true,

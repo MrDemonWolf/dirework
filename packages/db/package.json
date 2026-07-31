@@ -13,6 +13,7 @@
     }
   },
   "scripts": {
+    "check-types": "tsc --noEmit",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {

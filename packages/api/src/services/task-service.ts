@@ -50,8 +50,11 @@ export async function findActiveTaskByUsername(db: DbClient, username: string) {
 
 /** Broadcaster lookup + priority/order derivation (M6). */
 export async function resolveTaskPlacement(db: DbClient, authorTwitchId: string) {
-  const owner = await db.query.user.findFirst({ columns: { twitchId: true } });
-  const isBroadcaster = owner?.twitchId != null && owner.twitchId === authorTwitchId;
+  const owner = await db.query.user.findFirst({
+    columns: { id: true, twitchId: true },
+    where: eq(schema.user.isOwner, true),
+  });
+  const isBroadcaster = owner != null && (owner.twitchId ?? owner.id) === authorTwitchId;
   const priority = isBroadcaster ? 0 : 1;
 
   const lastTask = await db.query.task.findFirst({
@@ -164,7 +167,7 @@ function isUniqueViolation(err: unknown): boolean {
   return /UNIQUE constraint failed/i.test(message);
 }
 
-/** Mark a task done WITHOUT promoting the next pending one (used by !next). */
+/** Mark a task done without promoting the next pending one. */
 export async function completeTask(db: DbClient, id: string) {
   const [updated] = await db
     .update(schema.task)
@@ -206,6 +209,48 @@ export async function markTaskDone(db: DbClient, id: string) {
   return completedRows[0] ?? null;
 }
 
+/**
+ * Complete the current active task and insert its replacement atomically.
+ * If the insert fails, D1 rolls the completion back, so !next can never leave
+ * a viewer with no active task merely because the second write failed.
+ */
+export async function replaceActiveTask(
+  db: DbClient,
+  activeTask: { id: string },
+  author: TaskAuthor,
+  text: string,
+) {
+  const placement = await resolveTaskPlacement(db, author.twitchId);
+  const [completedRows, createdRows] = await db.batch([
+    db
+      .update(schema.task)
+      .set({ status: "done", completedAt: new Date() })
+      .where(
+        and(
+          eq(schema.task.id, activeTask.id),
+          eq(schema.task.authorTwitchId, author.twitchId),
+          eq(schema.task.status, "active"),
+        ),
+      )
+      .returning(),
+    db
+      .insert(schema.task)
+      .values({
+        authorTwitchId: author.twitchId,
+        authorUsername: author.username,
+        authorDisplayName: author.displayName,
+        authorColor: author.color ?? null,
+        text,
+        status: "active",
+        priority: placement.priority,
+        order: placement.nextOrder,
+      })
+      .returning(),
+  ]);
+
+  return { completed: completedRows[0] ?? null, created: createdRows[0] ?? null };
+}
+
 /** Update a task's text. */
 export async function editTask(db: DbClient, id: string, text: string) {
   const [updated] = await db
@@ -224,14 +269,38 @@ export async function editTask(db: DbClient, id: string, text: string) {
  * slot enforced by the partial unique index.
  */
 export async function activateTask(db: DbClient, task: { id: string; authorTwitchId: string }) {
+  // Evaluate target existence inside the same atomic batch. If a concurrent
+  // command already completed/deleted this stale target, the demotion is a
+  // no-op too — never leave the viewer with no active task.
+  const targetIsStillOpen = sql`exists (
+    select 1 from ${schema.task}
+    where ${schema.task.id} = ${task.id}
+      and ${schema.task.authorTwitchId} = ${task.authorTwitchId}
+      and ${schema.task.status} in ('pending', 'active')
+  )`;
+
   const [, activatedRows] = await db.batch([
     db
       .update(schema.task)
       .set({ status: "pending" })
       .where(
-        and(eq(schema.task.authorTwitchId, task.authorTwitchId), eq(schema.task.status, "active")),
+        and(
+          eq(schema.task.authorTwitchId, task.authorTwitchId),
+          eq(schema.task.status, "active"),
+          targetIsStillOpen,
+        ),
       ),
-    db.update(schema.task).set({ status: "active" }).where(eq(schema.task.id, task.id)).returning(),
+    db
+      .update(schema.task)
+      .set({ status: "active" })
+      .where(
+        and(
+          eq(schema.task.id, task.id),
+          eq(schema.task.authorTwitchId, task.authorTwitchId),
+          inArray(schema.task.status, OPEN_STATUSES),
+        ),
+      )
+      .returning(),
   ]);
   return activatedRows[0] ?? null;
 }

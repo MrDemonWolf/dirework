@@ -109,7 +109,7 @@ export function TaskListWidget({
             >
               {g.tasks.map((t, i) => (
                 <div
-                  key={i}
+                  key={t.text}
                   style={{
                     display: "flex",
                     alignItems: "flex-start",
