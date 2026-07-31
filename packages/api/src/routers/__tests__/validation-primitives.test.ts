@@ -216,6 +216,12 @@ describe("chat message byte bounds", () => {
     expect(chatMessageSchema.safeParse("Task added, {user}!").success).toBe(true);
   });
 
+  it("rejects IRC control characters", () => {
+    for (const value of ["hello\r\nJOIN #attacker", "hello\0world", "hello\u007fworld"]) {
+      expect(chatMessageSchema.safeParse(value).success).toBe(false);
+    }
+  });
+
   it("rejects a template over the byte cap even when the char count is legal", () => {
     // 200 emoji = 200 chars but 800 bytes — a char-based cap would let it pass.
     const emoji = "🐺".repeat(200);

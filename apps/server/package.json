@@ -3,6 +3,7 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
+    "build": "wrangler deploy src/index.ts --dry-run --name dirework-api --compatibility-date 2026-07-30 --compatibility-flag nodejs_compat --outdir dist",
     "check-types": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
@@ -19,7 +20,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",
     "@dirework/config": "workspace:*",
-    "@types/node": "^22.13.14",
+    "@types/node": "^22.20.1",
     "alchemy": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",

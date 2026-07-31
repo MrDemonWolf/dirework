@@ -1,5 +1,12 @@
 import { TWITCH_FETCH_TIMEOUT_MS } from "@dirework/api/services/twitch-auth";
 import { recordError, recordMetric } from "../lib/telemetry";
+import {
+  parseOAuthCallbackParams,
+  isTimeoutError,
+  parseBotOAuthState,
+  parseTwitchHelixUser,
+  parseTwitchTokenResponse,
+} from "../lib/twitch-oauth-response";
 import { createAuth } from "@dirework/auth";
 import { createDb, schema } from "@dirework/db";
 import { env } from "@dirework/env/server";
@@ -16,7 +23,9 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
  * never placed in redirect URLs.
  */
 
-const STATE_COOKIE = "bot_oauth_nonce";
+const secureCookie = env.BETTER_AUTH_URL.startsWith("https");
+const STATE_COOKIE = secureCookie ? "__Host-dirework_bot_oauth_nonce" : "bot_oauth_nonce";
+const STATE_COOKIE_PATH = "/";
 /**
  * chat:read / chat:edit — required by the IRC connection the browser bot page
  * actually uses (wss://irc-ws.chat.twitch.tv; replies go out as PRIVMSG).
@@ -26,20 +35,6 @@ const STATE_COOKIE = "bot_oauth_nonce";
  * must be reconnected to pick up the new scopes.
  */
 const BOT_SCOPES = ["chat:read", "chat:edit", "user:read:chat", "user:write:chat"] as const;
-
-interface TwitchTokenResponse {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  scope?: string[];
-  token_type: string;
-}
-
-interface TwitchHelixUser {
-  id: string;
-  login: string;
-  display_name: string;
-}
 
 function randomNonce(): string {
   const bytes = new Uint8Array(32);
@@ -54,27 +49,6 @@ function encodeState(payload: { userId: string; nonce: string }): string {
     binary += String.fromCharCode(byte);
   }
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-function decodeState(state: string): { userId: string; nonce: string } | null {
-  try {
-    const base64 =
-      state.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (state.length % 4)) % 4);
-    const binary = atob(base64);
-    const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
-    const decoded: unknown = JSON.parse(new TextDecoder().decode(bytes));
-    if (
-      typeof decoded === "object" &&
-      decoded !== null &&
-      typeof (decoded as Record<string, unknown>).userId === "string" &&
-      typeof (decoded as Record<string, unknown>).nonce === "string"
-    ) {
-      return decoded as { userId: string; nonce: string };
-    }
-    return null;
-  } catch {
-    return null;
-  }
 }
 
 /** Constant-time-ish string comparison (no early exit on content mismatch). */
@@ -92,6 +66,20 @@ function safeEqual(a: string, b: string): boolean {
 
 function errorRedirect(reason: string): string {
   return `${env.BETTER_AUTH_URL}/dashboard/bot?bot=error&reason=${encodeURIComponent(reason)}`;
+}
+
+async function safeTwitchFetch(
+  url: string,
+  init: RequestInit,
+  label: "token_exchange" | "user_lookup",
+): Promise<Response | null> {
+  try {
+    return await fetch(url, init);
+  } catch (error) {
+    recordMetric(isTimeoutError(error) ? "upstream.timeout" : "oauth.failure", { label });
+    recordError({ error, reason: label });
+    return null;
+  }
 }
 
 export const botOAuth = new Hono();
@@ -121,9 +109,9 @@ botOAuth.get("/authorize", async (c) => {
 
   setCookie(c, STATE_COOKIE, nonce, {
     httpOnly: true,
-    secure: env.BETTER_AUTH_URL.startsWith("https"),
+    secure: secureCookie,
     sameSite: "Lax",
-    path: "/api/bot",
+    path: STATE_COOKIE_PATH,
     maxAge: 600,
   });
 
@@ -131,21 +119,21 @@ botOAuth.get("/authorize", async (c) => {
 });
 
 botOAuth.get("/callback/twitch", async (c) => {
-  const code = c.req.query("code");
-  const state = c.req.query("state");
+  const callback = parseOAuthCallbackParams(c.req.query("code"), c.req.query("state"));
 
-  if (!code || !state) {
+  if (!callback) {
     return c.redirect(errorRedirect("Missing code or state from Twitch"));
   }
 
-  const decoded = decodeState(state);
+  const { code, state } = callback;
+  const decoded = parseBotOAuthState(state);
   if (!decoded) {
     return c.redirect(errorRedirect("Invalid state parameter"));
   }
 
   // Verify CSRF nonce from httpOnly cookie
   const storedNonce = getCookie(c, STATE_COOKIE);
-  deleteCookie(c, STATE_COOKIE, { path: "/api/bot" });
+  deleteCookie(c, STATE_COOKIE, { path: STATE_COOKIE_PATH, secure: secureCookie });
   if (!storedNonce || !decoded.nonce || !safeEqual(storedNonce, decoded.nonce)) {
     return c.redirect(errorRedirect("Invalid or expired OAuth state — please try again"));
   }
@@ -159,50 +147,78 @@ botOAuth.get("/callback/twitch", async (c) => {
     );
   }
 
-  // Exchange code for tokens
-  const tokenRes = await fetch("https://id.twitch.tv/oauth2/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: env.TWITCH_CLIENT_ID,
-      client_secret: env.TWITCH_CLIENT_SECRET,
-      code,
-      grant_type: "authorization_code",
-      redirect_uri: `${env.BETTER_AUTH_URL}/api/bot/callback/twitch`,
-    }),
-    signal: AbortSignal.timeout(TWITCH_FETCH_TIMEOUT_MS),
-  });
+  // Exchange code for tokens. Network/timeout errors are converted to a safe
+  // dashboard redirect; neither the callback URL nor caught message is logged.
+  const tokenRes = await safeTwitchFetch(
+    "https://id.twitch.tv/oauth2/token",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: env.TWITCH_CLIENT_ID,
+        client_secret: env.TWITCH_CLIENT_SECRET,
+        code,
+        grant_type: "authorization_code",
+        redirect_uri: `${env.BETTER_AUTH_URL}/api/bot/callback/twitch`,
+      }),
+      signal: AbortSignal.timeout(TWITCH_FETCH_TIMEOUT_MS),
+    },
+    "token_exchange",
+  );
 
+  if (!tokenRes) {
+    return c.redirect(errorRedirect("Twitch token service unavailable — please try again"));
+  }
   if (!tokenRes.ok) {
-    // Status only — the response body of a failed token exchange can echo the
-    // submitted code/secret.
+    // Status only — the response body can echo the submitted code or secret.
     recordMetric("oauth.failure", { label: `token_exchange_${tokenRes.status}` });
     return c.redirect(
       errorRedirect("Token exchange failed — check redirect URI matches Twitch app"),
     );
   }
 
-  const tokens = (await tokenRes.json()) as TwitchTokenResponse;
+  let tokenBody: unknown;
+  try {
+    tokenBody = await tokenRes.json();
+  } catch {
+    tokenBody = null;
+  }
+  const tokens = parseTwitchTokenResponse(tokenBody);
+  if (!tokens) {
+    recordMetric("oauth.failure", { label: "invalid_token_response" });
+    return c.redirect(errorRedirect("Twitch returned an invalid token response"));
+  }
 
-  // Get bot user info from Twitch
-  const userRes = await fetch("https://api.twitch.tv/helix/users", {
-    headers: {
-      Authorization: `Bearer ${tokens.access_token}`,
-      "Client-Id": env.TWITCH_CLIENT_ID,
+  const userRes = await safeTwitchFetch(
+    "https://api.twitch.tv/helix/users",
+    {
+      headers: {
+        Authorization: `Bearer ${tokens.access_token}`,
+        "Client-Id": env.TWITCH_CLIENT_ID,
+      },
+      signal: AbortSignal.timeout(TWITCH_FETCH_TIMEOUT_MS),
     },
-    signal: AbortSignal.timeout(TWITCH_FETCH_TIMEOUT_MS),
-  });
+    "user_lookup",
+  );
 
+  if (!userRes) {
+    return c.redirect(errorRedirect("Twitch user service unavailable — please try again"));
+  }
   if (!userRes.ok) {
+    recordMetric("oauth.failure", { label: `user_lookup_${userRes.status}` });
     return c.redirect(errorRedirect("Failed to fetch bot user info from Twitch"));
   }
 
-  const {
-    data: [botUser],
-  } = (await userRes.json()) as { data: TwitchHelixUser[] };
-
+  let userBody: unknown;
+  try {
+    userBody = await userRes.json();
+  } catch {
+    userBody = null;
+  }
+  const botUser = parseTwitchHelixUser(userBody);
   if (!botUser) {
-    return c.redirect(errorRedirect("No user data returned from Twitch"));
+    recordMetric("oauth.failure", { label: "invalid_user_response" });
+    return c.redirect(errorRedirect("No valid user data returned from Twitch"));
   }
 
   // Upsert the singleton bot account row — tokens only ever live in D1.

@@ -8,6 +8,8 @@ import type { authClient } from "@/lib/auth-client";
  */
 export type ServerSession = typeof authClient.$Infer.Session;
 
+const INTERNAL_FETCH_TIMEOUT_MS = 5_000;
+
 function serverUrl(): string {
   return process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhost:3000";
 }
@@ -26,6 +28,7 @@ export async function getServerSession(): Promise<ServerSession | null> {
     const res = await fetch(`${serverUrl()}/api/auth/get-session`, {
       headers: { cookie: h.get("cookie") ?? "" },
       cache: "no-store",
+      signal: AbortSignal.timeout(INTERNAL_FETCH_TIMEOUT_MS),
     });
     if (!res.ok) return null;
     // better-auth returns a JSON `null` body when there is no session.
@@ -47,6 +50,7 @@ export async function getInstanceOwned(): Promise<boolean> {
   try {
     const res = await fetch(`${serverUrl()}/trpc/user.hasOwner`, {
       cache: "no-store",
+      signal: AbortSignal.timeout(INTERNAL_FETCH_TIMEOUT_MS),
     });
     if (!res.ok) return true;
     const body = (await res.json()) as { result?: { data?: unknown } };

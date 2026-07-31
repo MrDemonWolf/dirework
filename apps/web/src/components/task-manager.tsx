@@ -18,8 +18,6 @@ import { trpc } from "@/utils/trpc";
 
 interface TaskManagerProps {
   userTwitchId: string;
-  username: string;
-  displayName: string;
   /** Overlay preview, rendered beside the add-task + list body (mirrors the timer console). */
   preview?: ReactNode;
 }
@@ -29,7 +27,7 @@ interface TaskManagerProps {
  * cluster, add form, author group cards, footer strip). The parent supplies
  * the `.panel` chrome.
  */
-export function TaskManager({ userTwitchId, username, displayName, preview }: TaskManagerProps) {
+export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
   const queryClient = useQueryClient();
   const [newTask, setNewTask] = useState("");
   const [removingTaskId, setRemovingTaskId] = useState<string | null>(null);
@@ -91,12 +89,7 @@ export function TaskManager({ userTwitchId, username, displayName, preview }: Ta
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTask.trim()) return;
-    createTask.mutate({
-      authorTwitchId: userTwitchId,
-      authorUsername: username,
-      authorDisplayName: displayName,
-      text: newTask.trim(),
-    });
+    createTask.mutate({ text: newTask.trim() });
   };
 
   const taskList = tasks.data ?? [];
@@ -168,6 +161,7 @@ export function TaskManager({ userTwitchId, username, displayName, preview }: Ta
                 <div className="flex flex-col items-center gap-3 py-10">
                   {/* Focus-ring motif empty state */}
                   <svg viewBox="0 0 48 48" className="size-10" aria-hidden>
+                    <title>Decorative empty task ring</title>
                     <circle
                       cx="24"
                       cy="24"

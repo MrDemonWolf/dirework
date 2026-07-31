@@ -20,6 +20,7 @@ export default function OGImage() {
     >
       {/* Wolf-clock icon (simplified for OG) */}
       <svg width="120" height="120" viewBox="0 0 64 64" fill="none" style={{ marginBottom: 32 }}>
+        <title>Dirework logo</title>
         <path
           d="M14 30L20 8l10 18"
           stroke="#29B6F0"
