@@ -3,16 +3,16 @@ title: Privacy Policy
 description: How Dirework handles your data.
 ---
 
-**Last updated:** February 12, 2026
+**Last updated:** July 30, 2026
 
 ## Introduction
 
-Dirework is self-hosted, open-source software. Each Dirework instance is independently deployed and operated. This privacy policy describes what data the Dirework software collects, how it is used, and how it is stored. The operator of the instance you are using is the data controller responsible for your data.
+Dirework is self-hosted, open-source software. Each instance is independently deployed and operated. This policy describes the software's default data handling; the operator of the instance you use is the data controller responsible for its configuration, retention, and legal obligations.
 
 ## Who Operates This Instance
 
 <Callout type="warn">
-**Instance operators:** Replace this section with your name or organization and contact details before deploying. Users should know who is responsible for the instance they are using.
+**Instance operators:** Replace this section with your name or organization and contact details before deploying. Users should know who is responsible for this instance.
 </Callout>
 
 ## Eligibility
@@ -21,111 +21,82 @@ You must be at least **13 years old** to use Dirework, consistent with [Twitch's
 
 ## Data We Collect
 
-When you use a Dirework instance, the following data may be collected and stored in that instance's database.
+The following data may be stored in the instance's Cloudflare D1 database.
 
 ### Authentication Data
 
-- **Twitch user ID, username, and display name** — retrieved via Twitch OAuth when you sign in.
-- **Profile image URL** — from your Twitch account.
-- **Session cookies** — used to keep you logged in. Sessions expire after 30 days.
+- **Twitch user ID, username, display name, and profile image URL** — retrieved through Twitch OAuth when the owner signs in.
+- **Session records and cookies** — used to keep the owner signed in. Session cookies are secure, HTTP-only, and SameSite Lax in production; sessions expire after 30 days.
 
 ### Bot Account Data
 
-If you connect a bot account to the instance:
-
 - **Bot Twitch user ID and username** — identifying the connected bot.
-- **Bot OAuth tokens** — access and refresh tokens that allow the bot to read and send chat messages on behalf of the bot account. These are sensitive credentials stored in the database.
+- **Bot OAuth access and refresh tokens** — credentials that let the bot read and send chat messages. They are stored in D1. The refresh token never leaves the server; an access token is returned only to a caller that presents the bot console bearer token and needs to open the Twitch chat connection.
 
-### Configuration Data
+### Configuration and Task Data
 
-- **Timer settings** — work/break durations, cycle counts, auto-start preferences, and phase labels.
-- **Overlay style settings** — colors, fonts, dimensions, and layout preferences for the timer and task list overlays.
-- **Bot settings** — command toggles, command aliases, and response message templates.
+- Timer settings, overlay styles, phase labels, bot command settings, aliases, and response templates.
+- Tasks submitted through Twitch chat, including task text, status, author display name, author Twitch ID, and chat color.
 
-### Task Data
+### Bearer Tokens
 
-- **Tasks submitted via Twitch chat** — task text, author display name, author Twitch ID, author chat color, and task status (pending or done).
+Random bot and overlay tokens are stored so OBS and the bot console can use token-gated pages without an owner session. Anyone who obtains one of these URLs can use that page until the operator regenerates its token.
 
-### Overlay Tokens
+## Operational Logs and Metrics
 
-- **UUID tokens** — randomly generated tokens used to access overlay pages (timer and task list) without authentication. These tokens can be regenerated at any time.
+Dirework does not include product analytics, advertising trackers, or third-party tracking scripts. It does emit limited operational logs and metrics to the operator's Cloudflare Workers account so failures and abuse can be diagnosed. The application uses fixed event names and status labels and is designed not to record request bodies, authorization headers, session cookies, bearer tokens, OAuth tokens, or Twitch chat messages.
 
-## Data We Do Not Collect
+Cloudflare may also process ordinary network and request metadata as the hosting provider. What is retained and who can access it depends on the instance operator's Cloudflare plan and logging configuration.
 
-- **No analytics or telemetry** — Dirework does not phone home or send usage data anywhere.
-- **No tracking cookies** — the only cookies used are for authentication sessions.
-- **No third-party ad trackers** — there are no advertising or tracking scripts.
-- **No chat message logging** — Twitch chat messages are not stored. Only task commands submitted through the bot result in stored data.
+Twitch chat messages are not persisted by Dirework. A command can still create or update a stored task, and the resulting task text is retained as described above.
 
 ## How Data Is Used
 
-All collected data is used solely to provide the Dirework service:
-
-- **Authentication data** — to identify you and maintain your login session.
-- **Bot account data** — to operate the Twitch chat bot (reading commands and sending responses).
-- **Configuration data** — to apply your timer, overlay, and bot preferences.
-- **Task data** — to display and manage the task list for your stream.
-- **Overlay tokens** — to allow OBS browser sources to access overlay pages without requiring login.
-
-Data is not used for profiling, advertising, or any purpose beyond operating the service.
+Data is used only to authenticate the owner, operate the Twitch bot, execute timer and task commands, save configuration, render overlays, prevent abuse, and diagnose service failures. Dirework does not use stored data for advertising or user profiling.
 
 ## Third-Party Services
 
-Dirework connects to the following external service:
+- **Twitch** ([id.twitch.tv](https://id.twitch.tv), [api.twitch.tv](https://api.twitch.tv), and Twitch IRC) provides authentication, bot authorization, profile data, and chat transport. Twitch processes data under its [Privacy Notice](https://www.twitch.tv/p/en/legal/privacy-notice/).
+- **Cloudflare** hosts Workers, D1, rate limiting, and operational logs or metrics. Cloudflare processes data under the operator's Cloudflare agreement and configuration.
 
-- **Twitch** ([id.twitch.tv](https://id.twitch.tv), [api.twitch.tv](https://api.twitch.tv)) — for OAuth authentication, bot account authorization, and retrieving user profile information via the Twitch Helix API. Data sent to Twitch is subject to the [Twitch Privacy Notice](https://www.twitch.tv/p/en/legal/privacy-notice/).
-
-No other third-party services receive your data.
+A fork may add other services. Instance operators must update this policy if they do.
 
 ## Data Storage and Security
 
-All data is stored in a Cloudflare D1 (SQLite) database bound to the instance operator's Cloudflare Workers deployment. Dirework does not transmit data to any external storage.
+Application data is stored in Cloudflare D1 and processed by the two Cloudflare Workers belonging to the instance operator. Dirework applies owner checks, bounded input validation, rate limits, secure session-cookie settings, redacted error logging, and token-gated public routes.
 
-The instance operator is responsible for:
+Bot OAuth tokens are sensitive. Dirework does not currently add application-layer encryption to their D1 columns, so operators must tightly restrict Cloudflare and GitHub access, use MFA, and rotate credentials after any suspected database or account disclosure.
 
-- Securing their Cloudflare account and the D1 database binding.
-- Configuring backups and disaster recovery.
-- Protecting bot OAuth tokens, which are sensitive credentials.
-- Complying with applicable data protection laws.
-
-<Callout type="warn">
-**Instance operators:** Bot OAuth tokens grant the ability to send chat messages. Treat them as you would any other secret credential. Secure your database access and consider encrypting sensitive data at rest.
-</Callout>
+The instance operator is responsible for account security, least-privilege access, backups, log retention, incident response, and compliance with applicable law. See the repository's [security policy](https://github.com/mrdemonwolf/dirework/blob/main/SECURITY.md) for the production checklist and private vulnerability-reporting process.
 
 ## Data Retention
 
-- **Sessions** — expire after 30 days of inactivity.
-- **Tasks** — persist until cleared by the instance operator or via chat commands.
-- **Configuration and account data** — persist until the account is deleted.
-- **Bot tokens** — persist until the bot account is disconnected or the account is deleted.
+- **Sessions** — expire after 30 days.
+- **Tasks** — remain until cleared by the operator or a permitted chat command.
+- **Configuration and account data** — remain until removed by the operator.
+- **Bot OAuth credentials** — remain until the bot account is disconnected.
+- **Bearer tokens** — remain until the operator regenerates them or removes the instance data.
+- **Operational logs and metrics** — follow the operator's Cloudflare settings and retention period.
+
+Backups or exported data may persist separately until the operator deletes them.
 
 ## Your Rights
 
-Since Dirework is self-hosted, data rights requests should be directed to the instance operator. You may:
-
-- **Request access** to the data stored about you.
-- **Request deletion** of your account and associated data.
-- **Disconnect your bot account** at any time, which removes bot OAuth tokens from the database.
-- **Revoke Twitch access** via your [Twitch Connections Settings](https://www.twitch.tv/settings/connections), which prevents Dirework from using your Twitch account.
-- **Regenerate overlay tokens** to invalidate previous overlay URLs.
+Direct instance-specific requests to the instance operator. Depending on applicable law, you may request access, correction, export, or deletion of stored data. You can disconnect the bot account, revoke Twitch access in [Twitch Connections Settings](https://www.twitch.tv/settings/connections), and ask the operator to regenerate exposed bearer URLs.
 
 <Callout type="warn">
-**Instance operators:** You are responsible for responding to data access and deletion requests in compliance with applicable laws (such as GDPR, CCPA, or other regional regulations).
+**Instance operators:** Add a working privacy contact and a process for handling access and deletion requests before making the instance public.
 </Callout>
 
 ## Children's Privacy
 
-Dirework is not directed at children under 13. The Dirework software does not knowingly collect personal data from children under 13. If you believe a child under 13 has provided data to a Dirework instance, contact the instance operator to request its removal.
+Dirework is not directed at children under 13 and does not knowingly collect their personal data. Contact the instance operator if you believe a child has submitted data so it can be removed.
 
 ## Changes to This Policy
 
-This privacy policy may be updated with new releases of Dirework. Changes are tracked by the "Last updated" date at the top of this page. Instance operators should review the policy with each update and notify their users of material changes as required by applicable law.
+This template may change with new releases. Operators should review changes, adapt the policy to their deployment, and notify users of material changes when required.
 
 ## Contact
 
-- **Software questions** — for questions about how Dirework handles data at the software level, open an issue on [GitHub](https://github.com/mrdemonwolf/dirework/issues).
-- **Instance-specific questions** — for questions about a specific instance's data practices, contact the instance operator directly.
-
-<Callout type="warn">
-**Instance operators:** Add your preferred contact method here (email, website, etc.) so users of your instance know how to reach you.
-</Callout>
+- **Software-level questions or security reports** — use the channels in the repository's [security policy](https://github.com/mrdemonwolf/dirework/blob/main/SECURITY.md).
+- **Instance-specific privacy requests** — contact the instance operator directly.

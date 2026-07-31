@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { formatEtaDuration, interpolate, resolveAlias } from "../commands";
+import { formatEtaDuration, interpolate, parseTaskEditArgs, resolveAlias } from "../commands";
 
 describe("interpolate", () => {
   it("substitutes a single variable", () => {
@@ -53,6 +53,19 @@ describe("interpolate", () => {
         task: "Write tests",
       }),
     ).toBe('Alice, Bob is currently tracking: "Write tests"');
+  });
+});
+
+describe("parseTaskEditArgs", () => {
+  it("parses a numbered edit and enforces the task length cap", () => {
+    expect(parseTaskEditArgs(["2", "new", "task"])).toEqual({ position: "2", text: "new task" });
+    expect(parseTaskEditArgs(["1", "x".repeat(600)])?.text).toHaveLength(500);
+  });
+
+  it("rejects missing, non-numeric, and empty replacement text", () => {
+    expect(parseTaskEditArgs([])).toBeNull();
+    expect(parseTaskEditArgs(["first", "text"])).toBeNull();
+    expect(parseTaskEditArgs(["1", "   "])).toBeNull();
   });
 });
 
