@@ -39,6 +39,7 @@ function SetupInner() {
           <div className="relative size-20">
             <div className="absolute -inset-4 rounded-full bg-primary/10 blur-2xl" aria-hidden />
             <svg viewBox="0 0 80 80" className="relative size-full">
+              <title>Decorative focus timer ring</title>
               <circle
                 cx="40"
                 cy="40"

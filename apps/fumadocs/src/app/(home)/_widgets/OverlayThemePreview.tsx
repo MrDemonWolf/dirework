@@ -53,10 +53,9 @@ export function OverlayThemePreview() {
         </div>
       </figure>
 
-      <div
-        role="group"
+      <fieldset
         aria-label="Preview an overlay theme"
-        className="mt-5 flex flex-wrap justify-center gap-2"
+        className="mt-5 flex flex-wrap justify-center gap-2 border-0 p-0"
       >
         {OVERLAY_THEME_NAMES.map((n) => {
           const t = OVERLAY_THEMES[n];
@@ -89,7 +88,7 @@ export function OverlayThemePreview() {
             </button>
           );
         })}
-      </div>
+      </fieldset>
     </div>
   );
 }

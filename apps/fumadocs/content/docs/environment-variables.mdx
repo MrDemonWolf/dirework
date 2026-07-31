@@ -50,7 +50,7 @@ Only needed when deploying to Cloudflare (as GitHub secrets, or in your shell fo
 | --- | --- |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token with **Workers** and **D1** edit permissions |
 | `ALCHEMY_PASSWORD` | Any long random string — encrypts Alchemy's deploy state (`openssl rand -base64 32`) |
-| `ALCHEMY_STATE_TOKEN` | Authenticates the **shared, account-wide** `alchemy-state` CI store worker. Every MrDemonWolf Alchemy app points at that one worker with this **same** token (Alchemy namespaces state per app), which is precisely what makes sharing safe — a per-app token against the shared worker is the "token is invalid" clash. Set it once as a GitHub secret; not needed for local `bun run deploy` (local runs use filesystem state). |
+| `ALCHEMY_STATE_TOKEN` | Authenticates the account-wide `alchemy-state` CI store worker. Generate a unique token for your state-store operator and reuse it only for apps intentionally sharing that same worker. It is not needed for local deploys, which use filesystem state. |
 
 ## Optional variables
 
@@ -63,8 +63,9 @@ Only needed when deploying to Cloudflare (as GitHub secrets, or in your shell fo
 | `DEV_LOGIN` | _(unset)_ | Server worker; **local development only**. Enables the `POST /api/auth/dev-login` Twitch-less owner-session bypass. Never set in production. |
 | `NEXT_PUBLIC_DEV_LOGIN` | _(unset)_ | Web build var; **local development only**. Shows the dev-bypass button that calls the dev-login endpoint. Never set in production. |
 
-The legal-page URLs are read by the **web** worker; set them in `apps/web/.env` for
-local development. If neither is set, the footer's legal links row is simply hidden.
+The legal-page URLs are read by the **web** worker. Set them in `apps/web/.env` for
+local development or as GitHub repository Variables for production; the deploy workflow
+validates and forwards them. If neither is set, the footer's legal links row is hidden.
 
 <Callout>
   Access to Dirework is single-owner: the first Twitch account to sign in claims the
@@ -101,7 +102,10 @@ For production deployments:
   **Variables**, read by the deploy workflow via `${{ vars.* }}`
 - Do **not** set `NEXT_PUBLIC_SERVER_URL` for production — Alchemy injects the API
   worker's URL itself (see the warning above)
-- The deploy workflow validates every required secret and variable up front and fails
-  with an explicit list if any are missing
+- The deploy workflow validates required values, secret lengths, same-origin HTTPS URLs,
+  optional external URLs, and disabled development-login flags before deploying
 - There is no `DATABASE_URL` — the D1 database is created and bound automatically by Alchemy
 - Update the Twitch OAuth redirect URLs to match your workers.dev domain (see [Twitch integration setup](/docs/twitch-oauth))
+- Protect `main` and require the Verify and CodeQL workflows before merge
+- Enable GitHub secret scanning and push protection
+- Treat bot and overlay URLs as bearer credentials and regenerate them after disclosure

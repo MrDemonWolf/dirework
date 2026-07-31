@@ -15,8 +15,10 @@ export type MetricName =
   | "token.refresh.success"
   | "bot.reconnect"
   | "ratelimit.rejected"
+  | "ratelimit.failure"
   | "timer.conflict"
   | "db.error"
+  | "internal.error"
   | "upstream.timeout";
 
 export interface MetricEvent {
@@ -79,10 +81,11 @@ export function buildErrorEvent(opts: {
   url?: string;
   reason?: string;
 }): ErrorEvent {
-  const name =
+  const rawName =
     opts.error instanceof Error && typeof opts.error.name === "string"
       ? opts.error.name
       : "UnknownError";
+  const name = LABEL_PATTERN.test(rawName) ? rawName : "Error";
   const reason = opts.reason && LABEL_PATTERN.test(opts.reason) ? opts.reason : undefined;
   return {
     type: "error",

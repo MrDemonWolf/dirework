@@ -6,7 +6,6 @@ import {
   activateTask,
   clearAllTasks,
   clearDoneTasks,
-  completeTask,
   createTask,
   editTask,
   findActiveTaskByUsername,
@@ -14,6 +13,7 @@ import {
   getViewerOpenTasks,
   markTaskDone,
   removeTask,
+  replaceActiveTask,
   removeTasksByUsername,
 } from "../services/task-service";
 import {
@@ -79,6 +79,12 @@ function isPositionArg(arg: string | undefined): arg is string {
  * reusing config.task.noTask here would falsely tell a viewer with open tasks
  * that they aren't tracking anything.
  */
+export function parseTaskEditArgs(args: string[]): { position: string; text: string } | null {
+  if (args.length < 2 || !isPositionArg(args[0])) return null;
+  const text = args.slice(1).join(" ").trim().slice(0, MAX_TASK_LEN);
+  return text ? { position: args[0], text } : null;
+}
+
 const POSITIONAL_USAGE_REPLY = (displayName: string) =>
   `Give me a task number, ${displayName} — try !remove [number] (or !focus [number]). Check your numbers with !check!`;
 
@@ -226,21 +232,20 @@ async function handleTaskEdit(args: string[], ctx: MessageContext): Promise<void
   const { config, userInfo, say, db } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
-  if (args.length < 2 || !isPositionArg(args[0])) {
+  const edit = parseTaskEditArgs(args);
+  if (!edit) {
     say(interpolate(config.task.noTaskToEdit, vars));
     return;
   }
 
-  const newText = args.slice(1).join(" ").trim().slice(0, MAX_TASK_LEN);
-
-  const task = await getTaskAtPosition(db, userInfo.twitchId, args[0]);
+  const task = await getTaskAtPosition(db, userInfo.twitchId, edit.position);
   if (!task) {
     say(interpolate(config.task.noTaskToEdit, vars));
     return;
   }
 
-  await editTask(db, task.id, newText);
-  say(interpolate(config.task.taskEdited, { ...vars, task: newText }));
+  await editTask(db, task.id, edit.text);
+  say(interpolate(config.task.taskEdited, { ...vars, task: edit.text }));
 }
 
 async function handleTaskRemove(args: string[], ctx: MessageContext): Promise<void> {
@@ -338,11 +343,10 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
   }
 
   if (activeTask) {
-    // No promotion here — the new task becomes the active one.
-    await completeTask(db, activeTask.id);
+    await replaceActiveTask(db, activeTask, userInfo, newText);
+  } else {
+    await createTask(db, userInfo, newText, { activate: true });
   }
-
-  await createTask(db, userInfo, newText, { activate: true });
   // No active task means there is no {oldTask} to announce — fall back to the
   // plain taskAdded template instead of interpolating empty quotes.
   if (activeTask) {

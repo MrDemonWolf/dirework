@@ -1,13 +1,12 @@
+import type { Metadata } from "next";
+
+// Overlay URLs are bearer secrets intended for OBS, never search results.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false, noarchive: true },
+};
+
 export default function OverlayLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      {/* Load Google Fonts used by overlay widgets */}
-      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-      <link
-        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap"
-        rel="stylesheet"
-      />
-      {children}
-    </>
-  );
+  // Overlay fonts are self-hosted by app/globals.css; no runtime Google Fonts
+  // request is needed (or permitted by the enforcing CSP).
+  return children;
 }
