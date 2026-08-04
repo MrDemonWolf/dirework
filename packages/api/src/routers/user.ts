@@ -1,4 +1,4 @@
-import { count, eq } from "drizzle-orm";
+import { and, asc, count, eq, ne } from "drizzle-orm";
 
 import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
@@ -16,7 +16,7 @@ export const userRouter = router({
   }),
 
   me: ownerProcedure.query(async ({ ctx }) => {
-    const [user, instance, botAccount] = await Promise.all([
+    const [user, instance, botAccount, twitchAccount] = await Promise.all([
       ctx.db.query.user.findFirst({
         where: eq(schema.user.id, ctx.session.user.id),
       }),
@@ -28,11 +28,21 @@ export const userRouter = router({
       ctx.db.query.botAccount.findFirst({
         columns: { username: true, displayName: true, twitchId: true, expiresAt: true },
       }),
+      ctx.db.query.account.findFirst({
+        where: and(
+          eq(schema.account.userId, ctx.session.user.id),
+          eq(schema.account.providerId, "twitch"),
+          ne(schema.account.accountId, ""),
+        ),
+        orderBy: [asc(schema.account.createdAt), asc(schema.account.id)],
+        columns: { accountId: true },
+      }),
     ]);
     if (!user) return null;
     // Flatten into same shape as before so frontend needs no changes
     return {
       ...user,
+      twitchId: user.twitchId || twitchAccount?.accountId || null,
       botAccount: botAccount ?? null,
       overlayTimerToken: instance?.overlayTimerToken ?? null,
       overlayTasksToken: instance?.overlayTasksToken ?? null,

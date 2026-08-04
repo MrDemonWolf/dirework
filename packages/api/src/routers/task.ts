@@ -9,6 +9,7 @@ import {
   listTasks,
   markTaskDone,
   removeTask,
+  resolveOwnerTaskId,
 } from "../services/task-service";
 import { taskCreateInput, taskIdInput } from "./input-schemas";
 
@@ -18,13 +19,14 @@ export const taskRouter = router({
   }),
 
   create: ownerProcedure.input(taskCreateInput).mutation(async ({ ctx, input }) => {
+    const authorTwitchId = await resolveOwnerTaskId(ctx.db, ctx.session.user);
     return createTask(
       ctx.db,
       {
-        twitchId: input.authorTwitchId,
-        username: input.authorUsername,
-        displayName: input.authorDisplayName,
-        color: input.authorColor ?? null,
+        twitchId: authorTwitchId,
+        username: ctx.session.user.name,
+        displayName: ctx.session.user.displayName || ctx.session.user.name,
+        color: null,
       },
       input.text,
     );

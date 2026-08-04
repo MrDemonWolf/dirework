@@ -336,9 +336,7 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
         <section className="panel-hero min-w-0 lg:col-span-3">
           {user.data ? (
             <TaskManager
-              userTwitchId={user.data.twitchId ?? ""}
-              username={user.data.name}
-              displayName={user.data.displayName ?? user.data.name}
+              userTwitchId={user.data.twitchId || user.data.id}
               // Tasks output — the OBS view of THIS list, top-aligned beside the
               // add-task block, mirroring the timer console's settings|preview row.
               preview={

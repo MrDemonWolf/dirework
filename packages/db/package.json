@@ -13,7 +13,9 @@
     }
   },
   "scripts": {
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "test": "bun test",
+    "test:coverage": "bun test"
   },
   "dependencies": {
     "@dirework/env": "workspace:*",

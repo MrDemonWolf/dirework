@@ -15,13 +15,8 @@ import {
 
 export const taskTextInput = z.string().min(1).max(MAX_TASK_LEN);
 
-export const taskCreateInput = z.object({
-  authorTwitchId: z.string(),
-  authorUsername: z.string(),
-  authorDisplayName: z.string(),
-  authorColor: z.string().optional(),
-  text: taskTextInput,
-});
+/** Dashboard-created tasks always belong to the authenticated owner. */
+export const taskCreateInput = z.object({ text: taskTextInput }).strict();
 
 export const taskIdInput = z.object({ id: z.string() });
 

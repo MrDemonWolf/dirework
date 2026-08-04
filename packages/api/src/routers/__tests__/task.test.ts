@@ -5,52 +5,33 @@ import { taskCreateInput, taskIdInput } from "../input-schemas";
 
 describe("task router input schemas", () => {
   describe("create", () => {
-    const validInput = {
-      authorTwitchId: "12345",
-      authorUsername: "testuser",
-      authorDisplayName: "TestUser",
-      text: "Write unit tests",
-    };
+    const validInput = { text: "Write unit tests" };
 
     it("accepts valid input", () => {
       const result = taskCreateInput.safeParse(validInput);
       expect(result.success).toBe(true);
     });
 
-    it("accepts valid input with optional authorColor", () => {
+    it("rejects client-supplied author identity", () => {
       const result = taskCreateInput.safeParse({
         ...validInput,
-        authorColor: "#FF5500",
+        authorTwitchId: "attacker-controlled",
       });
-      expect(result.success).toBe(true);
-    });
-
-    it("accepts valid input without authorColor", () => {
-      const result = taskCreateInput.safeParse(validInput);
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.authorColor).toBeUndefined();
-      }
+      expect(result.success).toBe(false);
     });
 
     it("rejects empty text", () => {
-      const result = taskCreateInput.safeParse({ ...validInput, text: "" });
+      const result = taskCreateInput.safeParse({ text: "" });
       expect(result.success).toBe(false);
     });
 
     it("rejects text over 500 characters", () => {
-      const result = taskCreateInput.safeParse({
-        ...validInput,
-        text: "a".repeat(501),
-      });
+      const result = taskCreateInput.safeParse({ text: "a".repeat(501) });
       expect(result.success).toBe(false);
     });
 
     it("accepts text at exactly 500 characters", () => {
-      const result = taskCreateInput.safeParse({
-        ...validInput,
-        text: "a".repeat(500),
-      });
+      const result = taskCreateInput.safeParse({ text: "a".repeat(500) });
       expect(result.success).toBe(true);
     });
   });
