@@ -40,6 +40,39 @@ describe("groupTasksByAuthor", () => {
     expect(groups[1].tasks).toHaveLength(1);
   });
 
+  it("keeps different Twitch IDs separate when their display names match", () => {
+    const tasks: Task[] = [
+      {
+        id: "viewer-task",
+        authorTwitchId: "viewer-9",
+        authorDisplayName: "MrDemonWolf",
+        authorColor: null,
+        text: "Viewer task",
+        status: "pending",
+      },
+      {
+        id: "host-task",
+        authorTwitchId: "owner-1",
+        authorDisplayName: "MrDemonWolf",
+        authorColor: null,
+        text: "Host task",
+        status: "active",
+      },
+    ];
+
+    const groups = groupTasksByAuthor(tasks);
+
+    expect(
+      groups.map((group) => ({
+        authorKey: group.authorKey,
+        taskIds: group.tasks.map((task) => task.id),
+      })),
+    ).toEqual([
+      { authorKey: "viewer-9", taskIds: ["viewer-task"] },
+      { authorKey: "owner-1", taskIds: ["host-task"] },
+    ]);
+  });
+
   it("should fall back to authorDisplayName when authorTwitchId is missing", () => {
     const tasks: Task[] = [
       {
