@@ -1,14 +1,22 @@
-import { describe, expect, it } from "bun:test";
-import { Database } from "bun:sqlite";
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import initSqlJs, { type Database, type SqlJsStatic } from "sql.js";
+import { beforeAll, describe, expect, it } from "vitest";
 
 const migration = readFileSync(
   new URL("../0011_repair_host_task_identity.sql", import.meta.url),
   "utf8",
 );
+const require = createRequire(import.meta.url);
+const wasmPath = require.resolve("sql.js/dist/sql-wasm.wasm");
+let sqlJs: SqlJsStatic;
+
+beforeAll(async () => {
+  sqlJs = await initSqlJs({ locateFile: () => wasmPath });
+});
 
 function createDatabase() {
-  const db = new Database(":memory:");
+  const db = new sqlJs.Database();
   db.exec(`
     CREATE TABLE user (
       id TEXT PRIMARY KEY,
@@ -45,6 +53,19 @@ function applyMigration(db: Database) {
   }
 }
 
+function rows<T extends Record<string, unknown>>(db: Database, query: string): T[] {
+  const [result] = db.exec(query);
+  if (!result) return [];
+
+  return result.values.map((values) =>
+    Object.fromEntries(result.columns.map((column, index) => [column, values[index]])),
+  ) as T[];
+}
+
+function row<T extends Record<string, unknown>>(db: Database, query: string): T | undefined {
+  return rows<T>(db, query)[0];
+}
+
 describe("0011 repair host task identity", () => {
   it("merges known owner aliases without claiming a same-name viewer", () => {
     const db = createDatabase();
@@ -71,21 +92,24 @@ describe("0011 repair host task identity", () => {
 
       applyMigration(db);
 
-      const owner = db
-        .query<{ twitchId: string }, []>(
-          "SELECT twitch_id AS twitchId FROM user WHERE id = 'internal-owner'",
-        )
-        .get();
+      const owner = row<{ twitchId: string }>(
+        db,
+        "SELECT twitch_id AS twitchId FROM user WHERE id = 'internal-owner'",
+      );
       expect(owner?.twitchId).toBe("123");
 
-      const hostTasks = db
-        .query<{ authorTwitchId: string; id: string; priority: number; status: string }, []>(
-          `SELECT id, author_twitch_id AS authorTwitchId, priority, status
-           FROM task
-           WHERE id <> 'same-name-viewer'
-           ORDER BY created_at`,
-        )
-        .all();
+      const hostTasks = rows<{
+        authorTwitchId: string;
+        id: string;
+        priority: number;
+        status: string;
+      }>(
+        db,
+        `SELECT id, author_twitch_id AS authorTwitchId, priority, status
+         FROM task
+         WHERE id <> 'same-name-viewer'
+         ORDER BY created_at`,
+      );
       expect(hostTasks).toHaveLength(4);
       expect(hostTasks.every((task) => task.authorTwitchId === "123")).toBe(true);
       expect(hostTasks.every((task) => task.priority === 0)).toBe(true);
@@ -93,13 +117,12 @@ describe("0011 repair host task identity", () => {
         "legacy-blank",
       ]);
 
-      const viewer = db
-        .query<{ authorTwitchId: string; priority: number; status: string }, []>(
-          `SELECT author_twitch_id AS authorTwitchId, priority, status
-           FROM task
-           WHERE id = 'same-name-viewer'`,
-        )
-        .get();
+      const viewer = row<{ authorTwitchId: string; priority: number; status: string }>(
+        db,
+        `SELECT author_twitch_id AS authorTwitchId, priority, status
+         FROM task
+         WHERE id = 'same-name-viewer'`,
+      );
       expect(viewer).toEqual({ authorTwitchId: "viewer-9", priority: 1, status: "active" });
     } finally {
       db.close();
@@ -125,13 +148,17 @@ describe("0011 repair host task identity", () => {
 
       applyMigration(db);
 
-      const tasks = db
-        .query<{ authorTwitchId: string; id: string; priority: number; status: string }, []>(
-          `SELECT id, author_twitch_id AS authorTwitchId, priority, status
-           FROM task
-           ORDER BY created_at`,
-        )
-        .all();
+      const tasks = rows<{
+        authorTwitchId: string;
+        id: string;
+        priority: number;
+        status: string;
+      }>(
+        db,
+        `SELECT id, author_twitch_id AS authorTwitchId, priority, status
+         FROM task
+         ORDER BY created_at`,
+      );
       expect(tasks.every((task) => task.authorTwitchId === "dev-owner")).toBe(true);
       expect(tasks.every((task) => task.priority === 0)).toBe(true);
       expect(tasks.filter((task) => task.status === "active").map((task) => task.id)).toEqual([
