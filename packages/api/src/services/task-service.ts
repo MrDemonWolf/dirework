@@ -75,7 +75,10 @@ export async function findActiveTaskByUsername(db: DbClient, username: string) {
 
 /** Broadcaster lookup + priority/order derivation (M6). */
 export async function resolveTaskPlacement(db: DbClient, authorTwitchId: string) {
-  const owner = await db.query.user.findFirst({ columns: { id: true, twitchId: true } });
+  const owner = await db.query.user.findFirst({
+    where: eq(schema.user.isOwner, true),
+    columns: { id: true, twitchId: true },
+  });
   const ownerTaskId = owner ? await resolveOwnerTaskId(db, owner) : null;
   const isBroadcaster = ownerTaskId === authorTwitchId;
   const priority = isBroadcaster ? 0 : 1;

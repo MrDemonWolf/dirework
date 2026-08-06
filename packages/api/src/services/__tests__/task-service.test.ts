@@ -75,6 +75,20 @@ function makeDb(opts: StubOptions) {
 }
 
 describe("resolveTaskPlacement (audit M6)", () => {
+  it("looks up the configured owner instead of an arbitrary user", async () => {
+    const { db } = makeDb({ ownerTwitchId: "123" });
+    const findOwner = vi.spyOn(db.query.user, "findFirst");
+
+    await resolveTaskPlacement(db, "123");
+
+    expect(findOwner).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.anything(),
+        columns: { id: true, twitchId: true },
+      }),
+    );
+  });
+
   it("broadcaster gets priority 0", async () => {
     const { db } = makeDb({ ownerTwitchId: "123", taskFindFirst: { order: 5 } });
     const placement = await resolveTaskPlacement(db, "123");

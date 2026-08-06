@@ -14,8 +14,8 @@
   },
   "scripts": {
     "db:generate": "drizzle-kit generate",
-    "test": "bun test",
-    "test:coverage": "bun test"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@dirework/env": "workspace:*",
@@ -25,7 +25,10 @@
   },
   "devDependencies": {
     "@dirework/config": "workspace:*",
+    "@types/sql.js": "^1.4.11",
     "drizzle-kit": "catalog:",
-    "typescript": "catalog:"
+    "sql.js": "^1.14.1",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
