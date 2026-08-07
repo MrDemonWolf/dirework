@@ -34,9 +34,12 @@ Each Dirework deployment is independently operated. Production operators should:
 
 If a credential or bearer URL leaks, rotate it before investigating further. Rotate the Cloudflare API token and Twitch client secret at their providers, replace deployment secrets in GitHub, regenerate bot and overlay tokens in Dirework, and redeploy. Rotating `BETTER_AUTH_SECRET` invalidates existing sessions.
 
-## Locally patched dependency advisory
+## Pinned dependency remediations
 
-`brace-expansion` v2 currently has no release compatible with its older consumers that includes the v5 memory-exhaustion fix. This repository backports the upstream bounded-expansion implementation through `patches/brace-expansion@2.1.2.patch` and verifies the bound in the infra test suite. The dependency audit ignores only `GHSA-mh99-v99m-4gvg` for that reviewed patch. Remove both the patch and exception as soon as all parent packages can resolve a compatible fixed release.
+The root dependency constraints keep transitive build tooling on patched releases when
+parent packages still allow vulnerable versions. The infra test suite verifies that
+`brace-expansion` resolves only to its fixed v2 and v5 lines and retains bounded output.
+Remove a pin once every parent dependency resolves an equivalent or newer fixed release.
 
 ## Development-tool advisory residuals
 
