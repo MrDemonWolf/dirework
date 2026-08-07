@@ -20,18 +20,31 @@ describe("task router input schemas", () => {
       expect(result.success).toBe(false);
     });
 
-    it("rejects empty text", () => {
-      const result = taskCreateInput.safeParse({ text: "" });
-      expect(result.success).toBe(false);
+    it("trims task text at the API boundary", () => {
+      const result = taskCreateInput.safeParse({ text: "  Write unit tests  " });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.text).toBe("Write unit tests");
+    });
+
+    it("rejects empty, whitespace-only, and protocol-control text", () => {
+      for (const text of ["", "   ", "hello\r\nJOIN #attacker"]) {
+        expect(taskCreateInput.safeParse({ text }).success).toBe(false);
+      }
     });
 
     it("rejects text over 500 characters", () => {
-      const result = taskCreateInput.safeParse({ text: "a".repeat(501) });
+      const result = taskCreateInput.safeParse({
+        ...validInput,
+        text: "a".repeat(501),
+      });
       expect(result.success).toBe(false);
     });
 
     it("accepts text at exactly 500 characters", () => {
-      const result = taskCreateInput.safeParse({ text: "a".repeat(500) });
+      const result = taskCreateInput.safeParse({
+        ...validInput,
+        text: "a".repeat(500),
+      });
       expect(result.success).toBe(true);
     });
   });
@@ -42,9 +55,10 @@ describe("task router input schemas", () => {
       expect(result.success).toBe(true);
     });
 
-    it("rejects missing id", () => {
-      const result = taskIdInput.safeParse({});
-      expect(result.success).toBe(false);
+    it("rejects missing, empty, and oversized ids", () => {
+      expect(taskIdInput.safeParse({}).success).toBe(false);
+      expect(taskIdInput.safeParse({ id: "" }).success).toBe(false);
+      expect(taskIdInput.safeParse({ id: "x".repeat(129) }).success).toBe(false);
     });
   });
 

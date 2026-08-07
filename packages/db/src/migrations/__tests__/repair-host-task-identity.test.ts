@@ -1,10 +1,15 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import initSqlJs, { type Database, type SqlJsStatic } from "sql.js";
 import { beforeAll, describe, expect, it } from "vitest";
 
 const migration = readFileSync(
-  new URL("../0011_repair_host_task_identity.sql", import.meta.url),
+  resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../0011_repair_host_task_identity.sql",
+  ),
   "utf8",
 );
 const require = createRequire(import.meta.url);

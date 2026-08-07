@@ -7,9 +7,20 @@ import { D1Database, Nextjs, RateLimit, Worker } from "alchemy/cloudflare";
 import { CloudflareStateStore } from "alchemy/state";
 import { config } from "dotenv";
 
+import {
+  assertProductionEnvironment,
+  getDevLoginSettings,
+  isCiRun,
+  isDevelopmentRun,
+} from "./deploy-config";
+
 config({ path: "./.env" });
 config({ path: "../../apps/web/.env" });
 config({ path: "../../apps/server/.env" });
+
+const isDevelopment = isDevelopmentRun(process.argv);
+if (!isDevelopment) assertProductionEnvironment(process.env);
+const devLogin = getDevLoginSettings(process.env, process.argv);
 
 // CI runners are ephemeral — the default local-file state store would lose
 // Alchemy's record of already-created resources between deploys, causing it
@@ -27,7 +38,7 @@ config({ path: "../../apps/server/.env" });
 // auth) falls back to the default filesystem state store, which persists fine
 // across local runs.
 const app = await alchemy("dirework", {
-  stateStore: process.env.CI
+  stateStore: isCiRun(process.env)
     ? (scope) =>
         new CloudflareStateStore(scope, {
           scriptName: "alchemy-state",
@@ -108,11 +119,11 @@ export const server = await Worker("server", {
     BETTER_AUTH_URL: alchemy.env.BETTER_AUTH_URL!,
     TWITCH_CLIENT_ID: alchemy.env.TWITCH_CLIENT_ID!,
     TWITCH_CLIENT_SECRET: alchemy.secret.env.TWITCH_CLIENT_SECRET!,
-    DOCS_URL: process.env.DOCS_URL ?? "https://mrdemonwolf.github.io/dirework",
-    // DEV ONLY — enables the POST /api/auth/dev-login bypass. Plain process.env
-    // (alchemy.env would throw on unset); defaults "false" so prod, which never
-    // sets it, keeps the endpoint unregistered. Never add to deploy secrets.
-    DEV_LOGIN: process.env.DEV_LOGIN ?? "false",
+    DOCS_URL: process.env.DOCS_URL || "https://mrdemonwolf.github.io/dirework",
+    // Local Alchemy dev only. Production validation rejects either bypass flag,
+    // and getDevLoginSettings independently forces this binding off unless the
+    // current command explicitly includes --dev.
+    DEV_LOGIN: devLogin.server,
   },
   dev: {
     port: 3000,
@@ -143,7 +154,7 @@ export const web = await Nextjs("web", {
   // NEXT_PUBLIC_DEV_LOGIN bakes at build (client component reads it inlined) —
   // defaults "" so the dev-bypass button stays hidden in prod builds. Local dev
   // reads it from apps/web/.env instead.
-  build: `NEXT_PUBLIC_SERVER_URL=${server.url} NEXT_PUBLIC_DEV_LOGIN=${process.env.NEXT_PUBLIC_DEV_LOGIN ?? ""} bun run opennextjs-cloudflare build && node scripts/fix-duplicate-wasm-specifiers.mjs`,
+  build: `NEXT_PUBLIC_SERVER_URL=${server.url} NEXT_PUBLIC_DEV_LOGIN=${devLogin.client} bun run opennextjs-cloudflare build && node scripts/fix-duplicate-wasm-specifiers.mjs`,
   bundle: {
     minify: true,
     // Alchemy's own esbuild pass over the OpenNext output has no loader for
@@ -165,8 +176,8 @@ export const web = await Nextjs("web", {
     BETTER_AUTH_URL: alchemy.env.BETTER_AUTH_URL!,
     // Optional — plain process.env (alchemy.env throws on unset); "" reads as
     // falsy so the footer legal links stay hidden when the operator omits them.
-    PRIVACY_POLICY_URL: process.env.PRIVACY_POLICY_URL ?? "",
-    TERMS_OF_SERVICE_URL: process.env.TERMS_OF_SERVICE_URL ?? "",
+    PRIVACY_POLICY_URL: process.env.PRIVACY_POLICY_URL || "",
+    TERMS_OF_SERVICE_URL: process.env.TERMS_OF_SERVICE_URL || "",
   },
   dev: {
     env: {

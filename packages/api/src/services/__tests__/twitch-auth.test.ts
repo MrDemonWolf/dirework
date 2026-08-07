@@ -371,3 +371,65 @@ describe("resolveChannelLogin", () => {
     ).toBe("mrdemonwolf");
   });
 });
+
+describe("strict Twitch protocol response validation", () => {
+  it("rejects a refreshed access token containing IRC control characters", async () => {
+    const { db, set } = makeDb({ botAccount: makeAccount(), updatedRow: makeAccount() });
+    fetchMock.mockResolvedValueOnce(
+      okJson({
+        access_token: "token\r\nJOIN #attacker",
+        refresh_token: "new-refresh",
+        expires_in: 3600,
+        token_type: "bearer",
+      }),
+    );
+
+    await expect(refreshBotToken(db, CREDS)).rejects.toMatchObject({ code: "BAD_GATEWAY" });
+    expect(set).not.toHaveBeenCalledWith(
+      expect.objectContaining({ accessToken: "token\r\nJOIN #attacker" }),
+    );
+  });
+
+  it("rejects malformed refresh metadata instead of persisting it", async () => {
+    const { db } = makeDb({ botAccount: makeAccount(), updatedRow: makeAccount() });
+    fetchMock.mockResolvedValueOnce(
+      okJson({ access_token: "new-access", expires_in: -1, token_type: "not-bearer" }),
+    );
+
+    await expect(refreshBotToken(db, CREDS)).rejects.toMatchObject({ code: "BAD_GATEWAY" });
+  });
+
+  it("does not persist a malformed Helix login and uses a safe fallback", async () => {
+    const { db, set } = makeDb({ instanceConfig: { channelLogin: null } });
+    fetchMock.mockResolvedValueOnce(okJson({ data: [{ login: "owner\r\nJOIN attacker" }] }));
+
+    await expect(
+      resolveChannelLogin(
+        db,
+        { clientId: "id", accessToken: "token" },
+        {
+          twitchId: "42",
+          fallbackName: "MrDemonWolf",
+        },
+      ),
+    ).resolves.toBe("mrdemonwolf");
+    expect(set).not.toHaveBeenCalledWith(
+      expect.objectContaining({ channelLogin: expect.stringContaining("\r") }),
+    );
+  });
+
+  it("fails safely when neither Twitch nor the fallback supplies a valid login", async () => {
+    const { db } = makeDb({ instanceConfig: { channelLogin: "bad cached login" } });
+
+    await expect(
+      resolveChannelLogin(
+        db,
+        { clientId: "id", accessToken: "token" },
+        {
+          twitchId: null,
+          fallbackName: "bad fallback name",
+        },
+      ),
+    ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+  });
+});

@@ -413,9 +413,15 @@ export default function HomePage() {
             title={<>Why self-host Dirework?</>}
             sub="Hosted task widgets are convenient until they're not. Dirework trades a one-time setup for full ownership — on Cloudflare's free plan."
           />
-          <div
+          {/* tabIndex makes this horizontally-scrolling region reachable by
+              keyboard. Without it the focus-visible styling below can never
+              trigger, and a keyboard-only user has no way to scroll the table
+              (WCAG 2.1.1). Newer browsers auto-focus scrollable containers, but
+              the explicit value makes it deterministic across versions. */}
+          <section
             className="mt-12 overflow-x-auto focus-visible:outline-2 focus-visible:outline-[var(--brand-500)]"
-            role="region"
+            // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable region must be focusable, or keyboard users cannot scroll it.
+            tabIndex={0}
             aria-label="Feature comparison table (scrolls horizontally)"
           >
             <div className="dw-card panel min-w-[600px]" style={{ padding: "1.5rem 2rem" }}>
@@ -491,7 +497,7 @@ export default function HomePage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </section>
           <p className="mt-5 text-center text-xs dw-text-2">
             Partial means &quot;depends on the tool or your plan.&quot; See the{" "}
             <Link href="/docs/features" className="dw-text-brand font-semibold">

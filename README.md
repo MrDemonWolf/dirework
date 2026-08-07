@@ -99,8 +99,12 @@ Navigate to `/dashboard/bot` to manage your bot account,
 customize all response messages (wolf-themed defaults included),
 enable or disable task and timer command groups, set up command
 aliases, and copy your bot console link. The bot listens to chat
-while the bot console page is open — add it to OBS as a browser
-source or keep the tab pinned.
+while exactly one bot console page is open — add it to OBS as a browser
+source or keep the tab pinned. Do not open a second copy; multiple bot consoles can
+process the same command twice.
+
+Treat the bot console and overlay URLs as bearer credentials: anyone with a copied
+link can use it until you regenerate the corresponding token.
 
 ## Tech Stack
 
@@ -169,6 +173,7 @@ source or keep the tab pinned.
 - `bun run dev:web` - Start only the web app (standalone Next dev on port 3001; the API comes from `bun run dev` or a deployed origin)
 - `bun run build` - Build all apps for production
 - `bun run lint` - Lint and format-check with Biome
+- `bun run audit:dependencies` - Fail on unmitigated high-severity dependency advisories
 - `bun run lint:fix` - Apply Biome's safe lint fixes and formatting
 - `bun run check-types` - Run TypeScript type checking
 - `bun run test` - Run unit tests across all packages
@@ -194,8 +199,9 @@ source or keep the tab pinned.
 - **tRPC** for end-to-end type-safe API layer
 - **t3-env** for environment variable validation
 - **Turborepo** for monorepo build orchestration
-- **GitHub Actions** runs one shared verification pipeline (lint, type check, tests with
+- **GitHub Actions** runs one shared verification pipeline (dependency audit, lint, type check, tests with
   coverage thresholds, production build) on every push, and again before any deploy.
+  CodeQL adds extended static security analysis on pushes, pull requests, and weekly.
   Actions are SHA-pinned and kept current by Dependabot.
 
 ## Deployment
@@ -226,6 +232,12 @@ dirework/
 │   ├── overlay-kit/   # Shared overlay geometry + clock formatting (web + docs)
 │   └── config/        # Shared TypeScript configuration
 ```
+
+## Security
+
+Report vulnerabilities privately and follow the production operator checklist in
+[SECURITY.md](SECURITY.md). Never include credentials, bearer URLs, personal data, or
+exploit details in a public issue.
 
 ## License
 
