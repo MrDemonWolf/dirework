@@ -177,10 +177,30 @@ export function truncateToBytes(value: string, maxBytes: number = MAX_CHAT_BYTES
   return out;
 }
 
+export function hasControlCharacters(value: string): boolean {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0) ?? 0;
+    if (codePoint <= 0x1f || codePoint === 0x7f) return true;
+  }
+  return false;
+}
+
+export function replaceControlCharacters(value: string): string {
+  let output = "";
+  for (const character of value) {
+    const codePoint = character.codePointAt(0) ?? 0;
+    output += codePoint <= 0x1f || codePoint === 0x7f ? " " : character;
+  }
+  return output;
+}
+
 /** A stored chat-message template, bounded by UTF-8 bytes rather than chars. */
 export const chatMessageSchema = z
   .string()
   .max(500)
+  .refine((v) => !hasControlCharacters(v), {
+    message: "Message must not contain control characters",
+  })
   .refine((v) => utf8ByteLength(v) <= MAX_MESSAGE_TEMPLATE_BYTES, {
     message: `Message must be at most ${MAX_MESSAGE_TEMPLATE_BYTES} bytes`,
   });

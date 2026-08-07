@@ -51,6 +51,7 @@ function ProgressRing({
         className="absolute inset-0"
         style={{ transform: "rotate(-90deg)" }}
       >
+        <title>Timer progress ring</title>
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -95,6 +96,7 @@ function ProgressRing({
 
   return (
     <svg width={size} height={size} className="absolute inset-0">
+      <title>Timer progress ring</title>
       {/* Track */}
       <path
         d={d}

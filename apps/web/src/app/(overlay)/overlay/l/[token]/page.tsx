@@ -22,7 +22,7 @@ export default function TaskListOverlayPage() {
   // refetches so the OBS source never blanks on a transient error.
   const { data, isPending } = useQuery({
     queryKey: ["overlay", "taskList", token],
-    queryFn: () => publicTrpc.overlay.getTaskList.query({ token }),
+    queryFn: () => publicTrpc.overlay.getTaskList.mutate({ token }),
     enabled: Boolean(token),
     refetchInterval: POLL_INTERVAL_MS,
     refetchIntervalInBackground: true,

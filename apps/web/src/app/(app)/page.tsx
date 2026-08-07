@@ -6,7 +6,7 @@ import HomeContent from "./home-content";
 export default async function Home() {
   const [owned, session] = await Promise.all([getInstanceOwned(), getServerSession()]);
 
-  if (session?.user) {
+  if (session?.user?.isOwner) {
     redirect("/dashboard");
   }
 

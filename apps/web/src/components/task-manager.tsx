@@ -161,6 +161,7 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                 <div className="flex flex-col items-center gap-3 py-10">
                   {/* Focus-ring motif empty state */}
                   <svg viewBox="0 0 48 48" className="size-10" aria-hidden>
+                    <title>Decorative empty task ring</title>
                     <circle
                       cx="24"
                       cy="24"

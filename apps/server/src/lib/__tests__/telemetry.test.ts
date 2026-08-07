@@ -48,6 +48,14 @@ describe("buildErrorEvent redaction", () => {
     expect(serialized).not.toContain("INSERT");
   });
 
+  it("drops an unsafe or secret-bearing error name", () => {
+    const error = new Error("safe message");
+    error.name = "OAuthError token=SECRET";
+    const event = buildErrorEvent({ error });
+    expect(event.name).toBe("Error");
+    expect(JSON.stringify(event)).not.toContain("SECRET");
+  });
+
   it("never includes a stack trace", () => {
     const event = buildErrorEvent({ error: new Error("boom") });
     expect(JSON.stringify(event)).not.toMatch(/at |\.ts:\d+|stack/i);

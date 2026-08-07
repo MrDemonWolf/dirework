@@ -8,7 +8,7 @@ workers and a database, all on Cloudflare's free plan. No servers, no Docker, no
 database to babysit.
 
 <Callout>
-  **The short version:** create a Cloudflare API token, set six GitHub secrets and three
+  **The short version:** create a Cloudflare API token, set six GitHub secrets and two required
   repository variables, push to `main`. GitHub Actions deploys both workers and the
   database for you.
 </Callout>
@@ -56,7 +56,7 @@ In your repository: **Settings → Secrets and variables → Actions → New rep
 |---|---|
 | `CLOUDFLARE_API_TOKEN` | the token from Step 1 |
 | `ALCHEMY_PASSWORD` | any long random string — encrypts deploy state (`openssl rand -base64 32`) |
-| `ALCHEMY_STATE_TOKEN` | authenticates the **shared** account-wide `alchemy-state` CI store worker — the same token every MrDemonWolf Alchemy app uses. Required for GitHub Actions deploys. |
+| `ALCHEMY_STATE_TOKEN` | a unique random token (min 32 characters) for the account-wide `alchemy-state` CI store worker; reuse it only across apps intentionally sharing that same worker |
 | `BETTER_AUTH_SECRET` | another long random string (`openssl rand -base64 32`) |
 | `TWITCH_CLIENT_ID` | from the Twitch console |
 | `TWITCH_CLIENT_SECRET` | from the Twitch console |
@@ -75,9 +75,18 @@ page) → **New repository variable**. Swap in your own workers.dev subdomain:
 | `BETTER_AUTH_URL` | `https://dirework.<your-subdomain>.workers.dev` (your web origin) |
 | `CORS_ORIGIN` | `https://dirework.<your-subdomain>.workers.dev` (same web origin) |
 
+Optional repository variables are supported too; leave them unset to use the defaults:
+
+| Variable | Purpose |
+|---|---|
+| `DOCS_URL` | HTTPS documentation origin used by `!dwhelp` |
+| `PRIVACY_POLICY_URL` | HTTPS privacy-policy page linked from the footer |
+| `TERMS_OF_SERVICE_URL` | HTTPS terms page linked from the footer |
+
 The deploy workflow reads these via `${{ vars.* }}` — you don't edit the workflow file.
-It checks every required secret and variable before touching Cloudflare, so a missing
-one fails immediately with a list of what's absent rather than half-way through.
+It validates every required value, minimum secret lengths, same-origin HTTPS URLs,
+optional external URLs, and disabled development-login flags before touching Cloudflare.
+Invalid configuration fails before any deployment begins.
 
 <Callout type="warn">
   There is deliberately **no `NEXT_PUBLIC_SERVER_URL` variable**. Alchemy resolves the API
@@ -88,9 +97,10 @@ one fails immediately with a list of what's absent rather than half-way through.
 
 ## Step 4 — Push to main
 
-That's it. Every push to `main` runs the full verification pipeline — lint, type check,
-tests with coverage thresholds, and a production build — and only then deploys via
+That's it. Every push to `main` runs the full verification pipeline — dependency audit, lint,
+type check, tests with coverage thresholds, and a production build — and only then deploys via
 [Alchemy](https://alchemy.run): both workers, the D1 database, and its migrations.
+CodeQL also runs extended static security analysis on pushes, pull requests, and weekly.
 You can also trigger a deploy by hand from the **Actions** tab (**Deploy → Run workflow**).
 
 ✅ Visit `https://dirework.<your-subdomain>.workers.dev`. You should see the Dirework
@@ -115,6 +125,11 @@ To tear everything down again: `bun run destroy`.
 - [ ] The **bot page** is added to OBS as a browser source (or pinned in a tab) — the
   bot only listens to chat while that page is open. See [Chat commands](/docs/chat-commands).
 - [ ] The timer and task list overlays show up in OBS
+- [ ] Exactly one bot page is open; multiple copies can process the same command twice
+- [ ] Bot and overlay URLs are kept private and regenerated after any suspected disclosure
+- [ ] `main` is protected and requires the Verify and CodeQL workflows before merge
+- [ ] GitHub secret scanning and push protection are enabled
+- [ ] GitHub and Cloudflare accounts use MFA and least-privilege access
 
 ## Free plan limits (you're fine)
 

@@ -133,12 +133,13 @@ export async function pauseTimer(db: DbClient) {
 
   const remaining = Math.max(0, timer.targetEndTime.getTime() - Date.now());
 
-  return updateSingleton(db, schema.timerState, {
+  const [row] = await casTimer(db, timer, {
     status: "paused",
     pausedFromStatus: timer.status,
     pausedWithRemaining: remaining,
     targetEndTime: null,
   });
+  return row ?? (await db.query.timerState.findFirst()) ?? null;
 }
 
 /**
@@ -149,12 +150,13 @@ export async function resumeTimer(db: DbClient) {
   const timer = await getTimerState(db);
   if (timer?.pausedWithRemaining == null) return null;
 
-  return updateSingleton(db, schema.timerState, {
+  const [row] = await casTimer(db, timer, {
     status: timer.pausedFromStatus ?? "work",
     targetEndTime: new Date(Date.now() + timer.pausedWithRemaining),
     pausedWithRemaining: null,
     pausedFromStatus: null,
   });
+  return row ?? (await db.query.timerState.findFirst()) ?? null;
 }
 
 /** Skip to the next phase; a paused timer skips from its pre-pause phase. */

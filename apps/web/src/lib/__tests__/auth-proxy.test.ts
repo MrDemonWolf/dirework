@@ -23,6 +23,12 @@ describe("buildTargetUrl", () => {
     ).toBe(`${API}/api/auth/callback/twitch?scope=user%3Aread%3Aemail+openid`);
   });
 
+  it("never treats a double-slash pathname as a new authority", () => {
+    expect(buildTargetUrl("https://dirework.example//attacker.example/steal", API)).toBe(
+      `${API}//attacker.example/steal`,
+    );
+  });
+
   it("handles paths without a query string", () => {
     expect(buildTargetUrl("http://localhost:3001/api/bot/authorize", "http://localhost:3000")).toBe(
       "http://localhost:3000/api/bot/authorize",
@@ -39,6 +45,9 @@ describe("forwardHeaders", () => {
         host: "dirework.mrdemonwolf.workers.dev",
         "content-length": "42",
         connection: "keep-alive",
+        forwarded: "host=attacker.example;proto=http",
+        "x-forwarded-host": "attacker.example",
+        "x-forwarded-proto": "http",
       }),
     );
     expect(headers.get("cookie")).toBe("__Secure-better-auth.state=abc");
@@ -46,6 +55,9 @@ describe("forwardHeaders", () => {
     expect(headers.get("host")).toBeNull();
     expect(headers.get("content-length")).toBeNull();
     expect(headers.get("connection")).toBeNull();
+    expect(headers.get("forwarded")).toBeNull();
+    expect(headers.get("x-forwarded-host")).toBeNull();
+    expect(headers.get("x-forwarded-proto")).toBeNull();
   });
 });
 

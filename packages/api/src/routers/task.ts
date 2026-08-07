@@ -25,7 +25,7 @@ export const taskRouter = router({
       {
         twitchId: authorTwitchId,
         username: ctx.session.user.name,
-        displayName: ctx.session.user.displayName || ctx.session.user.name,
+        displayName: ctx.session.user.displayName ?? ctx.session.user.name,
         color: null,
       },
       input.text,

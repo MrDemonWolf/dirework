@@ -49,7 +49,6 @@ type IngestInput =
       message: string;
       color?: string;
       isMod: boolean;
-      isBroadcaster: boolean;
     }
   | { token: string; kind: "clearchat"; targetUsername: string };
 
@@ -135,12 +134,12 @@ export function BotConsole() {
     return () => clearInterval(timer);
   }, []);
 
-  // Pin the activity feed to the newest line (instant jump, no smooth
-  // scrolling — reduced-motion safe).
+  // Pin the activity feed to the newest line (instant jump, reduced-motion safe).
   useEffect(() => {
+    if (activity.length === 0) return;
     const el = logRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, []);
+  }, [activity]);
 
   useEffect(() => {
     if (!token) return;
@@ -188,28 +187,19 @@ export function BotConsole() {
     };
 
     /**
-     * Relay a chat line to the stateless API. Transient failures (network)
-     * are retried once, then logged to the activity feed — they never crash
-     * the socket loop. UNAUTHORIZED means the bot link was revoked.
+     * Relay one chat line to the stateless API. Mutations are deliberately not
+     * retried: if D1 commits but the response is lost, an automatic retry would
+     * apply commands such as !done, !next, or !timer skip twice.
      */
     const ingestOnce = async (input: IngestInput): Promise<string[]> => {
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          const result = await publicTrpc.bot.ingest.mutate(input);
-          return result.replies;
-        } catch (err) {
-          if (isUnauthorized(err)) {
-            enterRevoked();
-            return [];
-          }
-          if (attempt === 0) {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            continue;
-          }
-          pushActivity("error", "couldn't send that command to Dirework — message dropped");
-        }
+      try {
+        const result = await publicTrpc.bot.ingest.mutate(input);
+        return result.replies;
+      } catch (err) {
+        if (isUnauthorized(err)) enterRevoked();
+        else pushActivity("error", "could not send that command to Dirework — message dropped");
+        return [];
       }
-      return [];
     };
 
     /**
@@ -257,7 +247,6 @@ export function BotConsole() {
             message: text,
             color: chat.color,
             isMod: chat.isMod,
-            isBroadcaster: chat.isBroadcaster,
           });
           if (disposed || revoked) return;
           for (const reply of replies) {
@@ -298,7 +287,7 @@ export function BotConsole() {
 
     async function bootstrap(opts: { forceRefresh?: boolean } = {}): Promise<void> {
       try {
-        const session = await publicTrpc.bot.getSession.query({
+        const session = await publicTrpc.bot.getSession.mutate({
           token,
           forceRefresh: opts.forceRefresh,
         });
@@ -344,7 +333,7 @@ export function BotConsole() {
 
     async function revalidate(): Promise<void> {
       try {
-        const session = await publicTrpc.bot.getSession.query({ token, revalidate: true });
+        const session = await publicTrpc.bot.getSession.mutate({ token, revalidate: true });
         if (disposed || revoked) return;
         // Only reconnect when the token actually rotated — an unchanged token
         // means the socket is still valid and must not be churned hourly.
