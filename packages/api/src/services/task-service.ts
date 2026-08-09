@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
@@ -11,6 +11,31 @@ export interface TaskAuthor {
   username: string;
   displayName: string;
   color?: string | null;
+}
+
+/**
+ * Resolve the stable author key shared by dashboard and Twitch chat tasks.
+ * Legacy owner rows can be missing the custom twitchId even though Better Auth
+ * still has the provider account ID. The internal user ID is only a final
+ * fallback for local dev owners that have no linked Twitch account.
+ */
+export async function resolveOwnerTaskId(
+  db: DbClient,
+  owner: { id: string; twitchId?: string | null },
+) {
+  if (owner.twitchId) return owner.twitchId;
+
+  const twitchAccount = await db.query.account.findFirst({
+    where: and(
+      eq(schema.account.userId, owner.id),
+      eq(schema.account.providerId, "twitch"),
+      ne(schema.account.accountId, ""),
+    ),
+    orderBy: [asc(schema.account.createdAt), asc(schema.account.id)],
+    columns: { accountId: true },
+  });
+
+  return twitchAccount?.accountId || owner.id;
 }
 
 const OPEN_STATUSES = ["pending", "active"];
@@ -54,7 +79,8 @@ export async function resolveTaskPlacement(db: DbClient, authorTwitchId: string)
     columns: { id: true, twitchId: true },
     where: eq(schema.user.isOwner, true),
   });
-  const isBroadcaster = owner != null && (owner.twitchId ?? owner.id) === authorTwitchId;
+  const ownerTaskId = owner ? await resolveOwnerTaskId(db, owner) : null;
+  const isBroadcaster = ownerTaskId === authorTwitchId;
   const priority = isBroadcaster ? 0 : 1;
 
   const lastTask = await db.query.task.findFirst({

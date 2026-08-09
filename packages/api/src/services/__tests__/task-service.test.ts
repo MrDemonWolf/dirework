@@ -13,6 +13,8 @@ import {
 
 interface StubOptions {
   ownerTwitchId?: string | null;
+  ownerId?: string;
+  ownerAccountId?: string;
   /** Returned by task.findFirst (used for last-order lookup / next-pending). */
   taskFindFirst?: Record<string, unknown>;
   /** Returned by task.findMany (open tasks). */
@@ -27,12 +29,18 @@ function makeDb(opts: StubOptions) {
   const insertSpy = vi.fn();
   const updateSpy = vi.fn();
   const userFindFirstSpy = vi.fn(async () =>
-    opts.ownerTwitchId === undefined ? undefined : { twitchId: opts.ownerTwitchId },
+    opts.ownerTwitchId === undefined
+      ? undefined
+      : { id: opts.ownerId ?? "owner-user", twitchId: opts.ownerTwitchId },
   );
   let insertCalls = 0;
   const db = {
     query: {
       user: { findFirst: userFindFirstSpy },
+      account: {
+        findFirst: async () =>
+          opts.ownerAccountId ? { accountId: opts.ownerAccountId } : undefined,
+      },
       task: {
         findFirst: async () => opts.taskFindFirst,
         findMany: async () => opts.openTasks ?? [],
@@ -92,7 +100,26 @@ describe("resolveTaskPlacement (audit M6)", () => {
     expect(placement.nextOrder).toBe(1);
   });
 
-  it("a null owner twitchId never matches (no accidental broadcaster)", async () => {
+  it("uses the linked Twitch account ID when the custom owner field is missing", async () => {
+    const { db } = makeDb({
+      ownerId: "internal-owner",
+      ownerTwitchId: null,
+      ownerAccountId: "123",
+    });
+    const placement = await resolveTaskPlacement(db, "123");
+    expect(placement).toMatchObject({ isBroadcaster: true, priority: 0 });
+  });
+
+  it("uses the internal ID only for an owner without a linked Twitch account", async () => {
+    const { db } = makeDb({
+      ownerId: "internal-owner",
+      ownerTwitchId: null,
+    });
+    const placement = await resolveTaskPlacement(db, "internal-owner");
+    expect(placement).toMatchObject({ isBroadcaster: true, priority: 0 });
+  });
+
+  it("does not treat an unrelated ID as broadcaster without a linked Twitch account", async () => {
     const { db } = makeDb({ ownerTwitchId: null });
     const placement = await resolveTaskPlacement(db, "456");
     expect(placement.isBroadcaster).toBe(false);

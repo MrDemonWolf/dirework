@@ -17,6 +17,8 @@ interface DbRows {
   timerState?: Record<string, unknown>;
   timerConfig?: Record<string, unknown>;
   instanceConfig?: Record<string, unknown>;
+  user?: Record<string, unknown>;
+  twitchAccount?: Record<string, unknown>;
 }
 
 /**
@@ -49,7 +51,16 @@ function makeDb(rows: DbRows = {}) {
       taskStyle: { findFirst: async () => PROVISIONED.taskStyle },
       botConfig: { findFirst: async () => PROVISIONED.botConfig },
       instanceConfig: { findFirst: async () => rows.instanceConfig },
-      user: { findFirst: async () => ({ twitchId: "owner-1", name: "streamer" }) },
+      user: {
+        findFirst: async () =>
+          rows.user ?? {
+            id: "u1",
+            twitchId: "owner-1",
+            name: "streamer",
+            displayName: "Streamer",
+          },
+      },
+      account: { findFirst: async () => rows.twitchAccount },
       botAccount: { findFirst: async () => undefined },
     },
     insert: () => ({
@@ -196,7 +207,7 @@ describe("input validation through the real procedures", () => {
 });
 
 describe("database effects of owner mutations", () => {
-  it("task.create derives the author from the owner session", async () => {
+  it("task.create derives the author from the authenticated owner", async () => {
     const { caller: owner, inserted } = caller(ownerSession, { tasks: [] });
 
     await owner.task.create({ text: "write the docs" });
@@ -207,7 +218,40 @@ describe("database effects of owner mutations", () => {
       authorUsername: "streamer",
       authorDisplayName: "Streamer",
       text: "write the docs",
+      priority: 0,
     });
+  });
+
+  it("uses the linked Twitch account when a legacy owner row has no custom Twitch ID", async () => {
+    const legacyOwnerSession = {
+      user: {
+        id: "u1",
+        isOwner: true,
+        name: "streamer",
+        twitchId: null,
+        displayName: "Streamer",
+      },
+    };
+    const rows = {
+      tasks: [],
+      user: {
+        id: "u1",
+        twitchId: null,
+        name: "streamer",
+        displayName: "Streamer",
+      },
+      twitchAccount: { accountId: "owner-1" },
+    };
+    const { caller: owner, inserted } = caller(legacyOwnerSession, rows);
+
+    await owner.task.create({ text: "write the docs" });
+    const me = await owner.user.me();
+
+    expect(inserted[0]).toMatchObject({
+      authorTwitchId: "owner-1",
+      priority: 0,
+    });
+    expect(me?.twitchId).toBe("owner-1");
   });
 
   it("timer.pause writes a paused state derived from the running timer", async () => {
