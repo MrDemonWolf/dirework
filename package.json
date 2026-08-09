@@ -67,7 +67,7 @@
     "brace-expansion": "2.1.4",
     "path-to-regexp": "8.4.2",
     "@dirework/config": "workspace:*",
-    "@types/node": "^22.20.1",
+    "@types/node": "^26.1.2",
     "@vitest/coverage-v8": "^4.1.10",
     "turbo": "^2.10.7",
     "typescript": "^5.9.3",

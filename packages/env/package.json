@@ -17,7 +17,7 @@
   "devDependencies": {
     "@dirework/config": "workspace:*",
     "@dirework/infra": "workspace:*",
-    "@types/node": "^22.13.14",
+    "@types/node": "^26.1.2",
     "typescript": "catalog:"
   }
 }
