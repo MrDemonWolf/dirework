@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "tsx alchemy.run.ts --dev",
     "deploy": "tsx alchemy.run.ts",
-    "destroy": "tsx alchemy.run.ts --destroy"
+    "destroy": "tsx alchemy.run.ts --destroy",
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "dotenv": "catalog:"

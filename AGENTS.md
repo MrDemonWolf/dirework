@@ -222,8 +222,11 @@ Production: `dirework.mrdemonwolf.workers.dev` (web) + `dirework-api.mrdemonwolf
 ## Environment Variables
 
 Server worker bindings (typed via `packages/env/env.d.ts` from `alchemy.run.ts`):
-`DB` (D1), `CORS_ORIGIN`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `TWITCH_CLIENT_ID`,
-`TWITCH_CLIENT_SECRET`, `DOCS_URL`. Web worker: `NEXT_PUBLIC_SERVER_URL`.
+`DB` (D1), the four rate-limit bindings (`RL_AUTH`, `RL_BOT`, `RL_TOKEN`, `RL_OVERLAY`),
+`CORS_ORIGIN`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `TWITCH_CLIENT_ID`,
+`TWITCH_CLIENT_SECRET`, `DOCS_URL`, plus dev-only `DEV_LOGIN` (gates the Twitch-less
+`POST /api/auth/dev-login` owner-session bypass — never set in production).
+Web worker: `NEXT_PUBLIC_SERVER_URL`.
 `SKIP_ENV_VALIDATION=true` bypasses t3-env during CI/build.
 
 ## Footer Convention

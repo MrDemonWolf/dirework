@@ -13,6 +13,16 @@ function serverUrl(): string {
 }
 
 /**
+ * Budget for a single api-worker call made during server-side render.
+ *
+ * Shorter than the OAuth proxy's 15s (lib/auth-proxy.ts): that one streams a
+ * proxied body, this one blocks a render. Without a signal, a stalled api
+ * worker hangs the page until the Workers wall-clock limit kills it — a slow
+ * dependency becomes a 500. Both callers below already fail safe on throw.
+ */
+const SSR_TIMEOUT_MS = 5_000;
+
+/**
  * Resolve the current session from a server component on the web worker.
  *
  * The web worker has no DB binding and no @dirework/auth instance — session
@@ -26,6 +36,7 @@ export async function getServerSession(): Promise<ServerSession | null> {
     const res = await fetch(`${serverUrl()}/api/auth/get-session`, {
       headers: { cookie: h.get("cookie") ?? "" },
       cache: "no-store",
+      signal: AbortSignal.timeout(SSR_TIMEOUT_MS),
     });
     if (!res.ok) return null;
     // better-auth returns a JSON `null` body when there is no session.
@@ -47,6 +58,7 @@ export async function getInstanceOwned(): Promise<boolean> {
   try {
     const res = await fetch(`${serverUrl()}/trpc/user.hasOwner`, {
       cache: "no-store",
+      signal: AbortSignal.timeout(SSR_TIMEOUT_MS),
     });
     if (!res.ok) return true;
     const body = (await res.json()) as { result?: { data?: unknown } };

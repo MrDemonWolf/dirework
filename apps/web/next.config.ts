@@ -28,17 +28,27 @@ const commitSha = (() => {
 })();
 
 /**
- * Content Security Policy.
+ * Content Security Policy — **enforcing**.
  *
- * Shipped in **Report-Only** mode first (P2.16): the overlays run inside OBS
- * browser sources and the bot page holds a Twitch IRC WebSocket, so a blocking
- * policy that is even slightly wrong takes a live stream's overlay down. Collect
- * violation reports, confirm they're clean, then switch the header name to
- * `Content-Security-Policy`.
+ * Shipped Report-Only first (P2.16) because overlays run inside OBS browser
+ * sources and the bot page holds a Twitch IRC WebSocket, so a wrong policy takes
+ * a live stream down. That wait produced no signal (the header carried no
+ * `report-uri`/`report-to`, so nothing was ever collected) and it hid one real
+ * violation: the overlay route group used to `<link>` a fonts.googleapis.com
+ * stylesheet. That link was dead weight — the root layout already serves every
+ * overlay family self-hosted from /fonts/fonts.css — so it was deleted rather
+ * than allowlisted, and the policy below is now enforced.
+ *
+ * Every directive is pinned to an actual usage: static-cdn.jtvnw.net is the
+ * Twitch avatar better-auth stores on the session user, id.twitch.tv is the
+ * OAuth form post, irc-ws.chat.twitch.tv is the bot page's IRC socket, and
+ * ${serverUrl} is publicTrpc's direct hop to the api worker. Adding an external
+ * origin to an overlay means editing this list — see the drift test in
+ * src/lib/__tests__/csp.test.ts.
  *
  * `unsafe-inline`/`unsafe-eval` on script-src are required by Next's hydration
  * bootstrap without a nonce; tightening those needs nonce-based CSP via
- * middleware, which is the natural follow-up once this is enforcing.
+ * middleware, which is the natural follow-up now that this enforces.
  */
 const cspDirectives = [
   "default-src 'self'",
@@ -88,9 +98,7 @@ const nextConfig: NextConfig = {
             key: "Strict-Transport-Security",
             value: "max-age=63072000; includeSubDomains; preload",
           },
-          // Report-Only for now — see cspDirectives. Rename this key to
-          // "Content-Security-Policy" to enforce once reports are clean.
-          { key: "Content-Security-Policy-Report-Only", value: cspDirectives },
+          { key: "Content-Security-Policy", value: cspDirectives },
         ],
       },
     ];

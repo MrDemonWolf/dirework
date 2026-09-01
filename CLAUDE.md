@@ -89,6 +89,16 @@ the browser and are deliberately NOT reported back (it would burn free-tier requ
 **`/health` is liveness, `/ready` is readiness.** `/health` has no dependencies, so a D1
 outage can't make the worker look dead; `/ready` pings D1 and returns 503 when it can't.
 
+**CSP is enforced** (`next.config.ts`, no longer Report-Only) and every directive is pinned
+to a real usage — `static-cdn.jtvnw.net` (Twitch avatar), `id.twitch.tv` (OAuth form post),
+`wss://irc-ws.chat.twitch.tv` (bot IRC), the api worker via `NEXT_PUBLIC_SERVER_URL`. Because
+`style-src`/`font-src` are `'self'`-only, **an overlay must never `<link>` an external
+stylesheet** — all 20 picker families are self-hosted in `apps/web/public/fonts` and served
+by the root layout's `/fonts/fonts.css`. Adding an external origin means editing the
+directive list; `src/lib/__tests__/csp.test.ts` fails otherwise. `'unsafe-inline'`/
+`'unsafe-eval'` on `script-src` are Next's nonce-less hydration bootstrap; nonce-based CSP
+via middleware is the follow-up. The api worker mirrors this with `hono/secure-headers`.
+
 ## Monorepo Structure
 
 Turborepo + Bun workspaces (catalog for shared versions). All packages ESM.
