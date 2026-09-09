@@ -14,7 +14,7 @@
   "dependencies": {
     "@dirework/overlay-kit": "workspace:*",
     "@orama/orama": "^3.1.18",
-    "fumadocs-core": "16.5.1",
+    "fumadocs-core": "16.15.7",
     "fumadocs-mdx": "14.2.6",
     "fumadocs-ui": "16.5.1",
     "lucide-react": "^0.563.0",
