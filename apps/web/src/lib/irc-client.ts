@@ -13,6 +13,7 @@
 import { MAX_CHAT_BYTES, truncateToBytes } from "@dirework/api/config-shared";
 
 import { RateLimiter } from "./rate-limiter";
+import { hasSafeIrcCredentials, sanitizeIrcMessage } from "./irc-sanitize";
 
 const TWITCH_IRC_URL = "wss://irc-ws.chat.twitch.tv:443";
 
@@ -222,6 +223,15 @@ export class TwitchIrcClient {
    */
   connect(creds: IrcCredentials): void {
     if (this.disposed) return;
+    if (!hasSafeIrcCredentials(creds)) {
+      this.creds = null;
+      this.authFailed = true;
+      this.clearReconnectTimer();
+      this.closeSocket();
+      this.setStatus("auth-failed");
+      this.callbacks.onError?.("Invalid Twitch IRC credentials");
+      return;
+    }
     this.creds = creds;
     this.authFailed = false;
     this.reconnectAttempts = 0;
@@ -246,7 +256,7 @@ export class TwitchIrcClient {
 
   /** Queue a chat message; sent as PRIVMSG under the rolling rate limiter. */
   say(text: string): void {
-    const trimmed = text.trim();
+    const trimmed = sanitizeIrcMessage(text);
     if (!trimmed || this.disposed) return;
     if (this.sendQueue.length >= MAX_QUEUE) {
       // Overflow policy: drop the oldest queued reply and warn.

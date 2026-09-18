@@ -19,8 +19,7 @@ concurrency:
 
 jobs:
   # The same reusable pipeline the PR gate runs, build included — a deploy must
-  # never ship code that could not be built. Previously deploy ran only
-  # check-types + test, so a build-breaking change could reach production.
+  # never ship code that could not be built.
   verify:
     uses: ./.github/workflows/verify.yml
     with:
@@ -31,55 +30,55 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
-      # Shared across every MrDemonWolf Alchemy app — auths the account-wide
-      # `alchemy-state` store worker. The SHARED token is what makes sharing
-      # safe; a per-app token against a shared-name worker is the "token is
-      # invalid" clash. See packages/infra/alchemy.run.ts.
-      ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
-      # One-time recovery switch — true only when manually dispatched with the
-      # force_state_token input. Normal push deploys leave it false so the state
-      # worker's token is never needlessly rewritten. See packages/infra/alchemy.run.ts.
-      ALCHEMY_STATE_FORCE_UPDATE: ${{ inputs.force_state_token || false }}
-      BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-      TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
-      TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
-      BETTER_AUTH_URL: ${{ vars.BETTER_AUTH_URL }}
-      CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
-      # NEXT_PUBLIC_SERVER_URL is deliberately NOT passed: Alchemy injects the
-      # api worker's resolved URL at both build and runtime (alchemy.run.ts), so
-      # a GH variable here would be dead config that looks load-bearing.
       SKIP_ENV_VALIDATION: "true"
     steps:
+      # Checkout, runtime setup, and dependency installation deliberately have
+      # no production credentials in their environment. A compromised install
+      # script must not be able to read deployment secrets.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.14
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - run: bun install --frozen-lockfile
 
-      # Fail loudly and early on missing deploy config, rather than part-way
-      # through provisioning Cloudflare resources.
-      - name: Validate required deploy configuration
-        run: |
-          missing=()
-          for var in CLOUDFLARE_API_TOKEN ALCHEMY_PASSWORD ALCHEMY_STATE_TOKEN \
-                     BETTER_AUTH_SECRET TWITCH_CLIENT_ID TWITCH_CLIENT_SECRET \
-                     BETTER_AUTH_URL CORS_ORIGIN; do
-            if [ -z "${!var}" ]; then missing+=("$var"); fi
-          done
-          if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error::Missing required deploy configuration: ${missing[*]}"
-            echo "Secrets: CLOUDFLARE_API_TOKEN, ALCHEMY_PASSWORD, ALCHEMY_STATE_TOKEN, BETTER_AUTH_SECRET, TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET"
-            echo "Variables: BETTER_AUTH_URL, CORS_ORIGIN"
-            exit 1
-          fi
+      # Validate presence, secret length, same-origin HTTPS URLs, optional
+      # external URLs, and that the development login bypass is disabled.
+      - name: Validate production deploy configuration
+        working-directory: packages/infra
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
+          ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
+          TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
+          BETTER_AUTH_URL: ${{ vars.BETTER_AUTH_URL }}
+          CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
+          DOCS_URL: ${{ vars.DOCS_URL }}
+          PRIVACY_POLICY_URL: ${{ vars.PRIVACY_POLICY_URL }}
+          TERMS_OF_SERVICE_URL: ${{ vars.TERMS_OF_SERVICE_URL }}
+        run: node ./node_modules/.bin/tsx validate-deploy-env.ts
 
       # Alchemy MUST run under Node — Bun segfaults on the Alchemy program.
-      # Invokes the lockfile-pinned local tsx binary explicitly under `node`
-      # instead of `npx -y tsx`, which fetched an unpinned tsx at deploy time
-      # (supply-chain risk) and left the runtime to npx's own resolution.
+      # Use the lockfile-pinned local tsx; never fetch an executable with npx.
       - name: Deploy via Alchemy (Node + tsx)
         working-directory: packages/infra
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
+          ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
+          ALCHEMY_STATE_FORCE_UPDATE: ${{ inputs.force_state_token || false }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
+          TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
+          BETTER_AUTH_URL: ${{ vars.BETTER_AUTH_URL }}
+          CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
+          DOCS_URL: ${{ vars.DOCS_URL }}
+          PRIVACY_POLICY_URL: ${{ vars.PRIVACY_POLICY_URL }}
+          TERMS_OF_SERVICE_URL: ${{ vars.TERMS_OF_SERVICE_URL }}
         run: node ./node_modules/.bin/tsx alchemy.run.ts

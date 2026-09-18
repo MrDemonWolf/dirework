@@ -5,6 +5,7 @@ import type { DbClient } from "@dirework/db";
 import {
   getTimerEta,
   maybeAdvanceOverdueTimer,
+  pauseTimer,
   resetTimer,
   resumeTimer,
   skipTimer,
@@ -36,6 +37,39 @@ function makeDb(opts: StubOptions) {
   } as unknown as DbClient;
   return { db, setSpy };
 }
+
+describe("pauseTimer guarded CAS", () => {
+  it("re-reads instead of overwriting when a concurrent timer action wins", async () => {
+    const running = {
+      id: "singleton",
+      status: "work",
+      targetEndTime: new Date(Date.now() + 60_000),
+      pausedWithRemaining: null,
+      pausedFromStatus: null,
+      currentCycle: 1,
+      totalCycles: 4,
+    };
+    const skipped = { ...running, status: "break" };
+    const findFirst = vi.fn().mockResolvedValueOnce(running).mockResolvedValue(skipped);
+    const setSpy = vi.fn();
+    const db = {
+      query: {
+        timerState: { findFirst },
+        timerConfig: { findFirst: async () => undefined },
+      },
+      update: () => ({
+        set: (values: Record<string, unknown>) => {
+          setSpy(values);
+          return { where: () => ({ returning: async () => [] }) };
+        },
+      }),
+    } as unknown as DbClient;
+
+    expect((await pauseTimer(db))?.status).toBe("break");
+    expect(setSpy).toHaveBeenCalledOnce();
+    expect(findFirst).toHaveBeenCalledTimes(2);
+  });
+});
 
 describe("resumeTimer (audit M2)", () => {
   const pausedBase = {

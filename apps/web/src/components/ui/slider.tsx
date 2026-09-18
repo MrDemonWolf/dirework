@@ -1,3 +1,4 @@
+// biome-ignore-all lint/suspicious/noArrayIndexKey: Slider thumbs are positional controls without stable semantic IDs.
 "use client";
 
 import * as React from "react";

@@ -1,4 +1,5 @@
 import { TRPCError } from "@trpc/server";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import type { DbClient } from "@dirework/db";
@@ -6,7 +7,7 @@ import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
 
 import { handleMessage } from "../bot/commands";
-import { buildBotConfig } from "../config-shared";
+import { buildBotConfig, hasControlCharacters } from "../config-shared";
 import { ownerProcedure, publicProcedure, router } from "../index";
 import { ensureBotConfig, ensureInstanceConfig } from "../services/provision";
 import { removeTasksByUsername } from "../services/task-service";
@@ -18,24 +19,50 @@ import { updateSingleton } from "../services/singleton";
 // connection and relays every chat line here. These procedures are stateless —
 // the twurple TwitchBotService is gone.
 
-const ingestInput = z.object({
+const twitchLoginInput = z
+  .string()
+  .trim()
+  .min(1)
+  .max(25)
+  .regex(/^[a-z0-9_]+$/i);
+const twitchIdInput = z.string().min(1).max(32).regex(/^\d+$/);
+const safeChatTextInput = z
+  .string()
+  .trim()
+  .min(1)
+  .max(600)
+  .refine((value) => !hasControlCharacters(value), "Control characters are not allowed");
+
+export const botIngestInputSchema = z.object({
   token: tokenInput,
   kind: z.enum(["message", "clearchat"]).default("message"),
-  username: z.string().min(1).max(64).optional(),
-  displayName: z.string().min(1).max(64).optional(),
-  twitchId: z.string().min(1).max(32).optional(),
-  message: z.string().min(1).max(600).optional(),
-  color: z.string().max(32).optional(),
+  username: twitchLoginInput.optional(),
+  displayName: z.string().trim().min(1).max(64).optional(),
+  twitchId: twitchIdInput.optional(),
+  message: safeChatTextInput.optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .optional(),
   isMod: z.boolean().default(false),
-  isBroadcaster: z.boolean().default(false),
-  targetUsername: z.string().min(1).max(64).optional(),
+  targetUsername: twitchLoginInput.optional(),
 });
+
+export function deriveChatPrivileges(
+  ownerTwitchId: string | null | undefined,
+  chatterTwitchId: string,
+  clientClaimsMod: boolean,
+) {
+  const isBroadcaster = ownerTwitchId != null && ownerTwitchId === chatterTwitchId;
+  return { isBroadcaster, isMod: clientClaimsMod || isBroadcaster };
+}
 
 /** The owner-user + bot-account singleton lookups the bot procedures repeat. */
 async function loadOwnerAndBotAccount(db: DbClient) {
   const [owner, botAccount] = await Promise.all([
     db.query.user.findFirst({
       columns: { name: true, displayName: true, twitchId: true },
+      where: eq(schema.user.isOwner, true),
     }),
     db.query.botAccount.findFirst({ columns: { username: true } }),
   ]);
@@ -61,7 +88,7 @@ export const botRouter = router({
         revalidate: z.boolean().optional(),
       }),
     )
-    .query(async ({ ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
       await requireBotToken(ctx.db, input.token);
 
       const { owner, botAccount } = await loadOwnerAndBotAccount(ctx.db);
@@ -107,7 +134,7 @@ export const botRouter = router({
    * ban/timeout event) and receives the replies to send back to chat.
    */
   ingest: publicProcedure
-    .input(ingestInput)
+    .input(botIngestInputSchema)
     .mutation(async ({ ctx, input }): Promise<{ replies: string[] }> => {
       await requireBotToken(ctx.db, input.token);
 
@@ -132,9 +159,13 @@ export const botRouter = router({
 
       const [botConfigRow, owner] = await Promise.all([
         ensureBotConfig(ctx.db),
-        ctx.db.query.user.findFirst({ columns: { name: true } }),
+        ctx.db.query.user.findFirst({
+          columns: { name: true, twitchId: true },
+          where: eq(schema.user.isOwner, true),
+        }),
       ]);
 
+      const privileges = deriveChatPrivileges(owner?.twitchId, input.twitchId, input.isMod);
       const replies: string[] = [];
       await handleMessage({
         db: ctx.db,
@@ -146,8 +177,7 @@ export const botRouter = router({
           username: input.username,
           displayName: input.displayName ?? input.username,
           color: input.color ?? null,
-          isBroadcaster: input.isBroadcaster,
-          isMod: input.isMod || input.isBroadcaster,
+          ...privileges,
         },
         docsUrl: env.DOCS_URL,
         say: (text) => replies.push(text),

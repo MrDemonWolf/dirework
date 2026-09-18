@@ -23,6 +23,13 @@ const MAX_BODY_BYTES = 128 * 1024;
 const app = new Hono();
 
 app.use(requestLogger());
+// This origin serves credentials, OAuth redirects, and user state. Never let a
+// browser, intermediary, or edge cache retain those responses.
+app.use(async (c, next) => {
+  c.header("Cache-Control", "no-store, max-age=0");
+  c.header("Pragma", "no-cache");
+  await next();
+});
 /**
  * Security headers on the API worker, mirroring the web worker's (P2.16). This
  * origin only ever returns JSON and OAuth redirects — never HTML — so the CSP
@@ -104,8 +111,13 @@ app.use(
     // CODE becomes a label (a closed set); the message never does, since it can
     // carry task text or a Twitch response body.
     onError: ({ error, ctx: _ctx, path: _path }) => {
-      recordMetric("db.error", { label: error.code });
-      recordError({ error, reason: error.code });
+      // Expected auth and validation failures are client outcomes, not database
+      // incidents. Logging them as errors created noisy, attacker-amplifiable
+      // telemetry and obscured real server failures.
+      if (error.code === "INTERNAL_SERVER_ERROR") {
+        recordMetric("internal.error", { label: error.code });
+        recordError({ error, reason: error.code });
+      }
     },
   }),
 );

@@ -8,6 +8,7 @@ This file provides guidance for coding agents working on the Dirework codebase.
 
 - Migration plan (Node/Postgres → Cloudflare) → `MIGRATION.md`
 - Pre-migration audit (29 findings, all addressed in the port) → `AUDIT-cloudflare-migration.md`
+- Security policy and production operator checklist → `SECURITY.md`
 - Database schemas → `packages/db/src/schema/` (index.ts, auth.ts, app.ts)
 - Setup guides → `.env.example`, docs `apps/fumadocs/content/docs/deployment.mdx`
 
@@ -45,7 +46,7 @@ token-authenticated traffic (overlay polling, bot page) goes DIRECT to the api w
 `createDb()` (packages/db), `createAuth()` (packages/auth), `createContext({ context })`
 (packages/api). Never add module-level db/auth/EventEmitter state.
 
-**Real-time = polling.** Overlays poll public tRPC queries every 3s and compute the
+**Real-time = polling.** Overlays poll public tRPC procedures over POST every 3s and compute the
 countdown locally from `targetEndTime`. There is no SSE, no event bus. (The
 countdown is local, so the poll only catches state changes; the interval is kept
 high to stay within the Cloudflare free-tier request budget.)
@@ -124,7 +125,9 @@ must not import `@dirework/env/server` — Vitest runs in Node and cannot resolv
 `cloudflare:workers`.
 
 Token gates: `verifyOverlayToken` / `verifyBotToken` (constant-time compare, bounded
-zod inputs). Never return `accessToken`/`refreshToken` from any procedure (audit H1).
+zod inputs). Never return a refresh token. The sole access-token exception is the bot
+page bootstrap: bearer-gated `bot.getSession` returns the short-lived token as
+`chatToken` because the browser page owns the Twitch IRC socket; keep that exception narrow.
 
 ### Database
 
@@ -191,10 +194,12 @@ New pure functions → extract to testable modules + add tests.
 pins. Every workflow declares minimal `permissions`.
 
 - `.github/workflows/verify.yml` — **the single verification pipeline**
-  (install → lint → check-types → test:coverage → build), called via `workflow_call`.
+  (install → dependency audit → lint → check-types → test:coverage → build), called via `workflow_call`.
   CI and deploy both use it, so the deploy gate cannot drift from the PR gate.
 - `.github/workflows/ci.yml` — push (dev/main) + PRs: calls `verify.yml`, plus a
   `dependency-review` job on PRs.
+- `.github/workflows/codeql.yml` — CodeQL JavaScript/TypeScript analysis with the
+  `security-extended` query suite on pushes, PRs, and a weekly schedule.
 - `.github/workflows/deploy.yml` — push to main (or manual): `verify.yml` **including the
   build**, then validates required secrets/vars, then Alchemy deploy.
   **Deploy runs under Node via the lockfile-pinned local `tsx`

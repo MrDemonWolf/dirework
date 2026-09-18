@@ -5,37 +5,31 @@ import { taskCreateInput, taskIdInput } from "../input-schemas";
 
 describe("task router input schemas", () => {
   describe("create", () => {
-    const validInput = {
-      authorTwitchId: "12345",
-      authorUsername: "testuser",
-      authorDisplayName: "TestUser",
-      text: "Write unit tests",
-    };
+    const validInput = { text: "Write unit tests" };
 
     it("accepts valid input", () => {
       const result = taskCreateInput.safeParse(validInput);
       expect(result.success).toBe(true);
     });
 
-    it("accepts valid input with optional authorColor", () => {
+    it("rejects client-supplied author identity", () => {
       const result = taskCreateInput.safeParse({
         ...validInput,
-        authorColor: "#FF5500",
+        authorTwitchId: "attacker-controlled",
       });
-      expect(result.success).toBe(true);
-    });
-
-    it("accepts valid input without authorColor", () => {
-      const result = taskCreateInput.safeParse(validInput);
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.authorColor).toBeUndefined();
-      }
-    });
-
-    it("rejects empty text", () => {
-      const result = taskCreateInput.safeParse({ ...validInput, text: "" });
       expect(result.success).toBe(false);
+    });
+
+    it("trims task text at the API boundary", () => {
+      const result = taskCreateInput.safeParse({ text: "  Write unit tests  " });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.text).toBe("Write unit tests");
+    });
+
+    it("rejects empty, whitespace-only, and protocol-control text", () => {
+      for (const text of ["", "   ", "hello\r\nJOIN #attacker"]) {
+        expect(taskCreateInput.safeParse({ text }).success).toBe(false);
+      }
     });
 
     it("rejects text over 500 characters", () => {
@@ -61,9 +55,10 @@ describe("task router input schemas", () => {
       expect(result.success).toBe(true);
     });
 
-    it("rejects missing id", () => {
-      const result = taskIdInput.safeParse({});
-      expect(result.success).toBe(false);
+    it("rejects missing, empty, and oversized ids", () => {
+      expect(taskIdInput.safeParse({}).success).toBe(false);
+      expect(taskIdInput.safeParse({ id: "" }).success).toBe(false);
+      expect(taskIdInput.safeParse({ id: "x".repeat(129) }).success).toBe(false);
     });
   });
 

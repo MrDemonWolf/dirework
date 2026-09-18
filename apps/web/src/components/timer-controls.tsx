@@ -50,13 +50,12 @@ function CycleDots({ current, total }: { current: number; total: number }) {
       role="img"
       aria-label={`Pomodoro ${Math.min(current, total)} of ${total}`}
     >
-      {Array.from({ length: total }).map((_, i) => {
-        const cycleNum = i + 1;
+      {Array.from({ length: total }, (_, index) => index + 1).map((cycleNum) => {
         const isDone = cycleNum < current;
         const isCurrent = cycleNum === current;
         return (
           <span
-            key={i}
+            key={cycleNum}
             className={cn(
               "size-2 rounded-full transition-colors",
               isDone && "bg-primary",

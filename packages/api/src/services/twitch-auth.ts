@@ -1,10 +1,11 @@
 import { TRPCError } from "@trpc/server";
 import { and, eq, isNull, lt, or } from "drizzle-orm";
+import { z } from "zod";
 
 import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 
-import { SINGLETON_ID } from "../config-shared";
+import { hasControlCharacters, SINGLETON_ID } from "../config-shared";
 import { updateSingleton } from "./singleton";
 
 // How close to expiry (ms) before we proactively refresh the chat token.
@@ -37,12 +38,44 @@ export interface TwitchCredentials {
   clientSecret: string;
 }
 
-interface TwitchTokenResponse {
-  access_token: string;
-  refresh_token?: string;
-  expires_in?: number;
-  scope?: string[];
-}
+const protocolTokenSchema = z
+  .string()
+  .min(1)
+  .max(4096)
+  .refine((value) => !hasControlCharacters(value));
+const twitchLoginSchema = z
+  .string()
+  .trim()
+  .regex(/^[a-z0-9_]{1,25}$/i);
+const twitchRefreshResponseSchema = z
+  .object({
+    access_token: protocolTokenSchema,
+    refresh_token: protocolTokenSchema.optional(),
+    expires_in: z
+      .number()
+      .int()
+      .min(1)
+      .max(366 * 24 * 60 * 60)
+      .optional(),
+    scope: z
+      .array(
+        z
+          .string()
+          .min(1)
+          .max(128)
+          .refine((value) => !hasControlCharacters(value)),
+      )
+      .max(32)
+      .optional(),
+    token_type: z.string().max(32).optional(),
+  })
+  .refine((value) => value.token_type === undefined || value.token_type.toLowerCase() === "bearer");
+const helixLoginResponseSchema = z.object({
+  data: z
+    .array(z.object({ login: twitchLoginSchema }))
+    .min(1)
+    .max(100),
+});
 
 type BotAccountRow = typeof schema.botAccount.$inferSelect;
 
@@ -105,7 +138,20 @@ export async function refreshBotToken(
       });
     }
 
-    const data = (await res.json()) as TwitchTokenResponse;
+    let body: unknown;
+    try {
+      body = await res.json();
+    } catch {
+      throw new TRPCError({ code: "BAD_GATEWAY", message: "Twitch returned invalid JSON" });
+    }
+    const parsed = twitchRefreshResponseSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new TRPCError({
+        code: "BAD_GATEWAY",
+        message: "Twitch returned an invalid token response",
+      });
+    }
+    const data = parsed.data;
 
     const [updated] = await db
       .update(schema.botAccount)
@@ -264,7 +310,8 @@ export async function resolveChannelLogin(
   const instance = await db.query.instanceConfig.findFirst({
     columns: { channelLogin: true },
   });
-  if (instance?.channelLogin) return instance.channelLogin;
+  const cachedLogin = twitchLoginSchema.safeParse(instance?.channelLogin);
+  if (cachedLogin.success) return cachedLogin.data.toLowerCase();
 
   if (owner.twitchId) {
     try {
@@ -279,11 +326,14 @@ export async function resolveChannelLogin(
         },
       );
       if (res.ok) {
-        const body = (await res.json()) as { data?: { login?: string }[] };
-        const login = body.data?.[0]?.login;
-        if (login) {
-          await updateSingleton(db, schema.instanceConfig, { channelLogin: login });
-          return login;
+        const parsed = helixLoginResponseSchema.safeParse(await res.json());
+        if (parsed.success) {
+          const [user] = parsed.data.data;
+          if (user) {
+            const login = user.login.toLowerCase();
+            await updateSingleton(db, schema.instanceConfig, { channelLogin: login });
+            return login;
+          }
         }
       }
     } catch {
@@ -291,5 +341,10 @@ export async function resolveChannelLogin(
     }
   }
 
-  return owner.fallbackName.toLowerCase();
+  const fallbackLogin = twitchLoginSchema.safeParse(owner.fallbackName.toLowerCase());
+  if (fallbackLogin.success) return fallbackLogin.data;
+  throw new TRPCError({
+    code: "PRECONDITION_FAILED",
+    message: "Owner Twitch login unavailable",
+  });
 }

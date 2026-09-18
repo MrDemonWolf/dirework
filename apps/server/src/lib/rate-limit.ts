@@ -33,7 +33,7 @@ export type BucketName = keyof RateLimitBindings;
 
 /**
  * Choose the bucket for a request path. Returns null for paths that should not
- * be limited (health checks, the root probe).
+ * be limited (the liveness and root probes).
  *
  * tRPC batching means a path can carry several procedures
  * (`/trpc/bot.ingest,bot.getSession`), so this matches on procedure names
@@ -80,7 +80,15 @@ export const rateLimiter = (): MiddlewareHandler => async (c, next) => {
   // Rate limiting is an abuse brake; it must never take the app down itself.
   if (!binding) return next();
 
-  const { success } = await binding.limit({ key: clientKey(c.req.raw.headers, bucket) });
+  let success: boolean;
+  try {
+    ({ success } = await binding.limit({ key: clientKey(c.req.raw.headers, bucket) }));
+  } catch {
+    // Cloudflare limiter availability must never become API availability. The
+    // fixed bucket label is safe; the client key (and its IP) is never logged.
+    recordMetric("ratelimit.failure", { requestId: getRequestId(c), label: bucket });
+    return next();
+  }
   if (!success) {
     // Counter carries the BUCKET (a fixed, non-identifying name) so a flood is
     // visible in telemetry — never the client key, which contains an IP.

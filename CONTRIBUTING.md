@@ -61,13 +61,20 @@ git checkout -b feat/your-feature-name
 
 ## Making Changes
 
-- Follow existing code patterns and conventions documented in `CLAUDE.md`
+- Follow existing code patterns and conventions documented in `AGENTS.md`
 - Use TypeScript strict mode — no `any` types
 - Use functional components with `"use client"` where needed
 - Style with Tailwind utility classes
 - Extract pure logic into testable modules (not inline in components/routers)
 
 ## Testing
+
+Run the dependency audit and lint gate:
+
+```bash
+bun run audit:dependencies
+bun run lint
+```
 
 Run the full test suite before submitting:
 
@@ -91,7 +98,7 @@ When adding new pure functions, add corresponding tests in a `__tests__/` direct
 
 ## Pull Request Process
 
-1. Ensure all checks pass: `bun run check-types && bun run test && bun run build`
+1. Ensure `bun run audit:dependencies`, `bun run lint`, `bun run check-types`, `bun run test:coverage`, and `bun run build` all pass
 2. Create a PR from your feature branch to `dev`
 3. Provide a clear title and description of your changes
 4. Link any relevant issues
@@ -100,13 +107,13 @@ When adding new pure functions, add corresponding tests in a `__tests__/` direct
 ## Code Quality
 
 - No unused imports or variables
-- No `console.log` in committed code (use proper error handling)
+- No ad hoc `console.log` in application code; use the structured server telemetry helpers (deployment tooling may print non-secret status output)
 - Database columns use `snake_case`; TypeScript fields use `camelCase`
 - IDs use CUID2 via `@paralleldrive/cuid2`
 
 ## Reporting Issues
 
-Use [GitHub Issues](https://github.com/mrdemonwolf/dirework/issues) to report bugs or request features. Include steps to reproduce for bugs.
+Use [GitHub Issues](https://github.com/mrdemonwolf/dirework/issues) to report bugs or request features. Report suspected vulnerabilities privately according to [SECURITY.md](SECURITY.md); never put secrets or exploit details in a public issue.
 
 ## License
 

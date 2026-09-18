@@ -16,8 +16,15 @@ const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000";
 
 /** Map an incoming web-origin URL to the same path+query on the api worker. */
 export function buildTargetUrl(requestUrl: string, apiOrigin: string): string {
-  const url = new URL(requestUrl);
-  return new URL(url.pathname + url.search, apiOrigin).toString();
+  const incoming = new URL(requestUrl);
+  const target = new URL(apiOrigin);
+  // Assign components instead of resolving a path string. A future catch-all
+  // route receiving a `//host` pathname must never reinterpret it as a new
+  // authority and turn this fixed-origin proxy into SSRF.
+  target.pathname = incoming.pathname;
+  target.search = incoming.search;
+  target.hash = "";
+  return target.toString();
 }
 
 /** Hop-by-hop / auto-computed headers the proxied fetch must not carry over. */
@@ -28,6 +35,16 @@ const STRIP_REQUEST_HEADERS = [
   "transfer-encoding",
   "keep-alive",
   "expect",
+  "proxy-authorization",
+  "te",
+  "trailer",
+  "upgrade",
+  "forwarded",
+  "x-forwarded-for",
+  "x-forwarded-host",
+  "x-forwarded-port",
+  "x-forwarded-proto",
+  "x-real-ip",
 ];
 
 /** Copy request headers (cookies included) minus the ones fetch derives itself. */

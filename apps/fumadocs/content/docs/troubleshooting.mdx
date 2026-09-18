@@ -60,6 +60,7 @@ For production, add the same two paths on your workers.dev domain
 
 - The timer overlay is blank on purpose while the timer is idle — start a timer session and it appears.
 - Check that the overlay URL is correct. Copy it from the **Overlay URLs** card in the dashboard.
+- Treat overlay URLs as bearer credentials. If one was exposed, regenerate its token and update OBS.
 - Try opening the overlay URL directly in your browser to see if it loads.
 
 ### Overlay not updating in OBS
@@ -115,12 +116,12 @@ If you changed the work duration (e.g. to 50 minutes) but the timer still uses 2
 
 The bot only listens to chat **while its bot page is open** somewhere. Run through this list:
 
-- **Is the bot page open?** Copy the bot page URL from **Dashboard → Bot** and add it to
-  OBS as a browser source (or keep it open in a pinned browser tab). If OBS has the
-  source shut down — or no one has the page open — the bot hears nothing.
+- **Is exactly one bot page open?** Copy the bot page URL from **Dashboard → Bot** and add it to
+  OBS as a browser source (or keep it open in one pinned browser tab). If no copy is open,
+  the bot hears nothing; if multiple copies are open, the same command can be processed twice.
 - **Was the bot token regenerated?** Regenerating the token kills any previously copied
   bot page URL. Re-copy the fresh URL from **Dashboard → Bot** and update your OBS
-  source or pinned tab.
+  source or pinned tab. Treat this URL as a bearer credential and never post it publicly.
 - **Is a bot account connected?** Check the **Bot account** card —
   [connect a bot account](/docs/twitch-oauth#step-5-connect-the-bot-account) if it isn't.
 

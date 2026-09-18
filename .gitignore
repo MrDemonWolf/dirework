@@ -8,9 +8,21 @@ dist
 build
 *.tsbuildinfo
 
-# Environment variables
-.env
-.env*.local
+# Environment variables and local Worker secrets
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+.env*
+!.env.example
+.dev.vars*
+.wrangler
+
+# Private keys and certificate bundles
+*.key
+*.pem
+*.p12
+*.pfx
 
 # IDEs and editors
 .vscode/*

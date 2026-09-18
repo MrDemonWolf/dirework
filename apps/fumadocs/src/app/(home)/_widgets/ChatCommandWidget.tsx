@@ -31,7 +31,7 @@ const LINES: Line[] = [
 
 export function ChatCommandWidget() {
   return (
-    <div className="panel overflow-hidden" aria-label="Twitch chat command preview">
+    <section className="panel overflow-hidden" aria-label="Twitch chat command preview">
       {/* Channel header bar */}
       <div
         className="flex items-center gap-2 px-4 py-2.5"
@@ -48,14 +48,20 @@ export function ChatCommandWidget() {
       </div>
 
       <div style={{ padding: "1.1rem 1.35rem", display: "flex", flexDirection: "column", gap: 10 }}>
-        {LINES.map((l, i) =>
+        {LINES.map((l) =>
           l.kind === "cmd" ? (
-            <div key={i} style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 14 }}>
+            <div
+              key={[l.kind, l.user, l.text].join(":")}
+              style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 14 }}
+            >
               <span style={{ fontWeight: 700, color: l.color }}>{l.user}</span>
               <span className="dw-mono dw-text-1">{l.text}</span>
             </div>
           ) : (
-            <div key={i} style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 14 }}>
+            <div
+              key={[l.kind, "Dirework", l.text].join(":")}
+              style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 14 }}
+            >
               <span className="dw-text-brand" style={{ fontWeight: 700 }}>
                 Dirework
               </span>
@@ -64,6 +70,6 @@ export function ChatCommandWidget() {
           ),
         )}
       </div>
-    </div>
+    </section>
   );
 }

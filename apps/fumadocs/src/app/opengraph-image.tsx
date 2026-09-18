@@ -34,6 +34,7 @@ export default function OpengraphImage() {
           strokeLinecap="round"
           strokeLinejoin="round"
         >
+          <title>Dirework logo</title>
           <path d="M14 30L20 8l10 18" />
           <path d="M50 30L44 8l-10 18" />
           <path d="M12 30c-1 10 4 18 12 22l8 6 8-6c8-4 13-12 12-22" />

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   MAX_TASK_LEN,
+  hasControlCharacters,
   normalizeAliases,
   taskMessagesInputSchema,
   timerMessagesInputSchema,
@@ -13,17 +14,17 @@ import {
 // chain resolves cloudflare:workers — so tests used to hand-copy these schemas
 // and silently drifted from the real ones.
 
-export const taskTextInput = z.string().min(1).max(MAX_TASK_LEN);
+export const taskTextInput = z
+  .string()
+  .trim()
+  .min(1)
+  .max(MAX_TASK_LEN)
+  .refine((value) => !hasControlCharacters(value), "Control characters are not allowed");
 
-export const taskCreateInput = z.object({
-  authorTwitchId: z.string(),
-  authorUsername: z.string(),
-  authorDisplayName: z.string(),
-  authorColor: z.string().optional(),
-  text: taskTextInput,
-});
+/** Dashboard-created tasks always belong to the authenticated owner. */
+export const taskCreateInput = z.object({ text: taskTextInput }).strict();
 
-export const taskIdInput = z.object({ id: z.string() });
+export const taskIdInput = z.object({ id: z.string().min(1).max(128) }).strict();
 
 export const timerStartInput = z.object({
   totalCycles: z.number().int().min(1).max(99).optional(),

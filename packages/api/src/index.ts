@@ -2,7 +2,27 @@ import { initTRPC, TRPCError } from "@trpc/server";
 
 import type { Context } from "./context";
 
-export const t = initTRPC.context<Context>().create();
+type RedactableErrorShape = {
+  message: string;
+  data: object;
+};
+
+export function redactInternalErrorShape<T extends RedactableErrorShape>(
+  shape: T,
+  code: string,
+): T {
+  if (code !== "INTERNAL_SERVER_ERROR") return shape;
+
+  const data = { ...shape.data } as Record<string, unknown>;
+  delete data.stack;
+  return { ...shape, message: "Internal server error", data } as T;
+}
+
+export const t = initTRPC.context<Context>().create({
+  errorFormatter({ shape, error }) {
+    return redactInternalErrorShape(shape, error.code);
+  },
+});
 
 export const router = t.router;
 

@@ -28,31 +28,16 @@ const commitSha = (() => {
 })();
 
 /**
- * Content Security Policy — **enforcing**.
+ * Enforced Content Security Policy.
  *
- * Shipped Report-Only first (P2.16) because overlays run inside OBS browser
- * sources and the bot page holds a Twitch IRC WebSocket, so a wrong policy takes
- * a live stream down. That wait produced no signal (the header carried no
- * `report-uri`/`report-to`, so nothing was ever collected) and it hid one real
- * violation: the overlay route group used to `<link>` a fonts.googleapis.com
- * stylesheet. That link was dead weight — the root layout already serves every
- * overlay family self-hosted from /fonts/fonts.css — so it was deleted rather
- * than allowlisted, and the policy below is now enforced.
- *
- * Every directive is pinned to an actual usage: static-cdn.jtvnw.net is the
- * Twitch avatar better-auth stores on the session user, id.twitch.tv is the
- * OAuth form post, irc-ws.chat.twitch.tv is the bot page's IRC socket, and
- * ${serverUrl} is publicTrpc's direct hop to the api worker. Adding an external
- * origin to an overlay means editing this list — see the drift test in
- * src/lib/__tests__/csp.test.ts.
- *
- * `unsafe-inline`/`unsafe-eval` on script-src are required by Next's hydration
- * bootstrap without a nonce; tightening those needs nonce-based CSP via
- * middleware, which is the natural follow-up now that this enforces.
+ * Next currently needs inline hydration and style blocks, but production does
+ * not need eval; keeping dynamic evaluation would turn otherwise-contained script
+ * injection bugs into code execution. Token routes receive stricter cache,
+ * referrer, and crawler headers below.
  */
 const cspDirectives = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   // Twitch profile images (better-auth stores the CDN URL on the session user).
   "img-src 'self' data: blob: https://static-cdn.jtvnw.net",
@@ -65,11 +50,25 @@ const cspDirectives = [
   "frame-ancestors 'self'",
   "base-uri 'self'",
   "object-src 'none'",
+  "worker-src 'self' blob:",
+  "manifest-src 'self'",
 ].join("; ");
+
+const noStoreHeaders = [
+  { key: "Cache-Control", value: "private, no-store, max-age=0, must-revalidate" },
+  { key: "Pragma", value: "no-cache" },
+];
+
+const tokenRouteHeaders = [
+  ...noStoreHeaders,
+  { key: "Referrer-Policy", value: "no-referrer" },
+  { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+];
 
 const nextConfig: NextConfig = {
   typedRoutes: true,
   reactCompiler: true,
+  poweredByHeader: false,
   env: {
     NEXT_PUBLIC_COMMIT_SHA: commitSha,
     NEXT_PUBLIC_APP_VERSION: version,
@@ -101,6 +100,11 @@ const nextConfig: NextConfig = {
           { key: "Content-Security-Policy", value: cspDirectives },
         ],
       },
+      { source: "/overlay/:path*", headers: tokenRouteHeaders },
+      { source: "/bot/:path*", headers: tokenRouteHeaders },
+      { source: "/rpc/:path*", headers: noStoreHeaders },
+      { source: "/api/:path*", headers: noStoreHeaders },
+      { source: "/dashboard/:path*", headers: noStoreHeaders },
     ];
   },
 };

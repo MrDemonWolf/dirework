@@ -7,11 +7,14 @@ import {
   createTask,
   markTaskDone,
   promoteNextPending,
+  replaceActiveTask,
   resolveTaskPlacement,
 } from "../task-service";
 
 interface StubOptions {
   ownerTwitchId?: string | null;
+  ownerId?: string;
+  ownerAccountId?: string;
   /** Returned by task.findFirst (used for last-order lookup / next-pending). */
   taskFindFirst?: Record<string, unknown>;
   /** Returned by task.findMany (open tasks). */
@@ -25,12 +28,18 @@ interface StubOptions {
 function makeDb(opts: StubOptions) {
   const insertSpy = vi.fn();
   const updateSpy = vi.fn();
+  const userFindFirstSpy = vi.fn(async () =>
+    opts.ownerTwitchId === undefined
+      ? undefined
+      : { id: opts.ownerId ?? "owner-user", twitchId: opts.ownerTwitchId },
+  );
   let insertCalls = 0;
   const db = {
     query: {
-      user: {
+      user: { findFirst: userFindFirstSpy },
+      account: {
         findFirst: async () =>
-          opts.ownerTwitchId === undefined ? undefined : { twitchId: opts.ownerTwitchId },
+          opts.ownerAccountId ? { accountId: opts.ownerAccountId } : undefined,
       },
       task: {
         findFirst: async () => opts.taskFindFirst,
@@ -63,14 +72,20 @@ function makeDb(opts: StubOptions) {
       },
     }),
   } as unknown as DbClient;
-  return { db, insertSpy, updateSpy };
+  return { db, insertSpy, updateSpy, userFindFirstSpy };
 }
 
 describe("resolveTaskPlacement (audit M6)", () => {
   it("broadcaster gets priority 0", async () => {
-    const { db } = makeDb({ ownerTwitchId: "123", taskFindFirst: { order: 5 } });
+    const { db, userFindFirstSpy } = makeDb({
+      ownerTwitchId: "123",
+      taskFindFirst: { order: 5 },
+    });
     const placement = await resolveTaskPlacement(db, "123");
     expect(placement).toEqual({ isBroadcaster: true, priority: 0, nextOrder: 6 });
+    expect(userFindFirstSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.anything() }),
+    );
   });
 
   it("viewer gets priority 1", async () => {
@@ -85,7 +100,26 @@ describe("resolveTaskPlacement (audit M6)", () => {
     expect(placement.nextOrder).toBe(1);
   });
 
-  it("a null owner twitchId never matches (no accidental broadcaster)", async () => {
+  it("uses the linked Twitch account ID when the custom owner field is missing", async () => {
+    const { db } = makeDb({
+      ownerId: "internal-owner",
+      ownerTwitchId: null,
+      ownerAccountId: "123",
+    });
+    const placement = await resolveTaskPlacement(db, "123");
+    expect(placement).toMatchObject({ isBroadcaster: true, priority: 0 });
+  });
+
+  it("uses the internal ID only for an owner without a linked Twitch account", async () => {
+    const { db } = makeDb({
+      ownerId: "internal-owner",
+      ownerTwitchId: null,
+    });
+    const placement = await resolveTaskPlacement(db, "internal-owner");
+    expect(placement).toMatchObject({ isBroadcaster: true, priority: 0 });
+  });
+
+  it("does not treat an unrelated ID as broadcaster without a linked Twitch account", async () => {
     const { db } = makeDb({ ownerTwitchId: null });
     const placement = await resolveTaskPlacement(db, "456");
     expect(placement.isBroadcaster).toBe(false);
@@ -269,5 +303,55 @@ describe("markTaskDone atomicity (P1.7)", () => {
     const { db, batchSpy } = makeBatchDb({ taskFindFirst: undefined, batchResults: [] });
     expect(await markTaskDone(db, "nope")).toBeNull();
     expect(batchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("replaceActiveTask atomicity", () => {
+  it("completes the old task and inserts the active replacement in one batch", async () => {
+    const setSpy = vi.fn();
+    const valuesSpy = vi.fn();
+    const batchSpy = vi.fn(async (_statements: unknown[]) => [
+      [{ id: "old", status: "done" }],
+      [{ id: "new", status: "active", text: "next task" }],
+    ]);
+    const db = {
+      query: {
+        user: { findFirst: async () => ({ twitchId: "owner" }) },
+        task: { findFirst: async () => ({ order: 4 }) },
+      },
+      update: () => ({
+        set: (values: Record<string, unknown>) => {
+          setSpy(values);
+          return { where: () => ({ returning: () => ({ kind: "complete" }) }) };
+        },
+      }),
+      insert: () => ({
+        values: (values: Record<string, unknown>) => {
+          valuesSpy(values);
+          return { returning: () => ({ kind: "insert" }) };
+        },
+      }),
+      batch: batchSpy,
+    } as unknown as DbClient;
+
+    const result = await replaceActiveTask(
+      db,
+      { id: "old" },
+      {
+        twitchId: "viewer",
+        username: "viewer",
+        displayName: "Viewer",
+        color: "#ff0000",
+      },
+      "next task",
+    );
+
+    expect(batchSpy).toHaveBeenCalledOnce();
+    expect(batchSpy.mock.calls[0]?.[0]).toHaveLength(2);
+    expect(setSpy).toHaveBeenCalledWith({ status: "done", completedAt: expect.any(Date) });
+    expect(valuesSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "next task", status: "active", priority: 1, order: 5 }),
+    );
+    expect(result.created).toMatchObject({ id: "new", status: "active" });
   });
 });

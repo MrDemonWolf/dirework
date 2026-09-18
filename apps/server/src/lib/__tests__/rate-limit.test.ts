@@ -3,8 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import { clientKey, rateLimiter, selectBucket } from "../rate-limit";
 
 describe("selectBucket", () => {
-  it("does not limit health or root probes", () => {
+  it("keeps liveness and root probes open but limits readiness reads", () => {
     expect(selectBucket("/health")).toBeNull();
+    expect(selectBucket("/ready")).toBe("RL_TOKEN");
     expect(selectBucket("/")).toBeNull();
   });
 
@@ -107,6 +108,17 @@ describe("rateLimiter middleware", () => {
     await rateLimiter()(ctx as never, next);
 
     expect(limit).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledOnce();
+  });
+
+  it("fails OPEN when the binding throws", async () => {
+    const next = vi.fn(async () => undefined);
+    const ctx = makeCtx("https://api.test/trpc/bot.ingest", {
+      RL_BOT: { limit: async () => Promise.reject(new Error("binding unavailable")) },
+    });
+
+    await rateLimiter()(ctx as never, next);
+
     expect(next).toHaveBeenCalledOnce();
   });
 

@@ -31,6 +31,7 @@ export function ThemeCard({
   const { bg, accent, text } = theme.preview;
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: ThemeBrowser implements roving focus and arrow-key radio behavior.
     <button
       type="button"
       role="radio"
@@ -55,6 +56,7 @@ export function ThemeCard({
         {/* Timer: progress ring + digits */}
         <div className="relative grid size-14 shrink-0 place-items-center">
           <svg width="56" height="56" viewBox="0 0 44 44" className="absolute inset-0">
+            <title>Decorative timer progress preview</title>
             <circle
               cx="22"
               cy="22"

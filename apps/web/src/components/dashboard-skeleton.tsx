@@ -34,8 +34,14 @@ export function DashboardSkeleton() {
             </div>
             <div className="w-full space-y-3 lg:w-60 lg:shrink-0 lg:border-l lg:border-border/40 lg:pl-6">
               <Skeleton className="h-3 w-16" />
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-8 w-full" />
+              {[
+                "timer-setting-1",
+                "timer-setting-2",
+                "timer-setting-3",
+                "timer-setting-4",
+                "timer-setting-5",
+              ].map((key) => (
+                <Skeleton key={key} className="h-8 w-full" />
               ))}
             </div>
             {/* Timer monitor + URL column, matching the live hero's third rail */}
@@ -69,8 +75,8 @@ export function DashboardSkeleton() {
               <Skeleton className="h-10 w-16" />
             </div>
             <div className="space-y-3">
-              {Array.from({ length: 2 }).map((_, i) => (
-                <Skeleton key={i} className="h-24 w-full rounded-xl" />
+              {["task-group-1", "task-group-2"].map((key) => (
+                <Skeleton key={key} className="h-24 w-full rounded-xl" />
               ))}
             </div>
           </div>
