@@ -236,9 +236,8 @@ export async function markTaskDone(db: DbClient, id: string) {
 }
 
 /**
- * Complete the current active task and insert its replacement atomically.
- * If the insert fails, D1 rolls the completion back, so !next can never leave
- * a viewer with no active task merely because the second write failed.
+ * Replace the current active task atomically. The pending insert is guarded by
+ * the old task still being active, so a stale !next cannot create a new task.
  */
 export async function replaceActiveTask(
   db: DbClient,
@@ -247,7 +246,26 @@ export async function replaceActiveTask(
   text: string,
 ) {
   const placement = await resolveTaskPlacement(db, author.twitchId);
-  const [completedRows, createdRows] = await db.batch([
+  const replacementId = crypto.randomUUID();
+  const [, completedRows, createdRows] = await db.batch([
+    db.insert(schema.task).select(sql`
+      select
+        ${replacementId},
+        ${author.twitchId},
+        ${author.username},
+        ${author.displayName},
+        ${author.color ?? null},
+        ${text},
+        'pending',
+        ${placement.priority},
+        ${placement.nextOrder},
+        cast(unixepoch('subsecond') * 1000 as integer),
+        null
+      from ${schema.task}
+      where ${schema.task.id} = ${activeTask.id}
+        and ${schema.task.authorTwitchId} = ${author.twitchId}
+        and ${schema.task.status} = 'active'
+    `),
     db
       .update(schema.task)
       .set({ status: "done", completedAt: new Date() })
@@ -260,17 +278,9 @@ export async function replaceActiveTask(
       )
       .returning(),
     db
-      .insert(schema.task)
-      .values({
-        authorTwitchId: author.twitchId,
-        authorUsername: author.username,
-        authorDisplayName: author.displayName,
-        authorColor: author.color ?? null,
-        text,
-        status: "active",
-        priority: placement.priority,
-        order: placement.nextOrder,
-      })
+      .update(schema.task)
+      .set({ status: "active" })
+      .where(and(eq(schema.task.id, replacementId), eq(schema.task.status, "pending")))
       .returning(),
   ]);
 
