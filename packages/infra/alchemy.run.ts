@@ -119,7 +119,7 @@ export const server = await Worker("server", {
     BETTER_AUTH_URL: alchemy.env.BETTER_AUTH_URL!,
     TWITCH_CLIENT_ID: alchemy.env.TWITCH_CLIENT_ID!,
     TWITCH_CLIENT_SECRET: alchemy.secret.env.TWITCH_CLIENT_SECRET!,
-    DOCS_URL: process.env.DOCS_URL || "https://docs.dirework.mrdemonwolf.dev",
+    DOCS_URL: process.env.DOCS_URL || "https://dirework.mrdemonwolf.dev",
     // Local Alchemy dev only. Production validation rejects either bypass flag,
     // and getDevLoginSettings independently forces this binding off unless the
     // current command explicitly includes --dev.
