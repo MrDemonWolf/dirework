@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 import { source } from "@/lib/source";
 
-const BASE = "https://mrdemonwolf.github.io/dirework";
+const BASE = "https://dirework.mrdemonwolf.dev";
 
 // Static export → emit sitemap.xml at build for the GitHub Pages site.
 export const dynamic = "force-static";
