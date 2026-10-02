@@ -42,8 +42,20 @@ export async function generateMetadata(props: PageProps<"/docs/[[...slug]]">): P
   return {
     title: page.data.title,
     description: page.data.description,
+    alternates: { canonical: page.url },
     openGraph: {
-      images: getPageImage(page).url,
+      type: "website",
+      siteName: "Dirework",
+      title: page.data.title,
+      description: page.data.description,
+      url: page.url,
+      images: [{ url: getPageImage(page).url, width: 1200, height: 630, alt: page.data.title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: page.data.title,
+      description: page.data.description,
+      images: [{ url: getPageImage(page).url, alt: page.data.title }],
     },
   };
 }

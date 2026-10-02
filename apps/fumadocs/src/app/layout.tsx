@@ -50,7 +50,9 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "MrDemonWolf, Inc." }],
   creator: "MrDemonWolf, Inc.",
+  alternates: { canonical: "/" },
   openGraph: {
+    url: "/",
     type: "website",
     locale: "en_US",
     siteName: "Dirework",
