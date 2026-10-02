@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { betterAuth } from "better-auth";
 
 const { mockSelect, mockDb } = vi.hoisted(() => {
   const mockSelect = vi.fn();
@@ -30,7 +31,7 @@ vi.mock("@dirework/env/server", () => ({
     BETTER_AUTH_URL: "http://localhost:3001",
   },
 }));
-vi.mock("better-auth", () => ({ betterAuth: () => ({}) }));
+vi.mock("better-auth", () => ({ betterAuth: vi.fn(() => ({})) }));
 vi.mock("better-auth/adapters/drizzle", () => ({
   drizzleAdapter: () => ({}),
 }));
@@ -45,7 +46,7 @@ vi.mock("drizzle-orm", () => ({
   count: () => "count()",
 }));
 
-import { hasOwner } from "../index";
+import { createAuth, hasOwner } from "../index";
 
 function mockUserCount(n: number) {
   mockSelect.mockReturnValue({
@@ -81,5 +82,45 @@ describe("hasOwner", () => {
     expect(await hasOwner(injectedDb)).toBe(true);
     expect(injectedSelect).toHaveBeenCalledOnce();
     expect(mockSelect).not.toHaveBeenCalled();
+  });
+
+  it("allows the first signup and makes that user the owner without an owner ID", async () => {
+    mockUserCount(0);
+    createAuth();
+    const options = vi.mocked(betterAuth).mock.calls[0]![0];
+    const before = options.databaseHooks!.user!.create!.before!;
+    const user = {
+      id: "first-user",
+      name: "Streamer",
+      email: "streamer@example.com",
+      emailVerified: false,
+      createdAt: new Date(0),
+      updatedAt: new Date(0),
+    };
+
+    await expect(before(user, null)).resolves.toEqual({
+      data: { ...user, isOwner: true },
+    });
+  });
+
+  it("rejects further signups after the instance is claimed", async () => {
+    mockUserCount(1);
+    createAuth();
+    const options = vi.mocked(betterAuth).mock.calls[0]![0];
+    const before = options.databaseHooks!.user!.create!.before!;
+
+    await expect(
+      before(
+        {
+          id: "another-user",
+          name: "Another user",
+          email: "another@example.com",
+          emailVerified: false,
+          createdAt: new Date(0),
+          updatedAt: new Date(0),
+        },
+        null,
+      ),
+    ).rejects.toThrow("This instance is already claimed. Single-user only.");
   });
 });
