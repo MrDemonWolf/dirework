@@ -9,6 +9,7 @@ This file provides guidance for coding agents working on the Dirework codebase.
 - Migration plan (Node/Postgres → Cloudflare) → `MIGRATION.md`
 - Pre-migration audit (29 findings, all addressed in the port) → `AUDIT-cloudflare-migration.md`
 - Security policy and production operator checklist → `SECURITY.md`
+- Marketing website research and UI/UX review → `MARKETING-REVIEW.md`
 - Database schemas → `packages/db/src/schema/` (index.ts, auth.ts, app.ts)
 - Setup guides → `.env.example`, docs `apps/fumadocs/content/docs/deployment.mdx`
 
@@ -210,7 +211,7 @@ pins. Every workflow declares minimal `permissions`.
   `TWITCH_CLIENT_SECRET`. Repository **variables**: `BETTER_AUTH_URL`, `CORS_ORIGIN`.
   **`NEXT_PUBLIC_SERVER_URL` is NOT a deploy variable** — Alchemy injects the api
   worker's resolved URL at build and runtime.
-- `.github/workflows/deploy-docs-to-pages.yml` — fumadocs static export → GitHub Pages.
+- `.github/workflows/deploy-docs-to-pages.yml` — shared `verify.yml` gate → verified Fumadocs static export → GitHub Pages. Docs deployments are serialized; superseded CI runs are canceled. Build artifacts and cache keys include the Pages base path.
 
 ## Deployment
 

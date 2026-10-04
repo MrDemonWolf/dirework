@@ -1,7 +1,7 @@
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 
 /** Inline brand mark — the Dirework wolf-and-clock (wolf + Pomodoro). */
-function BrandMark() {
+export function BrandMark() {
   return (
     <span data-dw-brand className="inline-flex items-center gap-2.5" style={{ lineHeight: 1 }}>
       <svg
@@ -55,7 +55,7 @@ export function baseOptions(): BaseLayoutProps {
       // and then jump to the section.
       { text: "Overlays & Themes", url: "/#overlays" },
       { text: "Features", url: "/#features" },
-      { text: "Compare", url: "/#compare" },
+      { text: "Setup", url: "/#setup" },
       { text: "Docs", url: "/docs" },
       { text: "Support", url: "https://mrdwolf.net/discord" },
     ],

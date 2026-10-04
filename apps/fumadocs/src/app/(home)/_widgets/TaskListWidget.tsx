@@ -71,6 +71,7 @@ export function TaskListWidget({
       aria-label="Task list overlay grouped by viewer"
       style={{
         width: 300,
+        maxWidth: "100%",
         fontFamily: "var(--font-body)",
         userSelect: "none",
         filter: "drop-shadow(0 24px 48px rgba(0,0,0,0.45))",

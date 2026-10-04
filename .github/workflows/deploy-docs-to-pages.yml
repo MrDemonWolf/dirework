@@ -8,40 +8,20 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: deploy-docs-production
+  cancel-in-progress: false
+
 jobs:
   build:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with:
-          bun-version: 1.3.14
-
-      - uses: actions/configure-pages@1f0c5cde4bc74cd7e1254d0cb4de8d49e9068c7d # v4
-        id: pages
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Build docs
-        working-directory: apps/fumadocs
-        env:
-          NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
-          SKIP_ENV_VALIDATION: "true"
-        run: bun run build
-
-      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
-        with:
-          path: apps/fumadocs/out
+    uses: ./.github/workflows/verify.yml
+    with:
+      upload-docs: true
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       pages: write
       id-token: write
