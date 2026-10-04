@@ -1,7 +1,7 @@
 /* Marketing composition uses the shared Focus Console tokens. */
 .marketing { overflow: clip; }
 .marketing-wrap { width: min(1200px, calc(100% - 64px)); margin-inline: auto; }
-.marketing :is(a, summary):focus-visible { outline: 2px solid var(--brand-600); outline-offset: 5px; border-radius: 4px; }
+.marketing :is(a, button, summary):focus-visible { outline: 2px solid var(--brand-600); outline-offset: 5px; border-radius: 4px; }
 .marketing h1, .marketing h2, .marketing h3 { font-family: var(--font-display); }
 .marketing h2 { font-weight: 700; font-size: clamp(32px, 4vw, 52px); line-height: 1.12; letter-spacing: -.045em; text-wrap: balance; }
 .marketing h3 { font-weight: 650; font-size: 23px; line-height: 1.2; letter-spacing: -.025em; }

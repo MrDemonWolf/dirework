@@ -32,7 +32,7 @@ describe("workflow supply-chain controls", () => {
     expect(deploy.slice(0, installPosition)).not.toContain("${{ secrets.");
   });
 
-  it.each(["verify.yml", "ci.yml", "deploy.yml", "deploy-docs-to-pages.yml", "codeql.yml"])(
+  it.each(["verify.yml", "ci.yml", "deploy.yml", "codeql.yml"])(
     "disables persisted checkout credentials in %s",
     (name) => {
       const workflow = readWorkflow(name);
@@ -41,6 +41,14 @@ describe("workflow supply-chain controls", () => {
       );
     },
   );
+
+  it("deploys docs only after the shared verification gate uploads the site", () => {
+    const docs = readWorkflow("deploy-docs-to-pages.yml");
+    expect(docs).toContain("uses: ./.github/workflows/verify.yml");
+    expect(docs).toContain("upload-docs: true");
+    expect(docs).toContain("needs: build");
+    expect(readWorkflow("verify.yml")).toMatch(/if: \$\{\{ inputs\.upload-docs \}\}/);
+  });
 
   it("bundle-checks the API Worker during the shared production build", () => {
     const serverPackage = JSON.parse(
