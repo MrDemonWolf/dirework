@@ -37,11 +37,7 @@ export function ChatCommandWidget() {
         className="flex items-center gap-2 px-4 py-2.5"
         style={{ borderBottom: "1px solid var(--hairline)" }}
       >
-        <span
-          className="dw-chip-dot animate-led-pulse"
-          style={{ background: "var(--color-twitch)" }}
-          aria-hidden
-        />
+        <span className="dw-chip-dot" style={{ background: "var(--color-twitch)" }} aria-hidden />
         <span className="dw-mono text-[11px] tracking-[0.12em] uppercase dw-text-2">
           #stream chat
         </span>

@@ -18,6 +18,7 @@ import { TaskListWidget } from "./TaskListWidget";
  */
 export function OverlayThemePreview() {
   const [name, setName] = useState<OverlayThemeName>(DEFAULT_OVERLAY_THEME);
+  const [paused, setPaused] = useState(false);
   const theme = OVERLAY_THEMES[name];
 
   return (
@@ -48,7 +49,7 @@ export function OverlayThemePreview() {
             alignItems: "center",
           }}
         >
-          <TimerOverlayWidget theme={theme} />
+          <TimerOverlayWidget theme={theme} paused={paused} />
           <TaskListWidget theme={theme} />
         </div>
       </figure>
@@ -89,6 +90,16 @@ export function OverlayThemePreview() {
           );
         })}
       </fieldset>
+      <div className="mt-4 text-center">
+        <button
+          type="button"
+          aria-pressed={paused}
+          onClick={() => setPaused((value) => !value)}
+          className="marketing-text-link"
+        >
+          {paused ? "Resume preview timer" : "Pause preview timer"}
+        </button>
+      </div>
     </div>
   );
 }

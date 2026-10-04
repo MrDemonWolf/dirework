@@ -35,8 +35,10 @@ const RADIUS = SIZE * SQUIRCLE_RADIUS;
 
 export function TimerOverlayWidget({
   theme = OVERLAY_THEMES[DEFAULT_OVERLAY_THEME],
+  paused = false,
 }: {
   theme?: OverlayTheme;
+  paused?: boolean;
 }) {
   // Start partway through so the ring reads as "in progress" on first paint.
   const [remaining, setRemaining] = useState(18 * 60 + 24);
@@ -46,12 +48,12 @@ export function TimerOverlayWidget({
     reduced.current =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduced.current) return;
+    if (reduced.current || paused) return;
     const id = setInterval(() => {
       setRemaining((r) => (r <= 0 ? TOTAL : r - 1));
     }, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [paused]);
 
   const elapsed = TOTAL - remaining;
   const progress = elapsed / TOTAL;

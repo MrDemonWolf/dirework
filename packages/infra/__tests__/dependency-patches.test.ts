@@ -25,6 +25,6 @@ describe("dependency security remediations", () => {
       ),
     ].sort();
 
-    expect(versions).toEqual(["2.1.4", "5.0.9"]);
+    expect(versions).toEqual(["2.1.6", "2.1.7", "5.0.12"]);
   });
 });
