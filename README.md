@@ -14,6 +14,9 @@ plan. If you want the same setup for your own channel, fork
 it and deploy your own instance — one streamer, one
 instance, zero distractions.
 
+Dirework is always self-hosted. MrDemonWolf, Inc. does not offer hosted instances
+or a managed hosting service.
+
 ## Features
 
 - **Pomodoro Timer** - Configurable work/break cycles with
