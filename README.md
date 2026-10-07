@@ -45,7 +45,7 @@ or a managed hosting service.
 
 For full setup instructions including Twitch OAuth, bot
 account configuration, and OBS setup, see the
-**[Documentation](https://mrdemonwolf.github.io/dirework)**.
+**[Documentation](https://dirework.mrdemonwolf.dev)**.
 
 1. Clone the repository
 2. Install dependencies with `bun install`
@@ -92,7 +92,7 @@ account configuration, and OBS setup, see the
 | `!timer reset`          | Reset the timer                             |
 | `!timer eta`            | Show when the timer ends                    |
 
-See the [full command reference](https://mrdemonwolf.github.io/dirework/docs/chat-commands)
+See the [full command reference](https://dirework.mrdemonwolf.dev/docs/chat-commands)
 for all options and customizable bot responses. Viewers can also run `!dwhelp` or
 `!dwcommands` in chat at any time to get the command list.
 
@@ -214,7 +214,7 @@ set six repository secrets, push to `main`, done. Both
 workers, the D1 database, and its migrations are managed by
 [Alchemy](https://alchemy.run).
 
-See the **[Deployment guide](https://mrdemonwolf.github.io/dirework/docs/deployment)**
+See the **[Deployment guide](https://dirework.mrdemonwolf.dev/docs/deployment)**
 for the step-by-step walkthrough (Cloudflare API token, Twitch
 redirect URLs, GitHub secrets, and the post-deploy checklist).
 

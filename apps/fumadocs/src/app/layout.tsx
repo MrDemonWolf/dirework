@@ -50,7 +50,9 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "MrDemonWolf, Inc." }],
   creator: "MrDemonWolf, Inc.",
+  alternates: { canonical: "/" },
   openGraph: {
+    url: "/",
     type: "website",
     locale: "en_US",
     siteName: "Dirework",
@@ -64,7 +66,7 @@ export const metadata: Metadata = {
     description:
       "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working and body-doubling streams.",
   },
-  metadataBase: new URL("https://mrdemonwolf.github.io/dirework"),
+  metadataBase: new URL("https://dirework.mrdemonwolf.dev"),
 };
 
 export default function Layout({ children }: LayoutProps<"/">) {
@@ -91,7 +93,7 @@ export default function Layout({ children }: LayoutProps<"/">) {
               "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working and body-doubling streams.",
             applicationCategory: "MultimediaApplication",
             operatingSystem: "Web (Cloudflare Workers)",
-            url: "https://mrdemonwolf.github.io/dirework",
+            url: "https://dirework.mrdemonwolf.dev",
             isAccessibleForFree: true,
             offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
             author: {
