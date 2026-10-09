@@ -3,16 +3,19 @@
  * `@dirework/api/config-shared` (audit M3/M4: these interfaces used to be
  * hand-maintained duplicates that drifted from the API package).
  *
+ * Values come from the zod-free `@dirework/api/config-defaults` (which
+ * config-shared re-exports) so the OBS overlays don't bundle zod and the
+ * Drizzle schema just to read defaults. Type exports are erased.
+ *
  * Only web-only composition types (ThemePreset) live here.
  */
 export type {
   TimerStylesConfig,
   TaskStylesConfig,
-  TimerConfigData,
-  BotConfigData,
   TaskMessagesConfig,
   TimerMessagesConfig,
   PhaseLabelsConfig,
+  TimerStatus,
 } from "@dirework/api/config-shared";
 
 export {
@@ -21,7 +24,7 @@ export {
   DEFAULT_TIMER_MESSAGES,
   TIMER_CONFIG_DEFAULTS,
   MAX_TASK_LEN,
-} from "@dirework/api/config-shared";
+} from "@dirework/api/config-defaults";
 
 import type { TaskStylesConfig, TimerStylesConfig } from "@dirework/api/config-shared";
 

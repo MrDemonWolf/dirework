@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Timer, ListTodo, Bot, Palette } from "lucide-react";
 
-import { authClient } from "@/lib/auth-client";
+import { signInWithTwitch } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { DevLoginButton } from "@/components/dev-login-button";
@@ -105,13 +105,7 @@ function SetupInner() {
         <Button
           size="lg"
           className="mt-6 w-full cursor-pointer gap-2 bg-twitch text-white hover:bg-twitch-hover"
-          onClick={() =>
-            authClient.signIn.social({
-              provider: "twitch",
-              callbackURL: "/dashboard",
-              errorCallbackURL: "/setup?error=signin_failed",
-            })
-          }
+          onClick={() => signInWithTwitch("/setup")}
         >
           <TwitchIcon className="size-4" />
           Claim with Twitch

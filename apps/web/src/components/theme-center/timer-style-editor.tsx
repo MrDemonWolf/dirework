@@ -5,6 +5,7 @@ import { ColorInput } from "./color-input";
 import { SliderRow, SwitchRow, TextFieldRow } from "./field-row";
 import { FontSelect } from "./font-select";
 import { SectionGroup } from "./section-group";
+import { OpacitySliderRow } from "./style-field-groups";
 
 export function TimerStyleEditor({
   styles,
@@ -51,14 +52,11 @@ export function TimerStyleEditor({
           value={styles.background.color}
           onChange={(v) => update("background", { color: v })}
         />
-        <SliderRow
+        <OpacitySliderRow
           label="Opacity"
           id="timer-style-bg-opacity"
-          value={Math.round(styles.background.opacity * 100)}
-          onChange={(v) => update("background", { opacity: v / 100 })}
-          min={0}
-          max={100}
-          format={(v) => `${v}%`}
+          value={styles.background.opacity}
+          onChange={(v) => update("background", { opacity: v })}
         />
         <TextFieldRow
           label="Border Radius"
@@ -82,14 +80,11 @@ export function TimerStyleEditor({
           value={styles.ring.fillColor}
           onChange={(v) => update("ring", { fillColor: v })}
         />
-        <SliderRow
+        <OpacitySliderRow
           label="Fill opacity"
           id="timer-style-ring-fill-opacity"
-          value={Math.round(styles.ring.fillOpacity * 100)}
-          onChange={(v) => update("ring", { fillOpacity: v / 100 })}
-          min={0}
-          max={100}
-          format={(v) => `${v}%`}
+          value={styles.ring.fillOpacity}
+          onChange={(v) => update("ring", { fillOpacity: v })}
         />
         <ColorInput
           label="Track color"
@@ -97,14 +92,11 @@ export function TimerStyleEditor({
           value={styles.ring.trackColor}
           onChange={(v) => update("ring", { trackColor: v })}
         />
-        <SliderRow
+        <OpacitySliderRow
           label="Track opacity"
           id="timer-style-ring-track-opacity"
-          value={Math.round(styles.ring.trackOpacity * 100)}
-          onChange={(v) => update("ring", { trackOpacity: v / 100 })}
-          min={0}
-          max={100}
-          format={(v) => `${v}%`}
+          value={styles.ring.trackOpacity}
+          onChange={(v) => update("ring", { trackOpacity: v })}
         />
         <SliderRow
           label="Width"

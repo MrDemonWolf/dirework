@@ -3,22 +3,26 @@
 // keep pointing at "@/lib/timer-utils".
 export {
   SQUIRCLE_RADIUS,
+  cssLengthToPx,
   formatClock,
+  quoteFontFamily,
   roundedRectPath,
   roundedRectPerimeter,
 } from "@dirework/overlay-kit";
 
+import type { TimerStatus } from "@/lib/config-types";
+
 /**
  * Timer state payload shape shared by the dashboard controls and the overlay
- * renderer (was declared separately in both — CodeRabbit follow-up).
+ * renderer.
  */
 export interface TimerState {
-  status: string;
+  status: TimerStatus;
   currentCycle: number;
   totalCycles: number;
   targetEndTime?: string | null;
   pausedWithRemaining?: number | null;
-  pausedFromStatus?: string | null;
+  pausedFromStatus?: TimerStatus | null;
 }
 
 /**
@@ -38,11 +42,39 @@ export function remainingFromState(
   return Math.max(0, new Date(state.targetEndTime).getTime() - Date.now());
 }
 
+/**
+ * Delay (ms) until a running countdown's displayed second changes. Clocks
+ * round partial seconds up, so the label flips when `remaining` crosses the
+ * next whole second; the slack lands the tick just past that boundary.
+ */
+export function msUntilNextSecond(remaining: number): number {
+  return (Math.max(0, remaining) % 1000) + 5;
+}
+
 export function toHexOpacity(opacity: number): string {
   const clamped = Math.min(1, Math.max(0, opacity));
   return Math.round(clamped * 255)
     .toString(16)
     .padStart(2, "0");
+}
+
+/**
+ * Apply an opacity to any color the config schema accepts. Hex colors stay hex
+ * (appending or combining the alpha byte, which every OBS CEF build supports);
+ * rgb()/hsl()/keywords can't take a hex suffix, so they go through color-mix
+ * rather than producing an invalid declaration.
+ */
+export function colorWithOpacity(color: string, opacity: number): string {
+  const value = color.trim();
+  const hex = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(value)?.[1];
+  if (hex) {
+    const full = hex.length <= 4 ? [...hex].map((c) => c + c).join("") : hex;
+    const baseAlpha = full.length === 8 ? Number.parseInt(full.slice(6), 16) / 255 : 1;
+    return `#${full.slice(0, 6)}${toHexOpacity(baseAlpha * opacity)}`;
+  }
+  if (value.toLowerCase() === "transparent") return "transparent";
+  const pct = Math.round(Math.min(1, Math.max(0, opacity)) * 1000) / 10;
+  return `color-mix(in srgb, ${value} ${pct}%, transparent)`;
 }
 
 export function formatTime(

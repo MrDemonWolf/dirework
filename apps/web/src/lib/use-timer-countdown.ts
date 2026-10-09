@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 
-import { type TimerState, remainingFromState } from "@/lib/timer-utils";
+import { type TimerState, msUntilNextSecond, remainingFromState } from "@/lib/timer-utils";
 
 /**
  * Shared live countdown for the dashboard controls and the overlay/preview
  * timer display (was duplicated in both). Seeds from `remainingFromState` and,
- * for a running timer, re-computes every 100ms from targetEndTime.
+ * for a running timer, re-computes from targetEndTime each time the displayed
+ * second changes — clocks show whole seconds, so a faster tick only burns
+ * renders and repaints on the streamer's machine.
  *
  * Display-only: when the countdown hits zero it clamps at 0. The SERVER advances
  * phases lazily on read (maybeAdvanceOverdueTimer) and the poll picks the new
@@ -20,27 +22,31 @@ import { type TimerState, remainingFromState } from "@/lib/timer-utils";
 export function useTimerCountdown(state: TimerState | null): number | null {
   const [remaining, setRemaining] = useState<number | null>(() => remainingFromState(state));
 
+  // The primitives fully determine the countdown; the state object's identity
+  // churns on every poll, so it is deliberately not an effect dependency.
   const targetEndTime = state?.targetEndTime;
   const pausedWithRemaining = state?.pausedWithRemaining;
   const status = state?.status;
 
   useEffect(() => {
-    // Static (paused / idle / no target): set once, no interval.
+    // Static (paused / idle / no target): set once, no timer.
     if (!targetEndTime || (status === "paused" && pausedWithRemaining != null)) {
-      setRemaining(remainingFromState(state));
+      setRemaining(
+        status ? remainingFromState({ status, targetEndTime, pausedWithRemaining }) : null,
+      );
       return;
     }
 
+    const end = new Date(targetEndTime).getTime();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     const tick = () => {
-      setRemaining(Math.max(0, new Date(targetEndTime).getTime() - Date.now()));
+      const left = Math.max(0, end - Date.now());
+      setRemaining(left);
+      if (left > 0) timeout = setTimeout(tick, msUntilNextSecond(left));
     };
     tick();
-    const interval = setInterval(tick, 100);
-    return () => clearInterval(interval);
-    // state is intentionally excluded — the primitive fields below fully
-    // determine the countdown, and its object identity churns every poll.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetEndTime, pausedWithRemaining, status, state]);
+    return () => clearTimeout(timeout);
+  }, [targetEndTime, pausedWithRemaining, status]);
 
   return remaining;
 }

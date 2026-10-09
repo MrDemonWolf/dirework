@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
 /**
  * The "Focus Console" section header: a hairline rule with a mono label. Was
  * copy-pasted ~15× and shipped inconsistently as <span> in most places and <h2>
- * in a couple — pass `as="h2"` where the label is a real heading. Extra
+ * in a couple — pass `as="h2"` (or `"h3"` under a section heading) where the
+ * label is a real heading. Extra
  * children (e.g. a size chip) render after the label inside the rule.
  */
 export function ConsoleRule({
@@ -16,7 +17,7 @@ export function ConsoleRule({
   children,
 }: {
   label: ReactNode;
-  as?: "span" | "h2";
+  as?: "span" | "h2" | "h3";
   id?: string;
   className?: string;
   children?: ReactNode;

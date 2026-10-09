@@ -4,12 +4,14 @@ import { useRef, useState } from "react";
 import { Search } from "lucide-react";
 
 import type { TaskMessagesConfig, TimerMessagesConfig } from "@/lib/config-types";
+import { messageBudget } from "@/lib/message-budget";
+import { ByteBudget } from "@/components/byte-budget";
 import { ConsoleRule } from "@/components/console-rule";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export interface MessageField {
-  key: string;
+interface MessageField<K extends string = string> {
+  key: K;
   label: string;
   /** Comma-separated template variables, or "none" */
   placeholder: string;
@@ -17,12 +19,7 @@ export interface MessageField {
   group: string;
 }
 
-export const taskMessageFields: {
-  key: keyof TaskMessagesConfig;
-  label: string;
-  placeholder: string;
-  group: string;
-}[] = [
+export const taskMessageFields = [
   { key: "taskAdded", label: "Task added", placeholder: "{task}, {user}", group: "Adding" },
   { key: "noTaskAdded", label: "Task limit reached", placeholder: "{user}", group: "Adding" },
   { key: "noTaskContent", label: "No task text (!task)", placeholder: "{user}", group: "Adding" },
@@ -81,14 +78,9 @@ export const taskMessageFields: {
   },
   { key: "notMod", label: "Not a mod", placeholder: "{user}", group: "Errors & limits" },
   { key: "help", label: "Help", placeholder: "{user}", group: "Errors & limits" },
-];
+] as const satisfies readonly MessageField<keyof TaskMessagesConfig>[];
 
-export const timerMessageFields: {
-  key: keyof TimerMessagesConfig;
-  label: string;
-  placeholder: string;
-  group: string;
-}[] = [
+export const timerMessageFields = [
   // Only messages the bot actually sends. The old "Phase changes" group
   // (focus/break/long-break/stream-starting/finished) was removed in the P1
   // cleanup — Workers has no always-on process to fire phase announcements, so
@@ -99,7 +91,19 @@ export const timerMessageFields: {
   { key: "wrongCommand", label: "Unknown command", placeholder: "none", group: "Errors" },
   { key: "timerRunning", label: "Timer already running", placeholder: "none", group: "Errors" },
   { key: "cycleWrong", label: "Invalid cycle count", placeholder: "none", group: "Errors" },
-];
+] as const satisfies readonly MessageField<keyof TimerMessagesConfig>[];
+
+/** Message keys (from config-shared) that have no editor field above. */
+type UncoveredKeys<K, F extends readonly { key: unknown }[]> = Exclude<K, F[number]["key"]>;
+
+// Compile-time coverage: a message key added to config-shared without an
+// editor field here fails type-checking instead of silently being uneditable.
+const _allMessageKeysEditable: [
+  UncoveredKeys<keyof TaskMessagesConfig, typeof taskMessageFields>,
+  UncoveredKeys<keyof TimerMessagesConfig, typeof timerMessageFields>,
+] extends [never, never]
+  ? true
+  : never = true;
 
 /**
  * ONE generic chat-message editor rendered for both the task and timer message
@@ -114,7 +118,7 @@ export function MessageEditor<T extends object>({
   disabled,
   disabledNote,
 }: {
-  fields: { key: Extract<keyof T, string>; label: string; placeholder: string; group: string }[];
+  fields: readonly MessageField<Extract<keyof T, string>>[];
   idPrefix: string;
   values: T;
   onChange: (values: T) => void;
@@ -133,7 +137,11 @@ export function MessageEditor<T extends object>({
     const current = values[key] as string;
     const start = el?.selectionStart ?? current.length;
     const end = el?.selectionEnd ?? current.length;
-    handleChange(key, current.slice(0, start) + variable + current.slice(end));
+    const next = current.slice(0, start) + variable + current.slice(end);
+    // Refuse an insert that would push the template past the byte cap — the
+    // counter already explains why nothing happened.
+    if (messageBudget(next).over) return;
+    handleChange(key, next);
     // Refocus after the controlled re-render and park the cursor past the insert
     requestAnimationFrame(() => {
       const node = inputRefs.current[key];
@@ -179,38 +187,46 @@ export function MessageEditor<T extends object>({
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {filteredFields
               .filter((field) => field.group === group)
-              .map((field) => (
-                <div key={field.key} className="space-y-1">
-                  <Label htmlFor={`${idPrefix}-${field.key}`} className="text-xs font-medium">
-                    {field.label}
-                  </Label>
-                  <Input
-                    id={`${idPrefix}-${field.key}`}
-                    ref={(node) => {
-                      inputRefs.current[field.key] = node;
-                    }}
-                    value={values[field.key] as string}
-                    onChange={(e) => handleChange(field.key, e.target.value)}
-                    disabled={disabled}
-                  />
-                  {field.placeholder !== "none" && (
-                    <div className="flex flex-wrap gap-1">
-                      {field.placeholder.split(", ").map((v) => (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => insertVariable(field.key, v)}
-                          disabled={disabled}
-                          aria-label={`Insert ${v} template variable`}
-                          className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
-                        >
-                          {v}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+              .map((field) => {
+                const value = values[field.key] as string;
+                const budget = messageBudget(value);
+                const budgetId = `${idPrefix}-${field.key}-bytes`;
+                return (
+                  <div key={field.key} className="space-y-1">
+                    <Label htmlFor={`${idPrefix}-${field.key}`} className="text-xs font-medium">
+                      {field.label}
+                    </Label>
+                    <Input
+                      id={`${idPrefix}-${field.key}`}
+                      ref={(node) => {
+                        inputRefs.current[field.key] = node;
+                      }}
+                      value={value}
+                      onChange={(e) => handleChange(field.key, e.target.value)}
+                      disabled={disabled}
+                      aria-invalid={budget.over || undefined}
+                      aria-describedby={budget.nearLimit ? budgetId : undefined}
+                    />
+                    <ByteBudget id={budgetId} budget={budget} />
+                    {field.placeholder !== "none" && (
+                      <div className="flex flex-wrap gap-1">
+                        {field.placeholder.split(", ").map((v) => (
+                          <button
+                            key={v}
+                            type="button"
+                            onClick={() => insertVariable(field.key, v)}
+                            disabled={disabled}
+                            aria-label={`Insert ${v} template variable`}
+                            className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+                          >
+                            {v}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
           </div>
         </div>
       ))}

@@ -27,29 +27,44 @@ export function ColorInput({
   const id = idProp ?? `color-${label.toLowerCase().replace(/\s+/g, "-")}`;
 
   // Draft while typing — only full hex values propagate to the working state
-  // so a half-typed "#0" never reaches the live preview.
+  // so a half-typed "#0" never reaches the live preview. An invalid draft is
+  // kept and flagged on blur rather than silently reverted, so the user can
+  // see why it didn't take (WCAG 3.3.1).
   const [draft, setDraft] = useState(value);
+  const [invalid, setInvalid] = useState(false);
   useEffect(() => {
     setDraft(value);
+    setInvalid(false);
   }, [value]);
 
   const handleTextChange = (v: string) => {
     setDraft(v);
-    if (FULL_HEX.test(v)) onChange(v);
+    if (FULL_HEX.test(v)) {
+      setInvalid(false);
+      onChange(v);
+    }
   };
 
   const handleBlur = () => {
     if (SHORT_HEX.test(draft)) {
       const expanded = expandShortHex(draft);
       setDraft(expanded);
+      setInvalid(false);
       onChange(expanded);
-    } else if (!FULL_HEX.test(draft)) {
-      setDraft(value);
+    } else {
+      setInvalid(!FULL_HEX.test(draft));
     }
   };
 
+  const errorId = `${id}-error`;
+
   return (
-    <FieldRow label={label} htmlFor={id}>
+    <FieldRow
+      label={label}
+      htmlFor={id}
+      error={invalid ? `Not applied — use a hex color like #1a2b3c (current: ${value})` : null}
+      errorId={errorId}
+    >
       <input
         type="color"
         value={FULL_HEX.test(value) ? value : "#000000"}
@@ -62,6 +77,8 @@ export function ColorInput({
         value={draft}
         onChange={(e) => handleTextChange(e.target.value)}
         onBlur={handleBlur}
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? errorId : undefined}
         className="h-9 w-24 font-mono md:h-8"
         placeholder="#000000"
       />

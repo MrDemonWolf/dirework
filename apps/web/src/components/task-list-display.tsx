@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { groupTasksByAuthor, toHexOpacity } from "@/lib/task-utils";
+import { groupTasksByAuthor } from "@/lib/task-utils";
+import { colorWithOpacity, quoteFontFamily } from "@/lib/timer-utils";
+import { cn } from "@/lib/utils";
 import type { Task, TaskGroup } from "@/lib/task-utils";
 // Style shape comes from the shared config source of truth (audit M4)
 import type { TaskStylesConfig } from "@/lib/config-types";
@@ -33,7 +35,9 @@ function InfiniteScroll({
     const check = () => {
       const contentHeight = primary.scrollHeight;
       const wrapperHeight = wrapper.clientHeight;
-      if (contentHeight > wrapperHeight) {
+      // A non-positive speed has no finite duration ("Infinitys"), which would
+      // leave the second copy stacked on the first — just don't scroll.
+      if (pixelsPerSecond > 0 && contentHeight > wrapperHeight) {
         setShouldScroll(true);
         const totalDistance = contentHeight + gapBetweenLoops;
         setDuration(totalDistance / pixelsPerSecond);
@@ -45,6 +49,8 @@ function InfiniteScroll({
     check();
     const observer = new ResizeObserver(check);
     observer.observe(primary);
+    // The wrapper resizes independently (OBS source size, header/padding edits).
+    observer.observe(wrapper);
     return () => observer.disconnect();
   }, [pixelsPerSecond, gapBetweenLoops]);
 
@@ -95,22 +101,16 @@ function TaskItem({
 
   return (
     <div
-      className="flex flex-row items-start gap-0"
+      className={cn("flex flex-row items-start gap-0", isActive && "overlay-active-glow")}
       style={{
         backgroundColor: isDone
-          ? `${config.taskDone.background.color}${toHexOpacity(config.taskDone.background.opacity)}`
+          ? colorWithOpacity(config.taskDone.background.color, config.taskDone.background.opacity)
           : "transparent",
         padding: config.task.padding,
         marginBottom: isLast ? "0" : "1px",
         maxWidth: config.task.maxWidth,
         opacity: isDone ? 0.6 : 1,
         transition: "opacity 300ms",
-        ...(isActive
-          ? {
-              boxShadow: `0 0 8px 2px ${config.task.border.color}80`,
-              animation: "active-glow 2s ease-in-out infinite",
-            }
-          : {}),
       }}
     >
       {/* Checkbox or bullet */}
@@ -120,7 +120,10 @@ function TaskItem({
           style={{
             width: config.checkbox.size,
             height: config.checkbox.size,
-            backgroundColor: `${config.checkbox.background.color}${toHexOpacity(config.checkbox.background.opacity)}`,
+            backgroundColor: colorWithOpacity(
+              config.checkbox.background.color,
+              config.checkbox.background.opacity,
+            ),
             borderWidth: config.checkbox.border.width,
             borderStyle: "solid",
             borderColor: isDone ? config.checkbox.tickColor : config.checkbox.border.color,
@@ -182,7 +185,10 @@ function AuthorGroup({ group, config }: { group: TaskGroup; config: TaskStylesCo
   return (
     <div
       style={{
-        backgroundColor: `${config.task.background.color}${toHexOpacity(config.task.background.opacity)}`,
+        backgroundColor: colorWithOpacity(
+          config.task.background.color,
+          config.task.background.opacity,
+        ),
         borderRadius: config.task.border.radius,
         borderWidth: config.task.border.width,
         borderColor: config.task.border.color,
@@ -231,26 +237,45 @@ function AuthorGroup({ group, config }: { group: TaskGroup; config: TaskStylesCo
   );
 }
 
-export function TaskListDisplay({ config, tasks }: { config: TaskStylesConfig; tasks: Task[] }) {
+export function TaskListDisplay({
+  config,
+  tasks,
+  counts,
+}: {
+  config: TaskStylesConfig;
+  tasks: Task[];
+  /**
+   * Server-side totals. The server returns only the newest done tasks (and
+   * none when showDone is off), so the header counter must come from these,
+   * not from `tasks`. Omitted for local previews, which count `tasks`.
+   */
+  counts?: { open: number; done: number };
+}) {
   const displayTasks = config.display.showDone ? tasks : tasks.filter((t) => t.status !== "done");
   const groups = groupTasksByAuthor(displayTasks);
-  const _pendingTasks = tasks.filter((t) => t.status !== "done");
-  const doneTasks = tasks.filter((t) => t.status === "done");
+  const doneCount = counts?.done ?? tasks.filter((t) => t.status === "done").length;
+  const totalCount = counts ? counts.open + counts.done : tasks.length;
 
   return (
-    <div className="flex h-full w-full flex-col" style={{ fontFamily: config.fonts.body }}>
+    <div
+      className="flex h-full w-full flex-col"
+      style={{ fontFamily: quoteFontFamily(config.fonts.body) }}
+    >
       {/* Header */}
       <div
         className="flex flex-shrink-0 items-center justify-between"
         style={{
           height: config.header.height,
-          backgroundColor: `${config.header.background.color}${toHexOpacity(config.header.background.opacity)}`,
+          backgroundColor: colorWithOpacity(
+            config.header.background.color,
+            config.header.background.opacity,
+          ),
           borderWidth: config.header.border.width,
           borderStyle: "solid",
           borderColor: config.header.border.color,
           borderRadius: config.header.border.radius,
           padding: config.header.padding,
-          fontFamily: config.fonts.header,
+          fontFamily: quoteFontFamily(config.fonts.header),
         }}
       >
         <span
@@ -270,7 +295,7 @@ export function TaskListDisplay({ config, tasks }: { config: TaskStylesConfig; t
               opacity: 0.8,
             }}
           >
-            {doneTasks.length}/{tasks.length}
+            {doneCount}/{totalCount}
           </span>
         )}
       </div>
@@ -279,7 +304,10 @@ export function TaskListDisplay({ config, tasks }: { config: TaskStylesConfig; t
       <div
         className="flex flex-1 flex-col overflow-hidden"
         style={{
-          backgroundColor: `${config.body.background.color}${toHexOpacity(config.body.background.opacity)}`,
+          backgroundColor: colorWithOpacity(
+            config.body.background.color,
+            config.body.background.opacity,
+          ),
           borderWidth: config.body.border.width,
           borderStyle: "solid",
           borderColor: config.body.border.color,

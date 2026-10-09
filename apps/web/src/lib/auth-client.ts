@@ -17,3 +17,18 @@ export const authClient = createAuthClient({
     }),
   ],
 });
+
+/**
+ * Start Twitch sign-in. Every entry point passes the page that renders the
+ * in-app error callout, so a failed or cancelled OAuth never lands on
+ * better-auth's unbranded error page. The error page is passed bare:
+ * better-auth appends its own `?error=<code>` (e.g. `instance_claimed`), and a
+ * preset error param would come first and shadow it.
+ */
+export function signInWithTwitch(errorPage: "/" | "/setup") {
+  return authClient.signIn.social({
+    provider: "twitch",
+    callbackURL: "/dashboard",
+    errorCallbackURL: errorPage,
+  });
+}

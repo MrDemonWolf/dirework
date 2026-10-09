@@ -1,14 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, ExternalLink, Eye, EyeOff, MonitorPlay, RefreshCw, Unplug } from "lucide-react";
+import { ExternalLink, MonitorPlay, Unplug } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
+import { botOAuthErrorMessage } from "@dirework/api/config-shared";
+import { updateBotSettingsInput } from "@dirework/api/routers/input-schemas";
+
 import type { TaskMessagesConfig, TimerMessagesConfig } from "@/lib/config-types";
 import { DEFAULT_TASK_MESSAGES, DEFAULT_TIMER_MESSAGES } from "@/lib/config-types";
+import { type AliasRow, aliasesToRows, rowsToAliases } from "@/lib/alias-rows";
+import { useOrigin } from "@/lib/use-origin";
 import { cn } from "@/lib/utils";
+import { describeIssues, formatMutationError } from "@/lib/validation-errors";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,7 +26,9 @@ import {
 } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ConsoleRule } from "@/components/console-rule";
+import { QueryError } from "@/components/query-error";
 import { SaveBar } from "@/components/save-bar";
+import { SecretUrlRow } from "@/components/secret-url-row";
 import { TwitchIcon } from "@/components/icons/twitch-icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusChip } from "@/components/status-chip";
@@ -28,18 +36,30 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { taskMessageFields, timerMessageFields } from "@/components/bot-settings/message-editor";
 import {
   CommandTabPanel,
-  knownAliasTargets,
   taskCommands,
   timerCommands,
 } from "@/components/bot-settings/command-tab-panel";
-import {
-  CommandAliasEditor,
-  aliasesToRows,
-  rowsToAliases,
-  type AliasRow,
-} from "@/components/bot-settings/command-alias-editor";
+import { CommandAliasEditor } from "@/components/bot-settings/command-alias-editor";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
+import { describeTrpcError } from "@/lib/trpc-errors";
 import { trpc } from "@/utils/trpc";
+
+/** Everything the Save bar persists, held as one object so draft and saved can't drift. */
+interface BotSettingsDraft {
+  taskCommandsEnabled: boolean;
+  timerCommandsEnabled: boolean;
+  task: TaskMessagesConfig;
+  timer: TimerMessagesConfig;
+  aliasRows: AliasRow[];
+}
+
+const INITIAL_DRAFT: BotSettingsDraft = {
+  taskCommandsEnabled: true,
+  timerCommandsEnabled: true,
+  task: DEFAULT_TASK_MESSAGES,
+  timer: DEFAULT_TIMER_MESSAGES,
+  aliasRows: [],
+};
 
 /** Cheap slice compare for the per-tab dirty indicator dots (spec §5.4). */
 function shallowEqualRecords<T extends object>(a: T, b: T): boolean {
@@ -110,12 +130,7 @@ function BotConsoleCard({
 }) {
   const queryClient = useQueryClient();
   const ingestInfo = useQuery(trpc.bot.getIngestInfo.queryOptions());
-  const [showUrl, setShowUrl] = useState(false);
-  const [origin, setOrigin] = useState("");
-
-  useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
+  const origin = useOrigin();
 
   const regenerateBotToken = useMutation({
     ...trpc.bot.regenerateBotToken.mutationOptions(),
@@ -124,29 +139,20 @@ function BotConsoleCard({
       toast.success("Bot page URL reset — the old one no longer works");
     },
     onError: (err) => {
-      toast.error(`Couldn't reset the bot page URL: ${err.message}`);
+      toast.error(`Couldn't reset the bot page URL: ${describeTrpcError(err)}`);
     },
   });
 
   const botToken = ingestInfo.data?.botToken;
-  const botUrl = origin && botToken ? `${origin}/bot/${botToken}` : "";
+  const botPath = botToken ? `/bot/${botToken}` : null;
+  const botUrl = origin && botPath ? `${origin}${botPath}` : "";
   const ready = hasBotAccount && Boolean(botToken);
-
-  const copyUrl = async () => {
-    if (!botUrl) return;
-    try {
-      await navigator.clipboard.writeText(botUrl);
-      toast.success("Bot page URL copied");
-    } catch {
-      toast.error("Couldn't copy — click Show, then copy the URL yourself");
-    }
-  };
 
   return (
     <Card className="panel-hero">
       <CardHeader className="border-b border-border/40 px-5">
         <ConsoleRule label="Console" />
-        <CardTitle className="font-heading text-lg font-semibold tracking-tight">
+        <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
           {botName ?? "Bot console"}
         </CardTitle>
         <CardAction>
@@ -161,8 +167,14 @@ function BotConsoleCard({
           <p className="text-sm text-muted-foreground">
             Connect a bot account below to activate the bot console.
           </p>
-        ) : ingestInfo.isLoading ? (
+        ) : ingestInfo.isPending ? (
           <Skeleton className="h-9 w-full" />
+        ) : !ingestInfo.data ? (
+          <QueryError
+            title="Couldn't load the bot page URL"
+            onRetry={() => ingestInfo.refetch()}
+            retrying={ingestInfo.isFetching}
+          />
         ) : (
           <>
             <div className="grid grid-cols-[3.5rem_1fr] items-baseline gap-y-1">
@@ -176,56 +188,13 @@ function BotConsoleCard({
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <input
-                type="text"
-                readOnly
-                value={showUrl ? botUrl : "•".repeat(40)}
-                className="panel-inset h-9 min-w-0 flex-1 truncate px-3 font-mono text-base md:h-8 md:text-xs"
-                aria-hidden={showUrl ? undefined : true}
-                tabIndex={showUrl ? undefined : -1}
-                aria-label={showUrl ? "Bot page URL" : undefined}
-              />
-              {!showUrl && (
-                <span className="sr-only">Bot page URL hidden — press Show to reveal</span>
-              )}
-              <Button
-                variant="outline"
-                size="icon"
-                className="size-8 shrink-0"
-                onClick={() => setShowUrl((v) => !v)}
-                aria-label={showUrl ? "Hide bot page URL" : "Show bot page URL"}
-              >
-                {showUrl ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="size-8 shrink-0"
-                onClick={copyUrl}
-                aria-label="Copy bot page URL"
-              >
-                <Copy className="size-3.5" />
-              </Button>
-              <div aria-hidden className="mx-1 w-px self-stretch bg-border/40" />
-              <ConfirmDialog
-                trigger={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    disabled={regenerateBotToken.isPending}
-                    aria-label="Reset bot page URL"
-                  >
-                    <RefreshCw className="size-3.5" />
-                  </Button>
-                }
-                title="Reset the bot page URL?"
-                description="The current bot page URL stops working immediately. Any OBS browser source or pinned tab running the bot goes offline until you open the new URL."
-                confirmLabel="Reset URL"
-                onConfirm={() => regenerateBotToken.mutate()}
-              />
-            </div>
+            <SecretUrlRow
+              label="Bot page"
+              path={botPath}
+              onRegenerate={() => regenerateBotToken.mutate()}
+              regenerating={regenerateBotToken.isPending}
+              resetDescription="The current bot page URL stops working immediately. Any OBS browser source or pinned tab running the bot goes offline until you open the new URL."
+            />
 
             <div className="flex flex-wrap items-center gap-2">
               <Button
@@ -266,28 +235,19 @@ export default function BotSettingsPage() {
     if (botStatus === "connected") {
       toast.success("Bot account connected");
       router.replace("/dashboard/bot");
+    } else if (botStatus === "cancelled") {
+      toast("Bot connection cancelled");
+      router.replace("/dashboard/bot");
     } else if (botStatus === "error") {
-      const reason = searchParams.get("reason") ?? "unknown";
-      toast.error(`Couldn't connect the bot account (${reason}). Try again.`);
+      // Map the code to fixed copy — never render the raw query param.
+      toast.error(botOAuthErrorMessage(searchParams.get("reason")));
       router.replace("/dashboard/bot");
     }
   }, [searchParams, router]);
 
-  // Working state
-  const [taskCommandsEnabled, setTaskCommandsEnabled] = useState(true);
-  const [timerCommandsEnabled, setTimerCommandsEnabled] = useState(true);
-  const [taskMessages, setTaskMessages] = useState<TaskMessagesConfig>(DEFAULT_TASK_MESSAGES);
-  const [timerMessages, setTimerMessages] = useState<TimerMessagesConfig>(DEFAULT_TIMER_MESSAGES);
-  const [aliasRows, setAliasRows] = useState<AliasRow[]>([]);
-
-  // Saved state (for reset)
-  const [savedTaskCommandsEnabled, setSavedTaskCommandsEnabled] = useState(true);
-  const [savedTimerCommandsEnabled, setSavedTimerCommandsEnabled] = useState(true);
-  const [savedTaskMessages, setSavedTaskMessages] =
-    useState<TaskMessagesConfig>(DEFAULT_TASK_MESSAGES);
-  const [savedTimerMessages, setSavedTimerMessages] =
-    useState<TimerMessagesConfig>(DEFAULT_TIMER_MESSAGES);
-  const [savedAliasRows, setSavedAliasRows] = useState<AliasRow[]>([]);
+  // Working draft + last-saved snapshot (for reset and the dirty indicators)
+  const [draft, setDraft] = useState<BotSettingsDraft>(INITIAL_DRAFT);
+  const [saved, setSaved] = useState<BotSettingsDraft>(INITIAL_DRAFT);
 
   // Once config loads, extract values
   const initializedRef = useRef(false);
@@ -297,33 +257,33 @@ export default function BotSettingsPage() {
     initializedRef.current = true;
 
     const bot = config.data.botConfig;
-
-    const tMsgs = bot?.task ?? DEFAULT_TASK_MESSAGES;
-    const tmMsgs = bot?.timer ?? DEFAULT_TIMER_MESSAGES;
-    const rows = aliasesToRows(bot?.commandAliases ?? {});
-
-    setTaskCommandsEnabled(bot?.taskCommandsEnabled ?? true);
-    setTimerCommandsEnabled(bot?.timerCommandsEnabled ?? true);
-    setTaskMessages(tMsgs);
-    setTimerMessages(tmMsgs);
-    setAliasRows(rows);
-
-    setSavedTaskCommandsEnabled(bot?.taskCommandsEnabled ?? true);
-    setSavedTimerCommandsEnabled(bot?.timerCommandsEnabled ?? true);
-    setSavedTaskMessages(tMsgs);
-    setSavedTimerMessages(tmMsgs);
-    setSavedAliasRows(rows);
+    const loaded: BotSettingsDraft = {
+      taskCommandsEnabled: bot?.taskCommandsEnabled ?? true,
+      timerCommandsEnabled: bot?.timerCommandsEnabled ?? true,
+      task: bot?.task ?? DEFAULT_TASK_MESSAGES,
+      timer: bot?.timer ?? DEFAULT_TIMER_MESSAGES,
+      aliasRows: aliasesToRows(bot?.commandAliases ?? {}),
+    };
+    setDraft(loaded);
+    setSaved(loaded);
   }, [config.data]);
 
   const disconnectBot = useMutation({
     ...trpc.user.disconnectBot.mutationOptions(),
-    onSuccess: () => {
+    onSuccess: ({ revoked }) => {
       queryClient.invalidateQueries({ queryKey: trpc.user.me.queryKey() });
       queryClient.invalidateQueries({ queryKey: trpc.bot.getIngestInfo.queryKey() });
-      toast.success("Bot account disconnected");
+      if (revoked) {
+        toast.success("Bot account disconnected");
+      } else {
+        toast.warning("Bot account disconnected, but Twitch didn't confirm the revocation", {
+          description:
+            "Remove Dirework from the bot account's connections at twitch.tv/settings/connections.",
+        });
+      }
     },
     onError: (err) => {
-      toast.error(`Couldn't disconnect the bot account: ${err.message}`);
+      toast.error(`Couldn't disconnect the bot account: ${describeTrpcError(err)}`);
     },
   });
 
@@ -335,44 +295,35 @@ export default function BotSettingsPage() {
       queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
     },
     onError: (err) => {
-      toast.error(`Couldn't save bot settings: ${err.message}`);
+      toast.error(`Couldn't save bot settings: ${formatMutationError(err)}`);
     },
   });
 
   const isSaving = saveBotSettingsMutation.isPending;
 
-  const handleTaskMessagesChange = useCallback((newMessages: TaskMessagesConfig) => {
-    setTaskMessages(newMessages);
-  }, []);
+  const handleReset = () => setDraft(saved);
 
-  const handleTimerMessagesChange = useCallback((newMessages: TimerMessagesConfig) => {
-    setTimerMessages(newMessages);
-  }, []);
+  // Client-side pass over the exact payload with the server's own input schema,
+  // so a field it would reject blocks Save instead of failing the whole save.
+  const aliasResult = rowsToAliases(draft.aliasRows);
+  const payload = {
+    taskCommandsEnabled: draft.taskCommandsEnabled,
+    timerCommandsEnabled: draft.timerCommandsEnabled,
+    task: draft.task,
+    timer: draft.timer,
+    commandAliases: aliasResult.aliases,
+  };
+  const payloadCheck = updateBotSettingsInput.safeParse(payload);
+  const blockedReason =
+    aliasResult.issues.length > 0
+      ? "Fix the highlighted aliases before saving."
+      : payloadCheck.success
+        ? null
+        : describeIssues(payloadCheck.error.issues);
 
-  const handleAliasRowsChange = useCallback((rows: AliasRow[]) => {
-    setAliasRows(rows);
-  }, []);
-
-  const handleReset = useCallback(() => {
-    setTaskCommandsEnabled(savedTaskCommandsEnabled);
-    setTimerCommandsEnabled(savedTimerCommandsEnabled);
-    setTaskMessages(savedTaskMessages);
-    setTimerMessages(savedTimerMessages);
-    setAliasRows(savedAliasRows);
-  }, [
-    savedTaskCommandsEnabled,
-    savedTimerCommandsEnabled,
-    savedTaskMessages,
-    savedTimerMessages,
-    savedAliasRows,
-  ]);
-
-  const handleSave = useCallback(async () => {
-    const { aliases, duplicates } = rowsToAliases(aliasRows);
-    if (duplicates.length > 0) {
-      toast.error(
-        `Duplicate ${duplicates.length === 1 ? "alias" : "aliases"}: ${duplicates.join(", ")} — rename or remove before saving.`,
-      );
+  const handleSave = async () => {
+    if (blockedReason) {
+      toast.error(`Couldn't save bot settings: ${blockedReason}`);
       return;
     }
 
@@ -380,43 +331,29 @@ export default function BotSettingsPage() {
     // row, so saving them as two requests could persist one and drop the other,
     // leaving the UI's saved snapshot out of sync with the server.
     try {
-      await saveBotSettingsMutation.mutateAsync({
-        taskCommandsEnabled,
-        timerCommandsEnabled,
-        task: taskMessages,
-        timer: timerMessages,
-        commandAliases: aliases,
-      });
-      setSavedTaskCommandsEnabled(taskCommandsEnabled);
-      setSavedTimerCommandsEnabled(timerCommandsEnabled);
-      setSavedTaskMessages(taskMessages);
-      setSavedTimerMessages(timerMessages);
-      setSavedAliasRows(aliasRows);
+      // Snapshot what is submitted: edits made while the request is in flight
+      // must stay dirty rather than being marked saved.
+      const submitted = draft;
+      await saveBotSettingsMutation.mutateAsync(payload);
+      setSaved(submitted);
       toast.success("Bot settings saved");
     } catch {
       // onError already toasted; nothing persisted, so everything stays dirty
       // and the Save bar keeps offering a retry.
     }
-  }, [
-    taskCommandsEnabled,
-    timerCommandsEnabled,
-    taskMessages,
-    timerMessages,
-    aliasRows,
-    saveBotSettingsMutation,
-  ]);
+  };
 
   // Per-tab dirty flags for the TabsTrigger indicator dots (spec §5.4)
   const taskDirty =
-    taskCommandsEnabled !== savedTaskCommandsEnabled ||
-    !shallowEqualRecords(taskMessages, savedTaskMessages);
+    draft.taskCommandsEnabled !== saved.taskCommandsEnabled ||
+    !shallowEqualRecords(draft.task, saved.task);
   const timerDirty =
-    timerCommandsEnabled !== savedTimerCommandsEnabled ||
-    !shallowEqualRecords(timerMessages, savedTimerMessages);
+    draft.timerCommandsEnabled !== saved.timerCommandsEnabled ||
+    !shallowEqualRecords(draft.timer, saved.timer);
   const aliasDirty =
-    aliasRows.length !== savedAliasRows.length ||
-    aliasRows.some(
-      (row, i) => row.key !== savedAliasRows[i]?.key || row.value !== savedAliasRows[i]?.value,
+    draft.aliasRows.length !== saved.aliasRows.length ||
+    draft.aliasRows.some(
+      (row, i) => row.key !== saved.aliasRows[i]?.key || row.value !== saved.aliasRows[i]?.value,
     );
 
   // Single source of truth: the guard + save bar derive from the same
@@ -425,11 +362,26 @@ export default function BotSettingsPage() {
 
   // Wait for BOTH queries — rendering on config alone flashed a false
   // "Not connected / Not configured" while the user query was still loading.
-  if (config.isLoading || user.isLoading) {
+  if (config.isPending || user.isPending) {
     return <BotSettingsSkeleton />;
   }
 
-  const botAccount = user.data?.botAccount ?? null;
+  // Never render the editors over defaults after a failed load: saving them
+  // would overwrite the streamer's real messages and aliases.
+  if (!config.data || !user.data) {
+    const failed = !config.data ? config : user;
+    return (
+      <div className="container mx-auto max-w-6xl px-4 py-8">
+        <QueryError
+          title="Couldn't load bot settings"
+          onRetry={() => failed.refetch()}
+          retrying={failed.isFetching}
+        />
+      </div>
+    );
+  }
+
+  const botAccount = user.data.botAccount ?? null;
 
   return (
     <div className={cn("container mx-auto max-w-6xl px-4 py-8", hasUnsaved && "pb-24")}>
@@ -455,7 +407,7 @@ export default function BotSettingsPage() {
           <Card className="panel">
             <CardHeader className="px-5">
               <ConsoleRule label="Identity" />
-              <CardTitle className="font-heading text-lg font-semibold tracking-tight">
+              <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
                 Bot account
               </CardTitle>
               <CardAction>
@@ -491,7 +443,7 @@ export default function BotSettingsPage() {
                       </Button>
                     }
                     title="Disconnect the bot account?"
-                    description="The bot stops responding in chat immediately and its Twitch authorization is revoked. Any open bot page goes offline. You can reconnect the same account later."
+                    description="The bot stops responding in chat immediately and Dirework asks Twitch to revoke its authorization. Any open bot page goes offline. You can reconnect the same account later."
                     confirmLabel="Disconnect bot"
                     onConfirm={() => disconnectBot.mutate()}
                   />
@@ -523,7 +475,7 @@ export default function BotSettingsPage() {
           <Card className="panel">
             <CardHeader className="border-b border-border/40 px-5">
               <ConsoleRule label="Chat commands" />
-              <CardTitle className="font-heading text-lg font-semibold tracking-tight">
+              <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
                 Commands &amp; messages
               </CardTitle>
               <CardDescription>
@@ -568,12 +520,14 @@ export default function BotSettingsPage() {
                     title="Task commands"
                     subtitle="Viewers manage their tasks from chat"
                     idPrefix="task"
-                    enabled={taskCommandsEnabled}
-                    onEnabledChange={setTaskCommandsEnabled}
+                    enabled={draft.taskCommandsEnabled}
+                    onEnabledChange={(taskCommandsEnabled) =>
+                      setDraft((d) => ({ ...d, taskCommandsEnabled }))
+                    }
                     commands={taskCommands}
                     fields={taskMessageFields}
-                    messages={taskMessages}
-                    onMessagesChange={handleTaskMessagesChange}
+                    messages={draft.task}
+                    onMessagesChange={(task) => setDraft((d) => ({ ...d, task }))}
                     disabledNote="Task commands are disabled — enable them to edit messages."
                   />
                 </TabsContent>
@@ -584,12 +538,14 @@ export default function BotSettingsPage() {
                     title="Timer commands"
                     subtitle="Mods control the timer from chat"
                     idPrefix="timer"
-                    enabled={timerCommandsEnabled}
-                    onEnabledChange={setTimerCommandsEnabled}
+                    enabled={draft.timerCommandsEnabled}
+                    onEnabledChange={(timerCommandsEnabled) =>
+                      setDraft((d) => ({ ...d, timerCommandsEnabled }))
+                    }
                     commands={timerCommands}
                     fields={timerMessageFields}
-                    messages={timerMessages}
-                    onMessagesChange={handleTimerMessagesChange}
+                    messages={draft.timer}
+                    onMessagesChange={(timer) => setDraft((d) => ({ ...d, timer }))}
                     disabledNote="Timer commands are disabled — enable them to edit messages."
                   />
                 </TabsContent>
@@ -597,9 +553,8 @@ export default function BotSettingsPage() {
                 {/* Aliases Tab */}
                 <TabsContent value="aliases">
                   <CommandAliasEditor
-                    rows={aliasRows}
-                    onChange={handleAliasRowsChange}
-                    knownCommands={knownAliasTargets}
+                    rows={draft.aliasRows}
+                    onChange={(aliasRows) => setDraft((d) => ({ ...d, aliasRows }))}
                   />
                 </TabsContent>
               </Tabs>
@@ -609,7 +564,13 @@ export default function BotSettingsPage() {
       </div>
 
       {/* Sticky Save / Reset Bar */}
-      <SaveBar visible={hasUnsaved} saving={isSaving} onSave={handleSave} onReset={handleReset} />
+      <SaveBar
+        visible={hasUnsaved}
+        saving={isSaving}
+        onSave={handleSave}
+        onReset={handleReset}
+        blockedReason={blockedReason}
+      />
     </div>
   );
 }

@@ -1,7 +1,5 @@
 "use client";
 
-import { KNOWN_ALIAS_TARGETS } from "@dirework/api/config-shared";
-
 import { ConsoleRule } from "@/components/console-rule";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -33,13 +31,6 @@ export const timerCommands: CommandRow[] = [
   { command: "!timer reset", usage: "!timer reset", description: "Stop and reset the timer" },
   { command: "!timer eta", usage: "!timer eta", description: "Show when the timer ends" },
 ];
-
-/**
- * Built-in command names an alias can target. Single source is
- * config-shared.KNOWN_ALIAS_TARGETS (canonical, no leading "!") so the editor's
- * unknown-command hint agrees exactly with the server-side alias validator.
- */
-export const knownAliasTargets: string[] = [...KNOWN_ALIAS_TARGETS];
 
 function CommandTable({ commands, labelledBy }: { commands: CommandRow[]; labelledBy?: string }) {
   return (
@@ -88,7 +79,12 @@ export function CommandTabPanel<T extends object>({
   enabled: boolean;
   onEnabledChange: (checked: boolean) => void;
   commands: CommandRow[];
-  fields: { key: Extract<keyof T, string>; label: string; placeholder: string; group: string }[];
+  fields: readonly {
+    key: Extract<keyof T, string>;
+    label: string;
+    placeholder: string;
+    group: string;
+  }[];
   messages: T;
   onMessagesChange: (values: T) => void;
   disabledNote: string;
@@ -119,12 +115,12 @@ export function CommandTabPanel<T extends object>({
       </div>
 
       <div className="space-y-3">
-        <ConsoleRule as="h2" id={`${idPrefix}-cmd-ref`} label="Command reference" />
+        <ConsoleRule as="h3" id={`${idPrefix}-cmd-ref`} label="Command reference" />
         <CommandTable commands={commands} labelledBy={`${idPrefix}-cmd-ref`} />
       </div>
 
       <div className="space-y-3">
-        <ConsoleRule as="h2" label="Messages" />
+        <ConsoleRule as="h3" label="Messages" />
         <MessageEditor
           fields={fields}
           idPrefix={idPrefix}

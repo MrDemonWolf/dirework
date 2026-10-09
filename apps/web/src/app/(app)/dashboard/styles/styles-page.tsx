@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { updateStylesInput } from "@dirework/api/routers/input-schemas";
+
 import type {
   TimerStylesConfig,
   TaskStylesConfig,
@@ -11,10 +13,12 @@ import type {
   ThemePreset,
 } from "@/lib/config-types";
 import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
-import { defaultTimerStyles, defaultTaskStyles, themePresets } from "@/lib/theme-presets";
-import { cn } from "@/lib/utils";
+import { defaultTimerStyles, defaultTaskStyles, detectMatchingPreset } from "@/lib/theme-presets";
+import { cn, isDeepEqual } from "@/lib/utils";
+import { describeIssues, formatMutationError } from "@/lib/validation-errors";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ConsoleRule } from "@/components/console-rule";
+import { QueryError } from "@/components/query-error";
 import { SaveBar } from "@/components/save-bar";
 import { StatusChip } from "@/components/status-chip";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -70,8 +74,6 @@ export default function StylesPage() {
   const [timerStyles, setTimerStyles] = useState<TimerStylesConfig>(defaultTimerStyles);
   const [taskStyles, setTaskStyles] = useState<TaskStylesConfig>(defaultTaskStyles);
   const [phaseLabels, setPhaseLabels] = useState<PhaseLabelsConfig>(defaultPhaseLabels);
-  const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
-  const [hasUnsaved, setHasUnsaved] = useState(false);
 
   // Preset apply held for confirmation while custom edits are unsaved
   const [pendingTheme, setPendingTheme] = useState<ThemePreset | null>(null);
@@ -98,10 +100,15 @@ export default function StylesPage() {
     setSavedTimerStyles(loadedTimer);
     setSavedTaskStyles(loadedTask);
     setSavedPhaseLabels(loadedLabels);
-
-    const matchedPreset = detectMatchingPreset(loadedTimer, loadedTask);
-    setActiveThemeId(matchedPreset);
   }, [config.data]);
+
+  // Derived, never tracked by hand: reverting an edit clears the unsaved
+  // state, and editing back to a preset's exact values re-highlights it.
+  const hasUnsaved =
+    !isDeepEqual(timerStyles, savedTimerStyles) ||
+    !isDeepEqual(taskStyles, savedTaskStyles) ||
+    !isDeepEqual(phaseLabels, savedPhaseLabels);
+  const activeThemeId = detectMatchingPreset(timerStyles, taskStyles);
 
   // ONE atomic mutation for the whole Theme Center — styles and phase labels
   // used to be three independent requests that could persist partially.
@@ -111,34 +118,15 @@ export default function StylesPage() {
       queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
     },
     onError: (err) => {
-      toast.error(`Couldn't save styles: ${err.message}`);
+      toast.error(`Couldn't save styles: ${formatMutationError(err)}`);
     },
   });
 
   const isSaving = saveStylesMutation.isPending;
 
-  const handleTimerChange = useCallback((newStyles: TimerStylesConfig) => {
-    setTimerStyles(newStyles);
-    setHasUnsaved(true);
-    setActiveThemeId(null);
-  }, []);
-
-  const handleTaskChange = useCallback((newStyles: TaskStylesConfig) => {
-    setTaskStyles(newStyles);
-    setHasUnsaved(true);
-    setActiveThemeId(null);
-  }, []);
-
-  const handlePhaseLabelsChange = useCallback((newLabels: PhaseLabelsConfig) => {
-    setPhaseLabels(newLabels);
-    setHasUnsaved(true);
-  }, []);
-
   const applyTheme = useCallback((theme: ThemePreset) => {
     setTimerStyles(theme.timerStyles);
     setTaskStyles(theme.taskStyles);
-    setActiveThemeId(theme.id);
-    setHasUnsaved(true);
   }, []);
 
   const handleApplyTheme = useCallback(
@@ -157,12 +145,19 @@ export default function StylesPage() {
     setTimerStyles(savedTimerStyles);
     setTaskStyles(savedTaskStyles);
     setPhaseLabels(savedPhaseLabels);
-    setHasUnsaved(false);
-    const matchedPreset = detectMatchingPreset(savedTimerStyles, savedTaskStyles);
-    setActiveThemeId(matchedPreset);
   }, [savedTimerStyles, savedTaskStyles, savedPhaseLabels]);
 
+  // The server's own input schema over the exact payload: a field it would
+  // reject (flagged inline by its editor) blocks Save rather than failing the
+  // whole atomic save.
+  const payloadCheck = updateStylesInput.safeParse({ timerStyles, taskStyles, phaseLabels });
+  const blockedReason = payloadCheck.success ? null : describeIssues(payloadCheck.error.issues);
+
   const handleSave = useCallback(async () => {
+    if (blockedReason) {
+      toast.error(`Couldn't save styles: ${blockedReason}`);
+      return;
+    }
     try {
       // Atomic server-side: either all three slices persist or none do, so the
       // saved snapshot below can never diverge from what the server holds.
@@ -170,15 +165,28 @@ export default function StylesPage() {
       setSavedTimerStyles(timerStyles);
       setSavedTaskStyles(taskStyles);
       setSavedPhaseLabels(phaseLabels);
-      setHasUnsaved(false);
       toast.success("Styles saved");
     } catch {
       // onError already surfaced the specifics; nothing persisted.
     }
-  }, [timerStyles, taskStyles, phaseLabels, saveStylesMutation]);
+  }, [blockedReason, timerStyles, taskStyles, phaseLabels, saveStylesMutation]);
 
-  if (config.isLoading) {
+  if (config.isPending) {
     return <StylesSkeleton />;
+  }
+
+  // Never render the editors over defaults after a failed load: saving them
+  // would overwrite the streamer's real theme.
+  if (!config.data) {
+    return (
+      <div className="container mx-auto max-w-6xl px-4 py-8">
+        <QueryError
+          title="Couldn't load your styles"
+          onRetry={() => config.refetch()}
+          retrying={config.isFetching}
+        />
+      </div>
+    );
   }
 
   return (
@@ -215,12 +223,12 @@ export default function StylesPage() {
               </TabsList>
               <TabsContent value="timer">
                 <div className="space-y-3">
-                  <TimerStyleEditor styles={timerStyles} onChange={handleTimerChange} />
-                  <PhaseLabelsEditor labels={phaseLabels} onChange={handlePhaseLabelsChange} />
+                  <TimerStyleEditor styles={timerStyles} onChange={setTimerStyles} />
+                  <PhaseLabelsEditor labels={phaseLabels} onChange={setPhaseLabels} />
                 </div>
               </TabsContent>
               <TabsContent value="tasks">
-                <TaskStyleEditor styles={taskStyles} onChange={handleTaskChange} />
+                <TaskStyleEditor styles={taskStyles} onChange={setTaskStyles} />
               </TabsContent>
             </Tabs>
           </div>
@@ -233,6 +241,7 @@ export default function StylesPage() {
               timerStyles={timerStyles}
               taskStyles={taskStyles}
               phaseLabels={phaseLabels}
+              showHours={config.data?.timerConfig?.showHours ?? false}
             />
           </div>
         </div>
@@ -254,25 +263,13 @@ export default function StylesPage() {
         }}
       />
 
-      <SaveBar visible={hasUnsaved} saving={isSaving} onSave={handleSave} onReset={handleReset} />
+      <SaveBar
+        visible={hasUnsaved}
+        saving={isSaving}
+        onSave={handleSave}
+        onReset={handleReset}
+        blockedReason={blockedReason}
+      />
     </div>
   );
-}
-
-function detectMatchingPreset(
-  timerStyles: TimerStylesConfig,
-  taskStyles: TaskStylesConfig,
-): string | null {
-  const timerJson = JSON.stringify(timerStyles);
-  const taskJson = JSON.stringify(taskStyles);
-
-  for (const preset of themePresets) {
-    if (
-      JSON.stringify(preset.timerStyles) === timerJson &&
-      JSON.stringify(preset.taskStyles) === taskJson
-    ) {
-      return preset.id;
-    }
-  }
-  return null;
 }

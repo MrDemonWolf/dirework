@@ -1,10 +1,16 @@
 "use client";
 
-import { TIMER_CONFIG_DEFAULTS, type TimerStylesConfig } from "@/lib/config-types";
+import {
+  TIMER_CONFIG_DEFAULTS,
+  type PhaseLabelsConfig,
+  type TimerStylesConfig,
+} from "@/lib/config-types";
 import {
   type TimerState,
-  toHexOpacity,
+  colorWithOpacity,
+  cssLengthToPx,
   formatTime,
+  quoteFontFamily,
   resolvePhaseDuration,
   roundedRectPath,
   roundedRectPerimeter,
@@ -16,45 +22,55 @@ import { useTimerCountdown } from "@/lib/use-timer-countdown";
 type RingConfig = TimerStylesConfig["ring"];
 
 type TimerConfig = TimerStylesConfig & {
-  labels: Record<string, string>;
+  labels: PhaseLabelsConfig;
   showHours: boolean;
 };
 
+// The countdown ticks once per displayed second; a matching linear transition
+// glides the ring between ticks instead of restarting an ease every frame.
+const RING_TRANSITION = "stroke-dashoffset 1s linear";
+
 function ProgressRing({
   progress,
-  size,
+  width,
+  height,
   ring,
   borderRadius,
 }: {
   progress: number;
-  size: number;
+  width: number;
+  height: number;
   ring: RingConfig;
   borderRadius: string;
 }) {
   const strokeWidth = ring.width;
   const gap = ring.gap;
   const inset = strokeWidth / 2 + gap;
-  const innerSize = size - inset * 2;
+  const innerWidth = width - inset * 2;
+  const innerHeight = height - inset * 2;
+  // Too small to fit the stroke + gap: nothing sensible to draw.
+  if (innerWidth <= 0 || innerHeight <= 0) return null;
 
   // Determine if we should draw a circle or rounded rect
   const isCircle = borderRadius === "50%" || borderRadius === "50";
 
   if (isCircle) {
-    const radius = innerSize / 2;
+    // A circle fits the shorter side and sits centered in non-square boxes.
+    const radius = Math.min(innerWidth, innerHeight) / 2;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference * (1 - Math.min(1, Math.max(0, progress)));
 
     return (
       <svg
-        width={size}
-        height={size}
+        width={width}
+        height={height}
         className="absolute inset-0"
         style={{ transform: "rotate(-90deg)" }}
       >
         <title>Timer progress ring</title>
         <circle
-          cx={size / 2}
-          cy={size / 2}
+          cx={width / 2}
+          cy={height / 2}
           r={radius}
           fill="none"
           stroke={ring.trackColor}
@@ -63,8 +79,8 @@ function ProgressRing({
           strokeLinecap="round"
         />
         <circle
-          cx={size / 2}
-          cy={size / 2}
+          cx={width / 2}
+          cy={height / 2}
           r={radius}
           fill="none"
           stroke={ring.fillColor}
@@ -73,29 +89,28 @@ function ProgressRing({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          style={{ transition: "stroke-dashoffset 0.3s ease" }}
+          style={{ transition: RING_TRANSITION }}
         />
       </svg>
     );
   }
 
   // Rounded rectangle path
-  // Parse border-radius: could be "22%", "30px", etc.
-  let cornerRadius: number;
-  if (borderRadius.endsWith("%")) {
-    cornerRadius = (parseFloat(borderRadius) / 100) * innerSize;
-  } else {
-    cornerRadius = parseFloat(borderRadius) || 0;
-  }
+  // Parse border-radius: could be "22%", "30px", "1rem" or a multi-value
+  // shorthand (the first corner is used).
+  const firstRadius = borderRadius.trim().split(/\s+/)[0] ?? "";
+  const cornerRadius = firstRadius.endsWith("%")
+    ? (Number.parseFloat(firstRadius) / 100) * Math.min(innerWidth, innerHeight)
+    : (cssLengthToPx(firstRadius) ?? 0);
 
-  const d = roundedRectPath(inset, inset, innerSize, innerSize, cornerRadius);
+  const d = roundedRectPath(inset, inset, innerWidth, innerHeight, cornerRadius);
 
   // Calculate path length for dash animation
-  const pathLength = roundedRectPerimeter(innerSize, innerSize, cornerRadius);
+  const pathLength = roundedRectPerimeter(innerWidth, innerHeight, cornerRadius);
   const offset = pathLength * (1 - Math.min(1, Math.max(0, progress)));
 
   return (
-    <svg width={size} height={size} className="absolute inset-0">
+    <svg width={width} height={height} className="absolute inset-0">
       <title>Timer progress ring</title>
       {/* Track */}
       <path
@@ -118,7 +133,7 @@ function ProgressRing({
         strokeLinejoin="round"
         strokeDasharray={pathLength}
         strokeDashoffset={offset}
-        style={{ transition: "stroke-dashoffset 0.3s ease" }}
+        style={{ transition: RING_TRANSITION }}
       />
     </svg>
   );
@@ -149,7 +164,7 @@ export function TimerDisplay({
       ? `0 0 ${config.text.outlineSize} ${config.text.outlineColor}`
       : "none";
 
-  const label = config.labels[state.status] ?? state.status;
+  const label = config.labels[state.status];
 
   // Calculate progress for the ring — a paused timer measures against the
   // phase it froze in, not the "paused" status itself (resolvePhaseDuration owns
@@ -161,19 +176,12 @@ export function TimerDisplay({
     TIMER_CONFIG_DEFAULTS.workDuration;
   const progress = isIdle ? 1 : total > 0 ? remaining / total : 0;
 
-  // Parse size for SVG ring
-  const size = parseInt(config.dimensions.width, 10) || 250;
+  // SVG ring geometry needs px. Layout-relative sizes (%, vw/vh) can't be
+  // resolved without measuring, so the ring is skipped rather than misdrawn.
+  const ringWidth = cssLengthToPx(config.dimensions.width);
+  const ringHeight = cssLengthToPx(config.dimensions.height);
 
-  // Check if ring config exists (backward compat)
-  const ring = config.ring ?? {
-    enabled: true,
-    trackColor: "#ffffff",
-    trackOpacity: 0.18,
-    fillColor: "#ffffff",
-    fillOpacity: 0.9,
-    width: 8,
-    gap: 4,
-  };
+  const ring = config.ring;
 
   return (
     <div
@@ -181,15 +189,16 @@ export function TimerDisplay({
       style={{
         width: config.dimensions.width,
         height: config.dimensions.height,
-        backgroundColor: `${config.background.color}${toHexOpacity(config.background.opacity)}`,
+        backgroundColor: colorWithOpacity(config.background.color, config.background.opacity),
         borderRadius: config.background.borderRadius,
-        fontFamily: config.text.fontFamily,
+        fontFamily: quoteFontFamily(config.text.fontFamily),
       }}
     >
-      {ring.enabled && (
+      {ring.enabled && ringWidth !== null && ringHeight !== null && (
         <ProgressRing
           progress={progress}
-          size={size}
+          width={ringWidth}
+          height={ringHeight}
           ring={ring}
           borderRadius={config.background.borderRadius}
         />

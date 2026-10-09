@@ -1,13 +1,7 @@
 import type { StatusTone } from "@/components/status-chip";
+import type { TimerStatus } from "@/lib/config-types";
 
-export type TimerStatus =
-  | "idle"
-  | "starting"
-  | "work"
-  | "break"
-  | "longBreak"
-  | "paused"
-  | "finished";
+export type { TimerStatus };
 
 /** phase → chip tone + pulse. Pulse ONLY while time is actually elapsing. */
 export const TIMER_TONES: Record<TimerStatus, { tone: StatusTone; pulse: boolean }> = {
@@ -22,7 +16,7 @@ export const TIMER_TONES: Record<TimerStatus, { tone: StatusTone; pulse: boolean
 
 /** Narrow an untrusted status string to a TimerStatus, falling back to idle. */
 export function toTimerStatus(status: string): TimerStatus {
-  return status in TIMER_TONES ? (status as TimerStatus) : "idle";
+  return Object.hasOwn(TIMER_TONES, status) ? (status as TimerStatus) : "idle";
 }
 
 /** phase → CSS color var for ambient ring/rail/glow (tokens only). */

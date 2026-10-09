@@ -1,6 +1,8 @@
 "use client";
 
 import type { PhaseLabelsConfig } from "@/lib/config-types";
+import { messageBudget } from "@/lib/message-budget";
+import { ByteBudget } from "@/components/byte-budget";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SectionGroup } from "@/components/theme-center/section-group";
@@ -39,19 +41,28 @@ export function PhaseLabelsEditor({
       <p className="text-xs text-muted-foreground">
         Customize the text shown on the timer overlay for each phase.
       </p>
-      {labelFields.map((field) => (
-        <div key={field.key} className="space-y-1.5">
-          <Label htmlFor={`label-${field.key}`} className="text-xs font-medium">
-            {field.label}
-          </Label>
-          <Input
-            id={`label-${field.key}`}
-            value={labels[field.key]}
-            onChange={(e) => handleChange(field.key, e.target.value)}
-          />
-          <p className="text-xs text-muted-foreground">{field.description}</p>
-        </div>
-      ))}
+      {labelFields.map((field) => {
+        const id = `label-${field.key}`;
+        const budget = messageBudget(labels[field.key]);
+        return (
+          <div key={field.key} className="space-y-1.5">
+            <Label htmlFor={id} className="text-xs font-medium">
+              {field.label}
+            </Label>
+            <Input
+              id={id}
+              value={labels[field.key]}
+              onChange={(e) => handleChange(field.key, e.target.value)}
+              aria-invalid={budget.over || undefined}
+              aria-describedby={budget.nearLimit ? `${id}-desc ${id}-bytes` : `${id}-desc`}
+            />
+            <ByteBudget id={`${id}-bytes`} budget={budget} />
+            <p id={`${id}-desc`} className="text-xs text-muted-foreground">
+              {field.description}
+            </p>
+          </div>
+        );
+      })}
     </SectionGroup>
   );
 }

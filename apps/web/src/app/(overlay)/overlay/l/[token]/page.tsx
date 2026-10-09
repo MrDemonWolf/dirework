@@ -3,16 +3,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 
+import { OVERLAY_POLL_MS } from "@/lib/poll-intervals";
 import { defaultTaskStyles } from "@/lib/theme-presets";
+import { FontGate } from "@/components/font-gate";
 import { TaskListDisplay } from "@/components/task-list-display";
 import { publicTrpc } from "@/utils/trpc";
-
-/**
- * Overlay polling interval — task lists only change on chat/dashboard edits, so
- * 3s keeps Worker request volume low for always-on OBS sources (Cloudflare free
- * tier) without a noticeable lag on `!task`/`!done`.
- */
-const POLL_INTERVAL_MS = 3000;
 
 export default function TaskListOverlayPage() {
   const { token } = useParams<{ token: string }>();
@@ -24,8 +19,10 @@ export default function TaskListOverlayPage() {
     queryKey: ["overlay", "taskList", token],
     queryFn: () => publicTrpc.overlay.getTaskList.mutate({ token }),
     enabled: Boolean(token),
-    refetchInterval: POLL_INTERVAL_MS,
+    refetchInterval: OVERLAY_POLL_MS,
     refetchIntervalInBackground: true,
+    // Unattended OBS source: a failed poll must never toast onto the stream.
+    meta: { silent: true },
   });
 
   if (isPending) return null;
@@ -43,8 +40,8 @@ export default function TaskListOverlayPage() {
   const displayConfig = data?.taskStyles ?? defaultTaskStyles;
 
   return (
-    <div className="h-screen w-screen bg-transparent p-4">
-      <TaskListDisplay config={displayConfig} tasks={tasks} />
-    </div>
+    <FontGate className="h-screen w-screen bg-transparent p-4">
+      <TaskListDisplay config={displayConfig} tasks={tasks} counts={data?.counts} />
+    </FontGate>
   );
 }

@@ -9,6 +9,7 @@ import {
   type TaskStylesConfig,
   type PhaseLabelsConfig,
 } from "@/lib/config-types";
+import type { TimerState } from "@/lib/timer-utils";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ConsoleRule } from "@/components/console-rule";
@@ -54,11 +55,15 @@ const mockTasks = [
   },
 ];
 
-function timerPreviewConfig(styles: TimerStylesConfig, labels: PhaseLabelsConfig) {
+function timerPreviewConfig(
+  styles: TimerStylesConfig,
+  labels: PhaseLabelsConfig,
+  showHours: boolean,
+) {
   return {
     ...styles,
-    labels: { ...labels } as Record<string, string>,
-    showHours: false,
+    labels,
+    showHours,
   };
 }
 
@@ -121,10 +126,13 @@ export function StylePreviewPanel({
   timerStyles,
   taskStyles,
   phaseLabels,
+  showHours = false,
 }: {
   timerStyles: TimerStylesConfig;
   taskStyles: TaskStylesConfig;
   phaseLabels: PhaseLabelsConfig;
+  /** The saved timer setting, so the preview clock is as wide as the OBS overlay's. */
+  showHours?: boolean;
 }) {
   const [targetEndTime, setTargetEndTime] = useState<string | null>(null);
   const [pausedRemaining, setPausedRemaining] = useState(DEFAULT_PAUSED_REMAINING);
@@ -141,7 +149,7 @@ export function StylePreviewPanel({
     return () => clearInterval(check);
   }, [targetEndTime]);
 
-  const timerState = targetEndTime
+  const timerState: TimerState = targetEndTime
     ? { status: "work", targetEndTime, pausedWithRemaining: null, currentCycle: 2, totalCycles: 4 }
     : {
         status: "paused",
@@ -200,7 +208,7 @@ export function StylePreviewPanel({
           )}
         >
           <TimerDisplay
-            config={timerPreviewConfig(timerStyles, phaseLabels)}
+            config={timerPreviewConfig(timerStyles, phaseLabels, showHours)}
             state={timerState}
             totalDuration={MOCK_DURATION}
           />

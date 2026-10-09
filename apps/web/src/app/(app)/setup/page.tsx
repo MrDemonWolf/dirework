@@ -1,10 +1,12 @@
+import type { Metadata } from "next";
+
 import { notFound, redirect } from "next/navigation";
 
 import { getInstanceOwned, getServerSession } from "@/lib/server-session";
 import SetupContent from "./setup-content";
 
-export const metadata = {
-  title: "Setup — DireWork",
+export const metadata: Metadata = {
+  title: "Setup",
   description: "Claim this DireWork instance as the streamer.",
 };
 

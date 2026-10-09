@@ -1,4 +1,4 @@
-import { hasControlCharacters, replaceControlCharacters } from "@dirework/api/config-shared";
+import { hasControlCharacters, replaceControlCharacters } from "@dirework/api/chat-text";
 
 interface IrcCredentialFields {
   botUsername: string;

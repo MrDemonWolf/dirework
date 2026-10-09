@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { ConsoleRule } from "@/components/console-rule";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,10 +14,17 @@ import { Label } from "@/components/ui/label";
 import { StatusChip } from "@/components/status-chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { DASHBOARD_TIMER_QUERY_OPTS } from "@/lib/poll-intervals";
 import { type TimerState, formatClock, resolvePhaseDuration } from "@/lib/timer-utils";
 import { useTimerCountdown } from "@/lib/use-timer-countdown";
 import { TIMER_TONES, TIMER_PHASE_COLOR, toTimerStatus } from "@/lib/status-tones";
-import { DEFAULT_PHASE_LABELS, TIMER_CONFIG_DEFAULTS } from "@/lib/config-types";
+import {
+  DEFAULT_PHASE_LABELS,
+  TIMER_CONFIG_DEFAULTS,
+  type PhaseLabelsConfig,
+  type TimerStatus,
+} from "@/lib/config-types";
+import { describeTrpcError } from "@/lib/trpc-errors";
 import { trpc } from "@/utils/trpc";
 
 function msToMinutes(ms: number): number {
@@ -27,8 +34,6 @@ function msToMinutes(ms: number): number {
 function minutesToMs(min: number): number {
   return min * 60000;
 }
-
-const DEFAULT_LABELS: Record<string, string> = { ...DEFAULT_PHASE_LABELS };
 
 /**
  * Hardware-module cycle indicator: filled dots for completed pomos, a ringed
@@ -83,13 +88,13 @@ interface TimerContextValue {
   longBreakInterval: number;
   setLongBreakInterval: (v: number) => void;
   saveConfig: (overrides: Partial<typeof TIMER_CONFIG_DEFAULTS>) => void;
-  status: string;
+  status: TimerStatus;
   isIdle: boolean;
   isPaused: boolean;
-  displayTime: string;
-  progressPct: number;
+  /** Full length (ms) of the phase being measured; null while idle/finished. */
+  totalDuration: number | null;
   state: TimerState | null;
-  configLabels: Record<string, string>;
+  configLabels: PhaseLabelsConfig;
   start: { mutate: (args: { totalCycles: number }) => void; isPending: boolean };
   pause: { mutate: () => void; isPending: boolean };
   resume: { mutate: () => void; isPending: boolean };
@@ -107,27 +112,27 @@ function useTimerContext() {
 
 export function TimerProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const [cycles, setCycles] = useState(4);
-  const [workMin, setWorkMin] = useState(25);
-  const [breakMin, setBreakMin] = useState(5);
-  const [longBreakMin, setLongBreakMin] = useState(15);
-  const [longBreakInterval, setLongBreakInterval] = useState(4);
+  const [cycles, setCycles] = useState(TIMER_CONFIG_DEFAULTS.defaultCycles);
+  const [workMin, setWorkMin] = useState(msToMinutes(TIMER_CONFIG_DEFAULTS.workDuration));
+  const [breakMin, setBreakMin] = useState(msToMinutes(TIMER_CONFIG_DEFAULTS.breakDuration));
+  const [longBreakMin, setLongBreakMin] = useState(
+    msToMinutes(TIMER_CONFIG_DEFAULTS.longBreakDuration),
+  );
+  const [longBreakInterval, setLongBreakInterval] = useState(
+    TIMER_CONFIG_DEFAULTS.longBreakInterval,
+  );
   const [configLoaded, setConfigLoaded] = useState(false);
 
   const timer = useQuery({
     ...trpc.timer.get.queryOptions(),
-    // The countdown ticks locally from targetEndTime; the poll only syncs state
-    // changes, so 2s is plenty. refetchIntervalInBackground is left false so the
-    // control panel stops polling when its tab is hidden (Cloudflare free tier).
-    refetchInterval: 2000,
-    refetchOnWindowFocus: false,
+    // refetchIntervalInBackground is left false so the control panel stops
+    // polling when its tab is hidden (Cloudflare free tier).
+    ...DASHBOARD_TIMER_QUERY_OPTS,
   });
 
   const config = useQuery(trpc.config.get.queryOptions());
 
-  const configLabels: Record<string, string> = config.data?.timerConfig?.labels
-    ? { ...config.data.timerConfig.labels }
-    : DEFAULT_LABELS;
+  const configLabels = config.data?.timerConfig?.labels ?? DEFAULT_PHASE_LABELS;
 
   const updateTimerConfig = useMutation({
     ...trpc.config.updateTimerConfig.mutationOptions(),
@@ -138,7 +143,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       toast.success("Timer settings saved");
     },
     onError: (err) => {
-      toast.error(`Couldn't save timer settings: ${err.message}`);
+      toast.error(`Couldn't save timer settings: ${describeTrpcError(err)}`);
     },
   });
 
@@ -171,8 +176,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     queryClient.invalidateQueries({ queryKey: trpc.timer.get.queryKey() });
   };
 
-  const mutationError = (action: string) => (err: { message: string }) => {
-    toast.error(`Couldn't ${action} the timer: ${err.message}`);
+  const mutationError = (action: string) => (err: unknown) => {
+    toast.error(`Couldn't ${action} the timer: ${describeTrpcError(err)}`);
   };
 
   const start = useMutation({
@@ -210,18 +215,11 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const isIdle = status === "idle" || status === "finished";
   const isPaused = status === "paused";
 
-  const remaining = useTimerCountdown(state);
-
-  const displayTime = isIdle
-    ? formatClock(minutesToMs(workMin))
-    : remaining !== null
-      ? formatClock(remaining)
-      : "--:--";
-
-  // Progress through the current phase (0–100) for the instrument rail.
   // The phase's full length comes from the (locally edited) minutes; while
   // paused we measure against the phase the timer froze in — resolvePhaseDuration
   // owns that branch. Idle/finished return null and the rail reads empty.
+  // The live countdown itself runs inside TimerInstrument, so its ticks don't
+  // re-render the provider and every other context consumer.
   const totalDuration = resolvePhaseDuration(status, state?.pausedFromStatus, {
     workDuration: minutesToMs(workMin),
     breakDuration: minutesToMs(breakMin),
@@ -229,10 +227,6 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     startingDuration:
       config.data?.timerConfig?.startingDuration ?? TIMER_CONFIG_DEFAULTS.startingDuration,
   });
-  const progressPct =
-    !isIdle && totalDuration && remaining !== null
-      ? Math.min(100, Math.max(0, 100 * (1 - remaining / totalDuration)))
-      : 0;
 
   return (
     <TimerContext.Provider
@@ -251,8 +245,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         status,
         isIdle,
         isPaused,
-        displayTime,
-        progressPct,
+        totalDuration,
         state,
         configLabels,
         start,
@@ -280,8 +273,7 @@ export function TimerInstrument() {
     status,
     isIdle,
     isPaused,
-    displayTime,
-    progressPct,
+    totalDuration,
     state,
     configLabels,
     start,
@@ -291,17 +283,71 @@ export function TimerInstrument() {
     reset,
   } = useTimerContext();
 
+  const remaining = useTimerCountdown(state);
+
+  const displayTime = isIdle
+    ? formatClock(minutesToMs(workMin))
+    : remaining !== null
+      ? formatClock(remaining)
+      : "--:--";
+
+  // Progress through the current phase (0–100) for the instrument rail.
+  const progressPct =
+    !isIdle && totalDuration && remaining !== null
+      ? Math.min(100, Math.max(0, 100 * (1 - remaining / totalDuration)))
+      : 0;
+
+  // Runtime guard: the wire value is untyped JSON, so an unknown status reads as idle.
   const timerStatus = toTimerStatus(status);
   const { tone, pulse } = TIMER_TONES[timerStatus];
   const phaseColor = TIMER_PHASE_COLOR[timerStatus];
+  const phaseLabel = configLabels[timerStatus];
+
+  // One primary transport button for every state (Start / Pause / Resume), so
+  // the same element keeps keyboard focus across state changes.
+  const primary = isIdle
+    ? {
+        label: "Start",
+        Icon: Play,
+        variant: "default" as const,
+        onClick: () => start.mutate({ totalCycles: cycles }),
+        pending: start.isPending,
+      }
+    : isPaused
+      ? {
+          label: "Resume",
+          Icon: Play,
+          variant: "default" as const,
+          onClick: () => resume.mutate(),
+          pending: resume.isPending,
+        }
+      : {
+          label: "Pause",
+          Icon: Pause,
+          variant: "outline" as const,
+          onClick: () => pause.mutate(),
+          pending: pause.isPending,
+        };
+
+  // Stopping (or finishing) unmounts the skip/stop cluster; if that dropped
+  // focus to <body>, hand it to the primary button instead of the page top.
+  const primaryRef = useRef<HTMLButtonElement>(null);
+  const wasIdle = useRef(isIdle);
+  useEffect(() => {
+    const active = document.activeElement;
+    if (isIdle && !wasIdle.current && (!active || active === document.body)) {
+      primaryRef.current?.focus();
+    }
+    wasIdle.current = isIdle;
+  }, [isIdle]);
 
   return (
     <div className="flex flex-col items-center gap-5">
-      <StatusChip
-        tone={tone}
-        label={configLabels[status] ?? DEFAULT_LABELS[status] ?? status}
-        pulse={pulse}
-      />
+      <StatusChip tone={tone} label={phaseLabel} pulse={pulse} />
+      {/* Announces phase changes (start / pause / stop / chat-driven) to screen readers. */}
+      <span role="status" aria-live="polite" className="sr-only">
+        Timer: {phaseLabel}
+      </span>
       {/* Digits with a static phase-tinted ambient glow */}
       <div className="relative">
         <div
@@ -337,78 +383,58 @@ export function TimerInstrument() {
         </p>
       )}
       <div className="flex items-center gap-2">
-        {isIdle ? (
-          <Button
-            size="lg"
-            onClick={() => start.mutate({ totalCycles: cycles })}
-            disabled={start.isPending}
-            className="h-12 gap-2 px-8 text-base"
-          >
-            <Play className="size-4" />
-            Start
-          </Button>
-        ) : (
-          <>
-            {isPaused ? (
-              <Button
-                size="lg"
-                onClick={() => resume.mutate()}
-                disabled={resume.isPending}
-                className="h-12 gap-2 px-8 text-base"
-              >
-                <Play className="size-4" />
-                Resume
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => pause.mutate()}
-                disabled={pause.isPending}
-                className="h-12 gap-2 px-8 text-base"
-              >
-                <Pause className="size-4" />
-                Pause
-              </Button>
-            )}
-            {/* Segmented skip/stop cluster */}
-            <div className="flex divide-x divide-border/50 overflow-hidden rounded-lg border border-border/50">
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => skip.mutate()}
-                      disabled={skip.isPending}
-                      aria-label="Skip phase"
-                      className="h-12 w-12 rounded-none border-0"
-                    />
-                  }
-                >
-                  <SkipForward className="size-4" />
-                </TooltipTrigger>
-                <TooltipContent>Skip to the next phase</TooltipContent>
-              </Tooltip>
-              <ConfirmDialog
-                trigger={
+        <Button
+          ref={primaryRef}
+          variant={primary.variant}
+          size="lg"
+          onClick={primary.onClick}
+          disabled={primary.pending}
+          focusableWhenDisabled
+          className="h-12 gap-2 px-8 text-base"
+        >
+          <primary.Icon className="size-4" />
+          {primary.label}
+        </Button>
+        {!isIdle && (
+          /* Segmented skip/stop cluster */
+          <div className="flex divide-x divide-border/50 overflow-hidden rounded-lg border border-border/50">
+            <Tooltip>
+              <TooltipTrigger
+                render={
                   <Button
                     variant="ghost"
                     size="icon"
-                    disabled={reset.isPending}
-                    aria-label="Stop timer"
-                    className="h-12 w-12 rounded-none border-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <Square className="size-4" />
-                  </Button>
+                    onClick={() => skip.mutate()}
+                    disabled={skip.isPending}
+                    focusableWhenDisabled
+                    aria-label="Skip phase"
+                    className="h-12 w-12 rounded-none border-0"
+                  />
                 }
-                title="Stop the timer?"
-                description="This ends the current run and resets the timer. Your progress is lost — chat will see the timer disappear from the overlay."
-                confirmLabel="Stop timer"
-                onConfirm={() => reset.mutate()}
-              />
-            </div>
-          </>
+              >
+                <SkipForward className="size-4" />
+              </TooltipTrigger>
+              <TooltipContent>Skip to the next phase</TooltipContent>
+            </Tooltip>
+            <ConfirmDialog
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={reset.isPending}
+                  focusableWhenDisabled
+                  aria-label="Stop timer"
+                  className="h-12 w-12 rounded-none border-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Square className="size-4" />
+                </Button>
+              }
+              title="Stop the timer?"
+              description="This ends the current run and resets the timer. Your progress is lost — the overlay goes back to its idle preview."
+              confirmLabel="Stop timer"
+              onConfirm={() => reset.mutate()}
+            />
+          </div>
         )}
       </div>
     </div>
@@ -496,7 +522,7 @@ export function TimerSettings() {
         <StatusChip size="sm" tone="idle" label="Locked while running" className="self-start" />
       )}
       {fields.map((field) => (
-        <div key={field.id} className="grid grid-cols-[6.75rem_3rem_auto] items-center gap-2">
+        <div key={field.id} className="grid grid-cols-[6.75rem_4.5rem_auto] items-center gap-2">
           {/* Help rides on aria-describedby (screen readers + keyboard get it,
               not just mouse hover); the tooltip stays as the pointer surface. */}
           <Tooltip>
@@ -523,8 +549,12 @@ export function TimerSettings() {
             onChange={(e) => field.set(Number(e.target.value))}
             onBlur={() => {
               // Clamp instead of saving garbage: a cleared field otherwise
-              // autosaves 0 and bounces off the server with a raw error.
-              const clamped = Math.min(field.max, Math.max(field.min, field.value || field.min));
+              // autosaves 0 and bounces off the server with a raw error. Round
+              // first: the server only takes whole numbers, and "2.5" types fine.
+              const clamped = Math.min(
+                field.max,
+                Math.max(field.min, Math.round(field.value) || field.min),
+              );
               if (clamped !== field.value) field.set(clamped);
               field.save(clamped);
             }}

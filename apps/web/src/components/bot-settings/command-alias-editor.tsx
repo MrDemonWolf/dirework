@@ -2,90 +2,42 @@
 
 import { Plus, Trash2 } from "lucide-react";
 
-import { normalizeAliasToken } from "@dirework/api/config-shared";
+import {
+  type AliasIssueReason,
+  aliasTokenHasWhitespace,
+  normalizeAliasToken,
+} from "@dirework/api/config-shared";
 
+import { type AliasRow, nextAliasRowId, rowsToAliases } from "@/lib/alias-rows";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-/**
- * Alias rows carry a stable client-side id (audit L12) so React keys survive
- * key edits — the old object-keyed model re-rendered the input on every
- * keystroke (losing focus) and collapsed duplicate empty keys into one entry.
- * Rows collapse back to a Record<alias, command> at save time.
- */
-export interface AliasRow {
-  id: string;
-  key: string;
-  value: string;
-}
-
-let aliasIdCounter = 0;
-export function nextAliasRowId(): string {
-  aliasIdCounter += 1;
-  return `alias-row-${aliasIdCounter}`;
-}
-
-export function aliasesToRows(aliases: Record<string, string>): AliasRow[] {
-  return Object.entries(aliases).map(([key, value]) => ({
-    id: nextAliasRowId(),
-    key,
-    value,
-  }));
-}
-
-/**
- * Collapse rows to the persisted object shape. Keys and targets are normalized
- * to canonical form (leading "!" stripped, lowercased) via the shared
- * normalizer so what we persist matches what the chat resolver and the server
- * alias validator expect — this is the client half of the "!!task" fix. Rows
- * with an empty alias are dropped; duplicate aliases (after normalization) are
- * reported so the caller can block the save.
- */
-export function rowsToAliases(rows: AliasRow[]): {
-  aliases: Record<string, string>;
-  duplicates: string[];
-} {
-  const aliases: Record<string, string> = {};
-  const duplicates: string[] = [];
-  for (const row of rows) {
-    const key = normalizeAliasToken(row.key);
-    if (!key) continue;
-    if (key in aliases) {
-      duplicates.push(key);
-      continue;
-    }
-    aliases[key] = normalizeAliasToken(row.value);
-  }
-  return { aliases, duplicates };
-}
+/** Row-level copy for each reason the shared alias validator rejects. */
+const ISSUE_MESSAGES: Record<AliasIssueReason, string> = {
+  empty: "Fill in both the alias and the command, or remove the row.",
+  "multi-word": "Use a single command name — aliases can't include arguments.",
+  "shadows-builtin": "That's a built-in command — pick a different alias name.",
+  duplicate: "Duplicate alias — rename or remove one before saving.",
+  recursive: "An alias can't point at itself.",
+  "unknown-target": "Unknown command — pick one of the built-in commands.",
+};
 
 export function CommandAliasEditor({
   rows,
   onChange,
   maxRows = 50,
-  knownCommands,
 }: {
   rows: AliasRow[];
   onChange: (rows: AliasRow[]) => void;
   maxRows?: number;
-  /** Built-in command names — unknown targets get a non-blocking warning */
-  knownCommands?: string[];
 }) {
-  const keyCounts = new Map<string, number>();
-  for (const row of rows) {
-    const key = normalizeAliasToken(row.key);
-    if (!key) continue;
-    keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1);
-  }
-
-  const knownSet = new Set((knownCommands ?? []).map(normalizeAliasToken));
-  const isUnknownCommand = (value: string) => {
-    if (knownSet.size === 0) return false;
-    const base = normalizeAliasToken(value);
-    return base !== "" && !knownSet.has(base);
-  };
+  // The same validator the save path and the server run, so every row the
+  // server would reject is flagged here instead of failing the whole save.
+  const issueByRow = new Map(
+    rowsToAliases(rows).issues.map((issue) => [issue.rowId, issue.reason] as const),
+  );
 
   const handleAdd = () => {
     onChange([...rows, { id: nextAliasRowId(), key: "", value: "" }]);
@@ -116,9 +68,19 @@ export function CommandAliasEditor({
 
       <div className="space-y-2">
         {rows.map((row) => {
-          const normalizedKey = normalizeAliasToken(row.key);
-          const isDuplicate = normalizedKey !== "" && (keyCounts.get(normalizedKey) ?? 0) > 1;
-          const isUnknown = isUnknownCommand(row.value);
+          const issue = issueByRow.get(row.id);
+          const errorId = `${row.id}-error`;
+          // Point the error at the field that caused it.
+          const keyInvalid =
+            issue === "duplicate" ||
+            issue === "recursive" ||
+            issue === "shadows-builtin" ||
+            (issue === "multi-word" && aliasTokenHasWhitespace(row.key)) ||
+            (issue === "empty" && normalizeAliasToken(row.key) === "");
+          const cmdInvalid =
+            issue === "unknown-target" ||
+            (issue === "multi-word" && aliasTokenHasWhitespace(row.value)) ||
+            (issue === "empty" && normalizeAliasToken(row.value) === "");
           return (
             <div key={row.id} className="space-y-1">
               <div className="flex items-end gap-2">
@@ -132,9 +94,9 @@ export function CommandAliasEditor({
                     onChange={(e) => handleRowChange(row.id, { key: e.target.value })}
                     placeholder="!t"
                     maxLength={50}
-                    aria-invalid={isDuplicate || undefined}
-                    aria-describedby={isDuplicate ? `${row.id}-key-duplicate` : undefined}
-                    className={cn("font-mono", isDuplicate && "border-destructive")}
+                    aria-invalid={keyInvalid || undefined}
+                    aria-describedby={issue ? errorId : undefined}
+                    className={cn("font-mono", keyInvalid && "border-destructive")}
                   />
                 </div>
                 <div className="flex-1 space-y-1">
@@ -147,8 +109,9 @@ export function CommandAliasEditor({
                     onChange={(e) => handleRowChange(row.id, { value: e.target.value })}
                     placeholder="!task"
                     maxLength={100}
-                    aria-describedby={isUnknown ? `${row.id}-cmd-warning` : undefined}
-                    className="font-mono"
+                    aria-invalid={cmdInvalid || undefined}
+                    aria-describedby={issue ? errorId : undefined}
+                    className={cn("font-mono", cmdInvalid && "border-destructive")}
                   />
                 </div>
                 <Button
@@ -161,14 +124,9 @@ export function CommandAliasEditor({
                   <Trash2 className="size-4" />
                 </Button>
               </div>
-              {isDuplicate && (
-                <p id={`${row.id}-key-duplicate`} className="text-xs text-destructive">
-                  Duplicate alias — rename or remove one before saving.
-                </p>
-              )}
-              {isUnknown && (
-                <p id={`${row.id}-cmd-warning`} className="text-xs text-warning">
-                  Unknown command — this alias won&apos;t work.
+              {issue && (
+                <p id={errorId} className="text-xs text-destructive">
+                  {ISSUE_MESSAGES[issue]}
                 </p>
               )}
             </div>
@@ -179,12 +137,9 @@ export function CommandAliasEditor({
             No aliases yet. Click &quot;Add alias&quot; to create one.
           </p>
         )}
-        {rows.some((row) => {
-          const k = normalizeAliasToken(row.key);
-          return k !== "" && (keyCounts.get(k) ?? 0) > 1;
-        }) && (
-          <p id="alias-duplicate-error" className="text-xs text-destructive" role="alert">
-            Two aliases share the same name — rename or remove one before saving.
+        {issueByRow.size > 0 && (
+          <p id="alias-error-summary" className="text-xs text-destructive" role="alert">
+            Fix the highlighted aliases before saving.
           </p>
         )}
       </div>

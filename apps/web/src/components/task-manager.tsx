@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Focus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -9,11 +9,15 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ConsoleRule } from "@/components/console-rule";
+import { QueryError } from "@/components/query-error";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { MAX_TASK_LEN } from "@/lib/config-types";
+import { DASHBOARD_TASKS_POLL_MS, dashboardPollInterval } from "@/lib/poll-intervals";
 import { groupTasksByAuthor } from "@/lib/task-utils";
 import { StatusChip } from "@/components/status-chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { describeTrpcError } from "@/lib/trpc-errors";
 import { trpc } from "@/utils/trpc";
 
 interface TaskManagerProps {
@@ -30,21 +34,18 @@ interface TaskManagerProps {
 export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
   const queryClient = useQueryClient();
   const [newTask, setNewTask] = useState("");
-  const [removingTaskId, setRemovingTaskId] = useState<string | null>(null);
-  const [activatingTaskId, setActivatingTaskId] = useState<string | null>(null);
-  const [doneTaskId, setDoneTaskId] = useState<string | null>(null);
 
   const tasks = useQuery({
     ...trpc.task.list.queryOptions(),
-    refetchInterval: 3000,
+    refetchInterval: dashboardPollInterval(DASHBOARD_TASKS_POLL_MS),
   });
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: trpc.task.list.queryKey() });
   };
 
-  const mutationError = (action: string) => (err: { message: string }) => {
-    toast.error(`Couldn't ${action}: ${err.message}`);
+  const mutationError = (action: string) => (err: unknown) => {
+    toast.error(`Couldn't ${action}: ${describeTrpcError(err)}`);
   };
 
   const createTask = useMutation({
@@ -92,11 +93,41 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
     createTask.mutate({ text: newTask.trim() });
   };
 
-  const taskList = tasks.data ?? [];
-  const pendingCount = taskList.filter(
-    (t) => t.status === "pending" || t.status === "active",
-  ).length;
-  const doneCount = taskList.filter((t) => t.status === "done").length;
+  const taskList = tasks.data?.tasks ?? [];
+
+  // Removing a task unmounts its row, and activating one unmounts its Activate
+  // button — either drops keyboard focus to <body>. Once the list reflects the
+  // change, move focus somewhere sensible (only if it was actually lost).
+  const addInputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const pendingFocus = useRef<
+    | { kind: "remove"; taskId: string; nextId: string | null }
+    | { kind: "activate"; taskId: string }
+    | null
+  >(null);
+
+  useEffect(() => {
+    const pending = pendingFocus.current;
+    const data = tasks.data?.tasks;
+    if (!pending || !data) return;
+    const task = data.find((t) => t.id === pending.taskId);
+    const settled = pending.kind === "remove" ? !task : task?.status === "active";
+    if (!settled) return;
+    pendingFocus.current = null;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    const targetId = pending.kind === "remove" ? pending.nextId : pending.taskId;
+    const target = targetId
+      ? listRef.current?.querySelector<HTMLElement>(`[data-remove-task="${CSS.escape(targetId)}"]`)
+      : null;
+    (target ?? addInputRef.current)?.focus();
+  }, [tasks.data]);
+
+  // Counts come from the server: the list carries only the newest done tasks
+  // (DONE_TASK_LIST_LIMIT), so counting the array would undercount "Done".
+  const pendingCount = tasks.data?.counts.open ?? 0;
+  const doneCount = tasks.data?.counts.done ?? 0;
+  const totalCount = pendingCount + doneCount;
 
   // Broadcaster group pins first; viewer groups keep list order.
   const groups = groupTasksByAuthor(taskList);
@@ -104,6 +135,13 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
     ...groups.filter((g) => g.authorKey === userTwitchId),
     ...groups.filter((g) => g.authorKey !== userTwitchId),
   ];
+  const orderedTaskIds = orderedGroups.flatMap((g) => g.tasks.map((t) => t.id));
+
+  /** The row that takes focus after `taskId` is removed: the next one, else the previous. */
+  const neighborTaskId = (taskId: string) => {
+    const index = orderedTaskIds.indexOf(taskId);
+    return orderedTaskIds[index + 1] ?? orderedTaskIds[index - 1] ?? null;
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -139,6 +177,7 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
           <div className="flex-1 space-y-4 px-5 py-5">
             <form onSubmit={handleSubmit} className="flex gap-2">
               <Input
+                ref={addInputRef}
                 value={newTask}
                 onChange={(e) => setNewTask(e.target.value)}
                 placeholder="Add a task..."
@@ -156,8 +195,20 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
               </Button>
             </form>
 
-            <div className="max-h-[400px] space-y-3 overflow-y-auto">
-              {taskList.length === 0 ? (
+            <div ref={listRef} className="max-h-[400px] space-y-3 overflow-y-auto">
+              {!tasks.data && tasks.isError ? (
+                // A failed first load must not masquerade as an empty board.
+                <QueryError
+                  title="Couldn't load tasks"
+                  onRetry={() => tasks.refetch()}
+                  retrying={tasks.isFetching}
+                />
+              ) : !tasks.data ? (
+                <div className="space-y-2" aria-hidden>
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ) : taskList.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 py-10">
                   {/* Focus-ring motif empty state */}
                   <svg viewBox="0 0 48 48" className="size-10" aria-hidden>
@@ -226,7 +277,6 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                               key={task.id}
                               className={cn(
                                 "group flex items-center gap-3 px-3 py-2 transition-colors hover:bg-muted/40",
-                                isDone && "opacity-60",
                                 isActive && "-ml-px border-l-2 border-l-primary bg-primary/5",
                               )}
                             >
@@ -235,13 +285,16 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                                 type="button"
                                 onClick={() => {
                                   if (!(isActive || task.status === "pending")) return;
-                                  setDoneTaskId(task.id);
-                                  markDone.mutate(
-                                    { id: task.id },
-                                    { onSettled: () => setDoneTaskId(null) },
-                                  );
+                                  if (markDone.isPending && markDone.variables?.id === task.id)
+                                    return;
+                                  markDone.mutate({ id: task.id });
                                 }}
-                                disabled={isDone || doneTaskId === task.id}
+                                // aria-disabled (not disabled) so the control keeps
+                                // keyboard focus while pending and once done.
+                                aria-disabled={
+                                  isDone ||
+                                  (markDone.isPending && markDone.variables?.id === task.id)
+                                }
                                 aria-label={
                                   isDone ? `${task.text} (done)` : `Mark "${task.text}" as done`
                                 }
@@ -250,7 +303,7 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                                   "relative flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors after:absolute after:-inset-2.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                                   isDone
                                     ? "border-primary bg-primary text-primary-foreground"
-                                    : "border-muted-foreground/40 hover:border-primary disabled:hover:border-muted-foreground/40",
+                                    : "border-muted-foreground hover:border-primary aria-disabled:cursor-not-allowed aria-disabled:hover:border-muted-foreground",
                                 )}
                               >
                                 {isDone && <Check className="size-3" />}
@@ -285,13 +338,24 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                                         variant="ghost"
                                         size="icon-xs"
                                         onClick={() => {
-                                          setActivatingTaskId(task.id);
+                                          pendingFocus.current = {
+                                            kind: "activate",
+                                            taskId: task.id,
+                                          };
                                           activateTask.mutate(
                                             { id: task.id },
-                                            { onSettled: () => setActivatingTaskId(null) },
+                                            {
+                                              onError: () => {
+                                                pendingFocus.current = null;
+                                              },
+                                            },
                                           );
                                         }}
-                                        disabled={activatingTaskId === task.id}
+                                        disabled={
+                                          activateTask.isPending &&
+                                          activateTask.variables?.id === task.id
+                                        }
+                                        focusableWhenDisabled
                                         aria-label={`Set "${task.text}" as active`}
                                         className="relative opacity-100 transition-opacity after:absolute after:-inset-2 focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
                                       />
@@ -308,13 +372,25 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                                 variant="ghost"
                                 size="icon-xs"
                                 onClick={() => {
-                                  setRemovingTaskId(task.id);
+                                  pendingFocus.current = {
+                                    kind: "remove",
+                                    taskId: task.id,
+                                    nextId: neighborTaskId(task.id),
+                                  };
                                   removeTask.mutate(
                                     { id: task.id },
-                                    { onSettled: () => setRemovingTaskId(null) },
+                                    {
+                                      onError: () => {
+                                        pendingFocus.current = null;
+                                      },
+                                    },
                                   );
                                 }}
-                                disabled={removingTaskId === task.id}
+                                disabled={
+                                  removeTask.isPending && removeTask.variables?.id === task.id
+                                }
+                                focusableWhenDisabled
+                                data-remove-task={task.id}
                                 aria-label={`Remove "${task.text}"`}
                                 className="relative text-destructive opacity-100 transition-opacity after:absolute after:-inset-2 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
                               >
@@ -334,6 +410,9 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
           {/* Footer strip: bulk actions behind confirms */}
           {taskList.length > 0 && (
             <div className="flex items-center justify-end gap-1 border-t border-border/40 px-3 py-2">
+              <p className="mr-auto text-xs text-muted-foreground">
+                Done tasks clear automatically after 24h
+              </p>
               {doneCount > 0 && (
                 <ConfirmDialog
                   trigger={
@@ -364,7 +443,7 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                   </Button>
                 }
                 title="Clear every task?"
-                description={`This permanently removes all ${taskList.length} ${taskList.length === 1 ? "task" : "tasks"} — including viewer tasks — from the list and the overlay. Chat will need to re-add theirs.`}
+                description={`This permanently removes all ${totalCount} ${totalCount === 1 ? "task" : "tasks"} — including viewer tasks — from the list and the overlay. Chat will need to re-add theirs.`}
                 confirmLabel="Clear all tasks"
                 onConfirm={() => clearAll.mutate()}
               />
