@@ -16,7 +16,7 @@ export function hexToRgba(hex: string, alpha: number): string {
 }
 
 /** WCAG relative luminance of a hex color (0 = black, 1 = white). */
-export function relativeLuminance(hex: string): number {
+function relativeLuminance(hex: string): number {
   const h = hex.replace("#", "");
   const full =
     h.length === 3

@@ -10,9 +10,10 @@ database to babysit.
 You deploy these resources to your own Cloudflare account and operate your own instance. Dirework is always self-hosted; MrDemonWolf, Inc. does not provide a hosted or managed service.
 
 <Callout>
-  **The short version:** create a Cloudflare API token, set six GitHub secrets and two required
-  repository variables, push to `main`. GitHub Actions deploys both workers and the
-  database for you.
+  **The short version:** create a Cloudflare API token, set seven GitHub secrets and two
+  required repository variables, then push to `main` (or run the Deploy workflow). GitHub
+  Actions deploys both workers and the database for you. **Sign in the moment the first
+  deploy finishes** — until you do, anyone can claim the instance.
 </Callout>
 
 ## What gets deployed
@@ -31,12 +32,19 @@ so everything works from the one `dirework.…workers.dev` address.
 - A [Cloudflare account](https://dash.cloudflare.com/sign-up) (free plan is fine)
 - Your two [Twitch keys](/docs/twitch-oauth) (client ID + secret)
 - A fork or copy of the Dirework repository on GitHub
+- Your **workers.dev subdomain**: Cloudflare dashboard → **Workers & Pages** → the
+  **Subdomain** shown in the account details panel (for example `alice` in
+  `alice.workers.dev`). Every `<your-subdomain>` below means that label, so your web
+  origin is `https://dirework.alice.workers.dev`. A new account picks its subdomain the
+  first time it opens Workers & Pages.
 
 ## Step 1 — Create a Cloudflare API token
 
 1. Cloudflare dashboard → **My Profile → API Tokens → Create Token**
 2. Use the **Edit Cloudflare Workers** template, and add **D1 → Edit** permissions
-3. Copy the token — this is `CLOUDFLARE_API_TOKEN`
+3. Under **Account Resources**, choose **Include → your account**. The deploy uses the
+   first account the token can see, so a token scoped to one account always deploys there.
+4. Copy the token — this is `CLOUDFLARE_API_TOKEN`
 
 ## Step 2 — Tell Twitch about your domain
 
@@ -60,6 +68,7 @@ In your repository: **Settings → Secrets and variables → Actions → New rep
 | `ALCHEMY_PASSWORD` | any long random string — encrypts deploy state (`openssl rand -base64 32`) |
 | `ALCHEMY_STATE_TOKEN` | a unique random token (min 32 characters) for the account-wide `alchemy-state` CI store worker; reuse it only across apps intentionally sharing that same worker |
 | `BETTER_AUTH_SECRET` | another long random string (`openssl rand -base64 32`) |
+| `PROXY_SECRET` | a third long random string (`openssl rand -base64 32`, min 32 characters) — lets the API rate limiter tell browsers apart behind the web worker's proxy |
 | `TWITCH_CLIENT_ID` | from the Twitch console |
 | `TWITCH_CLIENT_SECRET` | from the Twitch console |
 
@@ -97,45 +106,205 @@ Invalid configuration fails before any deployment begins.
   actively misleading when you're debugging. It's a local-development variable only.
 </Callout>
 
-## Step 4 — Push to main
+## Step 4 — Run the first deploy
 
-That's it. Every push to `main` runs the full verification pipeline — dependency audit, lint,
+<Callout>
+  **Forked the repo?** GitHub turns off workflows on new forks. Open the **Actions** tab
+  and click **I understand my workflows, go ahead and enable them** first. A fork already
+  has a `main` with nothing new to push, so start the first deploy from **Actions → Deploy
+  → Run workflow**.
+</Callout>
+
+Every push to `main` runs the full verification pipeline — dependency audit, lint,
 type check, tests with coverage thresholds, and a production build — and only then deploys via
 [Alchemy](https://alchemy.run): both workers, the D1 database, and its migrations.
 CodeQL also runs extended static security analysis on pushes, pull requests, and weekly.
 You can also trigger a deploy by hand from the **Actions** tab (**Deploy → Run workflow**).
+On a deploy the dependency audit only **warns** (a yellow annotation on the run): a
+freshly published advisory must never block a revert or hotfix. Pull requests still fail
+on high-severity advisories, so fix them there.
 
-✅ Visit `https://dirework.<your-subdomain>.workers.dev`. You should see the Dirework
-welcome screen. Click **Claim with Twitch** to become the owner.
+✅ Visit `https://dirework.<your-subdomain>.workers.dev` **as soon as the Deploy run turns
+green**. You should see the Dirework setup screen. Click **Claim with Twitch** and sign in
+with your streamer account to become the owner.
+
+<Callout type="warn">
+  **Sign in immediately after the first deploy.** Until someone signs in, the instance is
+  unclaimed, and the *first* Twitch account to sign in — anyone's — becomes its permanent
+  owner. workers.dev hostnames are predictable (`dirework.<your-subdomain>.workers.dev`),
+  so keep the Deploy run open, sign in the moment it finishes, and don't post or share the
+  URL before then. When the Dashboard greets you by your own Twitch name, you're safe:
+  every later sign-in by another account is refused. If someone else got there first, see
+  [Recovering an instance someone else claimed](#recovering-an-instance-someone-else-claimed).
+</Callout>
+
+The docs site workflow (**Build and deploy docs to GitHub Pages**) only runs on the
+upstream repository. Forks don't need it; your instance's `!dwhelp` links point at
+`DOCS_URL`, which defaults to the public docs.
 
 ## Deploying from your own machine (optional)
 
-Prefer the command line? Put the same values in `packages/infra/.env`, then:
+Prefer the command line? `packages/infra/.env`, `apps/web/.env` and `apps/server/.env`
+hold your **local development** values (`http://localhost` URLs), which a production deploy
+rejects. Export the production values in your shell instead — they take precedence over
+anything in the `.env` files. Any variable you don't export is still read from those three
+files, so also override the dev-only ones:
 
 ```bash
+export CLOUDFLARE_API_TOKEN="..."
+export ALCHEMY_PASSWORD="..."
+export BETTER_AUTH_SECRET="..."
+export PROXY_SECRET="..."
+export TWITCH_CLIENT_ID="..."
+export TWITCH_CLIENT_SECRET="..."
+export BETTER_AUTH_URL="https://dirework.<your-subdomain>.workers.dev"
+export CORS_ORIGIN="https://dirework.<your-subdomain>.workers.dev"
+export DEV_LOGIN=false NEXT_PUBLIC_DEV_LOGIN=false
 bun install
 bun run deploy
 ```
 
-To tear everything down again: `bun run destroy`.
+A local deploy keeps Alchemy's state in files under `packages/infra/.alchemy/`, separate
+from the state the GitHub Actions deploy keeps, so pick one way to deploy an instance and
+stick with it. The deploy refuses to run with `DEV_LOGIN` or `NEXT_PUBLIC_DEV_LOGIN`
+enabled, so export both as `false` (or comment them out of the `.env` files). Optional
+URLs such as `DOCS_URL`, `PRIVACY_POLICY_URL` and `TERMS_OF_SERVICE_URL` must use `https`
+in production: if a `.env` file sets one to an `http`/`localhost` value, export the
+production URL or remove that line before you run `bun run deploy` or `bun run destroy`.
+
+To tear everything down again: `bun run destroy` (with the same values exported).
+
+<Callout type="warn">
+  A local `bun run destroy` only sees what a *local* deploy created. An instance deployed
+  by GitHub Actions keeps its Alchemy state in the shared Cloudflare state store, so to
+  destroy it from your machine run it with `CI=true` and the same `ALCHEMY_STATE_TOKEN`
+  as the workflow (plus the values above in `packages/infra/.env`):
+  `CI=true ALCHEMY_STATE_TOKEN=… bun run destroy`. Deploy and destroy always use the
+  `runner` stage unless you set `ALCHEMY_STAGE`.
+</Callout>
 
 ## After you're live — quick checklist
 
 - [ ] Both Twitch redirect URLs point at your `dirework.…workers.dev` domain
-- [ ] You can sign in and claim the instance
+- [ ] You claimed the instance with your own streamer account (the Dashboard shows your
+  Twitch name)
 - [ ] Your bot account connects (Dashboard → Bot)
 - [ ] The **bot page** is added to OBS as a browser source (or pinned in a tab) — the
   bot only listens to chat while that page is open. See [Chat commands](/docs/chat-commands).
 - [ ] The timer and task list overlays show up in OBS
-- [ ] Exactly one bot page is open; multiple copies can process the same command twice
+- [ ] One bot page is open. A second copy won't run commands twice (Dirework dedupes each
+  chat message by its Twitch message id), but every command then costs two Worker requests
 - [ ] Bot and overlay URLs are kept private and regenerated after any suspected disclosure
 - [ ] `main` is protected and requires the Verify and CodeQL workflows before merge
 - [ ] GitHub secret scanning and push protection are enabled
 - [ ] GitHub and Cloudflare accounts use MFA and least-privilege access
 
-## Free plan limits (you're fine)
+## Monitoring
 
-Workers' free plan allows 100,000 requests/day. Overlays poll every few seconds
-only while OBS has them open — a six-hour stream uses roughly 15–25k requests. D1's free
-tier (5M reads/day) barely notices a single streamer. If you somehow outgrow it, the $5
-Workers paid plan raises every limit.
+Each deploy ends with a smoke check: the workflow fails unless the api worker's `/ready`
+answers (it pings D1) and the web worker's `/api/version` reports the commit that was just
+deployed. Between deploys nothing watches the instance, so:
+
+- Point a free uptime monitor (UptimeRobot, Better Stack, etc.) at
+  `https://dirework-api.<your-subdomain>.workers.dev/ready`. It returns `503` when D1 is
+  unreachable; `/health` only tells you the worker is running. Check every 5 minutes or
+  slower, as every check counts toward the daily request limit.
+- In the Cloudflare dashboard, go to **Notifications** and add a Workers usage alert so you
+  hear about approaching the daily request limit before your overlays go dark mid-stream.
+
+## Recovering an instance someone else claimed
+
+Dirework has no in-app way to transfer ownership: the instance counts as claimed while the
+D1 `user` table has **any** row, and the sign-in hook refuses every new account after that.
+So if the Dashboard shows someone else's Twitch name (or your own sign-in fails with "This
+Dirework already belongs to a different Twitch account"), reset the owner in D1 and claim
+it again.
+
+1. **Back up first** (optional but cheap):
+   `bunx wrangler d1 export dirework-db --remote --output=dirework-backup.sql`
+2. **Delete the other account and everything it could reuse.** Run this from a clone of
+   the repo, logged in to the same Cloudflare account (`bunx wrangler login`), or paste the
+   SQL into Cloudflare dashboard → **Storage & Databases → D1 → `dirework-db` → Console**:
+
+   ```bash
+   bunx wrangler d1 execute dirework-db --remote --command "DELETE FROM session; DELETE FROM account; DELETE FROM verification; DELETE FROM user; DELETE FROM bot_account; DELETE FROM instance_config;"
+   ```
+
+   | Statement | Why |
+   |---|---|
+   | `DELETE FROM session` | signs the other account out everywhere |
+   | `DELETE FROM account` | removes its Twitch sign-in link |
+   | `DELETE FROM verification` | drops any half-finished OAuth sign-in state |
+   | `DELETE FROM user` | empties the owner table, so the next sign-in claims the instance |
+   | `DELETE FROM bot_account` | disconnects any bot account they connected |
+   | `DELETE FROM instance_config` | discards the overlay and bot URLs they could see, plus the cached chat channel (`channel_login`) that would still point your bot at *their* channel. Fresh tokens are generated on your next sign-in |
+
+3. **Sign in immediately** at `https://dirework.<your-subdomain>.workers.dev` with your
+   streamer account — the setup screen is back, and the first sign-in claims it again.
+4. **Re-copy your OBS URLs.** The timer overlay, task overlay and bot page URLs all changed
+   in step 2, so update each OBS browser source (Dashboard → Overlays / Bot), then
+   reconnect your bot account.
+5. **Review what they could have changed:** timer and task styles, bot commands, aliases,
+   message templates, and the task list. The reset above deliberately keeps those rows so
+   your own settings survive; to wipe them too, also run
+   `DELETE FROM timer_config; DELETE FROM timer_style; DELETE FROM task_style; DELETE FROM bot_config; DELETE FROM task;`
+   (defaults are recreated on sign-in).
+
+## Updating your instance
+
+New Dirework releases reach your instance when your fork's `main` changes:
+
+1. Read [`CHANGELOG.md`](https://github.com/mrdemonwolf/dirework/blob/main/CHANGELOG.md)
+   for the releases you're catching up on. Add any new required secrets or variables, and
+   note any reconnect steps, **before** you sync — the deploy fails early when a required
+   value is missing.
+2. Optionally back up the database first:
+   `bunx wrangler d1 export dirework-db --remote --output=dirework-backup.sql`
+3. Sync the fork: **Sync fork → Update branch** on your fork's GitHub page, or
+   `git pull upstream main && git push origin main` from a clone.
+4. The push to `main` runs the Deploy workflow. It applies new D1 migrations, which only
+   move forward; there is no automatic rollback.
+5. Afterwards, check `https://dirework-api.<your-subdomain>.workers.dev/ready` returns OK
+   and the Dashboard, overlays, and bot page still work.
+
+## Free plan limits
+
+Workers' free plan allows 100,000 requests/day, shared by every Worker on your
+Cloudflare account and reset at 00:00 UTC. Rough hourly usage:
+
+| Source                                    | Polling                                     | Requests/hour |
+| ----------------------------------------- | ------------------------------------------- | ------------- |
+| Timer + task overlays (open in OBS)       | every 3s each, even in the background       | ~2.4k         |
+| Dashboard tab (visible, in use)           | timer 2s + tasks 3s, each counted twice     | ~6k           |
+| Dashboard tab (visible, untouched 2+ min) | timer + tasks every 15s, each counted twice | ~1k           |
+
+Dashboard requests count twice because the web worker proxies `/rpc` to the api
+worker, and both invocations are billed. Dashboard polling slows to every 15 seconds
+once nobody has clicked, typed, scrolled, or moved the pointer over it for two minutes,
+and pauses entirely while its tab is hidden or minimized; overlays keep polling.
+
+So a six-hour stream with only the overlays running uses about 15k requests, and with
+the dashboard left open but untouched about 20k. Actively using the dashboard the
+whole time costs about 50k, and a 12-hour day of constant dashboard use reaches the
+daily cap. Once the cap is hit, overlays freeze on their last state and chat commands
+stop until the reset. If you outgrow the request cap, the $5 Workers paid plan raises
+every limit.
+
+### D1 rows read
+
+D1's free tier allows **5 million rows read per day**, and every task-list poll (task
+overlay and dashboard) reads rows. Dirework keeps that bounded:
+
+- **Done tasks are purged 24 hours after they're completed.** The purge runs lazily —
+  when a task is added or marked done, or the timer is started or reset — never on a poll,
+  and it is an index range delete, so it costs only the rows it removes.
+- **A poll never scans the task table.** It reads the open (pending + active) tasks and
+  at most the **50 most recently completed** done tasks through an index, plus an index
+  count of done tasks so the overlay's `done/total` counter stays right past 50. With the
+  overlay's **Show done** option off, done rows are only counted, never read.
+
+Roughly, a poll reads `open tasks + min(done tasks, 50) + done tasks` rows. A six-hour
+stream polled by the task overlay *and* a dashboard (~14,400 polls) with 20 open tasks and
+100 done stays near 2.5M rows; the 24h purge keeps yesterday's tasks from adding to
+tomorrow's. For very busy co-working streams, `!clear done` between streams (or **Clear
+done** on the Dashboard) resets the count to zero immediately.

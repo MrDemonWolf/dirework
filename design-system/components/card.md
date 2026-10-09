@@ -4,14 +4,14 @@ General content container for feature grids, comparison tables, and dev sections
 
 ## Anatomy
 
-- Background: `--ds-color-surface-surface`.
-- Radius: `1.25rem` (≈ `--ds-radius-xl`).
-- Padding: `--ds-space-7` (2rem).
+- Background: set per use (typically `--bg-surface` or `--bg-elev`).
+- Radius: `1.25rem`.
+- Padding: `2rem`.
 - `dw-card-hover` adds a `translateY(-2px)` lift on hover.
 
 ## Tokens
 
-`--ds-color-surface-surface`, `--ds-color-surface-hairline` (border), `--ds-shadow-md` (hover lift).
+`--hairline` (border), `--brand-500` (hover border tint and lift shadow).
 
 ## Accessibility
 

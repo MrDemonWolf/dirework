@@ -96,6 +96,10 @@ The first time you open the app, it sends you to a **setup screen**. Click
 
 <Callout type="warn">
   The setup screen only appears once. After you claim the instance, it turns off for good.
+  **On a production deploy, claim it the moment the first deploy finishes:** until then
+  the *first* Twitch account to sign in — anyone's — becomes the owner. If someone beats
+  you to it, see [Recovering an instance someone else
+  claimed](/docs/deployment#recovering-an-instance-someone-else-claimed).
 </Callout>
 
 ### Skip Twitch while developing
@@ -103,7 +107,10 @@ The first time you open the app, it sends you to a **setup screen**. Click
 Working on the UI and don't want to sign in with Twitch every time? Set both
 `DEV_LOGIN="true"` and `NEXT_PUBLIC_DEV_LOGIN="true"` in your `.env`, restart
 `bun run dev`, and a **Dev bypass login** button appears on the welcome/setup
-screen. It signs you straight in as the owner — no Twitch round-trip.
+screen. Click it and paste the **dev login secret** that `bun run dev` prints in the
+terminal (asked once per browser tab); it signs you straight in as the owner — no Twitch
+round-trip. The secret changes every run unless you pin one with `DEV_LOGIN_SECRET`; it
+stops other devices on your network from using the bypass.
 
 <Callout type="warn">
   Local development only. Leave both unset in production — with `DEV_LOGIN` off the

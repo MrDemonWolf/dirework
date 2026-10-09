@@ -49,7 +49,20 @@ For production, add the same two paths on your workers.dev domain
 - Your Twitch redirect URLs must be on that same origin — a mismatch sends you in a loop.
 - Make sure your Twitch application's **Client Type** is set to **Confidential**.
 
+### "This Dirework already belongs to a different Twitch account"
+
+The instance was already claimed — the first Twitch account to sign in owns it, and every
+other account is refused. Sign in with that account. If it isn't yours (someone signed in
+before you after the first deploy), follow [Recovering an instance someone else
+claimed](/docs/deployment#recovering-an-instance-someone-else-claimed).
+
 ### Bot account won't connect
+
+- **"Sign in before connecting a bot account"** on the home page means your Dirework
+  session expired (or the connect link was opened in another browser). Sign in as the
+  streamer, then click **Connect bot account** again.
+- **"Only this Dirework's owner can connect a bot account"** means the browser is signed in
+  with a Twitch account that doesn't own this instance. Sign out, sign in as the owner, retry.
 
 - You need to sign in to a **different** Twitch account when connecting the bot. The bot account cannot be the same as the streamer account.
 - Make sure the second redirect URL (`/api/bot/callback/twitch`) is registered in your Twitch application.
@@ -58,7 +71,7 @@ For production, add the same two paths on your workers.dev domain
 
 ### Overlay shows a blank page
 
-- The timer overlay is blank on purpose while the timer is idle — start a timer session and it appears.
+- While idle, the timer overlay shows a full preview (your work length and a full ring), not a blank page. If it stays blank, the URL or token is probably wrong (for example, it was regenerated) or the overlay cannot reach the API.
 - Check that the overlay URL is correct. Copy it from the **Overlay URLs** card in the dashboard.
 - Treat overlay URLs as bearer credentials. If one was exposed, regenerate its token and update OBS.
 - Try opening the overlay URL directly in your browser to see if it loads.
@@ -72,6 +85,23 @@ For production, add the same two paths on your workers.dev domain
   fresh URL from the dashboard and paste it into your OBS browser source.
 - OBS browser sources cache aggressively. Right-click the source and click **Refresh cache of current page**.
 - Make sure **"Shutdown source when not visible"** is checked in the browser source settings so it reloads when you switch scenes.
+
+### Completed tasks disappeared from the task list
+
+That's the automatic cleanup: done tasks are deleted about **24 hours** after they were
+completed (it runs when a task is added or completed, or the timer is started or reset).
+The list and overlay also show only the **50 most recently completed** tasks — the
+`done/total` counter still counts every done task. Both keep each poll's database reads
+small enough for the D1 free tier; see [D1 rows read](/docs/deployment#d1-rows-read).
+
+### "Too many requests" (HTTP 429)
+
+The API rate-limits each client: by your signed-in session for dashboard traffic, and by
+IP address for everything else. A single streamer stays far below the limits, so repeated
+429s on the dashboard usually mean several dashboard tabs are polling at once (close the
+extras) — or, after an upgrade, that the deploy is missing `PROXY_SECRET`, in which case
+the deploy fails validation; add the secret (see [Deployment](/docs/deployment)) and
+redeploy.
 
 ### Overlay has a white/colored background in OBS
 
@@ -116,9 +146,11 @@ If you changed the work duration (e.g. to 50 minutes) but the timer still uses 2
 
 The bot only listens to chat **while its bot page is open** somewhere. Run through this list:
 
-- **Is exactly one bot page open?** Copy the bot page URL from **Dashboard → Bot** and add it to
+- **Is a bot page open?** Copy the bot page URL from **Dashboard → Bot** and add it to
   OBS as a browser source (or keep it open in one pinned browser tab). If no copy is open,
-  the bot hears nothing; if multiple copies are open, the same command can be processed twice.
+  the bot hears nothing. Extra copies are safe — each chat message runs once, deduplicated by
+  its Twitch message id, and only one copy replies — but each copy spends Worker requests, so
+  close the ones you don't need.
 - **Was the bot token regenerated?** Regenerating the token kills any previously copied
   bot page URL. Re-copy the fresh URL from **Dashboard → Bot** and update your OBS
   source or pinned tab. Treat this URL as a bearer credential and never post it publicly.

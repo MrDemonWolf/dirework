@@ -76,6 +76,7 @@
 :root {
   --brand-500: #00ACED;            /* Cerulean — brand primary (fills, accents) */
   --brand-600: #0369A1;            /* darker cerulean — AA-safe as TEXT on light */
+  --brand-600-fg: #fff;            /* label on a --brand-600 fill */
   --brand-50:  oklch(0.49 0.105 230 / 0.10);
   --accent-cornflower: #6B8BF5;    /* secondary accent */
 
@@ -114,6 +115,7 @@
 .dark {
   --brand-500: #29B6F0;            /* brighter cerulean on midnight */
   --brand-600: #6FCBF6;
+  --brand-600-fg: #04141f;         /* white on the light cerulean fails AA */
   --brand-50:  oklch(0.69 0.13 222 / 0.14);
   --accent-cornflower: #8AA4F7;
 
@@ -138,6 +140,7 @@
   :root:not(.light) {
     --brand-500: #29B6F0;
     --brand-600: #6FCBF6;
+    --brand-600-fg: #04141f;
     --brand-50:  oklch(0.69 0.13 222 / 0.14);
     --bg-base:    oklch(0.185 0.042 262);
     --bg-surface: oklch(0.255 0.045 262);
@@ -503,7 +506,7 @@
   z-index: 9999;
   padding: 0.75rem 1.25rem;
   background-color: var(--brand-600);
-  color: #fff;
+  color: var(--brand-600-fg);
   border-radius: var(--dw-radius-control);
   font-weight: 600;
   font-size: 0.9rem;
@@ -563,6 +566,8 @@ html { scroll-behavior: smooth; }
   font-size: 0.9em;
   font-weight: 500;
   font-family: var(--font-mono);
+  /* Long URLs/tokens wrap instead of clipping at phone width. */
+  overflow-wrap: anywhere;
 }
 .dark .fd-prose :not(pre) > code,
 .dark [class*="prose"] :not(pre) > code { color: var(--brand-500); }

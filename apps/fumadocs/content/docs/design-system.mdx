@@ -3,13 +3,13 @@ title: Design System
 description: Dirework's design tokens, the dw-* utility layer, and shared UI primitives.
 ---
 
-Dirework ships a small, generated design system so the web app, the docs site, and the OBS overlays all speak the same visual language. The source of truth is a single JSON file; everything else is generated from it.
+Dirework ships a small design system so the web app, the docs site, and the OBS overlays all speak the same visual language. `tokens.json` is the source of truth for the overlay theme swatches (generated into the landing-page gallery) and the squircle radius; the live UI colors, fonts, and radii are CSS tokens in the app and docs stylesheets.
 
 ## Source of truth
 
 ```text
 design-system/
-  tokens.json          # canonical tokens — edit this
+  tokens.json          # overlay swatches + reference tokens — edit this
   scripts/generate.ts  # bun script that emits per-platform outputs
   README.md            # full reference
   components/          # markdown catalog (one .md per primitive)
@@ -27,7 +27,7 @@ This writes one committed file:
 | --- | --- |
 | `apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts` | Landing-page theme gallery |
 
-CI verifies the outputs are in sync: `bun run tokens && git diff --exit-code`. Never edit a generated file by hand.
+The generator formats its output with Biome, so a fresh run leaves the committed file unchanged; check for drift with `bun run tokens && git diff --exit-code`. Never edit a generated file by hand.
 
 Shared overlay geometry and clock formatting (`roundedRectPath`, `roundedRectPerimeter`, `formatClock`, `SQUIRCLE_RADIUS`) live in the workspace package `@dirework/overlay-kit` (`packages/overlay-kit`), used by both the real OBS overlays and the docs mocks. A unit test in the web app keeps `tokens.json` in sync with the Theme Center presets and `SQUIRCLE_RADIUS`.
 
@@ -51,10 +51,11 @@ Type:
 
 ## Tokens
 
-Structural tokens (spacing, radius, motion, shadow, and the type scale) come from the
-generated `--ds-*` layer. The Focus Console color and font choices live in
+The Focus Console color, font, and radius tokens live in
 `apps/fumadocs/src/app/global.css`, mirroring the web app's `apps/web/src/index.css`, and
-are exposed through a thin semantic layer the docs surfaces read from.
+are exposed through a thin semantic layer the docs surfaces read from. Spacing and motion
+use Tailwind's scale and plain values in the `dw-*` rules; there is no generated CSS
+variable layer.
 
 | Namespace | Variable pattern | Example |
 | --- | --- | --- |
@@ -64,9 +65,7 @@ are exposed through a thin semantic layer the docs surfaces read from.
 | Surface | `--bg-base` / `--bg-surface` / `--bg-elev` | light/dark aware |
 | Text | `--txt-1` / `--txt-2`, `--hairline` | light/dark aware |
 | Fonts | `--font-display` / `--font-body` / `--font-mono` | Montserrat / Plex Sans / Plex Mono |
-| Space | `--ds-space-{0…11}` | 4px-based scale (generated) |
-| Radius | `--ds-radius-{xs…2xl,pill}` | `--ds-radius-pill: 9999px` (generated) |
-| Motion | `--ds-motion-duration-*`, `--ds-motion-easing-*` | `fast: 150ms` (generated) |
+| Radius | `--dw-radius-control` | `9px` — pills, chips, kickers, buttons |
 
 Dark-mode values are swapped under `.dark` automatically.
 
@@ -96,7 +95,7 @@ token-backed without pulling in a component framework.
 
 Shared primitives are documented one-per-file under `design-system/components/`:
 
-- **Button**, **Card**, **Glass Card**, **Pill** — console chrome
+- **Button**, **Card**, **Pill** — console chrome
 - **Timer Ring** — the overlay progress ring (circle + squircle), mirroring `apps/web/src/lib/timer-utils.ts`
 - **Task Card** — the grouped task overlay, mirroring `task-list-display.tsx`
 - **Chat Bubble** — the Twitch command preview

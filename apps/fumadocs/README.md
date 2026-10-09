@@ -1,47 +1,35 @@
-# fumadocs
+# Dirework Docs
 
-This is a Next.js application generated with
-[Create Fumadocs](https://github.com/fuma-nama/fumadocs).
+The Dirework documentation and marketing site, built with
+[Fumadocs](https://fumadocs.dev) on Next.js as a static export.
 
-It is a Next.js app with [Static Export](https://nextjs.org/docs/app/guides/static-exports) configured.
+## Development
 
-Run development server:
+From the repo root, `bun run dev` starts the docs alongside the API worker and web
+app. To run only the docs:
 
 ```bash
-npm run dev
-# or
-pnpm dev
-# or
-yarn dev
+cd apps/fumadocs
+bun run dev
 ```
 
-Open http://localhost:3000 with your browser to see the result.
+Open http://localhost:4000.
 
-## Explore
+## Layout
 
-In the project, you can see:
+| Path                          | Description                                      |
+| ----------------------------- | ------------------------------------------------ |
+| `content/docs/`               | MDX documentation pages                          |
+| `src/app/(home)/`             | Landing page and its widgets                     |
+| `src/app/docs/`               | Docs layout and page route                       |
+| `src/app/api/search/route.ts` | Static Orama search index                        |
+| `src/lib/source.ts`           | Content source adapter (`loader()`)              |
+| `src/lib/layout.shared.tsx`   | Shared nav options for the home and docs layouts |
+| `source.config.ts`            | Fumadocs MDX config (frontmatter schema)         |
 
-- `lib/source.ts`: Code for content source adapter, [`loader()`](https://fumadocs.dev/docs/headless/source-api) provides the interface to access your content.
-- `lib/layout.shared.tsx`: Shared options for layouts, optional but preferred to keep.
+## Build and deploy
 
-| Route                     | Description                                            |
-| ------------------------- | ------------------------------------------------------ |
-| `app/(home)`              | The route group for your landing page and other pages. |
-| `app/docs`                | The documentation layout and pages.                    |
-| `app/api/search/route.ts` | The Route Handler for search.                          |
-
-### Fumadocs MDX
-
-A `source.config.ts` config file has been included, you can customise different options like frontmatter schema.
-
-Read the [Introduction](https://fumadocs.dev/docs/mdx) for further details.
-
-## Learn More
-
-To learn more about Next.js and Fumadocs, take a look at the following
-resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js
-  features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [Fumadocs](https://fumadocs.dev) - learn about Fumadocs
+`bun run build` writes the static site to `out/` (`output: "export"`; set
+`NEXT_PUBLIC_BASE_PATH` to serve it under a sub-path). In CI the export is built and
+uploaded by `.github/workflows/verify.yml` (`upload-docs: true`), and
+`.github/workflows/deploy-docs-to-pages.yml` publishes that artifact to GitHub Pages.

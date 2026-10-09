@@ -22,23 +22,28 @@ The maintainers will acknowledge the report, reproduce and assess it, coordinate
 
 Each Dirework deployment is independently operated. Production operators should:
 
+- sign in to claim the instance immediately after the first deploy finishes — until then the first Twitch account to sign in becomes the owner (recovery: the D1 reset in the deployment guide's "Recovering an instance someone else claimed");
 - protect the Cloudflare and GitHub accounts with MFA and least-privilege access;
 - use unique, randomly generated production secrets of at least 32 characters;
 - keep `BETTER_AUTH_URL` and `CORS_ORIGIN` identical and HTTPS-only;
 - enable branch protection for `main` and require the Verify and CodeQL workflows before merging;
 - enable GitHub secret scanning and push protection, and review any bypass alert;
 - treat bot and overlay URLs as bearer credentials, never publish them, and regenerate them after suspected disclosure;
-- keep exactly one bot console active to avoid duplicate command processing;
+- keep one bot console active (a second copy is deduplicated by Twitch message id, but it doubles the request cost of every command);
 - review Cloudflare logs and configure retention or backups appropriate to their users; and
 - apply dependency and Dirework updates promptly.
 
-If a credential or bearer URL leaks, rotate it before investigating further. Rotate the Cloudflare API token and Twitch client secret at their providers, replace deployment secrets in GitHub, regenerate bot and overlay tokens in Dirework, and redeploy. Rotating `BETTER_AUTH_SECRET` invalidates existing sessions.
+If a credential or bearer URL leaks, rotate it before investigating further. Rotate the Cloudflare API token and Twitch client secret at their providers, replace deployment secrets in GitHub, regenerate bot and overlay tokens in Dirework, and redeploy. Rotating `BETTER_AUTH_SECRET` invalidates existing sessions; `PROXY_SECRET` can be rotated at any time (both workers receive the new value in the same deploy).
 
 ## Pinned dependency remediations
 
 The root dependency constraints keep transitive build tooling on patched releases when
 parent packages still allow vulnerable versions. The infra test suite verifies that
 `brace-expansion` resolves only to its fixed v2 and v5 lines and retains bounded output.
+Single-version pins live in root `overrides`. `brace-expansion` and `path-to-regexp`
+stay root `devDependencies` instead, because other parents need a different major
+(`minimatch@10` needs `brace-expansion` 5.x, Wrangler needs `path-to-regexp` 6.x) and a
+flat override would force them onto the pinned one.
 Remove a pin once every parent dependency resolves an equivalent or newer fixed release.
 
 ## Development-tool advisory residuals

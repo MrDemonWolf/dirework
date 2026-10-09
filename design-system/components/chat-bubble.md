@@ -8,13 +8,13 @@ Commands reference: `apps/fumadocs/content/docs/chat-commands.mdx`. Examples: `!
 
 - Row = username (colored) + message text.
 - Viewer usernames use Twitch-style accent colors; the bot uses the brand color.
-- Commands render in mono (`--ds-font-family-mono`).
+- Commands render in mono (`--font-mono`).
 
 ## Tokens
 
-- Bot name: `--ds-color-brand-600` (light) / `brand-500` (dark).
+- Bot name: `--brand-600` (light) / `--brand-500` (dark).
 - Username sample colors: Twitch palette (`#9146FF`, plus reds/greens/blues).
-- Surface: `dw-glass` or `dw-card`.
+- Surface: `dw-card`.
 
 ## Accessibility
 

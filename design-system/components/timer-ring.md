@@ -9,10 +9,10 @@ Mirrors `apps/web/src/components/timer-display.tsx` + helpers in `apps/web/src/l
 
 ## Tokens
 
-- Ring fill: phase color — `--ds-color-phase-work` / `break` / `long-break` / `paused`.
+- Ring fill: phase color — `--phase-work` / `--phase-break` / `--phase-long-break` / `--phase-paused`.
 - Track: ring color at low opacity (`toHexOpacity`).
 - Surface: theme `bg`; time text: theme `text`.
-- Display font: `--ds-font-family-display` (Montserrat).
+- Display font: `--font-display` (Montserrat).
 
 ## Behavior
 
