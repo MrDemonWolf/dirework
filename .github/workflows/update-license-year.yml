@@ -7,11 +7,18 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   update-year:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # main is protected (PRs only), so the bump lands as a pull request rather
+    # than a direct push. Requires "Allow GitHub Actions to create and approve
+    # pull requests" in the repository's Actions settings.
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -23,12 +30,19 @@ jobs:
           CURRENT_YEAR=$(date +%Y)
           sed -i "s/Copyright (c) [0-9]\{4\}/Copyright (c) $CURRENT_YEAR/" LICENSE
 
-      - name: Commit and push if changed
+      - name: Open a pull request if changed
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           CURRENT_YEAR=$(date +%Y)
+          BRANCH="chore/license-year-$CURRENT_YEAR"
+          git diff --quiet LICENSE && echo "No changes needed" && exit 0
           git config user.name "MrDemonWolf, Inc."
           git config user.email "admin@mrdemonwolf.com"
-          git diff --quiet LICENSE && echo "No changes needed" && exit 0
+          git switch -c "$BRANCH"
           git add LICENSE
           git commit -m "chore: update LICENSE copyright year to $CURRENT_YEAR"
-          git push
+          git push --force -u origin "$BRANCH"
+          if [ -z "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[].number')" ]; then
+            gh pr create --base main --head "$BRANCH" --fill
+          fi

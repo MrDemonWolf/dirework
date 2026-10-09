@@ -26,9 +26,9 @@
   },
   "devDependencies": {
     "@dirework/config": "workspace:*",
-    "@types/sql.js": "^1.4.11",
+    "@types/sql.js": "catalog:",
     "drizzle-kit": "catalog:",
-    "sql.js": "^1.14.1",
+    "sql.js": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

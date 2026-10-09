@@ -27,7 +27,9 @@
   },
   "devDependencies": {
     "@dirework/config": "workspace:*",
+    "@types/sql.js": "catalog:",
     "hono": "catalog:",
+    "sql.js": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

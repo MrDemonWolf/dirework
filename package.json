@@ -9,9 +9,9 @@
     "catalog": {
       "dotenv": "^17.4.2",
       "zod": "^4.4.3",
-      "typescript": "^5",
-      "@cloudflare/workers-types": "^4.20260621.1",
-      "hono": "^4.12.34",
+      "typescript": "^5.9.3",
+      "@cloudflare/workers-types": "^4.20260702.1",
+      "hono": "^4.13.7",
       "@trpc/server": "^11.16.0",
       "@trpc/client": "^11.16.0",
       "better-auth": "1.6.25",
@@ -19,7 +19,7 @@
       "wrangler": "^4.115.0",
       "drizzle-orm": "^0.45.1",
       "drizzle-kit": "^0.31.8",
-      "lucide-react": "^0.546.0",
+      "lucide-react": "^0.563.0",
       "next-themes": "^0.4.6",
       "react": "^19.2.8",
       "react-dom": "^19.2.8",
@@ -28,8 +28,11 @@
       "@types/react": "^19.2.17",
       "@types/react-dom": "^19.2.3",
       "tailwindcss": "^4.3.3",
-      "vitest": "^4.1.10",
-      "@biomejs/biome": "^2.5.6"
+      "vitest": "^4.1.11",
+      "sql.js": "^1.14.1",
+      "@types/sql.js": "^1.4.11",
+      "@biomejs/biome": "^2.5.6",
+      "@types/node": "^22.20.1"
     }
   },
   "type": "module",
@@ -47,18 +50,20 @@
     "dev:web": "turbo run dev:bare -F web",
     "db:generate": "turbo run db:generate -F @dirework/db",
     "tokens": "bun design-system/scripts/generate.ts",
-    "deploy": "turbo run deploy -F @dirework/infra",
-    "destroy": "turbo run destroy -F @dirework/infra"
+    "deploy": "bun run --cwd packages/infra deploy",
+    "destroy": "bun run --cwd packages/infra destroy"
   },
   "overrides": {
     "defu": "6.1.7",
     "fast-xml-parser": "5.10.1",
-    "js-yaml": "4.3.2",
     "image-size": "2.0.3",
+    "js-yaml": "4.3.2",
     "nanoid": "3.3.18",
     "picomatch": "4.0.5",
     "postcss": "8.5.25",
+    "postcss-selector-parser": "7.1.6",
     "proxy-addr": "2.0.8",
+    "qs": "6.16.0",
     "sharp": "0.35.5",
     "source-map-js": "1.2.2",
     "undici": "7.29.1",
@@ -66,16 +71,16 @@
     "ws": "8.21.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.6",
-    "@cloudflare/workers-types": "^4.20260702.1",
+    "@biomejs/biome": "catalog:",
+    "@cloudflare/workers-types": "catalog:",
     "brace-expansion": "2.1.7",
     "path-to-regexp": "8.4.2",
     "@dirework/config": "workspace:*",
-    "@types/node": "^22.20.1",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@types/node": "catalog:",
+    "@vitest/coverage-v8": "^4.1.11",
     "turbo": "^2.10.7",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.10"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "packageManager": "bun@1.3.14"
 }

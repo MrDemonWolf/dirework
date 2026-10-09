@@ -14,6 +14,13 @@ on:
         description: Build and upload the verified GitHub Pages site.
         type: boolean
         default: false
+      audit-blocking:
+        description: >-
+          Fail on high-severity dependency advisories. True for the PR/push gate
+          (ci.yml); the deploy workflows pass false so an advisory published
+          today can't block a revert or hotfix — they get a warning annotation.
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -36,10 +43,21 @@ jobs:
         with:
           node-version: 22
       - run: bun install --frozen-lockfile
+      # Blocking on the PR gate. Non-blocking on deploys: the step still runs
+      # and surfaces a ::warning:: annotation, but a new upstream advisory must
+      # never stop shipping a revert. ci.yml + audit.yml keep the hard gate.
       - name: Audit dependencies
-        run: bun run audit:dependencies
+        continue-on-error: ${{ !inputs.audit-blocking }}
+        env:
+          AUDIT_BLOCKING: ${{ inputs.audit-blocking }}
+        run: |
+          if bun run audit:dependencies; then exit 0; fi
+          if [ "$AUDIT_BLOCKING" = "true" ]; then exit 1; fi
+          echo "::warning title=Dependency audit::High-severity advisories found. Deploy continues (audit is non-blocking on deploy); fix them in a PR, where the audit still blocks."
       - name: Lint + format check
         run: bun run lint
+      - name: Design tokens drift check
+        run: bun run tokens && git diff --exit-code
       - name: Type check
         run: bun run check-types
       - name: Test with coverage thresholds
@@ -51,7 +69,15 @@ jobs:
         if: ${{ inputs.run-build || inputs.upload-docs }}
         env:
           NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
-        run: bun run build
+        run: bun run build --filter='!web'
+      # The web app is built exactly as the deploy builds it (OpenNext + wasm
+      # fix + cache population) instead of a plain `next build`, so a failure in
+      # that pipeline stops here — not mid-deploy, after D1 migrations and the
+      # new api worker are already live. OpenNext runs `next build` itself.
+      - name: Production Worker build (web)
+        if: ${{ inputs.run-build || inputs.upload-docs }}
+        working-directory: apps/web
+        run: bun run build:worker
       - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         if: ${{ inputs.upload-docs }}
         with:

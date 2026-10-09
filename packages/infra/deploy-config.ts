@@ -2,6 +2,7 @@ const REQUIRED_DEPLOY_VALUES = [
   "CLOUDFLARE_API_TOKEN",
   "ALCHEMY_PASSWORD",
   "BETTER_AUTH_SECRET",
+  "PROXY_SECRET",
   "TWITCH_CLIENT_ID",
   "TWITCH_CLIENT_SECRET",
   "BETTER_AUTH_URL",
@@ -10,12 +11,68 @@ const REQUIRED_DEPLOY_VALUES = [
 
 export type DeployEnvironment = Record<string, string | undefined>;
 
+/**
+ * Workers compatibility date for BOTH workers. Pinned so an Alchemy/miniflare
+ * bump can never silently change runtime behaviour; apps/server's dry-run
+ * bundle check uses the same date (asserted by a test). Bump deliberately.
+ */
+export const COMPATIBILITY_DATE = "2026-04-24";
+
+/**
+ * Alchemy stage for deploy/destroy. Alchemy otherwise defaults to $USER, so CI
+ * (hosted runner user "runner") and a laptop wrote state under different keys
+ * and a local destroy could not see a CI deploy. Pinned to the key CI has
+ * always used so existing state carries over unchanged.
+ */
+export const DEPLOY_STAGE = "runner";
+
+export function resolveDeployStage(env: DeployEnvironment): string {
+  return env.ALCHEMY_STAGE?.trim() || DEPLOY_STAGE;
+}
+
 export function isCiRun(env: DeployEnvironment): boolean {
   return env.CI === "true";
 }
 
 export function isDevelopmentRun(argv: readonly string[]): boolean {
   return argv.includes("--dev");
+}
+
+/**
+ * Per-run shared secret the dev-login endpoint requires (x-dev-login-secret).
+ * `next dev` and the local api proxy listen on every interface, so without it
+ * anyone on the LAN could mint an owner session while DEV_LOGIN is on. Empty
+ * whenever the server flag is off; otherwise DEV_LOGIN_SECRET if the developer
+ * pinned one, else a fresh random value printed to the `bun run dev` terminal.
+ */
+export function resolveDevLoginSecret(
+  env: DeployEnvironment,
+  serverFlag: "true" | "false",
+  generate: () => string = () => crypto.randomUUID(),
+): string {
+  if (serverFlag !== "true") return "";
+  return env.DEV_LOGIN_SECRET?.trim() || generate();
+}
+
+/**
+ * Shared secret bound to BOTH workers: the web worker HMACs the browser's IP
+ * with it when proxying to the api worker, which trusts the forwarded IP for
+ * rate-limit keying only when the HMAC verifies (packages/api/src/proxy-identity.ts).
+ * Production requires PROXY_SECRET (productionEnvironmentErrors); local dev
+ * uses a pinned PROXY_SECRET or a fresh per-run value — both workers receive
+ * the same one, so it never needs to be configured by hand.
+ */
+export function resolveProxySecret(
+  env: DeployEnvironment,
+  isDevelopment: boolean,
+  generate: () => string = () => `${crypto.randomUUID()}${crypto.randomUUID()}`,
+): string {
+  const pinned = env.PROXY_SECRET?.trim();
+  if (pinned) return pinned;
+  if (!isDevelopment) {
+    throw new Error("PROXY_SECRET is required for production deploys");
+  }
+  return generate();
 }
 
 /**
@@ -73,6 +130,9 @@ export function productionEnvironmentErrors(env: DeployEnvironment): string[] {
 
   if (env.BETTER_AUTH_SECRET && env.BETTER_AUTH_SECRET.length < 32) {
     errors.push("BETTER_AUTH_SECRET must be at least 32 characters");
+  }
+  if (env.PROXY_SECRET && env.PROXY_SECRET.trim().length < 32) {
+    errors.push("PROXY_SECRET must be at least 32 characters");
   }
   if (env.ALCHEMY_PASSWORD && env.ALCHEMY_PASSWORD.length < 32) {
     errors.push("ALCHEMY_PASSWORD must be at least 32 characters");

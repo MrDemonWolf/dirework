@@ -10,16 +10,22 @@ updates:
       interval: weekly
     commit-message:
       prefix: "chore(actions)"
-    labels: [dependencies, github-actions]
+    groups:
+      # init and analyze must share one SHA, so they move in a single PR.
+      codeql:
+        patterns:
+          - "github/codeql-action*"
 
-  - package-ecosystem: npm
+  # The bun ecosystem reads bun.lock. It skips `catalog:` entries, so catalog
+  # pins in the root package.json are bumped by hand; the scheduled audit
+  # workflow flags any that turn vulnerable.
+  - package-ecosystem: bun
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
-    labels: [dependencies]
     groups:
       # One PR per ecosystem cluster instead of a swarm of single-package PRs.
       dev-tooling:

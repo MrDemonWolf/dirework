@@ -6,7 +6,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text-summary", "lcov"],
-      include: ["deploy-config.ts"],
+      include: ["deploy-config.ts", "smoke.ts"],
       thresholds: { statements: 95, branches: 90, functions: 100, lines: 95 },
     },
   },

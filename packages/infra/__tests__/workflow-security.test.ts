@@ -2,6 +2,8 @@ import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { COMPATIBILITY_DATE } from "../deploy-config";
+
 const repoRoot = resolve(import.meta.dirname, "../../..");
 const workflowsDirectory = `${repoRoot}/.github/workflows`;
 
@@ -50,6 +52,23 @@ describe("workflow supply-chain controls", () => {
     expect(readWorkflow("verify.yml")).toMatch(/if: \$\{\{ inputs\.upload-docs \}\}/);
   });
 
+  it("publishes the docs site only from the upstream repository, never a fork", () => {
+    const docs = readWorkflow("deploy-docs-to-pages.yml");
+    expect(docs).toMatch(
+      /\n {2}build:\n(?: {4}#[^\n]*\n)* {4}if: github\.repository == 'mrdemonwolf\/dirework'\n/,
+    );
+  });
+
+  it("runs local deploy and destroy outside turbo so exported shell values reach Alchemy", () => {
+    const rootPackage = JSON.parse(readFileSync(`${repoRoot}/package.json`, "utf8")) as {
+      scripts?: Record<string, string>;
+    };
+
+    for (const script of ["deploy", "destroy"]) {
+      expect(rootPackage.scripts?.[script]).toBe(`bun run --cwd packages/infra ${script}`);
+    }
+  });
+
   it("bundle-checks the API Worker during the shared production build", () => {
     const serverPackage = JSON.parse(
       readFileSync(`${repoRoot}/apps/server/package.json`, "utf8"),
@@ -59,9 +78,70 @@ describe("workflow supply-chain controls", () => {
     expect(serverPackage.scripts?.build).toContain("--dry-run");
   });
 
-  it("runs the extended CodeQL security suite", () => {
+  it("bundle-checks and deploys both workers under the one pinned compatibility date", () => {
+    const serverPackage = JSON.parse(
+      readFileSync(`${repoRoot}/apps/server/package.json`, "utf8"),
+    ) as { scripts?: { build?: string } };
+    const program = readFileSync(`${repoRoot}/packages/infra/alchemy.run.ts`, "utf8");
+
+    expect(serverPackage.scripts?.build).toContain(`--compatibility-date ${COMPATIBILITY_DATE}`);
+    expect(program.match(/compatibilityDate: COMPATIBILITY_DATE,/g)).toHaveLength(2);
+  });
+
+  it("builds the deployed web Worker bundle in the shared verification gate", () => {
+    const webPackage = JSON.parse(readFileSync(`${repoRoot}/apps/web/package.json`, "utf8")) as {
+      scripts?: Record<string, string>;
+    };
+    const program = readFileSync(`${repoRoot}/packages/infra/alchemy.run.ts`, "utf8");
+
+    expect(webPackage.scripts?.["build:worker"]).toContain("opennextjs-cloudflare build");
+    expect(webPackage.scripts?.["build:worker"]).toContain("populateCache local");
+    expect(program).toContain("bun run build:worker");
+    expect(readWorkflow("verify.yml")).toContain("build:worker");
+  });
+
+  it("runs the extended CodeQL security suite over code and workflows", () => {
     const codeql = readWorkflow("codeql.yml");
+    expect(codeql).toContain("name: Analyze JavaScript and TypeScript");
     expect(codeql).toContain("languages: javascript-typescript");
-    expect(codeql).toContain("queries: security-extended");
+    expect(codeql).toContain("languages: actions");
+    expect(codeql).toContain("category: /language:actions");
+    expect(codeql.match(/queries: security-extended/g)).toHaveLength(2);
+  });
+
+  it("bumps the LICENSE year through a pull request, never a push to main", () => {
+    const workflow = readWorkflow("update-license-year.yml");
+    expect(workflow).toContain("gh pr create --base main");
+    expect(workflow).toContain('git push --force -u origin "$BRANCH"');
+    expect(workflow.match(/git push/g)).toHaveLength(1);
+    expect(workflow).toContain("timeout-minutes:");
+  });
+
+  it("blocks PRs on the dependency audit but only warns on deploys", () => {
+    const verify = readWorkflow("verify.yml");
+    expect(verify).toMatch(/audit-blocking:\n(?: {8}[^\n]*\n)+? {8}default: true/);
+    const auditStep = verify.slice(verify.indexOf("- name: Audit dependencies"));
+    expect(auditStep).toMatch(/continue-on-error: \$\{\{ !inputs\.audit-blocking \}\}/);
+    expect(auditStep).toContain("::warning");
+
+    // The PR/push gate takes the blocking default; it must never opt out.
+    expect(readWorkflow("ci.yml")).not.toContain("audit-blocking");
+    for (const name of ["deploy.yml", "deploy-docs-to-pages.yml"]) {
+      expect(readWorkflow(name)).toContain("audit-blocking: false");
+    }
+  });
+
+  it("passes every validated deploy secret to both the validation and deploy steps", () => {
+    const deploy = readWorkflow("deploy.yml");
+    for (const name of ["BETTER_AUTH_SECRET", "PROXY_SECRET"]) {
+      expect(
+        deploy.match(new RegExp(`${name}: \\$\\{\\{ secrets\\.${name} \\}\\}`, "g")),
+      ).toHaveLength(2);
+    }
+  });
+
+  it("smoke-checks the live deployment after Alchemy finishes", () => {
+    const deploy = readWorkflow("deploy.yml");
+    expect(deploy.indexOf("smoke-check.ts")).toBeGreaterThan(deploy.indexOf("alchemy.run.ts"));
   });
 });

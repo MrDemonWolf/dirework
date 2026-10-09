@@ -14,9 +14,14 @@ concurrency:
 
 jobs:
   build:
+    # Forks have no Pages site (and would publish upstream's canonical domain);
+    # skipping build also skips deploy.
+    if: github.repository == 'mrdemonwolf/dirework'
     uses: ./.github/workflows/verify.yml
     with:
       upload-docs: true
+      # Warn-only audit on deploys (see deploy.yml); PRs still block on it.
+      audit-blocking: false
 
   deploy:
     needs: build
