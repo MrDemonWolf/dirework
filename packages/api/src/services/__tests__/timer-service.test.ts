@@ -118,8 +118,8 @@ describe("skipTimer no-op guard (audit L6)", () => {
       totalCycles: 4,
     };
     const { db, setSpy } = makeDb({ timerState: idle });
-    const result = await skipTimer(db);
-    expect(result).toEqual(idle);
+    // null tells the chat command to reply notRunning instead of success.
+    expect(await skipTimer(db)).toBeNull();
     expect(setSpy).not.toHaveBeenCalled();
   });
 
@@ -134,8 +134,7 @@ describe("skipTimer no-op guard (audit L6)", () => {
       totalCycles: 4,
     };
     const { db, setSpy } = makeDb({ timerState: finished });
-    const result = await skipTimer(db);
-    expect(result).toEqual(finished);
+    expect(await skipTimer(db)).toBeNull();
     expect(setSpy).not.toHaveBeenCalled();
   });
 
@@ -157,7 +156,7 @@ describe("skipTimer no-op guard (audit L6)", () => {
   });
 });
 
-describe("skipTimer guarded CAS vs concurrent overdue-advance (P0.2)", () => {
+describe("skipTimer guarded CAS vs a concurrent timer action", () => {
   const config = {
     workDuration: 10_000,
     breakDuration: 5_000,
@@ -168,23 +167,21 @@ describe("skipTimer guarded CAS vs concurrent overdue-advance (P0.2)", () => {
     defaultCycles: 4,
   };
 
-  it("does not double-advance when an overdue-advance wins the race first", async () => {
-    // Operator hits !timer skip on a work phase that is simultaneously being
-    // auto-advanced by an overlay poll. skip reads work → computes break, but
-    // the poll already moved the row to break, so the guarded CAS matches no
-    // row (returning []). skip must re-read and return that break state — NOT
-    // apply its own work→break on top of the already-advanced row, which would
-    // land the timer a whole phase further along (skipped break).
+  it("does not double-advance when another action moves the timer first", async () => {
+    // skip reads work → computes break, but a concurrent skip already moved
+    // the row to break, so the guarded CAS matches no row (returning []). skip
+    // must re-read and return that break state — NOT apply its own work→break
+    // on top, which would land the timer a whole phase further along.
     const workRow = {
       id: "singleton",
       status: "work",
-      targetEndTime: new Date(Date.now() - 1_000),
+      targetEndTime: new Date(Date.now() + 1_000),
       pausedWithRemaining: null,
       pausedFromStatus: null,
       currentCycle: 1,
       totalCycles: 4,
     };
-    const advancedByPoll = {
+    const advancedElsewhere = {
       ...workRow,
       status: "break",
       targetEndTime: new Date(Date.now() + config.breakDuration),
@@ -193,7 +190,7 @@ describe("skipTimer guarded CAS vs concurrent overdue-advance (P0.2)", () => {
     const findFirst = vi
       .fn()
       .mockResolvedValueOnce(workRow) // skip's initial read
-      .mockResolvedValue(advancedByPoll); // re-read after the lost CAS
+      .mockResolvedValue(advancedElsewhere); // re-read after the lost CAS
     const setSpy = vi.fn();
     const db = {
       query: {
@@ -210,12 +207,35 @@ describe("skipTimer guarded CAS vs concurrent overdue-advance (P0.2)", () => {
 
     const result = await skipTimer(db);
 
-    // One (lost) write attempt, then accept the poll's advanced state.
+    // One (lost) write attempt, then accept the advanced state.
     expect(setSpy).toHaveBeenCalledOnce();
     expect(setSpy.mock.calls[0]?.[0]).toMatchObject({ status: "break" });
     expect(result?.status).toBe("break");
     expect(result?.currentCycle).toBe(1);
-    expect(result?.targetEndTime).toEqual(advancedByPoll.targetEndTime);
+    expect(result?.targetEndTime).toEqual(advancedElsewhere.targetEndTime);
+  });
+
+  it("advances an overdue phase first, so skip skips the phase that is actually current", async () => {
+    // Work ended 1s ago and nothing has polled since: the real current phase is
+    // the break. Skipping must skip that break, not restart it at full length.
+    const { db, setSpy } = makeDb({
+      timerState: {
+        id: "singleton",
+        status: "work",
+        targetEndTime: new Date(Date.now() - 1_000),
+        pausedWithRemaining: null,
+        pausedFromStatus: null,
+        currentCycle: 1,
+        totalCycles: 4,
+      },
+      timerConfig: config,
+    });
+
+    await skipTimer(db);
+
+    expect(setSpy).toHaveBeenCalledTimes(2);
+    expect(setSpy.mock.calls[0]?.[0]).toMatchObject({ status: "break", currentCycle: 1 });
+    expect(setSpy.mock.calls[1]?.[0]).toMatchObject({ status: "work", currentCycle: 2 });
   });
 });
 
@@ -306,14 +326,33 @@ describe("maybeAdvanceOverdueTimer (lazy read-driven transitions)", () => {
       timerConfig: config,
     });
     const result = await maybeAdvanceOverdueTimer(db);
-    // work → break (already over) → work (cycle 2, ends in the future)
-    expect(setSpy).toHaveBeenCalledTimes(2);
+    // work → break (already over) → work (cycle 2, ends in the future), in ONE write
+    expect(setSpy).toHaveBeenCalledOnce();
     expect(result?.status).toBe("work");
     expect(result?.currentCycle).toBe(2);
-    const lastWrite = setSpy.mock.calls[1]?.[0] as { targetEndTime: Date };
-    expect(lastWrite.targetEndTime.getTime()).toBe(
+    const written = setSpy.mock.calls[0]?.[0] as { targetEndTime: Date };
+    expect(written.targetEndTime.getTime()).toBe(
       prevEnd.getTime() + config.breakDuration + config.workDuration,
     );
+  });
+
+  it("keeps the write count constant for a long unattended run", async () => {
+    // A 99-cycle session overdue by a day would need ~200 transitions; D1 caps
+    // queries per invocation, so the catch-up must still be a single UPDATE.
+    const { db, setSpy } = makeDb({
+      timerState: {
+        ...base,
+        status: "work",
+        totalCycles: 99,
+        targetEndTime: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      },
+      timerConfig: config,
+    });
+    const result = await maybeAdvanceOverdueTimer(db);
+    expect(setSpy).toHaveBeenCalledOnce();
+    expect(result?.status).toBe("finished");
+    expect(result?.currentCycle).toBe(99);
+    expect(result?.targetEndTime).toBeNull();
   });
 
   it("re-reads instead of double-advancing when the guarded update loses the race", async () => {
@@ -377,7 +416,7 @@ describe("maybeAdvanceOverdueTimer (lazy read-driven transitions)", () => {
   });
 });
 
-describe("getTimerEta bounded projection (CodeRabbit follow-up)", () => {
+describe("getTimerEta bounded projection", () => {
   it("returns a TimerEta via the iteration guard when the session needs >100 transitions", async () => {
     const { db } = makeDb({
       timerState: {

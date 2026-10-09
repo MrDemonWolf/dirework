@@ -38,7 +38,7 @@ export function buildRequestLog(opts: {
 }
 
 /** Context key holding the current request id, for correlated telemetry. */
-export const REQUEST_ID_KEY = "requestId";
+const REQUEST_ID_KEY = "requestId";
 
 /** Read the current request id, if the logger middleware has run. */
 export function getRequestId(c: { get: (key: string) => unknown }): string | undefined {

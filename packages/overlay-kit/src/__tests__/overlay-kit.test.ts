@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { SQUIRCLE_RADIUS, formatClock, roundedRectPath, roundedRectPerimeter } from "../index";
+import {
+  SQUIRCLE_RADIUS,
+  cssLengthToPx,
+  formatClock,
+  quoteFontFamily,
+  roundedRectPath,
+  roundedRectPerimeter,
+} from "../index";
 
 describe("SQUIRCLE_RADIUS", () => {
   it("is the canonical 22% squircle fraction", () => {
@@ -26,6 +33,11 @@ describe("roundedRectPath", () => {
     const d = roundedRectPath(5, 5, 200, 200, 44);
     expect(d.match(/A 44 44/g)).toHaveLength(4);
   });
+
+  it("returns an empty path for zero or negative sizes", () => {
+    expect(roundedRectPath(0, 0, 0, 100, 10)).toBe("");
+    expect(roundedRectPath(0, 0, 100, -20, 10)).toBe("");
+  });
 });
 
 describe("roundedRectPerimeter", () => {
@@ -49,6 +61,11 @@ describe("roundedRectPerimeter", () => {
   it("clamps negative radii to zero", () => {
     expect(roundedRectPerimeter(100, 50, -5)).toBe(300);
   });
+
+  it("is zero (never negative) for zero or negative sizes", () => {
+    expect(roundedRectPerimeter(-10, 50, 5)).toBe(0);
+    expect(roundedRectPerimeter(50, 0, 5)).toBe(0);
+  });
 });
 
 describe("formatClock", () => {
@@ -68,5 +85,45 @@ describe("formatClock", () => {
 
   it("lets minutes exceed 99", () => {
     expect(formatClock(100 * 60 * 1000)).toBe("100:00");
+  });
+
+  it("treats non-finite input as 00:00", () => {
+    expect(formatClock(Number.NaN)).toBe("00:00");
+    expect(formatClock(Number.POSITIVE_INFINITY)).toBe("00:00");
+  });
+});
+
+describe("cssLengthToPx", () => {
+  it("reads px and unitless values as px", () => {
+    expect(cssLengthToPx("250px")).toBe(250);
+    expect(cssLengthToPx("120")).toBe(120);
+    expect(cssLengthToPx("12.5px")).toBe(12.5);
+  });
+
+  it("converts rem/em at the 16px default and pt at 4/3", () => {
+    expect(cssLengthToPx("20rem")).toBe(320);
+    expect(cssLengthToPx("2em")).toBe(32);
+    expect(cssLengthToPx("12pt")).toBe(16);
+  });
+
+  it("returns null for layout-relative or invalid lengths", () => {
+    expect(cssLengthToPx("50%")).toBeNull();
+    expect(cssLengthToPx("30vw")).toBeNull();
+    expect(cssLengthToPx("auto")).toBeNull();
+  });
+});
+
+describe("quoteFontFamily", () => {
+  it("quotes a family whose name has a digit-led word", () => {
+    expect(quoteFontFamily("Source Sans 3")).toBe('"Source Sans 3"');
+  });
+
+  it("re-quotes single-quoted names and keeps generic families bare", () => {
+    expect(quoteFontFamily("'Fira Code', monospace")).toBe('"Fira Code", monospace');
+    expect(quoteFontFamily("Inter,  Sans-Serif")).toBe('"Inter", Sans-Serif');
+  });
+
+  it("drops empty list entries", () => {
+    expect(quoteFontFamily("Lato,,")).toBe('"Lato"');
   });
 });

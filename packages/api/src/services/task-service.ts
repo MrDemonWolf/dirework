@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { DrizzleQueryError, and, asc, desc, eq, inArray, lt, ne, sql } from "drizzle-orm";
 
 import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
@@ -14,15 +14,15 @@ export interface TaskAuthor {
 }
 
 /**
- * Resolve the stable author key shared by dashboard and Twitch chat tasks.
- * Legacy owner rows can be missing the custom twitchId even though Better Auth
- * still has the provider account ID. The internal user ID is only a final
- * fallback for local dev owners that have no linked Twitch account.
+ * Resolve the owner's numeric Twitch user ID. Owner rows can be missing the
+ * custom twitchId even though Better Auth still has the provider account ID
+ * (the account's ID is the Twitch user ID). Null when no Twitch account is
+ * linked (local dev owners).
  */
-export async function resolveOwnerTaskId(
+export async function resolveOwnerTwitchId(
   db: DbClient,
   owner: { id: string; twitchId?: string | null },
-) {
+): Promise<string | null> {
   if (owner.twitchId) return owner.twitchId;
 
   const twitchAccount = await db.query.account.findFirst({
@@ -35,7 +35,19 @@ export async function resolveOwnerTaskId(
     columns: { accountId: true },
   });
 
-  return twitchAccount?.accountId || owner.id;
+  return twitchAccount?.accountId || null;
+}
+
+/**
+ * Resolve the stable author key shared by dashboard and Twitch chat tasks. The
+ * internal user ID is only a final fallback for local dev owners that have no
+ * linked Twitch account.
+ */
+export async function resolveOwnerTaskId(
+  db: DbClient,
+  owner: { id: string; twitchId?: string | null },
+) {
+  return (await resolveOwnerTwitchId(db, owner)) ?? owner.id;
 }
 
 const OPEN_STATUSES = ["pending", "active"];
@@ -145,6 +157,7 @@ export async function createTask(
   const [openTasks, placement] = await Promise.all([
     getViewerOpenTasks(db, author.twitchId),
     resolveTaskPlacement(db, author.twitchId),
+    purgeExpiredDoneTasks(db),
   ]);
 
   const values = {
@@ -170,7 +183,7 @@ export async function createTask(
   // can also observe "no open tasks" and try to insert an active row. The
   // partial unique index makes the loser fail instead of creating a second
   // active task, so fall back to pending — the task is still created, it just
-  // queues behind the one that won (P1.7).
+  // queues behind the one that won.
   try {
     const [row] = await db
       .insert(schema.task)
@@ -187,10 +200,25 @@ export async function createTask(
   }
 }
 
-/** SQLite/D1 surface UNIQUE constraint failures as a message, not a code. */
-function isUniqueViolation(err: unknown): boolean {
-  const message = err instanceof Error ? err.message : String(err);
-  return /UNIQUE constraint failed/i.test(message);
+/**
+ * SQLite/D1 surface UNIQUE constraint failures as a message, not a code, and
+ * drizzle wraps the driver error in a DrizzleQueryError whose own message
+ * embeds the query params (task text) — so only the wrapped causes are matched.
+ * Bounded so a cyclic cause chain can't loop.
+ */
+export function isUniqueViolation(err: unknown): boolean {
+  let current: unknown = err;
+  for (let depth = 0; current != null && depth < 5; depth++) {
+    if (!(current instanceof Error)) return false;
+    if (
+      !(current instanceof DrizzleQueryError) &&
+      /UNIQUE constraint failed/i.test(current.message)
+    ) {
+      return true;
+    }
+    current = current.cause;
+  }
+  return false;
 }
 
 /** Mark a task done without promoting the next pending one. */
@@ -211,10 +239,13 @@ export async function completeTask(db: DbClient, id: string) {
  * single-active slot before the promote claims it.
  */
 export async function markTaskDone(db: DbClient, id: string) {
-  const existing = await db.query.task.findFirst({
-    where: eq(schema.task.id, id),
-    columns: { id: true, status: true, authorTwitchId: true },
-  });
+  const [existing] = await Promise.all([
+    db.query.task.findFirst({
+      where: eq(schema.task.id, id),
+      columns: { id: true, status: true, authorTwitchId: true },
+    }),
+    purgeExpiredDoneTasks(db),
+  ]);
   if (!existing) return null;
 
   if (existing.status !== "active") {
@@ -245,7 +276,10 @@ export async function replaceActiveTask(
   author: TaskAuthor,
   text: string,
 ) {
-  const placement = await resolveTaskPlacement(db, author.twitchId);
+  const [placement] = await Promise.all([
+    resolveTaskPlacement(db, author.twitchId),
+    purgeExpiredDoneTasks(db),
+  ]);
   const replacementId = crypto.randomUUID();
   const [, completedRows, createdRows] = await db.batch([
     db.insert(schema.task).select(sql`
@@ -300,8 +334,8 @@ export async function editTask(db: DbClient, id: string, text: string) {
 /**
  * Make `task` the author's single active task (demotes any other active).
  * Both statements run in ONE db.batch so the demote and the activate can't be
- * interleaved by a concurrent !focus — which previously could leave the viewer
- * with zero or two active tasks. Demote runs first to free the single-active
+ * interleaved by a concurrent !focus, which could leave the viewer with zero or
+ * two active tasks. Demote runs first to free the single-active
  * slot enforced by the partial unique index.
  */
 export async function activateTask(db: DbClient, task: { id: string; authorTwitchId: string }) {
@@ -370,14 +404,127 @@ export async function clearDoneTasks(db: DbClient) {
   return db.delete(schema.task).where(eq(schema.task.status, "done"));
 }
 
+/** Done tasks are kept for this long after `completed_at`, then purged. */
+export const DONE_TASK_RETENTION_MS = 24 * 60 * 60 * 1000;
+
+/** At most this many (newest) done tasks are returned to the list/overlay. */
+export const DONE_TASK_LIST_LIMIT = 50;
+
 /**
- * All tasks in overlay/list order (priority, then insertion order). `id` is the
- * final tiebreaker so the order is deterministic when two tasks created
- * concurrently resolve to the same `order` value — without it the overlay and
- * the dashboard could disagree on which comes first (P1.7).
+ * Delete done tasks whose `completed_at` is older than the retention window.
+ * An index range DELETE on `task_status_completed_idx`, so it reads only the
+ * rows it removes (plus one seek) — cheap enough to run lazily on writes
+ * (task create / done / replace, timer start / reset). Never run it on a poll.
+ *
+ * Best-effort housekeeping: a failure here must never fail the chat command or
+ * dashboard action that triggered it, so it resolves to 0 instead of throwing.
  */
-export async function listTasks(db: DbClient) {
-  return db.query.task.findMany({
-    orderBy: [asc(schema.task.priority), asc(schema.task.order), asc(schema.task.id)],
-  });
+export async function purgeExpiredDoneTasks(db: DbClient, now: number = Date.now()) {
+  try {
+    const result = await db
+      .delete(schema.task)
+      .where(
+        and(
+          eq(schema.task.status, "done"),
+          lt(schema.task.completedAt, new Date(now - DONE_TASK_RETENTION_MS)),
+        ),
+      )
+      .returning({ id: schema.task.id });
+    return result.length;
+  } catch {
+    return 0;
+  }
+}
+
+export interface TaskCounts {
+  /** Pending + active tasks (every one is returned in the list). */
+  open: number;
+  /**
+   * Every done task still in retention — NOT just the bounded slice the list
+   * returns, so `{done}/{total}` counters stay right past the list limit.
+   */
+  done: number;
+}
+
+const listOrder = (a: { priority: number; order: number; id: string }, b: typeof a) =>
+  a.priority - b.priority || a.order - b.order || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+/**
+ * The bounded list read behind the dashboard and the task overlay. Open tasks
+ * come from an index range on status; done tasks are the newest `doneLimit`
+ * by completed_at (index range + LIMIT); the done counter is a COUNT over the
+ * same index. Nothing scans the table, and retention bounds the done range.
+ * The two slices are merged back into list order (priority, order, id).
+ */
+async function readBoundedTasks<TRow extends { id: string; priority: number; order: number }>(
+  db: DbClient,
+  readOpen: () => Promise<TRow[]>,
+  readDone: (limit: number) => Promise<TRow[]>,
+  doneLimit: number,
+) {
+  const [open, done, doneCount] = await Promise.all([
+    readOpen(),
+    doneLimit > 0 ? readDone(doneLimit) : Promise.resolve([] as TRow[]),
+    db.$count(schema.task, eq(schema.task.status, "done")),
+  ]);
+  const counts: TaskCounts = { open: open.length, done: doneCount };
+  return { tasks: [...open, ...done].sort(listOrder), counts };
+}
+
+const openTasksWhere = () => inArray(schema.task.status, OPEN_STATUSES);
+const doneTasksWhere = () => eq(schema.task.status, "done");
+const doneNewestFirst = () => [desc(schema.task.completedAt), desc(schema.task.id)];
+
+/**
+ * The dashboard list: every open task plus the newest DONE_TASK_LIST_LIMIT
+ * done tasks, in overlay/list order (priority, then insertion order). `id` is
+ * the final tiebreaker so the order is deterministic when two tasks created
+ * concurrently resolve to the same `order` value — without it the overlay and
+ * the dashboard could disagree on which comes first.
+ */
+export async function listTasks(db: DbClient, opts?: { doneLimit?: number }) {
+  return readBoundedTasks(
+    db,
+    () => db.query.task.findMany({ where: openTasksWhere() }),
+    (limit) =>
+      db.query.task.findMany({ where: doneTasksWhere(), orderBy: doneNewestFirst(), limit }),
+    opts?.doneLimit ?? DONE_TASK_LIST_LIMIT,
+  );
+}
+
+const OVERLAY_TASK_COLUMNS = {
+  id: true,
+  authorTwitchId: true,
+  authorDisplayName: true,
+  authorColor: true,
+  text: true,
+  status: true,
+  // Read for the list-order merge only; stripped before leaving the server.
+  priority: true,
+  order: true,
+} as const;
+
+/**
+ * The public task overlay's list: same rows and order as listTasks, but only
+ * the columns the overlay renders — no viewer login names or timestamps leave
+ * the server through the bearer-token URL. Pass `doneLimit: 0` when the overlay
+ * hides done tasks: the counter still gets the full done count.
+ */
+export async function listOverlayTasks(db: DbClient, opts?: { doneLimit?: number }) {
+  const { tasks, counts } = await readBoundedTasks(
+    db,
+    () => db.query.task.findMany({ columns: OVERLAY_TASK_COLUMNS, where: openTasksWhere() }),
+    (limit) =>
+      db.query.task.findMany({
+        columns: OVERLAY_TASK_COLUMNS,
+        where: doneTasksWhere(),
+        orderBy: doneNewestFirst(),
+        limit,
+      }),
+    opts?.doneLimit ?? DONE_TASK_LIST_LIMIT,
+  );
+  return {
+    tasks: tasks.map(({ priority: _priority, order: _order, ...task }) => task),
+    counts,
+  };
 }

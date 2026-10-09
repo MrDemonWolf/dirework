@@ -7,20 +7,44 @@ type RedactableErrorShape = {
   data: object;
 };
 
+/**
+ * Client-facing error shape: stacks are stripped from EVERY error (they expose
+ * bundle module names and line numbers), and internal errors also lose their
+ * message, which can echo SQL or upstream response bodies.
+ */
 export function redactInternalErrorShape<T extends RedactableErrorShape>(
   shape: T,
   code: string,
 ): T {
-  if (code !== "INTERNAL_SERVER_ERROR") return shape;
-
   const data = { ...shape.data } as Record<string, unknown>;
   delete data.stack;
+  if (code !== "INTERNAL_SERVER_ERROR") return { ...shape, data } as T;
   return { ...shape, message: "Internal server error", data } as T;
 }
 
+/**
+ * A failed input parse surfaces the ZodError's JSON dump as its message, which
+ * the dashboard would toast verbatim. Return the issue messages instead, or
+ * null when the cause is not a validation error.
+ */
+export function validationErrorMessage(cause: unknown): string | null {
+  if (typeof cause !== "object" || cause === null || !("issues" in cause)) return null;
+  const { issues } = cause as { issues: unknown };
+  if (!Array.isArray(issues)) return null;
+  const messages = issues
+    .map((issue) => (issue as { message?: unknown } | null)?.message)
+    .filter((message): message is string => typeof message === "string" && message !== "");
+  return messages.length > 0 ? [...new Set(messages)].join("; ") : null;
+}
+
 export const t = initTRPC.context<Context>().create({
+  // tRPC infers dev mode from NODE_ENV, which Workers never set — so without
+  // this every error response would carry a stack trace in production.
+  isDev: false,
   errorFormatter({ shape, error }) {
-    return redactInternalErrorShape(shape, error.code);
+    const redacted = redactInternalErrorShape(shape, error.code);
+    const readable = error.code === "BAD_REQUEST" ? validationErrorMessage(error.cause) : null;
+    return readable ? { ...redacted, message: readable } : redacted;
   },
 });
 

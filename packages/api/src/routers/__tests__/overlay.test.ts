@@ -2,6 +2,9 @@ import { describe, it, expect, vi } from "vitest";
 import { z } from "zod";
 
 import type { DbClient } from "@dirework/db";
+import * as schema from "@dirework/db/schema";
+
+import { createSqliteDb } from "../../__tests__/helpers/sqlite-db";
 
 import { loadTaskOverlayPayload, loadTimerOverlayPayload } from "../../services/overlay-service";
 import { tokenInput, withOverlayToken } from "../../services/tokens";
@@ -14,7 +17,6 @@ function makeOverlayDb(rows: {
   timerConfig?: Record<string, unknown>;
   timerStyle?: Record<string, unknown>;
   taskStyle?: Record<string, unknown>;
-  tasks?: Record<string, unknown>[];
 }): DbClient {
   return {
     query: {
@@ -22,7 +24,6 @@ function makeOverlayDb(rows: {
       timerConfig: { findFirst: async () => rows.timerConfig },
       timerStyle: { findFirst: async () => rows.timerStyle },
       taskStyle: { findFirst: async () => rows.taskStyle },
-      task: { findMany: async () => rows.tasks ?? [] },
     },
   } as unknown as DbClient;
 }
@@ -124,26 +125,72 @@ describe("overlay router input validation", () => {
     });
   });
 
-  describe("loadTaskOverlayPayload", () => {
-    it("returns tasks in list order with built styles", async () => {
-      const db = makeOverlayDb({
-        tasks: [
-          { id: "1", text: "first", status: "active" },
-          { id: "2", text: "second", status: "pending" },
-        ],
-        taskStyle: { id: "singleton", displayShowDone: true, displayNumberOfLines: 2 },
-      });
+  describe("loadTaskOverlayPayload (real SQLite)", () => {
+    async function seedTasks(db: DbClient, showDone: boolean | null) {
+      if (showDone !== null) {
+        await db.insert(schema.taskStyle).values({ id: "singleton", displayShowDone: showDone });
+      }
+      const base = { authorUsername: "v", authorDisplayName: "V", authorColor: null };
+      await db.insert(schema.task).values([
+        { ...base, id: "b", authorTwitchId: "1", text: "second", status: "pending", order: 2 },
+        { ...base, id: "a", authorTwitchId: "1", text: "first", status: "active", order: 1 },
+        {
+          ...base,
+          id: "d",
+          authorTwitchId: "2",
+          text: "finished",
+          status: "done",
+          order: 3,
+          completedAt: new Date(),
+        },
+      ]);
+    }
+
+    it("returns tasks in list order with built styles and server counts", async () => {
+      const { db } = await createSqliteDb();
+      await seedTasks(db, true);
 
       const payload = await loadTaskOverlayPayload(db);
 
-      expect(payload.tasks).toHaveLength(2);
-      expect(payload.tasks[0]).toMatchObject({ id: "1", text: "first" });
+      expect(payload.tasks.map((t) => t.id)).toEqual(["a", "b", "d"]);
+      expect(payload.counts).toEqual({ open: 2, done: 1 });
       expect(payload.taskStyles?.display.showDone).toBe(true);
     });
 
+    it("skips done rows when showDone is off but still counts them", async () => {
+      const { db } = await createSqliteDb();
+      await seedTasks(db, false);
+
+      const payload = await loadTaskOverlayPayload(db);
+
+      expect(payload.tasks.map((t) => t.id)).toEqual(["a", "b"]);
+      // The {done}/{total} header must still read 1/3, not 0/2.
+      expect(payload.counts).toEqual({ open: 2, done: 1 });
+    });
+
+    it("returns only the columns the overlay renders (no logins, timestamps or ordering)", async () => {
+      const { db } = await createSqliteDb();
+      await seedTasks(db, true);
+
+      const payload = await loadTaskOverlayPayload(db);
+
+      for (const task of payload.tasks) {
+        expect(Object.keys(task).sort()).toEqual([
+          "authorColor",
+          "authorDisplayName",
+          "authorTwitchId",
+          "id",
+          "status",
+          "text",
+        ]);
+      }
+    });
+
     it("returns an empty list and null styles on a bare instance", async () => {
-      const payload = await loadTaskOverlayPayload(makeOverlayDb({}));
+      const { db } = await createSqliteDb();
+      const payload = await loadTaskOverlayPayload(db);
       expect(payload.tasks).toEqual([]);
+      expect(payload.counts).toEqual({ open: 0, done: 0 });
       expect(payload.taskStyles).toBeNull();
     });
   });

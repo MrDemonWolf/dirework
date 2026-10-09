@@ -8,6 +8,7 @@ import { SINGLETON_ID } from "@dirework/db/schema";
 import type { TimerStatus } from "../config-shared";
 import { computeNextPhase, getTimerConfig } from "../routers/timer-logic";
 import { updateSingleton } from "./singleton";
+import { purgeExpiredDoneTasks } from "./task-service";
 
 // Single implementation of the timer state machine mutations (audit M1) —
 // called by both the tRPC timer router and the bot ingest path.
@@ -27,8 +28,8 @@ const RUNNING_STATUSES = new Set<string>([
  * changed between read and write — a concurrent overdue-advance or a manual
  * skip — the UPDATE matches no row and returns undefined, so the caller re-reads
  * instead of clobbering. This is what stops a `!timer skip` from acting on stale
- * state and double-advancing past a phase the lazy overdue-advance already moved
- * (P0.2). targetEndTime is nullable (paused/idle), hence the isNull branch.
+ * state and double-advancing past a phase the lazy overdue-advance already moved.
+ * targetEndTime is nullable (paused/idle), hence the isNull branch.
  */
 function casTimer(
   db: DbClient,
@@ -57,43 +58,67 @@ function casTimer(
  * poll, dashboard query, or chat command self-heals the state machine. Each new
  * phase is anchored at the PREVIOUS phase's end time (not Date.now()), so a
  * timer left unattended catches up through multiple missed phases accurately.
- * Concurrent pollers race safely: the UPDATE is guarded on the old
- * targetEndTime, and a loser just re-reads.
+ *
+ * The catch-up is computed in memory and persisted with ONE guarded UPDATE, so
+ * the query count stays constant however many phases were missed (D1 caps
+ * queries per Worker invocation). Concurrent pollers race safely: the UPDATE is
+ * guarded on the state that was read, and a loser just re-reads.
  */
 export async function maybeAdvanceOverdueTimer(db: DbClient): Promise<TimerStateRow | null> {
   let timer = (await db.query.timerState.findFirst()) ?? null;
   let timerConfigRow: typeof schema.timerConfig.$inferSelect | null = null;
 
-  for (let i = 0; i < 50; i++) {
-    if (
-      !timer ||
-      !RUNNING_STATUSES.has(timer.status) ||
-      !timer.targetEndTime ||
-      timer.targetEndTime.getTime() > Date.now()
-    ) {
-      return timer;
-    }
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (!timer || !isOverdue(timer)) return timer;
 
     timerConfigRow ??= (await db.query.timerConfig.findFirst()) ?? null;
-    const tc = getTimerConfig(timerConfigRow);
-    const { nextStatus, nextDuration, nextCycle } = computeNextPhase(
-      { status: timer.status, currentCycle: timer.currentCycle, totalCycles: timer.totalCycles },
-      tc,
-    );
+    const next = catchUpOverdue(timer, getTimerConfig(timerConfigRow), Date.now());
 
-    const prevEnd = timer.targetEndTime;
     const [row] = await casTimer(db, timer, {
-      status: nextStatus,
-      currentCycle: nextCycle,
+      ...next,
       pausedFromStatus: null,
       pausedWithRemaining: null,
-      targetEndTime: nextDuration ? new Date(prevEnd.getTime() + nextDuration) : null,
     });
 
     // Guarded update lost (another poller advanced first) → re-read and retry.
     timer = row ?? (await db.query.timerState.findFirst()) ?? null;
   }
   return timer;
+}
+
+function isOverdue(timer: TimerStateRow): timer is TimerStateRow & { targetEndTime: Date } {
+  return (
+    RUNNING_STATUSES.has(timer.status) &&
+    timer.targetEndTime !== null &&
+    timer.targetEndTime.getTime() <= Date.now()
+  );
+}
+
+/**
+ * Walk the state machine forward from an overdue phase until it reaches a phase
+ * that ends after `now` (or one with no end, e.g. finished). Bounded so a
+ * pathological config cannot spin: totalCycles is capped at 99, so a full
+ * session is well under the guard.
+ */
+export function catchUpOverdue(
+  timer: Pick<TimerStateRow, "status" | "currentCycle" | "totalCycles"> & { targetEndTime: Date },
+  tc: ReturnType<typeof getTimerConfig>,
+  now: number,
+): Pick<TimerStateRow, "status" | "currentCycle" | "targetEndTime"> {
+  let status = timer.status;
+  let currentCycle = timer.currentCycle;
+  let targetEndTime: Date | null = timer.targetEndTime;
+
+  for (let i = 0; i < 1000 && targetEndTime && targetEndTime.getTime() <= now; i++) {
+    const { nextStatus, nextDuration, nextCycle } = computeNextPhase(
+      { status, currentCycle, totalCycles: timer.totalCycles },
+      tc,
+    );
+    status = nextStatus;
+    currentCycle = nextCycle;
+    targetEndTime = nextDuration ? new Date(targetEndTime.getTime() + nextDuration) : null;
+  }
+  return { status, currentCycle, targetEndTime };
 }
 
 export async function getTimerState(db: DbClient): Promise<TimerStateRow | null> {
@@ -107,10 +132,11 @@ async function loadTimerConfig(db: DbClient) {
 
 /** Start (or restart) the timer in the "starting" phase. */
 export async function startTimer(db: DbClient, opts?: { totalCycles?: number }) {
-  const tc = await loadTimerConfig(db);
+  // A session boundary is a natural moment for the done-task retention purge.
+  const [tc] = await Promise.all([loadTimerConfig(db), purgeExpiredDoneTasks(db)]);
 
   const values = {
-    status: "starting",
+    status: "starting" as const,
     targetEndTime: new Date(Date.now() + tc.startingDuration),
     pausedWithRemaining: null,
     pausedFromStatus: null,
@@ -159,10 +185,15 @@ export async function resumeTimer(db: DbClient) {
   return row ?? (await db.query.timerState.findFirst()) ?? null;
 }
 
-/** Skip to the next phase; a paused timer skips from its pre-pause phase. */
+/**
+ * Skip to the next phase; a paused timer skips from its pre-pause phase.
+ * Overdue phases are advanced first, so skip always acts on the phase that is
+ * actually current. Returns null when there is nothing to skip (no timer, or
+ * idle/finished).
+ */
 export async function skipTimer(db: DbClient) {
   const [timer, timerConfigRow] = await Promise.all([
-    db.query.timerState.findFirst(),
+    maybeAdvanceOverdueTimer(db),
     db.query.timerConfig.findFirst(),
   ]);
   if (!timer) return null;
@@ -176,15 +207,14 @@ export async function skipTimer(db: DbClient) {
     tc,
   );
 
-  // No-op guard (L6): from idle/finished nothing changes — skip the DB write.
+  // No-op guard: from idle/finished nothing changes — skip the DB write.
   if (nextStatus === timer.status && nextDuration === null && nextCycle === timer.currentCycle) {
-    return timer;
+    return null;
   }
 
-  // Guarded CAS on the state we read (P0.2): if a concurrent overdue-advance
-  // already moved past this phase, our UPDATE matches no row — that advance
-  // already satisfied the skip intent, so return the current state instead of
-  // clobbering it (which would skip a second phase).
+  // Guarded CAS on the state we read: if a concurrent action already moved
+  // past this phase, our UPDATE matches no row — return the current state
+  // instead of clobbering it (which would skip a second phase).
   const [row] = await casTimer(db, timer, {
     status: nextStatus,
     currentCycle: nextCycle,
@@ -200,7 +230,7 @@ export async function skipTimer(db: DbClient) {
  * defaultCycles, never a hardcoded 4.
  */
 export async function resetTimer(db: DbClient) {
-  const tc = await loadTimerConfig(db);
+  const [tc] = await Promise.all([loadTimerConfig(db), purgeExpiredDoneTasks(db)]);
 
   return updateSingleton(db, schema.timerState, {
     status: "idle",

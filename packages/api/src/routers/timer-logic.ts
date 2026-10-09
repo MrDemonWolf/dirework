@@ -1,4 +1,4 @@
-import { TIMER_CONFIG_DEFAULTS } from "@dirework/db/defaults";
+import { TIMER_CONFIG_DEFAULTS, type TimerStatus } from "@dirework/db/defaults";
 
 // Fallbacks when no timer_config row exists — same object that backs the
 // schema column defaults (single source: packages/db/src/defaults.ts).
@@ -27,13 +27,13 @@ export function getTimerConfig(tc: TimerConfigInput | null) {
 }
 
 export interface PhaseInput {
-  status: string;
+  status: TimerStatus;
   currentCycle: number;
   totalCycles: number;
 }
 
 export interface PhaseResult {
-  nextStatus: string;
+  nextStatus: TimerStatus;
   nextDuration: number | null;
   nextCycle: number;
 }
@@ -44,7 +44,7 @@ export interface PhaseResult {
  * overdue-timer advancement.
  */
 export function computeNextPhase(input: PhaseInput, config: TimerConfigInput): PhaseResult {
-  let nextStatus: string;
+  let nextStatus: TimerStatus;
   let nextDuration: number | null = null;
   let nextCycle = input.currentCycle;
 

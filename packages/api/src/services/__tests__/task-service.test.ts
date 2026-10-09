@@ -1,3 +1,4 @@
+import { DrizzleQueryError } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
 import type { DbClient } from "@dirework/db";
@@ -54,7 +55,12 @@ function makeDb(opts: StubOptions) {
         return {
           returning: async () => {
             if (shouldFail) {
-              throw new Error("D1_ERROR: UNIQUE constraint failed: task.author_twitch_id");
+              // drizzle-orm/d1 wraps the driver error — the real production shape.
+              throw new DrizzleQueryError(
+                "insert into task ...",
+                [],
+                new Error("D1_ERROR: UNIQUE constraint failed: task.author_twitch_id"),
+              );
             }
             return [{ id: "new-task", ...values }];
           },
@@ -127,7 +133,7 @@ describe("resolveTaskPlacement (audit M6)", () => {
   });
 });
 
-describe("promoteNextPending (audit M5 / P1.7 single statement)", () => {
+describe("promoteNextPending (audit M5, single statement)", () => {
   it("promotes the first pending task to active", async () => {
     const { db, updateSpy } = makeDb({
       taskFindFirst: { id: "t1", status: "pending", authorTwitchId: "456" },
@@ -138,7 +144,7 @@ describe("promoteNextPending (audit M5 / P1.7 single statement)", () => {
   });
 
   it("returns null when the guarded UPDATE matches no row", async () => {
-    // P1.7: promotion is now ONE guarded UPDATE (target chosen by subquery,
+    // Promotion is ONE guarded UPDATE (target chosen by subquery,
     // plus a not-exists guard on an already-active task) instead of a
     // find-then-update pair, so "nothing to promote" surfaces as an empty
     // returning() rather than a skipped write. That's what removes the race
@@ -183,7 +189,7 @@ describe("createTask", () => {
     expect(insertSpy.mock.calls[0]?.[0]).toMatchObject({ status: "active" });
   });
 
-  // ── P1.7 concurrency ──────────────────────────────────────────────────────
+  // ── Concurrency ───────────────────────────────────────────────────────────
   it("falls back to pending when a concurrent create wins the active slot", async () => {
     // Two !task commands from the same viewer both read "no open tasks" and
     // both try to insert an active row. The partial unique index rejects the
@@ -222,7 +228,7 @@ describe("createTask", () => {
   });
 });
 
-// ── P1.7: activate / markDone are single atomic batches ─────────────────────
+// ── activate / markDone are single atomic batches ───────────────────────────
 /**
  * db.batch stub: records the statements handed to it and returns each one's
  * pre-staged result. The point of these tests is that the multi-step task
@@ -252,7 +258,7 @@ function makeBatchDb(opts: { taskFindFirst?: Record<string, unknown>; batchResul
   return { db, batchSpy, setSpy };
 }
 
-describe("activateTask atomicity (P1.7)", () => {
+describe("activateTask atomicity", () => {
   it("demotes and activates in ONE batch, demote first", async () => {
     const { db, batchSpy, setSpy } = makeBatchDb({
       batchResults: [[], [{ id: "t2", status: "active" }]],
@@ -270,7 +276,7 @@ describe("activateTask atomicity (P1.7)", () => {
   });
 });
 
-describe("markTaskDone atomicity (P1.7)", () => {
+describe("markTaskDone atomicity", () => {
   it("completes and promotes in ONE batch when the task was active", async () => {
     const { db, batchSpy, setSpy } = makeBatchDb({
       taskFindFirst: { id: "t1", status: "active", authorTwitchId: "456" },

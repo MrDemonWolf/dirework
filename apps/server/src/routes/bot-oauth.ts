@@ -1,3 +1,4 @@
+import type { BotOAuthErrorCode } from "@dirework/api/config-shared";
 import { TWITCH_FETCH_TIMEOUT_MS } from "@dirework/api/services/twitch-auth";
 import { recordError, recordMetric } from "../lib/telemetry";
 import {
@@ -64,8 +65,8 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-function errorRedirect(reason: string): string {
-  return `${env.BETTER_AUTH_URL}/dashboard/bot?bot=error&reason=${encodeURIComponent(reason)}`;
+function errorRedirect(reason: BotOAuthErrorCode): string {
+  return `${env.BETTER_AUTH_URL}/dashboard/bot?bot=error&reason=${reason}`;
 }
 
 async function safeTwitchFetch(
@@ -84,9 +85,17 @@ async function safeTwitchFetch(
 
 export const botOAuth = new Hono();
 
+/**
+ * Server-side session read. `disableRefresh` because this redirect response is
+ * not where the browser's session cookie gets refreshed — sliding the D1 row
+ * here would desync it from the cookie.
+ */
+function readSession(headers: Headers) {
+  return createAuth().api.getSession({ headers, query: { disableRefresh: true } });
+}
+
 botOAuth.get("/authorize", async (c) => {
-  const auth = createAuth();
-  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  const session = await readSession(c.req.raw.headers);
 
   if (!session) {
     return c.redirect(`${env.BETTER_AUTH_URL}/?error=not_authenticated`);
@@ -119,32 +128,40 @@ botOAuth.get("/authorize", async (c) => {
 });
 
 botOAuth.get("/callback/twitch", async (c) => {
+  // The nonce is single-use: read and clear it before any return, so a cancel
+  // or malformed callback can't leave it valid for the rest of its Max-Age.
+  const storedNonce = getCookie(c, STATE_COOKIE);
+  deleteCookie(c, STATE_COOKIE, { path: STATE_COOKIE_PATH, secure: secureCookie });
+
+  // Twitch sends `error` (e.g. access_denied) when the owner cancels consent.
+  // That is a choice, not a failure — and error_description is never reflected.
+  if (c.req.query("error")) {
+    return c.redirect(`${env.BETTER_AUTH_URL}/dashboard/bot?bot=cancelled`);
+  }
+
   const callback = parseOAuthCallbackParams(c.req.query("code"), c.req.query("state"));
 
   if (!callback) {
-    return c.redirect(errorRedirect("Missing code or state from Twitch"));
+    return c.redirect(
+      errorRedirect(c.req.query("error") === "access_denied" ? "access_denied" : "missing_params"),
+    );
   }
 
   const { code, state } = callback;
   const decoded = parseBotOAuthState(state);
   if (!decoded) {
-    return c.redirect(errorRedirect("Invalid state parameter"));
+    return c.redirect(errorRedirect("invalid_state"));
   }
 
   // Verify CSRF nonce from httpOnly cookie
-  const storedNonce = getCookie(c, STATE_COOKIE);
-  deleteCookie(c, STATE_COOKIE, { path: STATE_COOKIE_PATH, secure: secureCookie });
   if (!storedNonce || !decoded.nonce || !safeEqual(storedNonce, decoded.nonce)) {
-    return c.redirect(errorRedirect("Invalid or expired OAuth state — please try again"));
+    return c.redirect(errorRedirect("state_mismatch"));
   }
 
   // Verify the current session matches the userId from state
-  const auth = createAuth();
-  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  const session = await readSession(c.req.raw.headers);
   if (!session || session.user.id !== decoded.userId || !session.user.isOwner) {
-    return c.redirect(
-      errorRedirect("Session expired or mismatch — please try connecting your bot again"),
-    );
+    return c.redirect(errorRedirect("session_mismatch"));
   }
 
   // Exchange code for tokens. Network/timeout errors are converted to a safe
@@ -167,14 +184,12 @@ botOAuth.get("/callback/twitch", async (c) => {
   );
 
   if (!tokenRes) {
-    return c.redirect(errorRedirect("Twitch token service unavailable — please try again"));
+    return c.redirect(errorRedirect("token_unavailable"));
   }
   if (!tokenRes.ok) {
     // Status only — the response body can echo the submitted code or secret.
     recordMetric("oauth.failure", { label: `token_exchange_${tokenRes.status}` });
-    return c.redirect(
-      errorRedirect("Token exchange failed — check redirect URI matches Twitch app"),
-    );
+    return c.redirect(errorRedirect("token_exchange_failed"));
   }
 
   let tokenBody: unknown;
@@ -186,7 +201,7 @@ botOAuth.get("/callback/twitch", async (c) => {
   const tokens = parseTwitchTokenResponse(tokenBody);
   if (!tokens) {
     recordMetric("oauth.failure", { label: "invalid_token_response" });
-    return c.redirect(errorRedirect("Twitch returned an invalid token response"));
+    return c.redirect(errorRedirect("invalid_token_response"));
   }
 
   const userRes = await safeTwitchFetch(
@@ -202,11 +217,11 @@ botOAuth.get("/callback/twitch", async (c) => {
   );
 
   if (!userRes) {
-    return c.redirect(errorRedirect("Twitch user service unavailable — please try again"));
+    return c.redirect(errorRedirect("user_unavailable"));
   }
   if (!userRes.ok) {
     recordMetric("oauth.failure", { label: `user_lookup_${userRes.status}` });
-    return c.redirect(errorRedirect("Failed to fetch bot user info from Twitch"));
+    return c.redirect(errorRedirect("user_lookup_failed"));
   }
 
   let userBody: unknown;
@@ -218,7 +233,7 @@ botOAuth.get("/callback/twitch", async (c) => {
   const botUser = parseTwitchHelixUser(userBody);
   if (!botUser) {
     recordMetric("oauth.failure", { label: "invalid_user_response" });
-    return c.redirect(errorRedirect("No valid user data returned from Twitch"));
+    return c.redirect(errorRedirect("invalid_user_response"));
   }
 
   // Upsert the singleton bot account row — tokens only ever live in D1.
@@ -230,6 +245,10 @@ botOAuth.get("/callback/twitch", async (c) => {
     refreshToken: tokens.refresh_token,
     expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
     scopes: Array.isArray(tokens.scope) ? tokens.scope : [...BOT_SCOPES],
+    // A reconnect replaces the tokens outright, so any refresh lease left by
+    // an in-flight (now moot) refresh of the OLD tokens must not block the
+    // first refresh of the new ones.
+    refreshLockedUntil: null,
   };
 
   try {
@@ -246,7 +265,7 @@ botOAuth.get("/callback/twitch", async (c) => {
     // the bot's access and refresh tokens.
     recordMetric("db.error", { label: "bot_account_upsert" });
     recordError({ error, url: c.req.url, reason: "bot_account_upsert" });
-    return c.redirect(errorRedirect("Database error saving bot account"));
+    return c.redirect(errorRedirect("db_error"));
   }
 
   return c.redirect(`${env.BETTER_AUTH_URL}/dashboard/bot?bot=connected`);

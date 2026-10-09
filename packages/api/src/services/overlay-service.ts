@@ -1,7 +1,7 @@
 import type { DbClient } from "@dirework/db";
 
 import { buildTaskStylesConfig, buildTimerConfig, buildTimerStylesConfig } from "../config-shared";
-import { listTasks } from "./task-service";
+import { listOverlayTasks } from "./task-service";
 import { maybeAdvanceOverdueTimer } from "./timer-service";
 
 // Overlay payload assembly (L7) — one implementation per overlay type,
@@ -23,10 +23,12 @@ export async function loadTimerOverlayPayload(db: DbClient) {
 }
 
 export async function loadTaskOverlayPayload(db: DbClient) {
-  const [tasks, taskStyleRow] = await Promise.all([listTasks(db), db.query.taskStyle.findFirst()]);
+  // Style first: when the overlay hides done tasks, their rows are never read
+  // (only counted), which keeps every 3s poll to the open tasks.
+  const taskStyleRow = await db.query.taskStyle.findFirst();
+  const taskStyles = taskStyleRow ? buildTaskStylesConfig(taskStyleRow) : null;
+  const showDone = taskStyles?.display.showDone ?? true;
+  const { tasks, counts } = await listOverlayTasks(db, showDone ? undefined : { doneLimit: 0 });
 
-  return {
-    tasks,
-    taskStyles: taskStyleRow ? buildTaskStylesConfig(taskStyleRow) : null,
-  };
+  return { tasks, counts, taskStyles };
 }

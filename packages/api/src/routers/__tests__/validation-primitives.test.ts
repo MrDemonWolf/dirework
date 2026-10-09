@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { getTableColumns, type Table } from "drizzle-orm";
+
+import { taskStyle, timerStyle } from "@dirework/db/schema";
+
 import {
+  buildTaskStylesConfig,
   buildTimerStylesConfig,
   chatMessageSchema,
   cssColorSchema,
@@ -12,6 +17,7 @@ import {
   taskStylesInputSchema,
   timerStylesInputSchema,
   truncateToBytes,
+  truncateToLength,
   utf8ByteLength,
 } from "../../config-shared";
 import { updateTimerConfigInput } from "../input-schemas";
@@ -94,82 +100,29 @@ describe("opacitySchema", () => {
 
 describe("style schemas accept every shipped default", () => {
   // The regexes must never reject a config the app itself ships, or saving an
-  // untouched Theme Center would fail. These rows mirror the .default() values
-  // on the timer_style / task_style tables verbatim.
-  const defaultTimerStyleRow = {
-    id: "singleton",
-    width: "300px",
-    height: "300px",
-    bgColor: "#091533",
-    bgOpacity: 0.85,
-    bgBorderRadius: "22%",
-    ringEnabled: true,
-    ringTrackColor: "#ffffff",
-    ringTrackOpacity: 0.18,
-    ringFillColor: "#00aced",
-    ringFillOpacity: 1.0,
-    ringWidth: 8,
-    ringGap: 6,
-    textColor: "#ffffff",
-    textOutlineColor: "#000000",
-    textOutlineSize: "0px",
-    textFontFamily: "Montserrat",
-    fontSizeLabel: "18px",
-    fontSizeTime: "48px",
-    fontSizeCycle: "16px",
-  };
+  // untouched Theme Center would fail. The rows are read from the real
+  // timer_style / task_style column defaults, so they cannot drift.
+  function defaultRow(table: Table): Record<string, unknown> {
+    const row = Object.fromEntries(
+      Object.entries(getTableColumns(table)).map(([key, column]) => [key, column.default]),
+    );
+    // Every column ships a default; a hole here would make the parse vacuous.
+    for (const [key, value] of Object.entries(row)) expect(value, key).not.toBeUndefined();
+    return row;
+  }
 
   it("round-trips the shipped default timer styles through the input schema", () => {
-    const built = buildTimerStylesConfig(defaultTimerStyleRow as never);
-    // Guard against the row above silently going empty and making this vacuous.
-    expect(built.dimensions.width).toBe("300px");
-    expect(built.background.color).toBe("#091533");
+    const built = buildTimerStylesConfig(defaultRow(timerStyle) as never);
     const parsed = timerStylesInputSchema.safeParse(built);
-    expect(parsed.success).toBe(true);
+    expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+    expect(parsed.data).toEqual(built);
   });
 
-  it("accepts every shipped string default individually", () => {
-    // Pulled from the .default() values across timer_style / task_style.
-    const colors = [
-      "#000000",
-      "#00aced",
-      "#091533",
-      "#12244a",
-      "#1b2b52",
-      "#4a5b82",
-      "#6b8bf5",
-      "#7c8db0",
-      "#eaf2ff",
-      "#ffffff",
-    ];
-    const lengths = [
-      "0 0 12px 12px",
-      "0px",
-      "100%",
-      "10px",
-      "10px 14px",
-      "12px 12px 0 0",
-      "12px 16px",
-      "14px",
-      "16px",
-      "18px",
-      "1px",
-      "20px",
-      "22%",
-      "22px",
-      "24px",
-      "2px",
-      "300px",
-      "48px",
-      "4px",
-      "52px",
-      "6px",
-      "8px",
-    ];
-    for (const c of colors) expect(cssColorSchema.safeParse(c).success, c).toBe(true);
-    for (const l of lengths) expect(cssLengthSchema.safeParse(l).success, l).toBe(true);
-    for (const f of ["Montserrat", "Roboto"])
-      expect(fontFamilySchema.safeParse(f).success, f).toBe(true);
+  it("round-trips the shipped default task styles through the input schema", () => {
+    const built = buildTaskStylesConfig(defaultRow(taskStyle) as never);
+    const parsed = taskStylesInputSchema.safeParse(built);
+    expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+    expect(parsed.data).toEqual(built);
   });
 });
 
@@ -228,6 +181,26 @@ describe("chat message byte bounds", () => {
     expect(emoji.length).toBeLessThanOrEqual(500);
     expect(utf8ByteLength(emoji)).toBeGreaterThan(MAX_MESSAGE_TEMPLATE_BYTES);
     expect(chatMessageSchema.safeParse(emoji).success).toBe(false);
+  });
+});
+
+describe("truncateToLength", () => {
+  it("leaves a short string untouched", () => {
+    expect(truncateToLength("hello", 10)).toBe("hello");
+  });
+
+  it("cuts plain text at exactly the limit", () => {
+    expect(truncateToLength("x".repeat(600), 500)).toHaveLength(500);
+  });
+
+  it("never leaves a lone surrogate where .slice would", () => {
+    // "a" then wolves (2 code units each): code unit 499 is a high surrogate.
+    const value = `a${"🐺".repeat(300)}`;
+    expect(value.slice(0, 500).at(-1)).not.toBe("🐺".at(-1));
+    const out = truncateToLength(value, 500);
+    expect(out).toBe(`a${"🐺".repeat(249)}`);
+    expect(out.length).toBeLessThanOrEqual(500);
+    expect(out.isWellFormed()).toBe(true);
   });
 });
 

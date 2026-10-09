@@ -4,15 +4,18 @@ import {
   MAX_TASK_LEN,
   hasControlCharacters,
   normalizeAliases,
+  phaseLabelsInputSchema,
   taskMessagesInputSchema,
+  taskStylesInputSchema,
   timerMessagesInputSchema,
+  timerStylesInputSchema,
 } from "../config-shared";
 
 // ── Router input schemas ──────────────────────────────────────────────────────
 // Env-free module imported by BOTH the routers and the input-validation unit
 // tests. Vitest (node) cannot load the routers themselves — the tRPC context
-// chain resolves cloudflare:workers — so tests used to hand-copy these schemas
-// and silently drifted from the real ones.
+// chain resolves cloudflare:workers — so keeping the schemas here lets tests
+// drive the real ones instead of hand-copied mirrors that drift.
 
 export const taskTextInput = z
   .string()
@@ -57,7 +60,8 @@ export const updateMessagesInput = z.object({
 
 export const commandAliasesInput = z.object({
   // Normalizes keys/targets to canonical form (no leading "!") and rejects
-  // empty / duplicate / recursive / unknown-target aliases via the SAME shared
+  // empty / multi-word / built-in-shadowing / duplicate / recursive /
+  // unknown-target aliases via the SAME shared
   // validator the dashboard editor uses (config-shared.normalizeAliases).
   commandAliases: z
     .record(z.string().max(50), z.string().max(100))
@@ -76,3 +80,13 @@ export const commandAliasesInput = z.object({
       return aliases;
     }),
 });
+
+/** Whole Theme Center save — the web editor safeParses the same schema before sending. */
+export const updateStylesInput = z.object({
+  timerStyles: timerStylesInputSchema,
+  taskStyles: taskStylesInputSchema,
+  phaseLabels: phaseLabelsInputSchema,
+});
+
+/** Messages + aliases saved together — the web editor safeParses the same schema before sending. */
+export const updateBotSettingsInput = updateMessagesInput.extend(commandAliasesInput.shape);

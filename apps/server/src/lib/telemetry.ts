@@ -1,5 +1,5 @@
 /**
- * Structured, redacted telemetry (P2.17).
+ * Structured, redacted telemetry.
  *
  * Cloudflare Workers observability ingests stdout, so "emitting a metric" here
  * means writing one well-shaped JSON line. Everything goes through these helpers

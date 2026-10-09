@@ -1,8 +1,11 @@
+import type { SQL } from "drizzle-orm";
+import { SQLiteSyncDialect } from "drizzle-orm/sqlite-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DbClient } from "@dirework/db";
 
 import {
+  BOT_REAUTH_REQUIRED_MESSAGE,
   disconnectBotAccount,
   getFreshChatToken,
   refreshBotToken,
@@ -49,7 +52,7 @@ function makeDb(opts: DbOptions = {}) {
     if (isLeaseAcquire) return opts.botAccount ? [opts.botAccount] : [];
     return opts.updatedRow ? [opts.updatedRow] : [];
   });
-  const where = vi.fn(() => ({ returning }));
+  const where = vi.fn((_condition?: SQL) => ({ returning }));
   const set = vi.fn((v: Record<string, unknown>) => {
     lastSet = v;
     return { where };
@@ -67,7 +70,12 @@ function makeDb(opts: DbOptions = {}) {
     delete: del,
   } as unknown as DbClient;
 
-  return { db, update, set, returning, del, deleteWhere };
+  return { db, update, set, where, returning, del, deleteWhere };
+}
+
+/** Render a captured drizzle WHERE condition to SQL text + params. */
+function renderWhere(condition: unknown) {
+  return new SQLiteSyncDialect().sqlToQuery(condition as SQL);
 }
 
 const fetchMock = vi.fn();
@@ -133,13 +141,145 @@ describe("refreshBotToken", () => {
     );
   });
 
-  it("throws UNAUTHORIZED when Twitch rejects the refresh", async () => {
-    const { db } = makeDb({ botAccount: makeAccount() });
+  it.each([400, 401, 403])(
+    "throws PRECONDITION_FAILED (reconnect needed) when Twitch rejects the refresh with %i",
+    async (status) => {
+      const { db } = makeDb({ botAccount: makeAccount() });
+      fetchMock.mockResolvedValueOnce({ ok: false, status });
+
+      // The bot page matches on this exact message (classifyBotError) to show
+      // the reconnect screen instead of retrying forever.
+      await expect(refreshBotToken(db, CREDS)).rejects.toMatchObject({
+        code: "PRECONDITION_FAILED",
+        message: BOT_REAUTH_REQUIRED_MESSAGE,
+      });
+    },
+  );
+
+  it.each([429, 500, 503])(
+    "throws SERVICE_UNAVAILABLE (transient) when Twitch answers %i",
+    async (status) => {
+      const { db } = makeDb({ botAccount: makeAccount() });
+      fetchMock.mockResolvedValueOnce({ ok: false, status });
+
+      await expect(refreshBotToken(db, CREDS)).rejects.toMatchObject({
+        code: "SERVICE_UNAVAILABLE",
+      });
+    },
+  );
+
+  it("throws SERVICE_UNAVAILABLE and releases the lease when Twitch is unreachable", async () => {
+    const { db, set } = makeDb({ botAccount: makeAccount() });
+    fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+
+    await expect(refreshBotToken(db, CREDS)).rejects.toMatchObject({
+      code: "SERVICE_UNAVAILABLE",
+    });
+    expect(set).toHaveBeenLastCalledWith({ refreshLockedUntil: null });
+  });
+
+  it("releases the lease when Twitch rejects the refresh", async () => {
+    const { db, update, set } = makeDb({ botAccount: makeAccount() });
     fetchMock.mockResolvedValueOnce({ ok: false, status: 400 });
 
     await expect(refreshBotToken(db, CREDS)).rejects.toMatchObject({
-      code: "UNAUTHORIZED",
+      code: "PRECONDITION_FAILED",
+      message: BOT_REAUTH_REQUIRED_MESSAGE,
     });
+    // Acquire, then release — a failed refresh must not block the next attempt.
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(set).toHaveBeenLastCalledWith({ refreshLockedUntil: null });
+  });
+
+  it("releases the lease when Twitch returns an unusable token response", async () => {
+    for (const response of [
+      { ok: true, json: async () => Promise.reject(new Error("bad json")) },
+      okJson({ access_token: "" }),
+    ]) {
+      const { db, update, set } = makeDb({ botAccount: makeAccount() });
+      fetchMock.mockResolvedValueOnce(response);
+
+      await expect(refreshBotToken(db, CREDS)).rejects.toMatchObject({ code: "BAD_GATEWAY" });
+      expect(update).toHaveBeenCalledTimes(2);
+      expect(set).toHaveBeenLastCalledWith({ refreshLockedUntil: null });
+    }
+  });
+
+  it("acquires the lease only when it is free or expired", async () => {
+    const { db, where } = makeDb({ botAccount: makeAccount() });
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 400 });
+    const before = Date.now();
+
+    await refreshBotToken(db, CREDS).catch(() => undefined);
+
+    const lease = renderWhere(where.mock.calls[0]?.[0]);
+    // Without the expiry clause one crashed refresh would hold the lease forever.
+    expect(lease.sql).toContain('"refresh_locked_until" is null');
+    expect(lease.sql).toContain('"refresh_locked_until" < ?');
+    const [, lockedBefore] = lease.params as [string, number];
+    expect(lockedBefore).toBeGreaterThanOrEqual(before);
+    expect(lockedBefore).toBeLessThanOrEqual(Date.now());
+  });
+
+  it("spends the refresh token as of the lease, not the pre-lease read", async () => {
+    // Another refresh committed between our read and our lease: the row we
+    // leased already carries the rotated token, and the old one is dead.
+    const leasedRow = makeAccount({ refreshToken: "rotated-refresh" });
+    const findFirst = vi.fn(async () => makeAccount());
+    const sets: Record<string, unknown>[] = [];
+    const wheres: unknown[] = [];
+    const db = {
+      query: { botAccount: { findFirst } },
+      update: () => ({
+        set: (values: Record<string, unknown>) => {
+          sets.push(values);
+          return {
+            where: (condition: unknown) => {
+              wheres.push(condition);
+              return { returning: async () => [{ ...leasedRow, ...values }] };
+            },
+          };
+        },
+      }),
+    } as unknown as DbClient;
+    fetchMock.mockResolvedValueOnce(okJson({ access_token: "new-access", expires_in: 3600 }));
+
+    await refreshBotToken(db, CREDS);
+
+    const [, init] = fetchMock.mock.calls[0] as [string, { body: URLSearchParams }];
+    expect(init.body.get("refresh_token")).toBe("rotated-refresh");
+    expect(sets[1]).toMatchObject({ refreshToken: "rotated-refresh" });
+    // The persist is conditional on the token we spent.
+    expect(renderWhere(wheres[1]).params).toContain("rotated-refresh");
+  });
+
+  it("does not overwrite tokens that changed while it held the lease", async () => {
+    const current = makeAccount({ accessToken: "someone-else", refreshToken: "newer-refresh" });
+    const findFirst = vi
+      .fn()
+      .mockResolvedValueOnce(makeAccount()) // pre-lease read
+      .mockResolvedValue(current); // re-read after the conditional persist missed
+    const sets: Record<string, unknown>[] = [];
+    let call = 0;
+    const db = {
+      query: { botAccount: { findFirst } },
+      update: () => ({
+        set: (values: Record<string, unknown>) => {
+          sets.push(values);
+          call += 1;
+          const rows = call === 1 ? [makeAccount()] : [];
+          return { where: () => ({ returning: async () => rows }) };
+        },
+      }),
+    } as unknown as DbClient;
+    fetchMock.mockResolvedValueOnce(okJson({ access_token: "new-access", expires_in: 3600 }));
+
+    const result = await refreshBotToken(db, CREDS);
+
+    expect(result).toBe(current);
+    // acquire → conditional persist (missed) → release
+    expect(sets).toHaveLength(3);
+    expect(sets[2]).toEqual({ refreshLockedUntil: null });
   });
 
   it("persists the rotated refresh token and releases the lease", async () => {
@@ -194,6 +334,124 @@ describe("refreshBotToken", () => {
 
       expect(fetchMock).not.toHaveBeenCalled(); // never fired a 2nd refresh
       expect(result?.accessToken).toBe("winner-access");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a loser accepts a winner that kept the same refresh token", async () => {
+    vi.useFakeTimers();
+    try {
+      // Twitch may return no new refresh token: only the access token changes.
+      const published = makeAccount({ accessToken: "winner-access", refreshLockedUntil: null });
+      const findFirst = vi.fn().mockResolvedValueOnce(makeAccount()).mockResolvedValue(published);
+      const db = {
+        query: { botAccount: { findFirst } },
+        update: () => ({ set: () => ({ where: () => ({ returning: async () => [] }) }) }),
+      } as unknown as DbClient;
+
+      const promise = refreshBotToken(db, CREDS);
+      await vi.advanceTimersByTimeAsync(500);
+      const result = await promise;
+
+      expect(result?.accessToken).toBe("winner-access");
+      expect(findFirst).toHaveBeenCalledTimes(2); // returned on the first poll
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a loser whose holder failed stops waiting and surfaces the real failure", async () => {
+    vi.useFakeTimers();
+    try {
+      // The holder's refresh failed: lease released, every token unchanged.
+      const released = makeAccount({ refreshLockedUntil: null });
+      const findFirst = vi.fn().mockResolvedValueOnce(makeAccount()).mockResolvedValue(released);
+      let cas = 0;
+      const sets: Record<string, unknown>[] = [];
+      const db = {
+        query: { botAccount: { findFirst } },
+        update: () => ({
+          set: (values: Record<string, unknown>) => {
+            sets.push(values);
+            const isAcquire = values.refreshLockedUntil instanceof Date;
+            if (isAcquire) cas += 1;
+            // First CAS loses (holder in flight); the retry acquires.
+            const rows = isAcquire && cas === 2 ? [released] : [];
+            return { where: () => ({ returning: async () => rows }) };
+          },
+        }),
+      } as unknown as DbClient;
+      // Twitch rejects the (already rejected) refresh token again → reauth.
+      fetchMock.mockResolvedValueOnce({ ok: false, status: 400 });
+
+      const promise = refreshBotToken(db, CREDS);
+      const assertion = expect(promise).rejects.toMatchObject({
+        code: "PRECONDITION_FAILED",
+        message: BOT_REAUTH_REQUIRED_MESSAGE,
+      });
+      await vi.advanceTimersByTimeAsync(500); // one poll, not the ~10s budget
+      await assertion;
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(cas).toBe(2);
+      expect(sets.at(-1)).toEqual({ refreshLockedUntil: null }); // released its own lease
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a loser that re-contends after the holder failed reports a transient error", async () => {
+    vi.useFakeTimers();
+    try {
+      const released = makeAccount({ refreshLockedUntil: null });
+      const findFirst = vi.fn().mockResolvedValueOnce(makeAccount()).mockResolvedValue(released);
+      const db = {
+        query: { botAccount: { findFirst } },
+        update: () => ({ set: () => ({ where: () => ({ returning: async () => [] }) }) }),
+      } as unknown as DbClient;
+
+      const promise = refreshBotToken(db, CREDS);
+      const assertion = expect(promise).rejects.toMatchObject({ code: "SERVICE_UNAVAILABLE" });
+      await vi.advanceTimersByTimeAsync(500);
+      await assertion;
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("releases the lease only if it still holds its own lease value", async () => {
+    const { db, set, where } = makeDb({ botAccount: makeAccount() });
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 400 });
+
+    await refreshBotToken(db, CREDS).catch(() => undefined);
+
+    const [acquireSet] = set.mock.calls[0] ?? [];
+    const acquired = acquireSet?.refreshLockedUntil;
+    if (!(acquired instanceof Date)) throw new Error("lease was not acquired with a Date");
+    const release = renderWhere(where.mock.calls.at(-1)?.[0]);
+    expect(release.sql).toContain('"refresh_locked_until" = ?');
+    expect(release.params).toContain(acquired.getTime());
+  });
+
+  it("a loser gives up after the wait budget without calling Twitch", async () => {
+    vi.useFakeTimers();
+    try {
+      // The holder crashed: the lease stays held and nothing is ever published.
+      const stuck = makeAccount({ refreshLockedUntil: new Date(Date.now() + 15_000) });
+      const findFirst = vi.fn(async () => stuck);
+      const db = {
+        query: { botAccount: { findFirst } },
+        update: () => ({ set: () => ({ where: () => ({ returning: async () => [] }) }) }),
+      } as unknown as DbClient;
+
+      const promise = refreshBotToken(db, CREDS);
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      expect(result).toBe(stuck);
+      expect(fetchMock).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }
@@ -281,7 +539,7 @@ describe("disconnectBotAccount", () => {
     const { db, del, deleteWhere } = makeDb({ botAccount: makeAccount() });
     fetchMock.mockResolvedValueOnce({ ok: true });
 
-    await disconnectBotAccount(db, CREDS);
+    expect(await disconnectBotAccount(db, CREDS)).toEqual({ revoked: true });
 
     const [url, init] = fetchMock.mock.calls[0] as [string, { body: URLSearchParams }];
     expect(url).toBe("https://id.twitch.tv/oauth2/revoke");
@@ -292,20 +550,62 @@ describe("disconnectBotAccount", () => {
     expect(deleteWhere).toHaveBeenCalledTimes(1);
   });
 
-  it("still deletes the account when revocation fails", async () => {
+  it("still deletes the account when revocation fails, and reports it", async () => {
     const { db, del, deleteWhere } = makeDb({ botAccount: makeAccount() });
-    fetchMock.mockRejectedValueOnce(new Error("network down"));
+    fetchMock.mockRejectedValue(new Error("network down"));
 
-    await disconnectBotAccount(db, CREDS);
+    expect(await disconnectBotAccount(db, CREDS)).toEqual({ revoked: false });
 
     expect(del).toHaveBeenCalledTimes(1);
+    expect(deleteWhere).toHaveBeenCalledTimes(1);
+  });
+
+  it("refreshes an expired token first and revokes the fresh one", async () => {
+    const { db, deleteWhere } = makeDb({
+      botAccount: makeAccount({ expiresAt: new Date(Date.now() - 60_000) }),
+      updatedRow: makeAccount({ accessToken: "fresh-access" }),
+    });
+    fetchMock
+      .mockResolvedValueOnce(okJson({ access_token: "fresh-access", expires_in: 3600 })) // refresh
+      .mockResolvedValueOnce({ ok: true }); // revoke
+
+    expect(await disconnectBotAccount(db, CREDS)).toEqual({ revoked: true });
+
+    const [url, init] = fetchMock.mock.calls[1] as [string, { body: URLSearchParams }];
+    expect(url).toBe("https://id.twitch.tv/oauth2/revoke");
+    expect(init.body.get("token")).toBe("fresh-access");
+    expect(deleteWhere).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries with a refreshed token when Twitch rejects the stored one", async () => {
+    const { db } = makeDb({
+      botAccount: makeAccount(),
+      updatedRow: makeAccount({ accessToken: "fresh-access" }),
+    });
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 400 }) // revoke stored token → dead
+      .mockResolvedValueOnce(okJson({ access_token: "fresh-access", expires_in: 3600 }))
+      .mockResolvedValueOnce({ ok: true }); // revoke fresh token
+
+    expect(await disconnectBotAccount(db, CREDS)).toEqual({ revoked: true });
+    const [, init] = fetchMock.mock.calls[2] as [string, { body: URLSearchParams }];
+    expect(init.body.get("token")).toBe("fresh-access");
+  });
+
+  it("reports an unconfirmed revocation when the refresh also fails", async () => {
+    const { db, deleteWhere } = makeDb({
+      botAccount: makeAccount({ expiresAt: new Date(Date.now() - 60_000) }),
+    });
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 400 }); // refresh rejected
+
+    expect(await disconnectBotAccount(db, CREDS)).toEqual({ revoked: false });
     expect(deleteWhere).toHaveBeenCalledTimes(1);
   });
 
   it("skips revocation when no account exists but still clears the row", async () => {
     const { db, del, deleteWhere } = makeDb({ botAccount: undefined });
 
-    await disconnectBotAccount(db, CREDS);
+    expect(await disconnectBotAccount(db, CREDS)).toEqual({ revoked: false });
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(del).toHaveBeenCalledTimes(1);
@@ -316,12 +616,44 @@ describe("disconnectBotAccount", () => {
 describe("resolveChannelLogin", () => {
   const helix = { clientId: "client-id", accessToken: "chat-token" };
 
-  it("returns the cached login without hitting Helix", async () => {
-    const { db } = makeDb({ instanceConfig: { channelLogin: "mrdemonwolf" } });
+  it("re-resolves the login by twitchId so a Twitch rename is picked up", async () => {
+    const { db, set } = makeDb({
+      instanceConfig: { channelLogin: "oldwolf" },
+      updatedRow: { channelLogin: "newwolf" },
+    });
+    fetchMock.mockResolvedValueOnce(okJson({ data: [{ login: "NewWolf" }] }));
+
+    expect(await resolveChannelLogin(db, helix, { twitchId: "42", fallbackName: "OldWolf" })).toBe(
+      "newwolf",
+    );
+    expect(set).toHaveBeenCalledWith({ channelLogin: "newwolf" });
+  });
+
+  it("does not rewrite an unchanged cached login", async () => {
+    const { db, set } = makeDb({ instanceConfig: { channelLogin: "mrdemonwolf" } });
+    fetchMock.mockResolvedValueOnce(okJson({ data: [{ login: "mrdemonwolf" }] }));
 
     expect(
       await resolveChannelLogin(db, helix, { twitchId: "42", fallbackName: "MrDemonWolf" }),
     ).toBe("mrdemonwolf");
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the cached login when Helix fails", async () => {
+    const { db } = makeDb({ instanceConfig: { channelLogin: "mrdemonwolf" } });
+    fetchMock.mockRejectedValueOnce(new Error("network down"));
+
+    expect(
+      await resolveChannelLogin(db, helix, { twitchId: "42", fallbackName: "Display Name" }),
+    ).toBe("mrdemonwolf");
+  });
+
+  it("uses the cached login without Helix when there is no twitchId", async () => {
+    const { db } = makeDb({ instanceConfig: { channelLogin: "mrdemonwolf" } });
+
+    expect(await resolveChannelLogin(db, helix, { twitchId: null, fallbackName: "Dev" })).toBe(
+      "mrdemonwolf",
+    );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

@@ -4,7 +4,7 @@ import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
 
 import { ownerProcedure, publicProcedure, router } from "../index";
-import { updateSingleton } from "../services/singleton";
+import { rotateInstanceToken } from "../services/tokens";
 import { disconnectBotAccount } from "../services/twitch-auth";
 import { regenerateOverlayTokenInput } from "./input-schemas";
 
@@ -52,18 +52,18 @@ export const userRouter = router({
   regenerateOverlayToken: ownerProcedure
     .input(regenerateOverlayTokenInput)
     .mutation(async ({ ctx, input }) => {
-      const token = crypto.randomUUID();
-      const set =
-        input.type === "timer" ? { overlayTimerToken: token } : { overlayTasksToken: token };
-      await updateSingleton(ctx.db, schema.instanceConfig, set);
+      const token = await rotateInstanceToken(
+        ctx.db,
+        input.type === "timer" ? "overlayTimerToken" : "overlayTasksToken",
+      );
       return { token };
     }),
 
   disconnectBot: ownerProcedure.mutation(async ({ ctx }) => {
-    await disconnectBotAccount(ctx.db, {
+    const { revoked } = await disconnectBotAccount(ctx.db, {
       clientId: env.TWITCH_CLIENT_ID,
       clientSecret: env.TWITCH_CLIENT_SECRET,
     });
-    return { success: true };
+    return { success: true, revoked };
   }),
 });

@@ -1,85 +1,61 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { DbClient } from "@dirework/db";
+import * as schema from "@dirework/db/schema";
+import { beforeEach, describe, expect, it } from "vitest";
 
-const { mockSelect, mockDb } = vi.hoisted(() => {
-  const mockSelect = vi.fn();
-  const mockDb = { select: mockSelect };
-  return { mockSelect, mockDb };
+import { claimInstance, hasOwner, purgeExpiredSessions } from "../index";
+import { createTestDb } from "./stubs/test-db";
+
+let db: DbClient;
+
+beforeEach(async () => {
+  db = await createTestDb();
 });
 
-vi.mock("@dirework/db", () => ({ createDb: () => mockDb }));
-// The shared provisioning helper pulls in the real drizzle schema — stub it
-// (drizzle-orm is mocked below with only `count`, so the real one can't load).
-vi.mock("@dirework/db/provision", () => ({
-  provisionSingletonRows: vi.fn(async () => undefined),
-}));
-vi.mock("@dirework/db/schema", () => ({
-  SINGLETON_ID: "singleton",
-  user: {},
-  timerConfig: {},
-  timerStyle: {},
-  taskStyle: {},
-  botConfig: {},
-  instanceConfig: {},
-}));
-vi.mock("@dirework/env/server", () => ({
-  env: {
-    CORS_ORIGIN: "http://localhost",
-    TWITCH_CLIENT_ID: "test",
-    TWITCH_CLIENT_SECRET: "test",
-    BETTER_AUTH_SECRET: "a".repeat(32),
-    BETTER_AUTH_URL: "http://localhost:3001",
-  },
-}));
-vi.mock("better-auth", () => ({ betterAuth: () => ({}) }));
-vi.mock("better-auth/adapters/drizzle", () => ({
-  drizzleAdapter: () => ({}),
-}));
-vi.mock("better-auth/api", () => ({
-  APIError: class APIError extends Error {
-    constructor(_code: string, opts: { message: string }) {
-      super(opts.message);
-    }
-  },
-}));
-vi.mock("drizzle-orm", () => ({
-  count: () => "count()",
-}));
-
-import { hasOwner } from "../index";
-
-function mockUserCount(n: number) {
-  mockSelect.mockReturnValue({
-    from: () => Promise.resolve([{ count: n }]),
-  });
+async function insertUser(id: string) {
+  await db.insert(schema.user).values({ id, name: id, email: `${id}@example.test` });
 }
 
 describe("hasOwner", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it("returns false when no users exist", async () => {
-    mockUserCount(0);
-    expect(await hasOwner()).toBe(false);
+    expect(await hasOwner(db)).toBe(false);
   });
 
   it("returns true when one user exists", async () => {
-    mockUserCount(1);
-    expect(await hasOwner()).toBe(true);
+    await insertUser("u1");
+    expect(await hasOwner(db)).toBe(true);
   });
 
   it("returns true when multiple users exist", async () => {
-    mockUserCount(3);
-    expect(await hasOwner()).toBe(true);
+    await insertUser("u1");
+    await insertUser("u2");
+    expect(await hasOwner(db)).toBe(true);
+  });
+});
+
+describe("claimInstance", () => {
+  it("makes the first user the owner", async () => {
+    const result = await claimInstance(db, { name: "streamer" });
+    expect(result.data).toMatchObject({ name: "streamer", isOwner: true });
   });
 
-  it("uses an injected db client when provided", async () => {
-    const injectedSelect = vi.fn().mockReturnValue({
-      from: () => Promise.resolve([{ count: 1 }]),
-    });
-    const injectedDb = { select: injectedSelect } as never;
-    expect(await hasOwner(injectedDb)).toBe(true);
-    expect(injectedSelect).toHaveBeenCalledOnce();
-    expect(mockSelect).not.toHaveBeenCalled();
+  it("refuses every user once the instance is claimed", async () => {
+    await insertUser("owner");
+    await expect(claimInstance(db, { name: "intruder" })).rejects.toThrow(/instance_claimed/);
+  });
+});
+
+describe("purgeExpiredSessions", () => {
+  it("deletes only sessions that have already expired", async () => {
+    await insertUser("u1");
+    const now = new Date("2026-06-01T00:00:00Z");
+    await db.insert(schema.session).values([
+      { id: "old", token: "t-old", userId: "u1", expiresAt: new Date(now.getTime() - 1) },
+      { id: "live", token: "t-live", userId: "u1", expiresAt: new Date(now.getTime() + 60_000) },
+    ]);
+
+    await purgeExpiredSessions(db, now);
+
+    const remaining = await db.select({ id: schema.session.id }).from(schema.session);
+    expect(remaining.map((row) => row.id)).toEqual(["live"]);
   });
 });

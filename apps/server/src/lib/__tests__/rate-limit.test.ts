@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { CLIENT_IP_SIGNATURE_HEADER, stampClientIp } from "@dirework/api/proxy-identity";
+import { makeSignature } from "better-auth/crypto";
+
 import { clientKey, rateLimiter, selectBucket } from "../rate-limit";
 
 describe("selectBucket", () => {
@@ -36,21 +39,97 @@ describe("selectBucket", () => {
 });
 
 describe("clientKey", () => {
-  it("keys on the Cloudflare-set client IP", () => {
+  const AUTH_SECRET = "a".repeat(40);
+  const PROXY_SECRET = "p".repeat(40);
+  const secrets = { BETTER_AUTH_SECRET: AUTH_SECRET, PROXY_SECRET };
+
+  /** A session cookie signed exactly the way better-auth signs it. */
+  async function sessionCookie(token: string, secret = AUTH_SECRET) {
+    const value = encodeURIComponent(`${token}.${await makeSignature(token, secret)}`);
+    return `__Secure-better-auth.session_token=${value}`;
+  }
+
+  it("keys on the Cloudflare-set client IP", async () => {
     const headers = new Headers({ "cf-connecting-ip": "203.0.113.7" });
-    expect(clientKey(headers, "RL_BOT")).toBe("RL_BOT:203.0.113.7");
+    expect(await clientKey(headers, "RL_BOT")).toBe("RL_BOT:ip:203.0.113.7");
   });
 
-  it("ignores a client-supplied X-Forwarded-For", () => {
+  it("ignores a client-supplied X-Forwarded-For", async () => {
     // XFF is attacker-controlled; trusting it would let one client masquerade
     // as unlimited distinct clients and bypass the limiter entirely.
     const headers = new Headers({ "x-forwarded-for": "1.2.3.4" });
-    expect(clientKey(headers, "RL_BOT")).toBe("RL_BOT:unknown");
+    expect(await clientKey(headers, "RL_BOT", secrets)).toBe("RL_BOT:ip:unknown");
   });
 
-  it("namespaces the key per bucket", () => {
+  it("namespaces the key per bucket", async () => {
     const headers = new Headers({ "cf-connecting-ip": "203.0.113.7" });
-    expect(clientKey(headers, "RL_AUTH")).not.toBe(clientKey(headers, "RL_BOT"));
+    expect(await clientKey(headers, "RL_AUTH")).not.toBe(await clientKey(headers, "RL_BOT"));
+  });
+
+  it("trusts the web worker's forwarded IP only with a valid PROXY_SECRET signature", async () => {
+    const headers = await stampClientIp(
+      new Headers({ "cf-connecting-ip": "198.51.100.1" }), // the web worker's egress
+      "203.0.113.7",
+      PROXY_SECRET,
+    );
+    expect(await clientKey(headers, "RL_TOKEN", secrets)).toBe("RL_TOKEN:ip:203.0.113.7");
+  });
+
+  it.each([
+    ["a forged signature", "AAAA"],
+    ["a signature made with another secret", null],
+  ])("falls back to CF-Connecting-IP for %s", async (_label, forged) => {
+    const headers = new Headers({ "cf-connecting-ip": "198.51.100.1" });
+    await stampClientIp(headers, "203.0.113.7", "x".repeat(40));
+    if (forged) headers.set(CLIENT_IP_SIGNATURE_HEADER, forged);
+    expect(await clientKey(headers, "RL_TOKEN", secrets)).toBe("RL_TOKEN:ip:198.51.100.1");
+  });
+
+  it("does not trust a forwarded IP when the api worker has no PROXY_SECRET", async () => {
+    const headers = await stampClientIp(
+      new Headers({ "cf-connecting-ip": "198.51.100.1" }),
+      "203.0.113.7",
+      PROXY_SECRET,
+    );
+    expect(await clientKey(headers, "RL_TOKEN", { BETTER_AUTH_SECRET: AUTH_SECRET })).toBe(
+      "RL_TOKEN:ip:198.51.100.1",
+    );
+  });
+
+  it("keys a correctly signed session cookie by a hash of the session token", async () => {
+    const headers = new Headers({
+      cookie: `theme=dark; ${await sessionCookie("session-token-1")}`,
+      "cf-connecting-ip": "198.51.100.1",
+    });
+    const key = await clientKey(headers, "RL_TOKEN", secrets);
+    expect(key).toMatch(/^RL_TOKEN:session:[0-9a-f]{32}$/);
+    // The raw token never becomes (part of) the key.
+    expect(key).not.toContain("session-token-1");
+
+    const other = new Headers({ cookie: await sessionCookie("session-token-2") });
+    expect(await clientKey(other, "RL_TOKEN", secrets)).not.toBe(key);
+  });
+
+  it.each([
+    ["an unsigned random cookie", async () => "__Secure-better-auth.session_token=random-value"],
+    ["a cookie signed with another secret", () => sessionCookie("tok", "z".repeat(40))],
+    [
+      "a tampered token",
+      async () => (await sessionCookie("tok")).replace("session_token=tok", "session_token=tak"),
+    ],
+  ])("never mints a session bucket for %s", async (_label, makeCookie) => {
+    // The limiter runs before better-auth: an attacker rotating fake cookies
+    // must stay in their IP bucket, not get a fresh bucket per request.
+    const headers = new Headers({ cookie: await makeCookie(), "cf-connecting-ip": "203.0.113.9" });
+    expect(await clientKey(headers, "RL_AUTH", secrets)).toBe("RL_AUTH:ip:203.0.113.9");
+  });
+
+  it("ignores session cookies when BETTER_AUTH_SECRET is not bound", async () => {
+    const headers = new Headers({
+      cookie: await sessionCookie("tok"),
+      "cf-connecting-ip": "203.0.113.9",
+    });
+    expect(await clientKey(headers, "RL_AUTH", { PROXY_SECRET })).toBe("RL_AUTH:ip:203.0.113.9");
   });
 });
 
@@ -78,6 +157,28 @@ describe("rateLimiter middleware", () => {
 
     expect(limit).toHaveBeenCalledOnce();
     expect(next).toHaveBeenCalledOnce();
+  });
+
+  it("keys proxied requests on the signed browser IP from the worker env", async () => {
+    const limit = vi.fn(async (_opts: { key: string }) => ({ success: true }));
+    const secret = "p".repeat(40);
+    const headers = await stampClientIp(
+      new Headers({ "cf-connecting-ip": "198.51.100.1" }),
+      "203.0.113.7",
+      secret,
+    );
+    const ctx = makeCtx(
+      "https://api.test/trpc/timer.get",
+      { RL_TOKEN: { limit }, PROXY_SECRET: secret },
+      Object.fromEntries(headers),
+    );
+
+    await rateLimiter()(
+      ctx as never,
+      vi.fn(async () => undefined),
+    );
+
+    expect(limit).toHaveBeenCalledWith({ key: "RL_TOKEN:ip:203.0.113.7" });
   });
 
   it("returns 429 without calling the handler when over the limit", async () => {
@@ -127,9 +228,17 @@ describe("rateLimiter middleware", () => {
     // not a dependency.
     const next = vi.fn(async () => undefined);
     const ctx = makeCtx("https://api.test/trpc/bot.ingest", {});
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
     await rateLimiter()(ctx as never, next);
 
     expect(next).toHaveBeenCalledOnce();
+    // ...but a deploy that lost its bindings must still show up in telemetry.
+    expect(JSON.parse(String(log.mock.calls[0]?.[0]))).toMatchObject({
+      metric: "ratelimit.failure",
+      label: "RL_BOT:missing",
+      requestId: "test-request-id",
+    });
+    log.mockRestore();
   });
 });

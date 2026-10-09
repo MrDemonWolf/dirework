@@ -3,25 +3,81 @@
 // imported by Vitest (node) and by apps/web, neither of which can resolve
 // cloudflare:workers. The only runtime deps are zod and the (env-free)
 // @dirework/db schema/defaults modules. Type-only imports are erased and
-// therefore safe.
+// therefore safe. Browser-bundled constants and helpers that need neither zod
+// nor the schema live in ./config-defaults and ./chat-text (re-exported here).
 import { z } from "zod";
 
 import type { BotConfig, TaskStyle, TimerConfig, TimerStyle } from "@dirework/db";
-import {
-  DEFAULT_PHASE_LABELS as DB_DEFAULT_PHASE_LABELS,
-  DEFAULT_TASK_MESSAGES as DB_DEFAULT_TASK_MESSAGES,
-  DEFAULT_TIMER_MESSAGES as DB_DEFAULT_TIMER_MESSAGES,
-  TIMER_CONFIG_DEFAULTS as DB_TIMER_CONFIG_DEFAULTS,
-} from "@dirework/db/defaults";
+
+import type { TimerStatus } from "@dirework/db/defaults";
+
+import { hasControlCharacters, utf8ByteLength } from "./chat-text";
+
+export {
+  hasControlCharacters,
+  MAX_CHAT_BYTES,
+  replaceControlCharacters,
+  truncateToBytes,
+  truncateToLength,
+  utf8ByteLength,
+} from "./chat-text";
+export {
+  DEFAULT_PHASE_LABELS,
+  DEFAULT_TASK_MESSAGES,
+  DEFAULT_TIMER_MESSAGES,
+  MAX_TASK_LEN,
+  TIMER_CONFIG_DEFAULTS,
+} from "./config-defaults";
 
 /** Singleton-row primary key used by every one-row config table (single source: packages/db schema). */
 export { SINGLETON_ID } from "@dirework/db/schema";
 
-/** Maximum task text length — enforced by tRPC input schemas AND the chat path. */
-export const MAX_TASK_LEN = 500;
-
 /** Per-user open (pending+active) task cap enforced on the chat ingest path. */
 export const CHAT_OPEN_TASK_CAP = 20;
+
+/**
+ * Max procedures in one tRPC batch request. The rate limiter charges a whole
+ * request once, so an unbounded batch would let one request run hundreds of
+ * procedures. The server rejects larger batches; client links split at it.
+ */
+export const TRPC_MAX_BATCH_SIZE = 10;
+
+/**
+ * PRECONDITION_FAILED message for a bot login that can no longer be refreshed.
+ * The bot page matches on it (not the bare code) to show the reconnect screen.
+ */
+export const BOT_REAUTH_REQUIRED_MESSAGE =
+  "Twitch token refresh failed — reconnect the bot account";
+
+// ── Bot OAuth callback errors ────────────────────────────────────────────────
+// The bot OAuth callback redirects to `/dashboard/bot?bot=error&reason=<code>`.
+// The dashboard maps the code to fixed copy and never renders the raw query
+// param, so a crafted link can't put attacker-written text in an error toast.
+export const BOT_OAUTH_ERROR_MESSAGES = {
+  access_denied: "Twitch authorization was cancelled.",
+  missing_params: "Twitch didn't return an authorization code.",
+  invalid_state: "The OAuth state was invalid.",
+  state_mismatch: "The OAuth request expired.",
+  session_mismatch: "Your session expired or changed during sign-in.",
+  token_unavailable: "Twitch's token service didn't respond.",
+  token_exchange_failed: "Twitch rejected the token exchange — check the app's redirect URL.",
+  invalid_token_response: "Twitch returned an invalid token response.",
+  user_unavailable: "Twitch's user service didn't respond.",
+  user_lookup_failed: "Couldn't look up the bot account on Twitch.",
+  invalid_user_response: "Twitch returned no valid user data.",
+  db_error: "The bot account couldn't be saved.",
+} as const;
+
+export type BotOAuthErrorCode = keyof typeof BOT_OAUTH_ERROR_MESSAGES;
+
+/** Fixed toast copy for a `?reason=` code; unknown or missing codes get a generic message. */
+export function botOAuthErrorMessage(code: string | null | undefined): string {
+  const detail =
+    code && Object.hasOwn(BOT_OAUTH_ERROR_MESSAGES, code)
+      ? BOT_OAUTH_ERROR_MESSAGES[code as BotOAuthErrorCode]
+      : "Something went wrong.";
+  return `Couldn't connect the bot account. ${detail} Try again.`;
+}
 
 // ── Command aliases (single source, env-free) ────────────────────────────────
 // Canonical bot command names an alias may target — stored WITHOUT the leading
@@ -42,70 +98,105 @@ export const KNOWN_ALIAS_TARGETS = [
   "timer",
 ] as const;
 
+/** Always-on meta commands. Not alias targets, but their names can't be aliased either. */
+export const META_COMMANDS = ["dwhelp", "dwcommands"] as const;
+
+const BUILTIN_COMMAND_NAMES = new Set<string>([...KNOWN_ALIAS_TARGETS, ...META_COMMANDS]);
+
+/** True when a canonical token (no "!") is a built-in command name. */
+export function isBuiltinCommandName(token: string): boolean {
+  return BUILTIN_COMMAND_NAMES.has(token);
+}
+
 /** Strip any leading "!", trim, lowercase, take the first token → canonical alias/target. */
 export function normalizeAliasToken(raw: string): string {
   return raw.trim().replace(/^!+/, "").trim().toLowerCase().split(/\s+/)[0] ?? "";
 }
 
-export type AliasIssueReason = "empty" | "duplicate" | "recursive" | "unknown-target";
+/**
+ * True when an alias or target is more than one word ("!timer start"). Aliases
+ * map one command name to another and carry no arguments, so normalizing would
+ * silently drop everything after the first word.
+ */
+export function aliasTokenHasWhitespace(raw: string): boolean {
+  return /\s/.test(raw.trim().replace(/^!+/, "").trim());
+}
+
+export type AliasIssueReason =
+  | "empty"
+  | "multi-word"
+  | "shadows-builtin"
+  | "duplicate"
+  | "recursive"
+  | "unknown-target";
 export interface AliasIssue {
   key: string;
   reason: AliasIssueReason;
+  /** Position of the offending entry in the input, so an editor can flag its row. */
+  index: number;
 }
 
 /**
- * Normalize a raw alias record (keys/values with or without "!") into canonical
- * form and collect validation issues. Reused by the router input schema AND the
+ * Normalize raw aliases (keys/values with or without "!") into canonical form
+ * and collect validation issues. Reused by the router input schema AND the
  * dashboard editor so client and server validate identically. Rejects empty
- * tokens, duplicate keys (after normalization), self-recursion, and targets that
- * are not real commands.
+ * tokens, multi-word keys/targets, keys that would replace a built-in command,
+ * duplicate keys (after normalization), self-recursion, and targets that are
+ * not real commands. Accepts entries as well as a record so the editor can
+ * pass its rows without collapsing duplicates first.
  */
-export function normalizeAliases(raw: Record<string, string>): {
+export function normalizeAliases(
+  raw: Record<string, string> | Iterable<readonly [string, string]>,
+): {
   aliases: Record<string, string>;
   issues: AliasIssue[];
 } {
-  const aliases: Record<string, string> = {};
+  const entries: Iterable<readonly [string, string]> =
+    Symbol.iterator in raw ? raw : Object.entries(raw);
+  // A Map, not `key in {}`: inherited names like "constructor" must not read as
+  // duplicates, and "__proto__" must not be assigned to the prototype.
+  const aliases = new Map<string, string>();
   const issues: AliasIssue[] = [];
   const known = new Set<string>(KNOWN_ALIAS_TARGETS);
 
-  for (const [rawKey, rawValue] of Object.entries(raw)) {
+  let index = -1;
+  for (const [rawKey, rawValue] of entries) {
+    index += 1;
     const key = normalizeAliasToken(rawKey);
     const target = normalizeAliasToken(rawValue);
     if (!key || !target) {
-      issues.push({ key: rawKey || "(empty)", reason: "empty" });
+      issues.push({ key: rawKey || "(empty)", reason: "empty", index });
       continue;
     }
-    if (key in aliases) {
-      issues.push({ key, reason: "duplicate" });
+    if (aliasTokenHasWhitespace(rawKey) || aliasTokenHasWhitespace(rawValue)) {
+      issues.push({ key, reason: "multi-word", index });
+      continue;
+    }
+    if (isBuiltinCommandName(key)) {
+      issues.push({ key, reason: "shadows-builtin", index });
+      continue;
+    }
+    if (aliases.has(key)) {
+      issues.push({ key, reason: "duplicate", index });
       continue;
     }
     if (key === target) {
-      issues.push({ key, reason: "recursive" });
+      issues.push({ key, reason: "recursive", index });
       continue;
     }
     if (!known.has(target)) {
-      issues.push({ key, reason: "unknown-target" });
+      issues.push({ key, reason: "unknown-target", index });
       continue;
     }
-    aliases[key] = target;
+    aliases.set(key, target);
   }
-  return { aliases, issues };
+  return { aliases: Object.fromEntries(aliases), issues };
 }
 
-/** Every timer state-machine status — single source for status literals. */
-export const TIMER_STATUSES = [
-  "idle",
-  "starting",
-  "work",
-  "break",
-  "longBreak",
-  "paused",
-  "finished",
-] as const;
+/** Every timer state-machine status — defined in @dirework/db so the schema can type its columns. */
+export { TIMER_STATUSES, type TimerStatus } from "@dirework/db/defaults";
 
-export type TimerStatus = (typeof TIMER_STATUSES)[number];
-
-// ── Shared validation primitives (P1.10) ────────────────────────────────────
+// ── Shared validation primitives ────────────────────────────────────────────
 // Style values are interpolated into CSS on the overlay pages, so these are
 // ALLOWLISTS, not just length caps: no ";", "{", "}", "url(", backslashes or
 // comments can survive them, which closes CSS injection through a saved config.
@@ -143,56 +234,10 @@ export const opacitySchema = z.number().min(0).max(1);
 const boundedInt = (min: number, max: number) => z.number().int().min(min).max(max);
 
 // ── Twitch protocol limits ──────────────────────────────────────────────────
-// An IRC line is capped at 512 BYTES including command overhead and CRLF, and
-// Twitch caps the visible message at 500 characters. Message templates expand
-// at send time ({user}, {task}, …), so templates are capped well below the wire
-// limit to leave interpolation headroom.
+// Wire limits and byte helpers live in ./chat-text (see MAX_CHAT_BYTES).
 
-/** Max bytes for a fully-interpolated chat message put on the wire. */
-export const MAX_CHAT_BYTES = 450;
 /** Max bytes for a stored message TEMPLATE, leaving room for interpolation. */
 export const MAX_MESSAGE_TEMPLATE_BYTES = 300;
-
-export function utf8ByteLength(value: string): number {
-  return new TextEncoder().encode(value).length;
-}
-
-/**
- * Truncate to at most `maxBytes` UTF-8 bytes WITHOUT splitting a character.
- * A plain `.slice(n)` counts UTF-16 code units, so 500 emoji is ~2000 bytes and
- * gets mangled or rejected by Twitch — this is the byte-correct version.
- */
-export function truncateToBytes(value: string, maxBytes: number = MAX_CHAT_BYTES): string {
-  if (utf8ByteLength(value) <= maxBytes) return value;
-  let out = "";
-  let bytes = 0;
-  // Iterating the string yields whole code points, so surrogate pairs and
-  // combining sequences are never cut in half.
-  for (const ch of value) {
-    const size = utf8ByteLength(ch);
-    if (bytes + size > maxBytes) break;
-    out += ch;
-    bytes += size;
-  }
-  return out;
-}
-
-export function hasControlCharacters(value: string): boolean {
-  for (const character of value) {
-    const codePoint = character.codePointAt(0) ?? 0;
-    if (codePoint <= 0x1f || codePoint === 0x7f) return true;
-  }
-  return false;
-}
-
-export function replaceControlCharacters(value: string): string {
-  let output = "";
-  for (const character of value) {
-    const codePoint = character.codePointAt(0) ?? 0;
-    output += codePoint <= 0x1f || codePoint === 0x7f ? " " : character;
-  }
-  return output;
-}
 
 /** A stored chat-message template, bounded by UTF-8 bytes rather than chars. */
 export const chatMessageSchema = z
@@ -305,18 +350,6 @@ export interface BotConfigData {
   task: TaskMessagesConfig;
   timer: TimerMessagesConfig;
 }
-
-// Default values live in @dirework/db/defaults (the same objects back the
-// schema column defaults); the typed re-exports below guarantee they stay in
-// shape-lockstep with the field maps.
-
-export const DEFAULT_PHASE_LABELS: PhaseLabelsConfig = DB_DEFAULT_PHASE_LABELS;
-export const DEFAULT_TASK_MESSAGES: TaskMessagesConfig = DB_DEFAULT_TASK_MESSAGES;
-export const DEFAULT_TIMER_MESSAGES: TimerMessagesConfig = DB_DEFAULT_TIMER_MESSAGES;
-
-/** Canonical timer duration/cycle defaults — single source for the dashboard
- * controls, the overlay/preview progress fallbacks, and the schema columns. */
-export const TIMER_CONFIG_DEFAULTS = DB_TIMER_CONFIG_DEFAULTS;
 
 // ── Build helpers: flat DB rows → nested frontend objects ─────────────────────
 
@@ -447,7 +480,7 @@ export function buildBotConfig(bc: BotConfig): BotConfigData {
 
 // ── Style input schemas + flatten: nested objects → flat DB columns ──────────
 // The zod schemas are the single source; the TS input types are z.infer'd from
-// them (the router and the TS interfaces used to duplicate these shapes).
+// them, so the router and the TS interfaces cannot disagree on these shapes.
 // Every level is optional to mirror the partial-update flatten behavior.
 
 export const timerStylesInputSchema = z.object({
