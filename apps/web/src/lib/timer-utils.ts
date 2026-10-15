@@ -10,7 +10,7 @@ export {
   roundedRectPerimeter,
 } from "@dirework/overlay-kit";
 
-import type { TimerStatus } from "@/lib/config-types";
+import { TIMER_CONFIG_DEFAULTS, type TimerStatus } from "@/lib/config-types";
 
 /**
  * Timer state payload shape shared by the dashboard controls and the overlay
@@ -123,4 +123,22 @@ export function resolvePhaseDuration(
     default:
       return null;
   }
+}
+
+/**
+ * Full length (ms) of the phase the overlay ring measures against, and what an
+ * idle timer displays. `totalDuration` is the streamer's configured length when
+ * the caller has it; without one (no timer_config row) this falls back to the
+ * canonical defaults, so idle reads the default work length on both the digits
+ * and the ring instead of a full ring over 00:00.
+ */
+export function phaseTotalMs(
+  state: Pick<TimerState, "status" | "pausedFromStatus">,
+  totalDuration: number | undefined,
+): number {
+  return (
+    totalDuration ??
+    resolvePhaseDuration(state.status, state.pausedFromStatus, TIMER_CONFIG_DEFAULTS) ??
+    TIMER_CONFIG_DEFAULTS.workDuration
+  );
 }

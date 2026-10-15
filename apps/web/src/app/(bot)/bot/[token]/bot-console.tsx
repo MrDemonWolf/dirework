@@ -183,7 +183,11 @@ export function BotConsole() {
             Twitch no longer accepts the bot account&apos;s login. Reconnect it in Dashboard → Bot,
             then reload this page.
           </p>
-        ) : null}
+        ) : (
+          <p className="max-w-sm text-sm text-zinc-400">
+            This URL doesn&apos;t match a bot link. Copy the current one from Dashboard → Bot.
+          </p>
+        )}
       </main>
     );
   }

@@ -35,6 +35,10 @@ export default function DefaultSearchDialog(props: SharedProps) {
   // NEXT_PUBLIC_BASE_PATH used for a GitHub Pages project-path deploy.
   const { search, setSearch, query } = useDocsSearch({
     type: "static",
+    // The static index is exported under next.config's basePath, which the
+    // default "/api/search" ignores; on a GitHub Pages project site
+    // (/dirework) search would fetch a 404 without this.
+    from: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/search`,
     initOrama,
     locale,
   });
