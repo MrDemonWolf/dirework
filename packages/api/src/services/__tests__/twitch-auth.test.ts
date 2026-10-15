@@ -6,6 +6,7 @@ import type { DbClient } from "@dirework/db";
 
 import {
   BOT_REAUTH_REQUIRED_MESSAGE,
+  DISCONNECT_REVOKE_BUDGET_MS,
   disconnectBotAccount,
   getFreshChatToken,
   refreshBotToken,
@@ -555,6 +556,24 @@ describe("disconnectBotAccount", () => {
 
     expect(del).toHaveBeenCalledTimes(1);
     expect(deleteWhere).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletes within the revoke budget when Twitch hangs (stays under the /rpc proxy timeout)", async () => {
+    vi.useFakeTimers();
+    try {
+      const { db, deleteWhere } = makeDb({ botAccount: makeAccount() });
+      fetchMock.mockImplementation(() => new Promise(() => {})); // never settles
+
+      const result = disconnectBotAccount(db, CREDS);
+      await vi.advanceTimersByTimeAsync(DISCONNECT_REVOKE_BUDGET_MS);
+
+      expect(await result).toEqual({ revoked: false });
+      expect(deleteWhere).toHaveBeenCalledTimes(1);
+      // The /rpc proxy aborts at 15s; leave room for the D1 round trips.
+      expect(DISCONNECT_REVOKE_BUDGET_MS).toBeLessThanOrEqual(10_000);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("refreshes an expired token first and revokes the fresh one", async () => {

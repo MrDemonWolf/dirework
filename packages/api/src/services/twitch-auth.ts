@@ -382,11 +382,21 @@ async function refreshedAccessToken(
 }
 
 /**
+ * Cap on the best-effort revocation in `disconnectBotAccount`. Its worst case
+ * is revoke → refresh → revoke, up to 10s each, but the dashboard reaches this
+ * through the web worker's `/rpc` proxy, which gives up after 15s — and the
+ * row is deleted only after revocation. Past this budget the disconnect stops
+ * waiting and deletes, so it always finishes inside the proxy's window.
+ */
+export const DISCONNECT_REVOKE_BUDGET_MS = 9_000;
+
+/**
  * Disconnect the bot account: revoke the authorization at Twitch, then delete
  * the singleton row. Twitch rejects revoking an expired or dead access token
  * (leaving the grant in place), so such a token is refreshed first and the
- * fresh one revoked. Revocation failures never block deletion; `revoked` tells
- * the caller whether Twitch confirmed it.
+ * fresh one revoked. Revocation failures — and revocation that outlasts
+ * DISCONNECT_REVOKE_BUDGET_MS — never block deletion; `revoked` tells the
+ * caller whether Twitch confirmed it.
  */
 export async function disconnectBotAccount(
   db: DbClient,
@@ -398,14 +408,22 @@ export async function disconnectBotAccount(
 
   let revoked = false;
   if (account) {
-    const nearExpiry = account.expiresAt.getTime() - Date.now() <= REFRESH_MARGIN_MS;
-    const token = nearExpiry ? await refreshedAccessToken(db, creds) : account.accessToken;
-    revoked = token ? await revokeAccessToken(creds, token) : false;
-    if (!revoked && !nearExpiry) {
+    const revoke = async () => {
+      const nearExpiry = account.expiresAt.getTime() - Date.now() <= REFRESH_MARGIN_MS;
+      const token = nearExpiry ? await refreshedAccessToken(db, creds) : account.accessToken;
+      if (token && (await revokeAccessToken(creds, token))) return true;
+      if (nearExpiry) return false;
       // A fresh-looking token can still be dead server-side — revoke a new one.
       const retryToken = await refreshedAccessToken(db, creds);
-      revoked = retryToken ? await revokeAccessToken(creds, retryToken) : false;
-    }
+      return retryToken ? revokeAccessToken(creds, retryToken) : false;
+    };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const budget = new Promise<boolean>((resolve) => {
+      timer = setTimeout(() => resolve(false), DISCONNECT_REVOKE_BUDGET_MS);
+    });
+    // Never rejects: every step above already maps failure to false/null.
+    revoked = await Promise.race([revoke(), budget]);
+    clearTimeout(timer);
   }
 
   await db.delete(schema.botAccount).where(eq(schema.botAccount.id, SINGLETON_ID));
