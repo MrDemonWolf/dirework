@@ -382,21 +382,37 @@ async function refreshedAccessToken(
 }
 
 /**
- * Cap on the best-effort revocation in `disconnectBotAccount`. Its worst case
- * is revoke → refresh → revoke, up to 10s each, but the dashboard reaches this
- * through the web worker's `/rpc` proxy, which gives up after 15s — and the
- * row is deleted only after revocation. Past this budget the disconnect stops
- * waiting and deletes, so it always finishes inside the proxy's window.
+ * Cap on the best-effort revocation in `disconnectBotAccount` and
+ * `revokePreviousChatToken`. Its worst case is up to three Twitch calls of 10s
+ * each, but the dashboard reaches both through the web worker's `/rpc` proxy,
+ * which gives up after 15s. Past this budget the caller stops waiting and
+ * finishes, so it always lands inside the proxy's window.
  */
-export const DISCONNECT_REVOKE_BUDGET_MS = 9_000;
+export const REVOKE_BUDGET_MS = 9_000;
+
+/**
+ * Race best-effort revocation work against REVOKE_BUDGET_MS. `work` must never
+ * reject (every step maps failure to false/null); a timeout reads as false.
+ */
+async function withinRevokeBudget(work: () => Promise<boolean>): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const budget = new Promise<boolean>((resolve) => {
+    timer = setTimeout(() => resolve(false), REVOKE_BUDGET_MS);
+  });
+  try {
+    return await Promise.race([work(), budget]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /**
  * Disconnect the bot account: revoke the authorization at Twitch, then delete
  * the singleton row. Twitch rejects revoking an expired or dead access token
  * (leaving the grant in place), so such a token is refreshed first and the
  * fresh one revoked. Revocation failures — and revocation that outlasts
- * DISCONNECT_REVOKE_BUDGET_MS — never block deletion; `revoked` tells the
- * caller whether Twitch confirmed it.
+ * REVOKE_BUDGET_MS — never block deletion; `revoked` tells the caller whether
+ * Twitch confirmed it.
  */
 export async function disconnectBotAccount(
   db: DbClient,
@@ -408,7 +424,7 @@ export async function disconnectBotAccount(
 
   let revoked = false;
   if (account) {
-    const revoke = async () => {
+    revoked = await withinRevokeBudget(async () => {
       const nearExpiry = account.expiresAt.getTime() - Date.now() <= REFRESH_MARGIN_MS;
       const token = nearExpiry ? await refreshedAccessToken(db, creds) : account.accessToken;
       if (token && (await revokeAccessToken(creds, token))) return true;
@@ -416,18 +432,55 @@ export async function disconnectBotAccount(
       // A fresh-looking token can still be dead server-side — revoke a new one.
       const retryToken = await refreshedAccessToken(db, creds);
       return retryToken ? revokeAccessToken(creds, retryToken) : false;
-    };
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const budget = new Promise<boolean>((resolve) => {
-      timer = setTimeout(() => resolve(false), DISCONNECT_REVOKE_BUDGET_MS);
     });
-    // Never rejects: every step above already maps failure to false/null.
-    revoked = await Promise.race([revoke(), budget]);
-    clearTimeout(timer);
   }
 
   await db.delete(schema.botAccount).where(eq(schema.botAccount.id, SINGLETON_ID));
   return { revoked };
+}
+
+/**
+ * Outcome of killing the chat token a bot page was handed:
+ * - `revoked`: Twitch confirmed the previous access token is revoked.
+ * - `unconfirmed`: Twitch was unreachable, refused, or too slow — the old token
+ *   may stay valid until it expires on its own (Twitch user tokens last hours).
+ * - `no-account`: no bot account is connected, so there was no chat token.
+ */
+export type ChatTokenRevocation = "revoked" | "unconfirmed" | "no-account";
+
+/**
+ * Invalidate the chat token any bot page holds (part of the owner's "reset bot
+ * URL"): `bot.getSession` hands the access token to the browser, so a leaked
+ * bot link leaks a live Twitch chat credential that rotating the URL alone
+ * would not kill.
+ *
+ * The bot's token is refreshed first (through the refresh lease) so the
+ * stored row holds a new, live access token, then the PREVIOUS access token is
+ * revoked. Revoking an access token at Twitch kills only that token — not the
+ * refresh token or the app's connection — so the bot keeps working with the
+ * new token and never needs reconnecting. The old token is revoked even if the
+ * refresh failed: a leaked credential dying matters more, and a dead stored
+ * token recovers on its own (the bot page's IRC auth failure forces a refresh).
+ * Best-effort and bounded by REVOKE_BUDGET_MS; never throws.
+ */
+export async function revokePreviousChatToken(
+  db: DbClient,
+  creds: TwitchCredentials,
+): Promise<ChatTokenRevocation> {
+  let account: { accessToken: string } | undefined;
+  try {
+    account = await db.query.botAccount.findFirst({ columns: { accessToken: true } });
+  } catch {
+    return "unconfirmed";
+  }
+  if (!account) return "no-account";
+  const previous = account.accessToken;
+
+  const revoked = await withinRevokeBudget(async () => {
+    await refreshedAccessToken(db, creds);
+    return revokeAccessToken(creds, previous);
+  });
+  return revoked ? "revoked" : "unconfirmed";
 }
 
 /**

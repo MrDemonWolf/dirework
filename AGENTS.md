@@ -73,8 +73,13 @@ worker), so an untouched dashboard must not out-spend the overlays.
 
 **Twitch bot = browser page.** `/bot/<token>` (token-gated, `instanceConfig.botToken`)
 holds the IRC WebSocket (`wss://irc-ws.chat.twitch.tv`) via `apps/web/src/lib/irc-client.ts`,
-relays `!`-prefixed chat to `bot.ingest` (stateless, runs command logic against D1), and
-sends back the returned replies. Bot lives only while that page is open (OBS browser
+relays chat to `bot.ingest` (stateless, runs command logic against D1), and
+sends back the returned replies. Only lines whose first word is a Dirework command or an
+alias are relayed (`isDireworkCommandLine` in the zod-free `@dirework/api/chat-commands`,
+which also owns `KNOWN_ALIAS_TARGETS` / `META_COMMANDS` / `normalizeAliasToken` and is
+the parser `handleMessage` uses); `bot.getSession` returns the alias keys, so new aliases
+reach an open page at the hourly revalidation or on reload. Disabled commands are still
+relayed (the server drops them), so an enable toggle applies instantly. Bot lives only while that page is open (OBS browser
 source or pinned tab). Chat token comes from `bot.getSession` (server refreshes it; the
 refresh token and client secret never reach the browser). Each PRIVMSG's IRC `id` tag is
 forwarded as `messageId` and, once it resolves to an enabled Dirework command, claimed in
@@ -98,8 +103,8 @@ every 60s; anything else (incl. SERVICE_UNAVAILABLE from a Twitch 429/5xx) is tr
 backs off exponentially (5s up to 5min, with jitter).
 
 **Command aliases** are stored **canonically without a leading `!`** (`{ t: "task" }`).
-`normalizeAliases` / `normalizeAliasToken` + `KNOWN_ALIAS_TARGETS` in
-`packages/api/src/config-shared.ts` are the single source shared by the chat resolver
+`normalizeAliases` (`config-shared.ts`) / `normalizeAliasToken` + `KNOWN_ALIAS_TARGETS`
+(`packages/api/src/chat-commands.ts`, re-exported by `config-shared`) are the single source shared by the chat resolver
 (`resolveAlias`), the `commandAliasesInput` schema, and the dashboard editor — they accept
 either form and reject empty, multi-word, built-in-shadowing, duplicate, recursive, and
 unknown-target entries (each issue carries its input index so the editor flags the row). (Fixes the old `!!task`
@@ -157,9 +162,10 @@ bun run destroy       # Tear down the Cloudflare deployment
 Local env lives in `packages/infra/.env` (+ mirrored `apps/server/.env`,
 `apps/web/.env`); see `.env.example`.
 
-Browser-bundled web code imports default values from `@dirework/api/config-defaults` and
-chat byte helpers from `@dirework/api/chat-text` (both zod- and schema-free, so overlays and
-the bot page don't bundle zod); types still come from `config-shared`.
+Browser-bundled web code imports default values from `@dirework/api/config-defaults`,
+chat byte helpers from `@dirework/api/chat-text`, and command names from
+`@dirework/api/chat-commands` (all zod- and schema-free, so overlays and the bot page don't
+bundle zod); types still come from `config-shared`.
 
 ## Tech Stack
 
@@ -245,7 +251,12 @@ bucket); `ip:<forwarded>` when the web proxy's `PROXY_SECRET` signature verifies
 limiter **fails open** if a binding is absent — it's a brake, not a dependency.
 
 Token gates: `verifyOverlayToken` / `verifyBotToken` (constant-time compare, bounded
-zod inputs). Never return `accessToken`/`refreshToken` from any procedure (audit H1).
+zod inputs). Resetting the bot URL (`bot.regenerateBotToken`) also kills the chat token the
+old page was handed: `revokePreviousChatToken` refreshes through the lease, then revokes the
+previous access token at Twitch (revoking an access token does not kill the refresh token),
+best-effort inside `REVOKE_BUDGET_MS` (shared with `disconnectBotAccount`, under the
+`/rpc` proxy's 15s); the URL always rotates first, and `chatToken`
+(`revoked`/`unconfirmed`/`no-account`) drives fixed dashboard copy. Never return `accessToken`/`refreshToken` from any procedure (audit H1).
 
 ### Database
 
@@ -451,7 +462,9 @@ so catalog pins are bumped by hand.
   **Deploy runs under Node via the lockfile-pinned local `tsx`
   (`node ./node_modules/.bin/tsx`) — Bun segfaults on the Alchemy program** (same lesson
   as Wolfathon), and `npx -y` would fetch an unpinned tsx at deploy time.
-  Secrets: `CLOUDFLARE_API_TOKEN`, `ALCHEMY_PASSWORD`, `ALCHEMY_STATE_TOKEN` (**shared
+  The deploy job runs in the `production` GitHub environment, and the deploy secrets
+  belong there (environment secrets, not repository secrets) so only that job can read
+  them. Secrets: `CLOUDFLARE_API_TOKEN`, `ALCHEMY_PASSWORD`, `ALCHEMY_STATE_TOKEN` (**shared
   fleet token** — auths the shared account-wide `alchemy-state` store worker; the shared
   token is what makes sharing safe, a per-app token against it is the "token is invalid"
   clash), `BETTER_AUTH_SECRET`, `PROXY_SECRET` (min 32 chars; signs the forwarded client
@@ -487,7 +500,11 @@ Pinned in `packages/infra` (change deliberately, never via a dependency bump):
   finds the CI deploy's state. Local dev keeps Alchemy's per-user stage.
 - **Rate-limit namespace ids** are account-wide. Fleet allocation on the shared account:
   linkden production 1000s, linkden non-prod 2000s, **dirework 3001–3004**.
-- **Observability** — logs plus Workers Traces at 5% head sampling on both workers.
+- **Observability** — logs (`invocationLogs: false` — Cloudflare's per-request invocation
+  logs persist full URLs, and bot/overlay tokens live in URL paths; the app's own redacted
+  console JSON still flows) plus Workers Traces at 5% head sampling on both workers.
+  Traces record `url.full` on the root span, so a sampled trace can still carry a
+  `/bot/<token>` or `/overlay/*/<token>` path; keep trace access as tight as log access.
 - **Caching** — OpenNext uses the read-only static-assets incremental cache (prerendered
   routes such as `/opengraph-image` render once at build); `apps/web/public/_headers`
   marks hashed `/_next/static/*` immutable.

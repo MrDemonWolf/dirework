@@ -70,6 +70,8 @@ Broadcasters can remap command names in **Bot Settings** (`/dashboard/bot`). For
 
 An alias can point at any task or timer command (`task`, `done`, `edit`, `remove`, `focus`, `check`, `next`, `help`, `clear`, `timer`) — not the meta commands (`!dwhelp`, `!dwcommands`). Each alias and target is a single command name with no arguments, so `!ts` → `!timer start` is not supported. Aliases can't reuse a built-in command name, so the built-in commands always keep working regardless of your aliases.
 
+To save requests on Cloudflare's free plan, the bot page only forwards chat lines that start with a Dirework command or one of your aliases; other bots' commands (`!lurk`, `!so`) never leave the page. An open bot page picks up **new aliases** within an hour; reload the bot page (or refresh the OBS browser source) to use them right away.
+
 ## Task priority
 
 Tasks created by the broadcaster (stream owner) are pinned to the top of the list. Viewer tasks appear below in the order they were added.

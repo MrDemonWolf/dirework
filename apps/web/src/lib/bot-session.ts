@@ -4,11 +4,13 @@
  *
  * Owns: getSession bootstrap (with startup + hourly Twitch validation), the
  * bounded auth-failure recovery loop, retry backoff, the "no bot account yet"
- * slow poll, and serialized chat ingest.
+ * slow poll, and serialized chat ingest of Dirework commands only.
  *
  * Secrets: the chat token is handed straight to the IRC client and kept only
  * for the rotation comparison — never emitted in an event.
  */
+
+import { isDireworkCommandLine } from "@dirework/api/chat-commands";
 
 import { classifyBotError } from "./bot-session-errors";
 import type { IrcChatMessage, IrcClientCallbacks, IrcCredentials, IrcStatus } from "./irc-client";
@@ -42,12 +44,23 @@ export type BotIngestInput =
     }
   | { token: string; kind: "clearchat"; targetUsername: string };
 
+export interface BotSessionInfo {
+  channelName: string;
+  botUsername: string;
+  chatToken: string;
+  /**
+   * The instance's command alias keys, canonical (no "!"). Optional: an api
+   * worker from before this field (rollback, or a split deploy) omits it.
+   */
+  aliases?: string[];
+}
+
 export interface BotSessionApi {
   getSession(input: {
     token: string;
     forceRefresh?: boolean;
     revalidate?: boolean;
-  }): Promise<{ channelName: string; botUsername: string; chatToken: string }>;
+  }): Promise<BotSessionInfo>;
   ingest(input: BotIngestInput): Promise<{ replies: string[] }>;
 }
 
@@ -115,6 +128,8 @@ export function createBotSession({
   let notConfigured = false;
   let currentChatToken: string | null = null;
   let currentChannelName: string | null = null;
+  // Alias keys from the latest getSession; refreshed on every revalidation.
+  let aliasKeys: ReadonlySet<string> = new Set();
   let authRecoveryAttempts = 0;
   let retryAttempts = 0;
   let revalidateTimer: ReturnType<typeof setInterval> | null = null;
@@ -168,9 +183,11 @@ export function createBotSession({
   const handleChat = (chat: IrcChatMessage) => {
     events.onCounter("seen");
     const text = chat.message.trim();
-    // Every Dirework command starts with "!" — skipping plain chatter saves
-    // free-tier Worker requests.
-    if (!text.startsWith("!")) return;
+    // Relay only lines whose first word is a Dirework command or one of this
+    // instance's aliases: plain chatter and other bots' commands (!lurk, !so)
+    // would each cost a free-tier Worker request for nothing. The server still
+    // decides what actually runs (disabled commands, permissions).
+    if (!isDireworkCommandLine(text, aliasKeys)) return;
     events.onCounter("commands");
     events.onActivity("chat", `${chat.displayName ?? chat.username}: ${text}`);
     void (async () => {
@@ -237,7 +254,13 @@ export function createBotSession({
     },
   });
 
-  function connectWith(session: { channelName: string; botUsername: string; chatToken: string }) {
+  function applyAliases(session: BotSessionInfo) {
+    // Missing → no aliases yet: built-in commands still relay, and the bot
+    // stays up instead of retrying a shape mismatch forever.
+    aliasKeys = new Set(Array.isArray(session.aliases) ? session.aliases : []);
+  }
+
+  function connectWith(session: BotSessionInfo) {
     currentChatToken = session.chatToken;
     currentChannelName = session.channelName;
     events.onIdentity({ channelName: session.channelName, botUsername: session.botUsername });
@@ -262,6 +285,7 @@ export function createBotSession({
       notConfigured = false;
       wasLive = true;
       events.onPhase("live");
+      applyAliases(session);
       connectWith(session);
       startRevalidateLoop();
     } catch (err) {
@@ -323,6 +347,8 @@ export function createBotSession({
     try {
       const session = await api.getSession({ token, revalidate: true });
       if (inactive()) return;
+      // Alias edits on the dashboard reach a running page here (or on reload).
+      applyAliases(session);
       // Only reconnect when the token rotated or the streamer renamed their
       // Twitch login — otherwise the socket is still valid and must not be
       // churned hourly.

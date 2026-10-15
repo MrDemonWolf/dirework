@@ -11,24 +11,99 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `openssl rand -base64 32`). Add it **before** syncing your fork — the deploy fails
   validation without it. It lets the API rate limiter tell browsers apart behind the web
   worker's proxy.
+- **Recommended: move your deploy secrets into a `production` environment.** The deploy
+  job now runs in the GitHub environment `production`. Create it under **Settings →
+  Environments**, add the seven deploy secrets there, then delete the repository-level
+  copies so no other workflow can read them. Nothing breaks if you wait: until you move
+  them, the deploy keeps reading the repository secrets.
+- Database migrations `0012`–`0016` apply automatically on the next deploy. They only add
+  tables, columns and indexes, plus a one-time scrub of data Dirework no longer keeps
+  (see Security).
+- After updating, reload the bot page (or refresh its OBS browser source) so it runs the
+  new bot code.
+
+### Security
+- **Resetting the bot page URL now also kills the Twitch chat login that page was
+  given**, so a leaked bot link stops working in chat too, not just on Dirework. The bot
+  keeps running with a freshly issued login once you open the new URL. If Twitch can't be
+  reached, the reset still goes through and the dashboard tells you the old chat login
+  couldn't be confirmed dead (it expires on its own within a few hours).
+- Cloudflare **invocation logs are turned off** on both workers. They stored every
+  request's full URL, and bot and overlay links carry their secret token in the URL.
+  Dirework's own redacted logs and error metrics are still collected.
+- Dirework stores less about you: owner sign-in asks Twitch only for your identity (no
+  email), your own Twitch login tokens are never saved, and sessions no longer record your
+  IP address or browser. Data saved by earlier versions is scrubbed on deploy.
+- Anyone else who tries to sign in to a claimed instance gets a clear "already belongs to a
+  different Twitch account" message, and the deployment guide explains how to recover an
+  instance someone else claimed first.
+- Hardened the API: dashboard changes must be sent as JSON (blocks cross-site form
+  posts), batched requests are capped, the local development login needs a per-run secret,
+  and every call to Twitch has a timeout.
+- New CodeQL security scanning and a daily dependency audit; patched vulnerable
+  dependencies, including Next.js.
 
 ### Changed
+- **The product name is spelled "DireWork" everywhere** in the dashboard, overlays and docs.
+- **An overlay with an old or reset URL now shows nothing** instead of a fake 00:00 timer or
+  "No tasks yet", so a stale OBS source can never put placeholder junk on stream. Copy the
+  current URL from the dashboard to bring it back.
+- **"Username color" is now "Fallback username color"**, with a hint: it only applies to
+  viewers who have no Twitch chat color.
+- **Theme presets meet text contrast guidelines (4.5:1)** for done tasks, usernames and the
+  Cozy Cottage header. Done rows no longer fade to 60% opacity, so the done color you pick is
+  the color viewers see.
+- **The bot page only forwards real Dirework commands.** Lines whose first word isn't a
+  Dirework command or one of your aliases — like other bots' `!lurk` or `!so` — never leave
+  the page, saving a Cloudflare request each. An open bot page picks up new aliases within
+  an hour; reload it to use them right away.
 - Completed tasks are deleted automatically 24 hours after they're marked done, and the
   task overlay and dashboard read at most the 50 most recent done tasks per poll (the
-  `done/total` counters still count every done task) — keeps D1 reads within the free tier.
+  `done/total` counters, including each viewer's, still count every done task) — keeps D1
+  reads within the free tier.
+- The dashboard stops polling while its tab is hidden and slows down after two minutes
+  without input, so an idle dashboard no longer eats into the daily request budget.
 - The API rate limiter keys signed-in traffic by session and proxied traffic by the
   browser's real IP, so other visitors can no longer exhaust the owner's buckets.
 - Deploys no longer fail on a newly published dependency advisory; they show a warning.
   Pull requests still fail on high-severity advisories.
+- Every deploy ends with a smoke check (the API must reach the database and the web app
+  must serve the new version), so a broken deploy shows red instead of green.
+- Clearer error messages: bot connection failures, rejected settings fields and lost API
+  connections each get specific, readable copy, and editors never open over default values
+  when loading failed.
+- Accessibility fixes for keyboard focus and color contrast across the dashboard.
+- Contributor docs: `AGENTS.md` now has a Code Review Rules checklist (free-tier cost
+  budget and invariants) used for every pull request review.
+
+### Added
+- **Undo for removing a task.** Removing a task is still one click; a "Task removed" toast
+  offers Undo for a few seconds and puts it back exactly where it was.
+- **Rolling back** section in the deployment guide: how to roll each worker back from the
+  Cloudflare dashboard, `wrangler rollback`, or a re-run of an earlier GitHub deploy, and
+  why the database itself should not be rolled back.
+- Deployment guide sections on monitoring (point uptime checks at `/ready`, which tests
+  the database), updating your instance, and recovering an instance someone else claimed.
 
 ### Fixed
+- Two open bot pages no longer run each chat command twice.
+- The bot reconnects on its own when the Twitch chat connection silently drops, re-sends a
+  reply Twitch rejected as a duplicate, and explains chat-mode, ban and timeout errors.
+- When the bot account's Twitch login can no longer be refreshed, the bot page shows a
+  clear "reconnect the bot account" screen instead of retrying forever.
+- The bot joins the right channel after you rename your Twitch account.
 - The bot page no longer stalls when one API request hangs: requests time out after 30
   seconds and later chat commands keep processing.
 - When a bot-login refresh fails, other waiting requests report the failure at once
   instead of reusing the rejected token; a reconnect also clears any stuck refresh lock.
 - The bot page stops on a clear error for a malformed bot link or invalid IRC credentials
   instead of sitting on "Refreshing login".
+- Disconnecting the bot account always finishes, even when Twitch is slow.
+- A failed bot connection is reported as an error instead of "cancelled".
+- Overlays keep showing their last good state through a failed poll or a page error
+  instead of going blank on stream.
 - Long task text from chat is cut without breaking an emoji in half.
+- The "Retry" button on a failed-load toast works again.
 
 ## [1.1.0] - 2026-07-10
 
@@ -50,6 +125,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - CI deploys on push to `main` via GitHub Actions + Alchemy
 - Removed Docker, Docker Compose, Coolify, and PostgreSQL deployment paths (see the new
   Cloudflare deployment guide)
+- Rewrote Getting Started, Deployment, and reference docs to match the real stack (Bun + Drizzle on Cloudflare D1 + Alchemy/Cloudflare Workers), correcting stale pnpm/Prisma/nixpacks instructions
+- Corrected the bot OAuth callback path in docs to `/api/bot/callback/twitch`
+- Consolidated duplicated timer formatting and route session guards into shared helpers (`formatClock`, `requireSession`)
 
 ### Added
 - Single-owner architecture with a first-time setup flow — the first Twitch account to sign in claims the instance
@@ -59,11 +137,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Footer version readout (`v<version> · <commit>`) that polls the live deploy and
   prompts a **Reload** when a newer build has shipped — DireWork runs as a rolling
   build off `main`, so an open dashboard tab can outlive its own code
-
-### Changed
-- Rewrote Getting Started, Deployment, and reference docs to match the real stack (Bun + Drizzle on Cloudflare D1 + Alchemy/Cloudflare Workers), correcting stale pnpm/Prisma/nixpacks instructions
-- Corrected the bot OAuth callback path in docs to `/api/bot/callback/twitch`
-- Consolidated duplicated timer formatting and route session guards into shared helpers (`formatClock`, `requireSession`)
 
 ### Removed
 - Dropped the never-implemented `ALLOWED_TWITCH_IDS` allowlist from docs and examples — single-owner login already restricts access

@@ -267,8 +267,26 @@ describe("bot.getSession", () => {
       channelName: "streamer",
       botUsername: "direbot",
       chatToken: "chat-access-token",
+      aliases: [],
     });
     expect(JSON.stringify(session)).not.toContain("secret-refresh-token");
+  });
+
+  it("returns the configured alias keys so the bot page can skip other bots' commands", async () => {
+    await db.insert(schema.botAccount).values({
+      twitchId: "4000",
+      username: "direbot",
+      displayName: "DireBot",
+      accessToken: "chat-access-token",
+      refreshToken: "secret-refresh-token",
+      expiresAt: new Date(Date.now() + 60 * 60_000),
+    });
+    // A legacy record with a bang and capitals resolves as "t" on the server.
+    await db.update(schema.botConfig).set({ commandAliases: { "!T": "!task", add: "task" } });
+
+    const session = await api().bot.getSession({ token: BOT_TOKEN });
+
+    expect(session.aliases).toEqual(["t", "add"]);
   });
 
   it("rejects a wrong bot token", async () => {
