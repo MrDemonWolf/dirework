@@ -30,7 +30,7 @@ function values(db: Database, query: string) {
 }
 
 describe("0015 task done retention", () => {
-  it("swaps the status index for (status, completed_at) and stamps legacy done rows", () => {
+  it("adds the (status, completed_at) index, keeps the old one, and stamps legacy done rows", () => {
     const db = new sqlJs.Database();
     try {
       const index = journal.entries.findIndex((entry) => entry.tag === TAG);
@@ -54,7 +54,8 @@ describe("0015 task done retention", () => {
       const indexes = values(db, "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='task'")
         .map(([name]) => name);
       expect(indexes).toContain("task_status_completed_idx");
-      expect(indexes).not.toContain("task_status_idx");
+      // Expand-only: the previous worker still serves while migrations apply.
+      expect(indexes).toContain("task_status_idx");
     } finally {
       db.close();
     }

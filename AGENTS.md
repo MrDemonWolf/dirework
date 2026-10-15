@@ -253,8 +253,11 @@ with `unixepoch('subsecond')*1000` defaults, JSON columns `text({mode:"json"}).$
 (`SINGLETON_ID`), lazily provisioned; all columns have defaults. `botAccount` carries a
 nullable `refreshLockedUntil` lease that serializes concurrent Twitch OAuth refreshes
 (Twitch invalidates the old refresh token on rotation, so the refresh spends the token as
-of the lease and persists conditionally on it). Only the holder clears its lease (the
-release matches the lease value); a waiter that sees the lease released with tokens
+of the lease and persists conditionally on it). Only the holder clears its lease (every
+release, including the successful token write, matches the lease value — a holder whose
+lease expired still saves the tokens Twitch rotated but leaves the newer lease alone, and
+a caller whose spent token Twitch rejects returns tokens another caller published instead
+of surfacing reauth); a waiter that sees the lease released with tokens
 unchanged retries once as holder to surface the real failure; a bot reconnect resets the
 lease to null. The API maps flat DB
 columns ↔ nested config objects via build/flatten helpers in
@@ -264,7 +267,9 @@ Migrations: `bun run db:generate` → SQL in `packages/db/src/migrations` → ap
 Alchemy (dev and deploy). Never edit applied migrations. Migrations are
 **expand/contract**: they apply before the new workers go live and the old web worker
 keeps serving during the deploy, so a migration only adds (tables, nullable/defaulted
-columns, indexes); drop or rename a column one release after no deployed code reads it.
+columns, indexes); drop or rename a column — or drop an index — one release after no deployed code reads
+it (`task_status_idx` is superseded by `task_status_completed_idx` and awaits that
+contract migration).
 
 ### Authentication
 
@@ -283,9 +288,10 @@ columns, indexes); drop or rename a column one release after no deployed code re
   linking is disabled (sign-in matches on the Twitch account row). The owner's own
   Twitch OAuth tokens are never stored (account create/update hooks null them) and
   sessions keep no IP or user agent; expired sessions are purged at sign-in. Migration
-  `0014_scrub_owner_pii` scrubs rows written by earlier builds, and `scrubOwnerTokens`
-  re-runs the token scrub at every sign-in (a sign-in served by the old worker during a
-  deploy, after migrations apply, could otherwise write tokens back). `DISABLED_AUTH_PATHS`
+  `0014_scrub_owner_pii` scrubs rows written by earlier builds, but migrations apply before cutover, so a sign-in served
+  by the old worker could write tokens back. The token scrub is therefore re-run after
+  cutover on every deploy (`packages/infra/post-deploy.ts`, called from `alchemy.run.ts`)
+  and at every sign-in (`scrubOwnerTokens`). `DISABLED_AUTH_PATHS`
   404s every better-auth route Dirework doesn't use.
 - Bot account connection = separate OAuth flow on Hono: `/api/bot/authorize` →
   `/api/bot/callback/twitch` (state cookie, `BOT_SCOPES` = `chat:read chat:edit

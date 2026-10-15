@@ -297,13 +297,10 @@ describe("refreshBotToken", () => {
 
     await refreshBotToken(db, CREDS);
 
-    // The token persist rotates the refresh token AND clears the lease.
+    // The token persist rotates the refresh token. Releasing only our own lease
+    // is a SQL CASE, covered against real SQLite in twitch-auth.sqlite.test.ts.
     expect(set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        accessToken: "new-access",
-        refreshToken: "rotated-refresh",
-        refreshLockedUntil: null,
-      }),
+      expect.objectContaining({ accessToken: "new-access", refreshToken: "rotated-refresh" }),
     );
   });
 

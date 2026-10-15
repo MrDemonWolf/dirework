@@ -3,7 +3,7 @@
 // deploy.yml both invoke it via tsx directly, bypassing the alchemy CLI's
 // runtime detection (which picks bun whenever bun is the package manager).
 import alchemy from "alchemy";
-import { D1Database, Nextjs, RateLimit, Worker } from "alchemy/cloudflare";
+import { createCloudflareApi, D1Database, Nextjs, RateLimit, Worker } from "alchemy/cloudflare";
 import { CloudflareStateStore } from "alchemy/state";
 import { appendFileSync } from "node:fs";
 import { config } from "dotenv";
@@ -18,6 +18,7 @@ import {
   isDevelopmentRun,
   resolveDeployStage,
 } from "./deploy-config";
+import { scrubOwnerTokensAfterCutover } from "./post-deploy";
 
 config({ path: "./.env" });
 config({ path: "../../apps/web/.env" });
@@ -230,6 +231,13 @@ export const web = await Nextjs("web", {
 
 console.log(`Web    -> ${web.url}`);
 console.log(`Server -> ${server.url}`);
+
+// Both workers are live now, so nothing from the previous build can undo a
+// data scrub anymore (see post-deploy.ts). Deploys only; local dev keeps no
+// owner tokens to begin with.
+if (!isDevelopment) {
+  await scrubOwnerTokensAfterCutover(await createCloudflareApi(), db.id);
+}
 
 await app.finalize();
 

@@ -81,6 +81,11 @@ export const task = sqliteTable(
     // (`status = 'done' ORDER BY / WHERE completed_at`) as index range reads,
     // so overlay polling never scans the whole table.
     index("task_status_completed_idx").on(table.status, table.completedAt),
+    // Superseded by task_status_completed_idx (a status prefix of it), but kept
+    // for one release: migrations apply while the previous worker still serves,
+    // so dropping an index it plans against is a contract step for a later
+    // migration, never part of the expand.
+    index("task_status_idx").on(table.status),
     index("task_priority_order_idx").on(table.priority, table.order),
     index("task_author_idx").on(table.authorTwitchId),
     // Matches the case-insensitive `lower(author_username) = lower(?)` predicate

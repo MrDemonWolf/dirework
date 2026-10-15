@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, eq, isNull, lt, or } from "drizzle-orm";
+import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import type { DbClient } from "@dirework/db";
@@ -194,7 +194,11 @@ async function refreshWithLease(
             ? new Date(Date.now() + data.expires_in * 1000)
             : leased.expiresAt,
         scopes: data.scope ?? leased.scopes,
-        refreshLockedUntil: null, // release the lease
+        // Release the lease only if it is still OURS. If ours expired mid-
+        // refresh and another caller took it, the tokens Twitch just rotated
+        // must still be persisted (the old refresh token is spent), but the
+        // newer holder keeps its lease until it finishes.
+        refreshLockedUntil: sql`case when ${schema.botAccount.refreshLockedUntil} = ${lease.getTime()} then null else ${schema.botAccount.refreshLockedUntil} end`,
       })
       .where(
         and(
@@ -210,6 +214,12 @@ async function refreshWithLease(
   } catch (err) {
     // Release the lease so a later attempt isn't blocked by our failure.
     await releaseRefreshLease(db, lease);
+    // Our lease can expire mid-refresh, letting another caller rotate the same
+    // token first, so Twitch then rejects ours. If the row now holds a different
+    // refresh token, that caller published live tokens: return them instead of
+    // surfacing a false reauth.
+    const current = await db.query.botAccount.findFirst();
+    if (current && current.refreshToken !== leased.refreshToken) return current;
     throw err;
   }
 }

@@ -144,7 +144,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'No task in your den to edit, {user} — try !edit [number] [new task]!'"
+          "default": "'No task in your den to edit, {user} \u2014 try !edit [number] [new task]!'"
         },
         "msg_task_edited": {
           "name": "msg_task_edited",
@@ -208,7 +208,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'Looks like you aren''t tracking anything in the forest right now, {user} — start a hunt with !task [task]!'"
+          "default": "'Looks like you aren''t tracking anything in the forest right now, {user} \u2014 start a hunt with !task [task]!'"
         },
         "msg_no_task_other": {
           "name": "msg_no_task_other",
@@ -216,7 +216,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'The scent is cold, {user} — that viewer isn''t tracking a task right now.'"
+          "default": "'The scent is cold, {user} \u2014 that viewer isn''t tracking a task right now.'"
         },
         "msg_not_mod": {
           "name": "msg_not_mod",
@@ -224,7 +224,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'Grrr! Permission denied, {user} — only pack leaders (mods) can do that.'"
+          "default": "'Grrr! Permission denied, {user} \u2014 only pack leaders (mods) can do that.'"
         },
         "msg_cleared_all": {
           "name": "msg_cleared_all",
@@ -256,7 +256,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'{user}, join the hunt: !task, !done, !edit, !remove, !focus, !check, !next — or !dwhelp for the full list.'"
+          "default": "'{user}, join the hunt: !task, !done, !edit, !remove, !focus, !check, !next \u2014 or !dwhelp for the full list.'"
         },
         "msg_not_running": {
           "name": "msg_not_running",
@@ -296,7 +296,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'That cycle count won''t work — pick 1 to 99, like !timer start 4.'"
+          "default": "'That cycle count won''t work \u2014 pick 1 to 99, like !timer start 4.'"
         },
         "msg_eta": {
           "name": "msg_eta",
@@ -304,7 +304,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'This phase ends in {phase} · the hunt is done in {time}'"
+          "default": "'This phase ends in {phase} \u00b7 the hunt is done in {time}'"
         }
       },
       "indexes": {},
@@ -490,22 +490,6 @@
         }
       },
       "indexes": {
-        "task_status_completed_idx": {
-          "name": "task_status_completed_idx",
-          "columns": [
-            "status",
-            "completed_at"
-          ],
-          "isUnique": false
-        },
-        "task_priority_order_idx": {
-          "name": "task_priority_order_idx",
-          "columns": [
-            "priority",
-            "order"
-          ],
-          "isUnique": false
-        },
         "task_author_idx": {
           "name": "task_author_idx",
           "columns": [
@@ -527,6 +511,29 @@
           ],
           "isUnique": true,
           "where": "\"task\".\"status\" = 'active'"
+        },
+        "task_priority_order_idx": {
+          "name": "task_priority_order_idx",
+          "columns": [
+            "priority",
+            "order"
+          ],
+          "isUnique": false
+        },
+        "task_status_completed_idx": {
+          "name": "task_status_completed_idx",
+          "columns": [
+            "status",
+            "completed_at"
+          ],
+          "isUnique": false
+        },
+        "task_status_idx": {
+          "name": "task_status_idx",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {},
@@ -943,7 +950,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'✔'"
+          "default": "'\u2714'"
         },
         "checkbox_tick_size": {
           "name": "checkbox_tick_size",
@@ -967,7 +974,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'•'"
+          "default": "'\u2022'"
         },
         "bullet_size": {
           "name": "bullet_size",
