@@ -35,7 +35,7 @@ export function BrandMark() {
           color: "var(--txt-1)",
         }}
       >
-        Dirework
+        DireWork
       </span>
     </span>
   );

@@ -151,7 +151,7 @@ export function createBotSession({
       return result.replies;
     } catch (err) {
       if (classifyBotError(err) === "revoked") enterRevoked();
-      else events.onActivity("error", "could not send that command to Dirework — message dropped");
+      else events.onActivity("error", "could not send that command to DireWork — message dropped");
       return [];
     }
   };
@@ -305,7 +305,7 @@ export function createBotSession({
       const reason = err instanceof Error ? err.message : "network error";
       events.onActivity(
         "error",
-        `couldn't reach Dirework (${reason}) — retrying in ${Math.round(delay / 1000)}s`,
+        `couldn't reach DireWork (${reason}) — retrying in ${Math.round(delay / 1000)}s`,
       );
       later(() => void bootstrap(opts), delay);
     }

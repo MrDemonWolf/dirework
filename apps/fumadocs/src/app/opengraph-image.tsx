@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 // Branded default OG / Twitter card for the docs home and any page without its
 // own image. Per-doc pages override this via generateMetadata (og/docs route).
-export const alt = "Dirework — self-hosted Pomodoro timer and task list for Twitch";
+export const alt = "DireWork — self-hosted Pomodoro timer and task list for Twitch";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 // Required for `output: export` (static GitHub Pages build) — pre-render at build.
@@ -34,7 +34,7 @@ export default function OpengraphImage() {
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <title>Dirework logo</title>
+          <title>DireWork logo</title>
           <path d="M14 30L20 8l10 18" />
           <path d="M50 30L44 8l-10 18" />
           <path d="M12 30c-1 10 4 18 12 22l8 6 8-6c8-4 13-12 12-22" />
@@ -45,7 +45,7 @@ export default function OpengraphImage() {
           <line x1="32" y1="24" x2="32" y2="19" strokeWidth="2.5" />
           <line x1="32" y1="24" x2="36" y2="24" strokeWidth="2.5" />
         </svg>
-        <div style={{ fontSize: 34, fontWeight: 800, color: "#F5F3FF" }}>Dirework</div>
+        <div style={{ fontSize: 34, fontWeight: 800, color: "#F5F3FF" }}>DireWork</div>
       </div>
 
       {/* headline + timer */}

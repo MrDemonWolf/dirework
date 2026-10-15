@@ -150,7 +150,7 @@ describe("createBotSession bootstrap", () => {
     expect(phases(events)).toEqual(["live"]);
     expect(events.onActivity).toHaveBeenCalledWith(
       "error",
-      "could not send that command to Dirework — message dropped",
+      "could not send that command to DireWork — message dropped",
     );
   });
 
@@ -180,7 +180,7 @@ describe("createBotSession bootstrap", () => {
     }
     expect(events.onActivity).toHaveBeenCalledWith(
       "error",
-      "couldn't reach Dirework (fetch failed) — retrying in 10s",
+      "couldn't reach DireWork (fetch failed) — retrying in 10s",
     );
   });
 
@@ -418,7 +418,7 @@ describe("createBotSession ingest", () => {
 
     expect(events.onActivity).toHaveBeenCalledWith(
       "error",
-      "could not send that command to Dirework — message dropped",
+      "could not send that command to DireWork — message dropped",
     );
     expect(client.say.mock.calls).toEqual([["second"]]);
   });
@@ -530,7 +530,7 @@ describe("createBotSession after revoke", () => {
 
     expect(events.onActivity).toHaveBeenCalledWith(
       "error",
-      "couldn't reach Dirework (network error) — retrying in 5s",
+      "couldn't reach DireWork (network error) — retrying in 5s",
     );
     getSession.mockRejectedValue(null);
     await vi.advanceTimersByTimeAsync(RETRY_BASE_MS);

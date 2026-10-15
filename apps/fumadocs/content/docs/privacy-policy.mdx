@@ -1,13 +1,13 @@
 ---
 title: Privacy Policy
-description: Default data handling for independently operated, self-hosted Dirework instances.
+description: Default data handling for independently operated, self-hosted DireWork instances.
 ---
 
 **Last updated:** October 8, 2026
 
 ## Introduction
 
-Dirework is always self-hosted, open-source software. MrDemonWolf, Inc. provides the software, not hosted instances or a managed hosting service. Each instance is independently deployed and operated. This policy describes the software's default data handling; the operator of the instance you use is the data controller responsible for its configuration, retention, and legal obligations.
+DireWork is always self-hosted, open-source software. MrDemonWolf, Inc. provides the software, not hosted instances or a managed hosting service. Each instance is independently deployed and operated. This policy describes the software's default data handling; the operator of the instance you use is the data controller responsible for its configuration, retention, and legal obligations.
 
 ## Who Operates This Instance
 
@@ -17,7 +17,7 @@ Dirework is always self-hosted, open-source software. MrDemonWolf, Inc. provides
 
 ## Eligibility
 
-You must be at least **13 years old** to use Dirework, consistent with [Twitch's minimum age requirement](https://www.twitch.tv/p/en/legal/terms-of-service/). If you are under 18, you must have the consent of a parent or legal guardian to use this service.
+You must be at least **13 years old** to use DireWork, consistent with [Twitch's minimum age requirement](https://www.twitch.tv/p/en/legal/terms-of-service/). If you are under 18, you must have the consent of a parent or legal guardian to use this service.
 
 ## Data Stored by Your Instance
 
@@ -28,7 +28,7 @@ The following data may be stored in the instance's Cloudflare D1 database.
 - **Twitch user ID, username, display name, and profile image URL** — retrieved through Twitch OAuth when the owner signs in.
 - **Session records and cookies** — used to keep the owner signed in. Session cookies are secure, HTTP-only, and SameSite Lax in production; sessions expire after 30 days. Session records do not include the owner's IP address or browser user agent.
 
-Owner sign-in requests only Twitch's `openid` scope, not the `user:read:email` scope, so Twitch does not share the owner's email address with Dirework. (The sign-in library's standard request still lists the email field, but Twitch leaves it out without that scope, and Dirework would ignore it anyway.) Dirework does not keep the owner's Twitch OAuth access, refresh, or ID tokens. A placeholder address derived from the Twitch user ID fills the required email field.
+Owner sign-in requests only Twitch's `openid` scope, not the `user:read:email` scope, so Twitch does not share the owner's email address with DireWork. (The sign-in library's standard request still lists the email field, but Twitch leaves it out without that scope, and DireWork would ignore it anyway.) DireWork does not keep the owner's Twitch OAuth access, refresh, or ID tokens. A placeholder address derived from the Twitch user ID fills the required email field.
 
 ### Bot Account Data
 
@@ -46,28 +46,28 @@ Random bot and overlay tokens are stored so OBS and the bot console can use toke
 
 ## Operational Logs and Metrics
 
-Dirework does not include product analytics, advertising trackers, or third-party tracking scripts. It does emit limited operational logs and metrics to the operator's Cloudflare Workers account so failures and abuse can be diagnosed. The application uses fixed event names and status labels and is designed not to record request bodies, authorization headers, session cookies, bearer tokens, OAuth tokens, or Twitch chat messages.
+DireWork does not include product analytics, advertising trackers, or third-party tracking scripts. It does emit limited operational logs and metrics to the operator's Cloudflare Workers account so failures and abuse can be diagnosed. The application uses fixed event names and status labels and is designed not to record request bodies, authorization headers, session cookies, bearer tokens, OAuth tokens, or Twitch chat messages.
 
 Cloudflare may also process ordinary network and request metadata as the hosting provider. What is retained and who can access it depends on the instance operator's Cloudflare plan and logging configuration.
 
-Twitch chat messages are not persisted by Dirework. A command can still create or update a stored task, and the resulting task text is retained as described above.
+Twitch chat messages are not persisted by DireWork. A command can still create or update a stored task, and the resulting task text is retained as described above.
 
 ## How Data Is Used
 
-Data is used only to authenticate the owner, operate the Twitch bot, execute timer and task commands, save configuration, render overlays, prevent abuse, and diagnose service failures. Dirework does not use stored data for advertising or user profiling.
+Data is used only to authenticate the owner, operate the Twitch bot, execute timer and task commands, save configuration, render overlays, prevent abuse, and diagnose service failures. DireWork does not use stored data for advertising or user profiling.
 
 ## Third-Party Services
 
 - **Twitch** ([id.twitch.tv](https://id.twitch.tv), [api.twitch.tv](https://api.twitch.tv), and Twitch IRC) provides authentication, bot authorization, profile data, and chat transport. Twitch processes data under its [Privacy Notice](https://www.twitch.tv/p/en/legal/privacy-notice/).
-- **Cloudflare** hosts Workers, D1, rate limiting, and operational logs or metrics. Rate limiting counts requests per client using the client's IP address, or a one-way hash of the owner's session token for signed-in traffic; Dirework does not store these counters, and Cloudflare keeps them only for the short limiting window. Cloudflare processes data under the operator's Cloudflare agreement and configuration.
+- **Cloudflare** hosts Workers, D1, rate limiting, and operational logs or metrics. Rate limiting counts requests per client using the client's IP address, or a one-way hash of the owner's session token for signed-in traffic; DireWork does not store these counters, and Cloudflare keeps them only for the short limiting window. Cloudflare processes data under the operator's Cloudflare agreement and configuration.
 
 A fork may add other services. Instance operators must update this policy if they do.
 
 ## Data Storage and Security
 
-Application data is stored in Cloudflare D1 and processed by the two Cloudflare Workers belonging to the instance operator. Dirework applies owner checks, bounded input validation, rate limits, secure session-cookie settings, redacted error logging, and token-gated public routes.
+Application data is stored in Cloudflare D1 and processed by the two Cloudflare Workers belonging to the instance operator. DireWork applies owner checks, bounded input validation, rate limits, secure session-cookie settings, redacted error logging, and token-gated public routes.
 
-Bot OAuth tokens are sensitive. Dirework does not currently add application-layer encryption to their D1 columns, so operators must tightly restrict Cloudflare and GitHub access, use MFA, and rotate credentials after any suspected database or account disclosure.
+Bot OAuth tokens are sensitive. DireWork does not currently add application-layer encryption to their D1 columns, so operators must tightly restrict Cloudflare and GitHub access, use MFA, and rotate credentials after any suspected database or account disclosure.
 
 The instance operator is responsible for account security, least-privilege access, backups, log retention, incident response, and compliance with applicable law. See the repository's [security policy](https://github.com/mrdemonwolf/dirework/blob/main/SECURITY.md) for the production checklist and private vulnerability-reporting process.
 
@@ -92,7 +92,7 @@ Direct instance-specific requests to the instance operator. Depending on applica
 
 ## Children's Privacy
 
-Dirework is not directed at children under 13 and does not knowingly collect their personal data. Contact the instance operator if you believe a child has submitted data so it can be removed.
+DireWork is not directed at children under 13 and does not knowingly collect their personal data. Contact the instance operator if you believe a child has submitted data so it can be removed.
 
 ## Changes to This Policy
 

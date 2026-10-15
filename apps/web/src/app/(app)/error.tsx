@@ -35,7 +35,7 @@ export default function AppError({
   return (
     <div className="container mx-auto max-w-2xl space-y-4 px-4 py-16">
       <Callout title="This page couldn't load">
-        This usually means Dirework couldn't reach its API (a brief outage or rate limit). You
+        This usually means DireWork couldn't reach its API (a brief outage or rate limit). You
         haven't been signed out and your saved settings are untouched. Wait a moment and try again,
         or head back to the dashboard.
       </Callout>

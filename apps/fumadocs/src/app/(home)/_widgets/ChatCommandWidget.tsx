@@ -55,11 +55,11 @@ export function ChatCommandWidget() {
             </div>
           ) : (
             <div
-              key={[l.kind, "Dirework", l.text].join(":")}
+              key={[l.kind, "DireWork", l.text].join(":")}
               style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 14 }}
             >
               <span className="dw-text-brand" style={{ fontWeight: 700 }}>
-                Dirework
+                DireWork
               </span>
               <span className="dw-text-2">{l.text}</span>
             </div>

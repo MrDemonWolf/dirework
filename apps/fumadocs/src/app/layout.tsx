@@ -29,13 +29,13 @@ const montserrat = Montserrat({
 
 export const metadata: Metadata = {
   title: {
-    default: "Dirework - Focus. Together.",
-    template: "%s | Dirework",
+    default: "DireWork - Focus. Together.",
+    template: "%s | DireWork",
   },
   description:
     "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working and body-doubling streams.",
   keywords: [
-    "Dirework",
+    "DireWork",
     "Pomodoro",
     "timer",
     "Twitch",
@@ -55,14 +55,14 @@ export const metadata: Metadata = {
     url: "/",
     type: "website",
     locale: "en_US",
-    siteName: "Dirework",
-    title: "Dirework - Focus. Together.",
+    siteName: "DireWork",
+    title: "DireWork - Focus. Together.",
     description:
       "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working and body-doubling streams.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Dirework - Focus. Together.",
+    title: "DireWork - Focus. Together.",
     description:
       "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working and body-doubling streams.",
   },
@@ -88,7 +88,7 @@ export default function Layout({ children }: LayoutProps<"/">) {
           {JSON.stringify({
             "@context": "https://schema.org",
             "@type": "SoftwareApplication",
-            name: "Dirework",
+            name: "DireWork",
             description:
               "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working and body-doubling streams.",
             applicationCategory: "MultimediaApplication",

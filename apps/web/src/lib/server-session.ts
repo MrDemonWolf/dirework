@@ -19,7 +19,7 @@ const INTERNAL_FETCH_TIMEOUT_MS = 5_000;
  */
 export class SessionUnavailableError extends Error {
   constructor() {
-    super("The Dirework API could not verify your session");
+    super("The DireWork API could not verify your session");
     this.name = "SessionUnavailableError";
   }
 }
