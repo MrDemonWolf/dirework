@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { countDoneByAuthor, groupTasksByAuthor } from "../task-utils";
+import { countDoneByAuthor, groupTasksByAuthor, toRestoreInput } from "../task-utils";
 import type { Task } from "../task-utils";
 
 describe("groupTasksByAuthor", () => {
@@ -254,5 +254,26 @@ describe("groupTasksByAuthor with server done counts", () => {
 
   it("counts done rows per author for an unbounded list", () => {
     expect(countDoneByAuthor(rows)).toEqual({ a: 1 });
+  });
+});
+
+describe("toRestoreInput", () => {
+  const removed = {
+    id: "t1",
+    authorTwitchId: "100",
+    text: "write tests",
+    status: "active",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    completedAt: null,
+  };
+
+  it("passes every field of the removed row through for a known status", () => {
+    expect(toRestoreInput(removed)).toEqual(removed);
+  });
+
+  it("offers no undo when nothing was removed or the status is unknown", () => {
+    expect(toRestoreInput(null)).toBeNull();
+    expect(toRestoreInput(undefined)).toBeNull();
+    expect(toRestoreInput({ ...removed, status: "archived" })).toBeNull();
   });
 });

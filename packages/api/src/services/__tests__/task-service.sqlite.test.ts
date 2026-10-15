@@ -17,8 +17,10 @@ import {
   markTaskDone,
   promoteNextPending,
   purgeExpiredDoneTasks,
+  removeTask,
   removeTasksByUsername,
   replaceActiveTask,
+  restoreTask,
 } from "../task-service";
 import { resetTimer, startTimer } from "../timer-service";
 
@@ -366,5 +368,91 @@ describe("listTasks (bounded read)", () => {
         query,
       ).toEqual([]);
     }
+  });
+});
+
+describe("restoreTask (dashboard undo of a removal)", () => {
+  async function removeAndSnapshot(id: string) {
+    const removed = await removeTask(db, id);
+    if (!removed) throw new Error(`task ${id} was not removed`);
+    return { ...removed, status: removed.status as "pending" | "active" | "done" };
+  }
+
+  it("restores a removed pending task with its id, author, placement and timestamps", async () => {
+    await seed(
+      { id: "a", authorTwitchId: "1", status: "active" },
+      {
+        id: "b",
+        authorTwitchId: "1",
+        authorUsername: "viewer",
+        authorDisplayName: "Viewer",
+        authorColor: "#ff00aa",
+        text: "write tests",
+        priority: 1,
+        order: 7,
+        createdAt: new Date(1_700_000_000_000),
+      },
+    );
+    const before = await db.query.task.findFirst({ where: (t, { eq }) => eq(t.id, "b") });
+    const snapshot = await removeAndSnapshot("b");
+
+    const restored = await restoreTask(db, snapshot);
+
+    expect(restored).toEqual(before);
+    expect(await statusById()).toEqual({ a: "active", b: "pending" });
+  });
+
+  it("restores a removed done task with its completion time", async () => {
+    const completedAt = new Date(Date.now() - 60_000);
+    await seed({ id: "d", authorTwitchId: "1", status: "done", completedAt });
+    const snapshot = await removeAndSnapshot("d");
+
+    const restored = await restoreTask(db, snapshot);
+
+    expect(restored).toMatchObject({ id: "d", status: "done", completedAt });
+  });
+
+  it("restores the removed active task as active when nothing took its place", async () => {
+    await seed({ id: "a", authorTwitchId: "1", status: "active" });
+    const snapshot = await removeAndSnapshot("a");
+
+    expect(await restoreTask(db, snapshot)).toMatchObject({ id: "a", status: "active" });
+  });
+
+  it("restores the removed active task as pending when removal promoted another", async () => {
+    await seed(
+      { id: "a", authorTwitchId: "1", status: "active", order: 1 },
+      { id: "b", authorTwitchId: "1", status: "pending", order: 2 },
+    );
+    const snapshot = await removeAndSnapshot("a");
+    expect(await statusById()).toEqual({ b: "active" });
+
+    const restored = await restoreTask(db, snapshot);
+
+    // The single-active index would reject a second active row; the promoted
+    // task keeps the slot and the restored one queues first behind it.
+    expect(restored).toMatchObject({ id: "a", status: "pending", order: 1 });
+    expect(await statusById()).toEqual({ a: "pending", b: "active" });
+  });
+
+  it("only considers the same author's active task", async () => {
+    await seed(
+      { id: "a", authorTwitchId: "1", status: "active" },
+      { id: "x", authorTwitchId: "2", status: "active" },
+    );
+    const snapshot = await removeAndSnapshot("a");
+
+    expect(await restoreTask(db, snapshot)).toMatchObject({ id: "a", status: "active" });
+  });
+
+  it("is a no-op returning null when the id already exists (double undo)", async () => {
+    await seed({ id: "a", authorTwitchId: "1", status: "pending", text: "original" });
+    const snapshot = await removeAndSnapshot("a");
+    await restoreTask(db, snapshot);
+
+    expect(await restoreTask(db, { ...snapshot, text: "changed" })).toBeNull();
+    const rows = await db.query.task.findMany();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.text).toBe("original");
   });
 });

@@ -14,11 +14,14 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MAX_TASK_LEN } from "@/lib/config-types";
 import { DASHBOARD_TASKS_POLL_MS, dashboardPollInterval } from "@/lib/poll-intervals";
-import { groupTasksByAuthor } from "@/lib/task-utils";
+import { groupTasksByAuthor, toRestoreInput } from "@/lib/task-utils";
 import { StatusChip } from "@/components/status-chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { describeTrpcError } from "@/lib/trpc-errors";
 import { trpc } from "@/utils/trpc";
+
+/** How long the "Task removed" toast offers Undo. */
+const UNDO_TOAST_MS = 5000;
 
 interface TaskManagerProps {
   userTwitchId: string;
@@ -69,9 +72,26 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
     onError: mutationError("set the active task"),
   });
 
+  const restoreTask = useMutation({
+    ...trpc.task.restore.mutationOptions(),
+    onSuccess: invalidate,
+    onError: mutationError("restore the task"),
+  });
+
+  // Removal stays one click; the toast's Undo re-inserts the removed row (one
+  // mutation, only when clicked).
   const removeTask = useMutation({
     ...trpc.task.remove.mutationOptions(),
-    onSuccess: invalidate,
+    onSuccess: (removed) => {
+      invalidate();
+      const snapshot = toRestoreInput(removed);
+      if (!snapshot) return;
+      toast("Task removed", {
+        id: `task-removed-${snapshot.id}`,
+        duration: UNDO_TOAST_MS,
+        action: { label: "Undo", onClick: () => restoreTask.mutate(snapshot) },
+      });
+    },
     onError: mutationError("remove the task"),
   });
 

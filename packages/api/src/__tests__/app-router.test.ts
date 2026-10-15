@@ -85,6 +85,11 @@ function makeDb(rows: DbRows = {}) {
           onConflictDoNothing: () => ({ returning: async () => [] }),
         };
       },
+      // INSERT … SELECT (task.restore): the SQL itself is covered by the sqlite suite.
+      select: () => {
+        inserted.push({ kind: "insert-select" });
+        return { onConflictDoNothing: () => ({ returning: async () => [{ id: "restored" }] }) };
+      },
     }),
     update: () => ({
       set: (values: Record<string, unknown>) => {
@@ -196,6 +201,48 @@ describe("authentication (appRouter)", () => {
     });
     // A wrong overlay token resolves null (OBS renders blank) rather than throwing.
     await expect(anon.overlay.getTimerState({ token: "x".repeat(32) })).resolves.toBeNull();
+  });
+});
+
+describe("task.restore (undo of a dashboard removal)", () => {
+  const removedTask = {
+    id: "t1",
+    authorTwitchId: "100",
+    authorUsername: "viewer",
+    authorDisplayName: "Viewer",
+    authorColor: "#ff00aa",
+    text: "write the docs",
+    status: "active" as const,
+    priority: 1,
+    order: 3,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    completedAt: null,
+  };
+
+  it("rejects anonymous callers and non-owners before touching the DB", async () => {
+    const anon = caller(null);
+    await expect(anon.caller.task.restore(removedTask)).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+    const rando = caller(nonOwnerSession);
+    await expect(rando.caller.task.restore(removedTask)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    expect([...anon.inserted, ...rando.inserted]).toHaveLength(0);
+  });
+
+  it("lets the owner restore a removed task", async () => {
+    const { caller: owner, inserted } = caller(ownerSession);
+    await expect(owner.task.restore(removedTask)).resolves.toEqual({ id: "restored" });
+    expect(inserted).toEqual([{ kind: "insert-select" }]);
+  });
+
+  it("rejects an author colour that is not #rrggbb (it reaches overlay CSS)", async () => {
+    const { caller: owner, inserted } = caller(ownerSession);
+    await expect(
+      owner.task.restore({ ...removedTask, authorColor: "red;background:url(x)" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(inserted).toHaveLength(0);
   });
 });
 
