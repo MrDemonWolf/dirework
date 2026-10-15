@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { AUTHOR_HEADER_TINT_PERCENT } from "../overlay-view";
+import {
+  AUTHOR_COUNT_OPACITY,
+  AUTHOR_HEADER_TINT_PERCENT,
+  HEADER_COUNT_OPACITY,
+} from "../overlay-view";
 import { themePresets } from "../theme-presets";
 
 /**
@@ -20,6 +24,8 @@ import { themePresets } from "../theme-presets";
  */
 
 const AA_NORMAL_TEXT = 4.5;
+/** WCAG AA for large text: at least 24px regular (18pt). */
+const AA_LARGE_TEXT = 3;
 
 type Rgb = [number, number, number];
 
@@ -90,5 +96,20 @@ describe.each(themePresets)("$name preset task overlay contrast", (preset) => {
     expect(
       contrastRatio(parseHex(styles.header.fontColor), parseHex(styles.header.background.color)),
     ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+  });
+
+  // The counters are faded with opacity, so composite the text over what is
+  // behind it before measuring.
+  it("author {done}/{total} counter meets AA", () => {
+    const text = composite(parseHex(styles.task.fontColor), AUTHOR_COUNT_OPACITY, authorHeader);
+    expect(contrastRatio(text, authorHeader)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+  });
+
+  it("header {done}/{total} counter meets AA", () => {
+    const bg = parseHex(styles.header.background.color);
+    const text = composite(parseHex(styles.header.fontColor), HEADER_COUNT_OPACITY, bg);
+    // Rendered at header.fontSize: WCAG "large text" (>= 24px) needs only 3:1.
+    const bar = Number.parseFloat(styles.header.fontSize) >= 24 ? AA_LARGE_TEXT : AA_NORMAL_TEXT;
+    expect(contrastRatio(text, bg)).toBeGreaterThanOrEqual(bar);
   });
 });

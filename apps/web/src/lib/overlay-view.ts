@@ -21,6 +21,14 @@ import { type PhaseDurations, type TimerState, resolvePhaseDuration } from "@/li
  */
 export const AUTHOR_HEADER_TINT_PERCENT = 6;
 
+/**
+ * The `{done}/{total}` counters are de-emphasized with opacity. They are still
+ * viewer-facing text, so theme-contrast.test.ts composites these values and
+ * holds them to the same 4.5:1 bar as the rest of the overlay.
+ */
+export const AUTHOR_COUNT_OPACITY = 0.8;
+export const HEADER_COUNT_OPACITY = 0.8;
+
 /** A valid instance whose timer has never run (no state row yet). */
 const IDLE_TIMER_STATE: TimerState = {
   status: "idle",

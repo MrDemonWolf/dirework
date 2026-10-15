@@ -3,7 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 
 import { countDoneByAuthor, groupTasksByAuthor } from "@/lib/task-utils";
-import { AUTHOR_HEADER_TINT_PERCENT } from "@/lib/overlay-view";
+import {
+  AUTHOR_COUNT_OPACITY,
+  AUTHOR_HEADER_TINT_PERCENT,
+  HEADER_COUNT_OPACITY,
+} from "@/lib/overlay-view";
 import { colorWithOpacity, quoteFontFamily } from "@/lib/timer-utils";
 import { cn } from "@/lib/utils";
 import type { Task, TaskGroup } from "@/lib/task-utils";
@@ -223,7 +227,7 @@ function AuthorGroup({ group, config }: { group: TaskGroup; config: TaskStylesCo
           style={{
             color: config.task.fontColor,
             fontSize: `calc(${config.task.fontSize} * 0.75)`,
-            opacity: 0.7,
+            opacity: AUTHOR_COUNT_OPACITY,
             whiteSpace: "nowrap",
             marginLeft: "8px",
           }}
@@ -297,7 +301,7 @@ export function TaskListDisplay({
             style={{
               fontSize: config.header.fontSize,
               color: config.header.fontColor,
-              opacity: 0.8,
+              opacity: HEADER_COUNT_OPACITY,
             }}
           >
             {doneCount}/{totalCount}
