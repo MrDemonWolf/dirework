@@ -48,8 +48,11 @@ export interface BotSessionInfo {
   channelName: string;
   botUsername: string;
   chatToken: string;
-  /** The instance's command alias keys, canonical (no "!"). */
-  aliases: string[];
+  /**
+   * The instance's command alias keys, canonical (no "!"). Optional: an api
+   * worker from before this field (rollback, or a split deploy) omits it.
+   */
+  aliases?: string[];
 }
 
 export interface BotSessionApi {
@@ -252,7 +255,9 @@ export function createBotSession({
   });
 
   function applyAliases(session: BotSessionInfo) {
-    aliasKeys = new Set(session.aliases);
+    // Missing → no aliases yet: built-in commands still relay, and the bot
+    // stays up instead of retrying a shape mismatch forever.
+    aliasKeys = new Set(Array.isArray(session.aliases) ? session.aliases : []);
   }
 
   function connectWith(session: BotSessionInfo) {

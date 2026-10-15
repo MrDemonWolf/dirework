@@ -434,6 +434,21 @@ describe("createBotSession ingest", () => {
     expect(counters.filter((c) => c === "commands")).toHaveLength(3);
   });
 
+  it("still connects and relays built-in commands when an older api omits aliases", async () => {
+    const { aliases: _omitted, ...legacySession } = SESSION;
+    const { ingest, client, callbacks } = setup({ getSession: async () => legacySession });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(client.connect).toHaveBeenCalledTimes(1);
+    callbacks().onChat?.(chat("!task write docs"));
+    callbacks().onChat?.(chat("!lurk"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(ingest.mock.calls.map(([input]) => input.kind === "message" && input.message)).toEqual([
+      "!task write docs",
+    ]);
+  });
+
   it("applies alias changes picked up by the hourly revalidation", async () => {
     const { getSession, ingest, client, callbacks } = setup({
       getSession: async () => ({ ...SESSION, aliases: ["t"] }),
