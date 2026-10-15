@@ -9,6 +9,7 @@ import {
   taskStylesInputSchema,
   timerMessagesInputSchema,
   timerStylesInputSchema,
+  twitchAuthorColorSchema,
 } from "../config-shared";
 
 // ── Router input schemas ──────────────────────────────────────────────────────
@@ -35,8 +36,8 @@ const isoTimestampInput = z.iso.datetime().transform((value) => new Date(value))
 /**
  * Undo of a dashboard removal: the removed row, round-tripped. Every field is
  * bounded like the paths that originally wrote it — task text by taskTextInput,
- * the author color by the same #rrggbb shape chat ingest accepts (it reaches
- * overlay CSS).
+ * the author color by twitchAuthorColorSchema, the same policy chat ingest uses
+ * (it reaches overlay CSS).
  */
 export const taskRestoreInput = z
   .object({
@@ -44,10 +45,7 @@ export const taskRestoreInput = z
     authorTwitchId: z.string().min(1).max(128),
     authorUsername: z.string().min(1).max(64),
     authorDisplayName: z.string().min(1).max(64),
-    authorColor: z
-      .string()
-      .regex(/^#[0-9a-f]{6}$/i)
-      .nullable(),
+    authorColor: twitchAuthorColorSchema.nullable(),
     text: taskTextInput,
     status: z.enum(["pending", "active", "done"]),
     priority: z.number().int().min(0).max(1),

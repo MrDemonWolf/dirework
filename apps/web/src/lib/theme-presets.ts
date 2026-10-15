@@ -219,7 +219,7 @@ export const themePresets: ThemePreset[] = [
         border: { color: "#48484a", width: "1px", radius: "12px" },
         fontSize: "22px",
         fontColor: "#f5f5f7",
-        usernameColor: "#409cff",
+        usernameColor: "#5aa9ff",
         padding: "10px 14px",
         marginBottom: "4px",
         maxWidth: "100%",

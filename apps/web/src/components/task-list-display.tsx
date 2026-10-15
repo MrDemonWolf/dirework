@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { countDoneByAuthor, groupTasksByAuthor } from "@/lib/task-utils";
+import { AUTHOR_HEADER_TINT_PERCENT } from "@/lib/overlay-view";
 import { colorWithOpacity, quoteFontFamily } from "@/lib/timer-utils";
 import { cn } from "@/lib/utils";
 import type { Task, TaskGroup } from "@/lib/task-utils";
@@ -206,7 +207,7 @@ function AuthorGroup({ group, config }: { group: TaskGroup; config: TaskStylesCo
         style={{
           padding: config.task.padding,
           borderBottom: `${config.task.border.width} solid ${config.task.border.color}`,
-          backgroundColor: `color-mix(in srgb, ${authorColor} 6%, transparent)`,
+          backgroundColor: `color-mix(in srgb, ${authorColor} ${AUTHOR_HEADER_TINT_PERCENT}%, transparent)`,
         }}
       >
         <span

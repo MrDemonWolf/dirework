@@ -14,6 +14,13 @@ import { type PhaseDurations, type TimerState, resolvePhaseDuration } from "@/li
 // or an empty task list. React Query keeps the last good payload across failed
 // refetches, so a transient error never reaches here as `undefined`.
 
+/**
+ * Strength (%) of the author-color tint behind each author header on the task
+ * overlay. Shared with the preset contrast test, which composites it under the
+ * username — so a tint change re-checks every preset.
+ */
+export const AUTHOR_HEADER_TINT_PERCENT = 6;
+
 /** A valid instance whose timer has never run (no state row yet). */
 const IDLE_TIMER_STATE: TimerState = {
   status: "idle",

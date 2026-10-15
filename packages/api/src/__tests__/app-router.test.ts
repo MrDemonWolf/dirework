@@ -4,9 +4,12 @@ import {
   DEFAULT_PHASE_LABELS,
   DEFAULT_TASK_MESSAGES,
   DEFAULT_TIMER_MESSAGES,
+  twitchAuthorColorSchema,
 } from "../config-shared";
 import type { Context } from "../context";
+import { botIngestInputSchema } from "../routers/bot";
 import { appRouter } from "../routers/index";
+import { taskRestoreInput } from "../routers/input-schemas";
 
 /**
  * Integration tests driving the REAL appRouter through createCaller.
@@ -469,6 +472,44 @@ describe("database effects of owner mutations", () => {
     await expect(owner.user.regenerateOverlayToken({ type: "timer" })).rejects.toMatchObject({
       code: "INTERNAL_SERVER_ERROR",
     });
+  });
+});
+
+describe("Twitch author color: one policy for chat ingest and task restore", () => {
+  const token = "b".repeat(32);
+  const injections = ["red;background:url(x)", "#fff}body{display:none", "url(https://evil.test)"];
+
+  it("both input schemas use the shared twitchAuthorColorSchema", () => {
+    expect(botIngestInputSchema.shape.color.unwrap()).toBe(twitchAuthorColorSchema);
+    expect(taskRestoreInput.shape.authorColor.unwrap()).toBe(twitchAuthorColorSchema);
+  });
+
+  it.each(injections)("bot.ingest rejects %s", async (color) => {
+    const { caller: anon, inserted } = caller(null, { instanceConfig: { botToken: token } });
+    await expect(
+      anon.bot.ingest({ token, username: "viewer", twitchId: "777", message: "!task x", color }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(inserted).toHaveLength(0);
+  });
+
+  it.each(injections)("task.restore rejects %s", async (authorColor) => {
+    const { caller: owner, inserted } = caller(ownerSession);
+    await expect(
+      owner.task.restore({
+        id: "t1",
+        authorTwitchId: "100",
+        authorUsername: "viewer",
+        authorDisplayName: "Viewer",
+        authorColor,
+        text: "write the docs",
+        status: "pending",
+        priority: 1,
+        order: 1,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        completedAt: null,
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(inserted).toHaveLength(0);
   });
 });
 

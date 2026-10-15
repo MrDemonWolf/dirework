@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { AUTHOR_HEADER_TINT_PERCENT } from "../overlay-view";
 import { themePresets } from "../theme-presets";
 
 /**
@@ -7,8 +8,10 @@ import { themePresets } from "../theme-presets";
  * task overlay, computed against the background that text actually renders on
  * (mirrors task-list-display.tsx):
  *
- *   - task text + username sit on the author group: `task.background` composited
- *     over `body.background`;
+ *   - task text sits on the author group: `task.background` composited over
+ *     `body.background`;
+ *   - the fallback username sits on the author header, which tints that group
+ *     with the username color itself (AUTHOR_HEADER_TINT_PERCENT);
  *   - done text sits on `taskDone.background` composited over that group;
  *   - header text sits on `header.background`.
  *
@@ -59,6 +62,8 @@ describe.each(themePresets)("$name preset task overlay contrast", (preset) => {
     styles.task.background.opacity,
     body,
   );
+  const username = parseHex(styles.task.usernameColor);
+  const authorHeader = composite(username, AUTHOR_HEADER_TINT_PERCENT / 100, group);
   const doneRow = composite(
     parseHex(styles.taskDone.background.color),
     styles.taskDone.background.opacity,
@@ -78,9 +83,7 @@ describe.each(themePresets)("$name preset task overlay contrast", (preset) => {
   });
 
   it("fallback username color meets AA", () => {
-    expect(contrastRatio(parseHex(styles.task.usernameColor), group)).toBeGreaterThanOrEqual(
-      AA_NORMAL_TEXT,
-    );
+    expect(contrastRatio(username, authorHeader)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
   });
 
   it("header text meets AA", () => {

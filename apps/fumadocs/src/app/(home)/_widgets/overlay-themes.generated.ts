@@ -21,7 +21,7 @@ export const OVERLAY_THEMES = {
     bg: "#1C1C1E",
     accent: "#0A84FF",
     text: "#F5F5F7",
-    username: "#409CFF",
+    username: "#5AA9FF",
   },
   "Cozy Cottage": {
     bg: "#FAF3E8",
