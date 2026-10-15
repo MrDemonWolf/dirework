@@ -1,3 +1,5 @@
+// Server gate for /setup: the claim page exists only while the instance is unclaimed.
+
 import type { Metadata } from "next";
 
 import { notFound, redirect } from "next/navigation";
@@ -10,6 +12,11 @@ export const metadata: Metadata = {
   description: "Claim this DireWork instance as the streamer.",
 };
 
+/**
+ * Owner session -> /dashboard; already claimed -> 404; otherwise render the claim screen.
+ * `getInstanceOwned` fails closed (reports "owned" when the api can't be reached), so an api
+ * outage 404s this page rather than offering a claim the server would refuse anyway.
+ */
 export default async function SetupPage() {
   const [owned, session] = await Promise.all([getInstanceOwned(), getServerSession()]);
 

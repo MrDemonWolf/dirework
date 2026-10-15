@@ -1,5 +1,10 @@
+// Loading placeholder for the dashboard page, shown while the first `user.me` query is pending.
+// Its blocks mirror the live layout (timer hero, task board, tasks output, bot strip) so the
+// page doesn't jump when data lands; update it alongside dashboard.tsx.
+
 import { Skeleton } from "@/components/ui/skeleton";
 
+/** Static, data-free skeleton of the dashboard grid. */
 export function DashboardSkeleton() {
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">

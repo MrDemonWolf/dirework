@@ -1,5 +1,9 @@
 "use client";
 
+// The timer widget as drawn in the OBS timer overlay (/overlay/t/[token]) and the
+// Theme Center preview: phase label, countdown digits, cycle counter and an optional
+// circle or rounded-rect progress ring. Pure presentation — no fetching.
+
 import {
   TIMER_CONFIG_DEFAULTS,
   type PhaseLabelsConfig,
@@ -30,6 +34,11 @@ type TimerConfig = TimerStylesConfig & {
 // glides the ring between ticks instead of restarting an ease every frame.
 const RING_TRANSITION = "stroke-dashoffset 1s linear";
 
+/**
+ * SVG progress ring sized to the widget box. `progress` is the fraction remaining
+ * (1 = full ring, clamped to 0..1). Draws a circle when `borderRadius` is 50%, else a
+ * rounded-rect path whose corner radius follows the background's first radius value.
+ */
 function ProgressRing({
   progress,
   width,
@@ -139,6 +148,14 @@ function ProgressRing({
   );
 }
 
+/**
+ * Renders one timer frame at the fixed pixel size in `config.dimensions` (callers wrap
+ * it in `<AutoScale>` to fit the OBS source). Counts down locally from
+ * `state.targetEndTime` via `useTimerCountdown`. `totalDuration` is the configured
+ * length of the current phase: it scales the ring and, while idle, is the time shown.
+ * In the overlay, style values have passed the server's CSS allowlist schemas on save;
+ * the Theme Center preview passes the owner's unsaved edits.
+ */
 export function TimerDisplay({
   config,
   state,

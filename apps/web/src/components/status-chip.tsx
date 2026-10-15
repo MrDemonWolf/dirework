@@ -1,7 +1,14 @@
 "use client";
 
+// LED-style status chip used across the app (timer state, bot connection, unsaved changes).
+
 import { cn } from "@/lib/utils";
 
+/**
+ * Semantic tones: live = connected/running (emerald), warn = paused/unsaved (amber),
+ * accent = cerulean primary, alt = cornflower secondary (chart-2), idle = neutral,
+ * danger = destructive.
+ */
 export type StatusTone = "live" | "warn" | "accent" | "alt" | "idle" | "danger";
 
 const toneStyles: Record<StatusTone, { chip: string; dot: string }> = {

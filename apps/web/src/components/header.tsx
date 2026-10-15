@@ -1,5 +1,8 @@
 "use client";
 
+// Sticky top bar for the (app) route group (rendered by app/(app)/layout.tsx): logo, the
+// dashboard nav (desktop links + mobile dropdown), theme toggle, and the account menu.
+
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -11,12 +14,18 @@ import { Button } from "@/components/ui/button";
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
 
+/** Dashboard sections, in nav order. `as const` hrefs keep them valid typed routes. */
 const navItems = [
   { href: "/dashboard" as const, label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/styles" as const, label: "Theme Center", icon: Palette },
   { href: "/dashboard/bot" as const, label: "Bot", icon: Bot },
 ];
 
+/**
+ * Site header. The nav only renders once a client session exists; it is navigation, not
+ * access control — the pages call `requireSession()` and the API's `ownerProcedure` does the
+ * real authorization.
+ */
 export default function Header() {
   const pathname = usePathname();
   const { data: session } = authClient.useSession();
@@ -58,6 +67,7 @@ export default function Header() {
           {session && (
             <nav className="hidden items-center gap-1 md:flex">
               {navItems.map((item) => {
+                // "/dashboard" must match exactly: every other item is nested under it.
                 const isActive =
                   item.href === "/dashboard"
                     ? pathname === "/dashboard"
@@ -94,6 +104,7 @@ export default function Header() {
             <Button
               variant="ghost"
               size="icon"
+              // The ::after inset enlarges the touch target past the visible icon button.
               className="relative after:absolute after:-inset-1.5 md:hidden"
               onClick={() => setMobileMenuOpen((v) => !v)}
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}

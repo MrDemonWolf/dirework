@@ -1,5 +1,7 @@
 "use client";
 
+// Theme Center editor for the task-list overlay's styles (the Tasks tab of /dashboard/styles).
+
 import { glyphSchema } from "@dirework/api/config-shared";
 
 import type { TaskStylesConfig } from "@/lib/config-types";
@@ -9,6 +11,11 @@ import { FontSelect } from "./font-select";
 import { SectionGroup } from "./section-group";
 import { BackgroundFields, BorderFields, MarginFields } from "./style-field-groups";
 
+/**
+ * Controlled form over `TaskStylesConfig`: every edit emits a full new styles object,
+ * which the Styles page holds as unsaved working state (driving the live preview)
+ * until the owner saves.
+ */
 export function TaskStyleEditor({
   styles,
   onChange,
@@ -16,6 +23,8 @@ export function TaskStyleEditor({
   styles: TaskStylesConfig;
   onChange: (styles: TaskStylesConfig) => void;
 }) {
+  // Shallow-merges one section; nested objects (e.g. body.padding) must be spread
+  // by the caller.
   function update<K extends keyof TaskStylesConfig>(
     section: K,
     patch: Partial<TaskStylesConfig[K]>,

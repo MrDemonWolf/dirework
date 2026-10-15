@@ -1,10 +1,14 @@
 "use client";
 
+// Error boundary for the /bot/<token> console. Auto-resets so an unattended OBS source or
+// pinned tab recovers without anyone clicking.
+
 import { useEffect } from "react";
 
 /** The bot is usually unattended (OBS source), so it restarts on its own. */
 const RESTART_AFTER_MS = 10_000;
 
+/** Remounts the bot route after `RESTART_AFTER_MS`; "Restart now" resets immediately. */
 export default function BotError({ reset }: { error: Error; reset: () => void }) {
   useEffect(() => {
     const timer = setTimeout(reset, RESTART_AFTER_MS);

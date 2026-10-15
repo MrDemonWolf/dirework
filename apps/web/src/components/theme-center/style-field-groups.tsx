@@ -1,5 +1,10 @@
 "use client";
 
+// Reusable Theme Center field clusters (opacity, background, border, margins) shared by
+// the timer and task style editors. Each is controlled and emits the whole sub-object.
+// Free-text lengths are flagged inline by TextFieldRow against the same `cssLengthSchema`
+// allowlist the server enforces on save.
+
 import type { TaskStylesConfig } from "@/lib/config-types";
 import { ColorInput } from "./color-input";
 import { SliderRow, TextFieldRow } from "./field-row";

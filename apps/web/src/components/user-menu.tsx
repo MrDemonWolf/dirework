@@ -1,5 +1,8 @@
 "use client";
 
+// Header account control: a Twitch sign-in button when signed out, otherwise an
+// avatar dropdown with the dashboard links and sign-out.
+
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bot, ChevronDown, LayoutDashboard, LogOut, Palette } from "lucide-react";
@@ -18,12 +21,14 @@ import { TwitchIcon } from "@/components/icons/twitch-icon";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
 
+/** Dashboard destinations listed in the dropdown, in display order. */
 const menuLinks = [
   { href: "/dashboard" as const, label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/styles" as const, label: "Theme Center", icon: Palette },
   { href: "/dashboard/bot" as const, label: "Bot", icon: Bot },
 ];
 
+/** Round avatar image, or the name's first letter when there is no image. */
 function Avatar({
   image,
   name,
@@ -46,6 +51,10 @@ function Avatar({
   );
 }
 
+/**
+ * Session-aware account menu. Renders a skeleton while the session loads, so
+ * the header never flashes the sign-in button for a signed-in owner.
+ */
 export default function UserMenu() {
   const router = useRouter();
   const pathname = usePathname();
@@ -59,6 +68,8 @@ export default function UserMenu() {
     return (
       <Button
         className="bg-twitch text-white hover:bg-twitch-hover"
+        // A failed or refused sign-in returns to a page that renders the error
+        // callout: /setup when starting there, otherwise the home page.
         onClick={() => signInWithTwitch(pathname === "/setup" ? "/setup" : "/")}
       >
         <TwitchIcon className="size-3.5" />
@@ -101,6 +112,8 @@ export default function UserMenu() {
         <DropdownMenuItem
           variant="destructive"
           onClick={() => {
+            // Signing out leaves the page, so an open editor with unsaved
+            // edits gets the same discard confirmation as navigation.
             confirmDiscardIfDirty(() => {
               authClient.signOut({
                 fetchOptions: {

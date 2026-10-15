@@ -1,9 +1,19 @@
+// Default social share card (Next.js `opengraph-image` file convention at the app root, so every
+// route inherits it). Prerendered once at build and served from OpenNext's static-assets cache
+// rather than rendered per request.
+
 import { ImageResponse } from "next/og";
 
+/** Alt text Next.js emits as `og:image:alt`. */
 export const alt = "DireWork — Focus timer for your Twitch stream";
+/** The standard 1.91:1 Open Graph card size; Next.js emits it as og:image width/height. */
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
+/**
+ * Renders the share card with `next/og` (Satori), which supports only inline styles and a
+ * flexbox subset, so nothing here can use Tailwind classes or the app's CSS tokens.
+ */
 export default function OGImage() {
   return new ImageResponse(
     <div
@@ -18,7 +28,7 @@ export default function OGImage() {
         fontFamily: "system-ui, sans-serif",
       }}
     >
-      {/* Wolf-clock icon (simplified for OG) */}
+      {/* Wolf-clock icon (simplified for OG); same paths as the header logo in header.tsx */}
       <svg width="120" height="120" viewBox="0 0 64 64" fill="none" style={{ marginBottom: 32 }}>
         <title>DireWork logo</title>
         <path

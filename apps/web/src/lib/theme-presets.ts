@@ -1,6 +1,15 @@
+// Theme Center presets: full timer + task overlay style trees the owner can apply
+// in one click. Preview swatches and username colors must match
+// design-system/tokens.json (theme-palette-sync test), and every preset must pass
+// the WCAG AA contrast test (theme-contrast test) and the server's input schemas.
+
 import type { ThemePreset, TimerStylesConfig, TaskStylesConfig } from "./config-types";
 import { isDeepEqual } from "./utils";
 
+/**
+ * Timer overlay styles used before the saved config loads and as the "Default"
+ * preset. Treat as read-only: clone before mutating (as the presets below do).
+ */
 export const defaultTimerStyles: TimerStylesConfig = {
   dimensions: { width: "300px", height: "300px" },
   background: { color: "#091533", opacity: 0.85, borderRadius: "22%" },
@@ -17,6 +26,7 @@ export const defaultTimerStyles: TimerStylesConfig = {
   fontSizes: { label: "18px", time: "48px", cycle: "16px" },
 };
 
+/** Task overlay counterpart of `defaultTimerStyles`; also the base `tasks()` merges onto. */
 export const defaultTaskStyles: TaskStylesConfig = {
   display: {
     showDone: true,
@@ -97,6 +107,10 @@ function tasks(
   return base as unknown as TaskStylesConfig;
 }
 
+/**
+ * The six built-in presets, in Theme Center display order. `id` is how
+ * `detectMatchingPreset` reports the active one, so keep ids stable.
+ */
 export const themePresets: ThemePreset[] = [
   // ─── 1. Default (MrDemonWolf midnight blue) ──────────────────────────
   {

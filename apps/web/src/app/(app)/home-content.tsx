@@ -1,5 +1,9 @@
 "use client";
 
+// Landing page for a claimed instance when the visitor isn't the signed-in owner (the server
+// page redirects the owner to /dashboard and an unclaimed instance to /setup). Pitch, Twitch
+// sign-in, and inline copy for sign-in errors.
+
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Bot, ExternalLink, ListTodo, Monitor, Palette, Shield, Timer } from "lucide-react";
@@ -44,6 +48,7 @@ function TimerModuleMock() {
   );
 }
 
+/** Reads `?error=` (from better-auth's errorCallbackURL or the bot OAuth redirects). */
 function HomeInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -82,6 +87,7 @@ function HomeInner() {
             <Button
               size="lg"
               className="cursor-pointer gap-2 bg-twitch text-white hover:bg-twitch-hover"
+              // A refused or failed sign-in comes back here as `/?error=<code>`.
               onClick={() => signInWithTwitch("/")}
             >
               <TwitchIcon className="size-4" />
@@ -132,6 +138,7 @@ function HomeInner() {
   );
 }
 
+/** Client half of the `/` route; Suspense is required around `useSearchParams`. */
 export default function HomeContent() {
   return (
     <Suspense fallback={<Loader />}>

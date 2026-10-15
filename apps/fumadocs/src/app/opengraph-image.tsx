@@ -1,13 +1,19 @@
 import { ImageResponse } from "next/og";
 
-// Branded default OG / Twitter card for the docs home and any page without its
-// own image. Per-doc pages override this via generateMetadata (og/docs route).
+// Branded default OG / Twitter card for the site home page and any page without its
+// own image (Next emits it as both og:image and twitter:image). Per-doc pages override
+// this via generateMetadata (og/docs route).
 export const alt = "DireWork — self-hosted Pomodoro timer and task list for Twitch";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 // Required for `output: export` (static GitHub Pages build) — pre-render at build.
 export const dynamic = "force-static";
 
+/**
+ * Renders the card with next/og (Satori): inline styles only, every multi-child div needs an
+ * explicit `display: "flex"`, and colors are literal hex because CSS variables and the site's
+ * stylesheets are not available there. The wolf-and-clock mark duplicates `BrandMark`'s SVG.
+ */
 export default function OpengraphImage() {
   return new ImageResponse(
     <div

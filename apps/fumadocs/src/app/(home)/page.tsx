@@ -1,3 +1,7 @@
+// Marketing home page (`/`) of the docs site. A server component, statically exported with
+// the rest of the site to GitHub Pages; the only client JS is the OverlayThemePreview island.
+// Styles live in marketing.css (`.marketing*` classes, so they don't leak into docs pages).
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
@@ -15,6 +19,11 @@ import { OverlayThemePreview } from "./_widgets/OverlayThemePreview";
 import "./marketing.css";
 
 const GITHUB = "https://github.com/mrdemonwolf/dirework";
+
+/**
+ * Home-page metadata; overrides the root layout's default description. The title still goes
+ * through the root layout's `%s | DireWork` template.
+ */
 export const metadata: Metadata = {
   title: "DireWork — A focus room for your Twitch stream",
   description:
@@ -69,6 +78,7 @@ function StreamScene() {
             { name: "pixel_pat", task: "Finish the first sketch", done: false },
             { name: "night_owl", task: "Read one chapter", done: true },
           ].map(({ name, task, done }) => (
+            // The check icon is aria-hidden, so the sr-only "Completed" carries done state.
             <div key={name} className={`marketing-scene-task ${done ? "is-done" : ""}`}>
               <span className="marketing-task-check" aria-hidden>
                 {done && <Check size={14} />}
@@ -95,6 +105,7 @@ function StreamScene() {
   );
 }
 
+/** FAQ entries, rendered as native <details> disclosures (no client JS). */
 const questions = [
   {
     q: "Is this a hosted service?",
@@ -118,8 +129,11 @@ const questions = [
   },
 ];
 
+/** Landing page: hero, features, overlay theme preview, chat commands, setup steps, FAQ. */
 export default function HomePage() {
   return (
+    // `nd-page` is the root layout's skip-link target; Fumadocs' DocsPage sets the same id
+    // on docs pages, so the home page provides it itself.
     <div id="nd-page" className="marketing dw-font dw-bg-base dw-text-1">
       <section className="marketing-hero" aria-labelledby="hero-title">
         <div className="marketing-wrap">

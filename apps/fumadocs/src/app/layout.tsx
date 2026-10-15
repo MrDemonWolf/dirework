@@ -1,3 +1,7 @@
+// Root layout for the docs + marketing site (apps/fumadocs, static export to GitHub Pages).
+// Owns fonts, site-wide metadata, the skip link, the shared footer and JSON-LD; the home and
+// docs route groups add their own Fumadocs layouts underneath.
+
 import { IBM_Plex_Sans, IBM_Plex_Mono, Montserrat } from "next/font/google";
 import Script from "next/script";
 import type { Metadata } from "next";
@@ -27,6 +31,10 @@ const montserrat = Montserrat({
   variable: "--font-montserrat",
 });
 
+/**
+ * Site-wide defaults. Pages override title/description (the `%s | DireWork` template applies
+ * to theirs); `metadataBase` resolves the relative canonical and OG URLs to the public site.
+ */
 export const metadata: Metadata = {
   title: {
     default: "DireWork - Focus. Together.",
@@ -71,12 +79,16 @@ export const metadata: Metadata = {
 
 export default function Layout({ children }: LayoutProps<"/">) {
   return (
+    // suppressHydrationWarning: the theme provider sets the theme class on <html> before
+    // hydration, so the server and client class lists legitimately differ.
     <html
       lang="en"
       className={`${plexSans.variable} ${plexMono.variable} ${montserrat.variable} ${plexSans.className}`}
       suppressHydrationWarning
     >
       <body className="flex flex-col min-h-screen dw-font">
+        {/* #nd-page is the main-content id Fumadocs' DocsPage renders; the home page sets
+            it on its own root so the skip link works there too. */}
         <a href="#nd-page" className="skip-nav">
           Skip to content
         </a>

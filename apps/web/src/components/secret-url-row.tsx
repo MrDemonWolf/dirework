@@ -1,5 +1,9 @@
 "use client";
 
+// Masked URL row for the token-bearing overlay and bot page links on the dashboard and bot
+// settings page. The token in the path is the only credential for that public page, so the
+// URL stays hidden until explicitly revealed.
+
 import { useEffect, useRef, useState } from "react";
 import { Copy, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -49,7 +53,8 @@ export function SecretUrlRow({
 
   const ready = path !== null;
   const shown = revealed && ready;
-  // Show the full origin-prefixed URL — what the user pastes into OBS.
+  // Show the full origin-prefixed URL — what the user pastes into OBS. `origin` is "" during
+  // SSR (useOrigin), so the first render falls back to the bare path to match hydration.
   const fullUrl = path === null ? "" : origin ? `${origin}${path}` : path;
   // Last 6 chars of the token stay visible while masked, so the current
   // token is identifiable (and visibly different after a regenerate).
@@ -58,6 +63,7 @@ export function SecretUrlRow({
   const copyUrl = async () => {
     if (!path) return;
     try {
+      // Event handlers run only in the browser, so window is safe here (unlike in render).
       await navigator.clipboard.writeText(`${window.location.origin}${path}`);
       toast.success("Copied to clipboard");
     } catch {
@@ -67,6 +73,8 @@ export function SecretUrlRow({
 
   return (
     <div className="flex items-center gap-1.5">
+      {/* While masked, the bullets are hidden from assistive tech and focus; the sr-only span
+          below announces the hidden state instead of reading out a row of dots. */}
       <input
         type="text"
         readOnly

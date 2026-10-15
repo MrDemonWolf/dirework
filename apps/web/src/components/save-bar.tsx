@@ -1,5 +1,7 @@
 "use client";
 
+// Sticky "unsaved changes" bar shared by the Theme Center and bot settings editors.
+
 import { Loader2, RotateCcw, Save } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -47,6 +49,7 @@ export function SaveBar({
   );
 }
 
+/** The visible bar; mounted only while `visible`, so its enter animation replays each time. */
 function SaveBarPanel({
   saving,
   onSave,
@@ -75,6 +78,7 @@ function SaveBarPanel({
           )}
         </div>
         <div className="flex items-center gap-2">
+          {/* Reset discards edits, so it confirms first (destructive-action rule). */}
           <ConfirmDialog
             trigger={
               <Button variant="outline" size="sm" disabled={saving}>

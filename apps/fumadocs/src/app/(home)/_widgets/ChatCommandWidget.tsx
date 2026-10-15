@@ -1,8 +1,11 @@
 /**
- * Twitch chat preview: viewers issue Dirework commands, the bot replies.
- * Commands are the real ones from content/docs/chat-commands.mdx.
+ * Twitch chat preview for the marketing home page: viewers issue Dirework commands, the bot
+ * replies. Static markup (no client JS, no Twitch connection). Commands are the real ones from
+ * content/docs/chat-commands.mdx; the bot replies are illustrative copy, not the configurable
+ * default responses the real bot sends.
  */
 
+/** One scripted chat line: a viewer command (with a username color) or a bot reply. */
 type Line =
   | { kind: "cmd"; user: string; color: string; text: string }
   | { kind: "bot"; text: string };
@@ -29,6 +32,7 @@ const LINES: Line[] = [
   { kind: "bot", text: "Focus ends ~3:42pm · break in 18:24 · cycle 2/4" },
 ];
 
+/** Mock `#stream chat` panel rendering the scripted `LINES` conversation. */
 export function ChatCommandWidget() {
   return (
     <section className="panel overflow-hidden" aria-label="Twitch chat command preview">

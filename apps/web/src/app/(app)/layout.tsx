@@ -1,6 +1,11 @@
+// Shell for the signed-in app and public landing pages: skip link, header, and the shared
+// footer (AGENTS.md "Footer Convention"). Overlays and the bot console live in other route
+// groups and don't get this chrome.
+
 import Header from "@/components/header";
 import { VersionBadge } from "@/components/version-badge";
 
+/** Optional legal links render only when their URLs are configured on the web worker. */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Plain worker vars surfaced through process.env by OpenNext — the web
   // worker has no @dirework/env/server (that module is cloudflare:workers +
@@ -21,6 +26,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </a>
       <Header />
       <main id="main">{children}</main>
+      {/* suppressHydrationWarning: the copyright year comes from `new Date()`, which can differ
+          between the server render and the client around New Year. */}
       <footer
         className="border-t border-border/40 py-4 text-center text-xs text-muted-foreground"
         suppressHydrationWarning

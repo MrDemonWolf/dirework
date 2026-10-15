@@ -1,5 +1,9 @@
 "use client";
 
+// Dashboard Task Board: the owner's view of every task (theirs and chat's), grouped by
+// author. Polls `task.list` via the authed /rpc proxy; all writes go through owner-only
+// task.* procedures, which share service code with the chat commands.
+
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Focus, Trash2 } from "lucide-react";
@@ -24,6 +28,7 @@ import { trpc } from "@/utils/trpc";
 const UNDO_TOAST_MS = 5000;
 
 interface TaskManagerProps {
+  /** The owner's Twitch id; tasks authored under it are the "Host" group, pinned first. */
   userTwitchId: string;
   /** Overlay preview, rendered beside the add-task + list body (mirrors the timer console). */
   preview?: ReactNode;
@@ -40,6 +45,8 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
 
   const tasks = useQuery({
     ...trpc.task.list.queryOptions(),
+    // Slows down after the owner goes idle; every authed poll is billed twice
+    // (web worker proxy + api worker), so the cadence lives in poll-intervals.ts.
     refetchInterval: dashboardPollInterval(DASHBOARD_TASKS_POLL_MS),
   });
 
@@ -126,6 +133,8 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
     | null
   >(null);
 
+  // Runs on every list refresh; "settled" waits until the poll/invalidate result
+  // actually reflects the mutation (row gone / row active) before moving focus.
   useEffect(() => {
     const pending = pendingFocus.current;
     const data = tasks.data?.tasks;
@@ -135,7 +144,10 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
     if (!settled) return;
     pendingFocus.current = null;
     const active = document.activeElement;
+    // The user already moved focus elsewhere — don't yank it back.
     if (active && active !== document.body) return;
+    // Focus targets the neighbor's (or the activated row's) Remove button, the
+    // one control every row renders; fall back to the add input when the list empties.
     const targetId = pending.kind === "remove" ? pending.nextId : pending.taskId;
     const target = targetId
       ? listRef.current?.querySelector<HTMLElement>(`[data-remove-task="${CSS.escape(targetId)}"]`)
@@ -304,6 +316,8 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                               <button
                                 type="button"
                                 onClick={() => {
+                                  // aria-disabled doesn't block clicks, so guard here:
+                                  // done rows and an in-flight markDone are no-ops.
                                   if (!(isActive || task.status === "pending")) return;
                                   if (markDone.isPending && markDone.variables?.id === task.id)
                                     return;

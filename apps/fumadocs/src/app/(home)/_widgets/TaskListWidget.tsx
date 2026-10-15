@@ -2,6 +2,7 @@
  * Mock of the Dirework OBS task-list overlay. Tasks grouped by author,
  * each author gets a tinted header row (name + done/total). Mirrors
  * apps/web/src/components/task-list-display.tsx + groupTasksByAuthor().
+ * Static sample data only; restyled per theme by OverlayThemePreview.
  */
 
 import {
@@ -35,6 +36,7 @@ const GROUPS: Group[] = [
   },
 ];
 
+/** Decorative checkbox (aria-hidden); the row's strikethrough text carries the done state. */
 function CheckBox({ done, theme }: { done: boolean; theme: OverlayTheme }) {
   return (
     <span
@@ -60,6 +62,10 @@ function CheckBox({ done, theme }: { done: boolean; theme: OverlayTheme }) {
   );
 }
 
+/**
+ * Task-list overlay mock. Exposed as a single `role="img"` with a summary label, so screen
+ * readers get one description rather than every sample task. Defaults to the Default theme.
+ */
 export function TaskListWidget({
   theme = OVERLAY_THEMES[DEFAULT_OVERLAY_THEME],
 }: {
@@ -79,6 +85,8 @@ export function TaskListWidget({
     >
       {GROUPS.map((g, gi) => {
         const done = g.tasks.filter((t) => t.done).length;
+        // Palette picks AA-safe name colors for light vs dark theme backgrounds; it has
+        // three entries, so groups cycle through them.
         const authorColor = authorPalette(theme.bg)[gi % 3];
         return (
           <div key={g.author} style={{ marginBottom: gi === GROUPS.length - 1 ? 0 : 10 }}>
