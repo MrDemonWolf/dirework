@@ -3,11 +3,11 @@ title: Twitch integration setup
 description: Create a Twitch application, sign in, and connect your bot account
 ---
 
-This guide walks you through every step of setting up Twitch integration for Dirework — from creating the Twitch application to connecting your bot account.
+This guide walks you through every step of setting up Twitch integration for DireWork — from creating the Twitch application to connecting your bot account.
 
 ## Overview
 
-Dirework uses Twitch OAuth for two things:
+DireWork uses Twitch OAuth for two things:
 
 1. **Streamer login** — You sign in with your main Twitch account
 2. **Bot account** — A separate Twitch account that reads and sends chat messages
@@ -33,7 +33,7 @@ Both use the **same** Twitch application, but different redirect URLs.
 
 | Field | Value |
 | --- | --- |
-| **Name** | `Dirework` (or any name you want) |
+| **Name** | `DireWork` (or any name you want) |
 | **OAuth Redirect URLs** | See below |
 | **Category** | Broadcasting Suite |
 | **Client Type** | Confidential |
@@ -134,12 +134,12 @@ The bot account is a **separate Twitch account** that sends messages in your cha
 1. Open a **private/incognito browser window** (so you don't get logged out of your main account)
 2. Go to [twitch.tv](https://www.twitch.tv)
 3. Click **Sign Up** and create a new account
-   - Choose a name like `YourNameBot` or `DireworkBot`
+   - Choose a name like `YourNameBot` or `DireWorkBot`
    - You'll need a different email address
 4. Complete the account setup (verify email, etc.)
 
 <Callout>
-  Twitch allows multiple accounts. The bot account is just a regular Twitch account that Dirework uses to send chat messages.
+  Twitch allows multiple accounts. The bot account is just a regular Twitch account that DireWork uses to send chat messages.
 </Callout>
 
 ### Make the bot a moderator (recommended)
@@ -156,7 +156,7 @@ This prevents the bot from being rate-limited when sending messages.
 
 ## Step 5: Connect the bot account
 
-1. Go to your Dirework dashboard at [http://localhost:3001/dashboard](http://localhost:3001/dashboard)
+1. Go to your DireWork dashboard at [http://localhost:3001/dashboard](http://localhost:3001/dashboard)
 2. Find the **Bot account** card
 3. Click **Connect bot account**
 4. You'll be redirected to Twitch — **sign in with the bot account** (not your streamer account)
@@ -174,7 +174,7 @@ The bot will have `chat:read` and `chat:edit` permissions (plus the Helix chat s
 
 ### OAuth scopes
 
-Dirework requests specific OAuth scopes for each connection type:
+DireWork requests specific OAuth scopes for each connection type:
 
 | Connection | Scopes | Purpose |
 | --- | --- | --- |
@@ -183,7 +183,7 @@ Dirework requests specific OAuth scopes for each connection type:
 | **Bot account** | `user:read:chat`, `user:write:chat` | Helix chat API equivalents — reserved for a future move to Helix sends |
 
 <Callout>
-  You don't need to configure scopes manually — Dirework requests them automatically during the OAuth flow. The scopes are minimal by design: only what's needed for the bot to read and write chat messages.
+  You don't need to configure scopes manually — DireWork requests them automatically during the OAuth flow. The scopes are minimal by design: only what's needed for the bot to read and write chat messages.
 </Callout>
 
 <Callout type="warn">
@@ -199,7 +199,7 @@ Common issues:
 | Error | Solution |
 | --- | --- |
 | Token exchange failed | Check that `http://localhost:3001/api/bot/callback/twitch` is in your Twitch app's redirect URLs |
-| Redirected to home page | Make sure you're logged in to Dirework first |
+| Redirected to home page | Make sure you're logged in to DireWork first |
 | No error but nothing happened | Check the browser console and server logs for details |
 | "Invalid redirect URI" on Twitch | The redirect URL in your Twitch app doesn't match exactly — check for trailing slashes, wrong port, or http vs https |
 
@@ -240,7 +240,7 @@ For production, replace with your web worker's origin
 
 ## Who can sign in?
 
-You don't need to configure access. Dirework is **single-owner**: the first Twitch
+You don't need to configure access. DireWork is **single-owner**: the first Twitch
 account to sign in claims the instance, and after that no one else can take it over.
 
 Until that first sign-in, though, **any** Twitch user who opens your instance's URL can

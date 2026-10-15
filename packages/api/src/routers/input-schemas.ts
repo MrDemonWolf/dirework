@@ -9,6 +9,7 @@ import {
   taskStylesInputSchema,
   timerMessagesInputSchema,
   timerStylesInputSchema,
+  twitchAuthorColorSchema,
 } from "../config-shared";
 
 // ── Router input schemas ──────────────────────────────────────────────────────
@@ -28,6 +29,31 @@ export const taskTextInput = z
 export const taskCreateInput = z.object({ text: taskTextInput }).strict();
 
 export const taskIdInput = z.object({ id: z.string().min(1).max(128) }).strict();
+
+/** Timestamps arrive as the ISO strings the remove mutation serialized them to. */
+const isoTimestampInput = z.iso.datetime().transform((value) => new Date(value));
+
+/**
+ * Undo of a dashboard removal: the removed row, round-tripped. Every field is
+ * bounded like the paths that originally wrote it — task text by taskTextInput,
+ * the author color by twitchAuthorColorSchema, the same policy chat ingest uses
+ * (it reaches overlay CSS).
+ */
+export const taskRestoreInput = z
+  .object({
+    id: z.string().min(1).max(128),
+    authorTwitchId: z.string().min(1).max(128),
+    authorUsername: z.string().min(1).max(64),
+    authorDisplayName: z.string().min(1).max(64),
+    authorColor: twitchAuthorColorSchema.nullable(),
+    text: taskTextInput,
+    status: z.enum(["pending", "active", "done"]),
+    priority: z.number().int().min(0).max(1),
+    order: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+    createdAt: isoTimestampInput,
+    completedAt: isoTimestampInput.nullable(),
+  })
+  .strict();
 
 export const timerStartInput = z.object({
   totalCycles: z.number().int().min(1).max(99).optional(),

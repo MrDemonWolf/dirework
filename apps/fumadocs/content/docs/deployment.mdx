@@ -1,13 +1,13 @@
 ---
 title: Deployment
-description: Put Dirework online on Cloudflare Workers
+description: Put DireWork online on Cloudflare Workers
 ---
 
-Dirework runs on **Cloudflare Workers** with a **D1** (SQLite) database — two small
+DireWork runs on **Cloudflare Workers** with a **D1** (SQLite) database — two small
 workers and a database, all on Cloudflare's free plan. No servers, no Docker, no
 database to babysit.
 
-You deploy these resources to your own Cloudflare account and operate your own instance. Dirework is always self-hosted; MrDemonWolf, Inc. does not provide a hosted or managed service.
+You deploy these resources to your own Cloudflare account and operate your own instance. DireWork is always self-hosted; MrDemonWolf, Inc. does not provide a hosted or managed service.
 
 <Callout>
   **The short version:** create a Cloudflare API token, set seven GitHub secrets and two
@@ -31,7 +31,7 @@ so everything works from the one `dirework.…workers.dev` address.
 
 - A [Cloudflare account](https://dash.cloudflare.com/sign-up) (free plan is fine)
 - Your two [Twitch keys](/docs/twitch-oauth) (client ID + secret)
-- A fork or copy of the Dirework repository on GitHub
+- A fork or copy of the DireWork repository on GitHub
 - Your **workers.dev subdomain**: Cloudflare dashboard → **Workers & Pages** → the
   **Subdomain** shown in the account details panel (for example `alice` in
   `alice.workers.dev`). Every `<your-subdomain>` below means that label, so your web
@@ -131,7 +131,7 @@ freshly published advisory must never block a revert or hotfix. Pull requests st
 on high-severity advisories, so fix them there.
 
 ✅ Visit `https://dirework.<your-subdomain>.workers.dev` **as soon as the Deploy run turns
-green**. You should see the Dirework setup screen. Click **Claim with Twitch** and sign in
+green**. You should see the DireWork setup screen. Click **Claim with Twitch** and sign in
 with your streamer account to become the owner.
 
 <Callout type="warn">
@@ -198,7 +198,7 @@ To tear everything down again: `bun run destroy` (with the same values exported)
 - [ ] The **bot page** is added to OBS as a browser source (or pinned in a tab) — the
   bot only listens to chat while that page is open. See [Chat commands](/docs/chat-commands).
 - [ ] The timer and task list overlays show up in OBS
-- [ ] One bot page is open. A second copy won't run commands twice (Dirework dedupes each
+- [ ] One bot page is open. A second copy won't run commands twice (DireWork dedupes each
   chat message by its Twitch message id), but every command then costs two Worker requests
 - [ ] Bot and overlay URLs are kept private and regenerated after any suspected disclosure
 - [ ] `main` is protected and requires the Verify and CodeQL workflows before merge
@@ -221,10 +221,10 @@ deployed. Between deploys nothing watches the instance, so:
 
 ## Recovering an instance someone else claimed
 
-Dirework has no in-app way to transfer ownership: the instance counts as claimed while the
+DireWork has no in-app way to transfer ownership: the instance counts as claimed while the
 D1 `user` table has **any** row, and the sign-in hook refuses every new account after that.
 So if the Dashboard shows someone else's Twitch name (or your own sign-in fails with "This
-Dirework already belongs to a different Twitch account"), reset the owner in D1 and claim
+DireWork already belongs to a different Twitch account"), reset the owner in D1 and claim
 it again.
 
 1. **Back up first** (optional but cheap):
@@ -259,7 +259,7 @@ it again.
 
 ## Updating your instance
 
-New Dirework releases reach your instance when your fork's `main` changes:
+New DireWork releases reach your instance when your fork's `main` changes:
 
 1. Read [`CHANGELOG.md`](https://github.com/mrdemonwolf/dirework/blob/main/CHANGELOG.md)
    for the releases you're catching up on. Add any new required secrets or variables, and
@@ -334,7 +334,7 @@ every limit.
 ### D1 rows read
 
 D1's free tier allows **5 million rows read per day**, and every task-list poll (task
-overlay and dashboard) reads rows. Dirework keeps that bounded:
+overlay and dashboard) reads rows. DireWork keeps that bounded:
 
 - **Done tasks are purged 24 hours after they're completed.** The purge runs lazily —
   when a task is added or marked done, or the timer is started or reset — never on a poll,

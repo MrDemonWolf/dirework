@@ -18,6 +18,8 @@ export function FieldRow({
   labelId,
   error,
   errorId,
+  hint,
+  hintId,
   children,
 }: {
   label: string;
@@ -27,6 +29,9 @@ export function FieldRow({
   /** Inline validation message under the row; the control points at it via aria-describedby. */
   error?: string | null;
   errorId?: string;
+  /** One-line helper text under the row; the control points at it via aria-describedby. */
+  hint?: string;
+  hintId?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -37,6 +42,11 @@ export function FieldRow({
         </Label>
         <div className="flex items-center justify-end gap-2">{children}</div>
       </div>
+      {hint && (
+        <p id={hintId} className="text-right text-xs text-muted-foreground">
+          {hint}
+        </p>
+      )}
       {error && (
         <p id={errorId} className="text-right text-xs text-destructive" aria-live="polite">
           {error}

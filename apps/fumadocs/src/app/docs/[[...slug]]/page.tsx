@@ -49,7 +49,7 @@ export async function generateMetadata(props: PageProps<"/docs/[[...slug]]">): P
     alternates: { canonical: page.url },
     openGraph: {
       type: "website",
-      siteName: "Dirework",
+      siteName: "DireWork",
       title: page.data.title,
       description: page.data.description,
       url: page.url,

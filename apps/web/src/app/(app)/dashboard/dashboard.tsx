@@ -99,7 +99,7 @@ function OverlayMonitor({
 }
 
 const OVERLAY_RESET_DESCRIPTION =
-  "The current URL stops working immediately. Any OBS browser source using it will go blank until you copy the new URL and paste it back into OBS.";
+  "The current URL stops working immediately: any OBS browser source still using it goes blank (fully transparent) until you paste the new URL into OBS.";
 
 /** Recommended OBS browser-source dimensions, shown beside each overlay URL. */
 function SizeChip({ size, hint }: { size: string; hint: string }) {

@@ -3,6 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 
 import { countDoneByAuthor, groupTasksByAuthor } from "@/lib/task-utils";
+import {
+  AUTHOR_COUNT_OPACITY,
+  AUTHOR_HEADER_TINT_PERCENT,
+  HEADER_COUNT_OPACITY,
+} from "@/lib/overlay-view";
 import { colorWithOpacity, quoteFontFamily } from "@/lib/timer-utils";
 import { cn } from "@/lib/utils";
 import type { Task, TaskGroup } from "@/lib/task-utils";
@@ -109,8 +114,10 @@ function TaskItem({
         padding: config.task.padding,
         marginBottom: isLast ? "0" : "1px",
         maxWidth: config.task.maxWidth,
-        opacity: isDone ? 0.6 : 1,
-        transition: "opacity 300ms",
+        // No extra row-wide fade for done rows: it multiplied over the
+        // configured `taskDone.fontColor`, so the color the streamer picked (and
+        // the presets' contrast-checked one) never rendered as chosen.
+        transition: "background-color 300ms",
       }}
     >
       {/* Checkbox or bullet */}
@@ -204,7 +211,7 @@ function AuthorGroup({ group, config }: { group: TaskGroup; config: TaskStylesCo
         style={{
           padding: config.task.padding,
           borderBottom: `${config.task.border.width} solid ${config.task.border.color}`,
-          backgroundColor: `color-mix(in srgb, ${authorColor} 6%, transparent)`,
+          backgroundColor: `color-mix(in srgb, ${authorColor} ${AUTHOR_HEADER_TINT_PERCENT}%, transparent)`,
         }}
       >
         <span
@@ -220,7 +227,7 @@ function AuthorGroup({ group, config }: { group: TaskGroup; config: TaskStylesCo
           style={{
             color: config.task.fontColor,
             fontSize: `calc(${config.task.fontSize} * 0.75)`,
-            opacity: 0.7,
+            opacity: AUTHOR_COUNT_OPACITY,
             whiteSpace: "nowrap",
             marginLeft: "8px",
           }}
@@ -294,7 +301,7 @@ export function TaskListDisplay({
             style={{
               fontSize: config.header.fontSize,
               color: config.header.fontColor,
-              opacity: 0.8,
+              opacity: HEADER_COUNT_OPACITY,
             }}
           >
             {doneCount}/{totalCount}

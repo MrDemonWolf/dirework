@@ -219,7 +219,7 @@ export function BotConsole() {
           {statusText}
         </span>
         <span className="ml-auto hidden shrink-0 text-[10px] tracking-[0.3em] text-zinc-400 uppercase sm:block">
-          Dirework Bot Console
+          DireWork Bot Console
         </span>
       </header>
 

@@ -44,6 +44,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   dependencies, including Next.js.
 
 ### Changed
+- **The product name is spelled "DireWork" everywhere** in the dashboard, overlays and docs.
+- **An overlay with an old or reset URL now shows nothing** instead of a fake 00:00 timer or
+  "No tasks yet", so a stale OBS source can never put placeholder junk on stream. Copy the
+  current URL from the dashboard to bring it back.
+- **"Username color" is now "Fallback username color"**, with a hint: it only applies to
+  viewers who have no Twitch chat color.
+- **Theme presets meet text contrast guidelines (4.5:1)** for done tasks, usernames and the
+  Cozy Cottage header. Done rows no longer fade to 60% opacity, so the done color you pick is
+  the color viewers see.
 - **The bot page only forwards real Dirework commands.** Lines whose first word isn't a
   Dirework command or one of your aliases — like other bots' `!lurk` or `!so` — never leave
   the page, saving a Cloudflare request each. An open bot page picks up new aliases within
@@ -68,6 +77,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   budget and invariants) used for every pull request review.
 
 ### Added
+- **Undo for removing a task.** Removing a task is still one click; a "Task removed" toast
+  offers Undo for a few seconds and puts it back exactly where it was.
 - **Rolling back** section in the deployment guide: how to roll each worker back from the
   Cloudflare dashboard, `wrangler rollback`, or a re-run of an earlier GitHub deploy, and
   why the database itself should not be rolled back.

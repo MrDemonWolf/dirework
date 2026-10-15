@@ -23,14 +23,14 @@ Don't have Bun yet? Install it from [bun.sh](https://bun.sh). Update Node.js via
   and filled in your Twitch keys and `BETTER_AUTH_SECRET`. See [Getting started](/docs/getting-started).
 - **Slow first start:** The first run creates the local database and compiles the apps.
   Give it a minute — later starts are much faster.
-- **Port already in use:** Dirework uses port **3000** (API), **3001** (web app), and
+- **Port already in use:** DireWork uses port **3000** (API), **3001** (web app), and
   **4000** (docs). See [Port already in use](#port-already-in-use) below.
 
 ## Authentication issues
 
 ### "Invalid redirect URI" from Twitch
 
-Your Twitch application's redirect URLs don't match the ones Dirework is using. Make sure you've added both URLs in the [Twitch Developer Console](https://dev.twitch.tv/console/apps):
+Your Twitch application's redirect URLs don't match the ones DireWork is using. Make sure you've added both URLs in the [Twitch Developer Console](https://dev.twitch.tv/console/apps):
 
 ```
 http://localhost:3001/api/auth/callback/twitch
@@ -49,7 +49,7 @@ For production, add the same two paths on your workers.dev domain
 - Your Twitch redirect URLs must be on that same origin — a mismatch sends you in a loop.
 - Make sure your Twitch application's **Client Type** is set to **Confidential**.
 
-### "This Dirework already belongs to a different Twitch account"
+### "This DireWork already belongs to a different Twitch account"
 
 The instance was already claimed — the first Twitch account to sign in owns it, and every
 other account is refused. Sign in with that account. If it isn't yours (someone signed in
@@ -58,10 +58,10 @@ claimed](/docs/deployment#recovering-an-instance-someone-else-claimed).
 
 ### Bot account won't connect
 
-- **"Sign in before connecting a bot account"** on the home page means your Dirework
+- **"Sign in before connecting a bot account"** on the home page means your DireWork
   session expired (or the connect link was opened in another browser). Sign in as the
   streamer, then click **Connect bot account** again.
-- **"Only this Dirework's owner can connect a bot account"** means the browser is signed in
+- **"Only this DireWork's owner can connect a bot account"** means the browser is signed in
   with a Twitch account that doesn't own this instance. Sign out, sign in as the owner, retry.
 
 - You need to sign in to a **different** Twitch account when connecting the bot. The bot account cannot be the same as the streamer account.

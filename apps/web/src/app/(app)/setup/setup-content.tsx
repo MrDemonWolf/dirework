@@ -72,7 +72,7 @@ function SetupInner() {
             Welcome — let&apos;s get you set up
           </span>
           <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-            This Dirework is all yours
+            This DireWork is all yours
           </h1>
           <p className="text-muted-foreground">
             Sign in with Twitch to claim it. That&apos;s the whole setup — one click and you&apos;re
@@ -97,7 +97,7 @@ function SetupInner() {
 
         {signInFailed && (
           <Callout className="mt-6" title="Twitch sign-in didn't complete.">
-            This Dirework is still unclaimed — try again below.
+            This DireWork is still unclaimed — try again below.
           </Callout>
         )}
 
@@ -112,7 +112,7 @@ function SetupInner() {
         </Button>
 
         <p className="mt-4 text-center text-xs text-muted-foreground">
-          One streamer per Dirework. Once you claim it, this page turns off for good.
+          One streamer per DireWork. Once you claim it, this page turns off for good.
         </p>
 
         <div className="mt-4 flex justify-center">

@@ -192,6 +192,14 @@ const CSS_COLOR_RE =
 export const cssColorSchema = z.string().trim().max(64).regex(CSS_COLOR_RE, "Invalid CSS color");
 
 /**
+ * A Twitch chat author color as stored on a task (IRC `color` tag: #rrggbb).
+ * Persisted and interpolated into overlay CSS, so it is the ONE policy shared
+ * by chat ingest and the dashboard's task restore — stricter than
+ * cssColorSchema on purpose (no keywords or functions).
+ */
+export const twitchAuthorColorSchema = z.string().regex(/^#[0-9a-f]{6}$/i, "Invalid author color");
+
+/**
  * 1–4 space-separated CSS lengths — shorthands like "12px 12px 0 0" (border
  * radius) and "10px 14px" (padding) are stored in single columns.
  */

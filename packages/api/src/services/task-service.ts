@@ -391,6 +391,72 @@ export async function removeTask(db: DbClient, id: string) {
   return removed;
 }
 
+/** A removed task row, as handed back to the dashboard for undo. */
+export interface TaskSnapshot {
+  id: string;
+  authorTwitchId: string;
+  authorUsername: string;
+  authorDisplayName: string;
+  authorColor: string | null;
+  text: string;
+  status: "pending" | "active" | "done";
+  priority: number;
+  order: number;
+  createdAt: Date;
+  completedAt: Date | null;
+}
+
+/**
+ * Re-insert a task the owner just removed (dashboard undo), keeping its id,
+ * author, placement, status and timestamps.
+ *
+ * One INSERT … SELECT, so the single-active check and the insert are a single
+ * atomic statement: when removing the active task promoted the author's next
+ * pending one, the restored task comes back as `pending` instead of fighting
+ * the promoted task for `task_one_active_per_author_idx`. Its original `order`
+ * still sorts it first in the author's queue.
+ *
+ * Owner-only action, so it deliberately has no viewer caps (chat has none
+ * either — task text is bounded by the input schema). An id that already exists
+ * (a double-clicked undo) is a no-op that returns null.
+ */
+export async function restoreTask(db: DbClient, snapshot: TaskSnapshot) {
+  const status =
+    snapshot.status === "active"
+      ? sql`case when exists (
+          select 1 from ${schema.task}
+          where ${schema.task.authorTwitchId} = ${snapshot.authorTwitchId}
+            and ${schema.task.status} = 'active'
+        ) then 'pending' else 'active' end`
+      : sql`${snapshot.status}`;
+  // Only done rows carry a completion time; the 24h purge keys off it.
+  const completedAt =
+    snapshot.status === "done" ? (snapshot.completedAt ?? new Date()).getTime() : null;
+
+  const [row] = await db
+    .insert(schema.task)
+    // `where true` keeps SQLite from parsing ON CONFLICT as part of the SELECT.
+    .select(sql`
+      select
+        ${snapshot.id},
+        ${snapshot.authorTwitchId},
+        ${snapshot.authorUsername},
+        ${snapshot.authorDisplayName},
+        ${snapshot.authorColor},
+        ${snapshot.text},
+        ${status},
+        ${snapshot.priority},
+        ${snapshot.order},
+        ${snapshot.createdAt.getTime()},
+        ${completedAt}
+      where true
+    `)
+    // Targeted at the primary key only: a single-active violation must still throw.
+    .onConflictDoNothing({ target: schema.task.id })
+    .returning();
+  return row ?? null;
+}
+
 /** Delete every task by username, case-insensitive (L9 — ban/timeout/!clear @user). */
 export async function removeTasksByUsername(db: DbClient, username: string) {
   return db.delete(schema.task).where(authorUsernameEquals(username));

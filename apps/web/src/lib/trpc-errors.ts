@@ -2,7 +2,7 @@ import { TRPCClientError } from "@trpc/client";
 
 /** Shown when the API never produced a tRPC error (network failure, HTML/429 body). */
 export const API_UNREACHABLE_MESSAGE =
-  "Can't reach the Dirework API. Check your connection and try again.";
+  "Can't reach the DireWork API. Check your connection and try again.";
 
 /** Stable sonner id so repeated transport failures replace one toast instead of stacking. */
 export const API_UNREACHABLE_TOAST_ID = "api-unreachable";

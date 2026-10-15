@@ -62,3 +62,20 @@ export function groupTasksByAuthor(
   }
   return result;
 }
+
+const RESTORABLE_STATUSES = ["pending", "active", "done"] as const;
+type RestorableStatus = (typeof RESTORABLE_STATUSES)[number];
+
+/**
+ * Narrow the row `task.remove` returned into `task.restore` input (undo). The
+ * row's `status` column is typed as a plain string, so an unknown value — which
+ * the server would reject anyway — yields null and no Undo is offered.
+ */
+export function toRestoreInput<T extends { status: string }>(
+  removed: T | null | undefined,
+): (Omit<T, "status"> & { status: RestorableStatus }) | null {
+  if (!removed) return null;
+  const { status } = removed;
+  if (!(RESTORABLE_STATUSES as readonly string[]).includes(status)) return null;
+  return { ...removed, status: status as RestorableStatus };
+}

@@ -12,6 +12,7 @@ import {
   hasControlCharacters,
   isBuiltinCommandName,
   normalizeAliasToken,
+  twitchAuthorColorSchema,
 } from "../config-shared";
 import { ownerProcedure, publicProcedure, router } from "../index";
 import { claimChatMessage } from "../services/chat-dedupe";
@@ -50,10 +51,7 @@ export const botIngestInputSchema = z.object({
   displayName: z.string().trim().min(1).max(64).optional(),
   twitchId: twitchIdInput.optional(),
   message: safeChatTextInput.optional(),
-  color: z
-    .string()
-    .regex(/^#[0-9a-f]{6}$/i)
-    .optional(),
+  color: twitchAuthorColorSchema.optional(),
   isMod: z.boolean().default(false),
   targetUsername: twitchLoginInput.optional(),
   // PRIVMSG `id` tag, used to dedupe relays from multiple open bot pages.

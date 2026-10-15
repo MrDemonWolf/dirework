@@ -3,8 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 
+import { taskOverlayView } from "@/lib/overlay-view";
 import { OVERLAY_POLL_MS } from "@/lib/poll-intervals";
-import { defaultTaskStyles } from "@/lib/theme-presets";
 import { FontGate } from "@/components/font-gate";
 import { TaskListDisplay } from "@/components/task-list-display";
 import { publicTrpc } from "@/utils/trpc";
@@ -15,7 +15,7 @@ export default function TaskListOverlayPage() {
   // Polls the api worker directly (token auth, no cookies) — see timer
   // overlay for rationale. Last successful payload is kept across failed
   // refetches so the OBS source never blanks on a transient error.
-  const { data, isPending } = useQuery({
+  const { data } = useQuery({
     queryKey: ["overlay", "taskList", token],
     queryFn: () => publicTrpc.overlay.getTaskList.mutate({ token }),
     enabled: Boolean(token),
@@ -25,10 +25,12 @@ export default function TaskListOverlayPage() {
     meta: { silent: true },
   });
 
-  if (isPending) return null;
+  // Nothing until the first payload lands, and nothing for an invalid or reset
+  // token (null) — a stale URL goes blank instead of showing "No tasks yet".
+  const view = taskOverlayView(data);
+  if (!view) return null;
 
-  const rawTasks = data?.tasks ?? [];
-  const tasks = rawTasks as {
+  const tasks = view.tasks as {
     id: string;
     authorTwitchId: string;
     authorDisplayName: string;
@@ -37,11 +39,9 @@ export default function TaskListOverlayPage() {
     status: string;
   }[];
 
-  const displayConfig = data?.taskStyles ?? defaultTaskStyles;
-
   return (
     <FontGate className="h-screen w-screen bg-transparent p-4">
-      <TaskListDisplay config={displayConfig} tasks={tasks} counts={data?.counts} />
+      <TaskListDisplay config={view.config} tasks={tasks} counts={view.counts} />
     </FontGate>
   );
 }

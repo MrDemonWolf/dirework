@@ -10,8 +10,9 @@ import {
   markTaskDone,
   removeTask,
   resolveOwnerTaskId,
+  restoreTask,
 } from "../services/task-service";
-import { taskCreateInput, taskIdInput } from "./input-schemas";
+import { taskCreateInput, taskIdInput, taskRestoreInput } from "./input-schemas";
 
 export const taskRouter = router({
   list: ownerProcedure.query(async ({ ctx }) => {
@@ -51,6 +52,11 @@ export const taskRouter = router({
 
   remove: ownerProcedure.input(taskIdInput).mutation(async ({ ctx, input }) => {
     return removeTask(ctx.db, input.id);
+  }),
+
+  /** Undo for `remove`: re-inserts the removed row (see restoreTask). */
+  restore: ownerProcedure.input(taskRestoreInput).mutation(async ({ ctx, input }) => {
+    return restoreTask(ctx.db, input);
   }),
 
   clearAll: ownerProcedure.mutation(async ({ ctx }) => {

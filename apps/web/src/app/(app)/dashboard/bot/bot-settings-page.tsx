@@ -288,7 +288,7 @@ export default function BotSettingsPage() {
       } else {
         toast.warning("Bot account disconnected, but Twitch didn't confirm the revocation", {
           description:
-            "Remove Dirework from the bot account's connections at twitch.tv/settings/connections.",
+            "Remove DireWork from the bot account's connections at twitch.tv/settings/connections.",
         });
       }
     },
@@ -453,7 +453,7 @@ export default function BotSettingsPage() {
                       </Button>
                     }
                     title="Disconnect the bot account?"
-                    description="The bot stops responding in chat immediately and Dirework asks Twitch to revoke its authorization. Any open bot page goes offline. You can reconnect the same account later."
+                    description="The bot stops responding in chat immediately and DireWork asks Twitch to revoke its authorization. Any open bot page goes offline. You can reconnect the same account later."
                     confirmLabel="Disconnect bot"
                     onConfirm={() => disconnectBot.mutate()}
                   />

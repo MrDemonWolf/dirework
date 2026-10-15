@@ -4,9 +4,12 @@ import {
   DEFAULT_PHASE_LABELS,
   DEFAULT_TASK_MESSAGES,
   DEFAULT_TIMER_MESSAGES,
+  twitchAuthorColorSchema,
 } from "../config-shared";
 import type { Context } from "../context";
+import { botIngestInputSchema } from "../routers/bot";
 import { appRouter } from "../routers/index";
+import { taskRestoreInput } from "../routers/input-schemas";
 
 /**
  * Integration tests driving the REAL appRouter through createCaller.
@@ -84,6 +87,11 @@ function makeDb(rows: DbRows = {}) {
           returning: async () => [{ id: "new-id", ...values }],
           onConflictDoNothing: () => ({ returning: async () => [] }),
         };
+      },
+      // INSERT … SELECT (task.restore): the SQL itself is covered by the sqlite suite.
+      select: () => {
+        inserted.push({ kind: "insert-select" });
+        return { onConflictDoNothing: () => ({ returning: async () => [{ id: "restored" }] }) };
       },
     }),
     update: () => ({
@@ -196,6 +204,48 @@ describe("authentication (appRouter)", () => {
     });
     // A wrong overlay token resolves null (OBS renders blank) rather than throwing.
     await expect(anon.overlay.getTimerState({ token: "x".repeat(32) })).resolves.toBeNull();
+  });
+});
+
+describe("task.restore (undo of a dashboard removal)", () => {
+  const removedTask = {
+    id: "t1",
+    authorTwitchId: "100",
+    authorUsername: "viewer",
+    authorDisplayName: "Viewer",
+    authorColor: "#ff00aa",
+    text: "write the docs",
+    status: "active" as const,
+    priority: 1,
+    order: 3,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    completedAt: null,
+  };
+
+  it("rejects anonymous callers and non-owners before touching the DB", async () => {
+    const anon = caller(null);
+    await expect(anon.caller.task.restore(removedTask)).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+    const rando = caller(nonOwnerSession);
+    await expect(rando.caller.task.restore(removedTask)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    expect([...anon.inserted, ...rando.inserted]).toHaveLength(0);
+  });
+
+  it("lets the owner restore a removed task", async () => {
+    const { caller: owner, inserted } = caller(ownerSession);
+    await expect(owner.task.restore(removedTask)).resolves.toEqual({ id: "restored" });
+    expect(inserted).toEqual([{ kind: "insert-select" }]);
+  });
+
+  it("rejects an author colour that is not #rrggbb (it reaches overlay CSS)", async () => {
+    const { caller: owner, inserted } = caller(ownerSession);
+    await expect(
+      owner.task.restore({ ...removedTask, authorColor: "red;background:url(x)" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(inserted).toHaveLength(0);
   });
 });
 
@@ -424,6 +474,44 @@ describe("database effects of owner mutations", () => {
     await expect(owner.user.regenerateOverlayToken({ type: "timer" })).rejects.toMatchObject({
       code: "INTERNAL_SERVER_ERROR",
     });
+  });
+});
+
+describe("Twitch author color: one policy for chat ingest and task restore", () => {
+  const token = "b".repeat(32);
+  const injections = ["red;background:url(x)", "#fff}body{display:none", "url(https://evil.test)"];
+
+  it("both input schemas use the shared twitchAuthorColorSchema", () => {
+    expect(botIngestInputSchema.shape.color.unwrap()).toBe(twitchAuthorColorSchema);
+    expect(taskRestoreInput.shape.authorColor.unwrap()).toBe(twitchAuthorColorSchema);
+  });
+
+  it.each(injections)("bot.ingest rejects %s", async (color) => {
+    const { caller: anon, inserted } = caller(null, { instanceConfig: { botToken: token } });
+    await expect(
+      anon.bot.ingest({ token, username: "viewer", twitchId: "777", message: "!task x", color }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(inserted).toHaveLength(0);
+  });
+
+  it.each(injections)("task.restore rejects %s", async (authorColor) => {
+    const { caller: owner, inserted } = caller(ownerSession);
+    await expect(
+      owner.task.restore({
+        id: "t1",
+        authorTwitchId: "100",
+        authorUsername: "viewer",
+        authorDisplayName: "Viewer",
+        authorColor,
+        text: "write the docs",
+        status: "pending",
+        priority: 1,
+        order: 1,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        completedAt: null,
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(inserted).toHaveLength(0);
   });
 });
 

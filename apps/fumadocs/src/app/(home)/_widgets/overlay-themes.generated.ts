@@ -21,19 +21,19 @@ export const OVERLAY_THEMES = {
     bg: "#1C1C1E",
     accent: "#0A84FF",
     text: "#F5F5F7",
-    username: "#0A84FF",
+    username: "#5AA9FF",
   },
   "Cozy Cottage": {
     bg: "#FAF3E8",
     accent: "#B8860B",
     text: "#5C3D1A",
-    username: "#B8860B",
+    username: "#8A5A00",
   },
   "Minimal Light": {
     bg: "#FFFFFF",
     accent: "#6366F1",
     text: "#111827",
-    username: "#6366F1",
+    username: "#4F46E5",
   },
   "Twitch Purple": {
     bg: "#0E0E10",

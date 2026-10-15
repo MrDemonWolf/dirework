@@ -178,8 +178,9 @@ export function TaskStyleEditor({
           onChange={(v) => update("task", { fontColor: v })}
         />
         <ColorInput
-          label="Username color"
+          label="Fallback username color"
           id="task-style-task-username-color"
+          hint="Used when a viewer has no Twitch chat color."
           value={styles.task.usernameColor}
           onChange={(v) => update("task", { usernameColor: v })}
         />
