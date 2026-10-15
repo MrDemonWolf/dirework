@@ -18,11 +18,14 @@ export function ColorInput({
   value,
   onChange,
   id: idProp,
+  hint,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   id?: string;
+  /** One-line helper text shown under the row. */
+  hint?: string;
 }) {
   const id = idProp ?? `color-${label.toLowerCase().replace(/\s+/g, "-")}`;
 
@@ -57,6 +60,8 @@ export function ColorInput({
   };
 
   const errorId = `${id}-error`;
+  const hintId = `${id}-hint`;
+  const describedBy = [hint ? hintId : null, invalid ? errorId : null].filter(Boolean).join(" ");
 
   return (
     <FieldRow
@@ -64,6 +69,8 @@ export function ColorInput({
       htmlFor={id}
       error={invalid ? `Not applied — use a hex color like #1a2b3c (current: ${value})` : null}
       errorId={errorId}
+      hint={hint}
+      hintId={hintId}
     >
       <input
         type="color"
@@ -78,7 +85,7 @@ export function ColorInput({
         onChange={(e) => handleTextChange(e.target.value)}
         onBlur={handleBlur}
         aria-invalid={invalid || undefined}
-        aria-describedby={invalid ? errorId : undefined}
+        aria-describedby={describedBy || undefined}
         className="h-9 w-24 font-mono md:h-8"
         placeholder="#000000"
       />
