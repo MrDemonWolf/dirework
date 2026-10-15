@@ -71,7 +71,10 @@ export function OverlayThemePreview() {
               style={{
                 borderColor: active ? "var(--brand-500)" : "var(--hairline)",
                 background: active ? "var(--brand-50)" : "var(--bg-elev)",
-                color: active ? "var(--brand-600)" : "var(--txt-1)",
+                // Brand-tinted text on the brand-50 tint misses AA in light mode;
+                // the border and tint carry the selection instead.
+                color: "var(--txt-1)",
+                fontWeight: active ? 600 : undefined,
               }}
             >
               <span
@@ -91,9 +94,9 @@ export function OverlayThemePreview() {
         })}
       </fieldset>
       <div className="mt-4 text-center">
+        {/* The label names the action, so no aria-pressed (it would contradict it). */}
         <button
           type="button"
-          aria-pressed={paused}
           onClick={() => setPaused((value) => !value)}
           className="marketing-text-link"
         >

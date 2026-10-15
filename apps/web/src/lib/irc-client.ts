@@ -10,7 +10,7 @@
  * logged, never surfaced through callbacks).
  */
 
-import { MAX_CHAT_BYTES, truncateToBytes } from "@dirework/api/config-shared";
+import { MAX_CHAT_BYTES, truncateToBytes, utf8ByteLength } from "@dirework/api/chat-text";
 
 import { RateLimiter } from "./rate-limiter";
 import { hasSafeIrcCredentials, sanitizeIrcMessage } from "./irc-sanitize";
@@ -40,6 +40,43 @@ const MAX_QUEUE = 100;
 // would overflow the wire limit and get mangled. See MAX_CHAT_BYTES.
 
 const MAX_BACKOFF_MS = 30_000;
+
+/**
+ * Liveness watchdog. A half-open socket (sleep/wake, NAT drop, edge failure)
+ * never fires onclose, so the page would sit on "connected" while hearing
+ * nothing. Every tick sends our own PING; if a whole tick passes with no
+ * inbound line since that PING, the socket is dead and we reconnect. One
+ * coarse interval (no short PONG timer) because background tabs and OBS
+ * throttle timers to about once a minute.
+ */
+const LIVENESS_INTERVAL_MS = 60_000;
+
+/**
+ * NOTICE msg-ids meaning Twitch refused to post the bot's message, mapped to
+ * what the streamer should do about it. Twitch sends no PRIVMSG echo, so
+ * without these the reply just vanishes.
+ */
+const CHAT_REJECTED_NOTICES: Record<string, string> = {
+  msg_slowmode: "slow mode is on. Make the bot a mod (/mod <bot>) so it can reply",
+  msg_followersonly: "followers-only mode is on. Make the bot a mod (/mod <bot>)",
+  msg_subsonly: "subscribers-only mode is on. Make the bot a mod (/mod <bot>)",
+  msg_emoteonly: "emote-only mode is on. Make the bot a mod (/mod <bot>)",
+  msg_r9k: "unique-chat mode is on. Make the bot a mod (/mod <bot>)",
+  msg_ratelimit: "the bot is sending too fast. Make the bot a mod (/mod <bot>)",
+  msg_banned: "the bot account is banned from this channel",
+  msg_timedout: "the bot account is timed out in this channel",
+  msg_channel_suspended: "this channel is suspended",
+  msg_requires_verified_phone_number: "the bot account needs a verified phone number",
+  msg_verified_email: "the bot account needs a verified email address",
+};
+
+/**
+ * Appended to a reply Twitch rejected as a duplicate (identical to one sent in
+ * the last 30s). An invisible tag character makes the line distinct without
+ * changing what viewers see.
+ */
+const DUPLICATE_SUFFIX = " \u{E0000}";
+const DUPLICATE_SUFFIX_BYTES = utf8ByteLength(DUPLICATE_SUFFIX);
 
 /** CTCP marker (0x01) wrapping "/me" ACTION messages. */
 const ACTION_MARKER = String.fromCharCode(1);
@@ -73,6 +110,8 @@ export interface IrcChatMessage {
   color?: string;
   isMod: boolean;
   isBroadcaster: boolean;
+  /** `id` tag — unique per PRIVMSG; lets the server dedupe multiple bot pages. */
+  messageId?: string;
 }
 
 export interface IrcClientCallbacks {
@@ -90,7 +129,11 @@ export interface IrcClientCallbacks {
 }
 
 export interface ParsedIrcLine {
-  tags: Record<string, string>;
+  /**
+   * A Map, not a plain object: tag names come straight off the wire, and a
+   * `__proto__`/`constructor` key must never reach an object's prototype chain.
+   */
+  tags: ReadonlyMap<string, string>;
   prefix: string;
   command: string;
   params: string[];
@@ -137,7 +180,7 @@ function unescapeTagValue(value: string): string {
 /** Parse one raw IRC line: `[@tags ][:prefix ]COMMAND[ params][ :trailing]`. */
 export function parseIrcLine(raw: string): ParsedIrcLine {
   let rest = raw;
-  const tags: Record<string, string> = {};
+  const tags = new Map<string, string>();
   let prefix = "";
   let trailing: string | null = null;
 
@@ -149,9 +192,9 @@ export function parseIrcLine(raw: string): ParsedIrcLine {
       if (!pair) continue;
       const eq = pair.indexOf("=");
       if (eq === -1) {
-        tags[pair] = "";
+        tags.set(pair, "");
       } else {
-        tags[pair.slice(0, eq)] = unescapeTagValue(pair.slice(eq + 1));
+        tags.set(pair.slice(0, eq), unescapeTagValue(pair.slice(eq + 1)));
       }
     }
   }
@@ -199,6 +242,10 @@ export class TwitchIrcClient {
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
+  private livenessTimer: ReturnType<typeof setInterval> | null = null;
+  /** Our liveness PING went out and nothing has arrived since. */
+  private pingOutstanding = false;
+
   /** Outbound PRIVMSG queue, drained under the rolling rate limiter. */
   private sendQueue: string[] = [];
   private sendTimer: ReturnType<typeof setTimeout> | null = null;
@@ -208,6 +255,8 @@ export class TwitchIrcClient {
     minGapMs: SEND_MIN_GAP_MS,
   });
   private joined = false;
+  /** The last PRIVMSG text put on the wire, for re-sending a rejected duplicate. */
+  private lastSentText: string | null = null;
 
   constructor(callbacks: IrcClientCallbacks = {}) {
     this.callbacks = callbacks;
@@ -230,6 +279,10 @@ export class TwitchIrcClient {
       this.closeSocket();
       this.setStatus("auth-failed");
       this.callbacks.onError?.("Invalid Twitch IRC credentials");
+      // Hand off like a rejected login: the owner fetches fresh credentials
+      // under its bounded recovery budget instead of sitting on
+      // "Refreshing login" forever.
+      this.callbacks.onAuthFailure?.();
       return;
     }
     this.creds = creds;
@@ -298,12 +351,15 @@ export class TwitchIrcClient {
       ws.send("CAP REQ :twitch.tv/tags twitch.tv/commands");
       ws.send(`PASS oauth:${this.creds.chatToken}`);
       ws.send(`NICK ${this.creds.botUsername.toLowerCase()}`);
+      this.startLiveness();
     };
 
     ws.onmessage = (event) => {
       if (gen !== this.generation) return;
       const data: unknown = event.data;
       if (typeof data !== "string") return;
+      // Any inbound line (PONG, chat, numerics) proves the socket is alive.
+      this.pingOutstanding = false;
       // Frames may batch multiple CRLF-terminated lines.
       for (const line of data.split("\r\n")) {
         if (line.length > 0) this.handleLine(line);
@@ -314,6 +370,7 @@ export class TwitchIrcClient {
       if (gen !== this.generation) return;
       this.ws = null;
       this.joined = false;
+      this.stopLiveness();
       if (this.disposed || this.authFailed) return;
       this.scheduleReconnect();
     };
@@ -359,6 +416,21 @@ export class TwitchIrcClient {
 
       case "NOTICE": {
         const text = msg.trailing ?? "";
+        const msgId = msg.tags.get("msg-id") ?? "";
+        if (msgId === "msg_duplicate") {
+          this.resendDuplicate();
+          break;
+        }
+        const rejection = Object.hasOwn(CHAT_REJECTED_NOTICES, msgId)
+          ? CHAT_REJECTED_NOTICES[msgId]
+          : undefined;
+        if (rejection) {
+          const bot = this.creds?.botUsername.toLowerCase() ?? "<bot>";
+          this.callbacks.onError?.(
+            `Twitch didn't post the bot's reply: ${rejection.replace("<bot>", bot)}`,
+          );
+          break;
+        }
         if (isAuthFailureNotice(text)) {
           // Token rejected — stop reconnecting and hand control to the owner
           // so it can fetch a fresh token and call connect() again.
@@ -393,25 +465,26 @@ export class TwitchIrcClient {
       text = text.slice(ACTION_PREFIX.length, -1);
     }
 
-    const twitchId = msg.tags["user-id"];
+    const twitchId = msg.tags.get("user-id");
     if (!username || !twitchId || !text) return;
 
     // Defensive: never react to the bot's own lines. Twitch doesn't echo
     // PRIVMSGs back, but a streamer chatting from the bot account would loop.
     if (this.creds && username === this.creds.botUsername.toLowerCase()) return;
 
-    const badges = msg.tags.badges ?? "";
+    const badges = msg.tags.get("badges") ?? "";
     const isBroadcaster = badges.includes("broadcaster/");
-    const isMod = msg.tags.mod === "1" || badges.includes("moderator/");
+    const isMod = msg.tags.get("mod") === "1" || badges.includes("moderator/");
 
     this.callbacks.onChat?.({
       username,
-      displayName: msg.tags["display-name"] || undefined,
+      displayName: msg.tags.get("display-name") || undefined,
       twitchId,
       message: text,
-      color: msg.tags.color || undefined,
+      color: msg.tags.get("color") || undefined,
       isMod,
       isBroadcaster,
+      messageId: msg.tags.get("id") || undefined,
     });
   }
 
@@ -440,8 +513,48 @@ export class TwitchIrcClient {
     const text = this.sendQueue.shift();
     if (text === undefined) return;
     this.sendRaw(`PRIVMSG #${this.creds.channelName.toLowerCase()} :${text}`);
+    this.lastSentText = text;
     this.limiter.record(Date.now());
     if (this.sendQueue.length > 0) this.scheduleSend();
+  }
+
+  /**
+   * Re-queue the last reply once, made distinct, after Twitch rejected it as a
+   * duplicate (the same confirmation twice within 30s, e.g. "Done!"). A reply
+   * already carrying the suffix is not retried again.
+   */
+  private resendDuplicate(): void {
+    const text = this.lastSentText;
+    if (!text || text.endsWith(DUPLICATE_SUFFIX)) return;
+    this.sendQueue.unshift(
+      `${truncateToBytes(text, MAX_CHAT_BYTES - DUPLICATE_SUFFIX_BYTES)}${DUPLICATE_SUFFIX}`,
+    );
+    this.scheduleSend();
+  }
+
+  private startLiveness(): void {
+    this.stopLiveness();
+    this.livenessTimer = setInterval(() => this.checkLiveness(), LIVENESS_INTERVAL_MS);
+  }
+
+  private stopLiveness(): void {
+    if (this.livenessTimer) {
+      clearInterval(this.livenessTimer);
+      this.livenessTimer = null;
+    }
+    this.pingOutstanding = false;
+  }
+
+  private checkLiveness(): void {
+    if (this.pingOutstanding) {
+      // A full tick with nothing back after our PING: half-open socket.
+      this.callbacks.onError?.("Twitch IRC went silent — reconnecting");
+      this.closeSocket();
+      this.scheduleReconnect();
+      return;
+    }
+    this.pingOutstanding = true;
+    this.sendRaw("PING :dirework");
   }
 
   private scheduleReconnect(): void {
@@ -474,6 +587,7 @@ export class TwitchIrcClient {
   }
 
   private closeSocket(): void {
+    this.stopLiveness();
     const ws = this.ws;
     this.ws = null;
     this.joined = false;

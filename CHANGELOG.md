@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Upgrade notes
+- **New required GitHub secret `PROXY_SECRET`** (min 32 characters,
+  `openssl rand -base64 32`). Add it **before** syncing your fork — the deploy fails
+  validation without it. It lets the API rate limiter tell browsers apart behind the web
+  worker's proxy.
+
+### Changed
+- Completed tasks are deleted automatically 24 hours after they're marked done, and the
+  task overlay and dashboard read at most the 50 most recent done tasks per poll (the
+  `done/total` counters still count every done task) — keeps D1 reads within the free tier.
+- The API rate limiter keys signed-in traffic by session and proxied traffic by the
+  browser's real IP, so other visitors can no longer exhaust the owner's buckets.
+- Deploys no longer fail on a newly published dependency advisory; they show a warning.
+  Pull requests still fail on high-severity advisories.
+
+### Fixed
+- The bot page no longer stalls when one API request hangs: requests time out after 30
+  seconds and later chat commands keep processing.
+- When a bot-login refresh fails, other waiting requests report the failure at once
+  instead of reusing the rejected token; a reconnect also clears any stuck refresh lock.
+- The bot page stops on a clear error for a malformed bot link or invalid IRC credentials
+  instead of sitting on "Refreshing login".
+- Long task text from chat is cut without breaking an emoji in half.
+
 ## [1.1.0] - 2026-07-10
 
 ### Changed

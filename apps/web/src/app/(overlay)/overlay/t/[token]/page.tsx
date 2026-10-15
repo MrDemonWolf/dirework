@@ -5,23 +5,14 @@ import { useParams } from "next/navigation";
 
 import { defaultTimerStyles } from "@/lib/theme-presets";
 import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
-import { resolvePhaseDuration } from "@/lib/timer-utils";
+import { OVERLAY_POLL_MS } from "@/lib/poll-intervals";
+import { type TimerState, resolvePhaseDuration } from "@/lib/timer-utils";
 import { AutoScale } from "@/components/auto-scale";
+import { FontGate } from "@/components/font-gate";
 import { TimerDisplay } from "@/components/timer-display";
 import { publicTrpc } from "@/utils/trpc";
 
-/**
- * Overlay polling interval. The countdown itself ticks locally inside
- * TimerDisplay (computed from targetEndTime vs Date.now()); polling only
- * picks up phase changes and style edits.
- *
- * 3s (not less): the countdown ticks locally from targetEndTime, so the poll
- * only needs to catch state changes (start/pause/phase/style). Larger interval
- * = far fewer Worker requests for OBS sources left running (Cloudflare free tier).
- */
-const POLL_INTERVAL_MS = 3000;
-
-const defaultTimerState = {
+const defaultTimerState: TimerState = {
   status: "idle",
   targetEndTime: null,
   pausedWithRemaining: null,
@@ -41,25 +32,24 @@ export default function TimerOverlayPage() {
     queryKey: ["overlay", "timerState", token],
     queryFn: () => publicTrpc.overlay.getTimerState.mutate({ token }),
     enabled: Boolean(token),
-    refetchInterval: POLL_INTERVAL_MS,
+    // The countdown ticks locally inside TimerDisplay from targetEndTime; the
+    // poll only picks up phase changes and style edits.
+    refetchInterval: OVERLAY_POLL_MS,
     refetchIntervalInBackground: true,
+    // Unattended OBS source: a failed poll must never toast onto the stream.
+    meta: { silent: true },
   });
 
   if (isPending) return null;
 
-  const timerState = data?.timerState ?? defaultTimerState;
+  // The wire payload carries targetEndTime as a serialized string.
+  const timerState = (data?.timerState as TimerState | null | undefined) ?? defaultTimerState;
   const timerStyles = data?.timerStyles ?? defaultTimerStyles;
   const timerConfig = data?.timerConfig;
 
-  // TimerDisplay indexes labels by runtime status string — widen the closed
-  // PhaseLabelsConfig interface to a Record via spread.
-  const labels: Record<string, string> = {
-    ...(timerConfig?.labels ?? DEFAULT_PHASE_LABELS),
-  };
-
   const displayConfig = {
     ...timerStyles,
-    labels,
+    labels: timerConfig?.labels ?? DEFAULT_PHASE_LABELS,
     showHours: timerConfig?.showHours ?? false,
   };
 
@@ -69,28 +59,14 @@ export default function TimerOverlayPage() {
   // phase of its own — show the work length so the setup preview reads full.
   const totalDuration = timerConfig
     ? (resolvePhaseDuration(timerState.status, timerState.pausedFromStatus, timerConfig) ??
-      (timerState.status === "idle" ? timerConfig.workDuration : undefined) ??
-      undefined)
+      (timerState.status === "idle" ? timerConfig.workDuration : undefined))
     : undefined;
 
   return (
-    <div className="h-screen w-screen bg-transparent">
+    <FontGate className="h-screen w-screen bg-transparent">
       <AutoScale>
-        <TimerDisplay
-          config={displayConfig}
-          state={
-            timerState as {
-              status: string;
-              targetEndTime: string | null;
-              pausedWithRemaining: number | null;
-              pausedFromStatus: string | null;
-              currentCycle: number;
-              totalCycles: number;
-            }
-          }
-          totalDuration={totalDuration}
-        />
+        <TimerDisplay config={displayConfig} state={timerState} totalDuration={totalDuration} />
       </AutoScale>
-    </div>
+    </FontGate>
   );
 }

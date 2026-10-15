@@ -15,9 +15,10 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "catalog:",
     "@dirework/config": "workspace:*",
     "@dirework/infra": "workspace:*",
-    "@types/node": "^22.13.14",
+    "@types/node": "catalog:",
     "typescript": "catalog:"
   }
 }

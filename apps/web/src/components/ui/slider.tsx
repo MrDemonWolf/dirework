@@ -12,8 +12,12 @@ function Slider({
   value,
   min = 0,
   max = 100,
+  getAriaValueText,
   ...props
-}: SliderPrimitive.Root.Props) {
+}: SliderPrimitive.Root.Props & {
+  /** Thumb-level in Base UI — forwarded so callers can announce units ("40%"). */
+  getAriaValueText?: SliderPrimitive.Thumb.Props["getAriaValueText"];
+}) {
   const _values = React.useMemo(
     () => (Array.isArray(value) ? value : Array.isArray(defaultValue) ? defaultValue : [min, max]),
     [value, defaultValue, min, max],
@@ -47,7 +51,11 @@ function Slider({
           <SliderPrimitive.Thumb
             data-slot="slider-thumb"
             key={index}
-            className="border-primary ring-ring/50 relative size-4 rounded-full border-2 bg-white shadow-sm transition-[color,box-shadow] after:absolute after:-inset-3.5 hover:ring-2 focus-visible:ring-2 focus-visible:outline-hidden active:ring-2 block shrink-0 select-none disabled:pointer-events-none disabled:opacity-50"
+            getAriaValueText={getAriaValueText}
+            // Focus lands on the thumb's nested <input>, so the keyboard cue keys
+            // off has-focus-visible: a full-strength offset outline that reads
+            // apart from the 50% hover/drag ring.
+            className="border-primary ring-ring/50 relative size-4 rounded-full border-2 bg-white shadow-sm transition-[color,box-shadow] after:absolute after:-inset-3.5 hover:ring-2 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring active:ring-2 block shrink-0 select-none disabled:pointer-events-none disabled:opacity-50"
           />
         ))}
       </SliderPrimitive.Control>

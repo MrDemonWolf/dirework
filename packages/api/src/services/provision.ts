@@ -31,8 +31,7 @@ export async function ensureSingletons(db: DbClient) {
 
 /**
  * Ensure the instanceConfig singleton exists and return it. Provisioning goes
- * through the shared `provisionSingletonRows` — these used to run their own
- * `insert().values({})` (no explicit id, relying on a column default), a second
+ * through the shared `provisionSingletonRows`, so there is no second
  * provisioning path that could drift from the shared one.
  */
 export async function ensureInstanceConfig(db: DbClient) {

@@ -11,7 +11,7 @@ Preview grid of the 6 overlay themes. Each swatch renders a theme's `bg`, `accen
 
 ## Tokens
 
-Source data: `apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts`. Card chrome: `--ds-color-surface-hairline`, `--ds-shadow-md`.
+Source data: `apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts`. Card chrome: `--hairline`, `--brand-500` / `--brand-50` for the selected state.
 
 ## Sync rule
 

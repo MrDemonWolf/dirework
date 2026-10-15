@@ -15,6 +15,24 @@ export function isDevLoginEnabled(flag?: string): boolean {
   return flag === "true";
 }
 
+/** Header carrying the per-run dev-login secret (printed by `bun run dev`). */
+export const DEV_LOGIN_SECRET_HEADER = "x-dev-login-secret";
+
+/**
+ * Constant-time check of the presented secret against the configured one. An
+ * empty configured secret refuses everything (fail closed), so DEV_LOGIN=true
+ * alone never opens the endpoint to other devices on the network.
+ */
+export function devLoginSecretMatches(expected: string | undefined, presented: string | null) {
+  if (!expected || !presented) return false;
+  const a = new TextEncoder().encode(expected);
+  const b = new TextEncoder().encode(presented);
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i]! ^ b[i]!;
+  return diff === 0;
+}
+
 /** Fixed identity used only when the local DB has no owner yet. */
 const DEV_USER = {
   email: "dev@localhost",
@@ -30,12 +48,20 @@ const DEV_USER = {
  * same user; otherwise we create it, which trips the existing user-create hook
  * that claims ownership. createSession fires the session-create hook that
  * provisions the singleton config rows, exactly like a real login.
+ *
+ * Every request must present the per-run secret in DEV_LOGIN_SECRET_HEADER:
+ * the dev servers listen on all interfaces, so the flag alone is not enough.
  */
-export function devLoginPlugin(): BetterAuthPlugin {
+export function devLoginPlugin(secret: string | undefined): BetterAuthPlugin {
   return {
     id: "dev-login",
     endpoints: {
       devLogin: createAuthEndpoint("/dev-login", { method: "POST" }, async (ctx) => {
+        if (!devLoginSecretMatches(secret, ctx.headers?.get(DEV_LOGIN_SECRET_HEADER) ?? null)) {
+          throw new APIError("FORBIDDEN", {
+            message: "dev-login: missing or wrong secret (see the `bun run dev` output)",
+          });
+        }
         const adapter = ctx.context.internalAdapter;
 
         // Single-user instance — the sole existing user IS the owner.

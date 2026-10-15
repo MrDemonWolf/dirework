@@ -5,21 +5,28 @@ import { IBM_Plex_Mono, IBM_Plex_Sans, Montserrat } from "next/font/google";
 import "../index.css";
 import Providers from "@/components/providers";
 
+// The root layout also wraps the OBS overlays, which render their own
+// configured font. Preloading here would make every overlay load fetch the
+// dashboard's fonts too, so they load on first use instead (the size-adjusted
+// fallback next/font generates keeps that swap from shifting layout).
 const plexSans = IBM_Plex_Sans({
   variable: "--font-plex-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+  preload: false,
 });
 
 const plexMono = IBM_Plex_Mono({
   variable: "--font-plex-mono",
   subsets: ["latin"],
   weight: ["400", "500", "600"],
+  preload: false,
 });
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
   subsets: ["latin"],
+  preload: false,
 });
 
 export function generateMetadata(): Metadata {

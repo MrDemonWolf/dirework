@@ -1,8 +1,4 @@
-<p align="center">
-  <img src="apps/web/src/app/icon.svg" alt="Dirework logo" width="96" height="96" />
-</p>
-
-<h1 align="center">Dirework - Pomodoro Timer and Task List for Twitch</h1>
+# Dirework - Pomodoro Timer and Task List for Twitch
 
 Dirework is a personal project built for my own Twitch
 co-working and body-doubling streams. It combines a
@@ -102,9 +98,10 @@ Navigate to `/dashboard/bot` to manage your bot account,
 customize all response messages (wolf-themed defaults included),
 enable or disable task and timer command groups, set up command
 aliases, and copy your bot console link. The bot listens to chat
-while exactly one bot console page is open — add it to OBS as a browser
-source or keep the tab pinned. Do not open a second copy; multiple bot consoles can
-process the same command twice.
+while a bot console page is open — add it to OBS as a browser source or
+keep the tab pinned. Keep to one copy: a second console is harmless (Dirework
+runs each chat message once, by its Twitch message id), but it doubles the
+Worker requests every command costs.
 
 Treat the bot console and overlay URLs as bearer credentials: anyone with a copied
 link can use it until you regenerate the corresponding token.
@@ -178,6 +175,8 @@ link can use it until you regenerate the corresponding token.
 - `bun run lint` - Lint and format-check with Biome
 - `bun run audit:dependencies` - Fail on unmitigated high-severity dependency advisories
 - `bun run lint:fix` - Apply Biome's safe lint fixes and formatting
+- `bun run format` - Format the whole repo with Biome
+- `bun run tokens` - Regenerate the design-system outputs from `design-system/tokens.json`
 - `bun run check-types` - Run TypeScript type checking
 - `bun run test` - Run unit tests across all packages
 - `bun run test:coverage` - Run tests with coverage thresholds enforced
@@ -210,17 +209,27 @@ link can use it until you regenerate the corresponding token.
 ## Deployment
 
 Dirework deploys to Cloudflare Workers via GitHub Actions:
-set six repository secrets, push to `main`, done. Both
+set seven repository secrets and two variables, push to `main`. Both
 workers, the D1 database, and its migrations are managed by
 [Alchemy](https://alchemy.run).
+
+> **Sign in immediately after the first deploy.** Until someone signs
+> in, the instance is unclaimed and the first Twitch account to sign
+> in (anyone's) becomes its owner. Don't share the URL before you've
+> claimed it. If someone else claimed it, follow
+> [Recovering an instance someone else claimed](https://dirework.mrdemonwolf.dev/docs/deployment#recovering-an-instance-someone-else-claimed).
 
 See the **[Deployment guide](https://dirework.mrdemonwolf.dev/docs/deployment)**
 for the step-by-step walkthrough (Cloudflare API token, Twitch
 redirect URLs, GitHub secrets, and the post-deploy checklist).
+On a fork, enable Actions first (GitHub turns workflows off on
+new forks), then run **Actions → Deploy → Run workflow**. To
+pick up new releases later, follow
+[Updating your instance](https://dirework.mrdemonwolf.dev/docs/deployment#updating-your-instance).
 
 ## Project Structure
 
-```
+```text
 dirework/
 ├── apps/
 │   ├── web/           # Next.js app on Workers (dashboard, overlays, bot page), port 3001

@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   toHexOpacity,
+  colorWithOpacity,
   formatTime,
   formatClock,
+  msUntilNextSecond,
   remainingFromState,
   resolvePhaseDuration,
   roundedRectPath,
@@ -33,6 +35,53 @@ describe("toHexOpacity", () => {
   it("should pad single-digit hex values", () => {
     // 0.01 * 255 = 2.55, rounds to 3 = 0x03
     expect(toHexOpacity(0.01)).toBe("03");
+  });
+});
+
+describe("colorWithOpacity", () => {
+  it("appends the alpha byte to #rrggbb", () => {
+    expect(colorWithOpacity("#1a2b3c", 0.5)).toBe("#1a2b3c80");
+  });
+
+  it("expands #rgb / #rgba before applying the alpha", () => {
+    expect(colorWithOpacity("#abc", 1)).toBe("#aabbccff");
+    // #abc8 carries 0x88 alpha; half of it is 0x44.
+    expect(colorWithOpacity("#abc8", 0.5)).toBe("#aabbcc44");
+  });
+
+  it("combines with an existing #rrggbbaa alpha instead of double-suffixing", () => {
+    expect(colorWithOpacity("#000000ff", 0.5)).toBe("#00000080");
+  });
+
+  it("uses color-mix for colors that can't take a hex suffix", () => {
+    expect(colorWithOpacity("rgb(0,0,0)", 0.85)).toBe(
+      "color-mix(in srgb, rgb(0,0,0) 85%, transparent)",
+    );
+    expect(colorWithOpacity("red", 0.5)).toBe("color-mix(in srgb, red 50%, transparent)");
+  });
+
+  it("keeps transparent as-is", () => {
+    expect(colorWithOpacity("transparent", 0.5)).toBe("transparent");
+  });
+});
+
+describe("msUntilNextSecond", () => {
+  it("waits until just past the next whole-second boundary", () => {
+    expect(msUntilNextSecond(59_400)).toBe(405);
+    expect(msUntilNextSecond(1_001)).toBe(6);
+  });
+
+  it("lands just after the boundary the displayed second flips on", () => {
+    const remaining = 12_345;
+    const after = remaining - msUntilNextSecond(remaining);
+    // formatClock rounds up, so the label moves from 00:13 to 00:12.
+    expect(formatClock(remaining)).toBe("00:13");
+    expect(formatClock(after)).toBe("00:12");
+  });
+
+  it("never returns a non-positive delay", () => {
+    expect(msUntilNextSecond(0)).toBeGreaterThan(0);
+    expect(msUntilNextSecond(-50)).toBeGreaterThan(0);
   });
 });
 

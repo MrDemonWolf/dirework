@@ -20,37 +20,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { TRPCClientError } from "@trpc/client";
 
+import { createBotSession, type BotActivityKind, type BotPhase } from "@/lib/bot-session";
 import { TwitchIrcClient, type IrcStatus } from "@/lib/irc-client";
 import { publicTrpc } from "@/utils/trpc";
 
 /** Lines kept in the activity feed. */
 const MAX_ACTIVITY = 20;
 
-type Phase = "boot" | "live" | "invalid" | "revoked";
-
-type ActivityKind = "info" | "chat" | "reply" | "error";
-
 interface ActivityLine {
   id: number;
   time: string;
-  kind: ActivityKind;
+  kind: BotActivityKind;
   text: string;
 }
-
-type IngestInput =
-  | {
-      token: string;
-      kind: "message";
-      username: string;
-      displayName?: string;
-      twitchId: string;
-      message: string;
-      color?: string;
-      isMod: boolean;
-    }
-  | { token: string; kind: "clearchat"; targetUsername: string };
 
 const LED_CLASS: Record<"green" | "amber" | "red", string> = {
   green: "bg-emerald-400 shadow-[0_0_12px_2px_rgba(52,211,153,0.55)]",
@@ -59,7 +42,7 @@ const LED_CLASS: Record<"green" | "amber" | "red", string> = {
   red: "bg-red-500 shadow-[0_0_12px_2px_rgba(239,68,68,0.55)]",
 };
 
-const LINE_CLASS: Record<ActivityKind, string> = {
+const LINE_CLASS: Record<BotActivityKind, string> = {
   // zinc-400 = 7.76:1 on zinc-950; zinc-500 was 4.12:1, below AA for 12px text
   info: "text-zinc-400",
   chat: "text-zinc-300",
@@ -82,13 +65,6 @@ function formatUptime(ms: number): string {
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
   return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
-}
-
-function isUnauthorized(err: unknown): boolean {
-  return (
-    err instanceof TRPCClientError &&
-    (err.data as { code?: string } | null | undefined)?.code === "UNAUTHORIZED"
-  );
 }
 
 function StatCell({
@@ -115,7 +91,7 @@ function StatCell({
 export function BotConsole() {
   const { token } = useParams<{ token: string }>();
 
-  const [phase, setPhase] = useState<Phase>("boot");
+  const [phase, setPhase] = useState<BotPhase>("boot");
   const [ircStatus, setIrcStatus] = useState<IrcStatus>("idle");
   const [channelName, setChannelName] = useState("");
   const [botUsername, setBotUsername] = useState("");
@@ -144,31 +120,7 @@ export function BotConsole() {
   useEffect(() => {
     if (!token) return;
 
-    let disposed = false;
-    let revoked = false;
-    let wasLive = false;
-    let currentChatToken: string | null = null;
-    // Bounds the auth-failure recovery loop (P0.5): a refreshable-but-rejected
-    // token would otherwise retry every 2s forever. After this many consecutive
-    // failed recoveries (no successful connect between them) we stop and require
-    // a manual reconnect.
-    let authRecoveryAttempts = 0;
-    const MAX_AUTH_RECOVERY = 5;
-    // Hourly liveness check — validates the token against Twitch and reconnects
-    // only if it was rotated. Catches a revoked-but-unexpired token.
-    const REVALIDATE_INTERVAL_MS = 60 * 60 * 1000;
-    let revalidateTimer: ReturnType<typeof setInterval> | null = null;
-    const pendingTimers = new Set<ReturnType<typeof setTimeout>>();
-
-    const later = (fn: () => void, ms: number) => {
-      const timer = setTimeout(() => {
-        pendingTimers.delete(timer);
-        if (!disposed && !revoked) fn();
-      }, ms);
-      pendingTimers.add(timer);
-    };
-
-    const pushActivity = (kind: ActivityKind, text: string) => {
+    const pushActivity = (kind: BotActivityKind, text: string) => {
       const line: ActivityLine = {
         id: ++lineIdRef.current,
         time: timeStamp(),
@@ -178,207 +130,47 @@ export function BotConsole() {
       setActivity((prev) => [...prev.slice(-(MAX_ACTIVITY - 1)), line]);
     };
 
-    // Token was regenerated on the dashboard — permanent stop for this URL.
-    const enterRevoked = () => {
-      if (revoked) return;
-      revoked = true;
-      setPhase("revoked");
-      client.dispose();
-    };
-
-    /**
-     * Relay one chat line to the stateless API. Mutations are deliberately not
-     * retried: if D1 commits but the response is lost, an automatic retry would
-     * apply commands such as !done, !next, or !timer skip twice.
-     */
-    const ingestOnce = async (input: IngestInput): Promise<string[]> => {
-      try {
-        const result = await publicTrpc.bot.ingest.mutate(input);
-        return result.replies;
-      } catch (err) {
-        if (isUnauthorized(err)) enterRevoked();
-        else pushActivity("error", "could not send that command to Dirework — message dropped");
-        return [];
-      }
-    };
-
-    /**
-     * Chat commands are relayed ONE AT A TIME (P1.7). Ingest used to be fired
-     * as a detached async call per PRIVMSG, so two commands from the same
-     * viewer could execute against the same DB snapshot and interleave — e.g.
-     * "!done" and "!task" racing over which task ends up active. Chaining on a
-     * promise preserves chat order and keeps the bot to one in-flight mutation.
-     */
-    let ingestChain: Promise<unknown> = Promise.resolve();
-    const ingest = (input: IngestInput): Promise<string[]> => {
-      const next = ingestChain.then(() => ingestOnce(input));
-      // Keep the chain alive even if a link rejects, or every later command
-      // would inherit the rejection and silently stop being processed.
-      ingestChain = next.catch(() => undefined);
-      return next;
-    };
-
-    const client = new TwitchIrcClient({
-      onStatus: (status) => {
-        if (disposed || revoked) return;
-        setIrcStatus(status);
-        if (status === "connected") {
-          authRecoveryAttempts = 0; // a clean connect clears the recovery budget
-          setConnectedAt((prev) => prev ?? Date.now());
-          pushActivity("info", "connected to Twitch IRC");
-        }
+    const session = createBotSession({
+      token,
+      api: {
+        getSession: (input) => publicTrpc.bot.getSession.mutate(input),
+        ingest: (input) => publicTrpc.bot.ingest.mutate(input),
       },
-      onChat: (chat) => {
-        if (disposed || revoked) return;
-        setCounters((c) => ({ ...c, seen: c.seen + 1 }));
-        const text = chat.message.trim();
-        // Every Dirework command starts with "!" — skipping plain chatter
-        // saves free-tier Worker requests.
-        if (!text.startsWith("!")) return;
-        setCounters((c) => ({ ...c, commands: c.commands + 1 }));
-        pushActivity("chat", `${chat.displayName ?? chat.username}: ${text}`);
-        void (async () => {
-          const replies = await ingest({
-            token,
-            kind: "message",
-            username: chat.username,
-            displayName: chat.displayName,
-            twitchId: chat.twitchId,
-            message: text,
-            color: chat.color,
-            isMod: chat.isMod,
-          });
-          if (disposed || revoked) return;
-          for (const reply of replies) {
-            client.say(reply);
-            setCounters((c) => ({ ...c, replies: c.replies + 1 }));
-            pushActivity("reply", `→ ${reply}`);
-          }
-        })();
-      },
-      onClearChat: (targetUsername) => {
-        if (disposed || revoked) return;
-        pushActivity("info", `clearchat: ${targetUsername} — removing their tasks`);
-        // No replies expected for moderation events.
-        void ingest({ token, kind: "clearchat", targetUsername });
-      },
-      onError: (message) => {
-        if (disposed || revoked) return;
-        pushActivity("error", message);
-      },
-      onAuthFailure: () => {
-        if (disposed || revoked) return;
-        // Twitch rejected the stored token, so its DB expiry can't be trusted
-        // — force the server through the refresh flow instead of letting it
-        // hand back the same dead token. Small delay avoids a tight loop.
-        authRecoveryAttempts += 1;
-        if (authRecoveryAttempts > MAX_AUTH_RECOVERY) {
-          pushActivity(
-            "error",
-            "Twitch keeps rejecting the bot login — reconnect the bot account from the dashboard",
-          );
-          enterRevoked();
-          return;
-        }
-        pushActivity("error", "Twitch rejected the bot's login — refreshing it");
-        later(() => bootstrap({ forceRefresh: true }), 2000);
+      createClient: (callbacks) => new TwitchIrcClient(callbacks),
+      events: {
+        onPhase: setPhase,
+        onIrcStatus: setIrcStatus,
+        onIdentity: ({ channelName, botUsername }) => {
+          setChannelName(channelName);
+          setBotUsername(botUsername);
+        },
+        onConnected: () => setConnectedAt((prev) => prev ?? Date.now()),
+        onCounter: (counter) => setCounters((c) => ({ ...c, [counter]: c[counter] + 1 })),
+        onActivity: pushActivity,
       },
     });
-
-    async function bootstrap(opts: { forceRefresh?: boolean } = {}): Promise<void> {
-      try {
-        const session = await publicTrpc.bot.getSession.mutate({
-          token,
-          forceRefresh: opts.forceRefresh,
-        });
-        if (disposed || revoked) return;
-        setChannelName(session.channelName);
-        setBotUsername(session.botUsername);
-        setPhase("live");
-        wasLive = true;
-        currentChatToken = session.chatToken;
-        client.connect({
-          botUsername: session.botUsername,
-          channelName: session.channelName,
-          // Memory only — handed straight to the IRC client, never rendered.
-          chatToken: session.chatToken,
-        });
-        startRevalidateLoop();
-      } catch (err) {
-        if (disposed || revoked) return;
-        if (isUnauthorized(err)) {
-          if (wasLive) {
-            // Token rotated while we were running.
-            enterRevoked();
-          } else {
-            // Bad link from the start — show nothing else (no details).
-            setPhase("invalid");
-            client.dispose();
-          }
-          return;
-        }
-        const reason = err instanceof TRPCClientError ? err.message : "network error";
-        pushActivity("error", `couldn't reach Dirework (${reason}) — retrying in 5s`);
-        later(bootstrap, 5000);
-      }
-    }
-
-    function startRevalidateLoop(): void {
-      if (revalidateTimer) return;
-      revalidateTimer = setInterval(() => {
-        if (disposed || revoked) return;
-        void revalidate();
-      }, REVALIDATE_INTERVAL_MS);
-    }
-
-    async function revalidate(): Promise<void> {
-      try {
-        const session = await publicTrpc.bot.getSession.mutate({ token, revalidate: true });
-        if (disposed || revoked) return;
-        // Only reconnect when the token actually rotated — an unchanged token
-        // means the socket is still valid and must not be churned hourly.
-        if (session.chatToken !== currentChatToken) {
-          currentChatToken = session.chatToken;
-          setChannelName(session.channelName);
-          setBotUsername(session.botUsername);
-          pushActivity("info", "chat token refreshed — reconnecting");
-          client.connect({
-            botUsername: session.botUsername,
-            channelName: session.channelName,
-            chatToken: session.chatToken,
-          });
-        }
-      } catch (err) {
-        if (disposed || revoked) return;
-        if (isUnauthorized(err)) {
-          enterRevoked();
-          return;
-        }
-        // Transient — the next hourly tick retries.
-      }
-    }
-
-    pushActivity("info", "bot console starting");
-    void bootstrap();
-
-    return () => {
-      disposed = true;
-      for (const timer of pendingTimers) clearTimeout(timer);
-      if (revalidateTimer) clearInterval(revalidateTimer);
-      client.dispose();
-    };
+    return session.dispose;
   }, [token]);
 
-  if (phase === "invalid" || phase === "revoked") {
+  if (phase === "invalid" || phase === "revoked" || phase === "reauth") {
     return (
       <main className="flex h-dvh w-full flex-col items-center justify-center gap-4 bg-zinc-950 px-6 text-center font-mono">
         <span className={`h-4 w-4 rounded-full ${LED_CLASS.red}`} aria-hidden="true" />
         <h1 className="text-xl font-bold tracking-[0.2em] text-red-400 uppercase">
-          {phase === "invalid" ? "Invalid bot link" : "Link reset"}
+          {phase === "invalid"
+            ? "Invalid bot link"
+            : phase === "revoked"
+              ? "Link reset"
+              : "Bot login expired"}
         </h1>
         {phase === "revoked" ? (
           <p className="max-w-sm text-sm text-zinc-400">
             This URL was reset. Copy the new one from Bot settings.
+          </p>
+        ) : phase === "reauth" ? (
+          <p className="max-w-sm text-sm text-zinc-400">
+            Twitch no longer accepts the bot account&apos;s login. Reconnect it in Dashboard → Bot,
+            then reload this page.
           </p>
         ) : null}
       </main>
@@ -386,7 +178,7 @@ export function BotConsole() {
   }
 
   const led: "green" | "amber" | "red" =
-    phase === "boot"
+    phase === "boot" || phase === "not-configured"
       ? "amber"
       : ircStatus === "connected"
         ? "green"
@@ -397,17 +189,19 @@ export function BotConsole() {
   const statusText =
     phase === "boot"
       ? "Starting"
-      : ircStatus === "connected"
-        ? "Connected"
-        : ircStatus === "connecting"
-          ? "Connecting"
-          : ircStatus === "reconnecting"
-            ? "Reconnecting"
-            : ircStatus === "auth-failed"
-              ? "Refreshing login"
-              : ircStatus === "closed"
-                ? "Offline"
-                : "Starting";
+      : phase === "not-configured"
+        ? "Bot not connected"
+        : ircStatus === "connected"
+          ? "Connected"
+          : ircStatus === "connecting"
+            ? "Connecting"
+            : ircStatus === "reconnecting"
+              ? "Reconnecting"
+              : ircStatus === "auth-failed"
+                ? "Refreshing login"
+                : ircStatus === "closed"
+                  ? "Offline"
+                  : "Starting";
 
   return (
     <main className="flex h-dvh w-full flex-col bg-zinc-950 font-mono text-zinc-200">
@@ -451,6 +245,9 @@ export function BotConsole() {
         ref={logRef}
         role="log"
         aria-label="Activity log"
+        // Scrollable region: focusable so keyboard users can scroll it.
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: scroll container
+        tabIndex={0}
         className="flex-1 overflow-y-auto px-4 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
       >
         {activity.length === 0 ? (

@@ -4,7 +4,8 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Bot, ExternalLink, ListTodo, Monitor, Palette, Shield, Timer } from "lucide-react";
 
-import { authClient } from "@/lib/auth-client";
+import { signInWithTwitch } from "@/lib/auth-client";
+import { resolveSignInError, type SignInError } from "@/lib/sign-in-errors";
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { DevLoginButton } from "@/components/dev-login-button";
@@ -43,28 +44,17 @@ function TimerModuleMock() {
   );
 }
 
-const SIGN_IN_ERRORS: Record<string, { title: string; hint: string }> = {
-  instance_claimed: {
-    title: "This Dirework already belongs to a different Twitch account.",
-    hint: "Each Dirework belongs to one streamer. Sign in with the account that claimed it, or deploy your own copy.",
-  },
-  signin_failed: {
-    title: "Twitch sign-in didn't complete.",
-    hint: "Nothing was changed — try the button again. If it keeps failing, check that the Twitch app's redirect URL matches this site.",
-  },
-};
-
 function HomeInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [signInError, setSignInError] = useState<(typeof SIGN_IN_ERRORS)[string] | null>(null);
+  const [signInError, setSignInError] = useState<SignInError | null>(null);
 
   // Persist the error inline (a missed toast is a dead end), then strip the
   // query param so refresh/share doesn't re-trigger it.
   useEffect(() => {
     const error = searchParams.get("error");
     if (!error) return;
-    setSignInError(SIGN_IN_ERRORS[error] ?? SIGN_IN_ERRORS.signin_failed);
+    setSignInError(resolveSignInError(error));
     router.replace("/", { scroll: false });
   }, [searchParams, router]);
 
@@ -92,13 +82,7 @@ function HomeInner() {
             <Button
               size="lg"
               className="cursor-pointer gap-2 bg-twitch text-white hover:bg-twitch-hover"
-              onClick={() =>
-                authClient.signIn.social({
-                  provider: "twitch",
-                  callbackURL: "/dashboard",
-                  errorCallbackURL: "/?error=signin_failed",
-                })
-              }
+              onClick={() => signInWithTwitch("/")}
             >
               <TwitchIcon className="size-4" />
               Sign in with Twitch

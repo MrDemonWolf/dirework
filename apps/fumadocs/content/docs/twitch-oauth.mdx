@@ -23,6 +23,12 @@ Both use the **same** Twitch application, but different redirect URLs.
 3. Click **Applications** in the left sidebar
 4. Click **Register Your Application**
 
+<Callout>
+  Twitch only lets accounts with **two-factor authentication** register applications. If
+  the console asks you to enable it, turn it on under Twitch **Settings → Security and
+  Privacy**, then come back.
+</Callout>
+
 ### Fill in the application details
 
 | Field | Value |
@@ -172,7 +178,7 @@ Dirework requests specific OAuth scopes for each connection type:
 
 | Connection | Scopes | Purpose |
 | --- | --- | --- |
-| **Streamer login** | `user:read:email` (Better Auth default) | Authentication, profile info |
+| **Streamer login** | `openid` | Authentication, profile info (no email) |
 | **Bot account** | `chat:read`, `chat:edit` | Read and send chat messages over IRC (the connection the bot page actually uses) |
 | **Bot account** | `user:read:chat`, `user:write:chat` | Helix chat API equivalents — reserved for a future move to Helix sends |
 
@@ -210,7 +216,7 @@ After signing in, your dashboard shows **Overlay URLs**:
 1. Copy the **Timer Overlay** URL
 2. In OBS, add a **Browser Source**
 3. Paste the overlay URL (it looks like `http://localhost:3001/overlay/t/YOUR_TOKEN`)
-4. Set width and height to `250` (or match the timer size you set in the Theme Center)
+4. Set width and height to `300` (the timer scales to fill the source; use 700 x 800 for the task list)
 5. Check **"Shutdown source when not visible"**
 6. Repeat for the **Task List Overlay** URL
 
@@ -235,8 +241,12 @@ For production, replace with your web worker's origin
 ## Who can sign in?
 
 You don't need to configure access. Dirework is **single-owner**: the first Twitch
-account to sign in claims the instance, and after that no one else can take it over. Your
-instance is yours the moment you claim it.
+account to sign in claims the instance, and after that no one else can take it over.
+
+Until that first sign-in, though, **any** Twitch user who opens your instance's URL can
+claim it. Sign in as soon as your first deploy finishes and don't share the URL before
+then. If someone else claimed it, follow [Recovering an instance someone else
+claimed](/docs/deployment#recovering-an-instance-someone-else-claimed).
 
 ---
 

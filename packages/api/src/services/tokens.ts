@@ -2,6 +2,10 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import type { DbClient } from "@dirework/db";
+import * as schema from "@dirework/db/schema";
+
+import { ensureInstanceConfig } from "./provision";
+import { updateSingleton } from "./singleton";
 
 /**
  * Bounded public token input (L3) — every public token-gated procedure uses
@@ -68,4 +72,25 @@ export async function requireBotToken(db: DbClient, token: string): Promise<void
   if (!(await verifyBotToken(db, token))) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid bot token" });
   }
+}
+
+/** instanceConfig columns that hold a rotatable bearer token. */
+export type InstanceTokenField = "overlayTimerToken" | "overlayTasksToken" | "botToken";
+
+/**
+ * Rotate one instance token (invalidates any previously copied URL). Provisions
+ * the row first and fails loudly if the write did not land, so a caller is never
+ * handed a token that was not saved.
+ */
+export async function rotateInstanceToken(
+  db: DbClient,
+  field: InstanceTokenField,
+): Promise<string> {
+  await ensureInstanceConfig(db);
+  const token = crypto.randomUUID();
+  const updated = await updateSingleton(db, schema.instanceConfig, { [field]: token });
+  if (updated?.[field] !== token) {
+    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to rotate token" });
+  }
+  return token;
 }

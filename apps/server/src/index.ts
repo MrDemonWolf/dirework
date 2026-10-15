@@ -1,3 +1,4 @@
+import { TRPC_MAX_BATCH_SIZE } from "@dirework/api/config-shared";
 import { createContext } from "@dirework/api/context";
 import { appRouter } from "@dirework/api/routers/index";
 import { createAuth } from "@dirework/auth";
@@ -10,7 +11,9 @@ import { secureHeaders } from "hono/secure-headers";
 import { botOAuth } from "./routes/bot-oauth";
 import { getRequestId, requestLogger } from "./lib/logger";
 import { rateLimiter } from "./lib/rate-limit";
+import { requireJsonMutations } from "./lib/require-json";
 import { recordError, recordMetric } from "./lib/telemetry";
+import { trpcErrorReporter } from "./lib/trpc-error";
 
 /**
  * Global request-body cap. Every real request here is small — tRPC inputs are
@@ -31,7 +34,7 @@ app.use(async (c, next) => {
   await next();
 });
 /**
- * Security headers on the API worker, mirroring the web worker's (P2.16). This
+ * Security headers on the API worker, mirroring the web worker's. This
  * origin only ever returns JSON and OAuth redirects — never HTML — so the CSP
  * is locked all the way down and framing is denied outright. `nosniff` matters
  * most here: it stops a JSON response being coerced into an executable type.
@@ -66,6 +69,9 @@ app.use(
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true,
+    // Overlays poll with preflighted POSTs; caching the preflight (7200s is
+    // Chromium's cap) keeps it from adding a Worker request to most polls.
+    maxAge: 7200,
   }),
 );
 
@@ -99,27 +105,21 @@ app.get("/ready", async (c) => {
   }
 });
 
-app.use(
-  "/trpc/*",
+// Registered after cors, so preflights are still answered by the cors middleware.
+app.use("/trpc/*", requireJsonMutations());
+// Built per request so the error hook can close over the Hono context (request
+// id) — see trpcErrorReporter.
+app.use("/trpc/*", (c, next) =>
   trpcServer({
     router: appRouter,
     createContext: (_opts, context) => {
       return createContext({ context });
     },
-    // tRPC handles its own errors, so they never reach app.onError — this is
-    // the only place procedure failures can be counted. Only the tRPC error
-    // CODE becomes a label (a closed set); the message never does, since it can
-    // carry task text or a Twitch response body.
-    onError: ({ error, ctx: _ctx, path: _path }) => {
-      // Expected auth and validation failures are client outcomes, not database
-      // incidents. Logging them as errors created noisy, attacker-amplifiable
-      // telemetry and obscured real server failures.
-      if (error.code === "INTERNAL_SERVER_ERROR") {
-        recordMetric("internal.error", { label: error.code });
-        recordError({ error, reason: error.code });
-      }
-    },
-  }),
+    // The rate limiter charges a request once, so the batch size bounds how
+    // many procedures one limiter token can buy.
+    maxBatchSize: TRPC_MAX_BATCH_SIZE,
+    onError: trpcErrorReporter(c),
+  })(c, next),
 );
 
 app.get("/", (c) => {

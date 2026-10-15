@@ -9,11 +9,15 @@ import { env } from "@dirework/env/server";
 import { handleMessage } from "../bot/commands";
 import { buildBotConfig, hasControlCharacters } from "../config-shared";
 import { ownerProcedure, publicProcedure, router } from "../index";
+import { claimChatMessage } from "../services/chat-dedupe";
 import { ensureBotConfig, ensureInstanceConfig } from "../services/provision";
-import { removeTasksByUsername } from "../services/task-service";
-import { requireBotToken, tokenInput } from "../services/tokens";
-import { getFreshChatToken, resolveChannelLogin } from "../services/twitch-auth";
-import { updateSingleton } from "../services/singleton";
+import { removeTasksByUsername, resolveOwnerTwitchId } from "../services/task-service";
+import { requireBotToken, rotateInstanceToken, tokenInput } from "../services/tokens";
+import {
+  BOT_REAUTH_REQUIRED_MESSAGE,
+  getFreshChatToken,
+  resolveChannelLogin,
+} from "../services/twitch-auth";
 
 // The browser bot page (/bot/<token>) holds the Twitch IRC-over-WebSocket
 // connection and relays every chat line here. These procedures are stateless —
@@ -46,6 +50,17 @@ export const botIngestInputSchema = z.object({
     .optional(),
   isMod: z.boolean().default(false),
   targetUsername: twitchLoginInput.optional(),
+  // PRIVMSG `id` tag, used to dedupe relays from multiple open bot pages.
+  // Lenient on purpose: an id that doesn't match the expected shape is dropped
+  // (the command runs without dedupe) rather than rejected, so a Twitch format
+  // change can never silence every command.
+  messageId: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[0-9a-f-]+$/i)
+    .optional()
+    .catch(undefined),
 });
 
 export function deriveChatPrivileges(
@@ -57,16 +72,23 @@ export function deriveChatPrivileges(
   return { isBroadcaster, isMod: clientClaimsMod || isBroadcaster };
 }
 
+/** The owner user row, with twitchId resolved through the linked Twitch account. */
+async function loadOwner(db: DbClient) {
+  const owner = await db.query.user.findFirst({
+    columns: { id: true, name: true, displayName: true, twitchId: true },
+    where: eq(schema.user.isOwner, true),
+  });
+  if (!owner) return null;
+  return { ...owner, twitchId: await resolveOwnerTwitchId(db, owner) };
+}
+
 /** The owner-user + bot-account singleton lookups the bot procedures repeat. */
 async function loadOwnerAndBotAccount(db: DbClient) {
   const [owner, botAccount] = await Promise.all([
-    db.query.user.findFirst({
-      columns: { name: true, displayName: true, twitchId: true },
-      where: eq(schema.user.isOwner, true),
-    }),
+    loadOwner(db),
     db.query.botAccount.findFirst({ columns: { username: true } }),
   ]);
-  return { owner: owner ?? null, botAccount: botAccount ?? null };
+  return { owner, botAccount: botAccount ?? null };
 }
 
 export const botRouter = router({
@@ -109,7 +131,7 @@ export const botRouter = router({
         revalidate: input.revalidate,
       });
       if (!chatToken) {
-        throw new TRPCError({ code: "UNAUTHORIZED", message: "Bot chat token unavailable" });
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: BOT_REAUTH_REQUIRED_MESSAGE });
       }
 
       // IRC JOIN needs the owner's lowercase *login*, not the display name.
@@ -157,14 +179,9 @@ export const botRouter = router({
         });
       }
 
-      const [botConfigRow, owner] = await Promise.all([
-        ensureBotConfig(ctx.db),
-        ctx.db.query.user.findFirst({
-          columns: { name: true, twitchId: true },
-          where: eq(schema.user.isOwner, true),
-        }),
-      ]);
+      const [botConfigRow, owner] = await Promise.all([ensureBotConfig(ctx.db), loadOwner(ctx.db)]);
 
+      const { messageId } = input;
       const privileges = deriveChatPrivileges(owner?.twitchId, input.twitchId, input.isMod);
       const replies: string[] = [];
       await handleMessage({
@@ -181,6 +198,9 @@ export const botRouter = router({
         },
         docsUrl: env.DOCS_URL,
         say: (text) => replies.push(text),
+        // Another open bot page may already have relayed this exact message —
+        // running it again would double-apply the command and its replies.
+        claim: messageId ? () => claimChatMessage(ctx.db, messageId) : undefined,
       });
 
       return { replies };
@@ -203,9 +223,7 @@ export const botRouter = router({
 
   /** Rotate the bot page token (invalidates any previously copied URL). */
   regenerateBotToken: ownerProcedure.mutation(async ({ ctx }) => {
-    await ensureInstanceConfig(ctx.db);
-    const botToken = crypto.randomUUID();
-    await updateSingleton(ctx.db, schema.instanceConfig, { botToken });
+    const botToken = await rotateInstanceToken(ctx.db, "botToken");
     return { botToken };
   }),
 });

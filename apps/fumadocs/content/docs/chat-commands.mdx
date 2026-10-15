@@ -68,7 +68,7 @@ When you add your first task with `!task`, it automatically becomes your **activ
 
 Broadcasters can remap command names in **Bot Settings** (`/dashboard/bot`). For example, you could set `add` to map to `task`, so viewers can use `!add` instead of `!task`.
 
-Aliases are resolved for every command before it runs, so an alias can remap to any command — task, timer, `!clear`, and even the meta commands (`!dwhelp`, `!dwcommands`). The built-in command names always keep working regardless of your aliases.
+An alias can point at any task or timer command (`task`, `done`, `edit`, `remove`, `focus`, `check`, `next`, `help`, `clear`, `timer`) — not the meta commands (`!dwhelp`, `!dwcommands`). Each alias and target is a single command name with no arguments, so `!ts` → `!timer start` is not supported. Aliases can't reuse a built-in command name, so the built-in commands always keep working regardless of your aliases.
 
 ## Task priority
 

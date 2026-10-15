@@ -1,28 +1,33 @@
 import { describe, expect, it } from "vitest";
 
-import { defaultTimerStyles, defaultTaskStyles, themePresets } from "../theme-presets";
+import { taskStylesInputSchema, timerStylesInputSchema } from "@dirework/api/config-shared";
 
-describe("defaultTimerStyles", () => {
-  it("should have all required style properties", () => {
-    expect(defaultTimerStyles).toHaveProperty("dimensions");
-    expect(defaultTimerStyles).toHaveProperty("background");
-    expect(defaultTimerStyles).toHaveProperty("ring");
-    expect(defaultTimerStyles).toHaveProperty("text");
-    expect(defaultTimerStyles).toHaveProperty("fontSizes");
+import {
+  defaultTimerStyles,
+  defaultTaskStyles,
+  detectMatchingPreset,
+  themePresets,
+} from "../theme-presets";
+
+// Every shipped style must pass the same allowlist the save path enforces, or
+// applying a preset (or saving an untouched Theme Center) fails server-side.
+// toEqual also catches keys the schema would silently strip.
+function expectSavable(
+  schema: typeof timerStylesInputSchema | typeof taskStylesInputSchema,
+  styles: unknown,
+) {
+  const parsed = schema.safeParse(styles);
+  expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+  expect(parsed.data).toEqual(styles);
+}
+
+describe("default styles", () => {
+  it("default timer styles pass the save-path schema", () => {
+    expectSavable(timerStylesInputSchema, defaultTimerStyles);
   });
-});
 
-describe("defaultTaskStyles", () => {
-  it("should have all required style properties", () => {
-    expect(defaultTaskStyles).toHaveProperty("display");
-    expect(defaultTaskStyles).toHaveProperty("fonts");
-    expect(defaultTaskStyles).toHaveProperty("scroll");
-    expect(defaultTaskStyles).toHaveProperty("header");
-    expect(defaultTaskStyles).toHaveProperty("body");
-    expect(defaultTaskStyles).toHaveProperty("task");
-    expect(defaultTaskStyles).toHaveProperty("taskDone");
-    expect(defaultTaskStyles).toHaveProperty("checkbox");
-    expect(defaultTaskStyles).toHaveProperty("bullet");
+  it("default task styles pass the save-path schema", () => {
+    expectSavable(taskStylesInputSchema, defaultTaskStyles);
   });
 });
 
@@ -37,24 +42,44 @@ describe("themePresets", () => {
   });
 
   it.each(themePresets.map((p) => [p.id, p] as const))(
-    "preset '%s' should have required properties",
+    "preset '%s' styles pass the save-path schemas",
     (_id, preset) => {
-      expect(preset.id).toBeTruthy();
-      expect(preset.name).toBeTruthy();
-      expect(preset.description).toBeTruthy();
-      expect(preset.preview).toHaveProperty("bg");
-      expect(preset.preview).toHaveProperty("accent");
-      expect(preset.preview).toHaveProperty("text");
-      expect(preset.timerStyles).toHaveProperty("dimensions");
-      expect(preset.timerStyles).toHaveProperty("background");
-      expect(preset.timerStyles).toHaveProperty("ring");
-      expect(preset.timerStyles).toHaveProperty("text");
-      expect(preset.timerStyles).toHaveProperty("fontSizes");
-      expect(preset.taskStyles).toHaveProperty("display");
-      expect(preset.taskStyles).toHaveProperty("header");
-      expect(preset.taskStyles).toHaveProperty("body");
-      expect(preset.taskStyles).toHaveProperty("task");
-      expect(preset.taskStyles).toHaveProperty("taskDone");
+      expectSavable(timerStylesInputSchema, preset.timerStyles);
+      expectSavable(taskStylesInputSchema, preset.taskStyles);
     },
   );
+});
+
+describe("detectMatchingPreset", () => {
+  const clone = <T>(value: T): T => structuredClone(value);
+
+  it.each(themePresets.map((p) => [p.id, p] as const))(
+    "recognizes an exact copy of preset '%s'",
+    (id, preset) => {
+      expect(detectMatchingPreset(clone(preset.timerStyles), clone(preset.taskStyles))).toBe(id);
+    },
+  );
+
+  it("returns null once a single value diverges from every preset", () => {
+    const [preset] = themePresets;
+    const timer = clone(preset!.timerStyles);
+    timer.ring.width += 1;
+    expect(detectMatchingPreset(timer, clone(preset!.taskStyles))).toBeNull();
+  });
+
+  it("re-detects the preset when an edit is reverted by hand", () => {
+    const [preset] = themePresets;
+    const timer = clone(preset!.timerStyles);
+    const original = timer.ring.width;
+    timer.ring.width += 1;
+    timer.ring.width = original;
+    expect(detectMatchingPreset(timer, clone(preset!.taskStyles))).toBe(preset!.id);
+  });
+
+  it("ignores key order (server-built configs need not match literal order)", () => {
+    const [preset] = themePresets;
+    const { dimensions, ...rest } = clone(preset!.timerStyles);
+    const reordered = { ...rest, dimensions };
+    expect(detectMatchingPreset(reordered, clone(preset!.taskStyles))).toBe(preset!.id);
+  });
 });

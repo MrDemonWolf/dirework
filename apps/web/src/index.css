@@ -155,6 +155,14 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
   }
+  /* Keep focused/scrolled-to controls clear of the sticky header (h-14 + border)
+     and, while it is shown, the fixed SaveBar. */
+  html {
+    scroll-padding-top: 4.5rem;
+  }
+  html:has([data-save-bar]) {
+    scroll-padding-bottom: 5rem;
+  }
 }
 
 @layer utilities {
@@ -303,13 +311,33 @@
   animation: scroll-secondary var(--scroll-duration, 20s) linear infinite;
 }
 
-/* Active task glow animation (overlay) */
+/*
+ * Active task glow (overlay). The shadow is static on a pseudo-element and only
+ * its opacity pulses — opacity composites on the GPU, whereas animating
+ * box-shadow repaints the task row every frame for the whole stream.
+ */
+.overlay-active-glow {
+  position: relative;
+}
+
+.overlay-active-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: 0 0 12px 4px rgba(59, 130, 246, 0.6);
+  opacity: 0.7;
+  will-change: opacity;
+  animation: active-glow 2s ease-in-out infinite;
+}
+
 @keyframes active-glow {
   0%, 100% {
-    box-shadow: 0 0 4px 1px rgba(59, 130, 246, 0.3);
+    opacity: 0.4;
   }
   50% {
-    box-shadow: 0 0 12px 4px rgba(59, 130, 246, 0.6);
+    opacity: 1;
   }
 }
 

@@ -9,7 +9,7 @@ vi.mock("better-auth/api", () => ({
 }));
 vi.mock("better-auth/cookies", () => ({ setSessionCookie: vi.fn() }));
 
-import { isDevLoginEnabled } from "../dev-login";
+import { devLoginSecretMatches, isDevLoginEnabled } from "../dev-login";
 
 describe("isDevLoginEnabled", () => {
   it('is true only for the exact string "true"', () => {
@@ -22,4 +22,18 @@ describe("isDevLoginEnabled", () => {
       expect(isDevLoginEnabled(value as string | undefined)).toBe(false);
     },
   );
+});
+
+describe("devLoginSecretMatches", () => {
+  it("accepts only the exact configured secret", () => {
+    expect(devLoginSecretMatches("s3cret-value", "s3cret-value")).toBe(true);
+    expect(devLoginSecretMatches("s3cret-value", "s3cret-valuf")).toBe(false);
+    expect(devLoginSecretMatches("s3cret-value", "s3cret")).toBe(false);
+    expect(devLoginSecretMatches("s3cret-value", null)).toBe(false);
+  });
+
+  it("fails closed when no secret is configured", () => {
+    expect(devLoginSecretMatches(undefined, "anything")).toBe(false);
+    expect(devLoginSecretMatches("", "")).toBe(false);
+  });
 });

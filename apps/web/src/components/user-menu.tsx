@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Bot, ChevronDown, LayoutDashboard, LogOut, Palette } from "lucide-react";
 
 import {
@@ -11,7 +11,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { authClient } from "@/lib/auth-client";
+import { authClient, signInWithTwitch } from "@/lib/auth-client";
+import { confirmDiscardIfDirty } from "@/lib/unsaved-changes";
 import { TwitchIcon } from "@/components/icons/twitch-icon";
 
 import { Button } from "./ui/button";
@@ -47,6 +48,7 @@ function Avatar({
 
 export default function UserMenu() {
   const router = useRouter();
+  const pathname = usePathname();
   const { data: session, isPending } = authClient.useSession();
 
   if (isPending) {
@@ -57,12 +59,7 @@ export default function UserMenu() {
     return (
       <Button
         className="bg-twitch text-white hover:bg-twitch-hover"
-        onClick={() =>
-          authClient.signIn.social({
-            provider: "twitch",
-            callbackURL: "/dashboard",
-          })
-        }
+        onClick={() => signInWithTwitch(pathname === "/setup" ? "/setup" : "/")}
       >
         <TwitchIcon className="size-3.5" />
         Sign in
@@ -104,12 +101,14 @@ export default function UserMenu() {
         <DropdownMenuItem
           variant="destructive"
           onClick={() => {
-            authClient.signOut({
-              fetchOptions: {
-                onSuccess: () => {
-                  router.push("/");
+            confirmDiscardIfDirty(() => {
+              authClient.signOut({
+                fetchOptions: {
+                  onSuccess: () => {
+                    router.push("/");
+                  },
                 },
-              },
+              });
             });
           }}
         >

@@ -1,7 +1,16 @@
 import type { DbClient } from "@dirework/db";
 
 import type { BotConfigData } from "../config-shared";
-import { CHAT_OPEN_TASK_CAP, MAX_TASK_LEN, normalizeAliasToken } from "../config-shared";
+import {
+  CHAT_OPEN_TASK_CAP,
+  isBuiltinCommandName,
+  MAX_CHAT_BYTES,
+  MAX_TASK_LEN,
+  normalizeAliasToken,
+  truncateToBytes,
+  truncateToLength,
+  utf8ByteLength,
+} from "../config-shared";
 import {
   activateTask,
   clearAllTasks,
@@ -48,11 +57,91 @@ export interface MessageContext {
   /** Docs site base URL for !dwhelp (injected by the caller — keeps this module env-free). */
   docsUrl?: string;
   say: (text: string) => void;
+  /**
+   * Claim the message for processing, awaited only once it resolves to an
+   * enabled Dirework command (so other bots' `!` commands cost no writes).
+   * Resolving false means another bot page already handled it.
+   */
+  claim?: () => Promise<boolean>;
 }
 
-export function interpolate(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? `{${key}}`);
+/** A leading character that would make the bot run a chat command. */
+const CHAT_COMMAND_LEAD = /^[!./]/;
+
+/** Variables carrying viewer task text — the only ones long enough to overflow a chat line. */
+const TASK_TEXT_VARS = ["task", "oldTask", "newTask"] as const;
+const ELLIPSIS = "…";
+
+function fillTemplate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (match, key: string) =>
+    Object.hasOwn(vars, key) ? (vars[key] as string) : match,
+  );
 }
+
+/**
+ * When the filled template exceeds MAX_CHAT_BYTES, shorten the task-text
+ * variables (with an ellipsis) so the rest of the template — closing words and
+ * the {user} mention — survives instead of being cut off the end by the
+ * wire-level truncation.
+ */
+function fitToChatBytes(template: string, vars: Record<string, string>): string {
+  const full = fillTemplate(template, vars);
+  if (utf8ByteLength(full) <= MAX_CHAT_BYTES) return full;
+
+  const slots = TASK_TEXT_VARS.flatMap((key) => {
+    const value = Object.hasOwn(vars, key) ? vars[key] : undefined;
+    const count = template.split(`{${key}}`).length - 1;
+    return value === undefined || count === 0 ? [] : [{ key, value, count }];
+  });
+  if (slots.length === 0) return full;
+
+  const fixed = { ...vars };
+  for (const { key } of slots) fixed[key] = "";
+  let budget = MAX_CHAT_BYTES - utf8ByteLength(fillTemplate(template, fixed));
+  let remaining = slots.reduce((sum, slot) => sum + slot.count, 0);
+
+  // Shortest first, so a short {oldTask} keeps its full text and leaves the
+  // rest of the budget to a long {newTask}.
+  const bounded = { ...vars };
+  const ellipsisBytes = utf8ByteLength(ELLIPSIS);
+  slots.sort((a, b) => utf8ByteLength(a.value) - utf8ByteLength(b.value));
+  for (const { key, value, count } of slots) {
+    const share = Math.floor(budget / remaining);
+    const fitted =
+      utf8ByteLength(value) <= share
+        ? value
+        : `${truncateToBytes(value, Math.max(0, share - ellipsisBytes))}${ELLIPSIS}`;
+    bounded[key] = fitted;
+    budget -= utf8ByteLength(fitted) * count;
+    remaining -= count;
+  }
+  return fillTemplate(template, bounded);
+}
+
+/**
+ * Fill `{name}` placeholders, bounded to the chat byte cap. A substituted value
+ * (viewer task text) must never open the reply with a chat command — `!cmd`
+ * would run in other channel bots with this bot's role, `/me` or `.ban` in
+ * Twitch itself — so a leading command character the owner's template didn't
+ * start with is stripped. Templates that deliberately start with `/me` or `!`
+ * keep working.
+ */
+export function interpolate(template: string, vars: Record<string, string>): string {
+  const out = fitToChatBytes(template, vars);
+  const lead = out.trimStart();
+  if (CHAT_COMMAND_LEAD.test(lead) && lead[0] !== template.trimStart()[0]) {
+    return lead.replace(/^[!./\s]+/, "");
+  }
+  return out;
+}
+
+/**
+ * U+E0000, which Chatterino/7TV append to a repeated message to slip past
+ * Twitch's duplicate-message filter. Invisible, so strip it before parsing.
+ * Only this code point: the rest of the tag block and ZWJ are legitimate parts
+ * of emoji sequences.
+ */
+const DUPLICATE_BYPASS_SUFFIX = /\u{E0000}/gu;
 
 /**
  * Format a millisecond duration as a compact chat-friendly string ("18m",
@@ -81,12 +170,16 @@ function isPositionArg(arg: string | undefined): arg is string {
  */
 export function parseTaskEditArgs(args: string[]): { position: string; text: string } | null {
   if (args.length < 2 || !isPositionArg(args[0])) return null;
-  const text = args.slice(1).join(" ").trim().slice(0, MAX_TASK_LEN);
+  const text = truncateToLength(args.slice(1).join(" ").trim(), MAX_TASK_LEN);
   return text ? { position: args[0], text } : null;
 }
 
 const POSITIONAL_USAGE_REPLY = (displayName: string) =>
   `Give me a task number, ${displayName} — try !remove [number] (or !focus [number]). Check your numbers with !check!`;
+
+/** Hardcoded like POSITIONAL_USAGE_REPLY: no owner template fits "retry". */
+const STALE_NEXT_REPLY = (displayName: string) =>
+  `Your current task changed before I could replace it, ${displayName} — check it with !check and try !next again.`;
 
 /**
  * Resolve a 1-based position arg to the viewer's nth open task — the lookup
@@ -108,6 +201,9 @@ async function getTaskAtPosition(db: DbClient, twitchId: string, arg: string) {
  */
 export function resolveAlias(command: string, aliases: Record<string, string>): string {
   const cmd = command.toLowerCase();
+  // Built-in names always run the built-in, even if an alias stored before
+  // validation rejected them claims the name.
+  if (isBuiltinCommandName(cmd.slice(1))) return command;
   for (const [alias, target] of Object.entries(aliases)) {
     if (cmd === `!${normalizeAliasToken(alias)}`) {
       return `!${normalizeAliasToken(target)}`;
@@ -116,8 +212,22 @@ export function resolveAlias(command: string, aliases: Record<string, string>): 
   return command;
 }
 
+const TASK_COMMANDS = new Set([
+  "!task",
+  "!done",
+  "!edit",
+  "!remove",
+  "!focus",
+  "!check",
+  "!next",
+  "!help",
+  "!clear",
+]);
+
 export async function handleMessage(ctx: MessageContext): Promise<void> {
-  const { config, message, userInfo, say, channelName } = ctx;
+  const { config, userInfo, say, channelName } = ctx;
+  const claim = async () => (ctx.claim ? ctx.claim() : true);
+  const message = ctx.message.replace(DUPLICATE_BYPASS_SUFFIX, "").trim();
 
   if (!message.startsWith("!")) return;
 
@@ -135,6 +245,7 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
 
   if (command === "!timer") {
     if (!config.timerCommandsEnabled) return;
+    if (!(await claim())) return;
     if (!userInfo.isMod) {
       say(interpolate(config.task.notMod, vars));
       return;
@@ -144,6 +255,7 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
   }
 
   if (command === "!dwhelp" || command === "!dwcommands") {
+    if (!(await claim())) return;
     if (ctx.docsUrl) {
       say(
         `${userInfo.displayName}, check out all the commands here: ${ctx.docsUrl}/docs/chat-commands`,
@@ -156,7 +268,8 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
     return;
   }
 
-  if (!config.taskCommandsEnabled) return;
+  if (!config.taskCommandsEnabled || !TASK_COMMANDS.has(command)) return;
+  if (!(await claim())) return;
 
   switch (command) {
     case "!task":
@@ -192,7 +305,7 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
 async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void> {
   const { config, userInfo, say, db } = ctx;
   // L1: the chat path enforces the same MAX_TASK_LEN as the tRPC schema.
-  const text = args.join(" ").trim().slice(0, MAX_TASK_LEN);
+  const text = truncateToLength(args.join(" ").trim(), MAX_TASK_LEN);
   const vars = { user: userInfo.displayName, channel: ctx.channelName, task: text };
 
   if (!text) {
@@ -323,7 +436,7 @@ async function handleTaskCheck(args: string[], ctx: MessageContext): Promise<voi
 
 async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void> {
   const { config, userInfo, say, db } = ctx;
-  const newText = args.join(" ").trim().slice(0, MAX_TASK_LEN);
+  const newText = truncateToLength(args.join(" ").trim(), MAX_TASK_LEN);
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   if (!newText) {
@@ -342,24 +455,28 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
     return;
   }
 
-  if (activeTask) {
-    await replaceActiveTask(db, activeTask, userInfo, newText);
-  } else {
-    await createTask(db, userInfo, newText, { activate: true });
-  }
   // No active task means there is no {oldTask} to announce — fall back to the
   // plain taskAdded template instead of interpolating empty quotes.
-  if (activeTask) {
-    say(
-      interpolate(config.task.taskNext, {
-        ...vars,
-        oldTask: activeTask.text,
-        newTask: newText,
-      }),
-    );
-  } else {
+  if (!activeTask) {
+    await createTask(db, userInfo, newText, { activate: true });
     say(interpolate(config.task.taskAdded, { ...vars, task: newText }));
+    return;
   }
+
+  const result = await replaceActiveTask(db, activeTask, userInfo, newText);
+  if (!result.created) {
+    // The active task was completed or removed after we read it, so the guarded
+    // batch created nothing — don't announce a replacement that never happened.
+    say(STALE_NEXT_REPLY(userInfo.displayName));
+    return;
+  }
+  say(
+    interpolate(config.task.taskNext, {
+      ...vars,
+      oldTask: activeTask.text,
+      newTask: newText,
+    }),
+  );
 }
 
 async function handleClear(args: string[], ctx: MessageContext): Promise<void> {

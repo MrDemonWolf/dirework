@@ -11,7 +11,7 @@ Dirework's variables come in two flavors: **app secrets** the app needs to run, 
 | Environment | Where to put them |
 | --- | --- |
 | **Local development** | `packages/infra/.env` — copy it from `.env.example`. Alchemy loads this file (plus `apps/web/.env` and `apps/server/.env` if present) when you run `bun run dev`. |
-| **Production** | GitHub **Settings → Secrets and variables → Actions**. Sensitive values go under the **Secrets** tab (`CLOUDFLARE_API_TOKEN`, `ALCHEMY_PASSWORD`, `ALCHEMY_STATE_TOKEN`, `BETTER_AUTH_SECRET`, `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`); the non-secret origins go under the **Variables** tab (`BETTER_AUTH_URL`, `CORS_ORIGIN`). The [deploy workflow](/docs/deployment) reads both on every push to `main`, and fails fast with a clear message if any are missing. |
+| **Production** | GitHub **Settings → Secrets and variables → Actions**. Sensitive values go under the **Secrets** tab (`CLOUDFLARE_API_TOKEN`, `ALCHEMY_PASSWORD`, `ALCHEMY_STATE_TOKEN`, `BETTER_AUTH_SECRET`, `PROXY_SECRET`, `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`); the non-secret origins go under the **Variables** tab (`BETTER_AUTH_URL`, `CORS_ORIGIN`). The [deploy workflow](/docs/deployment) reads both on every push to `main`, and fails fast with a clear message if any are missing. |
 
 ## App secrets
 
@@ -20,6 +20,7 @@ These are what Dirework itself needs to run:
 | Variable | Description |
 | --- | --- |
 | `BETTER_AUTH_SECRET` | Secret key for session encryption (min 32 characters — generate with `openssl rand -base64 32`) |
+| `PROXY_SECRET` | Shared secret bound to both workers (min 32 characters — `openssl rand -base64 32`). The web worker signs each browser's IP with it when proxying sign-in and dashboard traffic to the API worker, so the API rate limiter gives every client its own bucket. **Required for production**; local `bun run dev` generates one per run. |
 | `BETTER_AUTH_URL` | The web app's public origin (local: `http://localhost:3001`, production: `https://dirework.<your-subdomain>.workers.dev`) |
 | `CORS_ORIGIN` | Allowed CORS origin — same value as `BETTER_AUTH_URL` |
 | `NEXT_PUBLIC_SERVER_URL` | Public origin of the **API** worker, baked into the web build (local: `http://localhost:3000`). **Local only** — in production Alchemy injects the API worker's resolved URL itself, so you do *not* set this anywhere for a deploy. |
@@ -43,8 +44,9 @@ These are what Dirework itself needs to run:
 
 ## Deploy secrets
 
-Only needed when deploying to Cloudflare (as GitHub secrets, or in your shell for
-`bun run deploy`):
+Only needed when deploying to Cloudflare (as GitHub secrets, or exported in your shell
+for `bun run deploy` — exported values take precedence over the `.env` files, which hold
+your local development values):
 
 | Variable | Description |
 | --- | --- |
@@ -61,6 +63,7 @@ Only needed when deploying to Cloudflare (as GitHub secrets, or in your shell fo
 | `TERMS_OF_SERVICE_URL` | _(unset)_ | URL to your Terms of Service page. When set, a link appears in the web app's footer. |
 | `SKIP_ENV_VALIDATION` | _(unset)_ | Set to `"true"` during CI or builds to skip env validation when runtime secrets aren't available. You won't need this locally. |
 | `DEV_LOGIN` | _(unset)_ | Server worker; **local development only**. Enables the `POST /api/auth/dev-login` Twitch-less owner-session bypass. Never set in production. |
+| `DEV_LOGIN_SECRET` | _(random per run)_ | Server worker; **local development only**. The secret the dev-login endpoint requires in the `x-dev-login-secret` header. `bun run dev` generates and prints one each run; set it to pin your own. |
 | `NEXT_PUBLIC_DEV_LOGIN` | _(unset)_ | Web build var; **local development only**. Shows the dev-bypass button that calls the dev-login endpoint. Never set in production. |
 
 The legal-page URLs are read by the **web** worker. Set them in `apps/web/.env` for
@@ -69,7 +72,10 @@ validates and forwards them. If neither is set, the footer's legal links row is 
 
 <Callout>
   Access to Dirework is single-owner: the first Twitch account to sign in claims the
-  instance, and no one else can take it over. There's no separate allowlist to configure.
+  instance, and no one else can take it over. There's no separate allowlist to configure,
+  so claim a new instance as soon as it's deployed — until then anyone with the URL can.
+  See [Recovering an instance someone else
+  claimed](/docs/deployment#recovering-an-instance-someone-else-claimed).
 </Callout>
 
 ## Example `packages/infra/.env`

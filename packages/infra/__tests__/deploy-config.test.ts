@@ -3,9 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   assertProductionEnvironment,
   getDevLoginSettings,
+  resolveDevLoginSecret,
+  resolveProxySecret,
   isCiRun,
   isDevelopmentRun,
   productionEnvironmentErrors,
+  resolveDeployStage,
   type DeployEnvironment,
 } from "../deploy-config";
 
@@ -14,6 +17,7 @@ const validEnvironment: DeployEnvironment = {
   ALCHEMY_PASSWORD: "a".repeat(32),
   ALCHEMY_STATE_TOKEN: "s".repeat(32),
   BETTER_AUTH_SECRET: "b".repeat(32),
+  PROXY_SECRET: "p".repeat(32),
   TWITCH_CLIENT_ID: "client-id",
   TWITCH_CLIENT_SECRET: "client-secret",
   BETTER_AUTH_URL: "https://dirework.example.com",
@@ -25,6 +29,15 @@ describe("CI environment detection", () => {
     expect(isCiRun({ CI: "true" })).toBe(true);
     expect(isCiRun({ CI: "false" })).toBe(false);
     expect(isCiRun({})).toBe(false);
+  });
+});
+
+describe("deploy stage", () => {
+  it("uses the pinned stage unless ALCHEMY_STAGE is set", () => {
+    expect(resolveDeployStage({})).toBe("runner");
+    expect(resolveDeployStage({ ALCHEMY_STAGE: "  " })).toBe("runner");
+    expect(resolveDeployStage({ USER: "someone" })).toBe("runner");
+    expect(resolveDeployStage({ ALCHEMY_STAGE: "staging" })).toBe("staging");
   });
 });
 
@@ -63,6 +76,7 @@ describe("production environment validation", () => {
     const errors = productionEnvironmentErrors({});
     expect(errors).toContain("CLOUDFLARE_API_TOKEN is required");
     expect(errors).toContain("BETTER_AUTH_SECRET is required");
+    expect(errors).toContain("PROXY_SECRET is required");
   });
 
   it("requires the remote state token in CI", () => {
@@ -80,12 +94,14 @@ describe("production environment validation", () => {
       BETTER_AUTH_SECRET: "short",
       ALCHEMY_PASSWORD: "short",
       ALCHEMY_STATE_TOKEN: "short",
+      PROXY_SECRET: "short",
     });
     expect(errors).toEqual(
       expect.arrayContaining([
         "BETTER_AUTH_SECRET must be at least 32 characters",
         "ALCHEMY_PASSWORD must be at least 32 characters",
         "ALCHEMY_STATE_TOKEN must be at least 32 characters",
+        "PROXY_SECRET must be at least 32 characters",
       ]),
     );
   });
@@ -159,5 +175,38 @@ describe("production environment edge cases", () => {
     } catch (error) {
       expect(String(error)).not.toContain(leakedSecret);
     }
+  });
+});
+
+describe("resolveDevLoginSecret", () => {
+  it("is empty whenever the server dev-login flag is off", () => {
+    expect(resolveDevLoginSecret({ DEV_LOGIN_SECRET: "pinned" }, "false")).toBe("");
+  });
+
+  it("uses a pinned secret, else a freshly generated one", () => {
+    expect(resolveDevLoginSecret({ DEV_LOGIN_SECRET: " pinned " }, "true")).toBe("pinned");
+    expect(resolveDevLoginSecret({}, "true", () => "generated")).toBe("generated");
+    const a = resolveDevLoginSecret({}, "true");
+    const b = resolveDevLoginSecret({}, "true");
+    expect(a).toHaveLength(36);
+    expect(a).not.toBe(b);
+  });
+});
+
+describe("resolveProxySecret", () => {
+  it("uses a pinned secret in any mode", () => {
+    expect(resolveProxySecret({ PROXY_SECRET: " pinned " }, false)).toBe("pinned");
+    expect(resolveProxySecret({ PROXY_SECRET: "pinned" }, true)).toBe("pinned");
+  });
+
+  it("generates a fresh secret for local dev only", () => {
+    expect(resolveProxySecret({}, true, () => "generated")).toBe("generated");
+    const a = resolveProxySecret({}, true);
+    expect(a.length).toBeGreaterThanOrEqual(32);
+    expect(a).not.toBe(resolveProxySecret({}, true));
+  });
+
+  it("refuses to invent one for a production deploy", () => {
+    expect(() => resolveProxySecret({}, false)).toThrow("PROXY_SECRET is required");
   });
 });

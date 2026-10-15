@@ -1,21 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Bot, Copy, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { ArrowRight, Bot, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 import type { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ConsoleRule } from "@/components/console-rule";
 import { DashboardSkeleton } from "@/components/dashboard-skeleton";
+import { QueryError } from "@/components/query-error";
+import { SecretUrlRow } from "@/components/secret-url-row";
 import { StatusChip } from "@/components/status-chip";
 import { TaskManager } from "@/components/task-manager";
 import { TimerProvider, TimerInstrument, TimerSettings } from "@/components/timer-controls";
 import { TimerStatusBadge } from "@/components/timer-status-badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { describeTrpcError } from "@/lib/trpc-errors";
 import { trpc } from "@/utils/trpc";
 
 function getGreeting(): string {
@@ -65,7 +67,7 @@ function OverlayMonitor({
           size="icon-sm"
           onClick={() => onToggle(!show)}
           aria-pressed={show}
-          aria-label={show ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
+          aria-label={`Show ${label.toLowerCase()}`}
         >
           {show ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
         </Button>
@@ -96,122 +98,26 @@ function OverlayMonitor({
   );
 }
 
+const OVERLAY_RESET_DESCRIPTION =
+  "The current URL stops working immediately. Any OBS browser source using it will go blank until you copy the new URL and paste it back into OBS.";
+
 /** Recommended OBS browser-source dimensions, shown beside each overlay URL. */
 function SizeChip({ size, hint }: { size: string; hint: string }) {
   return (
     <Tooltip>
       <TooltipTrigger
         render={
-          <span className="ml-auto shrink-0 cursor-default rounded-full border border-border/60 bg-background/60 px-2 py-0.5 font-mono text-xs text-muted-foreground">
+          <button
+            type="button"
+            aria-label={`Recommended size ${size}: ${hint}`}
+            className="ml-auto shrink-0 cursor-default rounded-full border border-border/60 bg-background/60 px-2 py-0.5 font-mono text-xs text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
             {size}
-          </span>
+          </button>
         }
       />
       <TooltipContent>{hint}</TooltipContent>
     </Tooltip>
-  );
-}
-
-function OverlayUrlRow({
-  label,
-  path,
-  onCopy,
-  onRegenerate,
-  regenerating,
-}: {
-  label: string;
-  path: string;
-  onCopy: () => void;
-  onRegenerate: () => void;
-  regenerating: boolean;
-}) {
-  const [revealed, setRevealed] = useState(false);
-  const [origin, setOrigin] = useState("");
-  const [flash, setFlash] = useState(false);
-  const prevPath = useRef(path);
-
-  useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
-
-  // A changed token used to be invisible behind the mask — regen looked
-  // broken. Now the row reveals the fresh URL and flashes to prove it changed.
-  useEffect(() => {
-    if (prevPath.current === path) return;
-    prevPath.current = path;
-    setRevealed(true);
-    setFlash(true);
-    const timer = setTimeout(() => setFlash(false), 1600);
-    return () => clearTimeout(timer);
-  }, [path]);
-
-  // Show the full origin-prefixed URL — what the user pastes into OBS.
-  const fullUrl = origin ? `${origin}${path}` : path;
-  // Last 6 chars of the token stay visible while masked, so the current
-  // token is identifiable (and visibly different after a regenerate).
-  const fingerprint = path.slice(-6);
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <input
-        type="text"
-        readOnly
-        value={revealed ? fullUrl : `${"•".repeat(34)}${fingerprint}`}
-        className={`panel-inset h-9 min-w-0 flex-1 truncate px-3 font-mono text-base transition-shadow md:text-sm ${
-          flash ? "ring-2 ring-success" : ""
-        }`}
-        aria-hidden={revealed ? undefined : true}
-        tabIndex={revealed ? undefined : -1}
-        aria-label={revealed ? `${label} URL` : undefined}
-      />
-      {!revealed && <span className="sr-only">{`${label} URL hidden — press Show to reveal`}</span>}
-      <Button
-        variant="outline"
-        size="icon"
-        className="size-8 shrink-0"
-        onClick={() => setRevealed((v) => !v)}
-        aria-pressed={revealed}
-        aria-label={revealed ? `Hide ${label} URL` : `Show ${label} URL`}
-      >
-        {revealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-      </Button>
-      <Button
-        variant="outline"
-        size="icon"
-        className="size-8 shrink-0"
-        onClick={onCopy}
-        aria-label={`Copy ${label} URL`}
-      >
-        <Copy className="size-3.5" />
-      </Button>
-      <div aria-hidden className="mx-1 w-px self-stretch bg-border/40" />
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <span className="inline-flex">
-              <ConfirmDialog
-                trigger={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    disabled={regenerating}
-                    aria-label={`Reset ${label} URL`}
-                  >
-                    <RefreshCw className={`size-3.5 ${regenerating ? "animate-spin" : ""}`} />
-                  </Button>
-                }
-                title={`Reset the ${label.toLowerCase()} URL?`}
-                description="The current URL stops working immediately. Any OBS browser source using it will go blank until you copy the new URL and paste it back into OBS."
-                confirmLabel="Reset URL"
-                onConfirm={onRegenerate}
-              />
-            </span>
-          }
-        />
-        <TooltipContent>Reset URL — the current one stops working</TooltipContent>
-      </Tooltip>
-    </div>
   );
 }
 
@@ -226,29 +132,33 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
       toast.success("New overlay URL ready — paste it into OBS");
     },
     onError: (err) => {
-      toast.error(`Couldn't reset the URL: ${err.message}`);
+      toast.error(`Couldn't reset the URL: ${describeTrpcError(err)}`);
     },
   });
-
-  const copyUrl = async (path: string) => {
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}${path}`);
-      toast.success("Copied to clipboard");
-    } catch {
-      toast.error("Couldn't copy — click Show, then copy the URL yourself");
-    }
-  };
 
   const [showTimerPreview, setShowTimerPreview] = useState(false);
   const [showTasksPreview, setShowTasksPreview] = useState(false);
 
-  const timerToken = user.data?.overlayTimerToken;
-  const tasksToken = user.data?.overlayTasksToken;
-  const botAccount = user.data?.botAccount ?? null;
-
-  if (user.isLoading) {
+  if (user.isPending) {
     return <DashboardSkeleton />;
   }
+
+  const me = user.data;
+  if (!me) {
+    return (
+      <div className="container mx-auto max-w-6xl px-4 py-8">
+        <QueryError
+          title="Couldn't load your dashboard"
+          onRetry={() => user.refetch()}
+          retrying={user.isFetching}
+        />
+      </div>
+    );
+  }
+
+  const timerToken = me.overlayTimerToken;
+  const tasksToken = me.overlayTasksToken;
+  const botAccount = me.botAccount ?? null;
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
@@ -294,86 +204,70 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
               </div>
               {/* Timer output — the OBS view of THIS timer, right where it's controlled */}
               <div className="w-full lg:w-72 lg:shrink-0 lg:border-l lg:border-border/40 lg:pl-6">
-                {user.data ? (
-                  <OverlayMonitor
-                    label="Timer preview"
-                    src={timerToken ? `/overlay/t/${timerToken}` : null}
-                    title="Timer overlay preview"
-                    show={showTimerPreview}
-                    onToggle={setShowTimerPreview}
-                  />
-                ) : (
-                  <p className="text-sm text-muted-foreground">Loading...</p>
-                )}
+                <OverlayMonitor
+                  label="Timer preview"
+                  src={timerToken ? `/overlay/t/${timerToken}` : null}
+                  title="Timer overlay preview"
+                  show={showTimerPreview}
+                  onToggle={setShowTimerPreview}
+                />
               </div>
             </div>
           </TimerProvider>
           {/* Overlay URL — full-width strip along the bottom so the OBS source URL has room */}
-          {user.data && (
-            <div className="space-y-2 border-t border-border/40 px-5 py-4">
-              <ConsoleRule label="Timer overlay URL" className="flex items-center">
-                <SizeChip
-                  size="300 × 300"
-                  hint="Square OBS browser source — the timer scales to fill it"
-                />
-              </ConsoleRule>
-              <OverlayUrlRow
-                label="Timer overlay"
-                path={`/overlay/t/${user.data.overlayTimerToken}`}
-                onCopy={() => copyUrl(`/overlay/t/${user.data!.overlayTimerToken}`)}
-                onRegenerate={() => regenerateToken.mutate({ type: "timer" })}
-                regenerating={regenerateToken.isPending}
+          <div className="space-y-2 border-t border-border/40 px-5 py-4">
+            <ConsoleRule label="Timer overlay URL" className="flex items-center">
+              <SizeChip
+                size="300 × 300"
+                hint="Square OBS browser source — the timer scales to fill it"
               />
-              <p className="text-xs text-muted-foreground">
-                Add the URL as a browser source in OBS
-              </p>
-            </div>
-          )}
+            </ConsoleRule>
+            <SecretUrlRow
+              label="Timer overlay"
+              path={`/overlay/t/${timerToken}`}
+              onRegenerate={() => regenerateToken.mutate({ type: "timer" })}
+              regenerating={regenerateToken.isPending}
+              resetDescription={OVERLAY_RESET_DESCRIPTION}
+            />
+            <p className="text-xs text-muted-foreground">Add the URL as a browser source in OBS</p>
+          </div>
         </section>
 
         {/* Task board — hero console mirroring the timer: board + live preview
             beside it, overlay URL strip along the bottom */}
         <section className="panel-hero min-w-0 lg:col-span-3">
-          {user.data ? (
-            <TaskManager
-              userTwitchId={user.data.twitchId ?? user.data.id}
-              // Tasks output — the OBS view of THIS list, top-aligned beside the
-              // add-task block, mirroring the timer console's settings|preview row.
-              preview={
-                <OverlayMonitor
-                  label="Tasks preview"
-                  src={tasksToken ? `/overlay/l/${tasksToken}` : null}
-                  title="Task list overlay preview"
-                  show={showTasksPreview}
-                  onToggle={setShowTasksPreview}
-                />
-              }
-            />
-          ) : (
-            <p className="p-5 text-sm text-muted-foreground">Loading...</p>
-          )}
+          <TaskManager
+            userTwitchId={me.twitchId ?? me.id}
+            // Tasks output — the OBS view of THIS list, top-aligned beside the
+            // add-task block, mirroring the timer console's settings|preview row.
+            preview={
+              <OverlayMonitor
+                label="Tasks preview"
+                src={tasksToken ? `/overlay/l/${tasksToken}` : null}
+                title="Task list overlay preview"
+                show={showTasksPreview}
+                onToggle={setShowTasksPreview}
+              />
+            }
+          />
           {/* Tasks overlay URL — full-width strip along the bottom, mirroring
               the timer console's own overlay-URL strip. */}
-          {user.data && (
-            <div className="space-y-2 border-t border-border/40 px-5 py-4">
-              <ConsoleRule label="Tasks overlay URL" className="flex items-center">
-                <SizeChip
-                  size="700 × 800"
-                  hint="OBS browser source — the list fills it and scrolls when tasks overflow"
-                />
-              </ConsoleRule>
-              <OverlayUrlRow
-                label="Tasks overlay"
-                path={`/overlay/l/${user.data.overlayTasksToken}`}
-                onCopy={() => copyUrl(`/overlay/l/${user.data!.overlayTasksToken}`)}
-                onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
-                regenerating={regenerateToken.isPending}
+          <div className="space-y-2 border-t border-border/40 px-5 py-4">
+            <ConsoleRule label="Tasks overlay URL" className="flex items-center">
+              <SizeChip
+                size="700 × 800"
+                hint="OBS browser source — the list fills it and scrolls when tasks overflow"
               />
-              <p className="text-xs text-muted-foreground">
-                Add the URL as a browser source in OBS
-              </p>
-            </div>
-          )}
+            </ConsoleRule>
+            <SecretUrlRow
+              label="Tasks overlay"
+              path={`/overlay/l/${tasksToken}`}
+              onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
+              regenerating={regenerateToken.isPending}
+              resetDescription={OVERLAY_RESET_DESCRIPTION}
+            />
+            <p className="text-xs text-muted-foreground">Add the URL as a browser source in OBS</p>
+          </div>
         </section>
 
         {/* Bot quick status — slim full-width strip */}

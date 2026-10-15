@@ -13,7 +13,20 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text-summary", "lcov"],
-      thresholds: { statements: 50, branches: 60, functions: 55, lines: 50 },
+      // Measure every source file, not just the ones a test happens to import,
+      // so an untested new module lowers the number instead of hiding.
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/**/__tests__/**", "**/*.d.ts"],
+      // Ratchets just under the measured values: an honest global floor plus a
+      // stricter bar for the services and shared validation that own mutations.
+      thresholds: {
+        statements: 55,
+        branches: 65,
+        functions: 59,
+        lines: 55,
+        "src/services/**": { statements: 83, branches: 74, functions: 77, lines: 84 },
+        "src/config-shared.ts": { statements: 89, branches: 94, functions: 88, lines: 89 },
+      },
     },
   },
   resolve: {

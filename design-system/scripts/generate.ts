@@ -11,8 +11,8 @@
  * The squircle radius constant lives in @dirework/overlay-kit (same test
  * asserts tokens.json matches it).
  *
- * Idempotent: re-running produces identical files. CI may diff to detect drift.
- *   bun run tokens && git diff --exit-code
+ * Idempotent: re-running produces identical (Biome-formatted) files, so drift
+ * shows up with `bun run tokens && git diff --exit-code`.
  */
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
@@ -31,6 +31,13 @@ function write(path: string, content: string) {
   const full = resolve(ROOT, path);
   mkdirSync(dirname(full), { recursive: true });
   writeFileSync(full, content);
+  // JSON.stringify output isn't Biome-formatted; format with the lockfile-pinned
+  // Biome so the output passes `bun run lint` and the drift check stays clean.
+  const format = Bun.spawnSync([process.execPath, "x", "biome", "format", "--write", full], {
+    cwd: ROOT,
+    stdio: ["ignore", "inherit", "inherit"],
+  });
+  if (format.exitCode !== 0) throw new Error(`biome format failed for ${path}`);
   console.log(`  ✓ ${path}`);
 }
 

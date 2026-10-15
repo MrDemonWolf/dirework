@@ -18,7 +18,9 @@ jobs:
     uses: ./.github/workflows/verify.yml
 
   # Fails the PR when a dependency change pulls in a known-vulnerable package.
-  # PR-only: it diffs the manifest against the base branch.
+  # PR-only: it diffs the manifest against the base branch. GitHub's dependency
+  # graph sees only literal package.json ranges (not bun.lock or `catalog:`
+  # versions), so the lockfile audit in verify.yml and audit.yml is the real gate.
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

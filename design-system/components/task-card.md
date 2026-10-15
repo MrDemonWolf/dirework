@@ -15,7 +15,7 @@ Mirrors `apps/web/src/components/task-list-display.tsx` + `groupTasksByAuthor()`
 - Username accent: theme `username` (default Cornflower `#6B8BF5`).
 - Checkbox tick: theme `accent`.
 - Surface/text: theme `bg` / `text`.
-- Body font: `--ds-font-family-sans` (IBM Plex Sans); header: Montserrat.
+- Body font: `--font-body` (IBM Plex Sans); header: Montserrat (`--font-display`).
 
 ## Accessibility
 

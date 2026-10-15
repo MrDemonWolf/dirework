@@ -7,8 +7,9 @@
  *   - a per-message min gap: minGapMs between consecutive messages (1/sec/channel)
  *
  * Twitch's documented limits for a regular account are 20 messages / 30s and no
- * more than ~1 message/second to a channel. Exceeding either risks an 8-hour
- * global chat ban on the bot account, so we stay strictly under both.
+ * more than ~1 message/second to a channel. Past either, Twitch drops the
+ * bot's messages (NOTICE msg_ratelimit) and can briefly lock it out of chat,
+ * so we stay strictly under both.
  *
  * No timers, no Date.now — the caller passes `now`, so tests are deterministic.
  */

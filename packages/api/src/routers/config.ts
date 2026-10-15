@@ -1,6 +1,5 @@
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
-import { z } from "zod";
 
 import * as schema from "@dirework/db/schema";
 import { SINGLETON_ID } from "@dirework/db/schema";
@@ -14,16 +13,13 @@ import {
   flattenTimerStyles,
   flattenWithFieldMap,
   PHASE_LABEL_FIELDS,
-  phaseLabelsInputSchema,
   TASK_MESSAGE_FIELDS,
-  taskStylesInputSchema,
   TIMER_MESSAGE_FIELDS,
-  timerStylesInputSchema,
 } from "../config-shared";
 import { ownerProcedure, router } from "../index";
 import { ensureSingletons } from "../services/provision";
-import { updateSingleton } from "../services/singleton";
-import { commandAliasesInput, updateMessagesInput, updateTimerConfigInput } from "./input-schemas";
+import { definedValues, hasValues, updateSingleton } from "../services/singleton";
+import { updateBotSettingsInput, updateStylesInput, updateTimerConfigInput } from "./input-schemas";
 
 // Input schemas live in ../config-shared (styles/messages/labels — derived
 // from the same field maps as the build/flatten helpers, so the zod shape,
@@ -49,103 +45,61 @@ export const configRouter = router({
       return buildTimerConfig(updated);
     }),
 
-  updateTimerStyles: ownerProcedure
-    .input(z.object({ timerStyles: timerStylesInputSchema }))
-    .mutation(async ({ ctx, input }) => {
-      await ensureSingletons(ctx.db);
-      const flat = flattenTimerStyles(input.timerStyles);
-      const updated = await updateSingleton(ctx.db, schema.timerStyle, flat);
-      if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found" });
-      return buildTimerStylesConfig(updated);
-    }),
-
-  updateTaskStyles: ownerProcedure
-    .input(z.object({ taskStyles: taskStylesInputSchema }))
-    .mutation(async ({ ctx, input }) => {
-      await ensureSingletons(ctx.db);
-      const flat = flattenTaskStyles(input.taskStyles);
-      const updated = await updateSingleton(ctx.db, schema.taskStyle, flat);
-      if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found" });
-      return buildTaskStylesConfig(updated);
-    }),
-
-  updateMessages: ownerProcedure.input(updateMessagesInput).mutation(async ({ ctx, input }) => {
+  /**
+   * Save the whole Theme Center in ONE mutation, so a failure can never leave
+   * the config half-written and the UI's saved-state snapshot diverged from the
+   * server. `db.batch` puts both style rows and the labels in a single atomic
+   * D1 round trip.
+   */
+  updateStyles: ownerProcedure.input(updateStylesInput).mutation(async ({ ctx, input }) => {
     await ensureSingletons(ctx.db);
-    return updateSingleton(ctx.db, schema.botConfig, {
-      taskCommandsEnabled: input.taskCommandsEnabled,
-      timerCommandsEnabled: input.timerCommandsEnabled,
-      ...flattenWithFieldMap(TASK_MESSAGE_FIELDS, input.task),
-      ...flattenWithFieldMap(TIMER_MESSAGE_FIELDS, input.timer),
-    });
+    const timerStylePatch = definedValues(flattenTimerStyles(input.timerStyles));
+    const taskStylePatch = definedValues(flattenTaskStyles(input.taskStyles));
+    const labelsPatch = definedValues(flattenWithFieldMap(PHASE_LABEL_FIELDS, input.phaseLabels));
+    // An empty SET is a SQL error, so only the groups that changed are written.
+    const statements = [
+      ...(hasValues(timerStylePatch)
+        ? [
+            ctx.db
+              .update(schema.timerStyle)
+              .set(timerStylePatch)
+              .where(eq(schema.timerStyle.id, SINGLETON_ID)),
+          ]
+        : []),
+      ...(hasValues(taskStylePatch)
+        ? [
+            ctx.db
+              .update(schema.taskStyle)
+              .set(taskStylePatch)
+              .where(eq(schema.taskStyle.id, SINGLETON_ID)),
+          ]
+        : []),
+      ...(hasValues(labelsPatch)
+        ? [
+            ctx.db
+              .update(schema.timerConfig)
+              .set(labelsPatch)
+              .where(eq(schema.timerConfig.id, SINGLETON_ID)),
+          ]
+        : []),
+    ];
+    const [first, ...rest] = statements;
+    if (first) await ctx.db.batch([first, ...rest]);
+
+    const config = await ensureSingletons(ctx.db);
+    return {
+      timerStyles: buildTimerStylesConfig(config.timerStyle),
+      taskStyles: buildTaskStylesConfig(config.taskStyle),
+      timerConfig: buildTimerConfig(config.timerConfig),
+    };
   }),
 
-  updatePhaseLabels: ownerProcedure
-    .input(phaseLabelsInputSchema)
-    .mutation(async ({ ctx, input }) => {
-      await ensureSingletons(ctx.db);
-      return updateSingleton(
-        ctx.db,
-        schema.timerConfig,
-        flattenWithFieldMap(PHASE_LABEL_FIELDS, input),
-      );
-    }),
-
-  updateCommandAliases: ownerProcedure
-    .input(commandAliasesInput)
-    .mutation(async ({ ctx, input }) => {
-      await ensureSingletons(ctx.db);
-      // commandAliases is a json-mode text column — drizzle serializes it.
-      return updateSingleton(ctx.db, schema.botConfig, {
-        commandAliases: input.commandAliases,
-      });
-    }),
-
   /**
-   * Save the whole Theme Center in ONE mutation (P1.10). The styles page used
-   * to fire updateTimerStyles + updateTaskStyles + updatePhaseLabels as three
-   * independent requests, so a failure of any one left the config half-written
-   * and the UI's saved-state snapshot diverged from the server. `db.batch` puts
-   * both style rows and the labels in a single atomic D1 round trip.
-   */
-  updateStyles: ownerProcedure
-    .input(
-      z.object({
-        timerStyles: timerStylesInputSchema,
-        taskStyles: taskStylesInputSchema,
-        phaseLabels: phaseLabelsInputSchema,
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      await ensureSingletons(ctx.db);
-      await ctx.db.batch([
-        ctx.db
-          .update(schema.timerStyle)
-          .set(flattenTimerStyles(input.timerStyles))
-          .where(eq(schema.timerStyle.id, SINGLETON_ID)),
-        ctx.db
-          .update(schema.taskStyle)
-          .set(flattenTaskStyles(input.taskStyles))
-          .where(eq(schema.taskStyle.id, SINGLETON_ID)),
-        ctx.db
-          .update(schema.timerConfig)
-          .set(flattenWithFieldMap(PHASE_LABEL_FIELDS, input.phaseLabels))
-          .where(eq(schema.timerConfig.id, SINGLETON_ID)),
-      ]);
-
-      const config = await ensureSingletons(ctx.db);
-      return {
-        timerStyles: buildTimerStylesConfig(config.timerStyle),
-        taskStyles: buildTaskStylesConfig(config.taskStyle),
-        timerConfig: buildTimerConfig(config.timerConfig),
-      };
-    }),
-
-  /**
-   * Save messages + command aliases together (P1.10) — same partial-persistence
-   * problem as updateStyles, both targeting the bot_config row.
+   * Save messages + command aliases together in one write to the bot_config
+   * row, so the two can never be half-persisted.
    */
   updateBotSettings: ownerProcedure
-    .input(updateMessagesInput.extend(commandAliasesInput.shape))
+    .input(updateBotSettingsInput)
     .mutation(async ({ ctx, input }) => {
       await ensureSingletons(ctx.db);
       const updated = await updateSingleton(ctx.db, schema.botConfig, {

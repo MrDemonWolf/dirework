@@ -3,7 +3,7 @@ title: Privacy Policy
 description: Default data handling for independently operated, self-hosted Dirework instances.
 ---
 
-**Last updated:** October 2, 2026
+**Last updated:** October 8, 2026
 
 ## Introduction
 
@@ -26,7 +26,9 @@ The following data may be stored in the instance's Cloudflare D1 database.
 ### Authentication Data
 
 - **Twitch user ID, username, display name, and profile image URL** — retrieved through Twitch OAuth when the owner signs in.
-- **Session records and cookies** — used to keep the owner signed in. Session cookies are secure, HTTP-only, and SameSite Lax in production; sessions expire after 30 days.
+- **Session records and cookies** — used to keep the owner signed in. Session cookies are secure, HTTP-only, and SameSite Lax in production; sessions expire after 30 days. Session records do not include the owner's IP address or browser user agent.
+
+Owner sign-in requests only Twitch's `openid` scope, not the `user:read:email` scope, so Twitch does not share the owner's email address with Dirework. (The sign-in library's standard request still lists the email field, but Twitch leaves it out without that scope, and Dirework would ignore it anyway.) Dirework does not keep the owner's Twitch OAuth access, refresh, or ID tokens. A placeholder address derived from the Twitch user ID fills the required email field.
 
 ### Bot Account Data
 
@@ -36,7 +38,7 @@ The following data may be stored in the instance's Cloudflare D1 database.
 ### Configuration and Task Data
 
 - Timer settings, overlay styles, phase labels, bot command settings, aliases, and response templates.
-- Tasks submitted through Twitch chat, including task text, status, author display name, author Twitch ID, and chat color.
+- Tasks submitted through Twitch chat, including the author's Twitch user ID, login name, display name, and chat color; the task text and status; and when each task was created and completed.
 
 ### Bearer Tokens
 
@@ -57,7 +59,7 @@ Data is used only to authenticate the owner, operate the Twitch bot, execute tim
 ## Third-Party Services
 
 - **Twitch** ([id.twitch.tv](https://id.twitch.tv), [api.twitch.tv](https://api.twitch.tv), and Twitch IRC) provides authentication, bot authorization, profile data, and chat transport. Twitch processes data under its [Privacy Notice](https://www.twitch.tv/p/en/legal/privacy-notice/).
-- **Cloudflare** hosts Workers, D1, rate limiting, and operational logs or metrics. Cloudflare processes data under the operator's Cloudflare agreement and configuration.
+- **Cloudflare** hosts Workers, D1, rate limiting, and operational logs or metrics. Rate limiting counts requests per client using the client's IP address, or a one-way hash of the owner's session token for signed-in traffic; Dirework does not store these counters, and Cloudflare keeps them only for the short limiting window. Cloudflare processes data under the operator's Cloudflare agreement and configuration.
 
 A fork may add other services. Instance operators must update this policy if they do.
 
@@ -71,8 +73,8 @@ The instance operator is responsible for account security, least-privilege acces
 
 ## Data Retention
 
-- **Sessions** — expire after 30 days.
-- **Tasks** — remain until cleared by the operator or a permitted chat command.
+- **Sessions** — expire after 30 days; expired session records are deleted at the next sign-in.
+- **Tasks** — open (pending or active) tasks remain until completed, or until cleared by the operator or a permitted chat command. Completed tasks are deleted automatically about 24 hours after they were marked done (the cleanup runs the next time a task is added or completed or the timer is started or reset, so a completed task can outlive 24 hours while the instance is idle), and can be cleared sooner by the operator or `!clear done`.
 - **Configuration and account data** — remain until removed by the operator.
 - **Bot OAuth credentials** — remain until the bot account is disconnected.
 - **Bearer tokens** — remain until the operator regenerates them or removes the instance data.

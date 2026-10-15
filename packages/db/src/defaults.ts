@@ -1,10 +1,23 @@
 // ── Single source of default config values ──────────────────────────────────
 // Pure data — NO drizzle/env imports. Referenced by:
 //   - the schema column defaults (packages/db/src/schema/app.ts)
-//   - @dirework/api config-shared (DEFAULT_* re-exports used by apps/web)
+//   - @dirework/api config-defaults (DEFAULT_* re-exports used by apps/web)
 //   - @dirework/api timer-logic (DEFAULTS fallback when no config row exists)
 // Changing a value here changes the drizzle column default → regenerate a
 // migration with `bun run db:generate`.
+
+/** Every timer state-machine status — single source for status literals. */
+export const TIMER_STATUSES = [
+  "idle",
+  "starting",
+  "work",
+  "break",
+  "longBreak",
+  "paused",
+  "finished",
+] as const;
+
+export type TimerStatus = (typeof TIMER_STATUSES)[number];
 
 /** Timer duration/cycle defaults (timer_config columns + timer-logic fallbacks). */
 export const TIMER_CONFIG_DEFAULTS = {

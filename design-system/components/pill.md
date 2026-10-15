@@ -4,10 +4,10 @@ Compact metadata chip / trust badge ("Open source · MIT", "Self-hosted").
 
 ## Anatomy
 
-- Shape: `--ds-radius-pill`.
-- Padding: `0.4rem 0.9rem`.
-- Background: `--ds-color-surface-surface`.
-- Text: `--ds-color-text-secondary`, `--ds-font-size-sm`, medium weight.
+- Shape: `--dw-radius-control` (9px).
+- Padding: `0.4rem 0.85rem`.
+- Background: `--bg-surface` at 55%, `--hairline` border.
+- Text: `--txt-2`, `0.8rem`, medium weight; icons in `--brand-500`.
 - Optional leading icon, `0.4rem` gap.
 
 ## Accessibility

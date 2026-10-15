@@ -19,11 +19,14 @@ concurrency:
 
 jobs:
   # The same reusable pipeline the PR gate runs, build included — a deploy must
-  # never ship code that could not be built.
+  # never ship code that could not be built. The dependency audit only WARNS
+  # here: PRs already block on it, and a freshly published advisory must not
+  # block a revert or hotfix.
   verify:
     uses: ./.github/workflows/verify.yml
     with:
       run-build: true
+      audit-blocking: false
 
   deploy:
     needs: verify
@@ -56,6 +59,7 @@ jobs:
           ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
           ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          PROXY_SECRET: ${{ secrets.PROXY_SECRET }}
           TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
           TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
           BETTER_AUTH_URL: ${{ vars.BETTER_AUTH_URL }}
@@ -68,6 +72,7 @@ jobs:
       # Alchemy MUST run under Node — Bun segfaults on the Alchemy program.
       # Use the lockfile-pinned local tsx; never fetch an executable with npx.
       - name: Deploy via Alchemy (Node + tsx)
+        id: alchemy
         working-directory: packages/infra
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -75,6 +80,7 @@ jobs:
           ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
           ALCHEMY_STATE_FORCE_UPDATE: ${{ inputs.force_state_token || false }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          PROXY_SECRET: ${{ secrets.PROXY_SECRET }}
           TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
           TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
           BETTER_AUTH_URL: ${{ vars.BETTER_AUTH_URL }}
@@ -83,3 +89,13 @@ jobs:
           PRIVACY_POLICY_URL: ${{ vars.PRIVACY_POLICY_URL }}
           TERMS_OF_SERVICE_URL: ${{ vars.TERMS_OF_SERVICE_URL }}
         run: node ./node_modules/.bin/tsx alchemy.run.ts
+
+      # An upload that succeeds but serves errors (bad binding, D1 unreachable)
+      # must not show green: the api must pass /ready and the web worker must be
+      # serving this commit. Uses only the public URLs Alchemy resolved.
+      - name: Post-deploy smoke check
+        working-directory: packages/infra
+        env:
+          DIREWORK_API_URL: ${{ steps.alchemy.outputs.api_url }}
+          DIREWORK_WEB_URL: ${{ steps.alchemy.outputs.web_url }}
+        run: node ./node_modules/.bin/tsx smoke-check.ts

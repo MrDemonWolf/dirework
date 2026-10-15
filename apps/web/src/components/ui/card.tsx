@@ -33,9 +33,16 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
+function CardTitle({
+  className,
+  as: Tag = "div",
+  ...props
+}: React.ComponentProps<"div"> & {
+  /** Render as a real heading where the title starts a page section. */
+  as?: "div" | "h2" | "h3";
+}) {
   return (
-    <div
+    <Tag
       data-slot="card-title"
       className={cn("text-sm font-medium group-data-[size=sm]/card:text-sm", className)}
       {...props}

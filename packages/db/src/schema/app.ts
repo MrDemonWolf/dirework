@@ -7,6 +7,7 @@ import {
   DEFAULT_TASK_MESSAGES,
   DEFAULT_TIMER_MESSAGES,
   TIMER_CONFIG_DEFAULTS,
+  TIMER_STATUSES,
 } from "../defaults";
 
 // Singleton pattern: one row per table, primary key pinned to "singleton".
@@ -41,7 +42,7 @@ export const botAccount = sqliteTable("bot_account", {
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token").notNull(),
   expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
-  // Coarse advisory lease serializing concurrent OAuth refreshes (P0.5): Twitch
+  // Coarse advisory lease serializing concurrent OAuth refreshes: Twitch
   // invalidates the old refresh token on rotation, so two refreshes racing with
   // the same token would have one rejected. A caller CAS-acquires this lease
   // before hitting Twitch; others wait for the winner to publish the new token.
@@ -75,11 +76,23 @@ export const task = sqliteTable(
     completedAt: integer("completed_at", { mode: "timestamp_ms" }),
   },
   (table) => [
+    // (status, completed_at) serves both the `status IN (...)` open-task read
+    // (status prefix) and the bounded done-task read / 24h retention purge
+    // (`status = 'done' ORDER BY / WHERE completed_at`) as index range reads,
+    // so overlay polling never scans the whole table.
+    index("task_status_completed_idx").on(table.status, table.completedAt),
+    // Superseded by task_status_completed_idx (a status prefix of it), but kept
+    // for one release: migrations apply while the previous worker still serves,
+    // so dropping an index it plans against is a contract step for a later
+    // migration, never part of the expand.
     index("task_status_idx").on(table.status),
     index("task_priority_order_idx").on(table.priority, table.order),
     index("task_author_idx").on(table.authorTwitchId),
+    // Matches the case-insensitive `lower(author_username) = lower(?)` predicate
+    // used by CLEARCHAT and !clear/!check @user, which otherwise full-scan.
+    index("task_author_username_lower_idx").on(sql`lower(${table.authorUsername})`),
     // "At most one active task per Twitch user" as a DB invariant, not just an
-    // application convention (P1.7). Chat ingest is concurrent, so a check-then-act
+    // application convention. Chat ingest is concurrent, so a check-then-act
     // in the service could otherwise leave a viewer with two active tasks. Partial
     // index: only rows with status='active' participate.
     uniqueIndex("task_one_active_per_author_idx")
@@ -88,12 +101,29 @@ export const task = sqliteTable(
   ],
 );
 
+// IRC message ids the bot ingest has already handled. Two open bot pages (OBS
+// plus a pinned tab) both receive every PRIVMSG; claiming the id here makes the
+// second relay a no-op. Rows are pruned after a short window on every claim.
+export const processedChatMessage = sqliteTable(
+  "processed_chat_message",
+  {
+    id: text("id").primaryKey(),
+    processedAt: integer("processed_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [
+    // The prune runs on every claimed command (`processed_at < ?`); without this
+    // it scans every row still in the window, so a busy chat pays quadratically.
+    index("processed_chat_message_processed_at_idx").on(table.processedAt),
+  ],
+);
+
 export const timerState = sqliteTable("timer_state", {
   id: text("id").primaryKey().default(SINGLETON_ID),
-  status: text("status").notNull().default("idle"),
+  // enum is type-only on SQLite (no CHECK constraint, no migration).
+  status: text("status", { enum: TIMER_STATUSES }).notNull().default("idle"),
   targetEndTime: integer("target_end_time", { mode: "timestamp_ms" }),
   pausedWithRemaining: integer("paused_with_remaining"),
-  pausedFromStatus: text("paused_from_status"),
+  pausedFromStatus: text("paused_from_status", { enum: TIMER_STATUSES }),
   currentCycle: integer("current_cycle").notNull().default(1),
   totalCycles: integer("total_cycles").notNull().default(TIMER_CONFIG_DEFAULTS.defaultCycles),
 });

@@ -1,12 +1,12 @@
 # Dirework Design System
 
-Single source of truth for Dirework's visual language across the web app, the docs site, and the OBS overlays.
+Reference for Dirework's visual language across the web app, the docs site, and the OBS overlays. `tokens.json` is the source of truth for the overlay theme swatches and the squircle radius (both enforced by `apps/web/src/lib/__tests__/theme-palette-sync.test.ts`). The live UI colors are the CSS tokens in `apps/web/src/index.css` and `apps/fumadocs/src/app/global.css`; the other groups in `tokens.json` are a hand-kept reference that no code reads.
 
 ## Layout
 
 ```text
 design-system/
-  tokens.json          # canonical token source — edit this
+  tokens.json          # overlay swatches + reference tokens — edit this
   scripts/generate.ts  # bun script that emits per-platform outputs
   README.md            # this file
   components/          # markdown catalog (one .md per shared UI primitive)
@@ -30,8 +30,8 @@ Shared overlay geometry (squircle path/perimeter, `SQUIRCLE_RADIUS`, MM:SS clock
 | `color.brandDark` | Brand overrides for dark mode | `brand500 = #29B6F0` |
 | `color.semantic` | Status colors | `success`, `warning`, `error`, `info` |
 | `color.phase` | Pomodoro phase accents | `work`, `break`, `longBreak`, `paused` |
-| `color.surface.{light,dark}` | Backgrounds, elevation, dividers | `base`, `surface`, `elev`, `hairline` |
-| `color.text.{light,dark}` | Text hierarchy | `primary`, `secondary`, `muted` |
+| `color.surface.{light,dark}` | Backgrounds, elevation, dividers — **stale reference, not kept in sync** (live values: `index.css` / `global.css`) | `base`, `surface`, `elev`, `hairline` |
+| `color.text.{light,dark}` | Text hierarchy — **stale reference, not kept in sync** (live values: `index.css` / `global.css`) | `primary`, `secondary`, `muted` |
 | `color.partner` | Third-party brand colors | `twitch`, `discord`, `obs` |
 | `font.family` | Typeface stacks | `display` (Montserrat), `sans` (IBM Plex Sans), `mono` |
 | `font.size` | Type scale (px) | `xs=12 … 6xl=60` |
@@ -55,7 +55,7 @@ Dirework's primary brand color is **Cerulean `#00ACED`** — a bright, focused b
 
 1. Edit `design-system/tokens.json`.
 2. Run `bun run tokens` from the repo root.
-3. Commit `tokens.json` **and** all generated files in the same commit. CI verifies they are in sync (`bun run tokens && git diff --exit-code`).
+3. Commit `tokens.json` **and** all generated files in the same commit. The generator Biome-formats its output, so `bun run tokens && git diff --exit-code` shows any drift.
 4. If the change is breaking (rename, removed key, value drift), bump `meta.version` and call it out in the PR description.
 
 ## Component catalog

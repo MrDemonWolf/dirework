@@ -1,5 +1,8 @@
 "use client";
 
+import { cssLengthSchema } from "@dirework/api/config-shared";
+
+import { withDefaultUnit } from "@/lib/style-fields";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -13,25 +16,42 @@ export function FieldRow({
   label,
   htmlFor,
   labelId,
+  error,
+  errorId,
   children,
 }: {
   label: string;
   htmlFor?: string;
   /** For non-labelable controls (Slider) that need aria-labelledby instead of htmlFor. */
   labelId?: string;
+  /** Inline validation message under the row; the control points at it via aria-describedby. */
+  error?: string | null;
+  errorId?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid min-h-8 grid-cols-[5rem_1fr] items-center gap-2 md:grid-cols-[6.5rem_1fr]">
-      <Label htmlFor={htmlFor} id={labelId} className="text-xs text-muted-foreground">
-        {label}
-      </Label>
-      <div className="flex items-center justify-end gap-2">{children}</div>
+    <div className="space-y-1">
+      <div className="grid min-h-8 grid-cols-[5rem_1fr] items-center gap-2 md:grid-cols-[6.5rem_1fr]">
+        <Label htmlFor={htmlFor} id={labelId} className="text-xs text-muted-foreground">
+          {label}
+        </Label>
+        <div className="flex items-center justify-end gap-2">{children}</div>
+      </div>
+      {error && (
+        <p id={errorId} className="text-right text-xs text-destructive" aria-live="polite">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
 
-/** Free-text CSS value row — optional unit hint rendered as a console label. */
+/**
+ * Free-text CSS value row — optional unit hint rendered as a console label.
+ * Validated inline against the same allowlist the server applies (a CSS length
+ * unless `schema` says otherwise), so a bad value is flagged at the field
+ * instead of failing the whole save. A bare number gets the shown unit on blur.
+ */
 export function TextFieldRow({
   label,
   id,
@@ -39,6 +59,8 @@ export function TextFieldRow({
   onChange,
   unit,
   placeholder,
+  schema = cssLengthSchema,
+  invalidHint = "Use a CSS length like 12px, 50% or 1.5rem",
 }: {
   label: string;
   id: string;
@@ -46,13 +68,23 @@ export function TextFieldRow({
   onChange: (value: string) => void;
   unit?: string;
   placeholder?: string;
+  schema?: { safeParse: (value: string) => { success: boolean } };
+  invalidHint?: string;
 }) {
+  const invalid = !schema.safeParse(value).success;
+  const errorId = `${id}-error`;
   return (
-    <FieldRow label={label} htmlFor={id}>
+    <FieldRow label={label} htmlFor={id} error={invalid ? invalidHint : null} errorId={errorId}>
       <Input
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={() => {
+          const next = withDefaultUnit(value, unit);
+          if (next !== value) onChange(next);
+        }}
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? errorId : undefined}
         className="h-9 w-28 text-right md:h-8"
         placeholder={placeholder}
       />
@@ -88,6 +120,8 @@ export function SliderRow({
       <Slider
         id={id}
         aria-labelledby={`${id}-label`}
+        // Announce the same unit the readout shows ("40%", not a bare "40")
+        getAriaValueText={(_formatted, v) => (format ? format(v) : String(v))}
         value={[value]}
         onValueChange={(v) => onChange(Array.isArray(v) ? v[0] : v)}
         min={min}

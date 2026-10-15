@@ -1,4 +1,5 @@
 import type { ThemePreset, TimerStylesConfig, TaskStylesConfig } from "./config-types";
+import { isDeepEqual } from "./utils";
 
 export const defaultTimerStyles: TimerStylesConfig = {
   dimensions: { width: "300px", height: "300px" },
@@ -426,3 +427,15 @@ export const themePresets: ThemePreset[] = [
     }),
   },
 ];
+
+/** The id of the preset these styles exactly match, or null for custom styles. */
+export function detectMatchingPreset(
+  timerStyles: TimerStylesConfig,
+  taskStyles: TaskStylesConfig,
+): string | null {
+  const match = themePresets.find(
+    (preset) =>
+      isDeepEqual(preset.timerStyles, timerStyles) && isDeepEqual(preset.taskStyles, taskStyles),
+  );
+  return match?.id ?? null;
+}

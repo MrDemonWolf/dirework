@@ -1,5 +1,10 @@
 # Dirework → Cloudflare Workers Migration
 
+> **Status: completed.** This is the historical plan for the Node/Postgres → Cloudflare
+> port. `AGENTS.md` and the code are authoritative; where they disagree with this file,
+> this file is stale. Notes marked **Shipped:** record where the port deliberately
+> diverged from the plan.
+
 Roadmap for moving Dirework from **Next.js + Node + PostgreSQL + Docker/Coolify** to
 **Cloudflare Workers + D1 (SQLite) + Hono**, generated from the target scaffold:
 
@@ -32,6 +37,8 @@ Cloudflare Workers.
   - **Overlays → polling.** Replace SSE subscriptions + EventEmitter with React Query
     `refetchInterval`. Timer computes its countdown locally from `targetEndTime` and only
     re-fetches on phase change. Well under Workers' 100k req/day for realistic stream hours.
+    **Shipped:** overlays poll every 3s (POST, token in the body) so state changes show up
+    promptly; the countdown is still computed locally.
 - **Frontend regenerated** via `/frontend-design`; **full audit** done — 29 confirmed
   findings in `AUDIT-cloudflare-migration.md`, folded into the port phases (table at the
   bottom of that file). Headline: H1 bot tokens leaked to browser via `user.me`; M1 bot
@@ -89,8 +96,9 @@ Worker). D1 is single-region SQLite — fine for one streamer.
 - `.github/workflows/ci.yml` + docs deploy — swap Postgres for D1; add `wrangler deploy`
 
 **Build new:**
-- `apps/web/wrangler.jsonc` (OpenNext) + `apps/server/wrangler.jsonc` — D1 binding, secrets,
-  `nodejs_compat`
+- Worker config for both workers (D1 binding, secrets, `nodejs_compat`) — **Shipped** as
+  Alchemy resources in `packages/infra/alchemy.run.ts`, not hand-written wrangler files
+  (Alchemy generates `apps/web/wrangler.jsonc` at deploy time; it is gitignored)
 - `apps/web/open-next.config.ts`
 - `/bot/[token]` page: IRC-over-WebSocket client → `bot.ingest`; owner-gated secret token
   stored on the instance (mirror overlay token model)
@@ -154,9 +162,12 @@ The target scaffold was generated and studied. Exact idioms to follow when porti
 - **Hono server** (`apps/server/src/index.ts`): `cors({origin:env.CORS_ORIGIN, credentials:true})`;
   `app.on(["POST","GET"],"/api/auth/*", c => createAuth().handler(c.req.raw))`;
   `app.use("/trpc/*", trpcServer({ router: appRouter, createContext:(_o,context)=>createContext({context}) }))`.
-  Build via `tsdown`. Bot-account OAuth (`/api/bot/authorize|callback/twitch`) moves here (has D1 + auth).
+  Build via `tsdown` (**Shipped:** the api worker builds with `wrangler deploy --dry-run`). Bot-account OAuth (`/api/bot/authorize|callback/twitch`) moves here (has D1 + auth).
 - **tRPC client** (`apps/web/src/utils/trpc.ts`): single `httpBatchLink({url:`${NEXT_PUBLIC_SERVER_URL}/trpc`,
   fetch → credentials:"include"})` + `createTRPCOptionsProxy`. **No** splitLink/httpSubscriptionLink.
+  **Shipped:** authed calls go to the same-origin `/rpc` rewrite on the web worker (no
+  cross-origin credentials), and public token-gated calls use a separate `publicTrpc`
+  client direct to the api worker.
 - **OpenNext**: `next.config.ts` → `{typedRoutes:true, reactCompiler:true}` + `initOpenNextCloudflareForDev()`;
   `open-next.config.ts` → `defineCloudflareConfig({})`. Remove `output:"standalone"`.
 - **SQLite column idioms** (mirror `packages/db/src/schema/auth.ts`):
@@ -167,9 +178,15 @@ The target scaffold was generated and studied. Exact idioms to follow when porti
 - **drizzle-kit**: `dialect:"sqlite", driver:"d1-http"`, `out:"./src/migrations"`; Alchemy applies via `migrationsDir`.
 - **Auth cross-origin cookies**: `advanced.defaultCookieAttributes:{sameSite:"none",secure:true,httpOnly:true}`;
   for `*.workers.dev` enable `session.cookieCache` + `crossSubDomainCookies` (commented hints in scaffold).
+  **Shipped (rejected):** `*.workers.dev` is on the Public Suffix List, so cookies cannot span
+  the two workers at all. Auth traffic is proxied through the web origin and cookies are
+  plain `sameSite: "lax"` + secure + httpOnly — no `sameSite=none`, no `crossSubDomainCookies`.
 - **Root**: bun workspaces + a **catalog** for shared dep versions; `packageManager: bun@1.3.14`.
 
 ## Open items (post-scaffold)
+
+**Shipped:** all of these were resolved in the port — Twitch social sign-in, `ui` kept in
+`apps/web`, and server-side chat-token refresh via `bot.getSession`.
 
 - Add `socialProviders.twitch` to `createAuth()` (scaffold ships email/password; Dirework's Twitch
   config ports over). Keep the bot-account second OAuth flow.
