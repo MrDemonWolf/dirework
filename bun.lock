@@ -58,6 +58,7 @@
         "@cloudflare/workers-types": "catalog:",
         "@dirework/config": "workspace:*",
         "@types/node": "catalog:",
+        "better-auth": "catalog:",
         "typescript": "catalog:",
         "vitest": "catalog:",
         "wrangler": "catalog:",
