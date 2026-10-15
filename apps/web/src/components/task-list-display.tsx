@@ -109,8 +109,10 @@ function TaskItem({
         padding: config.task.padding,
         marginBottom: isLast ? "0" : "1px",
         maxWidth: config.task.maxWidth,
-        opacity: isDone ? 0.6 : 1,
-        transition: "opacity 300ms",
+        // No extra row-wide fade for done rows: it multiplied over the
+        // configured `taskDone.fontColor`, so the color the streamer picked (and
+        // the presets' contrast-checked one) never rendered as chosen.
+        transition: "background-color 300ms",
       }}
     >
       {/* Checkbox or bullet */}
