@@ -118,10 +118,13 @@ const overlayRateLimit = RateLimit({
 });
 
 // Workers Traces at a low head-sampling rate (free-plan observability quota);
-// logs stay at Cloudflare's default full sampling.
+// logs stay at Cloudflare's default full sampling. Invocation logs are OFF:
+// they persist each request's full URL, and bot/overlay bearer tokens live in
+// URL paths (/bot/<token>, /overlay/t/<token>). The app's own redacted console
+// JSON (logger.ts, telemetry.ts) is still collected via `logs.enabled`.
 const observability = {
   enabled: true,
-  logs: { enabled: true, invocationLogs: true },
+  logs: { enabled: true, invocationLogs: false },
   traces: { enabled: true, headSamplingRate: 0.05 },
 };
 
