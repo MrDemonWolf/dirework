@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { groupTasksByAuthor } from "@/lib/task-utils";
+import { countDoneByAuthor, groupTasksByAuthor } from "@/lib/task-utils";
 import { colorWithOpacity, quoteFontFamily } from "@/lib/timer-utils";
 import { cn } from "@/lib/utils";
 import type { Task, TaskGroup } from "@/lib/task-utils";
@@ -225,7 +225,7 @@ function AuthorGroup({ group, config }: { group: TaskGroup; config: TaskStylesCo
             marginLeft: "8px",
           }}
         >
-          {group.done}/{group.tasks.length}
+          {group.done}/{group.pending + group.done}
         </span>
       </div>
 
@@ -249,10 +249,12 @@ export function TaskListDisplay({
    * none when showDone is off), so the header counter must come from these,
    * not from `tasks`. Omitted for local previews, which count `tasks`.
    */
-  counts?: { open: number; done: number };
+  counts?: { open: number; done: number; doneByAuthor: Record<string, number> };
 }) {
   const displayTasks = config.display.showDone ? tasks : tasks.filter((t) => t.status !== "done");
-  const groups = groupTasksByAuthor(displayTasks);
+  // Per-author done totals come from the server too (or, for a local preview,
+  // from the full list) so hiding done rows doesn't zero the group headers.
+  const groups = groupTasksByAuthor(displayTasks, counts?.doneByAuthor ?? countDoneByAuthor(tasks));
   const doneCount = counts?.done ?? tasks.filter((t) => t.status === "done").length;
   const totalCount = counts ? counts.open + counts.done : tasks.length;
 

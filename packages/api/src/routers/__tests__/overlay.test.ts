@@ -153,7 +153,7 @@ describe("overlay router input validation", () => {
       const payload = await loadTaskOverlayPayload(db);
 
       expect(payload.tasks.map((t) => t.id)).toEqual(["a", "b", "d"]);
-      expect(payload.counts).toEqual({ open: 2, done: 1 });
+      expect(payload.counts).toEqual({ open: 2, done: 1, doneByAuthor: { "2": 1 } });
       expect(payload.taskStyles?.display.showDone).toBe(true);
     });
 
@@ -165,7 +165,7 @@ describe("overlay router input validation", () => {
 
       expect(payload.tasks.map((t) => t.id)).toEqual(["a", "b"]);
       // The {done}/{total} header must still read 1/3, not 0/2.
-      expect(payload.counts).toEqual({ open: 2, done: 1 });
+      expect(payload.counts).toEqual({ open: 2, done: 1, doneByAuthor: { "2": 1 } });
     });
 
     it("returns only the columns the overlay renders (no logins, timestamps or ordering)", async () => {
@@ -190,7 +190,7 @@ describe("overlay router input validation", () => {
       const { db } = await createSqliteDb();
       const payload = await loadTaskOverlayPayload(db);
       expect(payload.tasks).toEqual([]);
-      expect(payload.counts).toEqual({ open: 0, done: 0 });
+      expect(payload.counts).toEqual({ open: 0, done: 0, doneByAuthor: {} });
       expect(payload.taskStyles).toBeNull();
     });
   });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { groupTasksByAuthor } from "../task-utils";
+import { countDoneByAuthor, groupTasksByAuthor } from "../task-utils";
 import type { Task } from "../task-utils";
 
 describe("groupTasksByAuthor", () => {
@@ -224,5 +224,35 @@ describe("groupTasksByAuthor", () => {
     const groups = groupTasksByAuthor(tasks);
     expect(groups[0].pending).toBe(2);
     expect(groups[0].done).toBe(1);
+  });
+});
+
+describe("groupTasksByAuthor with server done counts", () => {
+  const rows = [
+    {
+      id: "1",
+      authorTwitchId: "a",
+      authorDisplayName: "A",
+      authorColor: null,
+      text: "x",
+      status: "pending",
+    },
+    {
+      id: "2",
+      authorTwitchId: "a",
+      authorDisplayName: "A",
+      authorColor: null,
+      text: "y",
+      status: "done",
+    },
+  ];
+
+  it("takes each author's done total from the server, not the bounded rows", () => {
+    const [group] = groupTasksByAuthor(rows, { a: 7 });
+    expect(group).toMatchObject({ pending: 1, done: 7 });
+  });
+
+  it("counts done rows per author for an unbounded list", () => {
+    expect(countDoneByAuthor(rows)).toEqual({ a: 1 });
   });
 });

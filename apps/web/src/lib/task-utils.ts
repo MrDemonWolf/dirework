@@ -16,7 +16,27 @@ export interface TaskGroup {
   tasks: Task[];
 }
 
-export function groupTasksByAuthor(tasks: Task[]): TaskGroup[] {
+/** Done tasks per author key, counted from rows (for full, unbounded lists). */
+export function countDoneByAuthor(tasks: Task[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const task of tasks) {
+    if (task.status !== "done") continue;
+    const key = task.authorTwitchId || task.authorDisplayName;
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  return counts;
+}
+
+/**
+ * Group tasks by author, in first-appearance order. Pass the server's
+ * `counts.doneByAuthor` whenever the list is the bounded slice (dashboard,
+ * overlay): older done tasks are missing from `tasks`, so counting rows would
+ * understate each author's done total. Without it, done rows are counted.
+ */
+export function groupTasksByAuthor(
+  tasks: Task[],
+  doneByAuthor?: Record<string, number>,
+): TaskGroup[] {
   const groups = new Map<string, TaskGroup>();
   for (const task of tasks) {
     const key = task.authorTwitchId || task.authorDisplayName;
@@ -36,5 +56,9 @@ export function groupTasksByAuthor(tasks: Task[]): TaskGroup[] {
     else group.pending++;
     group.tasks.push(task);
   }
-  return Array.from(groups.values());
+  const result = Array.from(groups.values());
+  if (doneByAuthor) {
+    for (const group of result) group.done = doneByAuthor[group.authorKey] ?? 0;
+  }
+  return result;
 }

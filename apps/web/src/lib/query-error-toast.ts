@@ -23,14 +23,19 @@ declare module "@tanstack/react-query" {
  */
 export function toastQueryError(
   error: Error,
-  query: Pick<Query<unknown, Error, unknown, readonly unknown[]>, "meta" | "invalidate">,
+  query: Pick<Query<unknown, Error, unknown, readonly unknown[]>, "meta" | "fetch">,
 ): void {
   if (query.meta?.silent) return;
   toast.error(describeTrpcError(error), {
     id: isServerTrpcError(error) ? undefined : API_UNREACHABLE_TOAST_ID,
     action: {
       label: "retry",
-      onClick: query.invalidate,
+      // A bound call that refetches now. `query.invalidate` would lose its
+      // receiver when passed bare, and only marks the query stale anyway. A
+      // failed retry is reported by this same handler, so swallow it here.
+      onClick: () => {
+        query.fetch().catch(() => undefined);
+      },
     },
   });
 }

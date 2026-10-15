@@ -87,4 +87,19 @@ describe("toastQueryError", () => {
     expect(client.getQueryData(key)).toBe("payload");
     expect(toastError).not.toHaveBeenCalled();
   });
+
+  it("retry refetches the failed query immediately", async () => {
+    const client = makeClient();
+    const queryFn = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Failed to fetch"))
+      .mockResolvedValueOnce("recovered");
+    await client.fetchQuery({ queryKey: ["dashboard"], queryFn }).catch(() => undefined);
+
+    const [, options] = toastError.mock.calls[0] as [string, { action: { onClick: () => void } }];
+    options.action.onClick();
+
+    await vi.waitFor(() => expect(client.getQueryData(["dashboard"])).toBe("recovered"));
+    expect(queryFn).toHaveBeenCalledTimes(2);
+  });
 });

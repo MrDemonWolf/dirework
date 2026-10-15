@@ -1,0 +1,1 @@
+CREATE INDEX `processed_chat_message_processed_at_idx` ON `processed_chat_message` (`processed_at`);

@@ -99,10 +99,18 @@ export const task = sqliteTable(
 // IRC message ids the bot ingest has already handled. Two open bot pages (OBS
 // plus a pinned tab) both receive every PRIVMSG; claiming the id here makes the
 // second relay a no-op. Rows are pruned after a short window on every claim.
-export const processedChatMessage = sqliteTable("processed_chat_message", {
-  id: text("id").primaryKey(),
-  processedAt: integer("processed_at", { mode: "timestamp_ms" }).notNull(),
-});
+export const processedChatMessage = sqliteTable(
+  "processed_chat_message",
+  {
+    id: text("id").primaryKey(),
+    processedAt: integer("processed_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [
+    // The prune runs on every claimed command (`processed_at < ?`); without this
+    // it scans every row still in the window, so a busy chat pays quadratically.
+    index("processed_chat_message_processed_at_idx").on(table.processedAt),
+  ],
+);
 
 export const timerState = sqliteTable("timer_state", {
   id: text("id").primaryKey().default(SINGLETON_ID),

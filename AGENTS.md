@@ -77,7 +77,7 @@ sends back the returned replies. Bot lives only while that page is open (OBS bro
 source or pinned tab). Chat token comes from `bot.getSession` (server refreshes it; the
 refresh token and client secret never reach the browser). Each PRIVMSG's IRC `id` tag is
 forwarded as `messageId` and, once it resolves to an enabled Dirework command, claimed in
-`processed_chat_message` (pruned after 5 minutes), so a second open bot page is a no-op
+`processed_chat_message` (pruned after 5 minutes via the `processed_at` index), so a second open bot page is a no-op
 and other bots' `!` commands cost no writes. A 60s liveness watchdog sends its own PING
 and reconnects if a full tick passes with no inbound line; a `msg_duplicate` NOTICE
 re-sends the line once with an invisible suffix, and chat-mode/ban/timeout NOTICE msg-ids
@@ -195,8 +195,9 @@ authorization. Only genuinely public, token-gated procedures stay
 must never scan the task table — D1's free tier caps rows read at 5M/day.
 `listTasks` / `listOverlayTasks` read open tasks plus the newest `DONE_TASK_LIST_LIMIT`
 (50) done tasks via `task_status_completed_idx` (status, completed_at), merge them into
-list order in JS, and return `{ tasks, counts: { open, done } }` — `counts.done` is an
-index COUNT of ALL done rows, so `{done}/{total}` headers must use `counts`, never the
+list order in JS, and return `{ tasks, counts: { open, done, doneByAuthor } }` — `counts.done` /
+`counts.doneByAuthor` are index COUNTs of ALL done rows (overall and per author), so
+`{done}/{total}` headers, including each author group's, must use `counts`, never the
 array length. The overlay skips done rows entirely (count only) when `showDone` is off.
 `purgeExpiredDoneTasks` (indexed DELETE of done rows with `completed_at` older than
 `DONE_TASK_RETENTION_MS` = 24h, best-effort, never throws) runs on writes only:

@@ -198,6 +198,23 @@ describe("claimChatMessage", () => {
     const rows = await db.query.processedChatMessage.findMany({ columns: { id: true } });
     expect(rows.map((row) => row.id)).toEqual(["fresh"]);
   });
+
+  it("prunes through the processed_at index, not a table scan", async () => {
+    const statements: string[] = [];
+    const prepare = sqlite.prepare.bind(sqlite);
+    const spy = vi.spyOn(sqlite, "prepare").mockImplementation((query, params) => {
+      statements.push(query);
+      return prepare(query, params);
+    });
+    await claimChatMessage(db, "msg", 1_000_000);
+    spy.mockRestore();
+
+    const prune = statements.find((q) => /^delete from "processed_chat_message"/i.test(q));
+    expect(prune).toBeDefined();
+    const [plan] = sqlite.exec(`EXPLAIN QUERY PLAN ${prune}`, [0]);
+    const details = (plan?.values ?? []).map((row) => String(row[3]));
+    expect(details.some((d) => d.includes("processed_chat_message_processed_at_idx"))).toBe(true);
+  });
 });
 
 describe("done-task retention (24h purge)", () => {
@@ -275,7 +292,11 @@ describe("listTasks (bounded read)", () => {
     const { tasks, counts } = await listTasks(db);
 
     // Counts cover ALL rows, not the bounded slice.
-    expect(counts).toEqual({ open: 2, done: DONE_TASK_LIST_LIMIT + 5 });
+    expect(counts).toEqual({
+      open: 2,
+      done: DONE_TASK_LIST_LIMIT + 5,
+      doneByAuthor: { "9": DONE_TASK_LIST_LIMIT + 5 },
+    });
     const doneIds = tasks.filter((t) => t.status === "done").map((t) => t.id);
     expect(doneIds).toHaveLength(DONE_TASK_LIST_LIMIT);
     // The 5 oldest completions are the ones dropped.
@@ -294,7 +315,28 @@ describe("listTasks (bounded read)", () => {
     const { tasks, counts } = await listOverlayTasks(db, { doneLimit: 0 });
 
     expect(tasks.map((t) => t.id)).toEqual(["o"]);
-    expect(counts).toEqual({ open: 1, done: 1 });
+    expect(counts).toEqual({ open: 1, done: 1, doneByAuthor: { "1": 1 } });
+  });
+
+  it("counts each author's done tasks even when they fall outside the slice", async () => {
+    const base = Date.now() - 10 * 60_000;
+    // "early" finished first, so the newest-first slice is all "late" rows.
+    await seed(
+      { id: "early-done", authorTwitchId: "early", status: "done", completedAt: new Date(base) },
+      ...Array.from({ length: 3 }, (_, i) => ({
+        id: `late-${i}`,
+        authorTwitchId: "late",
+        status: "done",
+        order: 10 + i,
+        completedAt: new Date(base + (i + 1) * 1000),
+      })),
+      { id: "early-open", authorTwitchId: "early", order: 1 },
+    );
+
+    const { tasks, counts } = await listTasks(db, { doneLimit: 3 });
+
+    expect(tasks.map((t) => t.id)).not.toContain("early-done");
+    expect(counts.doneByAuthor).toEqual({ early: 1, late: 3 });
   });
 
   it("never full-scans the task table (list, overlay list, count, purge)", async () => {

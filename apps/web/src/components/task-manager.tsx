@@ -130,7 +130,7 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
   const totalCount = pendingCount + doneCount;
 
   // Broadcaster group pins first; viewer groups keep list order.
-  const groups = groupTasksByAuthor(taskList);
+  const groups = groupTasksByAuthor(taskList, tasks.data?.counts.doneByAuthor);
   const orderedGroups = [
     ...groups.filter((g) => g.authorKey === userTwitchId),
     ...groups.filter((g) => g.authorKey !== userTwitchId),
@@ -265,7 +265,7 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                         </span>
                         {isHost && <StatusChip size="sm" tone="accent" label="Host" />}
                         <span className="console-label ml-auto shrink-0">
-                          {group.done}/{group.tasks.length}
+                          {group.done}/{group.pending + group.done}
                         </span>
                       </div>
                       <ul className="divide-y divide-border/40">

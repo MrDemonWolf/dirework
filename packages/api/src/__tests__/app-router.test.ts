@@ -97,7 +97,13 @@ function makeDb(rows: DbRows = {}) {
         };
       },
     }),
-    select: () => ({ from: () => ({ where: async () => [{ id: "singleton" }] }) }),
+    select: () => ({
+      from: () => ({
+        // Awaitable as-is (singleton reads) or grouped (done counts per author).
+        where: () =>
+          Object.assign(Promise.resolve([{ id: "singleton" }]), { groupBy: async () => [] }),
+      }),
+    }),
     $count: async () => 0,
     delete: (table: unknown) => {
       deleted.push({ table });
@@ -504,7 +510,7 @@ describe("public overlay procedures honour the token gate", () => {
 
     expect(result).not.toBeNull();
     expect(result?.tasks).toHaveLength(1);
-    expect(result?.counts).toEqual({ open: 1, done: 0 });
+    expect(result?.counts).toEqual({ open: 1, done: 0, doneByAuthor: {} });
   });
 
   it("never reaches the loader for a mismatched token", async () => {

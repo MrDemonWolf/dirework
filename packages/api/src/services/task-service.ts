@@ -444,6 +444,12 @@ export interface TaskCounts {
    * returns, so `{done}/{total}` counters stay right past the list limit.
    */
   done: number;
+  /**
+   * The same done count per `authorTwitchId`, so a per-author `{done}/{total}`
+   * header stays right even when that author's older done tasks fall outside
+   * the bounded slice (or the overlay skips done rows entirely).
+   */
+  doneByAuthor: Record<string, number>;
 }
 
 const listOrder = (a: { priority: number; order: number; id: string }, b: typeof a) =>
@@ -452,8 +458,8 @@ const listOrder = (a: { priority: number; order: number; id: string }, b: typeof
 /**
  * The bounded list read behind the dashboard and the task overlay. Open tasks
  * come from an index range on status; done tasks are the newest `doneLimit`
- * by completed_at (index range + LIMIT); the done counter is a COUNT over the
- * same index. Nothing scans the table, and retention bounds the done range.
+ * by completed_at (index range + LIMIT); the done counters are a per-author
+ * COUNT over the same index range. Nothing scans the table, and retention bounds the done range.
  * The two slices are merged back into list order (priority, order, id).
  */
 async function readBoundedTasks<TRow extends { id: string; priority: number; order: number }>(
@@ -462,12 +468,22 @@ async function readBoundedTasks<TRow extends { id: string; priority: number; ord
   readDone: (limit: number) => Promise<TRow[]>,
   doneLimit: number,
 ) {
-  const [open, done, doneCount] = await Promise.all([
+  const [open, done, doneGroups] = await Promise.all([
     readOpen(),
     doneLimit > 0 ? readDone(doneLimit) : Promise.resolve([] as TRow[]),
-    db.$count(schema.task, eq(schema.task.status, "done")),
+    db
+      .select({ author: schema.task.authorTwitchId, n: sql<number>`count(*)` })
+      .from(schema.task)
+      .where(doneTasksWhere())
+      .groupBy(schema.task.authorTwitchId),
   ]);
-  const counts: TaskCounts = { open: open.length, done: doneCount };
+  const doneByAuthor: Record<string, number> = {};
+  let doneCount = 0;
+  for (const { author, n } of doneGroups) {
+    doneByAuthor[author] = Number(n);
+    doneCount += Number(n);
+  }
+  const counts: TaskCounts = { open: open.length, done: doneCount, doneByAuthor };
   return { tasks: [...open, ...done].sort(listOrder), counts };
 }
 
