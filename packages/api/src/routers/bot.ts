@@ -17,6 +17,7 @@ import {
   BOT_REAUTH_REQUIRED_MESSAGE,
   getFreshChatToken,
   resolveChannelLogin,
+  revokePreviousChatToken,
 } from "../services/twitch-auth";
 
 // The browser bot page (/bot/<token>) holds the Twitch IRC-over-WebSocket
@@ -221,9 +222,18 @@ export const botRouter = router({
     };
   }),
 
-  /** Rotate the bot page token (invalidates any previously copied URL). */
+  /**
+   * Reset the bot page: rotate its URL token (invalidates any previously copied
+   * URL), then kill the Twitch chat token that page was handed. The URL rotates
+   * first and always lands; the Twitch side is best-effort and time-boxed, and
+   * `chatToken` reports whether Twitch confirmed the old token is dead.
+   */
   regenerateBotToken: ownerProcedure.mutation(async ({ ctx }) => {
     const botToken = await rotateInstanceToken(ctx.db, "botToken");
-    return { botToken };
+    const chatToken = await revokePreviousChatToken(ctx.db, {
+      clientId: env.TWITCH_CLIENT_ID,
+      clientSecret: env.TWITCH_CLIENT_SECRET,
+    });
+    return { botToken, chatToken };
   }),
 });

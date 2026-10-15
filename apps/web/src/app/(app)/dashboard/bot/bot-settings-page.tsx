@@ -134,9 +134,19 @@ function BotConsoleCard({
 
   const regenerateBotToken = useMutation({
     ...trpc.bot.regenerateBotToken.mutationOptions(),
-    onSuccess: () => {
+    onSuccess: ({ chatToken }) => {
       queryClient.invalidateQueries({ queryKey: trpc.bot.getIngestInfo.queryKey() });
-      toast.success("Bot page URL reset — the old one no longer works");
+      // Fixed copy per outcome — never Twitch's own text.
+      if (chatToken === "unconfirmed") {
+        toast.warning("Bot page URL reset, but Twitch didn't confirm the old chat login is dead", {
+          description:
+            "The old URL no longer works. A copied chat login expires on its own within a few hours; to end it now, remove Dirework from the bot account's connections at twitch.tv/settings/connections, then reconnect the bot.",
+        });
+      } else if (chatToken === "revoked") {
+        toast.success("Bot page URL reset — the old URL and its Twitch chat login no longer work");
+      } else {
+        toast.success("Bot page URL reset — the old one no longer works");
+      }
     },
     onError: (err) => {
       toast.error(`Couldn't reset the bot page URL: ${describeTrpcError(err)}`);
@@ -193,7 +203,7 @@ function BotConsoleCard({
               path={botPath}
               onRegenerate={() => regenerateBotToken.mutate()}
               regenerating={regenerateBotToken.isPending}
-              resetDescription="The current bot page URL stops working immediately. Any OBS browser source or pinned tab running the bot goes offline until you open the new URL."
+              resetDescription="The current bot page URL and the Twitch chat login it was given stop working immediately. Any OBS browser source or pinned tab running the bot goes offline until you open the new URL."
             />
 
             <div className="flex flex-wrap items-center gap-2">

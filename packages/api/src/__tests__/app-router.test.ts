@@ -412,9 +412,11 @@ describe("database effects of owner mutations", () => {
     const { caller: owner, updated } = caller(ownerSession, { instanceConfig: {} });
 
     const { token } = await owner.user.regenerateOverlayToken({ type: "tasks" });
-    const { botToken } = await owner.bot.regenerateBotToken();
+    const { botToken, chatToken } = await owner.bot.regenerateBotToken();
 
     expect(updated).toEqual([{ overlayTasksToken: token }, { botToken }]);
+    // No bot account connected: only the URL rotates, nothing to revoke.
+    expect(chatToken).toBe("no-account");
   });
 
   it("token rotation fails loudly when the write did not land", async () => {

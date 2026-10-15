@@ -6,11 +6,12 @@ import type { DbClient } from "@dirework/db";
 
 import {
   BOT_REAUTH_REQUIRED_MESSAGE,
-  DISCONNECT_REVOKE_BUDGET_MS,
+  REVOKE_BUDGET_MS,
   disconnectBotAccount,
   getFreshChatToken,
   refreshBotToken,
   resolveChannelLogin,
+  revokePreviousChatToken,
   validateChatToken,
   type TwitchCredentials,
 } from "../twitch-auth";
@@ -565,12 +566,12 @@ describe("disconnectBotAccount", () => {
       fetchMock.mockImplementation(() => new Promise(() => {})); // never settles
 
       const result = disconnectBotAccount(db, CREDS);
-      await vi.advanceTimersByTimeAsync(DISCONNECT_REVOKE_BUDGET_MS);
+      await vi.advanceTimersByTimeAsync(REVOKE_BUDGET_MS);
 
       expect(await result).toEqual({ revoked: false });
       expect(deleteWhere).toHaveBeenCalledTimes(1);
       // The /rpc proxy aborts at 15s; leave room for the D1 round trips.
-      expect(DISCONNECT_REVOKE_BUDGET_MS).toBeLessThanOrEqual(10_000);
+      expect(REVOKE_BUDGET_MS).toBeLessThanOrEqual(10_000);
     } finally {
       vi.useRealTimers();
     }
@@ -626,6 +627,80 @@ describe("disconnectBotAccount", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(del).toHaveBeenCalledTimes(1);
     expect(deleteWhere).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("revokePreviousChatToken", () => {
+  it("refreshes the bot token, then revokes the PREVIOUS access token", async () => {
+    const { db, set } = makeDb({
+      botAccount: makeAccount(),
+      updatedRow: makeAccount({ accessToken: "fresh-access" }),
+    });
+    fetchMock
+      .mockResolvedValueOnce(okJson({ access_token: "fresh-access", expires_in: 3600 })) // refresh
+      .mockResolvedValueOnce({ ok: true }); // revoke
+
+    expect(await revokePreviousChatToken(db, CREDS)).toBe("revoked");
+
+    expect((fetchMock.mock.calls[0] as [string])[0]).toBe("https://id.twitch.tv/oauth2/token");
+    const [url, init] = fetchMock.mock.calls[1] as [string, { body: URLSearchParams }];
+    expect(url).toBe("https://id.twitch.tv/oauth2/revoke");
+    // The leaked (old) token dies; the freshly stored one stays live.
+    expect(init.body.get("token")).toBe("old-access");
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ accessToken: "fresh-access" }));
+  });
+
+  it("still revokes the old token when the refresh fails", async () => {
+    const { db } = makeDb({ botAccount: makeAccount() });
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 400 }) // refresh rejected
+      .mockResolvedValueOnce({ ok: true }); // revoke
+
+    expect(await revokePreviousChatToken(db, CREDS)).toBe("revoked");
+    const [, init] = fetchMock.mock.calls[1] as [string, { body: URLSearchParams }];
+    expect(init.body.get("token")).toBe("old-access");
+  });
+
+  it("reports unconfirmed (never throws) when Twitch is down", async () => {
+    const { db } = makeDb({ botAccount: makeAccount() });
+    fetchMock.mockRejectedValue(new Error("network down"));
+
+    expect(await revokePreviousChatToken(db, CREDS)).toBe("unconfirmed");
+  });
+
+  it("reports unconfirmed when Twitch refuses the revoke", async () => {
+    const { db } = makeDb({
+      botAccount: makeAccount(),
+      updatedRow: makeAccount({ accessToken: "fresh-access" }),
+    });
+    fetchMock
+      .mockResolvedValueOnce(okJson({ access_token: "fresh-access", expires_in: 3600 }))
+      .mockResolvedValueOnce({ ok: false, status: 400 });
+
+    expect(await revokePreviousChatToken(db, CREDS)).toBe("unconfirmed");
+  });
+
+  it("gives up within the revoke budget when Twitch hangs (stays under the /rpc proxy timeout)", async () => {
+    vi.useFakeTimers();
+    try {
+      const { db } = makeDb({ botAccount: makeAccount() });
+      fetchMock.mockImplementation(() => new Promise(() => {})); // never settles
+
+      const result = revokePreviousChatToken(db, CREDS);
+      await vi.advanceTimersByTimeAsync(REVOKE_BUDGET_MS);
+
+      expect(await result).toBe("unconfirmed");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does nothing at Twitch when no bot account is connected", async () => {
+    const { db, update } = makeDb({ botAccount: undefined });
+
+    expect(await revokePreviousChatToken(db, CREDS)).toBe("no-account");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 });
 
