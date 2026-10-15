@@ -21,7 +21,12 @@ function trpcError(code: string, message = code): Error {
   return Object.assign(new Error(message), { data: { code } });
 }
 
-const SESSION = { channelName: "streamer", botUsername: "dirework_bot", chatToken: "tok-1" };
+const SESSION = {
+  channelName: "streamer",
+  botUsername: "dirework_bot",
+  chatToken: "tok-1",
+  aliases: [] as string[],
+};
 
 function chat(message: string, overrides: Partial<IrcChatMessage> = {}): IrcChatMessage {
   return {
@@ -404,6 +409,69 @@ describe("createBotSession ingest", () => {
     expect(counters.filter((c) => c === "seen")).toHaveLength(3);
     expect(counters.filter((c) => c === "commands")).toHaveLength(2);
     expect(counters.filter((c) => c === "replies")).toHaveLength(2);
+  });
+
+  it("skips other bots' commands but relays Dirework commands and aliases", async () => {
+    const { ingest, events, callbacks } = setup({
+      getSession: async () => ({ ...SESSION, aliases: ["t"] }),
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    for (const line of ["!lurk", "!so @friend", "!tasks", "!!task x", "!task write docs"]) {
+      callbacks().onChat?.(chat(line));
+    }
+    // Same case-insensitivity and bypass-suffix stripping as the server parser.
+    callbacks().onChat?.(chat("!T fix bug"));
+    callbacks().onChat?.(chat("!DWHELP \u{E0000}"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    const relayed = ingest.mock.calls.map(([input]) =>
+      input.kind === "message" ? input.message : input.kind,
+    );
+    expect(relayed).toEqual(["!task write docs", "!T fix bug", "!DWHELP \u{E0000}"]);
+    const counters = events.onCounter.mock.calls.map(([c]) => c);
+    expect(counters.filter((c) => c === "seen")).toHaveLength(7);
+    expect(counters.filter((c) => c === "commands")).toHaveLength(3);
+  });
+
+  it("still connects and relays built-in commands when an older api omits aliases", async () => {
+    const { aliases: _omitted, ...legacySession } = SESSION;
+    const { ingest, client, callbacks } = setup({ getSession: async () => legacySession });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(client.connect).toHaveBeenCalledTimes(1);
+    callbacks().onChat?.(chat("!task write docs"));
+    callbacks().onChat?.(chat("!lurk"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(ingest.mock.calls.map(([input]) => input.kind === "message" && input.message)).toEqual([
+      "!task write docs",
+    ]);
+  });
+
+  it("applies alias changes picked up by the hourly revalidation", async () => {
+    const { getSession, ingest, client, callbacks } = setup({
+      getSession: async () => ({ ...SESSION, aliases: ["t"] }),
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    callbacks().onChat?.(chat("!add a"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ingest).not.toHaveBeenCalled();
+
+    // The streamer swapped !t for !add on the dashboard.
+    getSession.mockResolvedValue({ ...SESSION, aliases: ["add"] });
+    await vi.advanceTimersByTimeAsync(REVALIDATE_INTERVAL_MS);
+    // Same token and channel: the alias update must not churn the socket.
+    expect(client.connect).toHaveBeenCalledTimes(1);
+
+    callbacks().onChat?.(chat("!add a"));
+    callbacks().onChat?.(chat("!t b"));
+    await vi.advanceTimersByTimeAsync(0);
+    const relayed = ingest.mock.calls.map(([input]) =>
+      input.kind === "message" ? input.message : input.kind,
+    );
+    expect(relayed).toEqual(["!add a"]);
   });
 
   it("keeps processing after a failed command", async () => {

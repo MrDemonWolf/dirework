@@ -140,6 +140,25 @@ describe("workflow supply-chain controls", () => {
     }
   });
 
+  it("scopes the deploy job to the production environment", () => {
+    const deploy = readWorkflow("deploy.yml");
+    const deployJob = deploy.slice(deploy.indexOf("\n  deploy:"));
+    // The job that reads deployment secrets must declare the environment, so
+    // secrets moved into it (and its protection rules) apply to every deploy.
+    expect(deployJob).toMatch(/^\n {2}deploy:\n(?: {4}[^\n]*\n)*? {4}environment: production\n/);
+    expect(deployJob.indexOf("environment: production")).toBeLessThan(
+      deployJob.indexOf("${{ secrets."),
+    );
+  });
+
+  it("keeps Cloudflare invocation logs off so bearer-token URLs are not persisted", () => {
+    const program = readFileSync(`${repoRoot}/packages/infra/alchemy.run.ts`, "utf8");
+    expect(program).toContain("logs: { enabled: true, invocationLogs: false }");
+    expect(program).not.toMatch(/invocationLogs: true/);
+    // Both workers share the one observability config.
+    expect(program.match(/^\s+observability,$/gm)).toHaveLength(2);
+  });
+
   it("smoke-checks the live deployment after Alchemy finishes", () => {
     const deploy = readWorkflow("deploy.yml");
     expect(deploy.indexOf("smoke-check.ts")).toBeGreaterThan(deploy.indexOf("alchemy.run.ts"));

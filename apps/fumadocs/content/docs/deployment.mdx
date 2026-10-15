@@ -60,7 +60,13 @@ You can keep your `localhost` URLs in the list too, so local development still w
 
 ## Step 3 — Set your GitHub secrets
 
-In your repository: **Settings → Secrets and variables → Actions → New repository secret**.
+The deploy job runs in a GitHub environment named `production`, so keep the secrets
+there: only that job can read them, and any protection rules you add to the environment
+(required reviewers, deploying only from `main`) apply to every deploy. In your repository:
+**Settings → Environments → New environment**, name it `production`, then
+**Add environment secret** for each row below. (Repository secrets under **Settings →
+Secrets and variables → Actions** still work as a fallback, but every workflow can read
+those; an environment secret with the same name wins.)
 
 | Secret | Value |
 |---|---|
@@ -196,6 +202,7 @@ To tear everything down again: `bun run destroy` (with the same values exported)
   chat message by its Twitch message id), but every command then costs two Worker requests
 - [ ] Bot and overlay URLs are kept private and regenerated after any suspected disclosure
 - [ ] `main` is protected and requires the Verify and CodeQL workflows before merge
+- [ ] Deploy secrets live in the `production` environment, with no leftover repository-level copies
 - [ ] GitHub secret scanning and push protection are enabled
 - [ ] GitHub and Cloudflare accounts use MFA and least-privilege access
 
@@ -263,9 +270,43 @@ New Dirework releases reach your instance when your fork's `main` changes:
 3. Sync the fork: **Sync fork → Update branch** on your fork's GitHub page, or
    `git pull upstream main && git push origin main` from a clone.
 4. The push to `main` runs the Deploy workflow. It applies new D1 migrations, which only
-   move forward; there is no automatic rollback.
+   move forward; there is no automatic rollback (see [Rolling back](#rolling-back)).
 5. Afterwards, check `https://dirework-api.<your-subdomain>.workers.dev/ready` returns OK
    and the Dashboard, overlays, and bot page still work.
+
+## Rolling back
+
+If a release misbehaves, roll back the **workers**, not the database.
+
+- **Cloudflare:** dashboard → **Workers & Pages** → `dirework-api` (or `dirework`) →
+  **Deployments** → pick the last good version → **Rollback**. From a clone of the repo:
+
+  ```bash
+  bunx wrangler rollback --name dirework-api   # api worker
+  bunx wrangler rollback --name dirework       # web worker
+  ```
+
+  Without a version id, `wrangler rollback` goes back one version; pass the id from
+  `bunx wrangler deployments list --name <worker>` to pick an older one. Roll back both
+  workers to the same release so the web and api stay in step.
+- **GitHub:** open **Actions → Deploy**, choose the run for the last good commit, and
+  click **Re-run all jobs**; it rebuilds and redeploys that exact commit (leave
+  `force_state_token` unset if you start a run by hand instead). The next push to `main`
+  deploys whatever `main` holds, so revert the bad commit there too. If you restricted the
+  `production` environment to `main`, revert on `main` rather than deploying another branch.
+
+A worker rollback is only safe when the older code works with the **current** D1 schema.
+Dirework migrations are forward-only and expand-only (they add tables, columns and
+indexes; nothing is dropped or renamed in the same release), so an older worker generally
+keeps working against a newer schema. Check `CHANGELOG.md` for upgrade notes first.
+
+<Callout type="warn">
+  Never roll the database back to undo a bad release. The only D1 rollback is Time Travel,
+  `bunx wrangler d1 time-travel restore dirework-db --timestamp=<unix-or-RFC3339>`, and it
+  **discards everything written since that moment** (tasks, settings, the bot connection).
+  Use it only to recover from data loss, after exporting a backup
+  (`bunx wrangler d1 export dirework-db --remote --output=dirework-backup.sql`).
+</Callout>
 
 ## Free plan limits
 
