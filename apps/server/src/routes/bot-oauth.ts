@@ -133,18 +133,22 @@ botOAuth.get("/callback/twitch", async (c) => {
   const storedNonce = getCookie(c, STATE_COOKIE);
   deleteCookie(c, STATE_COOKIE, { path: STATE_COOKIE_PATH, secure: secureCookie });
 
-  // Twitch sends `error` (e.g. access_denied) when the owner cancels consent.
-  // That is a choice, not a failure — and error_description is never reflected.
-  if (c.req.query("error")) {
+  // Twitch sends `error=access_denied` when the owner cancels consent. That is
+  // a choice, not a failure. Any other `error` (bad client id, redirect URI
+  // mismatch, invalid scope) is a configuration failure the owner must see.
+  // error_description is never reflected either way.
+  const oauthError = c.req.query("error");
+  if (oauthError === "access_denied") {
     return c.redirect(`${env.BETTER_AUTH_URL}/dashboard/bot?bot=cancelled`);
+  }
+  if (oauthError) {
+    return c.redirect(errorRedirect("authorization_failed"));
   }
 
   const callback = parseOAuthCallbackParams(c.req.query("code"), c.req.query("state"));
 
   if (!callback) {
-    return c.redirect(
-      errorRedirect(c.req.query("error") === "access_denied" ? "access_denied" : "missing_params"),
-    );
+    return c.redirect(errorRedirect("missing_params"));
   }
 
   const { code, state } = callback;

@@ -1,4 +1,4 @@
-import { count, lt } from "drizzle-orm";
+import { and, count, eq, isNotNull, lt, or } from "drizzle-orm";
 import { createDb, type DbClient } from "@dirework/db";
 import { provisionSingletonRows } from "@dirework/db/provision";
 import * as schema from "@dirework/db/schema";
@@ -36,6 +36,30 @@ export async function claimInstance<T extends Record<string, unknown>>(db: DbCli
 /** Delete expired session rows (runs at sign-in, so it costs no extra requests). */
 export async function purgeExpiredSessions(db: DbClient, now: Date = new Date()): Promise<void> {
   await db.delete(schema.session).where(lt(schema.session.expiresAt, now));
+}
+
+/**
+ * Null any owner Twitch OAuth tokens still stored on account rows. The account
+ * hooks stop new writes, and migration 0014 scrubbed old rows once, but that
+ * migration applies before the new workers go live: a sign-in served by the
+ * previous build during the deploy can still write tokens back. Running this
+ * idempotent scrub at every sign-in closes that window. Bot credentials live in
+ * `bot_account` and are untouched.
+ */
+export async function scrubOwnerTokens(db: DbClient): Promise<void> {
+  await db
+    .update(schema.account)
+    .set({ accessToken: null, refreshToken: null, idToken: null })
+    .where(
+      and(
+        eq(schema.account.providerId, "twitch"),
+        or(
+          isNotNull(schema.account.accessToken),
+          isNotNull(schema.account.refreshToken),
+          isNotNull(schema.account.idToken),
+        ),
+      ),
+    );
 }
 
 /**
@@ -186,6 +210,7 @@ export function createAuth() {
             // API's lazy provisioning, so the two paths cannot drift).
             await provisionSingletonRows(db);
             await purgeExpiredSessions(db);
+            await scrubOwnerTokens(db);
           },
         },
       },

@@ -130,6 +130,18 @@ describe("GET /callback/twitch", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("reports any other Twitch error as a failure, not a cancel", async () => {
+    const res = await callback({
+      error: "redirect_mismatch",
+      error_description: "<b>bad</b>",
+      state: state({ userId: "owner-1", nonce: NONCE }),
+    });
+    expect(redirectReason(res)).toBe("authorization_failed");
+    expect(res.headers.get("location")).not.toContain("bad");
+    expectNonceCleared(res);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("clears the nonce even when code or state is missing", async () => {
     const res = await callback({ state: state({ userId: "owner-1", nonce: NONCE }) });
     expect(redirectReason(res)).toBe("missing_params");

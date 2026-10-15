@@ -283,13 +283,16 @@ columns, indexes); drop or rename a column one release after no deployed code re
   linking is disabled (sign-in matches on the Twitch account row). The owner's own
   Twitch OAuth tokens are never stored (account create/update hooks null them) and
   sessions keep no IP or user agent; expired sessions are purged at sign-in. Migration
-  `0014_scrub_owner_pii` scrubs rows written by earlier builds. `DISABLED_AUTH_PATHS`
+  `0014_scrub_owner_pii` scrubs rows written by earlier builds, and `scrubOwnerTokens`
+  re-runs the token scrub at every sign-in (a sign-in served by the old worker during a
+  deploy, after migrations apply, could otherwise write tokens back). `DISABLED_AUTH_PATHS`
   404s every better-auth route Dirework doesn't use.
 - Bot account connection = separate OAuth flow on Hono: `/api/bot/authorize` →
   `/api/bot/callback/twitch` (state cookie, `BOT_SCOPES` = `chat:read chat:edit
   user:read:chat user:write:chat` — the browser bot speaks IRC, which needs the
   `chat:*` pair; the `user:*` Helix pair is unused but kept to avoid a future reconnect;
-  error reasons surfaced as `?bot=error&reason=…` toasts — the dashboard maps the code to
+  only Twitch's `access_denied` is a cancel — any other Twitch `error` is
+  `authorization_failed`; error reasons surfaced as `?bot=error&reason=…` toasts — the dashboard maps the code to
   fixed copy via `botOAuthErrorMessage` and never renders the raw query param).
 - Server components check sessions via `lib/server-session.ts` (`getServerSession()` —
   forwards cookies to the api worker). Never import `@dirework/auth` or `@dirework/db`

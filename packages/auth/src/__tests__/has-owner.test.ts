@@ -2,7 +2,7 @@ import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { claimInstance, hasOwner, purgeExpiredSessions } from "../index";
+import { claimInstance, hasOwner, purgeExpiredSessions, scrubOwnerTokens } from "../index";
 import { createTestDb } from "./stubs/test-db";
 
 let db: DbClient;
@@ -57,5 +57,49 @@ describe("purgeExpiredSessions", () => {
 
     const remaining = await db.select({ id: schema.session.id }).from(schema.session);
     expect(remaining.map((row) => row.id)).toEqual(["live"]);
+  });
+});
+
+describe("scrubOwnerTokens", () => {
+  it("nulls Twitch tokens a previous build wrote, leaving other providers alone", async () => {
+    await insertUser("u1");
+    const now = new Date();
+    await db.insert(schema.account).values([
+      {
+        id: "tw",
+        accountId: "123",
+        providerId: "twitch",
+        userId: "u1",
+        accessToken: "a",
+        refreshToken: "r",
+        idToken: "i",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "cred",
+        accountId: "u1",
+        providerId: "credential",
+        userId: "u1",
+        accessToken: "keep",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    await scrubOwnerTokens(db);
+
+    const rows = await db
+      .select({
+        id: schema.account.id,
+        accessToken: schema.account.accessToken,
+        refreshToken: schema.account.refreshToken,
+        idToken: schema.account.idToken,
+      })
+      .from(schema.account);
+    expect(Object.fromEntries(rows.map(({ id, ...tokens }) => [id, tokens]))).toEqual({
+      tw: { accessToken: null, refreshToken: null, idToken: null },
+      cred: { accessToken: "keep", refreshToken: null, idToken: null },
+    });
   });
 });

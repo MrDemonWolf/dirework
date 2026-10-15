@@ -56,6 +56,8 @@ export const BOT_REAUTH_REQUIRED_MESSAGE =
 export const BOT_OAUTH_ERROR_MESSAGES = {
   access_denied: "Twitch authorization was cancelled.",
   missing_params: "Twitch didn't return an authorization code.",
+  authorization_failed:
+    "Twitch refused the authorization request — check the app's Client ID and redirect URL.",
   invalid_state: "The OAuth state was invalid.",
   state_mismatch: "The OAuth request expired.",
   session_mismatch: "Your session expired or changed during sign-in.",
