@@ -14,6 +14,7 @@ This file provides guidance for coding agents working on the Dirework codebase.
 - Setup guides → `.env.example`, docs `apps/fumadocs/content/docs/deployment.mdx`
 - Contributor setup + branch/PR workflow → `CONTRIBUTING.md`
 - Design system (tokens + component specs) → `design-system/`, docs `apps/fumadocs/content/docs/design-system.mdx`
+- PR review checklist (Codex + humans; free-tier cost rules) → `## Code Review Rules` below
 
 ## Project Overview
 
@@ -505,6 +506,46 @@ Deploy also needs the GitHub secrets `ALCHEMY_STATE_TOKEN` and `PROXY_SECRET` (s
 `NEXT_PUBLIC_SERVER_URL` is **local-only** — Alchemy injects it in production; never set
 it as a GitHub variable. `SKIP_ENV_VALIDATION=true` bypasses t3-env during CI/build and
 is baked into the `check-types` scripts so a fresh clone can type-check.
+
+## Code Review Rules
+
+Reviewers (Codex `@codex review`, humans) check every PR against these. Each rule
+points at the section above that explains why. Flag a violation as P1 unless noted.
+
+**Free-tier cost budget (Cloudflare Workers free plan + D1).** This deploy must stay
+free, so anything that multiplies requests or rows read is a bug, not a style nit:
+
+- No new polling, and no faster interval for an existing poll. Every cadence lives in
+  `apps/web/src/lib/poll-intervals.ts`; a change there needs a stated request-budget
+  reason. Dashboard queries must keep stopping when the tab is hidden.
+- No cron triggers, Durable Objects, Queues, or other paid/metered bindings. Prefer
+  doing housekeeping lazily on an existing write path (like `purgeExpiredDoneTasks`)
+  or once per deploy (`packages/infra/post-deploy.ts`).
+- No query on a poll path (overlay, dashboard list, bot ingest) that can scan a whole
+  table. New predicates need an index, and the EXPLAIN QUERY PLAN tests must cover them.
+- No extra round trips per chat line or per poll (a second D1 query, an extra Worker
+  hop, a Twitch call). Public token-gated traffic goes direct to the api worker via
+  `publicTrpc`, never through the web proxy.
+- Writes on hot paths only when they change something (guarded UPDATEs, `NOT EXISTS`).
+
+**Invariants that must not regress:**
+
+- Migrations are expand-only: never drop or rename a column or index that the
+  currently deployed worker still uses, and never edit an applied migration.
+- Every owner-facing procedure uses `ownerProcedure`; no procedure returns
+  `accessToken` / `refreshToken`; the owner's own Twitch tokens are never stored.
+- No module-level db/auth/state in workers; use the per-request factories.
+- Logs and telemetry never include request bodies, query strings, tokens, error
+  messages, or SQL (`logger.ts`, `telemetry.ts`).
+- Style values reaching overlay CSS go through the allowlist schemas in
+  `config-shared.ts`; chat text is bounded in UTF-8 bytes, not characters.
+- Every web-to-api hop is a route handler (`auth-proxy.ts`), never a `next.config`
+  rewrite.
+- Bug fixes come with a test that fails without the fix; SQL-dependent behavior is
+  tested against real SQLite (`createSqliteDb`), not mocks.
+
+**Not worth flagging:** formatting and import order (Biome enforces them), and
+generated files (`apps/web/public/fonts/*`, migration snapshots, `wrangler.jsonc`).
 
 ## Footer Convention
 
