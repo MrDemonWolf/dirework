@@ -4,13 +4,15 @@
 // cloudflare:workers. The only runtime deps are zod and the (env-free)
 // @dirework/db schema/defaults modules. Type-only imports are erased and
 // therefore safe. Browser-bundled constants and helpers that need neither zod
-// nor the schema live in ./config-defaults and ./chat-text (re-exported here).
+// nor the schema live in ./config-defaults, ./chat-text and ./chat-commands
+// (re-exported here).
 import { z } from "zod";
 
 import type { BotConfig, TaskStyle, TimerConfig, TimerStyle } from "@dirework/db";
 
 import type { TimerStatus } from "@dirework/db/defaults";
 
+import { isBuiltinCommandName, KNOWN_ALIAS_TARGETS, normalizeAliasToken } from "./chat-commands";
 import { hasControlCharacters, utf8ByteLength } from "./chat-text";
 
 export {
@@ -82,38 +84,17 @@ export function botOAuthErrorMessage(code: string | null | undefined): string {
 }
 
 // ── Command aliases (single source, env-free) ────────────────────────────────
-// Canonical bot command names an alias may target — stored WITHOUT the leading
-// "!". The chat resolver, the tRPC input schema, and the dashboard editor all
-// normalize through this so the three can never disagree on whether the "!" is
-// part of the token (the "!!task" bug: the UI stored "!t"→"!task", the resolver
-// re-prefixed "!" and produced "!!t"/"!!task").
-export const KNOWN_ALIAS_TARGETS = [
-  "task",
-  "done",
-  "edit",
-  "remove",
-  "focus",
-  "check",
-  "next",
-  "help",
-  "clear",
-  "timer",
-] as const;
-
-/** Always-on meta commands. Not alias targets, but their names can't be aliased either. */
-export const META_COMMANDS = ["dwhelp", "dwcommands"] as const;
-
-const BUILTIN_COMMAND_NAMES = new Set<string>([...KNOWN_ALIAS_TARGETS, ...META_COMMANDS]);
-
-/** True when a canonical token (no "!") is a built-in command name. */
-export function isBuiltinCommandName(token: string): boolean {
-  return BUILTIN_COMMAND_NAMES.has(token);
-}
-
-/** Strip any leading "!", trim, lowercase, take the first token → canonical alias/target. */
-export function normalizeAliasToken(raw: string): string {
-  return raw.trim().replace(/^!+/, "").trim().toLowerCase().split(/\s+/)[0] ?? "";
-}
+// Command names and the alias normalizer live in ./chat-commands (zod-free, so
+// the browser bot page can filter chat without bundling zod).
+export {
+  chatCommandOf,
+  cleanChatLine,
+  isBuiltinCommandName,
+  isDireworkCommandLine,
+  KNOWN_ALIAS_TARGETS,
+  META_COMMANDS,
+  normalizeAliasToken,
+} from "./chat-commands";
 
 /**
  * True when an alias or target is more than one word ("!timer start"). Aliases

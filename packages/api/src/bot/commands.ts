@@ -3,6 +3,7 @@ import type { DbClient } from "@dirework/db";
 import type { BotConfigData } from "../config-shared";
 import {
   CHAT_OPEN_TASK_CAP,
+  cleanChatLine,
   isBuiltinCommandName,
   MAX_CHAT_BYTES,
   MAX_TASK_LEN,
@@ -136,14 +137,6 @@ export function interpolate(template: string, vars: Record<string, string>): str
 }
 
 /**
- * U+E0000, which Chatterino/7TV append to a repeated message to slip past
- * Twitch's duplicate-message filter. Invisible, so strip it before parsing.
- * Only this code point: the rest of the tag block and ZWJ are legitimate parts
- * of emoji sequences.
- */
-const DUPLICATE_BYPASS_SUFFIX = /\u{E0000}/gu;
-
-/**
  * Format a millisecond duration as a compact chat-friendly string ("18m",
  * "1h 55m"). Rounds up to the next whole minute and never goes below "1m" —
  * the Worker runs in UTC, so ETA announcements must be relative, not
@@ -227,7 +220,7 @@ const TASK_COMMANDS = new Set([
 export async function handleMessage(ctx: MessageContext): Promise<void> {
   const { config, userInfo, say, channelName } = ctx;
   const claim = async () => (ctx.claim ? ctx.claim() : true);
-  const message = ctx.message.replace(DUPLICATE_BYPASS_SUFFIX, "").trim();
+  const message = cleanChatLine(ctx.message);
 
   if (!message.startsWith("!")) return;
 

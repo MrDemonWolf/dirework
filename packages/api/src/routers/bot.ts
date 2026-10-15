@@ -7,7 +7,12 @@ import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
 
 import { handleMessage } from "../bot/commands";
-import { buildBotConfig, hasControlCharacters } from "../config-shared";
+import {
+  buildBotConfig,
+  hasControlCharacters,
+  isBuiltinCommandName,
+  normalizeAliasToken,
+} from "../config-shared";
 import { ownerProcedure, publicProcedure, router } from "../index";
 import { claimChatMessage } from "../services/chat-dedupe";
 import { ensureBotConfig, ensureInstanceConfig } from "../services/provision";
@@ -92,6 +97,20 @@ async function loadOwnerAndBotAccount(db: DbClient) {
   return { owner, botAccount: botAccount ?? null };
 }
 
+/**
+ * The instance's alias keys in canonical form (no "!", lowercased), the way
+ * `resolveAlias` matches them. Built-in names are dropped: they always run the
+ * built-in, and the bot page already knows those.
+ */
+export function aliasKeys(aliases: Record<string, string> | null | undefined): string[] {
+  const keys = new Set<string>();
+  for (const raw of Object.keys(aliases ?? {})) {
+    const key = normalizeAliasToken(raw);
+    if (key && !isBuiltinCommandName(key)) keys.add(key);
+  }
+  return [...keys];
+}
+
 export const botRouter = router({
   /**
    * Bot page bootstrap: validates the secret bot token and returns what the
@@ -114,7 +133,12 @@ export const botRouter = router({
     .mutation(async ({ ctx, input }) => {
       await requireBotToken(ctx.db, input.token);
 
-      const { owner, botAccount } = await loadOwnerAndBotAccount(ctx.db);
+      const [{ owner, botAccount }, botConfigRow] = await Promise.all([
+        loadOwnerAndBotAccount(ctx.db),
+        // Read once per bootstrap/revalidation (never per chat line) so the bot
+        // page can skip chat lines that can't be Dirework commands.
+        ctx.db.query.botConfig.findFirst({ columns: { commandAliases: true } }),
+      ]);
 
       if (!botAccount) {
         throw new TRPCError({ code: "NOT_FOUND", message: "No bot account connected" });
@@ -149,6 +173,7 @@ export const botRouter = router({
         channelName,
         botUsername: botAccount.username,
         chatToken,
+        aliases: aliasKeys(botConfigRow?.commandAliases),
       };
     }),
 
