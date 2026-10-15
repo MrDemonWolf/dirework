@@ -213,6 +213,10 @@ invariant. `createTask` catches the resulting UNIQUE violation and falls back to
 `pending` rather than dropping the chat message. Bot ingest is serialized
 client-side (a serial queue in `createBotSession`, `apps/web/src/lib/bot-session.ts`) so chat commands apply in
 order. List ordering tiebreaks on `id` so concurrent creates sort deterministically.
+Dashboard removal is one click with an Undo toast: `task.restore` → `restoreTask`
+re-inserts the removed row (same id, author, placement, timestamps) in ONE INSERT … SELECT;
+a removed `active` task comes back `pending` if removal promoted another, so the
+single-active index holds. Owner action, so no viewer caps apply.
 
 **Services own mutations** (`packages/api/src/services/`): `task-service`, `timer-service`,
 `overlay-service`, `twitch-auth`, `tokens`, `singleton`, `provision`. Both tRPC routers and
@@ -320,6 +324,9 @@ fixed pixel size (`config.dimensions`) wrapped in `<AutoScale>` (`components/aut
 which uses a ResizeObserver to scale it up/down to fill the OBS browser source while
 preserving aspect ratio. While idle the overlay renders a full preview (configured work
 length + full ring) instead of blanking, so streamers can position it during setup.
+Before the first payload lands, and whenever the server answers null (invalid or reset
+token), both overlays render nothing (`lib/overlay-view.ts`), so a stale OBS URL goes
+blank instead of showing a fake 00:00 timer or empty list.
 Recommended OBS source sizes (the dashboard's size chips): 300×300 timer, 700×800 tasks.
 
 ### Theme Center & Frontend
