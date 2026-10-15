@@ -539,8 +539,10 @@ free, so anything that multiplies requests or rows read is a bug, not a style ni
   messages, or SQL (`logger.ts`, `telemetry.ts`).
 - Style values reaching overlay CSS go through the allowlist schemas in
   `config-shared.ts`; chat text is bounded in UTF-8 bytes, not characters.
-- Every web-to-api hop is a route handler (`auth-proxy.ts`), never a `next.config`
-  rewrite.
+- Browser traffic that goes web-to-api is proxied by a route handler (`auth-proxy.ts`),
+  never a `next.config` rewrite. Server-side renders call the api directly with a
+  signed client identity (`lib/server-session.ts`, `stampForwardedClient`); routing
+  them through a route handler would add a Worker hop per render.
 - Bug fixes come with a test that fails without the fix; SQL-dependent behavior is
   tested against real SQLite (`createSqliteDb`), not mocks.
 
