@@ -108,6 +108,14 @@ export const NOT_CONFIGURED_POLL_MS = 60 * 1000;
 /** Transient getSession failures back off exponentially up to the cap. */
 export const RETRY_BASE_MS = 5000;
 export const RETRY_MAX_MS = 5 * 60 * 1000;
+/**
+ * Chat lines waiting on (or in) the serial ingest queue before new ones are
+ * dropped. Each request is time-boxed at 30s, so a hung API would otherwise
+ * pile up commands that replay minutes late — past the server's 5-minute
+ * dedupe window, and against a state the viewer no longer sees (a stale !done
+ * or !timer skip). 20 still absorbs a busy chat burst at a healthy API.
+ */
+export const MAX_PENDING_INGESTS = 20;
 
 /** Capped exponential backoff with ±20% jitter so many tabs don't retry in lockstep. */
 export function retryDelayMs(attempt: number, random: () => number = Math.random): number {
@@ -161,6 +169,9 @@ export function createBotSession({
    * apply commands such as !done, !next, or !timer skip twice.
    */
   const ingestOnce = async (input: BotIngestInput): Promise<string[]> => {
+    // Queued before a revoke or dispose: the request would only 401 (or act
+    // for a page that is gone) and burn a free-tier Worker request.
+    if (inactive()) return [];
     try {
       const result = await api.ingest(input);
       return result.replies;
@@ -178,7 +189,30 @@ export function createBotSession({
    * queue preserves chat order and keeps the bot to one in-flight mutation.
    */
   const runSerially = createSerialQueue();
-  const ingest = (input: BotIngestInput): Promise<string[]> => runSerially(() => ingestOnce(input));
+  // Queued + in-flight ingests. Past the cap new lines are dropped and logged
+  // once per backlog episode (until the queue fully drains), so a flood of
+  // chat doesn't also flood the activity log.
+  let pendingIngests = 0;
+  let overflowLogged = false;
+  const ingest = async (input: BotIngestInput): Promise<string[]> => {
+    if (pendingIngests >= MAX_PENDING_INGESTS) {
+      if (!overflowLogged) {
+        overflowLogged = true;
+        events.onActivity(
+          "error",
+          "DireWork is falling behind — dropping new chat commands until it catches up",
+        );
+      }
+      return [];
+    }
+    pendingIngests += 1;
+    try {
+      return await runSerially(() => ingestOnce(input));
+    } finally {
+      pendingIngests -= 1;
+      if (pendingIngests === 0) overflowLogged = false;
+    }
+  };
 
   const handleChat = (chat: IrcChatMessage) => {
     events.onCounter("seen");

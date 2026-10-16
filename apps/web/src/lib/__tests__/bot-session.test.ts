@@ -5,6 +5,7 @@ import { BOT_REAUTH_REQUIRED_MESSAGE } from "@dirework/api/config-shared";
 import {
   AUTH_RECOVERY_DELAY_MS,
   MAX_AUTH_RECOVERY,
+  MAX_PENDING_INGESTS,
   NOT_CONFIGURED_POLL_MS,
   RETRY_BASE_MS,
   RETRY_MAX_MS,
@@ -560,6 +561,28 @@ describe("createBotSession after revoke", () => {
     expect(events.onIrcStatus).not.toHaveBeenCalled();
     expect(events.onActivity).not.toHaveBeenCalled();
     expect(phases(events)).toEqual(["live", "revoked"]);
+    // Only the in-flight command reached the API; the queued clearchat didn't.
+    expect(ingest).toHaveBeenCalledTimes(1);
+  });
+
+  it("never relays a line that was queued before the link was reset", async () => {
+    const gate: { release?: () => void } = {};
+    const { getSession, ingest, client, callbacks } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+
+    ingest.mockImplementationOnce(
+      () => new Promise((r) => (gate.release = () => r({ replies: ["late"] }))),
+    );
+    callbacks().onChat?.(chat("!task a"));
+    callbacks().onChat?.(chat("!done"));
+    callbacks().onClearChat?.("troll");
+    getSession.mockRejectedValue(trpcError("UNAUTHORIZED"));
+    await vi.advanceTimersByTimeAsync(REVALIDATE_INTERVAL_MS);
+
+    gate.release?.();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ingest).toHaveBeenCalledTimes(1);
+    expect(client.say).not.toHaveBeenCalled();
   });
 
   it("ignores revalidation results that land after dispose", async () => {
@@ -631,5 +654,70 @@ describe("createBotSession dispose", () => {
 
     expect(client.connect).not.toHaveBeenCalled();
     expect(events.onPhase).not.toHaveBeenCalled();
+  });
+
+  it("never relays a line that was queued before dispose", async () => {
+    const gate: { release?: () => void } = {};
+    const { session, ingest, client, callbacks } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+
+    ingest.mockImplementationOnce(
+      () => new Promise((r) => (gate.release = () => r({ replies: ["late"] }))),
+    );
+    callbacks().onChat?.(chat("!task a"));
+    callbacks().onChat?.(chat("!done"));
+    await vi.advanceTimersByTimeAsync(0);
+    session.dispose();
+
+    gate.release?.();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ingest).toHaveBeenCalledTimes(1);
+    expect(client.say).not.toHaveBeenCalled();
+  });
+});
+
+describe("createBotSession ingest backlog", () => {
+  const overflowNotices = (events: { onActivity: ReturnType<typeof vi.fn> }) =>
+    events.onActivity.mock.calls.filter(
+      ([kind, text]) => kind === "error" && String(text).startsWith("DireWork is falling behind"),
+    );
+
+  it("drops lines past the cap, logs once, and accepts again after draining", async () => {
+    const gate: { release?: () => void } = {};
+    const { ingest, events, callbacks } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+
+    // A hung API: the first request never settles until released.
+    ingest.mockImplementationOnce(
+      () => new Promise((r) => (gate.release = () => r({ replies: [] }))),
+    );
+    for (let i = 0; i < MAX_PENDING_INGESTS + 5; i++) {
+      callbacks().onChat?.(chat(`!task ${i}`));
+    }
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ingest).toHaveBeenCalledTimes(1);
+    expect(overflowNotices(events)).toHaveLength(1);
+
+    gate.release?.();
+    await vi.advanceTimersByTimeAsync(0);
+    const relayed = ingest.mock.calls.map(([input]) => input.kind === "message" && input.message);
+    expect(relayed).toEqual(Array.from({ length: MAX_PENDING_INGESTS }, (_, i) => `!task ${i}`));
+
+    // Drained: new lines go through, and a later backlog is reported afresh.
+    callbacks().onChat?.(chat("!done"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ingest).toHaveBeenCalledTimes(MAX_PENDING_INGESTS + 1);
+    expect(ingest).toHaveBeenLastCalledWith(expect.objectContaining({ message: "!done" }));
+
+    ingest.mockImplementationOnce(
+      () => new Promise((r) => (gate.release = () => r({ replies: [] }))),
+    );
+    for (let i = 0; i < MAX_PENDING_INGESTS + 1; i++) {
+      callbacks().onChat?.(chat(`!task again ${i}`));
+    }
+    await vi.advanceTimersByTimeAsync(0);
+    expect(overflowNotices(events)).toHaveLength(2);
+    gate.release?.();
+    await vi.advanceTimersByTimeAsync(0);
   });
 });
