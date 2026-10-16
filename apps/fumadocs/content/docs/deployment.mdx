@@ -71,7 +71,7 @@ those; an environment secret with the same name wins.)
 | Secret | Value |
 |---|---|
 | `CLOUDFLARE_API_TOKEN` | the token from Step 1 |
-| `ALCHEMY_PASSWORD` | any long random string — encrypts deploy state (`openssl rand -base64 32`) |
+| `ALCHEMY_PASSWORD` | random string, at least 32 characters (e.g. `openssl rand -base64 32`) — encrypts deploy state |
 | `ALCHEMY_STATE_TOKEN` | a unique random token (min 32 characters) for the account-wide `alchemy-state` CI store worker; reuse it only across apps intentionally sharing that same worker |
 | `BETTER_AUTH_SECRET` | another long random string (`openssl rand -base64 32`) |
 | `PROXY_SECRET` | a third long random string (`openssl rand -base64 32`, min 32 characters) — lets the API rate limiter tell browsers apart behind the web worker's proxy |

@@ -127,7 +127,7 @@ If sign-in fails, check:
 
 ## Step 4: Create a bot account on Twitch
 
-The bot account is a **separate Twitch account** that sends messages in your chat. You cannot use the same account for both streamer login and bot.
+The bot account is the Twitch account that sends messages in your chat. A **separate bot account** is recommended. Using your own streamer account also works, but every bot reply will then come from you.
 
 ### Create the bot account
 
@@ -156,12 +156,12 @@ This prevents the bot from being rate-limited when sending messages.
 
 ## Step 5: Connect the bot account
 
-1. Go to your DireWork dashboard at [http://localhost:3001/dashboard](http://localhost:3001/dashboard)
+1. Go to **Bot settings** at [http://localhost:3001/dashboard/bot](http://localhost:3001/dashboard/bot) (the dashboard's **Connect bot account** link goes there too)
 2. Find the **Bot account** card
 3. Click **Connect bot account**
-4. You'll be redirected to Twitch — **sign in with the bot account** (not your streamer account)
+4. You'll be redirected to Twitch — **sign in with the bot account** (not your streamer account, unless you chose to use it as the bot)
 5. Authorize the app
-6. You'll be redirected back to the dashboard with a success message
+6. You'll be redirected back to Bot settings (`/dashboard/bot?bot=connected`) with a success message
 
 The bot will have `chat:read` and `chat:edit` permissions (plus the Helix chat scopes `user:read:chat` and `user:write:chat`) — enough to read messages and respond to commands.
 
