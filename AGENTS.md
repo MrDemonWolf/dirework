@@ -284,8 +284,7 @@ Alchemy (dev and deploy). Never edit applied migrations. Migrations are
 **expand/contract**: they apply before the new workers go live and the old web worker
 keeps serving during the deploy, so a migration only adds (tables, nullable/defaulted
 columns, indexes); drop or rename a column — or drop an index — one release after no deployed code reads
-it (`task_status_idx` is superseded by `task_status_completed_idx` and awaits that
-contract migration).
+it (e.g. `0017_drop_task_status_idx` contracted 0015's superseded `task_status_idx`).
 
 ### Authentication
 

@@ -1,7 +1,9 @@
 // Owner identity + instance-level account actions: the setup gate, the
 // dashboard's `me` payload, overlay URL rotation, and bot disconnect.
 
-import { and, asc, count, eq, ne } from "drizzle-orm";
+import { and, asc, eq, ne } from "drizzle-orm";
+
+import { hasOwner } from "@dirework/auth";
 
 import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
@@ -14,13 +16,10 @@ import { regenerateOverlayTokenInput } from "./input-schemas";
 export const userRouter = router({
   /**
    * Public setup gate: does this single-tenant instance have an owner yet?
-   * Same "any user row" rule as `hasOwner` in @dirework/auth; the web app calls
-   * it server-side (`lib/server-session.ts`).
+   * Delegates to `hasOwner` in @dirework/auth, the same "any user row" rule the
+   * sign-in claim uses; the web app calls it server-side (`lib/server-session.ts`).
    */
-  hasOwner: publicProcedure.query(async ({ ctx }) => {
-    const [row] = await ctx.db.select({ count: count() }).from(schema.user);
-    return (row?.count ?? 0) > 0;
-  }),
+  hasOwner: publicProcedure.query(({ ctx }) => hasOwner(ctx.db)),
 
   /**
    * ownerProcedure. The dashboard's identity payload: the user row, the overlay

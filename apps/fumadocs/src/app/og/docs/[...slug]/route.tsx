@@ -28,8 +28,5 @@ export async function GET(_req: Request, { params }: RouteContext<"/og/docs/[...
 
 /** One image per docs page, using the same segments as the URL from getPageImage. */
 export function generateStaticParams() {
-  return source.getPages().map((page) => ({
-    lang: page.locale,
-    slug: getPageImage(page).segments,
-  }));
+  return source.getPages().map((page) => ({ slug: getPageImage(page).segments }));
 }
