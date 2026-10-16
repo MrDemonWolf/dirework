@@ -185,7 +185,7 @@ describe("createBotSession bootstrap", () => {
     }
     expect(events.onActivity).toHaveBeenCalledWith(
       "error",
-      "couldn't reach DireWork (fetch failed) — retrying in 10s",
+      "couldn't reach DireWork — retrying in 10s",
     );
   });
 
@@ -313,7 +313,7 @@ describe("createBotSession reauth", () => {
     expect(client.dispose).not.toHaveBeenCalled();
     expect(events.onActivity).toHaveBeenCalledWith(
       "error",
-      "couldn't refresh the bot login — reconnect the bot account in Bot settings",
+      "couldn't refresh the bot login — reconnect the bot account in Dashboard → Bot",
     );
   });
 });
@@ -598,7 +598,7 @@ describe("createBotSession after revoke", () => {
 
     expect(events.onActivity).toHaveBeenCalledWith(
       "error",
-      "couldn't reach DireWork (network error) — retrying in 5s",
+      "couldn't reach DireWork — retrying in 5s",
     );
     getSession.mockRejectedValue(null);
     await vi.advanceTimersByTimeAsync(RETRY_BASE_MS);

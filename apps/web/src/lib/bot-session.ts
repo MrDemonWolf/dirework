@@ -244,7 +244,7 @@ export function createBotSession({
       if (authRecoveryAttempts > MAX_AUTH_RECOVERY) {
         events.onActivity(
           "error",
-          "Twitch keeps rejecting the bot login — reconnect the bot account from the dashboard",
+          "Twitch keeps rejecting the bot login — reconnect the bot account in Dashboard → Bot",
         );
         stop("reauth");
         return;
@@ -318,7 +318,7 @@ export function createBotSession({
           events.onPhase("not-configured");
           events.onActivity(
             "info",
-            "no bot account connected — connect one in Bot settings; checking every minute",
+            "no bot account connected — connect one in Dashboard → Bot; checking every minute",
           );
         }
         later(() => void bootstrap(opts), NOT_CONFIGURED_POLL_MS);
@@ -326,10 +326,11 @@ export function createBotSession({
       }
       const delay = retryDelayMs(retryAttempts, random);
       retryAttempts += 1;
-      const reason = err instanceof Error ? err.message : "network error";
+      // Fixed copy: the feed is streamer-facing (often on stream), and a raw
+      // err.message ("Failed to fetch", a tRPC message) explains nothing to them.
       events.onActivity(
         "error",
-        `couldn't reach DireWork (${reason}) — retrying in ${Math.round(delay / 1000)}s`,
+        `couldn't reach DireWork — retrying in ${Math.round(delay / 1000)}s`,
       );
       later(() => void bootstrap(opts), delay);
     }
@@ -372,7 +373,7 @@ export function createBotSession({
         // later rejects it, the auth-failure path ends on the reauth screen.
         events.onActivity(
           "error",
-          "couldn't refresh the bot login — reconnect the bot account in Bot settings",
+          "couldn't refresh the bot login — reconnect the bot account in Dashboard → Bot",
         );
       }
       // Otherwise transient — the next hourly tick retries.

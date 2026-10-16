@@ -80,7 +80,7 @@ function StatCell({
 }) {
   return (
     <div className="bg-zinc-950 px-4 py-2">
-      <div className="text-[10px] tracking-[0.25em] text-zinc-400 uppercase">{label}</div>
+      <div className="text-[11px] tracking-[0.2em] text-zinc-400 uppercase">{label}</div>
       <div
         className={`truncate text-sm tabular-nums ${accent ? "text-emerald-300" : "text-zinc-200"}`}
       >
@@ -165,27 +165,33 @@ export function BotConsole() {
 
   if (phase === "invalid" || phase === "revoked" || phase === "reauth") {
     return (
-      <main className="flex h-dvh w-full flex-col items-center justify-center gap-4 bg-zinc-950 px-6 text-center font-mono">
+      // role="alert": a live page that drops here unmounts the role="status"
+      // header, so without it a screen reader in a pinned tab hears nothing.
+      <main
+        role="alert"
+        className="flex h-dvh w-full flex-col items-center justify-center gap-4 bg-zinc-950 px-6 text-center font-mono"
+      >
         <span className={`h-4 w-4 rounded-full ${LED_CLASS.red}`} aria-hidden="true" />
         <h1 className="text-xl font-bold tracking-[0.2em] text-red-400 uppercase">
           {phase === "invalid"
-            ? "Invalid bot link"
+            ? "Invalid bot page URL"
             : phase === "revoked"
-              ? "Link reset"
+              ? "Bot page URL reset"
               : "Bot login expired"}
         </h1>
         {phase === "revoked" ? (
           <p className="max-w-sm text-sm text-zinc-400">
-            This URL was reset. Copy the new one from Bot settings.
+            This URL was reset. Copy the new one from Dashboard → Bot and paste it into your OBS
+            browser source or tab.
           </p>
         ) : phase === "reauth" ? (
           <p className="max-w-sm text-sm text-zinc-400">
             Twitch no longer accepts the bot account&apos;s login. Reconnect it in Dashboard → Bot,
-            then reload this page.
+            then refresh this page (OBS: right-click the source → Refresh).
           </p>
         ) : (
           <p className="max-w-sm text-sm text-zinc-400">
-            This URL doesn&apos;t match a bot link. Copy the current one from Dashboard → Bot.
+            This URL doesn&apos;t match a bot page URL. Copy the current one from Dashboard → Bot.
           </p>
         )}
       </main>
@@ -224,7 +230,9 @@ export function BotConsole() {
           state text pinned top-left. */}
       <header className="flex items-center gap-3 border-b border-zinc-800/80 px-4 py-3">
         <span
-          className={`h-3.5 w-3.5 shrink-0 rounded-full ${LED_CLASS[led]}`}
+          // Not-configured waits on the streamer, not on the bot — a steady LED,
+          // so it doesn't read as "Connecting".
+          className={`h-3.5 w-3.5 shrink-0 rounded-full ${LED_CLASS[led]}${phase === "not-configured" ? " animate-none" : ""}`}
           aria-hidden="true"
         />
         <span
@@ -237,6 +245,12 @@ export function BotConsole() {
           DireWork Bot Console
         </span>
       </header>
+
+      {phase === "not-configured" && (
+        <p className="border-b border-zinc-800/80 px-4 py-2 text-sm text-zinc-400">
+          Connect a bot account in Dashboard → Bot — this page goes live on its own.
+        </p>
+      )}
 
       {/* Identity + uptime */}
       <div className="grid grid-cols-3 gap-px border-b border-zinc-800/80 bg-zinc-800/40">
