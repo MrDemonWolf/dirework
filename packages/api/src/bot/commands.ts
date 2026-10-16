@@ -313,7 +313,7 @@ async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void>
     return;
   }
 
-  await createTask(db, userInfo, text);
+  await createTask(db, userInfo, text, { openTaskCount: openTasks.length });
   say(interpolate(config.task.taskAdded, vars));
 }
 
@@ -437,10 +437,10 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
     return;
   }
 
-  const [openTasks, activeTask] = await Promise.all([
-    getViewerOpenTasks(db, userInfo.twitchId),
-    getActiveTask(db, userInfo.twitchId),
-  ]);
+  // One read: the open list already holds the active task (the partial unique
+  // index guarantees at most one), so a separate getActiveTask is redundant.
+  const openTasks = await getViewerOpenTasks(db, userInfo.twitchId);
+  const activeTask = openTasks.find((task) => task.status === "active") ?? null;
 
   // L1: cap counts against the state AFTER the active task completes.
   if (openTasks.length - (activeTask ? 1 : 0) >= CHAT_OPEN_TASK_CAP) {
