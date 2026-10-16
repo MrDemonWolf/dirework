@@ -46,8 +46,15 @@ export async function ensureInstanceConfig(db: DbClient) {
   return instance;
 }
 
-/** Ensure the botConfig singleton exists and return it. */
+/**
+ * Return the botConfig singleton, provisioning it only when missing. Read
+ * first: `bot.ingest` calls this on every relayed chat line, and the rows exist
+ * after the first sign-in, so an unconditional provisioning batch would be a
+ * wasted D1 round trip per chat command.
+ */
 export async function ensureBotConfig(db: DbClient) {
+  const existing = await db.query.botConfig.findFirst();
+  if (existing) return existing;
   await provisionSingletonRows(db);
   const botConfigRow = await db.query.botConfig.findFirst();
   if (!botConfigRow) {

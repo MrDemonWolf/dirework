@@ -51,7 +51,11 @@ export type RateLimitBindings = Partial<Pick<Env, BucketName>>;
  *
  * tRPC batching means a path can carry several procedures
  * (`/trpc/bot.ingest,bot.getSession`), so this matches on procedure names
- * appearing anywhere in the path and takes the most restrictive match.
+ * appearing anywhere in the path, in a fixed order: overlay first, then bot,
+ * then everything else. A mixed batch therefore lands in the first matching
+ * bucket, not the most restrictive one. That is acceptable: overlay-first only
+ * moves a bot.* procedure to a tighter limit, and the RL_TOKEN procedures that
+ * could ride along are owner-only (or the cheap `hasOwner` read).
  */
 export function selectBucket(pathname: string): BucketName | null {
   if (pathname === "/health" || pathname === "/") return null;

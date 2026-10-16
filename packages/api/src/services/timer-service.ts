@@ -263,9 +263,13 @@ export async function getTimerEta(db: DbClient): Promise<TimerEta | null> {
   let cycle = timer.currentCycle;
   let status = timer.status;
 
-  // Bounded like maybeAdvanceOverdueTimer — a pathological config can't spin.
+  // Bounded so a pathological state can't spin, but sized to the session: each
+  // cycle is at most two transitions (work → break → work), plus slack for a
+  // leading "starting". A fixed cap of 100 stopped ~50 cycles in, so
+  // `!timer start 99` reported roughly half the real session length.
+  const maxSteps = 4 * timer.totalCycles + 4;
   let guard = 0;
-  while (status !== "finished" && cycle <= timer.totalCycles && guard++ < 100) {
+  while (status !== "finished" && cycle <= timer.totalCycles && guard++ < maxSteps) {
     const { nextStatus, nextDuration, nextCycle } = computeNextPhase(
       { status, currentCycle: cycle, totalCycles: timer.totalCycles },
       tc,
