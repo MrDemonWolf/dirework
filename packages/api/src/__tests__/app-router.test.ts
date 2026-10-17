@@ -588,6 +588,34 @@ describe("error behaviour", () => {
   });
 });
 
+describe("task.activate error mapping", () => {
+  it("refuses to activate a done task with BAD_REQUEST and writes nothing", async () => {
+    const {
+      caller: owner,
+      updated,
+      batches,
+    } = caller(ownerSession, {
+      tasks: [{ id: "t1", authorTwitchId: "100", status: "done" }],
+    });
+
+    await expect(owner.task.activate({ id: "t1" })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+    expect(updated).toHaveLength(0);
+    expect(batches).toHaveLength(0);
+  });
+
+  it("maps an unknown task id to NOT_FOUND and writes nothing", async () => {
+    const { caller: owner, updated, batches } = caller(ownerSession, { tasks: [] });
+
+    await expect(owner.task.activate({ id: "missing" })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+    expect(updated).toHaveLength(0);
+    expect(batches).toHaveLength(0);
+  });
+});
+
 describe("public overlay procedures honour the token gate", () => {
   it("returns the payload when the overlay token matches", async () => {
     const token = "t".repeat(32);

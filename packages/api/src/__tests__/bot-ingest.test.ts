@@ -4,8 +4,17 @@ import type { DbClient } from "@dirework/db";
 import { provisionSingletonRows } from "@dirework/db/provision";
 import * as schema from "@dirework/db/schema";
 
+import { env } from "cloudflare:workers";
+
+import { formatEtaDuration, interpolate } from "../bot/commands";
 import type { Context } from "../context";
-import { BOT_REAUTH_REQUIRED_MESSAGE } from "../config-shared";
+import {
+  BOT_REAUTH_REQUIRED_MESSAGE,
+  CHAT_OPEN_TASK_CAP,
+  DEFAULT_TASK_MESSAGES,
+  DEFAULT_TIMER_MESSAGES,
+} from "../config-shared";
+import { getTimerEta } from "../services/timer-service";
 import { appRouter } from "../routers/index";
 import { createSqliteDb } from "./helpers/sqlite-db";
 
@@ -64,6 +73,15 @@ async function config() {
 
 async function tasks() {
   return db.query.task.findMany({ columns: { text: true, status: true, authorTwitchId: true } });
+}
+
+async function timerRow() {
+  return db.query.timerState.findFirst();
+}
+
+/** The reply a default template produces for the default "Viewer" chatter. */
+function reply(template: string, vars: Record<string, string> = {}) {
+  return interpolate(template, { user: "Viewer", channel: "streamer", ...vars });
 }
 
 async function seedTasks() {
@@ -315,5 +333,335 @@ describe("bot.getSession", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("bot.ingest task commands end to end", () => {
+  const T = DEFAULT_TASK_MESSAGES;
+
+  async function seedTwo() {
+    await say("!task first thing");
+    await say("!task second thing");
+  }
+
+  async function viewerTasks() {
+    return (await tasks()).filter((t) => t.authorTwitchId === "2000");
+  }
+
+  it("!remove 2 removes only the second task", async () => {
+    await seedTwo();
+
+    const { replies } = await say("!remove 2");
+
+    expect(replies).toEqual([reply(T.taskRemoved, { task: "second thing" })]);
+    expect(await viewerTasks()).toEqual([
+      { text: "first thing", status: "active", authorTwitchId: "2000" },
+    ]);
+  });
+
+  it("!remove with an out-of-range position replies noTask and removes nothing", async () => {
+    await seedTwo();
+
+    const { replies } = await say("!remove 9");
+
+    expect(replies).toEqual([reply(T.noTask)]);
+    expect(await viewerTasks()).toHaveLength(2);
+  });
+
+  it("!remove with a non-numeric arg replies with usage, not noTask", async () => {
+    await seedTwo();
+
+    const { replies } = await say("!remove abc");
+
+    expect(replies).toHaveLength(1);
+    expect(replies[0]).not.toBe(reply(T.noTask));
+    expect(replies[0]).toContain("!remove [number]");
+    expect(replies[0]).toContain("Viewer");
+    expect(await viewerTasks()).toHaveLength(2);
+  });
+
+  it("!focus without a position replies with usage and changes nothing", async () => {
+    await seedTwo();
+
+    const { replies } = await say("!focus");
+
+    expect(replies[0]).toContain("!focus [number]");
+    expect((await viewerTasks()).map((t) => t.status)).toEqual(["active", "pending"]);
+  });
+
+  it("!edit 1 rewrites the first task's text", async () => {
+    await seedTwo();
+
+    const { replies } = await say("!edit 1 new text");
+
+    expect(replies).toEqual([reply(T.taskEdited, { task: "new text" })]);
+    expect((await viewerTasks()).map((t) => t.text)).toEqual(["new text", "second thing"]);
+  });
+
+  it("!edit without text, or past the end, replies noTaskToEdit and changes nothing", async () => {
+    await seedTwo();
+
+    expect((await say("!edit 1")).replies).toEqual([reply(T.noTaskToEdit)]);
+    expect((await say("!edit 5 nope")).replies).toEqual([reply(T.noTaskToEdit)]);
+    expect((await viewerTasks()).map((t) => t.text)).toEqual(["first thing", "second thing"]);
+  });
+
+  it("!focus 2 makes the second task the sole active one", async () => {
+    await seedTwo();
+
+    const { replies } = await say("!focus 2");
+
+    expect(replies).toEqual([reply(T.taskCheck, { task: "second thing" })]);
+    expect(await viewerTasks()).toMatchObject([
+      { text: "first thing", status: "pending" },
+      { text: "second thing", status: "active" },
+    ]);
+  });
+
+  it("!focus past the end replies noTask", async () => {
+    await seedTwo();
+
+    expect((await say("!focus 3")).replies).toEqual([reply(T.noTask)]);
+    expect((await viewerTasks()).map((t) => t.status)).toEqual(["active", "pending"]);
+  });
+
+  it("!done 2 completes the second task and leaves the first active", async () => {
+    await seedTwo();
+
+    const { replies } = await say("!done 2");
+
+    expect(replies).toEqual([reply(T.taskDone, { task: "second thing" })]);
+    expect(await viewerTasks()).toMatchObject([
+      { text: "first thing", status: "active" },
+      { text: "second thing", status: "done" },
+    ]);
+  });
+
+  it("!done with nothing open replies noTask", async () => {
+    expect((await say("!done")).replies).toEqual([reply(T.noTask)]);
+    expect((await say("!done 1")).replies).toEqual([reply(T.noTask)]);
+  });
+
+  it("!check @USER looks up another viewer's active task case-insensitively", async () => {
+    await seedTwo();
+
+    const { replies } = await say("!check @VIEWER", { username: "other", twitchId: "3000" });
+
+    expect(replies).toEqual([reply(T.taskCheckUser, { user2: "Viewer", task: "first thing" })]);
+  });
+
+  it("!check @user with no active task replies noTaskOther", async () => {
+    expect((await say("!check @nobody")).replies).toEqual([reply(T.noTaskOther)]);
+  });
+
+  it("!check reports the chatter's own active task, or noTask", async () => {
+    expect((await say("!check")).replies).toEqual([reply(T.noTask)]);
+    await seedTwo();
+    expect((await say("!check")).replies).toEqual([reply(T.taskCheck, { task: "first thing" })]);
+  });
+
+  it("!task with no text replies noTaskContent and creates nothing", async () => {
+    const { replies } = await say("!task");
+
+    expect(replies).toEqual([reply(T.noTaskContent, { task: "" })]);
+    expect(await tasks()).toHaveLength(0);
+  });
+
+  it("!task at the open-task cap replies noTaskAdded and creates nothing", async () => {
+    for (let i = 0; i < CHAT_OPEN_TASK_CAP; i++) await say(`!task t${i}`);
+    expect(await viewerTasks()).toHaveLength(CHAT_OPEN_TASK_CAP);
+
+    const { replies } = await say("!task one too many");
+
+    expect(replies).toEqual([reply(T.noTaskAdded, { task: "one too many" })]);
+    expect(await viewerTasks()).toHaveLength(CHAT_OPEN_TASK_CAP);
+  });
+
+  it("!next with no text replies nextNoContent", async () => {
+    expect((await say("!next")).replies).toEqual([reply(T.nextNoContent)]);
+    expect(await tasks()).toHaveLength(0);
+  });
+
+  it("!next with no active task adds the task as active and replies taskAdded", async () => {
+    await say("!task old");
+    await say("!done");
+
+    const { replies } = await say("!next fresh");
+
+    expect(replies).toEqual([reply(T.taskAdded, { task: "fresh" })]);
+    expect(await viewerTasks()).toMatchObject([
+      { text: "old", status: "done" },
+      { text: "fresh", status: "active" },
+    ]);
+  });
+
+  it("!next at the cap with no active task replies noTaskAdded", async () => {
+    for (let i = 0; i < CHAT_OPEN_TASK_CAP; i++) await say(`!task t${i}`);
+    await db.update(schema.task).set({ status: "pending" });
+
+    const { replies } = await say("!next over");
+
+    expect(replies).toEqual([reply(T.noTaskAdded)]);
+    const after = await viewerTasks();
+    expect(after).toHaveLength(CHAT_OPEN_TASK_CAP);
+    expect(after.some((t) => t.status === "active")).toBe(false);
+  });
+
+  it("!next at the cap still replaces the active task (the cap counts after completion)", async () => {
+    for (let i = 0; i < CHAT_OPEN_TASK_CAP; i++) await say(`!task t${i}`);
+
+    const { replies } = await say("!next swap");
+
+    expect(replies).toEqual([reply(T.taskNext, { oldTask: "t0", newTask: "swap" })]);
+    const open = (await viewerTasks()).filter((t) => t.status !== "done");
+    expect(open).toHaveLength(CHAT_OPEN_TASK_CAP);
+  });
+
+  it("!help replies with the configured help template", async () => {
+    expect((await say("!help")).replies).toEqual([reply(T.help)]);
+  });
+
+  it("!dwhelp falls back to an inline command list when no docs URL is configured", async () => {
+    // The Workers env is read-only in production; the Vitest stub is a plain object.
+    const stubEnv = env as { DOCS_URL: string };
+    const original = stubEnv.DOCS_URL;
+    stubEnv.DOCS_URL = "";
+    try {
+      const { replies } = await say("!dwhelp");
+      expect(replies).toHaveLength(1);
+      expect(replies[0]).toMatch(/^Viewer, available commands: /);
+      expect(replies[0]).toContain("!timer (mods)");
+      expect(replies[0]).not.toContain("http");
+    } finally {
+      stubEnv.DOCS_URL = original;
+    }
+  });
+
+  it("a non-mod !clear is refused with notMod", async () => {
+    await seedTwo();
+    expect((await say("!clear done")).replies).toEqual([reply(T.notMod)]);
+    expect(await viewerTasks()).toHaveLength(2);
+  });
+});
+
+describe("bot.ingest !timer subcommands", () => {
+  const M = DEFAULT_TIMER_MESSAGES;
+  const mod = (message: string) => say(message, { isMod: true });
+
+  it("walks start → running → pause → resume → skip → eta → reset", async () => {
+    expect((await mod("!timer start 0")).replies).toEqual([reply(M.cycleWrong)]);
+    expect((await mod("!timer start 100")).replies).toEqual([reply(M.cycleWrong)]);
+    expect((await mod("!timer start x")).replies).toEqual([reply(M.cycleWrong)]);
+    expect(await timerRow()).toBeUndefined();
+
+    // Nothing to pause/resume/skip/eta before the timer exists.
+    for (const sub of ["pause", "resume", "skip", "eta"]) {
+      expect((await mod(`!timer ${sub}`)).replies).toEqual([reply(M.notRunning)]);
+    }
+
+    expect((await mod("!timer start")).replies).toEqual([reply(M.commandSuccess)]);
+    const started = await timerRow();
+    expect(started).toMatchObject({ status: "starting", currentCycle: 1, totalCycles: 4 });
+    expect(started?.targetEndTime).toBeInstanceOf(Date);
+
+    expect((await mod("!timer start")).replies).toEqual([reply(M.timerRunning)]);
+
+    expect((await mod("!timer pause")).replies).toEqual([reply(M.commandSuccess)]);
+    const paused = await timerRow();
+    expect(paused).toMatchObject({
+      status: "paused",
+      pausedFromStatus: "starting",
+      targetEndTime: null,
+    });
+    expect(paused?.pausedWithRemaining).toEqual(expect.any(Number));
+
+    // A paused timer has no end time to project.
+    expect((await mod("!timer eta")).replies).toEqual([reply(M.notRunning)]);
+    // Starting over a paused timer is refused like any running state.
+    expect((await mod("!timer start")).replies).toEqual([reply(M.timerRunning)]);
+
+    expect((await mod("!timer resume")).replies).toEqual([reply(M.commandSuccess)]);
+    const resumed = await timerRow();
+    expect(resumed).toMatchObject({
+      status: "starting",
+      pausedFromStatus: null,
+      pausedWithRemaining: null,
+    });
+    expect(resumed?.targetEndTime).toBeInstanceOf(Date);
+    // Resuming a timer that isn't paused is a no-op.
+    expect((await mod("!timer resume")).replies).toEqual([reply(M.notRunning)]);
+
+    expect((await mod("!timer skip")).replies).toEqual([reply(M.commandSuccess)]);
+    expect(await timerRow()).toMatchObject({ status: "work", currentCycle: 1 });
+
+    const etaReplies = (await mod("!timer eta")).replies;
+    const eta = await getTimerEta(db);
+    if (!eta) throw new Error("expected an ETA for a running timer");
+    const now = Date.now();
+    expect(etaReplies).toEqual([
+      reply(M.eta, {
+        phase: formatEtaDuration(eta.phaseEnd.getTime() - now),
+        time: formatEtaDuration(eta.sessionEnd.getTime() - now),
+      }),
+    ]);
+
+    expect((await mod("!timer reset")).replies).toEqual([reply(M.commandSuccess)]);
+    expect(await timerRow()).toMatchObject({
+      status: "idle",
+      targetEndTime: null,
+      pausedWithRemaining: null,
+      pausedFromStatus: null,
+      currentCycle: 1,
+      totalCycles: 4,
+    });
+
+    // An idle timer can be started again, with an explicit cycle count.
+    expect((await mod("!timer start 2")).replies).toEqual([reply(M.commandSuccess)]);
+    expect(await timerRow()).toMatchObject({ status: "starting", totalCycles: 2 });
+  });
+
+  it("an unknown or missing subcommand replies wrongCommand and writes nothing", async () => {
+    expect((await mod("!timer bogus")).replies).toEqual([reply(M.wrongCommand)]);
+    expect((await mod("!timer")).replies).toEqual([reply(M.wrongCommand)]);
+    expect(await timerRow()).toBeUndefined();
+  });
+
+  it("a non-mod !timer start gets the notMod reply", async () => {
+    expect((await say("!timer start")).replies).toEqual([reply(DEFAULT_TASK_MESSAGES.notMod)]);
+    expect(await timerRow()).toBeUndefined();
+  });
+});
+
+describe("bot.ingest clearchat", () => {
+  it("a ban/timeout removes only the target user's tasks", async () => {
+    await say("!task viewer a");
+    await say("!task viewer b");
+    await say("!task other a", { username: "other", twitchId: "3000" });
+
+    const result = await api().bot.ingest({
+      token: BOT_TOKEN,
+      kind: "clearchat",
+      targetUsername: "viewer",
+    });
+
+    expect(result).toEqual({ replies: [] });
+    expect(await tasks()).toEqual([{ text: "other a", status: "active", authorTwitchId: "3000" }]);
+  });
+
+  it("rejects a clearchat with a wrong bot token and removes nothing", async () => {
+    await say("!task keep me");
+
+    await expect(
+      api().bot.ingest({ token: "x".repeat(32), kind: "clearchat", targetUsername: "viewer" }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(await tasks()).toHaveLength(1);
+  });
+});
+
+describe("bot.getSession without a bot account", () => {
+  it("rejects NOT_FOUND so the bot page shows its not-configured state", async () => {
+    await expect(api().bot.getSession({ token: BOT_TOKEN })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
   });
 });
