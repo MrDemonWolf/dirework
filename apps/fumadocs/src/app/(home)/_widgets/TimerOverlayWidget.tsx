@@ -4,7 +4,7 @@
 // clock formatting with the real overlay (apps/web) via `@dirework/overlay-kit`, so the docs
 // preview cannot drift from what streamers actually get.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import {
   SQUIRCLE_RADIUS,
@@ -33,10 +33,32 @@ const STROKE = 8;
 const INSET = STROKE / 2 + 2;
 const RADIUS = SIZE * SQUIRCLE_RADIUS;
 
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+
+function subscribeReducedMotion(onChange: () => void) {
+  const query = window.matchMedia(REDUCED_MOTION);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+/**
+ * Live prefers-reduced-motion. The server snapshot is false, so SSR and the first
+ * client render agree (no hydration mismatch); a preference change made while the
+ * page is open applies immediately.
+ */
+function usePrefersReducedMotion(): boolean {
+  return useSyncExternalStore(
+    subscribeReducedMotion,
+    () => window.matchMedia(REDUCED_MOTION).matches,
+    () => false,
+  );
+}
+
 /**
  * Squircle-ring timer overlay mock. Counts down once a second from a mid-session value and
- * wraps back to a full 25:00 at zero. Stops ticking while `paused`, and never ticks when the
- * viewer prefers reduced motion (the static frame still shows progress).
+ * wraps back to a full 25:00 at zero, and stops ticking while `paused` (the preview's pause
+ * button). Under reduced motion the digits still tick (a text change is not motion) but the
+ * ring steps instead of sweeping, matching how the real overlay honours the preference.
  */
 export function TimerOverlayWidget({
   theme = OVERLAY_THEMES[DEFAULT_OVERLAY_THEME],
@@ -47,17 +69,10 @@ export function TimerOverlayWidget({
 }) {
   // Start partway through so the ring reads as "in progress" on first paint.
   const [remaining, setRemaining] = useState(18 * 60 + 24);
-  // A ref, not state: updating it needs no re-render of its own. It is sampled only when the
-  // effect runs (mount and each `paused` change), so it does not track a live preference change.
-  const reduced = useRef(false);
+  const reducedMotion = usePrefersReducedMotion();
 
-  // matchMedia runs in the effect, not during render, so SSR and the first client render
-  // agree (no hydration mismatch).
   useEffect(() => {
-    reduced.current =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduced.current || paused) return;
+    if (paused) return;
     const id = setInterval(() => {
       setRemaining((r) => (r <= 0 ? TOTAL : r - 1));
     }, 1000);
@@ -110,7 +125,7 @@ export function TimerOverlayWidget({
           strokeDasharray={dash}
           strokeDashoffset={offset}
           // 1s linear matches the tick, as in the real overlay, so the ring sweeps smoothly.
-          style={{ transition: reduced.current ? undefined : "stroke-dashoffset 1s linear" }}
+          style={{ transition: reducedMotion ? undefined : "stroke-dashoffset 1s linear" }}
         />
       </svg>
       <div style={{ position: "relative", textAlign: "center", color: theme.text }}>

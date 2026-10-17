@@ -120,6 +120,13 @@
       "when": 1792059475717,
       "tag": "0016_processed_chat_message_processed_at_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1792130205861,
+      "tag": "0017_drop_task_status_idx",
+      "breakpoints": true
     }
   ]
 }

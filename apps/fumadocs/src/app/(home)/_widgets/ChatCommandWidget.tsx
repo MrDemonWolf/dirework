@@ -1,8 +1,9 @@
 /**
  * Twitch chat preview for the marketing home page: viewers issue Dirework commands, the bot
  * replies. Static markup (no client JS, no Twitch connection). Commands are the real ones from
- * content/docs/chat-commands.mdx; the bot replies are illustrative copy, not the configurable
- * default responses the real bot sends.
+ * content/docs/chat-commands.mdx, issued by someone allowed to run them (`!timer` is
+ * broadcaster/mod only). The task replies are illustrative copy; the ETA reply uses the default
+ * response format (relative durations, as the bot has no channel timezone).
  */
 
 /** One scripted chat line: a viewer command (with a username color) or a bot reply. */
@@ -28,8 +29,9 @@ const LINES: Line[] = [
   },
   { kind: "cmd", user: "ada_codes", color: "var(--chat-user-1)", text: "!done" },
   { kind: "bot", text: "@ada_codes nice — task #1 complete 🎉" },
-  { kind: "cmd", user: "night_owl", color: "var(--chat-user-3)", text: "!timer eta" },
-  { kind: "bot", text: "Focus ends ~3:42pm · break in 18:24 · cycle 2/4" },
+  // A mod, not a viewer: a viewer's !timer gets the "mods only" reply.
+  { kind: "cmd", user: "den_mod", color: "var(--chat-user-3)", text: "!timer eta" },
+  { kind: "bot", text: "This phase ends in 19m · the hunt is done in 1h 32m" },
 ];
 
 /** Mock `#stream chat` panel rendering the scripted `LINES` conversation. */
