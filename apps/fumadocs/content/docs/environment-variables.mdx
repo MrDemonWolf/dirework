@@ -51,7 +51,7 @@ your local development values):
 | Variable | Description |
 | --- | --- |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token with **Workers** and **D1** edit permissions |
-| `ALCHEMY_PASSWORD` | Any long random string — encrypts Alchemy's deploy state (`openssl rand -base64 32`) |
+| `ALCHEMY_PASSWORD` | A random string of at least 32 characters (e.g. `openssl rand -base64 32`) — encrypts Alchemy's deploy state |
 | `ALCHEMY_STATE_TOKEN` | Authenticates the account-wide `alchemy-state` CI store worker. Generate a unique token for your state-store operator and reuse it only for apps intentionally sharing that same worker. It is not needed for local deploys, which use filesystem state. |
 
 ## Optional variables

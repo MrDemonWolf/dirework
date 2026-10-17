@@ -10,7 +10,7 @@ description: Common issues and solutions
 Make sure you have **Bun** installed and you're on **Node.js v22+**:
 
 ```bash
-bun --version    # any recent 1.x
+bun --version    # Should be 1.3 or newer
 node --version   # Should be v22 or higher
 ```
 
@@ -64,7 +64,7 @@ claimed](/docs/deployment#recovering-an-instance-someone-else-claimed).
 - **"Only this DireWork's owner can connect a bot account"** means the browser is signed in
   with a Twitch account that doesn't own this instance. Sign out, sign in as the owner, retry.
 
-- You need to sign in to a **different** Twitch account when connecting the bot. The bot account cannot be the same as the streamer account.
+- When connecting the bot, sign in to Twitch with the account you want the bot to use. A **separate** bot account is recommended; your own streamer account also works, but replies will come from you.
 - Make sure the second redirect URL (`/api/bot/callback/twitch`) is registered in your Twitch application.
 
 ## Overlay issues

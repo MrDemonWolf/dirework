@@ -22,12 +22,13 @@ or a managed hosting service.
 - **Twitch Bot** - Dedicated bot account for chat commands
   like `!task`, `!done`, `!timer start`, and `!timer eta`. Customizable
   wolf-themed response messages, enable/disable toggles for task
-  and timer command groups, and configurable phase labels. The
+  and timer command groups. The
   bot runs in a token-gated browser page (OBS source or pinned
   tab) — no always-on server needed.
 - **Theme Center** - 6 built-in themes including Liquid
   Glass Dark, Ocean Depths, Cozy Cottage, and Twitch Purple
-  with full style customization for colors, fonts, and layout.
+  with full style customization for colors, fonts, layout, and
+  configurable phase labels.
 - **Live Preview** - See overlay changes on the dashboard
   before going live.
 - **Dashboard** - Control the timer, manage tasks, and preview
@@ -79,14 +80,14 @@ account configuration, and OBS setup, see the
 
 ### Timer Commands (mods only)
 
-| Command                 | Description                                 |
-| ----------------------- | ------------------------------------------- |
-| `!timer start [cycles]` | Start the timer (optional cycle count 1-99) |
-| `!timer pause`          | Pause the timer                             |
-| `!timer resume`         | Resume the timer                            |
-| `!timer skip`           | Skip the current phase                      |
-| `!timer reset`          | Reset the timer                             |
-| `!timer eta`            | Show when the timer ends                    |
+| Command                 | Description                                               |
+| ----------------------- | --------------------------------------------------------- |
+| `!timer start [cycles]` | Start the timer (optional cycle count 1-99)               |
+| `!timer pause`          | Pause the timer                                           |
+| `!timer resume`         | Resume the timer                                          |
+| `!timer skip`           | Skip the current phase                                    |
+| `!timer reset`          | Reset the timer                                           |
+| `!timer eta`            | Show time left in the current phase and the whole session |
 
 See the [full command reference](https://dirework.mrdemonwolf.dev/docs/chat-commands)
 for all options and customizable bot responses. Viewers can also run `!dwhelp` or
