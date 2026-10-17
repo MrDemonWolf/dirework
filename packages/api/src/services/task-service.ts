@@ -147,15 +147,20 @@ export async function promoteNextPending(db: DbClient, twitchId: string) {
 /**
  * Create a task. Auto-activates when the author has no open tasks;
  * `activate: true` forces active (used by !next).
+ *
+ * `openTaskCount` lets a caller that already read the author's open tasks (the
+ * chat cap check) pass the count instead of paying for the same query twice
+ * per chat line. With `activate: true` the count is irrelevant and not read.
  */
 export async function createTask(
   db: DbClient,
   author: TaskAuthor,
   text: string,
-  opts?: { activate?: boolean },
+  opts?: { activate?: boolean; openTaskCount?: number },
 ) {
-  const [openTasks, placement] = await Promise.all([
-    getViewerOpenTasks(db, author.twitchId),
+  const knownCount = opts?.activate ? 0 : opts?.openTaskCount;
+  const [openTaskCount, placement] = await Promise.all([
+    knownCount ?? getViewerOpenTasks(db, author.twitchId).then((rows) => rows.length),
     resolveTaskPlacement(db, author.twitchId),
     purgeExpiredDoneTasks(db),
   ]);
@@ -169,7 +174,7 @@ export async function createTask(
     priority: placement.priority,
     order: placement.nextOrder,
   };
-  const wantsActive = opts?.activate || openTasks.length === 0;
+  const wantsActive = opts?.activate || openTaskCount === 0;
 
   if (!wantsActive) {
     const [row] = await db

@@ -149,6 +149,22 @@ describe("markTaskDone guards", () => {
   });
 });
 
+describe("createTask with a caller-supplied open-task count", () => {
+  it("uses the count instead of re-reading the author's open tasks", async () => {
+    const findMany = vi.spyOn(db.query.task, "findMany");
+
+    // The chat path already counted 1 open task: queue as pending, no re-read.
+    const queued = await createTask(db, viewer, "second", { openTaskCount: 1 });
+    expect(queued?.status).toBe("pending");
+    // A count of 0 auto-activates, again without the duplicate query.
+    const first = await createTask(db, { ...viewer, twitchId: "200" }, "first", {
+      openTaskCount: 0,
+    });
+    expect(first?.status).toBe("active");
+    expect(findMany).not.toHaveBeenCalled();
+  });
+});
+
 describe("createTask concurrency fallback", () => {
   it("falls back to pending when the partial unique index rejects a second active task", async () => {
     // The author already holds an active task, but this create races as if it
