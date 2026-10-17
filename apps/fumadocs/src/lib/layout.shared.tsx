@@ -1,6 +1,13 @@
+// Shared Fumadocs layout options for the home (`(home)/layout.tsx`) and docs
+// (`docs/layout.tsx`) layouts, plus the brand mark used in the nav and the site footer.
+
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 
-/** Inline brand mark — the Dirework wolf-and-clock (wolf + Pomodoro). */
+/**
+ * Inline brand mark — the DireWork wolf-and-clock (wolf + Pomodoro) plus wordmark. Colored by
+ * the `--brand-500` / `--txt-1` tokens so it follows the light/dark theme; the SVG is
+ * decorative (the adjacent wordmark or the wrapping link's label names it).
+ */
 export function BrandMark() {
   return (
     <span data-dw-brand className="inline-flex items-center gap-2.5" style={{ lineHeight: 1 }}>
@@ -41,6 +48,10 @@ export function BrandMark() {
   );
 }
 
+/**
+ * Nav, GitHub link, top links, theme switch and search toggle shared by both layouts. A
+ * function (not a constant) so each layout gets a fresh object it can extend.
+ */
 export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
@@ -50,7 +61,8 @@ export function baseOptions(): BaseLayoutProps {
     },
     githubUrl: "https://github.com/mrdemonwolf/dirework",
     links: [
-      // Landing-section anchors, in the order the sections appear on the page.
+      // Landing-section anchors (ids in app/(home)/page.tsx). Not in page order:
+      // the page runs features, overlays, chat, setup; Overlays is listed first.
       // On the home page these scroll; from any other page they navigate home
       // and then jump to the section.
       { text: "Overlays & Themes", url: "/#overlays" },

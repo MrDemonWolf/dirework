@@ -1,3 +1,6 @@
+// Owner identity + instance-level account actions: the setup gate, the
+// dashboard's `me` payload, overlay URL rotation, and bot disconnect.
+
 import { and, asc, count, eq, ne } from "drizzle-orm";
 
 import * as schema from "@dirework/db/schema";
@@ -9,12 +12,20 @@ import { disconnectBotAccount } from "../services/twitch-auth";
 import { regenerateOverlayTokenInput } from "./input-schemas";
 
 export const userRouter = router({
-  /** Public setup gate: does this single-tenant instance have an owner yet? */
+  /**
+   * Public setup gate: does this single-tenant instance have an owner yet?
+   * Same "any user row" rule as `hasOwner` in @dirework/auth; the web app calls
+   * it server-side (`lib/server-session.ts`).
+   */
   hasOwner: publicProcedure.query(async ({ ctx }) => {
     const [row] = await ctx.db.select({ count: count() }).from(schema.user);
     return (row?.count ?? 0) > 0;
   }),
 
+  /**
+   * ownerProcedure. The dashboard's identity payload: the user row, the overlay
+   * tokens, and the bot account's public fields (never its OAuth tokens).
+   */
   me: ownerProcedure.query(async ({ ctx }) => {
     const [user, instance, botAccount, twitchAccount] = await Promise.all([
       ctx.db.query.user.findFirst({
@@ -28,6 +39,8 @@ export const userRouter = router({
       ctx.db.query.botAccount.findFirst({
         columns: { username: true, displayName: true, twitchId: true, expiresAt: true },
       }),
+      // Fallback Twitch ID from the provider account, for owner rows whose
+      // twitchId column is empty (same lookup as resolveOwnerTwitchId).
       ctx.db.query.account.findFirst({
         where: and(
           eq(schema.account.userId, ctx.session.user.id),
@@ -49,6 +62,10 @@ export const userRouter = router({
     };
   }),
 
+  /**
+   * ownerProcedure → tokens `rotateInstanceToken`. Issues a new timer or tasks
+   * overlay token, so any previously copied OBS URL stops working.
+   */
   regenerateOverlayToken: ownerProcedure
     .input(regenerateOverlayTokenInput)
     .mutation(async ({ ctx, input }) => {
@@ -59,6 +76,10 @@ export const userRouter = router({
       return { token };
     }),
 
+  /**
+   * ownerProcedure → twitch-auth `disconnectBotAccount`. Deletes the bot account
+   * even when Twitch revocation fails; `revoked` reports whether Twitch confirmed it.
+   */
   disconnectBot: ownerProcedure.mutation(async ({ ctx }) => {
     const { revoked } = await disconnectBotAccount(ctx.db, {
       clientId: env.TWITCH_CLIENT_ID,

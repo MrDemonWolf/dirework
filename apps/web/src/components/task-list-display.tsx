@@ -1,5 +1,10 @@
 "use client";
 
+// The task list as the stream sees it, driven entirely by the streamer's TaskStylesConfig.
+// Rendered by the OBS task overlay (/overlay/l/[token]) and by the Theme Center live preview,
+// so the preview matches the overlay. Style values are interpolated into inline CSS here;
+// saved values have passed the allowlist schemas in config-shared (cssColorSchema etc.).
+
 import { useEffect, useRef, useState } from "react";
 
 import { countDoneByAuthor, groupTasksByAuthor } from "@/lib/task-utils";
@@ -17,6 +22,10 @@ import type { TaskStylesConfig } from "@/lib/config-types";
 /**
  * Infinite scroll using a dual-container system like Chat-Task-Tic.
  * When content overflows, both containers animate upward seamlessly.
+ * The children render twice: the second copy is absolutely positioned
+ * (`.animate-scroll-secondary` in index.css) and trails the first by
+ * `gapBetweenLoops`, so the loop has no visible jump. The duration is derived
+ * from content height so the speed stays `pixelsPerSecond` however long the list is.
  */
 function InfiniteScroll({
   children,
@@ -92,6 +101,7 @@ function InfiniteScroll({
   );
 }
 
+/** One task row: checkbox (or bullet) plus the line-clamped task text. */
 function TaskItem({
   task,
   config,
@@ -186,7 +196,13 @@ function TaskItem({
   );
 }
 
+/**
+ * One author's card: a header tinted with the author's chat color, their done/total count,
+ * then their rows. On the overlay `group.done` comes from server totals, so it can exceed the
+ * done rows actually shown.
+ */
 function AuthorGroup({ group, config }: { group: TaskGroup; config: TaskStylesConfig }) {
+  // Twitch chat color first, then the configured username color, then white.
   const authorColor = group.authorColor || config.task.usernameColor || "#ffffff";
 
   return (
@@ -244,6 +260,10 @@ function AuthorGroup({ group, config }: { group: TaskGroup; config: TaskStylesCo
   );
 }
 
+/**
+ * Full task list (header with done/total counter + author-grouped body). Pure presentation:
+ * it does no fetching, so the overlay page owns polling and the preview passes mock tasks.
+ */
 export function TaskListDisplay({
   config,
   tasks,

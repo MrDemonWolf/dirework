@@ -1,5 +1,8 @@
 "use client";
 
+// Theme Center (/dashboard/styles): preset rail, timer/task style editors, phase labels, and a
+// live preview. Edits stay local until Save, which persists all three slices in one mutation.
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -64,8 +67,13 @@ function StylesSkeleton() {
   );
 }
 
+/** Pre-load placeholder only; real values replace it once `config.get` resolves. */
 const defaultPhaseLabels: PhaseLabelsConfig = DEFAULT_PHASE_LABELS;
 
+/**
+ * Keeps a working copy and a last-saved snapshot of each slice; dirty state is derived by deep
+ * comparison. Applying a preset over unsaved custom edits asks for confirmation first.
+ */
 export default function StylesPage() {
   const queryClient = useQueryClient();
   const config = useQuery(trpc.config.get.queryOptions());
@@ -83,7 +91,8 @@ export default function StylesPage() {
   const [savedTaskStyles, setSavedTaskStyles] = useState<TaskStylesConfig>(defaultTaskStyles);
   const [savedPhaseLabels, setSavedPhaseLabels] = useState<PhaseLabelsConfig>(defaultPhaseLabels);
 
-  // Once config loads, initialize — skip on subsequent refetches
+  // Once config loads, initialize — skip on subsequent refetches, so the post-save
+  // invalidation (or any refetch) never clobbers edits in progress.
   const initializedRef = useRef(false);
   useEffect(() => {
     if (!config.data) return;
@@ -131,7 +140,8 @@ export default function StylesPage() {
 
   const handleApplyTheme = useCallback(
     (theme: ThemePreset) => {
-      // Custom edits in progress — confirm before a preset replaces them
+      // Custom edits in progress — confirm before a preset replaces them. When the current
+      // styles exactly match a preset, nothing custom would be lost, so no prompt.
       if (hasUnsaved && activeThemeId === null) {
         setPendingTheme(theme);
         return;

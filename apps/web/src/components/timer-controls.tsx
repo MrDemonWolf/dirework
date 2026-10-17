@@ -1,5 +1,9 @@
 "use client";
 
+// Dashboard timer console: `TimerProvider` owns the timer.get poll, the transport
+// mutations and the locally edited timer config; `TimerInstrument` (the hero clock and
+// transport) and `TimerSettings` (blur-autosaved durations) read it through context.
+
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { ConsoleRule } from "@/components/console-rule";
@@ -27,6 +31,7 @@ import {
 import { describeTrpcError } from "@/lib/trpc-errors";
 import { trpc } from "@/utils/trpc";
 
+// The config stores durations in ms; the settings inputs edit whole minutes.
 function msToMinutes(ms: number): number {
   return Math.round(ms / 60000);
 }
@@ -76,6 +81,12 @@ function CycleDots({ current, total }: { current: number; total: number }) {
 
 // --- Context ---
 
+/**
+ * Shared by the console pieces. The `*Min` / `cycles` / `longBreakInterval` values are
+ * the local, possibly unsaved field values (seeded once from the saved config);
+ * `saveConfig` persists a partial timer config. The transport handles are narrowed to
+ * `mutate` + `isPending` so consumers can't depend on the rest of the mutation object.
+ */
 interface TimerContextValue {
   cycles: number;
   setCycles: (v: number) => void;
@@ -110,6 +121,11 @@ function useTimerContext() {
   return ctx;
 }
 
+/**
+ * Wraps the dashboard timer console. Polls `timer.get` (shared query key with
+ * `TimerStatusBadge`) and reads `config.get` once to seed the editable fields; it does
+ * not hold the per-second countdown, so ticks never re-render its consumers.
+ */
 export function TimerProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [cycles, setCycles] = useState(TIMER_CONFIG_DEFAULTS.defaultCycles);
@@ -147,6 +163,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // Seed the fields from the saved config exactly once: later config refetches
+  // (e.g. after a save) must not clobber what the owner is typing.
   useEffect(() => {
     if (!config.data || configLoaded) return;
     const tc = config.data.timerConfig;
@@ -441,6 +459,12 @@ export function TimerInstrument() {
   );
 }
 
+/**
+ * Timer duration/cycle fields. Each field autosaves on blur (clamped to its range,
+ * no-op blurs skipped by `saveConfig`) and is disabled while a run is in progress.
+ * The min/max bounds are the UI's own and tighter than `updateTimerConfigInput`, which
+ * stays the authority.
+ */
 export function TimerSettings() {
   const {
     workMin,

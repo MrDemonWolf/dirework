@@ -1,5 +1,9 @@
 "use client";
 
+// Owner dashboard home (/dashboard): timer console, task board, both OBS overlay URLs with
+// optional live previews, and a bot status strip. All data comes from owner-only tRPC
+// procedures through the same-origin /rpc proxy.
+
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -20,6 +24,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { describeTrpcError } from "@/lib/trpc-errors";
 import { trpc } from "@/utils/trpc";
 
+// Greeting, sub-greeting and date use the browser's local clock, which can differ from the
+// server render, so their elements carry suppressHydrationWarning.
 function getGreeting(): string {
   const hour = new Date().getHours();
   if (hour >= 5 && hour < 12) return "Good morning";
@@ -98,6 +104,7 @@ function OverlayMonitor({
   );
 }
 
+/** Confirm-dialog body for resetting either overlay URL (the old token stops working). */
 const OVERLAY_RESET_DESCRIPTION =
   "The current URL stops working immediately: any OBS browser source still using it goes blank (fully transparent) until you paste the new URL into OBS.";
 
@@ -121,6 +128,10 @@ function SizeChip({ size, hint }: { size: string; hint: string }) {
   );
 }
 
+/**
+ * Dashboard home. `session` comes from the server page; `user.me` supplies the overlay tokens
+ * and bot account. Shows <QueryError> instead of a half-rendered console if `me` fails.
+ */
 export default function Dashboard({ session }: { session: typeof authClient.$Infer.Session }) {
   const queryClient = useQueryClient();
   const user = useQuery(trpc.user.me.queryOptions());
@@ -136,6 +147,8 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
     },
   });
 
+  // Previews start hidden: each one is a live overlay iframe that polls the api on the
+  // overlay cadence for as long as it is shown.
   const [showTimerPreview, setShowTimerPreview] = useState(false);
   const [showTasksPreview, setShowTasksPreview] = useState(false);
 

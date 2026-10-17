@@ -1,5 +1,9 @@
 "use client";
 
+// Theme Center live preview: renders the real overlay components (TimerDisplay,
+// TaskListDisplay) with the owner's unsaved styles over a mock timer and mock tasks.
+// Entirely client-side — the preview never polls or calls the API.
+
 import { useEffect, useState } from "react";
 import { Pause, Play } from "lucide-react";
 
@@ -18,8 +22,12 @@ import { TaskListDisplay } from "@/components/task-list-display";
 
 const MOCK_DURATION = TIMER_CONFIG_DEFAULTS.workDuration; // one focus phase
 
+// The preview opens paused with this much left; against MOCK_DURATION that draws a
+// partially filled ring, so ring styling is visible before pressing Play.
 const DEFAULT_PAUSED_REMAINING = TIMER_CONFIG_DEFAULTS.longBreakDuration; // frozen preview
 
+// Sample board covering what the task overlay styles: several authors (one with no
+// Twitch color), a multi-task group, and a done row.
 const mockTasks = [
   {
     id: "1",
@@ -55,6 +63,7 @@ const mockTasks = [
   },
 ];
 
+// Same shape the timer overlay builds from its payload (styles + labels + showHours).
 function timerPreviewConfig(
   styles: TimerStylesConfig,
   labels: PhaseLabelsConfig,
@@ -138,7 +147,8 @@ export function StylePreviewPanel({
   const [pausedRemaining, setPausedRemaining] = useState(DEFAULT_PAUSED_REMAINING);
   const [backdrop, setBackdrop] = useState<Backdrop>("dark");
 
-  // Auto-reset (loop) when countdown reaches 0
+  // Loop the mock: once the countdown reaches 0, start a fresh focus phase. This is
+  // a 1s check only — TimerDisplay's own countdown drives the digits and ring.
   useEffect(() => {
     if (!targetEndTime) return;
     const check = setInterval(() => {

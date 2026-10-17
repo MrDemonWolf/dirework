@@ -1,5 +1,7 @@
 "use client";
 
+// Compact timer status chip for the dashboard header, outside the timer console.
+
 import { useQuery } from "@tanstack/react-query";
 
 import { StatusChip } from "@/components/status-chip";
@@ -7,6 +9,8 @@ import { DASHBOARD_TIMER_QUERY_OPTS } from "@/lib/poll-intervals";
 import { TIMER_TONES, toTimerStatus, type TimerStatus } from "@/lib/status-tones";
 import { trpc } from "@/utils/trpc";
 
+// Fixed status copy for the badge; unlike the console chip, it ignores the
+// streamer's custom phase labels.
 const statusLabels: Record<TimerStatus, string> = {
   idle: "Ready",
   starting: "Starting",
@@ -17,6 +21,7 @@ const statusLabels: Record<TimerStatus, string> = {
   finished: "Finished",
 };
 
+/** Live timer status chip, on the same `timer.get` query key and poll options as the console. */
 export function TimerStatusBadge() {
   const timer = useQuery({
     ...trpc.timer.get.queryOptions(),

@@ -1,5 +1,7 @@
 "use client";
 
+// Theme Center editor for the timer overlay's styles (the Timer tab of /dashboard/styles).
+
 import type { TimerStylesConfig } from "@/lib/config-types";
 import { ColorInput } from "./color-input";
 import { SliderRow, SwitchRow, TextFieldRow } from "./field-row";
@@ -7,6 +9,11 @@ import { FontSelect } from "./font-select";
 import { SectionGroup } from "./section-group";
 import { OpacitySliderRow } from "./style-field-groups";
 
+/**
+ * Controlled form over `TimerStylesConfig`: every edit emits a full new styles object,
+ * which the Styles page holds as unsaved working state (driving the live preview)
+ * until the owner saves.
+ */
 export function TimerStyleEditor({
   styles,
   onChange,
@@ -14,6 +21,7 @@ export function TimerStyleEditor({
   styles: TimerStylesConfig;
   onChange: (styles: TimerStylesConfig) => void;
 }) {
+  // Shallow-merges one section of the styles object.
   function update<K extends keyof TimerStylesConfig>(
     section: K,
     patch: Partial<TimerStylesConfig[K]>,
@@ -26,6 +34,8 @@ export function TimerStyleEditor({
 
   return (
     <div className="space-y-3">
+      {/* The overlay draws at this fixed size and AutoScale fits it to the OBS source.
+          The progress ring needs absolute lengths: with %/vw/vh TimerDisplay skips it. */}
       <SectionGroup title="Dimensions">
         <TextFieldRow
           label="Width"

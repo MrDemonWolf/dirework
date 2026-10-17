@@ -1,5 +1,8 @@
 "use client";
 
+// First-run claim screen: shown only while the instance has no owner (see setup/page.tsx).
+// The first Twitch sign-in claims the instance; later sign-ins by anyone else are refused.
+
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Timer, ListTodo, Bot, Palette } from "lucide-react";
@@ -17,6 +20,7 @@ const perks = [
   { icon: Palette, label: "6 themes — or style every pixel yourself" },
 ];
 
+/** Shows a generic failure callout for any `?error=` code returned to /setup. */
 function SetupInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -123,6 +127,7 @@ function SetupInner() {
   );
 }
 
+/** Client half of the `/setup` route. */
 export default function SetupContent() {
   // useSearchParams requires a Suspense boundary in the App Router.
   return (

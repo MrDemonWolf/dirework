@@ -35,6 +35,7 @@ interface ActivityLine {
   text: string;
 }
 
+/** Status LED colours; amber pulses unless the viewer prefers reduced motion. */
 const LED_CLASS: Record<"green" | "amber" | "red", string> = {
   green: "bg-emerald-400 shadow-[0_0_12px_2px_rgba(52,211,153,0.55)]",
   amber:
@@ -59,6 +60,7 @@ function timeStamp(): string {
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
 }
 
+/** `HH:MM:SS`; hours keep growing past 99 rather than wrapping into days. */
 function formatUptime(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(total / 3600);
@@ -88,6 +90,12 @@ function StatCell({
   );
 }
 
+/**
+ * The bot page. Wires `createBotSession` (state machine in lib/bot-session.ts) to React state;
+ * it talks to the api worker directly via `publicTrpc` (token in the POST body, no cookies),
+ * never through the web proxy. Terminal phases (`invalid`, `revoked`, `reauth`) replace the
+ * console with a full-screen notice.
+ */
 export function BotConsole() {
   const { token } = useParams<{ token: string }>();
 
@@ -144,11 +152,14 @@ export function BotConsole() {
           setChannelName(channelName);
           setBotUsername(botUsername);
         },
+        // Keep the first connect time: uptime spans IRC reconnects within this page load.
         onConnected: () => setConnectedAt((prev) => prev ?? Date.now()),
         onCounter: (counter) => setCounters((c) => ({ ...c, [counter]: c[counter] + 1 })),
         onActivity: pushActivity,
       },
     });
+    // Disposing closes the IRC socket and timers, so a token change or unmount never leaves
+    // a second bot relaying the same chat.
     return session.dispose;
   }, [token]);
 

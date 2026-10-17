@@ -1,3 +1,6 @@
+// Drizzle schema entry point (`@dirework/db/schema`): re-exports every table
+// and declares the relations used by `db.query.*` relational reads.
+
 export * from "./auth";
 export * from "./app";
 

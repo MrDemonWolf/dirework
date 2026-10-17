@@ -1,3 +1,6 @@
+// Catch-all docs page: renders any MDX page under content/docs (`/docs` and `/docs/**`) via the
+// Fumadocs source loader. Every page is pre-rendered at build for the static GitHub Pages export.
+
 import type { Metadata } from "next";
 
 import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/docs/page";
@@ -7,6 +10,7 @@ import { notFound } from "next/navigation";
 import { getPageImage, source } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
 
+/** Renders one docs page (title, description, MDX body, TOC); unknown slugs 404. */
 export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
   const params = await props.params;
   const page = source.getPage(params.slug);
@@ -34,10 +38,15 @@ export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
   );
 }
 
+/** Enumerates every docs slug so `output: "export"` can pre-render each page. */
 export async function generateStaticParams() {
   return source.generateParams();
 }
 
+/**
+ * Per-page title, description and canonical URL, plus OG / Twitter cards pointing at the
+ * page's generated image from the `og/docs/[...slug]` route (see `getPageImage`).
+ */
 export async function generateMetadata(props: PageProps<"/docs/[[...slug]]">): Promise<Metadata> {
   const params = await props.params;
   const page = source.getPage(params.slug);

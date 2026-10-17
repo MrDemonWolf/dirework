@@ -1,3 +1,6 @@
+// Root layout for every route (dashboard, overlays, bot console): fonts, global CSS, and
+// site-wide metadata. Keep it lean, since OBS overlays load it too.
+
 import type { Metadata } from "next";
 
 import { IBM_Plex_Mono, IBM_Plex_Sans, Montserrat } from "next/font/google";
@@ -72,6 +75,10 @@ export function generateMetadata(): Metadata {
   };
 }
 
+/**
+ * suppressHydrationWarning on <html>: next-themes sets the theme class before React hydrates
+ * (see AGENTS.md "Hydration Safety").
+ */
 export default function RootLayout({
   children,
 }: Readonly<{

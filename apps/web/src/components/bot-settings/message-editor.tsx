@@ -1,5 +1,8 @@
 "use client";
 
+// Chat reply-template editor used by both command tabs of the bot settings page, plus the field
+// lists (labels, groups, template variables) for the task and timer message sets.
+
 import { useRef, useState } from "react";
 import { Search } from "lucide-react";
 
@@ -10,6 +13,7 @@ import { ConsoleRule } from "@/components/console-rule";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+/** Editor metadata for one message template key. */
 interface MessageField<K extends string = string> {
   key: K;
   label: string;
@@ -19,6 +23,10 @@ interface MessageField<K extends string = string> {
   group: string;
 }
 
+/**
+ * Fields for the task message set, in display order. `as const satisfies` keeps the literal
+ * keys (needed by the coverage check below) while type-checking each entry.
+ */
 export const taskMessageFields = [
   { key: "taskAdded", label: "Task added", placeholder: "{task}, {user}", group: "Adding" },
   { key: "noTaskAdded", label: "Task limit reached", placeholder: "{user}", group: "Adding" },
@@ -80,6 +88,7 @@ export const taskMessageFields = [
   { key: "help", label: "Help", placeholder: "{user}", group: "Errors & limits" },
 ] as const satisfies readonly MessageField<keyof TaskMessagesConfig>[];
 
+/** Fields for the timer message set, in display order. */
 export const timerMessageFields = [
   // Only messages the bot actually sends. The old "Phase changes" group
   // (focus/break/long-break/stream-starting/finished) was removed in the P1
@@ -109,6 +118,10 @@ const _allMessageKeysEditable: [
  * ONE generic chat-message editor rendered for both the task and timer message
  * sets (audit L15 — replaces the two near-identical editors). Fields render in
  * console-rule subgroups; variable chips insert at the input's cursor.
+ *
+ * Each field shows its UTF-8 byte budget (`messageBudget`, capped at the server's
+ * MAX_MESSAGE_TEMPLATE_BYTES). Typing past the cap is allowed and marked invalid; only chip
+ * inserts are refused. The search filter is local UI state and matches label, key, or group.
  */
 export function MessageEditor<T extends object>({
   fields,
@@ -160,6 +173,7 @@ export function MessageEditor<T extends object>({
       f.group.toLowerCase().includes(query),
   );
 
+  // Groups in first-appearance order, so the field arrays above control section order.
   const groups: string[] = [];
   for (const field of filteredFields) {
     if (!groups.includes(field.group)) groups.push(field.group);

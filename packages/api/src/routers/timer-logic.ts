@@ -1,9 +1,13 @@
+// Pure Pomodoro state-machine logic (no db, no env), so it runs under Vitest in
+// Node. Used by services/timer-service for skip and lazy overdue advancement.
+
 import { TIMER_CONFIG_DEFAULTS, type TimerStatus } from "@dirework/db/defaults";
 
 // Fallbacks when no timer_config row exists — same object that backs the
 // schema column defaults (single source: packages/db/src/defaults.ts).
 export const DEFAULTS = TIMER_CONFIG_DEFAULTS;
 
+/** The timer_config fields the state machine needs; durations are in ms. */
 export interface TimerConfigInput {
   workDuration: number;
   breakDuration: number;
@@ -14,6 +18,7 @@ export interface TimerConfigInput {
   defaultCycles?: number;
 }
 
+/** Fill every missing field (or a missing row) from DEFAULTS. */
 export function getTimerConfig(tc: TimerConfigInput | null) {
   return {
     workDuration: tc?.workDuration ?? DEFAULTS.workDuration,
@@ -32,6 +37,7 @@ export interface PhaseInput {
   totalCycles: number;
 }
 
+/** `nextDuration` is null when the next phase has no countdown (finished/unchanged). */
 export interface PhaseResult {
   nextStatus: TimerStatus;
   nextDuration: number | null;
@@ -42,6 +48,11 @@ export interface PhaseResult {
  * Compute the next phase in the timer state machine.
  * Deduplicates the identical switch logic used by skip and the lazy
  * overdue-timer advancement.
+ *
+ * starting → work → (break | longBreak every `longBreakInterval` cycles) → work
+ * of the next cycle, until `totalCycles`. The last work phase still takes its
+ * break unless `noLastBreak`, then finishes. idle/paused/finished return their
+ * own status unchanged.
  */
 export function computeNextPhase(input: PhaseInput, config: TimerConfigInput): PhaseResult {
   let nextStatus: TimerStatus;

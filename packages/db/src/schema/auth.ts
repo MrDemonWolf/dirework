@@ -1,6 +1,16 @@
+// Better Auth tables (user, session, account, verification), in better-auth's
+// expected shape plus Dirework's user columns. Behaviour that shapes what these
+// rows hold (owner claim, token scrubbing, no IP/UA) lives in packages/auth.
+
 import { sqliteTable, text, integer, index, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
+/**
+ * The instance owner. Single-user: the first sign-in claims the instance
+ * (`isOwner`) and better-auth's user-create hook refuses any later user.
+ * `email` is a `<twitch sub>@users.twitch.invalid` placeholder — the owner's
+ * real email is never requested.
+ */
 export const user = sqliteTable(
   "user",
   {
@@ -17,6 +27,8 @@ export const user = sqliteTable(
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .$onUpdate(() => new Date()),
     // Dirework-specific
+    // Numeric Twitch user ID; filled from the account row after sign-up
+    // (packages/auth twitch-identity.ts), so it can be empty on older rows.
     twitchId: text("twitch_id").unique(),
     displayName: text("display_name"),
     isOwner: integer("is_owner", { mode: "boolean" }).notNull().default(false),
@@ -27,6 +39,11 @@ export const user = sqliteTable(
   ],
 );
 
+/**
+ * Better Auth sessions (30-day expiry). `ipAddress` / `userAgent` exist only
+ * because better-auth expects them: the session-create hook nulls both, and
+ * expired rows are purged at sign-in.
+ */
 export const session = sqliteTable(
   "session",
   {
@@ -49,6 +66,12 @@ export const session = sqliteTable(
   (table) => [index("session_user_id_idx").on(table.userId)],
 );
 
+/**
+ * OAuth provider links for the owner (Twitch, `accountId` = Twitch user ID).
+ * The token columns stay null: the account create/update hooks drop the
+ * owner's Twitch tokens and `scrubOwnerTokens` re-clears them at every sign-in.
+ * The bot's chat credentials live in `bot_account` (app.ts), not here.
+ */
 export const account = sqliteTable(
   "account",
   {
@@ -79,6 +102,7 @@ export const account = sqliteTable(
   ],
 );
 
+/** Better Auth's short-lived verification values (e.g. OAuth state). */
 export const verification = sqliteTable(
   "verification",
   {

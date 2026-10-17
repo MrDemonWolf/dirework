@@ -1,5 +1,7 @@
 "use client";
 
+// Theme Center font picker over the fixed, self-hosted overlay font list.
+
 import {
   Select,
   SelectContent,
@@ -12,6 +14,10 @@ import {
 import { FONT_OPTIONS } from "@/lib/overlay-font-options";
 import { FieldRow } from "./field-row";
 
+/**
+ * Font family dropdown limited to `FONT_OPTIONS`. Its id is derived from `label`, so
+ * labels must be unique within a page.
+ */
 export function FontSelect({
   label,
   value,
@@ -28,6 +34,7 @@ export function FontSelect({
       <Select
         value={value}
         onValueChange={(v) => {
+          // The callback's value can be empty/null (no selection); never save an empty font.
           if (v) onChange(v);
         }}
       >

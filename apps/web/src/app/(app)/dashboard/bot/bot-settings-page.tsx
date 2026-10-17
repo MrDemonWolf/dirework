@@ -1,5 +1,9 @@
 "use client";
 
+// Bot settings (/dashboard/bot): the bot console URL, bot account connect/disconnect, and the
+// chat command toggles, reply messages and aliases. Messages and aliases save together in one
+// owner-only mutation; the bot OAuth flow returns here with `?bot=` status params.
+
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, MonitorPlay, Unplug } from "lucide-react";
@@ -53,6 +57,7 @@ interface BotSettingsDraft {
   aliasRows: AliasRow[];
 }
 
+/** Pre-load placeholder only; replaced by the stored bot config once `config.get` resolves. */
 const INITIAL_DRAFT: BotSettingsDraft = {
   taskCommandsEnabled: true,
   timerCommandsEnabled: true,
@@ -120,7 +125,11 @@ function BotSettingsSkeleton() {
   );
 }
 
-/** Bot Console card — the browser page that IS the bot in the CF rebuild. */
+/**
+ * Bot Console card — the browser page that IS the bot in the CF rebuild. Shows the secret
+ * `/bot/<token>` URL and resets it; a reset also tries to revoke the chat token the old page
+ * was given, and the returned `chatToken` outcome picks one of the fixed toasts below.
+ */
 function BotConsoleCard({
   hasBotAccount,
   botName,
@@ -155,6 +164,7 @@ function BotConsoleCard({
 
   const botToken = ingestInfo.data?.botToken;
   const botPath = botToken ? `/bot/${botToken}` : null;
+  // `origin` is "" during SSR/hydration (useOrigin), so the Open button starts disabled.
   const botUrl = origin && botPath ? `${origin}${botPath}` : "";
   const ready = hasBotAccount && Boolean(botToken);
 
@@ -232,6 +242,10 @@ function BotConsoleCard({
   );
 }
 
+/**
+ * Page body. Holds one draft/saved pair (`BotSettingsDraft`) so per-tab dirty dots, the
+ * unsaved-changes guard and the Save bar all derive from the same comparison.
+ */
 export default function BotSettingsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -239,7 +253,8 @@ export default function BotSettingsPage() {
   const config = useQuery(trpc.config.get.queryOptions());
   const user = useQuery(trpc.user.me.queryOptions());
 
-  // Handle bot connection callback params
+  // Handle bot connection callback params (set by the api's /api/bot/callback/twitch
+  // redirect), then strip them so a refresh doesn't re-toast.
   useEffect(() => {
     const botStatus = searchParams.get("bot");
     if (botStatus === "connected") {
@@ -259,7 +274,8 @@ export default function BotSettingsPage() {
   const [draft, setDraft] = useState<BotSettingsDraft>(INITIAL_DRAFT);
   const [saved, setSaved] = useState<BotSettingsDraft>(INITIAL_DRAFT);
 
-  // Once config loads, extract values
+  // Once config loads, extract values — only the first time, so a refetch (e.g. after Save)
+  // never overwrites edits in progress.
   const initializedRef = useRef(false);
   useEffect(() => {
     if (!config.data) return;
@@ -469,6 +485,8 @@ export default function BotSettingsPage() {
                     size="sm"
                     className="bg-twitch text-white hover:bg-twitch-hover"
                     nativeButton={false}
+                    // A plain link, not next/link: /api/bot/authorize is a proxied route
+                    // handler that redirects the browser to Twitch's consent screen.
                     render={<a href="/api/bot/authorize" />}
                   >
                     <TwitchIcon className="size-3.5" />

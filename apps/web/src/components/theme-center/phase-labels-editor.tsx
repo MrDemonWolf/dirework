@@ -1,5 +1,7 @@
 "use client";
 
+// Theme Center editor for the timer overlay's per-phase label text.
+
 import type { PhaseLabelsConfig } from "@/lib/config-types";
 import { messageBudget } from "@/lib/message-budget";
 import { ByteBudget } from "@/components/byte-budget";
@@ -7,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SectionGroup } from "@/components/theme-center/section-group";
 
+// One row per timer phase, in phase order; `key` is the PhaseLabelsConfig field.
 const labelFields: {
   key: keyof PhaseLabelsConfig;
   label: string;
@@ -25,6 +28,11 @@ const labelFields: {
   { key: "finished", label: "Finished", description: "Shown when all pomos are done" },
 ];
 
+/**
+ * Controlled editor for all seven phase labels. Each label is validated server-side
+ * by `chatMessageSchema` (a UTF-8 byte cap, not characters), so the field shows the
+ * same byte budget as the chat-message editors and flags `aria-invalid` when over.
+ */
 export function PhaseLabelsEditor({
   labels,
   onChange,

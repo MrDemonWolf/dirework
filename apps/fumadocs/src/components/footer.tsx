@@ -1,6 +1,11 @@
+// Site-wide footer for the docs + marketing site, rendered once by the root layout.
+// The copyright line follows the repo's footer convention (AGENTS.md "Footer Convention"),
+// shared with the web app's footer in apps/web/src/app/(app)/layout.tsx.
+
 import Link from "next/link";
 import { BrandMark } from "@/lib/layout.shared";
 
+/** Footer nav columns: `[label, href]` pairs. External URLs go through next/link too. */
 const groups = [
   {
     title: "Product",
@@ -28,7 +33,9 @@ const groups = [
   },
 ];
 
+/** Brand blurb, link columns, copyright and legal links. */
 export function Footer() {
+  // Evaluated at build time in the static export, so the year updates on the next deploy.
   const year = new Date().getFullYear();
 
   return (
@@ -58,6 +65,7 @@ export function Footer() {
                     <li key={href}>
                       <Link
                         href={href}
+                        // min-h-11 gives each link a 44px touch target.
                         className="inline-flex min-h-11 items-center rounded-sm py-2 transition-colors hover:text-fd-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-fd-primary"
                       >
                         {label}

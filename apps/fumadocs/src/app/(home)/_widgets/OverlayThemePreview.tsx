@@ -1,5 +1,8 @@
 "use client";
 
+// Client island on the marketing home page ("Overlays" section): the only interactive part
+// of the overlay showcase. Everything here is local React state; nothing talks to an API.
+
 import { useState } from "react";
 
 import {
@@ -14,7 +17,8 @@ import { TaskListWidget } from "./TaskListWidget";
 /**
  * Interactive theme previewer: the real timer + task overlays inside a mock OBS
  * browser source, restyled live as you pick a preset. Drives both widgets from
- * OVERLAY_THEMES (generated from design-system/tokens.json).
+ * OVERLAY_THEMES (generated from design-system/tokens.json; regenerate with `bun run tokens`).
+ * The pause toggle only freezes the mock countdown in TimerOverlayWidget.
  */
 export function OverlayThemePreview() {
   const [name, setName] = useState<OverlayThemeName>(DEFAULT_OVERLAY_THEME);
@@ -33,11 +37,14 @@ export function OverlayThemePreview() {
           style={{ borderBottom: "1px solid var(--hairline)" }}
           aria-hidden="true"
         >
+          {/* Decorative window chrome (traffic-light dots + a masked overlay URL); the
+              figure's aria-label already describes the preview. */}
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#ff5f57" }} />
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#febc2e" }} />
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#28c840" }} />
           <span className="ml-2">/overlay/t/•••</span>
         </div>
+        {/* Checkerboard stands in for the transparent OBS browser-source background. */}
         <div
           className="bg-checker"
           style={{

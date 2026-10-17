@@ -1,5 +1,9 @@
 "use client";
 
+// Aliases tab of the bot settings page: an editable list of alias -> command rows. Rows hold
+// the raw input (`AliasRow`); the page converts them to the canonical, "!"-less map on save
+// via `rowsToAliases` (lib/alias-rows.ts), which also drops rows left entirely blank.
+
 import { Plus, Trash2 } from "lucide-react";
 
 import {
@@ -24,6 +28,13 @@ const ISSUE_MESSAGES: Record<AliasIssueReason, string> = {
   "unknown-target": "Unknown command — pick one of the built-in commands.",
 };
 
+/**
+ * Controlled editor for the command-alias rows. Validates on every render with the same shared
+ * validator the server runs and flags each rejected row inline, against the field at fault.
+ * `maxRows` (default 50) and the inputs' `maxLength` (50 / 100) mirror the caps in the server's
+ * `commandAliasesInput` schema. Either form ("!t" or "t") is accepted; the "!" is stripped
+ * when the rows are normalized.
+ */
 export function CommandAliasEditor({
   rows,
   onChange,

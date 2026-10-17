@@ -1,16 +1,24 @@
 "use client";
 
+// Body of the Task and Timer tabs on the bot settings page: the commands-enabled switch, a
+// read-only reference table of the chat commands, and the message-template editor.
+
 import { ConsoleRule } from "@/components/console-rule";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { MessageEditor } from "@/components/bot-settings/message-editor";
 
+/** One row of the read-only command reference table. */
 export interface CommandRow {
   command: string;
   usage: string;
   description: string;
 }
 
+/**
+ * Reference rows for the Task tab. Display-only documentation: the bot's real command parsing
+ * lives in `@dirework/api/chat-commands`, so keep this list in step with it by hand.
+ */
 export const taskCommands: CommandRow[] = [
   { command: "!task", usage: "!task [task]", description: "Add a task" },
   { command: "!done", usage: "!done or !done [#]", description: "Mark task done" },
@@ -23,6 +31,7 @@ export const taskCommands: CommandRow[] = [
   { command: "!clear", usage: "!clear all/done/@user", description: "Clear tasks (mods only)" },
 ];
 
+/** Reference rows for the Timer tab; display-only, like `taskCommands`. */
 export const timerCommands: CommandRow[] = [
   { command: "!timer start", usage: "!timer start [cycles]", description: "Start timer" },
   { command: "!timer pause", usage: "!timer pause", description: "Pause timer" },
@@ -60,6 +69,10 @@ function CommandTable({ commands, labelledBy }: { commands: CommandRow[]; labell
 /**
  * ONE tab body shared by the Task and Timer command tabs — toggle header,
  * command reference table, and the message editor (spec §5.4).
+ *
+ * Fully controlled: the switch and message edits only update the page's draft, which the
+ * page's SaveBar persists. When `enabled` is off the message fields are disabled and
+ * `disabledNote` explains why.
  */
 export function CommandTabPanel<T extends object>({
   title,

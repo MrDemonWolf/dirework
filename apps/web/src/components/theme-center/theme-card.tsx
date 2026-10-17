@@ -1,11 +1,13 @@
 "use client";
 
+// One preset tile in the Theme Center's ThemeBrowser carousel.
+
 import { Check } from "lucide-react";
 
 import type { ThemePreset } from "@/lib/config-types";
 import { cn } from "@/lib/utils";
 
-/** ~75%-full ring: r=19 → circumference 2π·19 ≈ 119.4 */
+/** ~75%-full ring: r=19 → circumference 2π·19 ≈ 119.4 (offset by 25% below). */
 const RING_R = 19;
 const RING_C = 2 * Math.PI * RING_R;
 
@@ -24,8 +26,11 @@ export function ThemeCard({
 }: {
   theme: ThemePreset;
   isActive: boolean;
+  /** Called on click; the Styles page applies the preset to its unsaved working state. */
   onApply: () => void;
+  /** Lets ThemeBrowser track which card holds the roving tab stop. */
   onFocus?: () => void;
+  /** Roving tabindex: 0 on the focused card, -1 on the rest (set by ThemeBrowser). */
   tabIndex?: number;
 }) {
   const { bg, accent, text } = theme.preview;
