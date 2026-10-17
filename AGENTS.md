@@ -429,8 +429,11 @@ implementation deleted; drive the real function instead.
 
 **All actions are SHA-pinned** (with a trailing `# vN` comment); Dependabot moves the
 pins (codeql-action init/analyze are grouped so they share one SHA). Every workflow
-declares minimal `permissions`. Dependabot's `bun` ecosystem skips `catalog:` entries,
-so catalog pins are bumped by hand.
+declares minimal `permissions`. Dependabot's `bun` ecosystem does edit the root
+`catalog` pins, but it bumps packages one at a time, so a family that must move in
+lockstep needs a Dependabot group (or a hand bump). `@trpc/*` is pinned exactly in the
+catalog and grouped as `trpc` in `.github/dependabot.yml` — `@trpc/client` requires an
+exact matching `@trpc/server`, and a lone bump leaves a nested, skewed copy.
 
 - `.github/workflows/verify.yml` — **the single verification pipeline**
   (install → dependency audit → design-token drift check → lint → check-types →

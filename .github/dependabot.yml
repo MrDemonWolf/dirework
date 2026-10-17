@@ -16,9 +16,10 @@ updates:
         patterns:
           - "github/codeql-action*"
 
-  # The bun ecosystem reads bun.lock. It skips `catalog:` entries, so catalog
-  # pins in the root package.json are bumped by hand; the scheduled audit
-  # workflow flags any that turn vulnerable.
+  # The bun ecosystem reads bun.lock and edits the root package.json catalog
+  # pins, but bumps packages one at a time — families that must move in
+  # lockstep need a group below. The scheduled audit workflow flags any pin
+  # that turns vulnerable.
   - package-ecosystem: bun
     directory: /
     schedule:
@@ -42,6 +43,12 @@ updates:
           - "wrangler"
           - "@opennextjs/*"
           - "@cloudflare/*"
+      # @trpc/client requires the exact same @trpc/server version, and
+      # @trpc/tanstack-react-query depends on both — a lone bump leaves a
+      # nested, skewed copy, so all @trpc/* packages move in one PR.
+      trpc:
+        patterns:
+          - "@trpc/*"
       react:
         patterns:
           - "react"
