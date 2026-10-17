@@ -9,7 +9,7 @@
     "catalog": {
       "dotenv": "^18.0.7",
       "zod": "^4.4.3",
-      "typescript": "^5.9.3",
+      "typescript": "^7.0.2",
       "@cloudflare/workers-types": "^4.20260702.1",
       "hono": "^4.13.7",
       "@trpc/server": "11.19.0",
