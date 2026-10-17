@@ -120,6 +120,34 @@ describe("promoteNextPending", () => {
   });
 });
 
+describe("markTaskDone guards", () => {
+  it("does not rewrite an already-done task (keeps its retention clock)", async () => {
+    const completedAt = new Date(Date.now() - 60 * 60_000);
+    await seed({ id: "d", authorTwitchId: "1", status: "done", completedAt });
+
+    expect(await markTaskDone(db, "d")).toBeNull();
+    const row = await db.query.task.findFirst({ where: (t, { eq }) => eq(t.id, "d") });
+    expect(row?.completedAt?.getTime()).toBe(completedAt.getTime());
+  });
+
+  it("still promotes when the task was promoted to active after it was read", async () => {
+    // B was pending when markTaskDone read it; removing A promoted it before
+    // the write. Completing it as "pending" would leave C stranded.
+    await seed(
+      { id: "b", authorTwitchId: "1", status: "active", order: 2 },
+      { id: "c", authorTwitchId: "1", order: 3 },
+    );
+    vi.spyOn(db.query.task, "findFirst").mockResolvedValueOnce({
+      id: "b",
+      status: "pending",
+      authorTwitchId: "1",
+    } as never);
+
+    expect((await markTaskDone(db, "b"))?.id).toBe("b");
+    expect(await statusById()).toEqual({ b: "done", c: "active" });
+  });
+});
+
 describe("createTask concurrency fallback", () => {
   it("falls back to pending when the partial unique index rejects a second active task", async () => {
     // The author already holds an active task, but this create races as if it

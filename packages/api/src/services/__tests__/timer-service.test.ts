@@ -417,6 +417,32 @@ describe("maybeAdvanceOverdueTimer (lazy read-driven transitions)", () => {
 });
 
 describe("getTimerEta bounded projection", () => {
+  it("projects the whole session for the 99-cycle maximum", async () => {
+    vi.useFakeTimers({ now: new Date("2026-01-01T00:00:00Z") });
+    try {
+      const { db } = makeDb({
+        timerState: {
+          status: "work",
+          targetEndTime: new Date(Date.now() + 60_000),
+          pausedWithRemaining: null,
+          pausedFromStatus: null,
+          currentCycle: 1,
+          totalCycles: 99,
+        },
+      });
+
+      const eta = await getTimerEta(db);
+
+      // Defaults (no config row): 25m work, 5m break, 15m long break every 4th
+      // cycle, no break after the last work block. Remaining 60s of cycle 1,
+      // then 98 work blocks, 24 long breaks (cycles 4..96) and 74 short breaks.
+      const expectedMs = 60_000 + 98 * 1_500_000 + 24 * 900_000 + 74 * 300_000;
+      expect(eta!.sessionEnd.getTime() - Date.now()).toBe(expectedMs);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("returns a TimerEta via the iteration guard when the session needs >100 transitions", async () => {
     const { db } = makeDb({
       timerState: {

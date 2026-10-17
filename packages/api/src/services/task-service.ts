@@ -221,12 +221,18 @@ export function isUniqueViolation(err: unknown): boolean {
   return false;
 }
 
-/** Mark a task done without promoting the next pending one. */
+/**
+ * Mark a pending task done (no promote needed: a pending task never held the
+ * author's active slot). Guarded on `status = 'pending'`, so it neither
+ * re-stamps an already-done task (which would reset its 24h retention) nor
+ * completes a task that was promoted to active since the caller read it —
+ * that one needs the promote batch in `markTaskDone`. Null when nothing matched.
+ */
 export async function completeTask(db: DbClient, id: string) {
   const [updated] = await db
     .update(schema.task)
     .set({ status: "done", completedAt: new Date() })
-    .where(eq(schema.task.id, id))
+    .where(and(eq(schema.task.id, id), eq(schema.task.status, "pending")))
     .returning();
   return updated ?? null;
 }
@@ -237,32 +243,45 @@ export async function completeTask(db: DbClient, id: string) {
  * momentarily left with zero active tasks and a concurrent command can't slot a
  * second task into the gap. Statement order matters: completing frees the
  * single-active slot before the promote claims it.
+ *
+ * Both writes are guarded on the status that was read. If a concurrent request
+ * changed it in between (typically: removing the active task promoted this
+ * pending one), the status is re-read once and the matching path retried.
+ * An already-done task is a no-op (null), not a rewrite.
  */
 export async function markTaskDone(db: DbClient, id: string) {
-  const [existing] = await Promise.all([
-    db.query.task.findFirst({
-      where: eq(schema.task.id, id),
-      columns: { id: true, status: true, authorTwitchId: true },
-    }),
-    purgeExpiredDoneTasks(db),
-  ]);
-  if (!existing) return null;
+  const [first] = await Promise.all([readTaskStatus(db, id), purgeExpiredDoneTasks(db)]);
+  let existing = first;
 
-  if (existing.status !== "active") {
-    return completeTask(db, existing.id);
+  for (let attempt = 0; existing && existing.status !== "done" && attempt < 2; attempt++) {
+    const done =
+      existing.status === "active"
+        ? await completeActiveTask(db, existing)
+        : await completeTask(db, existing.id);
+    if (done) return done;
+    existing = await readTaskStatus(db, id);
   }
+  return null;
+}
 
+function readTaskStatus(db: DbClient, id: string) {
+  return db.query.task.findFirst({
+    where: eq(schema.task.id, id),
+    columns: { id: true, status: true, authorTwitchId: true },
+  });
+}
+
+async function completeActiveTask(db: DbClient, task: { id: string; authorTwitchId: string }) {
   const [completedRows] = await db.batch([
     db
       .update(schema.task)
       .set({ status: "done", completedAt: new Date() })
       // Guarded: if another request already completed it, we don't double-apply
       // and the paired promote is a no-op via its own not-exists guard.
-      .where(and(eq(schema.task.id, existing.id), eq(schema.task.status, "active")))
+      .where(and(eq(schema.task.id, task.id), eq(schema.task.status, "active")))
       .returning(),
-    promoteNextPendingStmt(db, existing.authorTwitchId),
+    promoteNextPendingStmt(db, task.authorTwitchId),
   ]);
-
   return completedRows[0] ?? null;
 }
 
