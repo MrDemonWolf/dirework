@@ -31,8 +31,6 @@ function initOrama() {
 /** Fumadocs search dialog wired to the static Orama index; props come from RootProvider. */
 export default function DefaultSearchDialog(props: SharedProps) {
   const { locale } = useI18n(); // (optional) for i18n
-  // `from` is left at Fumadocs' default ("/api/search"), which does not include the
-  // NEXT_PUBLIC_BASE_PATH used for a GitHub Pages project-path deploy.
   const { search, setSearch, query } = useDocsSearch({
     type: "static",
     // The static index is exported under next.config's basePath, which the

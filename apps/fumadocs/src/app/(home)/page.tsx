@@ -21,8 +21,8 @@ import "./marketing.css";
 const GITHUB = "https://github.com/mrdemonwolf/dirework";
 
 /**
- * Home-page metadata; overrides the root layout's default description. The title still goes
- * through the root layout's `%s | DireWork` template.
+ * Home-page metadata; overrides the root layout's default description. The title is
+ * absolute, bypassing the root layout's `%s | DireWork` template.
  */
 export const metadata: Metadata = {
   // absolute: the layout's "%s | DireWork" template would repeat the brand.
