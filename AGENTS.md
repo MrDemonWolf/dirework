@@ -435,6 +435,14 @@ lockstep needs a Dependabot group (or a hand bump). `@trpc/*` is pinned exactly 
 catalog and grouped as `trpc` in `.github/dependabot.yml` — `@trpc/client` requires an
 exact matching `@trpc/server`, and a lone bump leaves a nested, skewed copy.
 
+`@opennextjs/cloudflare` is pinned to exactly `1.20.9` (apps/web). From 1.20.10 on it
+pulls `@opennextjs/aws` ≥4.1.9 → `@node-minify/core@9.0.2`, which pins `glob@10.3.3`
+(high advisory GHSA-5j98-mcp5-4vw2, fixed in 10.5.0) and fails `bun audit`. Bun 1.3.x
+(the CI pin) ignores nested `overrides`, and a top-level `glob` override would force
+OpenNext's own `glob@^13` down to 10, so there is no safe override. Unpin once an
+upstream release drops that glob, or once CI moves to a Bun that honours nested
+overrides (`"@node-minify/core": { "glob": "10.5.0" }` works on Bun 1.4).
+
 - `.github/workflows/verify.yml` — **the single verification pipeline**
   (install → dependency audit → design-token drift check → lint → check-types →
   test:coverage → build), called via `workflow_call`. CI and deploy both use it, so the
