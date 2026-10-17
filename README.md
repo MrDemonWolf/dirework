@@ -111,7 +111,7 @@ link can use it until you regenerate the corresponding token.
 
 | Layer     | Technology                                          |
 | --------- | --------------------------------------------------- |
-| Framework | Next.js 16 (App Router), React 19, TypeScript 5     |
+| Framework | Next.js 16 (App Router), React 19, TypeScript 7     |
 | Styling   | Tailwind CSS v4, shadcn/ui                          |
 | API       | Hono + tRPC v11, TanStack React Query               |
 | Auth      | Better Auth (Twitch OAuth)                          |

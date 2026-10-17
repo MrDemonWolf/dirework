@@ -178,7 +178,7 @@ bundle zod); types still come from `config-shared`.
 - **Tailwind CSS v4** + shadcn/ui (base-lyra) + Lucide icons
 - **Alchemy** infrastructure-as-code; **GitHub Actions** CI/CD
 - **Fumadocs** with Orama search
-- **TypeScript 5** strict everywhere; **Vitest** for tests
+- **TypeScript 7** (native `tsc`) strict everywhere; **Vitest** for tests
 
 ## Code Patterns
 
