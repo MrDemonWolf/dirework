@@ -221,6 +221,49 @@ describe("TwitchIrcClient connection", () => {
     expect(old.onclose).toBeNull();
   });
 
+  it("no-ops a superseded socket's handlers even if they still fire after a reconnect", () => {
+    // closeSocket nulls the old handlers, but a browser can already have
+    // queued an event against the original closures. Capture them before the
+    // reconnect so the `gen !== this.generation` guards are what's exercised.
+    const onChat = vi.fn();
+    const onError = vi.fn();
+    const onStatus = vi.fn();
+    const { client, ws: old } = connected({ onChat, onError, onStatus });
+    const staleOpen = old.onopen;
+    const staleMessage = old.onmessage;
+    const staleClose = old.onclose;
+    const staleError = old.onerror;
+
+    old.receive(":tmi.twitch.tv RECONNECT");
+    const fresh = latestSocket();
+    expect(fresh).not.toBe(old);
+    fresh.open();
+    fresh.receive(":tmi.twitch.tv 001 direbot :Welcome");
+    expect(client.getStatus()).toBe("connected");
+    const statusCalls = onStatus.mock.calls.length;
+    const freshSent = fresh.sent.length;
+    const oldSent = old.sent.length;
+
+    staleMessage?.({
+      data: ":viewer!viewer@viewer.tmi.twitch.tv PRIVMSG #streamer :!task stale\r\nPING :tmi.twitch.tv\r\n",
+    });
+    staleOpen?.();
+    staleError?.();
+    staleClose?.();
+    // Long enough for any reconnect a stale onclose could schedule (the first
+    // backoff is 1s), short of the 60s liveness tick on the fresh socket.
+    vi.advanceTimersByTime(30_000);
+
+    expect(FakeWebSocket.instances).toHaveLength(2);
+    expect(client.getStatus()).toBe("connected");
+    expect(onStatus).toHaveBeenCalledTimes(statusCalls);
+    expect(onChat).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    // No PONG / PASS / NICK went out on either socket from the stale handlers.
+    expect(old.sent).toHaveLength(oldSent);
+    expect(fresh.sent).toHaveLength(freshSent);
+  });
+
   it("does not reconnect after an intentional disconnect or dispose", () => {
     const { client, ws } = connected();
     client.dispose();

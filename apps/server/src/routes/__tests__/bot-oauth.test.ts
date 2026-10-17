@@ -237,6 +237,131 @@ describe("GET /callback/twitch", () => {
     expect(res.headers.get("location")).not.toContain("bot-access");
   });
 
+  function loggedMetrics() {
+    return vi
+      .mocked(console.log)
+      .mock.calls.map((call) => JSON.parse(String(call[0])) as Record<string, unknown>);
+  }
+
+  function timeoutError(): Error {
+    const err = new Error("The operation was aborted due to timeout: https://id.twitch.tv?code=c");
+    err.name = "TimeoutError";
+    return err;
+  }
+
+  it("maps a token-exchange timeout to token_unavailable with an upstream.timeout metric", async () => {
+    mocks.getSession.mockResolvedValue(owner);
+    fetchMock.mockRejectedValueOnce(timeoutError());
+
+    const res = await callback({ code: "c", state: state({ userId: "owner-1", nonce: NONCE }) });
+
+    expect(redirectReason(res)).toBe("token_unavailable");
+    expectNonceCleared(res);
+    expect(loggedMetrics()).toContainEqual(
+      expect.objectContaining({ metric: "upstream.timeout", label: "token_exchange" }),
+    );
+    // The Helix lookup is never attempted and no bot account is written.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(mocks.values).not.toHaveBeenCalled();
+    expect(mocks.upsert).not.toHaveBeenCalled();
+    // recordError logs the error name only, never the message carrying the URL.
+    const errors = vi.mocked(console.error).mock.calls.map((call) => String(call[0]));
+    expect(errors).toContainEqual(expect.stringContaining('"name":"TimeoutError"'));
+    expect(errors.join("\n")).not.toContain("code=c");
+  });
+
+  it("maps a non-timeout network failure on token exchange to oauth.failure, not upstream.timeout", async () => {
+    mocks.getSession.mockResolvedValue(owner);
+    fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+
+    const res = await callback({ code: "c", state: state({ userId: "owner-1", nonce: NONCE }) });
+
+    expect(redirectReason(res)).toBe("token_unavailable");
+    const metrics = loggedMetrics();
+    expect(metrics).toContainEqual(
+      expect.objectContaining({ metric: "oauth.failure", label: "token_exchange" }),
+    );
+    expect(metrics).not.toContainEqual(expect.objectContaining({ metric: "upstream.timeout" }));
+    expect(mocks.upsert).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-JSON token response as invalid_token_response and writes nothing", async () => {
+    mocks.getSession.mockResolvedValue(owner);
+    fetchMock.mockResolvedValueOnce(
+      new Response("<html>gateway</html>", {
+        status: 200,
+        headers: { "content-type": "text/html" },
+      }),
+    );
+
+    const res = await callback({ code: "c", state: state({ userId: "owner-1", nonce: NONCE }) });
+
+    expect(redirectReason(res)).toBe("invalid_token_response");
+    expect(loggedMetrics()).toContainEqual(
+      expect.objectContaining({ metric: "oauth.failure", label: "invalid_token_response" }),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(mocks.upsert).not.toHaveBeenCalled();
+  });
+
+  function stubTokenSuccess() {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({
+        access_token: "bot-access",
+        refresh_token: "bot-refresh",
+        expires_in: 3600,
+        token_type: "bearer",
+      }),
+    );
+  }
+
+  it("maps a Helix user-lookup timeout to user_unavailable", async () => {
+    mocks.getSession.mockResolvedValue(owner);
+    stubTokenSuccess();
+    fetchMock.mockRejectedValueOnce(timeoutError());
+
+    const res = await callback({ code: "c", state: state({ userId: "owner-1", nonce: NONCE }) });
+
+    expect(redirectReason(res)).toBe("user_unavailable");
+    expect(loggedMetrics()).toContainEqual(
+      expect.objectContaining({ metric: "upstream.timeout", label: "user_lookup" }),
+    );
+    expect(mocks.upsert).not.toHaveBeenCalled();
+  });
+
+  it("maps a non-ok Helix user lookup to user_lookup_failed by status only", async () => {
+    mocks.getSession.mockResolvedValue(owner);
+    stubTokenSuccess();
+    fetchMock.mockResolvedValueOnce(new Response("bearer bot-access rejected", { status: 401 }));
+
+    const res = await callback({ code: "c", state: state({ userId: "owner-1", nonce: NONCE }) });
+
+    expect(redirectReason(res)).toBe("user_lookup_failed");
+    expect(loggedMetrics()).toContainEqual(
+      expect.objectContaining({ metric: "oauth.failure", label: "user_lookup_401" }),
+    );
+    expect(mocks.upsert).not.toHaveBeenCalled();
+    expect(res.headers.get("location")).not.toContain("bot-access");
+  });
+
+  it.each([
+    ["a non-JSON body", () => new Response("not json", { status: 200 })],
+    ["an empty data array", () => Response.json({ data: [] })],
+    ["a user missing its login", () => Response.json({ data: [{ id: "42" }] })],
+  ])("rejects a Helix user response with %s as invalid_user_response", async (_label, body) => {
+    mocks.getSession.mockResolvedValue(owner);
+    stubTokenSuccess();
+    fetchMock.mockResolvedValueOnce(body());
+
+    const res = await callback({ code: "c", state: state({ userId: "owner-1", nonce: NONCE }) });
+
+    expect(redirectReason(res)).toBe("invalid_user_response");
+    expect(loggedMetrics()).toContainEqual(
+      expect.objectContaining({ metric: "oauth.failure", label: "invalid_user_response" }),
+    );
+    expect(mocks.upsert).not.toHaveBeenCalled();
+  });
+
   it("redacts a failed upsert: name only, never the statement carrying tokens", async () => {
     mocks.getSession.mockResolvedValue(owner);
     stubTwitchSuccess();

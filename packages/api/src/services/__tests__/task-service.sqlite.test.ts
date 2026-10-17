@@ -11,6 +11,7 @@ import {
   DONE_TASK_RETENTION_MS,
   clearDoneTasks,
   createTask,
+  findActiveTaskByUsername,
   isUniqueViolation,
   listOverlayTasks,
   listTasks,
@@ -482,5 +483,25 @@ describe("restoreTask (dashboard undo of a removal)", () => {
     const rows = await db.query.task.findMany();
     expect(rows).toHaveLength(1);
     expect(rows[0]?.text).toBe("original");
+  });
+});
+
+describe("findActiveTaskByUsername", () => {
+  it("matches the author's active task case-insensitively and ignores non-active rows", async () => {
+    await seed(
+      { id: "p", authorTwitchId: "1", authorUsername: "MixedCase", status: "pending" },
+      { id: "a", authorTwitchId: "1", authorUsername: "MixedCase", status: "active" },
+      { id: "o", authorTwitchId: "2", authorUsername: "other", status: "active" },
+    );
+
+    expect((await findActiveTaskByUsername(db, "mixedcase"))?.id).toBe("a");
+    expect((await findActiveTaskByUsername(db, "MIXEDCASE"))?.id).toBe("a");
+  });
+
+  it("returns null when the author has no active task", async () => {
+    await seed({ id: "p", authorTwitchId: "1", authorUsername: "viewer", status: "pending" });
+
+    expect(await findActiveTaskByUsername(db, "Viewer")).toBeNull();
+    expect(await findActiveTaskByUsername(db, "nobody")).toBeNull();
   });
 });
