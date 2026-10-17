@@ -29,6 +29,17 @@ export const AUTHOR_HEADER_TINT_PERCENT = 6;
 export const AUTHOR_COUNT_OPACITY = 0.8;
 export const HEADER_COUNT_OPACITY = 0.8;
 
+/**
+ * Path of an OBS overlay page for a token, or null while the token is missing
+ * (not loaded yet, or `user.me` found no instance row). Null keeps
+ * `SecretUrlRow` masked and disabled; interpolating the token directly would
+ * offer a copyable `/overlay/t/null`.
+ */
+export function overlayPath(kind: "timer" | "tasks", token: string | null | undefined) {
+  if (!token) return null;
+  return `/overlay/${kind === "timer" ? "t" : "l"}/${token}`;
+}
+
 /** A valid instance whose timer has never run (no state row yet). */
 const IDLE_TIMER_STATE: TimerState = {
   status: "idle",

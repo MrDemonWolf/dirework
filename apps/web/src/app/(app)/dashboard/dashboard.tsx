@@ -16,6 +16,7 @@ import { ConsoleRule } from "@/components/console-rule";
 import { DashboardSkeleton } from "@/components/dashboard-skeleton";
 import { QueryError } from "@/components/query-error";
 import { SecretUrlRow } from "@/components/secret-url-row";
+import { overlayPath } from "@/lib/overlay-view";
 import { StatusChip } from "@/components/status-chip";
 import { TaskManager } from "@/components/task-manager";
 import { TimerProvider, TimerInstrument, TimerSettings } from "@/components/timer-controls";
@@ -169,8 +170,8 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
     );
   }
 
-  const timerToken = me.overlayTimerToken;
-  const tasksToken = me.overlayTasksToken;
+  const timerPath = overlayPath("timer", me.overlayTimerToken);
+  const tasksPath = overlayPath("tasks", me.overlayTasksToken);
   const botAccount = me.botAccount ?? null;
 
   return (
@@ -219,7 +220,7 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
               <div className="w-full lg:w-72 lg:shrink-0 lg:border-l lg:border-border/40 lg:pl-6">
                 <OverlayMonitor
                   label="Timer preview"
-                  src={timerToken ? `/overlay/t/${timerToken}` : null}
+                  src={timerPath}
                   title="Timer overlay preview"
                   show={showTimerPreview}
                   onToggle={setShowTimerPreview}
@@ -237,7 +238,7 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
             </ConsoleRule>
             <SecretUrlRow
               label="Timer overlay"
-              path={`/overlay/t/${timerToken}`}
+              path={timerPath}
               onRegenerate={() => regenerateToken.mutate({ type: "timer" })}
               regenerating={regenerateToken.isPending}
               resetDescription={OVERLAY_RESET_DESCRIPTION}
@@ -256,7 +257,7 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
             preview={
               <OverlayMonitor
                 label="Tasks preview"
-                src={tasksToken ? `/overlay/l/${tasksToken}` : null}
+                src={tasksPath}
                 title="Task list overlay preview"
                 show={showTasksPreview}
                 onToggle={setShowTasksPreview}
@@ -274,7 +275,7 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
             </ConsoleRule>
             <SecretUrlRow
               label="Tasks overlay"
-              path={`/overlay/l/${tasksToken}`}
+              path={tasksPath}
               onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
               regenerating={regenerateToken.isPending}
               resetDescription={OVERLAY_RESET_DESCRIPTION}

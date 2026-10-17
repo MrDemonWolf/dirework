@@ -231,8 +231,9 @@ function BotConsoleCard({
             <div className="panel-inset flex items-start gap-2.5 p-3">
               <MonitorPlay className="mt-0.5 size-4 shrink-0 text-primary" />
               <p className="text-xs/relaxed text-muted-foreground">
-                Add the URL as an OBS browser source or keep the tab pinned — the bot listens while
-                this page is open. The URL contains a secret token, so treat it like a stream key.
+                Add the URL as an OBS browser source (recommended size 400×200) or keep the tab
+                pinned — the bot listens while the bot page is open. The URL contains a secret
+                token, so treat it like a stream key.
               </p>
             </div>
           </>

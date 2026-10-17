@@ -4,18 +4,14 @@
 // Theme Center preview: phase label, countdown digits, cycle counter and an optional
 // circle or rounded-rect progress ring. Pure presentation — no fetching.
 
-import {
-  TIMER_CONFIG_DEFAULTS,
-  type PhaseLabelsConfig,
-  type TimerStylesConfig,
-} from "@/lib/config-types";
+import type { PhaseLabelsConfig, TimerStylesConfig } from "@/lib/config-types";
 import {
   type TimerState,
   colorWithOpacity,
   cssLengthToPx,
   formatTime,
+  phaseTotalMs,
   quoteFontFamily,
-  resolvePhaseDuration,
   roundedRectPath,
   roundedRectPerimeter,
 } from "@/lib/timer-utils";
@@ -152,7 +148,8 @@ function ProgressRing({
  * Renders one timer frame at the fixed pixel size in `config.dimensions` (callers wrap
  * it in `<AutoScale>` to fit the OBS source). Counts down locally from
  * `state.targetEndTime` via `useTimerCountdown`. `totalDuration` is the configured
- * length of the current phase: it scales the ring and, while idle, is the time shown.
+ * length of the current phase: it scales the ring and, while idle, is the time shown
+ * (without it, both fall back to the canonical defaults via `phaseTotalMs`).
  * In the overlay, style values have passed the server's CSS allowlist schemas on save;
  * the Theme Center preview passes the owner's unsaved edits.
  */
@@ -167,11 +164,16 @@ export function TimerDisplay({
 }) {
   const remaining = useTimerCountdown(state) ?? 0;
 
-  // Idle timer isn't counting — show the configured phase length (fed as
-  // totalDuration) so the widget reads full during stream setup instead of
-  // blanking out. Previously idle rendered nothing at all.
+  // Ring progress measures against the full phase length — a paused timer
+  // against the phase it froze in (phaseTotalMs / resolvePhaseDuration own that
+  // branch), falling back to the canonical defaults without a caller-provided
+  // totalDuration.
+  const total = phaseTotalMs(state, totalDuration);
+
+  // Idle timer isn't counting — show the phase length with a full ring so the
+  // widget reads full during stream setup instead of blanking out.
   const isIdle = state.status === "idle";
-  const displayMs = isIdle ? (totalDuration ?? 0) : remaining;
+  const displayMs = isIdle ? total : remaining;
 
   const { hours, minutes, seconds } = formatTime(displayMs, config.showHours);
   const timeDisplay = config.showHours ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
@@ -183,14 +185,6 @@ export function TimerDisplay({
 
   const label = config.labels[state.status];
 
-  // Calculate progress for the ring — a paused timer measures against the
-  // phase it froze in, not the "paused" status itself (resolvePhaseDuration owns
-  // that branch). Without a caller-provided totalDuration, fall back to the
-  // canonical phase defaults. Idle shows a full ring.
-  const total =
-    totalDuration ??
-    resolvePhaseDuration(state.status, state.pausedFromStatus, TIMER_CONFIG_DEFAULTS) ??
-    TIMER_CONFIG_DEFAULTS.workDuration;
   const progress = isIdle ? 1 : total > 0 ? remaining / total : 0;
 
   // SVG ring geometry needs px. Layout-relative sizes (%, vw/vh) can't be

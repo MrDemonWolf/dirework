@@ -21,11 +21,12 @@ import "./marketing.css";
 const GITHUB = "https://github.com/mrdemonwolf/dirework";
 
 /**
- * Home-page metadata; overrides the root layout's default description. The title still goes
- * through the root layout's `%s | DireWork` template.
+ * Home-page metadata; overrides the root layout's default description. The title is
+ * absolute, bypassing the root layout's `%s | DireWork` template.
  */
 export const metadata: Metadata = {
-  title: "DireWork — A focus room for your Twitch stream",
+  // absolute: the layout's "%s | DireWork" template would repeat the brand.
+  title: { absolute: "DireWork — A focus room for your Twitch stream" },
   description:
     "Bring your Twitch community into the same focus session. A self-hosted Pomodoro timer, viewer task lists, and customizable OBS overlays. Free and open source.",
   alternates: { canonical: "/" },

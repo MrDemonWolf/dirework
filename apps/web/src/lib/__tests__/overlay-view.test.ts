@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { DEFAULT_PHASE_LABELS } from "../config-types";
-import { taskOverlayView, timerOverlayView } from "../overlay-view";
+import { overlayPath, taskOverlayView, timerOverlayView } from "../overlay-view";
 import { defaultTaskStyles, defaultTimerStyles } from "../theme-presets";
 
 const timerConfig = {
@@ -64,5 +64,18 @@ describe("taskOverlayView", () => {
     const view = taskOverlayView({ tasks: [], counts, taskStyles: null });
 
     expect(view).toEqual({ config: defaultTaskStyles, tasks: [], counts });
+  });
+});
+
+describe("overlayPath", () => {
+  it("builds the timer and task overlay paths", () => {
+    expect(overlayPath("timer", "abc")).toBe("/overlay/t/abc");
+    expect(overlayPath("tasks", "abc")).toBe("/overlay/l/abc");
+  });
+
+  it("returns null without a token instead of /overlay/t/null", () => {
+    expect(overlayPath("timer", null)).toBeNull();
+    expect(overlayPath("tasks", undefined)).toBeNull();
+    expect(overlayPath("timer", "")).toBeNull();
   });
 });

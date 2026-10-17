@@ -6,10 +6,12 @@ import {
   formatTime,
   formatClock,
   msUntilNextSecond,
+  phaseTotalMs,
   remainingFromState,
   resolvePhaseDuration,
   roundedRectPath,
 } from "../timer-utils";
+import { TIMER_CONFIG_DEFAULTS } from "../config-types";
 
 const baseState = { currentCycle: 1, totalCycles: 4 };
 
@@ -253,5 +255,24 @@ describe("roundedRectPath", () => {
     const path = roundedRectPath(0, 0, 100, 100, 0);
     // Arc radius should be 0
     expect(path).toContain("A 0 0");
+  });
+});
+
+describe("phaseTotalMs", () => {
+  it("uses the caller's configured length when given", () => {
+    expect(phaseTotalMs({ status: "break", pausedFromStatus: null }, 7_000)).toBe(7_000);
+  });
+
+  it("falls back to the default work length for idle without a config", () => {
+    // Regression: idle without a timer_config row drew a full ring over 00:00.
+    expect(phaseTotalMs({ status: "idle", pausedFromStatus: null }, undefined)).toBe(
+      TIMER_CONFIG_DEFAULTS.workDuration,
+    );
+  });
+
+  it("measures a paused timer against the phase it froze in", () => {
+    expect(phaseTotalMs({ status: "paused", pausedFromStatus: "break" }, undefined)).toBe(
+      TIMER_CONFIG_DEFAULTS.breakDuration,
+    );
   });
 });
