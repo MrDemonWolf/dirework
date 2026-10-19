@@ -21,7 +21,7 @@ vi.mock("@dirework/db", async (importOriginal) => ({
 }));
 
 import { DEV_LOGIN_SECRET_HEADER } from "../dev-login";
-import { createAuth, twitchPlaceholderEmail } from "../index";
+import { createAuth, DISABLED_AUTH_PATHS, twitchPlaceholderEmail } from "../index";
 
 const ORIGIN = "http://localhost:3001";
 /** Matches DEV_LOGIN_SECRET in stubs/cloudflare-workers.ts. */
@@ -45,13 +45,15 @@ function post(path: string, body?: unknown, headers: Record<string, string> = {}
   );
 }
 
+/** The provisioning source better-auth 1.7 passes for a Twitch OAuth sign-in. */
+const TWITCH_SOURCE = { method: "oauth", oauth: { providerId: "twitch" } } as const;
+
 async function createOwner() {
   const ctx = await createAuth().$context;
-  const owner = await ctx.internalAdapter.createUser({
-    name: "Streamer",
-    email: "streamer@example.test",
-    emailVerified: true,
-  });
+  const owner = await ctx.internalAdapter.createUser(
+    { name: "Streamer", email: "streamer@example.test", emailVerified: true },
+    TWITCH_SOURCE,
+  );
   await ctx.internalAdapter.createAccount({
     userId: owner.id,
     providerId: "twitch",
@@ -70,7 +72,10 @@ describe("createAuth: single-owner claim", () => {
   it("refuses to create a second user", async () => {
     const { ctx } = await createOwner();
     await expect(
-      ctx.internalAdapter.createUser({ name: "Intruder", email: "intruder@example.test" }),
+      ctx.internalAdapter.createUser(
+        { name: "Intruder", email: "intruder@example.test" },
+        TWITCH_SOURCE,
+      ),
     ).rejects.toThrow(/instance_claimed/);
     expect(await db.select().from(schema.user)).toHaveLength(1);
   });
@@ -92,6 +97,120 @@ describe("createAuth: single-owner claim", () => {
     const accounts = await db.select({ accountId: schema.account.accountId }).from(schema.account);
     expect(accounts.map((a) => a.accountId)).toEqual(["111"]);
     expect(await db.select().from(schema.session)).toHaveLength(0);
+  });
+});
+
+/** An unsigned id_token: Twitch's getUserInfo only decodes it (no signature check). */
+function fakeIdToken(claims: Record<string, unknown>) {
+  const b64 = (v: unknown) => Buffer.from(JSON.stringify(v)).toString("base64url");
+  return `${b64({ alg: "none", typ: "JWT" })}.${b64(claims)}.`;
+}
+
+/**
+ * Drives the real Twitch OAuth round trip: /sign-in/social mints the state,
+ * then /callback/twitch exchanges a code (Twitch's token endpoint is stubbed)
+ * for an id_token naming `sub`. Returns the callback response (a redirect).
+ */
+async function twitchSignIn(sub: string) {
+  const start = await post("/sign-in/social", {
+    provider: "twitch",
+    callbackURL: "/dashboard",
+    errorCallbackURL: "/",
+    disableRedirect: true,
+  });
+  const { url } = (await start.json()) as { url: string };
+  const state = new URL(url).searchParams.get("state") ?? "";
+  const cookie = start.headers
+    .getSetCookie()
+    .map((c) => c.split(";")[0])
+    .join("; ");
+
+  const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const target = input instanceof Request ? input.url : String(input);
+    if (target !== "https://id.twitch.tv/oauth2/token")
+      throw new Error(`unexpected fetch ${target}`);
+    return Response.json({
+      access_token: "owner-access",
+      refresh_token: "owner-refresh",
+      expires_in: 3600,
+      token_type: "bearer",
+      scope: ["openid"],
+      id_token: fakeIdToken({ sub, preferred_username: `user${sub}` }),
+    });
+  });
+  try {
+    return await createAuth().handler(
+      new Request(`${ORIGIN}/api/auth/callback/twitch?code=test-code&state=${state}`, {
+        headers: { cookie, "user-agent": "Test Browser/1.0", "x-forwarded-for": "203.0.113.9" },
+      }),
+    );
+  } finally {
+    fetchSpy.mockRestore();
+  }
+}
+
+describe("createAuth: Twitch OAuth callback", () => {
+  it("claims the instance on the first sign-in without storing tokens, IP or user agent", async () => {
+    const res = await twitchSignIn("111");
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/dashboard");
+    const sessionCookie = res.headers.getSetCookie().find((c) => /session_token=[^;]/.test(c));
+    expect(sessionCookie).toBeDefined();
+    expect(sessionCookie).toMatch(/HttpOnly/i);
+    expect(sessionCookie).toMatch(/Secure/i);
+    expect(sessionCookie).toMatch(/SameSite=Lax/i);
+    expect(sessionCookie).not.toMatch(/Domain=/i);
+
+    const users = await db.select().from(schema.user);
+    expect(users).toHaveLength(1);
+    expect(users[0]).toMatchObject({
+      isOwner: true,
+      twitchId: "111",
+      email: twitchPlaceholderEmail("111"),
+    });
+    const accounts = await db.select().from(schema.account);
+    expect(accounts).toHaveLength(1);
+    expect(accounts[0]).toMatchObject({
+      providerId: "twitch",
+      accountId: "111",
+      accessToken: null,
+      refreshToken: null,
+      idToken: null,
+    });
+    const sessions = await db.select().from(schema.session);
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]).toMatchObject({ ipAddress: null, userAgent: null });
+    const days = (sessions[0]!.expiresAt.getTime() - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(29.9);
+    expect(days).toBeLessThanOrEqual(30);
+  });
+
+  it("lets the owner sign in again without storing the refreshed tokens", async () => {
+    await twitchSignIn("111");
+    const res = await twitchSignIn("111");
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/dashboard");
+    expect(await db.select().from(schema.user)).toHaveLength(1);
+    const accounts = await db.select().from(schema.account);
+    expect(accounts).toHaveLength(1);
+    expect(accounts[0]).toMatchObject({ accessToken: null, refreshToken: null, idToken: null });
+    expect(await db.select().from(schema.session)).toHaveLength(2);
+  });
+
+  it("redirects a second Twitch account to ?error=instance_claimed and creates nothing", async () => {
+    await twitchSignIn("111");
+    const res = await twitchSignIn("999");
+
+    expect(res.status).toBe(302);
+    const location = new URL(res.headers.get("location") ?? "", ORIGIN);
+    expect(location.pathname).toBe("/");
+    expect(location.searchParams.get("error")).toBe("instance_claimed");
+    expect(res.headers.getSetCookie().some((c) => /session_token=[^;]/.test(c))).toBe(false);
+    expect(await db.select().from(schema.user)).toHaveLength(1);
+    expect((await db.select().from(schema.account)).map((a) => a.accountId)).toEqual(["111"]);
+    expect(await db.select().from(schema.session)).toHaveLength(1);
   });
 });
 
@@ -132,7 +251,7 @@ describe("createAuth: Twitch provider", () => {
     const claims = JSON.parse(new URL(url).searchParams.get("claims") ?? "{}") as {
       id_token?: Record<string, null>;
     };
-    // better-auth 1.6 always merges email/email_verified in (the privacy policy
+    // better-auth (1.6, still in 1.7) always merges email/email_verified in (the privacy policy
     // says so). If this ever drops them, update the policy and the comment in
     // createAuth — the configured claims would then be the whole request.
     expect(Object.keys(claims.id_token ?? {}).sort()).toEqual(
@@ -169,6 +288,27 @@ describe("createAuth: endpoint surface", () => {
       expect(res.status).toBe(404);
     },
   );
+
+  it("routes only the endpoints Dirework reviewed (a better-auth bump adding one fails here)", () => {
+    const routed = Object.values(createAuth().api as Record<string, { path?: string }>)
+      .map((endpoint) => endpoint.path)
+      .filter((path): path is string => !!path && !DISABLED_AUTH_PATHS.includes(path));
+    // If this fails after a dependency bump, decide for each new path whether
+    // Dirework uses it; add every unused one to DISABLED_AUTH_PATHS.
+    expect([...new Set(routed)].sort()).toEqual([
+      "/callback/:id",
+      "/error",
+      "/get-session",
+      "/list-sessions",
+      "/ok",
+      "/reset-password/:token",
+      "/revoke-other-sessions",
+      "/revoke-session",
+      "/revoke-sessions",
+      "/sign-in/social",
+      "/sign-out",
+    ]);
+  });
 });
 
 describe("createAuth: dev-login gate", () => {

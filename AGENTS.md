@@ -403,8 +403,12 @@ config-types, rate-limiter, irc-client, irc-sanitize, server-session, trpc-error
 api-origin, auth-proxy, bot-session, alias-rows), `apps/server/src/lib/__tests__/` (logger
 redaction), `packages/auth/src/__tests__/has-owner.test.ts`,
 `packages/auth/src/__tests__/create-auth.test.ts` (drives the REAL `createAuth()`: owner
-claim, linking refused, owner tokens dropped, openid-only scope, disabled paths,
-`DEV_LOGIN` gate, session IP/UA and expired-session purge),
+claim, linking refused, owner tokens dropped, openid-only scope, disabled paths plus a
+pinned list of every still-routed endpoint (a better-auth bump that adds a route fails
+there), the full Twitch OAuth callback with a stubbed token endpoint (first sign-in
+claims; a second account redirects to `?error=instance_claimed` — the hook's APIError
+must carry `code`, better-auth ≥1.7 reads `body.code`), `DEV_LOGIN` gate, session IP/UA
+and expired-session purge),
 `packages/db/src/migrations/__tests__/` (data migrations run in sql.js).
 `packages/auth/vitest.config.ts` aliases `cloudflare:workers` to a stub, and
 `packages/auth/src/__tests__/stubs/test-db.ts` gives real drizzle over sql.js with every

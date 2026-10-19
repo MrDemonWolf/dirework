@@ -33,6 +33,9 @@ export function devLoginSecretMatches(expected: string | undefined, presented: s
   return diff === 0;
 }
 
+/** Provisioning method this plugin reports to better-auth's createUser. */
+export const DEV_LOGIN_METHOD = "dev-login";
+
 /** Fixed identity used only when the local DB has no owner yet. */
 const DEV_USER = {
   email: "dev@localhost",
@@ -66,7 +69,12 @@ export function devLoginPlugin(secret: string | undefined): BetterAuthPlugin {
 
         // Single-user instance — the sole existing user IS the owner.
         const [owner] = await adapter.listUsers(1, 0);
-        const user = owner ?? (await adapter.createUser({ ...DEV_USER }));
+        // better-auth 1.7 requires the provisioning source on createUser (it
+        // feeds the optional `user.validateUserInfo` gate). The method union is
+        // open for plugins, so this one names itself. The user-create hook
+        // (claimInstance) still runs either way.
+        const user =
+          owner ?? (await adapter.createUser({ ...DEV_USER }, { method: DEV_LOGIN_METHOD }));
 
         if (!user) {
           throw new APIError("INTERNAL_SERVER_ERROR", {
