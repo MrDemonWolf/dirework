@@ -100,6 +100,19 @@ describe("workflow supply-chain controls", () => {
     expect(readWorkflow("verify.yml")).toContain("build:worker");
   });
 
+  it("ignores exactly one audited advisory, nothing broader", () => {
+    const rootPackage = JSON.parse(readFileSync(`${repoRoot}/package.json`, "utf8")) as {
+      scripts?: Record<string, string>;
+    };
+    const audit = rootPackage.scripts?.["audit:dependencies"] ?? "";
+    // GHSA-5j98-mcp5-4vw2 is the glob CLI's -c/--cmd injection; the build-time
+    // glob@10.3.3 (via @node-minify/core) is only used as a library. See AGENTS.md.
+    expect([...audit.matchAll(/--ignore=(\S+)/g)].map(([, id]) => id)).toEqual([
+      "GHSA-5j98-mcp5-4vw2",
+    ]);
+    expect(audit).toContain("--audit-level=high");
+  });
+
   it("boots the built web Worker before anything can deploy it", () => {
     const webPackage = JSON.parse(readFileSync(`${repoRoot}/apps/web/package.json`, "utf8")) as {
       scripts?: Record<string, string>;
