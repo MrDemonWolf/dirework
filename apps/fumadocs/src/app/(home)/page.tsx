@@ -4,16 +4,8 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  ArrowDown,
-  ArrowRight,
-  Check,
-  Github,
-  MessageSquare,
-  Monitor,
-  Radio,
-  Timer,
-} from "lucide-react";
+import { ArrowDown, ArrowRight, Check, MessageSquare, Monitor, Radio, Timer } from "lucide-react";
+import { GithubIcon } from "@/components/icons/github-icon";
 import { ChatCommandWidget } from "./_widgets/ChatCommandWidget";
 import { OverlayThemePreview } from "./_widgets/OverlayThemePreview";
 import "./marketing.css";
@@ -187,8 +179,7 @@ export default function HomePage() {
               rel="noopener noreferrer"
               aria-label="Yours to make your own: browse the source on GitHub (opens in a new tab)"
             >
-              <Github size={18} aria-hidden /> Yours to make your own{" "}
-              <ArrowRight size={14} aria-hidden />
+              <GithubIcon size={18} /> Yours to make your own <ArrowRight size={14} aria-hidden />
             </a>
           </div>
         </div>
@@ -417,7 +408,7 @@ export default function HomePage() {
               rel="noopener noreferrer"
               aria-label="Explore the source on GitHub (opens in a new tab)"
             >
-              <Github size={17} aria-hidden /> Explore the source
+              <GithubIcon size={17} /> Explore the source
             </a>
           </div>
           <p>Open source. Self-hosted. Built for the company you keep.</p>
