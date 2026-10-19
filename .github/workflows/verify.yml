@@ -78,6 +78,13 @@ jobs:
         if: ${{ inputs.run-build || inputs.upload-docs }}
         working-directory: apps/web
         run: bun run build:worker
+      # A worker can build cleanly and still throw on every request at runtime
+      # (Next 16.4 under OpenNext 1.20.9 did, in production). Boot the built
+      # bundle in local workerd and request routes that need no api worker.
+      - name: Web Worker runtime smoke check
+        if: ${{ inputs.run-build || inputs.upload-docs }}
+        working-directory: apps/web
+        run: bun run smoke:worker
       - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         if: ${{ inputs.upload-docs }}
         with:
