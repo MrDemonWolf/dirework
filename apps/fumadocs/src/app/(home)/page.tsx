@@ -224,7 +224,7 @@ export default function HomePage() {
               icon: MessageSquare,
               title: "Let chat join in",
               text: "Viewers add their own tasks, choose a focus, and mark things done without leaving Twitch chat.",
-              detail: "!task · !focus · !done",
+              detail: "!task · !today · !done",
             },
             {
               number: "03",

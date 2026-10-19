@@ -147,6 +147,24 @@ describe("bot.ingest task text", () => {
   });
 });
 
+describe("bot.ingest !today", () => {
+  it("summarizes only the viewer's active and queued tasks", async () => {
+    await say("!task First task");
+    await say("!task Second task");
+    await say("!task Someone else's task", { username: "other", twitchId: "3000" });
+
+    const { replies } = await say("!today");
+
+    expect(replies).toEqual(["Viewer's plan: Now: First task · Next: Second task"]);
+    expect(replies[0]).not.toContain("Someone else's task");
+  });
+
+  it("uses the existing no-task reply when the viewer has no open tasks", async () => {
+    const { replies } = await say("!today");
+    expect(replies).toEqual([reply((await config()).msgNoTask)]);
+  });
+});
+
 describe("bot.ingest config", () => {
   it("ignores task commands when taskCommandsEnabled is off", async () => {
     await db.update(schema.botConfig).set({ taskCommandsEnabled: false });
