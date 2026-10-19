@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "next build",
+    "build": "fumadocs-mdx && _FUMADOCS_MDX=1 next build",
     "dev": "next dev --port=4000",
     "start": "wrangler pages dev out",
-    "check-types": "rm -rf .next/dev/types && fumadocs-mdx && next typegen && tsc --noEmit",
+    "check-types": "rm -rf .next/dev/types && fumadocs-mdx && _FUMADOCS_MDX=1 next typegen && tsc --noEmit",
     "clean": "rm -rf .next out .source .turbo",
     "postinstall": "fumadocs-mdx"
   },
