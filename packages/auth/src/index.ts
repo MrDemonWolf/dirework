@@ -3,7 +3,7 @@ import { createDb, type DbClient } from "@dirework/db";
 import { provisionSingletonRows } from "@dirework/db/provision";
 import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
-import { betterAuth } from "better-auth";
+import { betterAuth, type BetterAuthPlugin } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError } from "better-auth/api";
 
@@ -105,6 +105,30 @@ export const DISABLED_AUTH_PATHS = [
   "/account-info",
 ];
 
+/**
+ * Parameterized routes Dirework never uses. better-auth's `disabledPaths` only
+ * matches exact paths, so `/reset-password/:token` (the GET target of a
+ * password-reset email link; email/password is off) can't be listed there.
+ * Matched by prefix in `disabledRoutePrefixesPlugin` instead.
+ */
+export const DISABLED_AUTH_PATH_PREFIXES = ["/reset-password/"];
+
+/** 404s every request under `DISABLED_AUTH_PATH_PREFIXES` before any endpoint runs. */
+function disabledRoutePrefixesPlugin(): BetterAuthPlugin {
+  return {
+    id: "dirework-disabled-route-prefixes",
+    onRequest: async (request, ctx) => {
+      const path = new URL(request.url).pathname;
+      const route = path.startsWith(ctx.options.basePath ?? "/api/auth")
+        ? path.slice((ctx.options.basePath ?? "/api/auth").length)
+        : path;
+      if (DISABLED_AUTH_PATH_PREFIXES.some((prefix) => route.startsWith(prefix))) {
+        return { response: new Response("Not Found", { status: 404 }) };
+      }
+    },
+  };
+}
+
 /** The owner's own Twitch OAuth tokens are never used, so they are never stored. */
 const DROPPED_OWNER_TOKENS = { accessToken: null, refreshToken: null, idToken: null };
 
@@ -145,7 +169,10 @@ export function createAuth() {
     // DEV ONLY: the bypass-login endpoint (POST /api/auth/dev-login) exists only
     // when DEV_LOGIN==="true". Unset in prod → plugin unregistered → route 404s.
     // The endpoint also requires the per-run DEV_LOGIN_SECRET header.
-    plugins: isDevLoginEnabled(env.DEV_LOGIN) ? [devLoginPlugin(env.DEV_LOGIN_SECRET)] : [],
+    plugins: [
+      disabledRoutePrefixesPlugin(),
+      ...(isDevLoginEnabled(env.DEV_LOGIN) ? [devLoginPlugin(env.DEV_LOGIN_SECRET)] : []),
+    ],
     socialProviders: {
       twitch: {
         clientId: env.TWITCH_CLIENT_ID,
