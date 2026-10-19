@@ -25,10 +25,16 @@ export const INSTANCE_CLAIMED_ERROR = "instance_claimed";
  */
 export async function claimInstance<T extends Record<string, unknown>>(db: DbClient, user: T) {
   if (await hasOwner(db)) {
-    // better-auth's OAuth callback turns this message into the `?error=` code
-    // on the sign-in redirect, so it is a stable, machine-readable token the
-    // web app maps to its own copy (apps/web/src/lib/sign-in-errors.ts).
-    throw new APIError("FORBIDDEN", { message: INSTANCE_CLAIMED_ERROR });
+    // better-auth's OAuth callback turns `body.code` into the `?error=` code on
+    // the sign-in redirect, so it is a stable, machine-readable token the web
+    // app maps to its own copy (apps/web/src/lib/sign-in-errors.ts). The code
+    // is load-bearing since better-auth 1.7: an APIError without one is
+    // rethrown as a bare 403 JSON response instead of a redirect (1.6 used the
+    // message). The message stays the same token for the error_description.
+    throw new APIError("FORBIDDEN", {
+      code: INSTANCE_CLAIMED_ERROR,
+      message: INSTANCE_CLAIMED_ERROR,
+    });
   }
   return { data: { ...user, isOwner: true } };
 }
@@ -149,7 +155,7 @@ export function createAuth() {
         scope: ["openid"],
         // Only the id_token claims mapProfileToUser/getUserInfo read (sub is
         // always present): the login name and the avatar shown in the user
-        // menu. NOTE: better-auth 1.6's createAuthorizationURL still merges
+        // menu. NOTE: better-auth (1.6, still in 1.7) createAuthorizationURL merges
         // email/email_verified into the claims param whatever is passed here;
         // Twitch omits them unless user:read:email is granted, which it never
         // is. The privacy policy wording reflects exactly this.
