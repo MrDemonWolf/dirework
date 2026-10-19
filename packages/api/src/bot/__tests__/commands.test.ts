@@ -1,7 +1,13 @@
 import { describe, it, expect } from "vitest";
 
 import { MAX_CHAT_BYTES, utf8ByteLength } from "../../config-shared";
-import { formatEtaDuration, interpolate, parseTaskEditArgs, resolveAlias } from "../commands";
+import {
+  formatEtaDuration,
+  formatTodayPlan,
+  interpolate,
+  parseTaskEditArgs,
+  resolveAlias,
+} from "../commands";
 
 describe("interpolate", () => {
   it("substitutes a single variable", () => {
@@ -95,6 +101,31 @@ describe("formatEtaDuration", () => {
     expect(formatEtaDuration(10_000)).toBe("1m");
     expect(formatEtaDuration(0)).toBe("1m");
     expect(formatEtaDuration(-5_000)).toBe("1m");
+  });
+});
+
+describe("formatTodayPlan", () => {
+  it("puts the active task first, lists the next two, and counts the rest", () => {
+    expect(
+      formatTodayPlan("Viewer", [
+        { text: "Queued first", status: "pending" },
+        { text: "Current focus", status: "active" },
+        { text: "Queued second", status: "pending" },
+        { text: "Queued third", status: "pending" },
+      ]),
+    ).toBe(
+      "Viewer's plan: Now: Current focus · Next: Queued first · Then: Queued second · +1 more",
+    );
+  });
+
+  it("fits long task text within Twitch's byte limit and preserves whole characters", () => {
+    const message = formatTodayPlan("Viewer", [
+      { text: "🐺".repeat(500), status: "active" },
+      { text: "Review the result", status: "pending" },
+    ]);
+    expect(utf8ByteLength(message)).toBeLessThanOrEqual(MAX_CHAT_BYTES);
+    expect(message.isWellFormed()).toBe(true);
+    expect(message).toContain("…");
   });
 });
 

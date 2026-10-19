@@ -8,6 +8,7 @@ import {
   MAX_CHAT_BYTES,
   MAX_TASK_LEN,
   normalizeAliasToken,
+  replaceControlCharacters,
   truncateToBytes,
   truncateToLength,
   utf8ByteLength,
@@ -212,6 +213,7 @@ const TASK_COMMANDS = new Set([
   "!remove",
   "!focus",
   "!check",
+  "!today",
   "!next",
   "!help",
   "!clear",
@@ -255,7 +257,7 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
       );
     } else {
       say(
-        `${userInfo.displayName}, available commands: !task, !done, !edit, !remove, !focus, !check, !next, !help, !clear (mods), !timer (mods)`,
+        `${userInfo.displayName}, available commands: !task, !done, !edit, !remove, !focus, !check, !today, !next, !help, !clear (mods), !timer (mods)`,
       );
     }
     return;
@@ -283,6 +285,9 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
     case "!check":
       await handleTaskCheck(args, ctx);
       break;
+    case "!today":
+      await handleTaskToday(ctx);
+      break;
     case "!next":
       await handleTaskNext(args, ctx);
       break;
@@ -293,6 +298,48 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
       await handleClear(args, ctx);
       break;
   }
+}
+
+const TODAY_PREVIEW_BYTES = 100;
+const TODAY_TASK_LIMIT = 3;
+
+function todayTaskPreview(text: string): string {
+  const clean = replaceControlCharacters(text).replace(/\s+/g, " ").trim();
+  if (utf8ByteLength(clean) <= TODAY_PREVIEW_BYTES) return clean;
+  const ellipsis = "…";
+  return `${truncateToBytes(clean, TODAY_PREVIEW_BYTES - utf8ByteLength(ellipsis))}${ellipsis}`;
+}
+
+/** A short personal plan: current focus, the next two tasks, and a remaining count. */
+export function formatTodayPlan(
+  displayName: string,
+  tasks: readonly { text: string; status: string }[],
+): string {
+  const active = tasks.find((task) => task.status === "active");
+  const ordered = active ? [active, ...tasks.filter((task) => task !== active)] : [...tasks];
+  const shown = ordered.slice(0, TODAY_TASK_LIMIT);
+  let queuedCount = 0;
+  const items = shown.map((task) => {
+    const label = task.status === "active" ? "Now" : queuedCount++ === 0 ? "Next" : "Then";
+    return `${label}: ${todayTaskPreview(task.text)}`;
+  });
+  const remaining = ordered.length - shown.length;
+  if (remaining > 0) items.push(`+${remaining} more`);
+
+  const message = `${displayName}'s plan: ${items.join(" · ")}`;
+  return utf8ByteLength(message) <= MAX_CHAT_BYTES
+    ? message
+    : `${truncateToBytes(message, MAX_CHAT_BYTES - utf8ByteLength("…"))}…`;
+}
+
+async function handleTaskToday(ctx: MessageContext): Promise<void> {
+  const { config, userInfo, say, db } = ctx;
+  const tasks = await getViewerOpenTasks(db, userInfo.twitchId);
+  if (tasks.length === 0) {
+    say(interpolate(config.task.noTask, { user: userInfo.displayName, channel: ctx.channelName }));
+    return;
+  }
+  say(formatTodayPlan(userInfo.displayName, tasks));
 }
 
 async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void> {

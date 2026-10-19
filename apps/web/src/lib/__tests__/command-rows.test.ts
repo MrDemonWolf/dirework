@@ -20,4 +20,11 @@ describe("bot settings command tables", () => {
       expect(row.usage.startsWith(row.command)).toBe(true);
     }
   });
+
+  it("documents !today in the task tab", () => {
+    expect(taskCommands.find((row) => row.command === "!today")).toMatchObject({
+      usage: "!today",
+      description: "Show your focus and next tasks",
+    });
+  });
 });

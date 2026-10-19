@@ -26,6 +26,7 @@ export const taskCommands: CommandRow[] = [
   { command: "!remove", usage: "!remove [#]", description: "Remove a task" },
   { command: "!focus", usage: "!focus [#]", description: "Set active task" },
   { command: "!check", usage: "!check or !check @user", description: "Check current task" },
+  { command: "!today", usage: "!today", description: "Show your focus and next tasks" },
   { command: "!next", usage: "!next [task]", description: "Complete & add next task" },
   { command: "!help", usage: "!help", description: "Show help in chat" },
   { command: "!clear", usage: "!clear all/done/@user", description: "Clear tasks (mods only)" },

@@ -77,6 +77,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   budget and invariants) used for every pull request review.
 
 ### Added
+- **`!today` chat command.** A viewer gets their plan in one line: the task they're on
+  now, the next two, and how many more are queued. It can be aliased like any other
+  command (reload the bot page after updating so it relays `!today`).
 - **Undo for removing a task.** Removing a task is still one click; a "Task removed" toast
   offers Undo for a few seconds and puts it back exactly where it was.
 - **Rolling back** section in the deployment guide: how to roll each worker back from the

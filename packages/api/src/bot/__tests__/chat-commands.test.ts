@@ -42,6 +42,7 @@ const LINES = [
   "!TASK caps",
   "  !done  ",
   "!timer start",
+  "!today",
   "!dwhelp",
   "!DwCommands",
   "!t aliased",
@@ -71,6 +72,7 @@ describe("isDireworkCommandLine", () => {
   it("filters other bots' commands without any alias config", () => {
     expect(isDireworkCommandLine("!lurk", new Set())).toBe(false);
     expect(isDireworkCommandLine("!task a", new Set())).toBe(true);
+    expect(isDireworkCommandLine("!today", new Set())).toBe(true);
     expect(isDireworkCommandLine("!t a", new Set())).toBe(false);
   });
 });
