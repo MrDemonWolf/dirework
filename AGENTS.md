@@ -455,7 +455,11 @@ overrides (`"@node-minify/core": { "glob": "10.5.0" }` works on Bun 1.4).
   `packages/infra/__tests__/workflow-security.test.ts` pins this split.
   The web app is built with `build:worker` (OpenNext build + wasm fix + static-assets cache
   population) — the exact script Alchemy runs at deploy — so that pipeline fails here,
-  not after migrations are applied. Coverage measures every `src/` file
+  not after migrations are applied. Then `smoke:worker` (`apps/web/scripts/smoke-worker.mjs`)
+  boots that bundle in local workerd with Alchemy's compatibility date and flags and
+  requires 200 from routes that need no api (`/api/version`, both overlays, the bot
+  page): a bundle can build and still throw on every request (Next 16.4 under OpenNext
+  1.20.9 did, in production — `Unexpected loadManifest(...preview-props.json)`). Coverage measures every `src/` file
   (`coverage.include`), not just imported ones.
 - `.github/workflows/codeql.yml` — CodeQL JavaScript/TypeScript analysis plus a separate
   GitHub Actions (workflow) analysis job, both with the `security-extended` query suite on

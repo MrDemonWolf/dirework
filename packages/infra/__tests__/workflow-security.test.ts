@@ -100,6 +100,19 @@ describe("workflow supply-chain controls", () => {
     expect(readWorkflow("verify.yml")).toContain("build:worker");
   });
 
+  it("boots the built web Worker before anything can deploy it", () => {
+    const webPackage = JSON.parse(readFileSync(`${repoRoot}/apps/web/package.json`, "utf8")) as {
+      scripts?: Record<string, string>;
+    };
+    const verify = readWorkflow("verify.yml");
+
+    expect(webPackage.scripts?.["smoke:worker"]).toBe("node scripts/smoke-worker.mjs");
+    // After the bundle exists, and under the same build gate as the build step.
+    expect(verify.indexOf("bun run smoke:worker")).toBeGreaterThan(
+      verify.indexOf("bun run build:worker"),
+    );
+  });
+
   it("runs the extended CodeQL security suite over code and workflows", () => {
     const codeql = readWorkflow("codeql.yml");
     expect(codeql).toContain("name: Analyze JavaScript and TypeScript");
