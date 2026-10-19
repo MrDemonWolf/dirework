@@ -443,6 +443,16 @@ OpenNext's own `glob@^13` down to 10, so there is no safe override. Unpin once a
 upstream release drops that glob, or once CI moves to a Bun that honours nested
 overrides (`"@node-minify/core": { "glob": "10.5.0" }` works on Bun 1.4).
 
+`lucide-react` has two pins: the default catalog (`^1.x`, apps/web) and the named
+`catalogs.fumadocs` entry (apps/fumadocs, `catalog:fumadocs`), which must stay on the
+range fumadocs-ui 16.5.1 depends on (`^0.563.0`). fumadocs-core takes lucide-react as an
+optional peer, so if the docs app's lucide differs from fumadocs-ui's, Bun installs two
+fumadocs-core copies and `source` no longer type-checks against fumadocs-ui's
+`LoaderOutput` (`docs/[[...slug]]/page.tsx`). Move the docs pin together with a fumadocs
+bump (fumadocs-ui moved to lucide 1.x in its later 16.x releases). lucide 1.x dropped brand
+icons; brand glyphs are inline SVG components (`apps/web/src/components/icons/`,
+`apps/fumadocs/src/components/icons/`).
+
 - `.github/workflows/verify.yml` — **the single verification pipeline**
   (install → dependency audit → design-token drift check → lint → check-types →
   test:coverage → build), called via `workflow_call`. CI and deploy both use it, so the

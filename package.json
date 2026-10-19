@@ -20,7 +20,7 @@
       "wrangler": "^4.149.0",
       "drizzle-orm": "^0.45.1",
       "drizzle-kit": "^0.31.8",
-      "lucide-react": "^0.563.0",
+      "lucide-react": "^1.56.0",
       "next-themes": "^0.4.6",
       "react": "^19.2.8",
       "react-dom": "^19.2.8",
@@ -34,6 +34,11 @@
       "@types/sql.js": "^1.4.11",
       "@biomejs/biome": "^2.5.15",
       "@types/node": "^22.20.1"
+    },
+    "catalogs": {
+      "fumadocs": {
+        "lucide-react": "^0.563.0"
+      }
     }
   },
   "type": "module",
