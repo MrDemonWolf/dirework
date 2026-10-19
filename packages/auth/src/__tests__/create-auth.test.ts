@@ -100,18 +100,60 @@ describe("createAuth: single-owner claim", () => {
   });
 });
 
-/** An unsigned id_token: Twitch's getUserInfo only decodes it (no signature check). */
-function fakeIdToken(claims: Record<string, unknown>) {
+const TWITCH_ISSUER = "https://id.twitch.tv/oauth2";
+const TWITCH_JWKS_URL = "https://id.twitch.tv/oauth2/keys";
+const TEST_KID = "dirework-test-key";
+
+/** An RS256 key pair standing in for one of Twitch's id_token signing keys. */
+async function generateSigningKey(): Promise<CryptoKeyPair> {
+  // RSA algorithms always yield a pair; the lib typing returns a key-or-pair union.
+  return (await crypto.subtle.generateKey(
+    {
+      name: "RSASSA-PKCS1-v1_5",
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: "SHA-256",
+    },
+    true,
+    ["sign", "verify"],
+  )) as CryptoKeyPair;
+}
+
+// One "Twitch" key for the whole file: better-auth caches the JWKS it fetches,
+// so rotating keys between tests would test the cache, not the sign-in.
+const twitchKey = generateSigningKey();
+
+/**
+ * A Twitch-shaped id_token signed RS256. better-auth (1.7.11+) verifies it
+ * against Twitch's JWKS (issuer, audience = our client id, exp/iat), so the
+ * test signs a real one instead of a bare `alg: none` token.
+ */
+async function signedIdToken(claims: Record<string, unknown>, key: CryptoKeyPair) {
   const b64 = (v: unknown) => Buffer.from(JSON.stringify(v)).toString("base64url");
-  return `${b64({ alg: "none", typ: "JWT" })}.${b64(claims)}.`;
+  const now = Math.floor(Date.now() / 1000);
+  const input = `${b64({ alg: "RS256", typ: "JWT", kid: TEST_KID })}.${b64({
+    iss: TWITCH_ISSUER,
+    aud: env.TWITCH_CLIENT_ID,
+    iat: now,
+    exp: now + 900,
+    ...claims,
+  })}`;
+  const signature = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    key.privateKey,
+    new TextEncoder().encode(input),
+  );
+  return `${input}.${Buffer.from(signature).toString("base64url")}`;
 }
 
 /**
  * Drives the real Twitch OAuth round trip: /sign-in/social mints the state,
- * then /callback/twitch exchanges a code (Twitch's token endpoint is stubbed)
- * for an id_token naming `sub`. Returns the callback response (a redirect).
+ * then /callback/twitch exchanges a code (Twitch's token and JWKS endpoints
+ * are stubbed) for an id_token naming `sub`. `signWith` signs the token with a
+ * key Twitch's JWKS does NOT publish, to model a forged token. Returns the
+ * callback response (a redirect).
  */
-async function twitchSignIn(sub: string) {
+async function twitchSignIn(sub: string, signWith?: CryptoKeyPair) {
   const start = await post("/sign-in/social", {
     provider: "twitch",
     callbackURL: "/dashboard",
@@ -125,8 +167,15 @@ async function twitchSignIn(sub: string) {
     .map((c) => c.split(";")[0])
     .join("; ");
 
+  const key = await twitchKey;
+  const idToken = await signedIdToken({ sub, preferred_username: `user${sub}` }, signWith ?? key);
+  const publicJwk = await crypto.subtle.exportKey("jwk", key.publicKey);
+
   const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const target = input instanceof Request ? input.url : String(input);
+    if (target === TWITCH_JWKS_URL) {
+      return Response.json({ keys: [{ ...publicJwk, kid: TEST_KID, alg: "RS256", use: "sig" }] });
+    }
     if (target !== "https://id.twitch.tv/oauth2/token")
       throw new Error(`unexpected fetch ${target}`);
     return Response.json({
@@ -135,7 +184,7 @@ async function twitchSignIn(sub: string) {
       expires_in: 3600,
       token_type: "bearer",
       scope: ["openid"],
-      id_token: fakeIdToken({ sub, preferred_username: `user${sub}` }),
+      id_token: idToken,
     });
   });
   try {
@@ -150,6 +199,15 @@ async function twitchSignIn(sub: string) {
 }
 
 describe("createAuth: Twitch OAuth callback", () => {
+  it("refuses an id_token not signed by Twitch and creates nothing", async () => {
+    const res = await twitchSignIn("111", await generateSigningKey());
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/?error=unable_to_get_user_info");
+    expect(await db.select().from(schema.user)).toHaveLength(0);
+    expect(await db.select().from(schema.session)).toHaveLength(0);
+  });
+
   it("claims the instance on the first sign-in without storing tokens, IP or user agent", async () => {
     const res = await twitchSignIn("111");
 
@@ -289,6 +347,13 @@ describe("createAuth: endpoint surface", () => {
     },
   );
 
+  it("does not answer the password-reset email link (a parameterized route)", async () => {
+    const res = await createAuth().handler(
+      new Request(`${ORIGIN}/api/auth/reset-password/some-token?callbackURL=/`),
+    );
+    expect(res.status).toBe(404);
+  });
+
   it("routes only the endpoints Dirework reviewed (a better-auth bump adding one fails here)", () => {
     const routed = Object.values(createAuth().api as Record<string, { path?: string }>)
       .map((endpoint) => endpoint.path)
@@ -301,7 +366,7 @@ describe("createAuth: endpoint surface", () => {
       "/get-session",
       "/list-sessions",
       "/ok",
-      "/reset-password/:token",
+      "/reset-password/:token", // routed, but 404s via DISABLED_AUTH_PATH_PREFIXES
       "/revoke-other-sessions",
       "/revoke-session",
       "/revoke-sessions",

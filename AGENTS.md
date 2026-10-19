@@ -307,7 +307,11 @@ it (e.g. `0017_drop_task_status_idx` contracted 0015's superseded `task_status_i
   by the old worker could write tokens back. The token scrub is therefore re-run after
   cutover on every deploy (`packages/infra/post-deploy.ts`, called from `alchemy.run.ts`)
   and at every sign-in (`scrubOwnerTokens`). `DISABLED_AUTH_PATHS`
-  404s every better-auth route Dirework doesn't use.
+  404s every better-auth route Dirework doesn't use; it only matches exact paths, so
+  parameterized ones (`/reset-password/:token`) go in `DISABLED_AUTH_PATH_PREFIXES`,
+  404ed by a small `onRequest` plugin. From better-auth 1.7.11 the Twitch id_token is
+  signature-verified against Twitch's JWKS (`https://id.twitch.tv/oauth2/keys`, one
+  extra fetch per sign-in); `create-auth.test.ts` signs test tokens RS256 and stubs it.
 - Bot account connection = separate OAuth flow on Hono: `/api/bot/authorize` →
   `/api/bot/callback/twitch` (state cookie, `BOT_SCOPES` = `chat:read chat:edit
   user:read:chat user:write:chat` — the browser bot speaks IRC, which needs the
