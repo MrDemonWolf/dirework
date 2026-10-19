@@ -117,12 +117,11 @@ export const DISABLED_AUTH_PATH_PREFIXES = ["/reset-password/"];
 function disabledRoutePrefixesPlugin(): BetterAuthPlugin {
   return {
     id: "dirework-disabled-route-prefixes",
-    onRequest: async (request, ctx) => {
+    // better-auth's default basePath; apps/server mounts it at /api/auth/* and
+    // Dirework never overrides it.
+    onRequest: async (request) => {
       const path = new URL(request.url).pathname;
-      const route = path.startsWith(ctx.options.basePath ?? "/api/auth")
-        ? path.slice((ctx.options.basePath ?? "/api/auth").length)
-        : path;
-      if (DISABLED_AUTH_PATH_PREFIXES.some((prefix) => route.startsWith(prefix))) {
+      if (DISABLED_AUTH_PATH_PREFIXES.some((prefix) => path.startsWith(`/api/auth${prefix}`))) {
         return { response: new Response("Not Found", { status: 404 }) };
       }
     },
