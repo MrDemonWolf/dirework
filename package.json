@@ -44,6 +44,8 @@
   "type": "module",
   "scripts": {
     "dev": "turbo run dev",
+    "e2e": "bun run --cwd packages/e2e e2e",
+    "e2e:install": "bun run --cwd packages/e2e e2e:install",
     "build": "turbo run build",
     "check-types": "turbo run check-types",
     "test": "turbo run test",

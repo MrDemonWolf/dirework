@@ -143,6 +143,7 @@ packages/db        → Drizzle ORM schema + createDb() (drizzle-orm/d1) + migrat
 packages/env       → cloudflare:workers bindings (server), t3-env (web)
 packages/infra     → Alchemy IaC (both workers + D1)
 packages/overlay-kit → pure overlay geometry (squircle path) + clock formatting shared by web overlays and docs mocks; zero runtime deps
+packages/e2e       → Playwright browser tests: both workers in local workerd over a fresh local D1 (CI gate)
 packages/config    → Shared TypeScript configuration
 ```
 
@@ -154,6 +155,7 @@ bun run dev:web       # Web app only (standalone Next dev :3001; API comes from 
 bun run build         # Build all apps
 bun run check-types   # TypeScript type checking across all packages
 bun run test          # Vitest unit tests across all packages
+bun run e2e           # Playwright browser tests (build the web worker first; see Testing)
 bun run db:generate   # Generate a Drizzle migration from schema changes
 bun run deploy        # Alchemy deploy (both workers + D1) — CI does this on main
 bun run destroy       # Tear down the Cloudflare deployment
@@ -414,6 +416,13 @@ claims; a second account redirects to `?error=instance_claimed` — the hook's A
 must carry `code`, better-auth ≥1.7 reads `body.code`), `DEV_LOGIN` gate, session IP/UA
 and expired-session purge),
 `packages/db/src/migrations/__tests__/` (data migrations run in sql.js).
+**Browser end-to-end** (`packages/e2e`, `bun run e2e`): Playwright drives the real stack — the
+api worker from source and the web worker from its built bundle (`bun run build:worker` in
+apps/web first), both in local workerd on 127.0.0.1:3000/3001 over a fresh local D1 with every
+migration applied (`src/boot-api.ts`, `src/boot-web.ts`), signed in through the `DEV_LOGIN`
+bypass with a fixed test secret. One worker and serial specs (single-owner instance, one
+database). Specs use roles and labels, never CSS classes. Runs in `verify.yml` after the smoke
+check, so a PR and a deploy are gated the same way; the Playwright report uploads on failure.
 `packages/auth/vitest.config.ts` aliases `cloudflare:workers` to a stub, and
 `packages/auth/src/__tests__/stubs/test-db.ts` gives real drizzle over sql.js with every
 migration applied (only `createDb` is mocked).

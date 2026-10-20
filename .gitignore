@@ -65,3 +65,8 @@ tmp
 temp
 # Claude Code
 .claude
+
+# Playwright (packages/e2e)
+test-results
+playwright-report
+blob-report
