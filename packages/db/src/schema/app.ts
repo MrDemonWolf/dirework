@@ -4,9 +4,9 @@ import { createId } from "@paralleldrive/cuid2";
 
 import {
   DEFAULT_PHASE_LABELS,
-  DEFAULT_TASK_MESSAGES,
-  DEFAULT_TIMER_MESSAGES,
+  TASK_MESSAGE_COLUMN_DEFAULTS,
   TIMER_CONFIG_DEFAULTS,
+  TIMER_MESSAGE_COLUMN_DEFAULTS,
   TIMER_STATUSES,
 } from "../defaults";
 
@@ -249,40 +249,56 @@ export const botConfig = sqliteTable("bot_config", {
     .$type<Record<string, string>>()
     .notNull()
     .default({}),
-  msgTaskAdded: text("msg_task_added").notNull().default(DEFAULT_TASK_MESSAGES.taskAdded),
-  msgNoTaskAdded: text("msg_no_task_added").notNull().default(DEFAULT_TASK_MESSAGES.noTaskAdded),
+  msgTaskAdded: text("msg_task_added").notNull().default(TASK_MESSAGE_COLUMN_DEFAULTS.taskAdded),
+  msgNoTaskAdded: text("msg_no_task_added")
+    .notNull()
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.noTaskAdded),
   msgNoTaskContent: text("msg_no_task_content")
     .notNull()
-    .default(DEFAULT_TASK_MESSAGES.noTaskContent),
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.noTaskContent),
   msgNoTaskToEdit: text("msg_no_task_to_edit")
     .notNull()
-    .default(DEFAULT_TASK_MESSAGES.noTaskToEdit),
-  msgTaskEdited: text("msg_task_edited").notNull().default(DEFAULT_TASK_MESSAGES.taskEdited),
-  msgTaskRemoved: text("msg_task_removed").notNull().default(DEFAULT_TASK_MESSAGES.taskRemoved),
-  msgTaskNext: text("msg_task_next").notNull().default(DEFAULT_TASK_MESSAGES.taskNext),
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.noTaskToEdit),
+  msgTaskEdited: text("msg_task_edited").notNull().default(TASK_MESSAGE_COLUMN_DEFAULTS.taskEdited),
+  msgTaskRemoved: text("msg_task_removed")
+    .notNull()
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.taskRemoved),
+  msgTaskNext: text("msg_task_next").notNull().default(TASK_MESSAGE_COLUMN_DEFAULTS.taskNext),
   msgAdminDeleteTasks: text("msg_admin_delete_tasks")
     .notNull()
-    .default(DEFAULT_TASK_MESSAGES.adminDeleteTasks),
-  msgTaskDone: text("msg_task_done").notNull().default(DEFAULT_TASK_MESSAGES.taskDone),
-  msgTaskCheck: text("msg_task_check").notNull().default(DEFAULT_TASK_MESSAGES.taskCheck),
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.adminDeleteTasks),
+  msgTaskDone: text("msg_task_done").notNull().default(TASK_MESSAGE_COLUMN_DEFAULTS.taskDone),
+  msgTaskCheck: text("msg_task_check").notNull().default(TASK_MESSAGE_COLUMN_DEFAULTS.taskCheck),
   msgTaskCheckUser: text("msg_task_check_user")
     .notNull()
-    .default(DEFAULT_TASK_MESSAGES.taskCheckUser),
-  msgNoTask: text("msg_no_task").notNull().default(DEFAULT_TASK_MESSAGES.noTask),
-  msgNoTaskOther: text("msg_no_task_other").notNull().default(DEFAULT_TASK_MESSAGES.noTaskOther),
-  msgNotMod: text("msg_not_mod").notNull().default(DEFAULT_TASK_MESSAGES.notMod),
-  msgClearedAll: text("msg_cleared_all").notNull().default(DEFAULT_TASK_MESSAGES.clearedAll),
-  msgClearedDone: text("msg_cleared_done").notNull().default(DEFAULT_TASK_MESSAGES.clearedDone),
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.taskCheckUser),
+  msgNoTask: text("msg_no_task").notNull().default(TASK_MESSAGE_COLUMN_DEFAULTS.noTask),
+  msgNoTaskOther: text("msg_no_task_other")
+    .notNull()
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.noTaskOther),
+  msgNotMod: text("msg_not_mod").notNull().default(TASK_MESSAGE_COLUMN_DEFAULTS.notMod),
+  msgClearedAll: text("msg_cleared_all").notNull().default(TASK_MESSAGE_COLUMN_DEFAULTS.clearedAll),
+  msgClearedDone: text("msg_cleared_done")
+    .notNull()
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.clearedDone),
   msgNextNoContent: text("msg_next_no_content")
     .notNull()
-    .default(DEFAULT_TASK_MESSAGES.nextNoContent),
-  msgHelp: text("msg_help").notNull().default(DEFAULT_TASK_MESSAGES.help),
-  msgNotRunning: text("msg_not_running").notNull().default(DEFAULT_TIMER_MESSAGES.notRunning),
-  msgWrongCommand: text("msg_wrong_command").notNull().default(DEFAULT_TIMER_MESSAGES.wrongCommand),
-  msgTimerRunning: text("msg_timer_running").notNull().default(DEFAULT_TIMER_MESSAGES.timerRunning),
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.nextNoContent),
+  msgHelp: text("msg_help").notNull().default(TASK_MESSAGE_COLUMN_DEFAULTS.help),
+  msgNotRunning: text("msg_not_running")
+    .notNull()
+    .default(TIMER_MESSAGE_COLUMN_DEFAULTS.notRunning),
+  msgWrongCommand: text("msg_wrong_command")
+    .notNull()
+    .default(TIMER_MESSAGE_COLUMN_DEFAULTS.wrongCommand),
+  msgTimerRunning: text("msg_timer_running")
+    .notNull()
+    .default(TIMER_MESSAGE_COLUMN_DEFAULTS.timerRunning),
   msgCommandSuccess: text("msg_command_success")
     .notNull()
-    .default(DEFAULT_TIMER_MESSAGES.commandSuccess),
-  msgCycleWrong: text("msg_cycle_wrong").notNull().default(DEFAULT_TIMER_MESSAGES.cycleWrong),
-  msgEta: text("msg_eta").notNull().default(DEFAULT_TIMER_MESSAGES.eta),
+    .default(TIMER_MESSAGE_COLUMN_DEFAULTS.commandSuccess),
+  msgCycleWrong: text("msg_cycle_wrong")
+    .notNull()
+    .default(TIMER_MESSAGE_COLUMN_DEFAULTS.cycleWrong),
+  msgEta: text("msg_eta").notNull().default(TIMER_MESSAGE_COLUMN_DEFAULTS.eta),
 });

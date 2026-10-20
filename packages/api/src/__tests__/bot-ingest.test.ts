@@ -95,7 +95,7 @@ describe("bot.ingest moderator gates", () => {
     await seedTasks();
     const { replies } = await say("!clear all");
 
-    expect(replies).toEqual([(await config()).msgNotMod.replace("{user}", "Viewer")]);
+    expect(replies).toEqual([reply(DEFAULT_TASK_MESSAGES.notMod)]);
     expect(await tasks()).toHaveLength(2);
   });
 
@@ -115,7 +115,7 @@ describe("bot.ingest moderator gates", () => {
   it("a non-mod !timer start is refused and leaves the timer untouched", async () => {
     const { replies } = await say("!timer start");
 
-    expect(replies).toEqual([(await config()).msgNotMod.replace("{user}", "Viewer")]);
+    expect(replies).toEqual([reply(DEFAULT_TASK_MESSAGES.notMod)]);
     expect(await db.query.timerState.findFirst()).toBeUndefined();
   });
 
@@ -155,13 +155,27 @@ describe("bot.ingest !today", () => {
 
     const { replies } = await say("!today");
 
-    expect(replies).toEqual(["Viewer's plan: Now: First task · Next: Second task"]);
+    expect(replies).toEqual(["Viewer's plan: Now: #1 First task · Next: #2 Second task"]);
     expect(replies[0]).not.toContain("Someone else's task");
   });
 
   it("uses the existing no-task reply when the viewer has no open tasks", async () => {
     const { replies } = await say("!today");
-    expect(replies).toEqual([reply((await config()).msgNoTask)]);
+    expect(replies).toEqual([reply(DEFAULT_TASK_MESSAGES.noTask)]);
+  });
+});
+
+describe("bot.ingest default reply wording", () => {
+  // A provisioned row holds the frozen SQL column defaults (an older wording); the bot
+  // must reply with the current defaults until the owner customizes a line.
+  it("replies with the current default wording for a never-customized row", async () => {
+    expect((await config()).msgNoTask).not.toBe(DEFAULT_TASK_MESSAGES.noTask);
+    expect((await say("!check")).replies).toEqual([reply(DEFAULT_TASK_MESSAGES.noTask)]);
+  });
+
+  it("keeps a line the owner customized", async () => {
+    await db.update(schema.botConfig).set({ msgNoTask: "Nope, {user}." });
+    expect((await say("!check")).replies).toEqual(["Nope, Viewer."]);
   });
 });
 
@@ -249,7 +263,7 @@ describe("bot.ingest !next", () => {
 
     const { replies } = await say("!next second");
 
-    expect(replies[0]).toContain("'first'");
+    expect(replies[0]).toContain('"first"');
     expect(await tasks()).toMatchObject([
       { text: "first", status: "done" },
       { text: "second", status: "active" },
@@ -404,7 +418,15 @@ describe("bot.ingest task commands end to end", () => {
     const { replies } = await say("!focus");
 
     expect(replies[0]).toContain("!focus [number]");
+    expect(replies[0]).toContain("!today");
     expect((await viewerTasks()).map((t) => t.status)).toEqual(["active", "pending"]);
+  });
+
+  it("!remove without a number replies with usage even with no open tasks (no task read)", async () => {
+    const { replies } = await say("!remove");
+    expect(replies).toHaveLength(1);
+    expect(replies[0]).toContain("!remove [number]");
+    expect(replies[0]).toContain("!today");
   });
 
   it("!edit 1 rewrites the first task's text", async () => {
@@ -558,6 +580,16 @@ describe("bot.ingest task commands end to end", () => {
   it("a non-mod !clear is refused with notMod", async () => {
     await seedTwo();
     expect((await say("!clear done")).replies).toEqual([reply(T.notMod)]);
+    expect(await viewerTasks()).toHaveLength(2);
+  });
+
+  it("a mod's !clear with no target replies with the targets and deletes nothing", async () => {
+    await seedTwo();
+    const { replies } = await say("!clear", { isMod: true });
+    expect(replies).toHaveLength(1);
+    expect(replies[0]).toContain("!clear done");
+    expect(replies[0]).toContain("!clear all");
+    expect(replies[0]).toContain("!clear @user");
     expect(await viewerTasks()).toHaveLength(2);
   });
 });

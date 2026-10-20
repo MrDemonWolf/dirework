@@ -266,7 +266,11 @@ processedChatMessage), `index.ts` (relations).
 SQLite idioms: booleans `integer({mode:"boolean"})`, timestamps `integer({mode:"timestamp_ms"})`
 with `unixepoch('subsecond')*1000` defaults, JSON columns `text({mode:"json"}).$type<T>()`
 (commandAliases, scopes), opacities `real`, cuid2 ids. Config rows are singletons
-(`SINGLETON_ID`), lazily provisioned; all columns have defaults. `botAccount` carries a
+(`SINGLETON_ID`), lazily provisioned; all columns have defaults. The bot_config `msg_*`
+column defaults are **frozen** (`*_MESSAGE_COLUMN_DEFAULTS` in `packages/db/src/defaults.ts`):
+the wording the app uses is `DEFAULT_*_MESSAGES`, and `buildBotConfig` reads any stored value
+that equals a frozen or legacy default (`LEGACY_*_MESSAGES`) back as the current default, so
+rewording a reply needs no migration — append the old wording to the legacy list instead. `botAccount` carries a
 nullable `refreshLockedUntil` lease that serializes concurrent Twitch OAuth refreshes
 (Twitch invalidates the old refresh token on rotation, so the refresh spends the token as
 of the lease and persists conditionally on it). Only the holder clears its lease (every
