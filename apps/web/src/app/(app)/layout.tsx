@@ -4,6 +4,7 @@
 
 import Header from "@/components/header";
 import { VersionBadge } from "@/components/version-badge";
+import { montserrat } from "@/lib/heading-font";
 
 /** Optional legal links render only when their URLs are configured on the web worker. */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -16,7 +17,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA;
 
   return (
-    <div className="grid min-h-svh grid-rows-[auto_1fr_auto]">
+    // The heading face (preloaded) is scoped here so OBS overlays never fetch it; `--font-heading`
+    // in index.css falls back to the body face wherever this variable is absent.
+    <div className={`${montserrat.variable} grid min-h-svh grid-rows-[auto_1fr_auto]`}>
       <a
         href="#main"
         className="sr-only z-[60] rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:fixed focus:top-2 focus:left-2"

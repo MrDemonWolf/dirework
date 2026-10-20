@@ -23,6 +23,8 @@ describe("web security header contract", () => {
 
   it("does not load third-party fonts on overlay pages", () => {
     expect(overlayLayout).not.toContain("fonts.googleapis.com");
-    expect(overlayLayout).not.toContain("<link");
+    // The only link allowed is the self-hosted overlay font stylesheet, by root-relative path.
+    const hrefs = [...overlayLayout.matchAll(/<link[^>]*href="([^"]+)"/g)].map((m) => m[1]);
+    expect(hrefs).toEqual(["/fonts/fonts.css"]);
   });
 });

@@ -3,34 +3,15 @@
 
 import type { Metadata } from "next";
 
-import { IBM_Plex_Mono, IBM_Plex_Sans, Montserrat } from "next/font/google";
-
 import "../index.css";
 import Providers from "@/components/providers";
+import { plexMono, plexSans } from "@/lib/fonts";
 
-// The root layout also wraps the OBS overlays, which render their own
-// configured font. Preloading here would make every overlay load fetch the
-// dashboard's fonts too, so they load on first use instead (the size-adjusted
-// fallback next/font generates keeps that swap from shifting layout).
-const plexSans = IBM_Plex_Sans({
-  variable: "--font-plex-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  preload: false,
-});
-
-const plexMono = IBM_Plex_Mono({
-  variable: "--font-plex-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  preload: false,
-});
-
-const montserrat = Montserrat({
-  variable: "--font-montserrat",
-  subsets: ["latin"],
-  preload: false,
-});
+// Only the body and mono faces live here (not preloaded: this layout also wraps the OBS
+// overlays, which render their own configured fonts). The heading face is applied by the
+// (app) and (bot) layouts, so its preload never reaches an overlay — see lib/heading-font.ts.
+// The overlay font stylesheet (public/fonts/fonts.css) is loaded by the (overlay) layout and
+// the Theme Center page, the two surfaces that render overlay content.
 
 export function generateMetadata(): Metadata {
   // BETTER_AUTH_URL (the web origin, bound on the worker in prod and dev) is
@@ -86,15 +67,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      {/* Self-hosted overlay/Theme-Center font faces (public/fonts, generated
-          by scripts/fetch-fonts.ts). @font-face is lazy — only families a
-          page actually renders get downloaded, straight from the worker's
-          edge-cached static assets instead of Google's CDN. React hoists and
-          dedupes this stylesheet link. */}
-      <link rel="stylesheet" href="/fonts/fonts.css" precedence="default" />
-      <body
-        className={`${plexSans.variable} ${plexMono.variable} ${montserrat.variable} antialiased`}
-      >
+      <body className={`${plexSans.variable} ${plexMono.variable} antialiased`}>
         <Providers>{children}</Providers>
       </body>
     </html>
