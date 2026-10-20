@@ -200,6 +200,15 @@ token/bot-account procedure uses `ownerProcedure` — being signed in is not
 authorization. Only genuinely public, token-gated procedures stay
 `publicProcedure`.
 
+**Setup checklist flags ride on `user.me`:** `me` selects the three `setup*Confirmed`
+columns from the `instance_config` row it already reads and returns
+`setup: { botSource, timerOverlay, tasksOverlay }` (no extra statement).
+`user.confirmSetupStep` (`ownerProcedure`; `confirmSetupStepInput` = `step` enum +
+`confirmed`, strict) is one `updateSingleton` UPDATE of exactly that column per click and
+returns the fresh `setup`, so the dashboard can patch `me` in place instead of refetching.
+Detection is explicit owner confirmation: a flag must never be set from an overlay poll
+or `bot.ingest`, which would be a write on a poll path.
+
 **Done-task retention + bounded list reads.** Task polls (overlay every 3s, dashboard)
 must never scan the task table — D1's free tier caps rows read at 5M/day.
 `listTasks` / `listOverlayTasks` read open tasks plus the newest `DONE_TASK_LIST_LIMIT`
@@ -264,7 +273,11 @@ best-effort inside `REVOKE_BUDGET_MS` (shared with `disconnectBotAccount`, under
 
 Schema split: `auth.ts` (Better Auth tables), `app.ts` (instanceConfig, botAccount, task,
 timerState, timerConfig, timerStyle, taskStyle, botConfig,
-processedChatMessage), `index.ts` (relations).
+processedChatMessage), `index.ts` (relations). `instanceConfig` holds the three tokens,
+the cached `channelLogin`, and the dashboard setup checklist flags
+`setupBotSourceConfirmed` / `setupTimerOverlayConfirmed` / `setupTasksOverlayConfirmed`
+(`integer({mode:"boolean"})`, NOT NULL default false; added expand-only by
+`0018_setup_confirmations`), which only `user.confirmSetupStep` writes.
 SQLite idioms: booleans `integer({mode:"boolean"})`, timestamps `integer({mode:"timestamp_ms"})`
 with `unixepoch('subsecond')*1000` defaults, JSON columns `text({mode:"json"}).$type<T>()`
 (commandAliases, scopes), opacities `real`, cuid2 ids. Config rows are singletons

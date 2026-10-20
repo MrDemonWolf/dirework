@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { provisionSingletonRows } from "@dirework/db/provision";
+import * as schema from "@dirework/db/schema";
+
 import {
   DEFAULT_PHASE_LABELS,
   DEFAULT_TASK_MESSAGES,
@@ -10,6 +13,7 @@ import type { Context } from "../context";
 import { botIngestInputSchema } from "../routers/bot";
 import { appRouter } from "../routers/index";
 import { taskRestoreInput } from "../routers/input-schemas";
+import { createSqliteDb } from "./helpers/sqlite-db";
 
 /**
  * Integration tests driving the REAL appRouter through createCaller.
@@ -302,6 +306,19 @@ describe("input validation through the real procedures", () => {
     expect(updated).toHaveLength(0);
   });
 
+  it("rejects an unknown setup step and extra keys, writing nothing", async () => {
+    const { caller: owner, updated } = caller(ownerSession, { instanceConfig: {} });
+    await expect(
+      // @ts-expect-error — not a checklist step
+      owner.user.confirmSetupStep({ step: "botAccount", confirmed: true }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(
+      // @ts-expect-error — strict schema: no extra keys
+      owner.user.confirmSetupStep({ step: "botSource", confirmed: true, channelLogin: "x" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(updated).toHaveLength(0);
+  });
+
   it("rejects an under-length overlay token", async () => {
     const { caller: anon } = caller(null);
     await expect(anon.overlay.getTimerState({ token: "short" })).rejects.toMatchObject({
@@ -456,6 +473,41 @@ describe("database effects of owner mutations", () => {
       commandAliases: { t: "task" },
       msgNotMod: "mods only, {user}",
     });
+  });
+
+  it.each([
+    ["botSource", "setupBotSourceConfirmed"],
+    ["timerOverlay", "setupTimerOverlayConfirmed"],
+    ["tasksOverlay", "setupTasksOverlayConfirmed"],
+  ] as const)(
+    "user.confirmSetupStep(%s) writes only %s and returns the checklist",
+    async (step, column) => {
+      const { caller: owner, updated } = caller(ownerSession, { instanceConfig: {} });
+
+      const confirmed = await owner.user.confirmSetupStep({ step, confirmed: true });
+      const reverted = await owner.user.confirmSetupStep({ step, confirmed: false });
+
+      // One UPDATE per click, touching exactly the one column.
+      expect(updated).toEqual([{ [column]: true }, { [column]: false }]);
+      expect(confirmed.setup[step]).toBe(true);
+      expect(Object.values(confirmed.setup).filter(Boolean)).toHaveLength(1);
+      expect(reverted.setup[step]).toBe(false);
+    },
+  );
+
+  it("user.confirmSetupStep fails loudly when the write did not land", async () => {
+    const { caller: owner } = caller(ownerSession, { instanceConfig: {}, updateReturns: [] });
+    await expect(
+      owner.user.confirmSetupStep({ step: "botSource", confirmed: true }),
+    ).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+  });
+
+  it("user.confirmSetupStep refuses a signed-in non-owner before touching the DB", async () => {
+    const { caller: rando, updated } = caller(nonOwnerSession, { instanceConfig: {} });
+    await expect(
+      rando.user.confirmSetupStep({ step: "botSource", confirmed: true }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(updated).toHaveLength(0);
   });
 
   it("token rotation saves the token it returns", async () => {
@@ -647,5 +699,60 @@ describe("public overlay procedures honour the token gate", () => {
     const anon = appRouter.createCaller({ session: null, db } as unknown as Context);
     await expect(anon.overlay.getTaskList({ token: "w".repeat(32) })).resolves.toBeNull();
     expect(findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("setup checklist against real SQLite", () => {
+  const OWNER = {
+    id: "owner",
+    name: "streamer",
+    email: "owner@example.test",
+    twitchId: "1000",
+    displayName: "Streamer",
+    isOwner: true,
+  };
+  const session = {
+    user: {
+      id: OWNER.id,
+      isOwner: true,
+      name: OWNER.name,
+      twitchId: OWNER.twitchId,
+      displayName: OWNER.displayName,
+    },
+  };
+  const NONE = { botSource: false, timerOverlay: false, tasksOverlay: false };
+
+  /** A claimed instance: provisioned singletons plus the owner row the session names. */
+  async function claimedInstance() {
+    const { db } = await createSqliteDb();
+    await provisionSingletonRows(db);
+    await db.insert(schema.user).values(OWNER);
+    return { db, owner: appRouter.createCaller({ session, db } as unknown as Context) };
+  }
+
+  it("me.setup is all false until a step is confirmed, and reverts when un-confirmed", async () => {
+    const { db, owner } = await claimedInstance();
+    const before = await db.query.instanceConfig.findFirst();
+
+    expect((await owner.user.me())?.setup).toEqual(NONE);
+
+    await expect(
+      owner.user.confirmSetupStep({ step: "timerOverlay", confirmed: true }),
+    ).resolves.toEqual({ setup: { ...NONE, timerOverlay: true } });
+    expect((await owner.user.me())?.setup).toEqual({ ...NONE, timerOverlay: true });
+
+    await owner.user.confirmSetupStep({ step: "tasksOverlay", confirmed: true });
+    expect((await owner.user.me())?.setup).toEqual({
+      ...NONE,
+      timerOverlay: true,
+      tasksOverlay: true,
+    });
+
+    await owner.user.confirmSetupStep({ step: "timerOverlay", confirmed: false });
+    await owner.user.confirmSetupStep({ step: "tasksOverlay", confirmed: false });
+    expect((await owner.user.me())?.setup).toEqual(NONE);
+
+    // Nothing else on the row moved: tokens and the cached channel are as provisioned.
+    expect(await db.query.instanceConfig.findFirst()).toEqual(before);
   });
 });

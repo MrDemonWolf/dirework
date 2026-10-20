@@ -32,6 +32,19 @@ export const instanceConfig = sqliteTable("instance_config", {
   // the login name, not the display name (better-auth only stores the display
   // name). Lazily resolved via Helix on bot.getSession.
   channelLogin: text("channel_login"),
+  // Dashboard setup checklist. Each flag flips only when the owner confirms the
+  // step by hand ("I added it to OBS") through `user.confirmSetupStep`; nothing
+  // infers it from overlay or bot-page traffic, which would mean a write on a
+  // poll path. `user.me` returns them from the row it already reads.
+  setupBotSourceConfirmed: integer("setup_bot_source_confirmed", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  setupTimerOverlayConfirmed: integer("setup_timer_overlay_confirmed", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  setupTasksOverlayConfirmed: integer("setup_tasks_overlay_confirmed", { mode: "boolean" })
+    .notNull()
+    .default(false),
 });
 
 export const botAccount = sqliteTable("bot_account", {
