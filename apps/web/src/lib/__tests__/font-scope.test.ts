@@ -29,29 +29,29 @@ describe("font scoping", () => {
   });
 
   // The heading face is preloaded, so it must stay out of the root layout's module graph:
-  // next/font would otherwise emit that preload for the OBS overlays too.
-  it("imports the preloaded heading font only from the (app) and (bot) layouts", () => {
+  // next/font would otherwise emit that preload for the OBS overlays too. The bot console
+  // renders in the mono face, so it must not import it either — every `/bot/<token>` startup
+  // would download a font it never shows.
+  it("imports the preloaded heading font only from the (app) layout", () => {
     const importers = sources
       .filter((file) => readFileSync(file, "utf8").includes("@/lib/heading-font"))
       .map(relative)
       .sort();
-    expect(importers).toEqual(["app/(app)/layout.tsx", "app/(bot)/layout.tsx"]);
+    expect(importers).toEqual(["app/(app)/layout.tsx"]);
     expect(readFileSync(path.join(srcRoot, "lib/heading-font.ts"), "utf8")).toContain(
       "preload: true",
     );
     expect(readFileSync(path.join(srcRoot, "lib/fonts.ts"), "utf8")).not.toContain("preload: true");
   });
 
-  // Dialogs, menus and selects portal to <body>, outside the layouts' wrapper elements, so a
-  // class on the wrapper would leave every portaled heading on the fallback face. Each layout
+  // Dialogs, menus and selects portal to <body>, outside the layout's wrapper element, so a
+  // class on the wrapper would leave every portaled heading on the fallback face. The layout
   // that owns the face must publish it on body instead.
   it("publishes the heading face on <body> so portaled dialogs inherit it", () => {
     const rule = readFileSync(path.join(srcRoot, "lib/heading-font.ts"), "utf8");
     expect(rule).toContain(["body{--font-montserrat:", "{montserrat.style.fontFamily}}"].join("$"));
-    for (const layout of ["app/(app)/layout.tsx", "app/(bot)/layout.tsx"]) {
-      const source = readFileSync(path.join(srcRoot, layout), "utf8");
-      expect(source, layout).toContain("{headingFontBodyCss}");
-      expect(source, layout).not.toContain("montserrat.variable");
-    }
+    const source = readFileSync(path.join(srcRoot, "app/(app)/layout.tsx"), "utf8");
+    expect(source).toContain("{headingFontBodyCss}");
+    expect(source).not.toContain("montserrat.variable");
   });
 });

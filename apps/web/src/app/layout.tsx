@@ -9,7 +9,8 @@ import { plexMono, plexSans } from "@/lib/fonts";
 
 // Only the body and mono faces live here (not preloaded: this layout also wraps the OBS
 // overlays, which render their own configured fonts). The heading face is applied by the
-// (app) and (bot) layouts, so its preload never reaches an overlay — see lib/heading-font.ts.
+// (app) layout only, so its preload never reaches an overlay or the bot console — see
+// lib/heading-font.ts.
 // The overlay font stylesheet (public/fonts/fonts.css) is loaded by the (overlay) layout and
 // the Theme Center page, the two surfaces that render overlay content.
 
