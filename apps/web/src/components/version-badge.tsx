@@ -10,11 +10,13 @@ const REPO = "https://github.com/mrdemonwolf/dirework";
 const POLL_MS = 5 * 60 * 1000;
 
 /**
- * Footer version readout: `v1.0.0 · <sha>`. Polls /api/version for the SHA the
- * web worker is *currently* serving; when it no longer matches the SHA baked
- * into this tab, a newer deploy shipped and this tab is stale — offers a Reload.
+ * Footer deploy readout: `· <short sha>`, linked to the commit on GitHub. Every
+ * deploy is one commit, so the SHA is the version that matters (there is no
+ * separate version number). Polls /api/version for the SHA the web worker is
+ * *currently* serving; when it no longer matches the SHA baked into this tab, a
+ * newer deploy shipped and this tab is stale — offers a Reload.
  */
-export function VersionBadge({ version, sha }: { version?: string; sha?: string }) {
+export function VersionBadge({ sha }: { sha?: string }) {
   const [stale, setStale] = useState(false);
 
   const check = useCallback(async () => {
@@ -41,24 +43,26 @@ export function VersionBadge({ version, sha }: { version?: string; sha?: string 
     };
   }, [sha, check]);
 
+  if (!sha) return null;
+
   return (
     <>
-      {version && <span className="font-mono">v{version}</span>}
-      {sha && (
-        <>
-          <span aria-hidden className="text-muted-foreground/50">
-            &middot;
-          </span>
-          <a
-            href={`${REPO}/commit/${sha}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={`Deployed commit ${sha} — view on GitHub`}
-            className="font-mono transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {sha.slice(0, 7)}
-          </a>
-        </>
+      <span aria-hidden className="text-muted-foreground/50">
+        &middot;
+      </span>
+      {sha === "dev" ? (
+        // Local build without git metadata — nothing on GitHub to link to.
+        <span className="font-mono">dev</span>
+      ) : (
+        <a
+          href={`${REPO}/commit/${sha}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`Deployed commit ${sha} — view on GitHub`}
+          className="font-mono transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {sha.slice(0, 7)}
+        </a>
       )}
       {stale && (
         <button

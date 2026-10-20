@@ -14,7 +14,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const termsOfServiceUrl = process.env.TERMS_OF_SERVICE_URL;
   const showLegalLinks = privacyPolicyUrl || termsOfServiceUrl;
   const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA;
-  const appVersion = process.env.NEXT_PUBLIC_APP_VERSION;
 
   return (
     <div className="grid min-h-svh grid-rows-[auto_1fr_auto]">
@@ -53,10 +52,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               MrDemonWolf, Inc.
             </a>
           </span>
-          <span aria-hidden className="text-muted-foreground/50">
-            &middot;
-          </span>
-          <VersionBadge version={appVersion} sha={commitSha} />
+          {/* Renders its own leading separator, so nothing dangles when there is no SHA. */}
+          <VersionBadge sha={commitSha} />
         </div>
         {showLegalLinks && (
           <div className="mt-2 flex items-center justify-center gap-3">

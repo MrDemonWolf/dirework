@@ -1,14 +1,9 @@
 import "@dirework/env/web";
 import { execSync } from "node:child_process";
-import { createRequire } from "node:module";
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 import type { NextConfig } from "next";
 
 import { apiOrigin } from "./src/lib/api-origin";
-
-const { version } = createRequire(import.meta.url)("./package.json") as {
-  version: string;
-};
 
 // Enables `getCloudflareContext()` / worker bindings during `next dev`.
 initOpenNextCloudflareForDev();
@@ -70,7 +65,6 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   env: {
     NEXT_PUBLIC_COMMIT_SHA: commitSha,
-    NEXT_PUBLIC_APP_VERSION: version,
   },
   // No rewrites: authenticated tRPC (/rpc/*) and the OAuth routes (/api/auth/*,
   // /api/bot/*) are all proxied by route handlers (src/app/rpc/[...path] and
