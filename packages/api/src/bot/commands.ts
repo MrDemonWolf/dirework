@@ -93,19 +93,25 @@ function isPositionArg(arg: string | undefined): arg is string {
   return arg != null && /^\d+$/.test(arg);
 }
 
-/**
- * Hardcoded bad-usage reply for !remove/!focus (like the !dwhelp fallback) —
- * reusing config.task.noTask here would falsely tell a viewer with open tasks
- * that they aren't tracking anything.
- */
+/** `!edit <position> <new text>`, or null when either part is missing. */
 export function parseTaskEditArgs(args: string[]): { position: string; text: string } | null {
   if (args.length < 2 || !isPositionArg(args[0])) return null;
   const text = truncateToLength(args.slice(1).join(" ").trim(), MAX_TASK_LEN);
   return text ? { position: args[0], text } : null;
 }
 
-const POSITIONAL_USAGE_REPLY = (displayName: string) =>
-  `Give me a task number, ${displayName}: try !remove [number] or !focus [number]. Tasks are numbered in the order you added them.`;
+/**
+ * Hardcoded bad-usage replies (like the !dwhelp fallback): no owner template
+ * fits "you left out the number", and config.task.noTask would be wrong for a
+ * viewer who has tasks. Static on purpose: reading the viewer's tasks just to
+ * word a hint would add a D1 round trip to the ingest path (AGENTS.md cost
+ * rules). `!today` is where a viewer sees their task numbers.
+ */
+const POSITIONAL_USAGE_REPLY = (command: string, displayName: string) =>
+  `Which task, ${displayName}? Use ${command} [number]. !today lists your open tasks with their numbers.`;
+
+const CLEAR_USAGE_REPLY = (displayName: string) =>
+  `${displayName}, tell me what to clear: !clear done, !clear all, or !clear @user.`;
 
 /** Hardcoded like POSITIONAL_USAGE_REPLY: no owner template fits "retry". */
 const STALE_NEXT_REPLY = (displayName: string) =>
@@ -246,18 +252,24 @@ function todayTaskPreview(text: string): string {
   return `${truncateToBytes(clean, TODAY_PREVIEW_BYTES - utf8ByteLength(ellipsis))}${ellipsis}`;
 }
 
-/** A short personal plan: current focus, the next two tasks, and a remaining count. */
+/**
+ * A short personal plan: current focus, the next two tasks, and a remaining count.
+ * Each task carries its 1-based position in `tasks` (the viewer's open list in
+ * list order), which is the number `!done`, `!edit`, `!remove` and `!focus` take —
+ * the only place in chat a viewer can see those numbers.
+ */
 export function formatTodayPlan(
   displayName: string,
   tasks: readonly { text: string; status: string }[],
 ): string {
-  const active = tasks.find((task) => task.status === "active");
-  const ordered = active ? [active, ...tasks.filter((task) => task !== active)] : [...tasks];
+  const numbered = tasks.map((task, index) => ({ ...task, position: index + 1 }));
+  const active = numbered.find((task) => task.status === "active");
+  const ordered = active ? [active, ...numbered.filter((task) => task !== active)] : numbered;
   const shown = ordered.slice(0, TODAY_TASK_LIMIT);
   let queuedCount = 0;
   const items = shown.map((task) => {
     const label = task.status === "active" ? "Now" : queuedCount++ === 0 ? "Next" : "Then";
-    return `${label}: ${todayTaskPreview(task.text)}`;
+    return `${label}: #${task.position} ${todayTaskPreview(task.text)}`;
   });
   const remaining = ordered.length - shown.length;
   if (remaining > 0) items.push(`+${remaining} more`);
@@ -342,9 +354,7 @@ async function handleTaskRemove(args: string[], ctx: MessageContext): Promise<vo
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   if (!isPositionArg(args[0])) {
-    // Bad usage, not "no tasks" — config.task.noTask would falsely tell a
-    // viewer with open tasks that they aren't tracking anything.
-    say(POSITIONAL_USAGE_REPLY(userInfo.displayName));
+    say(POSITIONAL_USAGE_REPLY("!remove", userInfo.displayName));
     return;
   }
 
@@ -363,8 +373,7 @@ async function handleTaskFocus(args: string[], ctx: MessageContext): Promise<voi
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   if (!isPositionArg(args[0])) {
-    // Bad usage, not "no tasks" — same rationale as handleTaskRemove.
-    say(POSITIONAL_USAGE_REPLY(userInfo.displayName));
+    say(POSITIONAL_USAGE_REPLY("!focus", userInfo.displayName));
     return;
   }
 
@@ -475,6 +484,10 @@ async function handleClear(args: string[], ctx: MessageContext): Promise<void> {
   } else if (sub?.startsWith("@")) {
     await removeTasksByUsername(db, sub.slice(1));
     say(interpolate(config.task.adminDeleteTasks, vars));
+  } else {
+    // A mod typed !clear with no target (or an unknown one): say what the targets are
+    // instead of silently doing nothing.
+    say(CLEAR_USAGE_REPLY(userInfo.displayName));
   }
 }
 

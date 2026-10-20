@@ -30,6 +30,13 @@ export {
   MAX_TASK_LEN,
   TIMER_CONFIG_DEFAULTS,
 } from "./config-defaults";
+import {
+  LEGACY_TASK_MESSAGES,
+  LEGACY_TIMER_MESSAGES,
+  TASK_MESSAGE_COLUMN_DEFAULTS,
+  TIMER_MESSAGE_COLUMN_DEFAULTS,
+} from "@dirework/db/defaults";
+import { DEFAULT_TASK_MESSAGES, DEFAULT_TIMER_MESSAGES } from "./config-defaults";
 
 /** Singleton-row primary key used by every one-row config table (single source: packages/db schema). */
 export { SINGLETON_ID } from "@dirework/db/schema";
@@ -459,13 +466,58 @@ export function buildTimerConfig(tc: TimerConfig) {
 
 export type TimerConfigData = ReturnType<typeof buildTimerConfig>;
 
+/** Per message, every default wording an earlier release could have left in the row. */
+function legacyDefaultSets<K extends string>(
+  column: Record<K, string>,
+  legacy: Record<K, readonly string[]>,
+): Record<K, ReadonlySet<string>> {
+  const sets = {} as Record<K, ReadonlySet<string>>;
+  for (const key of Object.keys(column) as K[]) {
+    sets[key] = new Set([column[key], ...legacy[key]]);
+  }
+  return sets;
+}
+
+const LEGACY_TASK_DEFAULTS = legacyDefaultSets(TASK_MESSAGE_COLUMN_DEFAULTS, LEGACY_TASK_MESSAGES);
+const LEGACY_TIMER_DEFAULTS = legacyDefaultSets(
+  TIMER_MESSAGE_COLUMN_DEFAULTS,
+  LEGACY_TIMER_MESSAGES,
+);
+
+/**
+ * A stored reply that still holds a default from an earlier release — the frozen
+ * SQL column default a fresh row starts with, or an older build's wording — reads
+ * back as the CURRENT default, so rewording a default reaches every instance
+ * whose owner never customized that reply: no migration, no write. Anything else
+ * is the owner's own text and passes through untouched.
+ */
+function upgradeLegacyDefaults<K extends string>(
+  messages: Record<K, string>,
+  current: Record<K, string>,
+  legacy: Record<K, ReadonlySet<string>>,
+): Record<K, string> {
+  const out = { ...messages };
+  for (const key of Object.keys(messages) as K[]) {
+    if (legacy[key].has(messages[key])) out[key] = current[key];
+  }
+  return out;
+}
+
 export function buildBotConfig(bc: BotConfig): BotConfigData {
   return {
     taskCommandsEnabled: bc.taskCommandsEnabled,
     timerCommandsEnabled: bc.timerCommandsEnabled,
     commandAliases: bc.commandAliases as Record<string, string>,
-    task: buildFromFieldMap(TASK_MESSAGE_FIELDS, bc),
-    timer: buildFromFieldMap(TIMER_MESSAGE_FIELDS, bc),
+    task: upgradeLegacyDefaults(
+      buildFromFieldMap(TASK_MESSAGE_FIELDS, bc),
+      DEFAULT_TASK_MESSAGES,
+      LEGACY_TASK_DEFAULTS,
+    ),
+    timer: upgradeLegacyDefaults(
+      buildFromFieldMap(TIMER_MESSAGE_FIELDS, bc),
+      DEFAULT_TIMER_MESSAGES,
+      LEGACY_TIMER_DEFAULTS,
+    ),
   };
 }
 
