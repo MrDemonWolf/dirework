@@ -87,7 +87,7 @@ function SaveBarPanel({
               </Button>
             }
             title="Discard unsaved changes?"
-            description="All edits since your last save will be reverted. This cannot be undone."
+            description="Every edit since your last save is discarded. This can't be undone."
             confirmLabel="Discard changes"
             onConfirm={onReset}
           />

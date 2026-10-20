@@ -22,7 +22,7 @@ export const SIGN_IN_ERRORS = {
   },
   signin_failed: {
     title: "Twitch sign-in didn't complete.",
-    hint: "Nothing was changed — try the button again. If it keeps failing, check that the Twitch app's redirect URL matches this site.",
+    hint: "Nothing was changed. Try the button again. If it keeps failing, check that the Twitch app's redirect URL matches this site.",
   },
 } satisfies Record<string, SignInError>;
 

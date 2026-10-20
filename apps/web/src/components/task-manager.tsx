@@ -268,7 +268,7 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                   <div className="max-w-[15rem] text-center">
                     <p className="text-sm font-medium">A clean slate</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Add the first task above — or let chat kick things off with{" "}
+                      Add the first task above, or let chat start with{" "}
                       <code className="rounded bg-muted px-1 py-0.5 font-mono">!task</code>.
                     </p>
                   </div>
@@ -477,7 +477,7 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                   </Button>
                 }
                 title="Clear every task?"
-                description={`This permanently removes all ${totalCount} ${totalCount === 1 ? "task" : "tasks"} — including viewer tasks — from the list and the overlay. Chat will need to re-add theirs.`}
+                description={`This permanently removes all ${totalCount} ${totalCount === 1 ? "task" : "tasks"}, including viewer tasks, from the list and the overlay. Viewers will need to add theirs again.`}
                 confirmLabel="Clear all tasks"
                 onConfirm={() => clearAll.mutate()}
               />

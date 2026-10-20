@@ -76,7 +76,7 @@ export function ColorInput({
     <FieldRow
       label={label}
       htmlFor={id}
-      error={invalid ? `Not applied — use a hex color like #1a2b3c (current: ${value})` : null}
+      error={invalid ? `Not applied. Use a hex color like #1a2b3c (current: ${value})` : null}
       errorId={errorId}
       hint={hint}
       hintId={hintId}

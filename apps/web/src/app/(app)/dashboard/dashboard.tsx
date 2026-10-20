@@ -37,10 +37,10 @@ function getGreeting(): string {
 
 function getSubGreeting(): string {
   const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return "Ready to crush some tasks today?";
-  if (hour >= 12 && hour < 17) return "Keep the momentum going!";
+  if (hour >= 5 && hour < 12) return "What's first on the list?";
+  if (hour >= 12 && hour < 17) return "Keep it going.";
   if (hour >= 17 && hour < 21) return "Wrapping up the day's work?";
-  return "Night owl mode activated.";
+  return "Burning the midnight oil?";
 }
 
 function getDateStr(): string {

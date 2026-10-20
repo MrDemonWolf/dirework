@@ -128,7 +128,7 @@ export const themePresets: ThemePreset[] = [
   {
     id: "ocean-depths",
     name: "Ocean Depths",
-    description: "Deep navy and teal with luminous accents",
+    description: "Deep navy with teal accents",
     preview: { bg: "#0a1628", accent: "#2dd4bf", text: "#e0f2fe" },
     timerStyles: {
       dimensions: { width: "300px", height: "300px" },
@@ -255,7 +255,7 @@ export const themePresets: ThemePreset[] = [
   {
     id: "cozy-cottage",
     name: "Cozy Cottage",
-    description: "Warm earth tones with a soft cream palette",
+    description: "Warm earth tones on soft cream",
     preview: { bg: "#faf3e8", accent: "#b8860b", text: "#5c3d1a" },
     timerStyles: {
       dimensions: { width: "300px", height: "300px" },
@@ -319,7 +319,7 @@ export const themePresets: ThemePreset[] = [
   {
     id: "minimal-light",
     name: "Minimal Light",
-    description: "Ultra-clean white design for readability",
+    description: "Plain white, easy to read",
     preview: { bg: "#ffffff", accent: "#6366f1", text: "#111827" },
     timerStyles: {
       dimensions: { width: "300px", height: "300px" },
@@ -382,7 +382,7 @@ export const themePresets: ThemePreset[] = [
   {
     id: "twitch-purple",
     name: "Twitch Purple",
-    description: "Twitch's signature purple on dark panels",
+    description: "Twitch purple on dark panels",
     preview: { bg: "#0e0e10", accent: "#9146ff", text: "#efeff1" },
     timerStyles: {
       dimensions: { width: "300px", height: "300px" },

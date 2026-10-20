@@ -193,7 +193,7 @@ describe("bot.ingest config", () => {
   it("!dwhelp links to the configured docs site", async () => {
     const { replies } = await say("!dwhelp");
     expect(replies).toEqual([
-      "Viewer, check out all the commands here: http://localhost:4000/docs/chat-commands",
+      "Viewer, the full command list is here: http://localhost:4000/docs/chat-commands",
     ]);
   });
 });

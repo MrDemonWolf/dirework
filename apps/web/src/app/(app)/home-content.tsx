@@ -74,8 +74,8 @@ function HomeInner() {
             Focus together, <span className="text-primary">stream better.</span>
           </h1>
           <p className="max-w-lg text-lg text-muted-foreground">
-            A co-working timer and task list for your Twitch stream. Viewers join the focus session,
-            add tasks via chat, and stay productive together.
+            A co-working timer and task list for your Twitch stream. Viewers join the focus session
+            and add their own tasks from chat.
           </p>
 
           {signInError && (

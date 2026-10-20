@@ -17,7 +17,7 @@ const perks = [
   { icon: Timer, label: "A Pomodoro timer your viewers can see on stream" },
   { icon: ListTodo, label: "A shared task list your chat fills in" },
   { icon: Bot, label: "A Twitch bot that answers chat commands for you" },
-  { icon: Palette, label: "6 themes — or style every pixel yourself" },
+  { icon: Palette, label: "6 themes, or style it yourself" },
 ];
 
 /** Shows a generic failure callout for any `?error=` code returned to /setup. */
@@ -79,8 +79,8 @@ function SetupInner() {
             This DireWork is all yours
           </h1>
           <p className="text-muted-foreground">
-            Sign in with Twitch to claim it. That&apos;s the whole setup — one click and you&apos;re
-            the owner. No forms, no passwords to remember.
+            Sign in with Twitch to claim it. That&apos;s the whole setup: one sign-in and
+            you&apos;re the owner. No forms, no passwords to remember.
           </p>
         </div>
 
@@ -101,7 +101,7 @@ function SetupInner() {
 
         {signInFailed && (
           <Callout className="mt-6" title="Twitch sign-in didn't complete.">
-            This DireWork is still unclaimed — try again below.
+            This DireWork is still unclaimed. Try again below.
           </Callout>
         )}
 

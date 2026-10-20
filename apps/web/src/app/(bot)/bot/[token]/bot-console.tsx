@@ -191,7 +191,7 @@ export function BotConsole() {
           </p>
         ) : (
           <p className="max-w-sm text-sm text-zinc-400">
-            This URL doesn&apos;t match a bot page URL. Copy the current one from Dashboard → Bot.
+            This isn&apos;t a valid bot page URL. Copy the current one from Dashboard → Bot.
           </p>
         )}
       </main>
@@ -248,7 +248,7 @@ export function BotConsole() {
 
       {phase === "not-configured" && (
         <p className="border-b border-zinc-800/80 px-4 py-2 text-sm text-zinc-400">
-          Connect a bot account in Dashboard → Bot — this page goes live on its own.
+          Connect a bot account in Dashboard → Bot. This page goes live on its own.
         </p>
       )}
 
