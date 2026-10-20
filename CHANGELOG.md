@@ -44,6 +44,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   dependencies, including Next.js.
 
 ### Changed
+- The footer shows the deployed commit hash on its own, without a version number. Every deploy is one commit, so the hash is the version that matters.
 - **The product name is spelled "DireWork" everywhere** in the dashboard, overlays and docs.
 - **An overlay with an old or reset URL now shows nothing** instead of a fake 00:00 timer or
   "No tasks yet", so a stale OBS source can never put placeholder junk on stream. Copy the
