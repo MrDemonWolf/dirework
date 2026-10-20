@@ -10,6 +10,7 @@ import { interpolate, TEMPLATE_VARIABLES } from "@dirework/api/chat-text";
 
 import { messageBudget } from "@/lib/message-budget";
 import type { MessageField } from "@/lib/message-fields";
+import { previewVarsFor } from "@/lib/template-preview";
 import { ByteBudget } from "@/components/byte-budget";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ConsoleRule } from "@/components/console-rule";
@@ -35,7 +36,8 @@ export interface ReplyPreview {
  *
  * Under every input sits the reply as the bot would send it — rendered by the bot's own
  * `interpolate`, so byte fitting and command-lead stripping show up too — filled with
- * `preview.vars` and spoken by `preview.speaker`. A field whose value differs from
+ * the sample values this reply's handler actually passes (`previewVarsFor`) and spoken by
+ * `preview.speaker`. A field whose value differs from
  * `defaults` offers "Reset to default"; "Reset all" above the list resets the whole tab.
  * Both only touch the draft — nothing persists until the page's Save bar.
  *
@@ -195,7 +197,7 @@ export function MessageEditor<T extends object>({
                       <span className="font-medium text-primary">{preview.speaker}</span>
                       <span aria-hidden>: </span>
                       {value.trim() ? (
-                        interpolate(value, preview.vars)
+                        interpolate(value, previewVarsFor(field, preview.vars))
                       ) : (
                         <span className="italic">(empty)</span>
                       )}

@@ -4,7 +4,7 @@ import { interpolate } from "@dirework/api/chat-text";
 
 import { DEFAULT_TASK_MESSAGES, DEFAULT_TIMER_MESSAGES } from "@/lib/config-types";
 import { taskMessageFields, timerMessageFields } from "@/lib/message-fields";
-import { previewVars } from "@/lib/template-preview";
+import { previewVars, previewVarsFor } from "@/lib/template-preview";
 
 describe("reply preview sample values", () => {
   const vars = previewVars("Streamer");
@@ -33,5 +33,16 @@ describe("reply preview sample values", () => {
 
   it("stand the streamer in for the viewer and the channel", () => {
     expect(interpolate("{user} in #{channel}", vars)).toBe("Streamer in #Streamer");
+  });
+
+  // Mirrors the bot: a handler fills only the variables it passes, so a placeholder the
+  // owner typed into the wrong reply shows up literal in chat — and in the preview.
+  it("leave a placeholder the reply's handler never fills literal, like chat does", () => {
+    const taskAdded = taskMessageFields.find((field) => field.key === "taskAdded");
+    if (!taskAdded) throw new Error("taskAdded field missing");
+    const scoped = previewVarsFor(taskAdded, vars);
+    expect(interpolate('"{task}" for {user} in #{channel}, after {oldTask}', scoped)).toBe(
+      '"write the intro" for Streamer in #Streamer, after {oldTask}',
+    );
   });
 });
