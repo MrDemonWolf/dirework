@@ -34,7 +34,7 @@ describe("workflow supply-chain controls", () => {
     expect(deploy.slice(0, installPosition)).not.toContain("${{ secrets.");
   });
 
-  it.each(["verify.yml", "ci.yml", "deploy.yml", "codeql.yml"])(
+  it.each(["verify.yml", "ci.yml", "deploy.yml", "codeql.yml", "release.yml"])(
     "disables persisted checkout credentials in %s",
     (name) => {
       const workflow = readWorkflow(name);
@@ -204,5 +204,19 @@ describe("workflow supply-chain controls", () => {
     expect(verify).toMatch(
       /- name: Browser end-to-end tests\n\s+if: \$\{\{ inputs\.run-build \}\}/,
     );
+  });
+
+  it("publishes a GitHub Release only from a version tag, with notes taken from the changelog", () => {
+    const release = readWorkflow("release.yml");
+    // Tags only: a branch push must never mint a release.
+    expect(release).toMatch(/on:\n\s+push:\n\s+tags: \["v\*"\]/);
+    expect(release).not.toMatch(/branches:/);
+    // Least privilege: read at the top, write only on the one job that creates the release.
+    expect(release).toMatch(/^permissions:\n\s+contents: read/m);
+    expect(release).toMatch(/jobs:\n\s+release:\n(?:.*\n)*?\s+permissions:\n\s+contents: write/);
+    // Upstream only, and the tag must exist on GitHub (no release for a local-only tag).
+    expect(release).toContain("github.repository == 'mrdemonwolf/dirework'");
+    expect(release).toContain('gh release create "$TAG" --verify-tag');
+    expect(release).toContain("bun packages/infra/release-notes.ts");
   });
 });
