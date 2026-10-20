@@ -280,6 +280,37 @@
   animation: led-pulse 2.4s ease-in-out infinite;
 }
 
+/*
+ * Skeleton shimmer (ui/skeleton.tsx): one highlight band sweeps left→right across every
+ * placeholder block on the page. Transform-only, so it composites on the GPU like the
+ * overlay glow; the reduced-motion gate below cuts it to one instant pass that ends
+ * off-screen.
+ */
+@keyframes skeleton-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 25%,
+    color-mix(in oklab, var(--foreground) 6%, transparent) 50%,
+    transparent 75%
+  );
+  animation: skeleton-sweep 1.8s ease-in-out infinite;
+}
+
 /* Chat-Task-Tic-style dual-container infinite scroll (overlay) */
 @keyframes scroll-primary {
   0% {

@@ -78,6 +78,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   budget and invariants) used for every pull request review.
 
 ### Added
+- Dashboard pages show their loading skeleton the instant you click a nav link, instead of
+  the previous page sitting still until the new one arrives. The clicked nav icon pulses
+  while the page loads, and skeletons sweep a soft highlight instead of pulsing.
 - **`!today` chat command.** A viewer gets their plan in one line: the task they're on
   now, the next two, and how many more are queued. It can be aliased like any other
   command (reload the bot page after updating so it relays `!today`).
