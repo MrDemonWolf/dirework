@@ -19,9 +19,9 @@ or a managed hosting service.
 - **Task List** - Viewers add and manage tasks via chat
   commands, displayed as a scrolling OBS overlay.
 - **Twitch Bot** - Dedicated bot account for chat commands
-  like `!task`, `!done`, `!timer start`, and `!timer eta`. Every
-  reply is editable, and the task and timer command groups can be
-  turned off. The bot runs in a token-gated browser page (OBS
+  like `!task`, `!done`, `!timer start`, and `!timer eta`. Reply
+  templates are editable (a few usage hints are fixed), and the task
+  and timer command groups can be turned off. The bot runs in a token-gated browser page (OBS
   source or pinned tab), so no always-on server is needed.
 - **Theme Center** - 6 built-in themes, including Liquid
   Glass Dark, Ocean Depths, Cozy Cottage, and Twitch Purple,
