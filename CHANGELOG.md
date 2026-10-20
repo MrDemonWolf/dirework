@@ -17,21 +17,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   copies so no other workflow can read them. Nothing breaks if you wait: until you move
   them, the deploy keeps reading the repository secrets.
 - Database migrations `0012`–`0016` apply automatically on the next deploy. They only add
-  tables, columns and indexes, plus a one-time scrub of data Dirework no longer keeps
+  tables, columns and indexes, plus a one-time scrub of data DireWork no longer keeps
   (see Security).
 - After updating, reload the bot page (or refresh its OBS browser source) so it runs the
   new bot code.
 
 ### Security
 - **Resetting the bot page URL now also kills the Twitch chat login that page was
-  given**, so a leaked bot link stops working in chat too, not just on Dirework. The bot
+  given**, so a leaked bot link stops working in chat too, not just on DireWork. The bot
   keeps running with a freshly issued login once you open the new URL. If Twitch can't be
   reached, the reset still goes through and the dashboard tells you the old chat login
   couldn't be confirmed dead (it expires on its own within a few hours).
 - Cloudflare **invocation logs are turned off** on both workers. They stored every
   request's full URL, and bot and overlay links carry their secret token in the URL.
-  Dirework's own redacted logs and error metrics are still collected.
-- Dirework stores less about you: owner sign-in asks Twitch only for your identity (no
+  DireWork's own redacted logs and error metrics are still collected.
+- DireWork stores less about you: owner sign-in asks Twitch only for your identity (no
   email), your own Twitch login tokens are never saved, and sessions no longer record your
   IP address or browser. Data saved by earlier versions is scrubbed on deploy.
 - Anyone else who tries to sign in to a claimed instance gets a clear "already belongs to a
@@ -53,8 +53,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Theme presets meet text contrast guidelines (4.5:1)** for done tasks, usernames and the
   Cozy Cottage header. Done rows no longer fade to 60% opacity, so the done color you pick is
   the color viewers see.
-- **The bot page only forwards real Dirework commands.** Lines whose first word isn't a
-  Dirework command or one of your aliases — like other bots' `!lurk` or `!so` — never leave
+- **The bot page only forwards real DireWork commands.** Lines whose first word isn't a
+  DireWork command or one of your aliases — like other bots' `!lurk` or `!so` — never leave
   the page, saving a Cloudflare request each. An open bot page picks up new aliases within
   an hour; reload it to use them right away.
 - Completed tasks are deleted automatically 24 hours after they're marked done, and the

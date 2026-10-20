@@ -448,7 +448,7 @@ export function TimerInstrument() {
                 </Button>
               }
               title="Stop the timer?"
-              description="This ends the current run and resets the timer. Your progress is lost — the overlay goes back to its idle preview."
+              description="This ends the current run and resets the timer. Progress is lost, and the overlay goes back to its idle preview."
               confirmLabel="Stop timer"
               onConfirm={() => reset.mutate()}
             />

@@ -296,7 +296,7 @@ If a release misbehaves, roll back the **workers**, not the database.
   `production` environment to `main`, revert on `main` rather than deploying another branch.
 
 A worker rollback is only safe when the older code works with the **current** D1 schema.
-Dirework migrations are forward-only and expand-only (they add tables, columns and
+DireWork migrations are forward-only and expand-only (they add tables, columns and
 indexes; nothing is dropped or renamed in the same release), so an older worker generally
 keeps working against a newer schema. Check `CHANGELOG.md` for upgrade notes first.
 

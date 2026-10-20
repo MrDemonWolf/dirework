@@ -69,7 +69,7 @@ export function TimerStyleEditor({
           onChange={(v) => update("background", { opacity: v })}
         />
         <TextFieldRow
-          label="Border Radius"
+          label="Border radius"
           id="timer-style-bg-border-radius"
           value={styles.background.borderRadius}
           onChange={(v) => update("background", { borderRadius: v })}

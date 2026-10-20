@@ -72,8 +72,8 @@ claimed](/docs/deployment#recovering-an-instance-someone-else-claimed).
 ### Overlay shows a blank page
 
 - While idle, the timer overlay shows a full preview (your work length and a full ring), not a blank page. If it stays blank, the URL or token is probably wrong (for example, it was regenerated) or the overlay cannot reach the API.
-- Check that the overlay URL is correct. Copy it from the **Overlay URLs** card in the dashboard.
-- Treat overlay URLs as bearer credentials. If one was exposed, regenerate its token and update OBS.
+- Check that the overlay URL is correct. Copy it again from the overlay URL row under the matching console on the dashboard.
+- Treat overlay URLs as bearer credentials. If one was exposed, reset it and update OBS.
 - Try opening the overlay URL directly in your browser to see if it loads.
 
 ### Overlay not updating in OBS
@@ -128,7 +128,7 @@ Timer duration settings (Focus, Break, Long break, interval, pomos) are saved wh
 
 1. Change the value in the input
 2. Click somewhere else or tab out of the field
-3. The value is saved to the server automatically
+3. Wait for the "Timer settings saved" toast
 
 Settings are only editable when the timer is idle or finished. They're disabled during an active session.
 

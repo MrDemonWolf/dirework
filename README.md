@@ -1,16 +1,15 @@
-# Dirework - Pomodoro Timer and Task List for Twitch
+# DireWork - Pomodoro Timer and Task List for Twitch
 
-Dirework is a personal project built for my own Twitch
+DireWork is a personal project built for my own Twitch
 co-working and body-doubling streams. It combines a
 Pomodoro timer, viewer task list, and Twitch chat bot into
 a single self-hosted tool with customizable OBS overlays.
 
 It is open source and runs entirely on Cloudflare's free
 plan. If you want the same setup for your own channel, fork
-it and deploy your own instance — one streamer, one
-instance, zero distractions.
+it and deploy your own instance. One streamer per instance.
 
-Dirework is always self-hosted. MrDemonWolf, Inc. does not offer hosted instances
+DireWork is always self-hosted. MrDemonWolf, Inc. does not offer hosted instances
 or a managed hosting service.
 
 ## Features
@@ -20,15 +19,13 @@ or a managed hosting service.
 - **Task List** - Viewers add and manage tasks via chat
   commands, displayed as a scrolling OBS overlay.
 - **Twitch Bot** - Dedicated bot account for chat commands
-  like `!task`, `!done`, `!timer start`, and `!timer eta`. Customizable
-  wolf-themed response messages, enable/disable toggles for task
-  and timer command groups. The
-  bot runs in a token-gated browser page (OBS source or pinned
-  tab) — no always-on server needed.
-- **Theme Center** - 6 built-in themes including Liquid
-  Glass Dark, Ocean Depths, Cozy Cottage, and Twitch Purple
-  with full style customization for colors, fonts, layout, and
-  configurable phase labels.
+  like `!task`, `!done`, `!timer start`, and `!timer eta`. Every
+  reply is editable, and the task and timer command groups can be
+  turned off. The bot runs in a token-gated browser page (OBS
+  source or pinned tab), so no always-on server is needed.
+- **Theme Center** - 6 built-in themes, including Liquid
+  Glass Dark, Ocean Depths, Cozy Cottage, and Twitch Purple,
+  plus editable colors, fonts, layout, and phase labels.
 - **Live Preview** - See overlay changes on the dashboard
   before going live.
 - **Dashboard** - Control the timer, manage tasks, and preview
@@ -95,13 +92,13 @@ for all options and customizable bot responses. Viewers can also run `!dwhelp` o
 
 ### Bot Configuration
 
-Navigate to `/dashboard/bot` to manage your bot account,
-customize all response messages (wolf-themed defaults included),
-enable or disable task and timer command groups, set up command
-aliases, and copy your bot console link. The bot listens to chat
-while a bot console page is open — add it to OBS as a browser source or
-keep the tab pinned. Keep to one copy: a second console is harmless (Dirework
-runs each chat message once, by its Twitch message id), but it doubles the
+Go to `/dashboard/bot` to manage your bot account, edit the
+response messages, enable or disable the task and timer command
+groups, set up command aliases, and copy your bot console link.
+The bot listens to chat while a bot console page is open, so add
+it to OBS as a browser source or keep the tab pinned. Keep to one
+copy: a second console is harmless (DireWork runs each chat
+message once, by its Twitch message id), but it doubles the
 Worker requests every command costs.
 
 Treat the bot console and overlay URLs as bearer credentials: anyone with a copied
@@ -209,7 +206,7 @@ link can use it until you regenerate the corresponding token.
 
 ## Deployment
 
-Dirework deploys to Cloudflare Workers via GitHub Actions:
+DireWork deploys to Cloudflare Workers via GitHub Actions:
 set seven repository secrets and two variables, push to `main`. Both
 workers, the D1 database, and its migrations are managed by
 [Alchemy](https://alchemy.run).

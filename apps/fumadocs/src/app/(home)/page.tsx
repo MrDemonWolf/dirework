@@ -110,7 +110,7 @@ const questions = [
   },
   {
     q: "Do viewers need an account?",
-    a: "Viewers use their existing Twitch accounts to add and complete tasks in chat. Only the streamer signs in to DireWork. The first Twitch login claims the instance; additional signups are then closed.",
+    a: "Viewers use their existing Twitch accounts to add and complete tasks in chat. Only the streamer signs in to DireWork. The first Twitch sign-in claims the instance; after that, no one else can sign in.",
   },
   {
     q: "Does the bot need to stay open?",

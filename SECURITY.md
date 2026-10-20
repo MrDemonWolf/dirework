@@ -20,7 +20,7 @@ The maintainers will acknowledge the report, reproduce and assess it, coordinate
 
 ## Operator responsibilities
 
-Each Dirework deployment is independently operated. Production operators should:
+Each DireWork deployment is independently operated. Production operators should:
 
 - sign in to claim the instance immediately after the first deploy finishes — until then the first Twitch account to sign in becomes the owner (recovery: the D1 reset in the deployment guide's "Recovering an instance someone else claimed");
 - protect the Cloudflare and GitHub accounts with MFA and least-privilege access;
@@ -31,9 +31,9 @@ Each Dirework deployment is independently operated. Production operators should:
 - treat bot and overlay URLs as bearer credentials, never publish them, and regenerate them after suspected disclosure;
 - keep one bot console active (a second copy is deduplicated by Twitch message id, but it doubles the request cost of every command);
 - review Cloudflare logs and configure retention or backups appropriate to their users; and
-- apply dependency and Dirework updates promptly.
+- apply dependency and DireWork updates promptly.
 
-If a credential or bearer URL leaks, rotate it before investigating further. Rotate the Cloudflare API token and Twitch client secret at their providers, replace deployment secrets in GitHub, regenerate bot and overlay tokens in Dirework, and redeploy. Resetting the bot page URL also revokes the Twitch chat token that page was given (the bot keeps working with a freshly issued one); if the dashboard reports that Twitch did not confirm the revocation, the old chat token stays usable until it expires on its own within a few hours, so to end it immediately, sign in to Twitch as the bot account, remove Dirework under Settings > Connections (this kills every token Twitch issued to it), then reconnect the bot account in Dirework. Rotating `BETTER_AUTH_SECRET` invalidates existing sessions; `PROXY_SECRET` can be rotated at any time (both workers receive the new value in the same deploy).
+If a credential or bearer URL leaks, rotate it before investigating further. Rotate the Cloudflare API token and Twitch client secret at their providers, replace deployment secrets in GitHub, regenerate bot and overlay tokens in DireWork, and redeploy. Resetting the bot page URL also revokes the Twitch chat token that page was given; the bot keeps working with a freshly issued one. If the dashboard reports that Twitch did not confirm the revocation, the old chat token stays usable until it expires on its own within a few hours. To end it immediately, sign in to Twitch as the bot account, remove DireWork under Settings > Connections (this kills every token Twitch issued to it), then reconnect the bot account in DireWork. Rotating `BETTER_AUTH_SECRET` invalidates existing sessions; `PROXY_SECRET` can be rotated at any time (both workers receive the new value in the same deploy).
 
 ## Pinned dependency remediations
 

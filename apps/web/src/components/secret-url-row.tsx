@@ -67,7 +67,7 @@ export function SecretUrlRow({
       await navigator.clipboard.writeText(`${window.location.origin}${path}`);
       toast.success("Copied to clipboard");
     } catch {
-      toast.error("Couldn't copy — click Show, then copy the URL yourself");
+      toast.error("Couldn't copy. Click Show, then copy the URL yourself.");
     }
   };
 
@@ -86,7 +86,7 @@ export function SecretUrlRow({
         tabIndex={shown ? undefined : -1}
         aria-label={shown ? `${label} URL` : undefined}
       />
-      {!shown && <span className="sr-only">{`${label} URL hidden — press Show to reveal`}</span>}
+      {!shown && <span className="sr-only">{`${label} URL hidden. Press Show to reveal it.`}</span>}
       <Button
         variant="outline"
         size="icon"
@@ -133,7 +133,7 @@ export function SecretUrlRow({
             </span>
           }
         />
-        <TooltipContent>Reset URL — the current one stops working</TooltipContent>
+        <TooltipContent>Reset the URL (the current one stops working)</TooltipContent>
       </Tooltip>
     </div>
   );

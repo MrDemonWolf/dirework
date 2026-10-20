@@ -169,11 +169,11 @@ export function parseTaskEditArgs(args: string[]): { position: string; text: str
 }
 
 const POSITIONAL_USAGE_REPLY = (displayName: string) =>
-  `Give me a task number, ${displayName} — try !remove [number] (or !focus [number]). Check your numbers with !check!`;
+  `Give me a task number, ${displayName}: try !remove [number] or !focus [number]. Tasks are numbered in the order you added them.`;
 
 /** Hardcoded like POSITIONAL_USAGE_REPLY: no owner template fits "retry". */
 const STALE_NEXT_REPLY = (displayName: string) =>
-  `Your current task changed before I could replace it, ${displayName} — check it with !check and try !next again.`;
+  `Your current task changed before I could replace it, ${displayName}. Check it with !check and try !next again.`;
 
 /**
  * Resolve a 1-based position arg to the viewer's nth open task — the lookup
@@ -253,7 +253,7 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
     if (!(await claim())) return;
     if (ctx.docsUrl) {
       say(
-        `${userInfo.displayName}, check out all the commands here: ${ctx.docsUrl}/docs/chat-commands`,
+        `${userInfo.displayName}, the full command list is here: ${ctx.docsUrl}/docs/chat-commands`,
       );
     } else {
       say(

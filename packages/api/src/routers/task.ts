@@ -56,7 +56,7 @@ export const taskRouter = router({
       throw new TRPCError({ code: "NOT_FOUND", message: "Task not found" });
     }
     if (task.status === "done") {
-      throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot activate a completed task" });
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Can't activate a completed task" });
     }
     return activateTask(ctx.db, task);
   }),
