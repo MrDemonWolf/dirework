@@ -1,6 +1,6 @@
 // ── Chat text helpers (zod-free, schema-free) ───────────────────────────────
-// Kept out of config-shared so the browser bot page can import them without
-// bundling zod and the Drizzle schema. Re-exported by config-shared.
+// Kept out of config-shared so the browser bot page and the dashboard can import
+// them without bundling zod and the Drizzle schema. Re-exported by config-shared.
 //
 // An IRC line is capped at 512 BYTES including command overhead and CRLF, and
 // Twitch caps the visible message at 500 characters. Message templates expand
@@ -69,4 +69,108 @@ export function replaceControlCharacters(value: string): string {
     output += codePoint <= 0x1f || codePoint === 0x7f ? " " : character;
   }
   return output;
+}
+
+// ── Reply templates ──────────────────────────────────────────────────────────
+
+const VARIABLES = {
+  user: { description: "The viewer who sent the command" },
+  channel: { description: "Your channel name" },
+  task: { description: "The task's text", sample: "write the intro" },
+  oldTask: { description: "The task just finished (!next)", sample: "outline the video" },
+  newTask: { description: "The task just started (!next)", sample: "record the intro" },
+  user2: { description: "The viewer being looked up (!check @user)", sample: "another_viewer" },
+  phase: { description: "Time left in the current phase", sample: "12m" },
+  time: { description: "Time left in the whole session", sample: "1h 40m" },
+} as const;
+
+/** A placeholder name as it appears inside the braces: `{task}` → `task`. */
+export type TemplateVariableName = keyof typeof VARIABLES;
+
+/**
+ * Every placeholder a reply template may use: the copy the dashboard shows on the
+ * variable chips and the sample value its preview fills in. `user` and `channel`
+ * have no fixed sample — the dashboard stands the streamer's own name in, so a
+ * preview reads like a line in their chat. Adding a variable here is not enough
+ * on its own: the handler in bot/commands.ts that sends the reply must pass it.
+ */
+export const TEMPLATE_VARIABLES: Record<
+  TemplateVariableName,
+  { description: string; sample?: string }
+> = VARIABLES;
+
+/** A leading character that would make the bot run a chat command. */
+const CHAT_COMMAND_LEAD = /^[!./]/;
+
+/** Variables carrying viewer task text — the only ones long enough to overflow a chat line. */
+const TASK_TEXT_VARS = [
+  "task",
+  "oldTask",
+  "newTask",
+] as const satisfies readonly TemplateVariableName[];
+const ELLIPSIS = "…";
+
+/** Fill `{name}` placeholders from `vars`; a placeholder with no value is left as typed. */
+function fillTemplate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (match, key: string) =>
+    Object.hasOwn(vars, key) ? (vars[key] as string) : match,
+  );
+}
+
+/**
+ * When the filled template exceeds MAX_CHAT_BYTES, shorten the task-text
+ * variables (with an ellipsis) so the rest of the template — closing words and
+ * the {user} mention — survives instead of being cut off the end by the
+ * wire-level truncation.
+ */
+function fitToChatBytes(template: string, vars: Record<string, string>): string {
+  const full = fillTemplate(template, vars);
+  if (utf8ByteLength(full) <= MAX_CHAT_BYTES) return full;
+
+  const slots = TASK_TEXT_VARS.flatMap((key) => {
+    const value = Object.hasOwn(vars, key) ? vars[key] : undefined;
+    const count = template.split(`{${key}}`).length - 1;
+    return value === undefined || count === 0 ? [] : [{ key, value, count }];
+  });
+  if (slots.length === 0) return full;
+
+  const fixed = { ...vars };
+  for (const { key } of slots) fixed[key] = "";
+  let budget = MAX_CHAT_BYTES - utf8ByteLength(fillTemplate(template, fixed));
+  let remaining = slots.reduce((sum, slot) => sum + slot.count, 0);
+
+  // Shortest first, so a short {oldTask} keeps its full text and leaves the
+  // rest of the budget to a long {newTask}.
+  const bounded = { ...vars };
+  const ellipsisBytes = utf8ByteLength(ELLIPSIS);
+  slots.sort((a, b) => utf8ByteLength(a.value) - utf8ByteLength(b.value));
+  for (const { key, value, count } of slots) {
+    const share = Math.floor(budget / remaining);
+    const fitted =
+      utf8ByteLength(value) <= share
+        ? value
+        : `${truncateToBytes(value, Math.max(0, share - ellipsisBytes))}${ELLIPSIS}`;
+    bounded[key] = fitted;
+    budget -= utf8ByteLength(fitted) * count;
+    remaining -= count;
+  }
+  return fillTemplate(template, bounded);
+}
+
+/**
+ * Render a reply template exactly as the bot sends it: `{name}` placeholders
+ * filled, bounded to the chat byte cap, and never opening with a chat command.
+ * A substituted value (viewer task text) starting with `!cmd` would run in
+ * other channel bots with this bot's role, `/me` or `.ban` in Twitch itself —
+ * so a leading command character the owner's template didn't start with is
+ * stripped. Templates that deliberately start with `/me` or `!` keep working.
+ * The dashboard calls this with sample values to preview a template.
+ */
+export function interpolate(template: string, vars: Record<string, string>): string {
+  const out = fitToChatBytes(template, vars);
+  const lead = out.trimStart();
+  if (CHAT_COMMAND_LEAD.test(lead) && lead[0] !== template.trimStart()[0]) {
+    return lead.replace(/^[!./\s]+/, "");
+  }
+  return out;
 }

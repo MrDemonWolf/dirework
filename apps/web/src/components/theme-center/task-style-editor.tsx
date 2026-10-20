@@ -8,7 +8,7 @@ import type { TaskStylesConfig } from "@/lib/config-types";
 import { ColorInput } from "./color-input";
 import { SliderRow, SwitchRow, TextFieldRow } from "./field-row";
 import { FontSelect } from "./font-select";
-import { SectionGroup } from "./section-group";
+import { SectionGroup } from "@/components/section-group";
 import { BackgroundFields, BorderFields, MarginFields } from "./style-field-groups";
 
 /**

@@ -1,5 +1,6 @@
 import type { DbClient } from "@dirework/db";
 
+import { interpolate } from "../chat-text";
 import type { BotConfigData } from "../config-shared";
 import {
   CHAT_OPEN_TASK_CAP,
@@ -67,75 +68,10 @@ export interface MessageContext {
   claim?: () => Promise<boolean>;
 }
 
-/** A leading character that would make the bot run a chat command. */
-const CHAT_COMMAND_LEAD = /^[!./]/;
-
-/** Variables carrying viewer task text — the only ones long enough to overflow a chat line. */
-const TASK_TEXT_VARS = ["task", "oldTask", "newTask"] as const;
-const ELLIPSIS = "…";
-
-function fillTemplate(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{(\w+)\}/g, (match, key: string) =>
-    Object.hasOwn(vars, key) ? (vars[key] as string) : match,
-  );
-}
-
-/**
- * When the filled template exceeds MAX_CHAT_BYTES, shorten the task-text
- * variables (with an ellipsis) so the rest of the template — closing words and
- * the {user} mention — survives instead of being cut off the end by the
- * wire-level truncation.
- */
-function fitToChatBytes(template: string, vars: Record<string, string>): string {
-  const full = fillTemplate(template, vars);
-  if (utf8ByteLength(full) <= MAX_CHAT_BYTES) return full;
-
-  const slots = TASK_TEXT_VARS.flatMap((key) => {
-    const value = Object.hasOwn(vars, key) ? vars[key] : undefined;
-    const count = template.split(`{${key}}`).length - 1;
-    return value === undefined || count === 0 ? [] : [{ key, value, count }];
-  });
-  if (slots.length === 0) return full;
-
-  const fixed = { ...vars };
-  for (const { key } of slots) fixed[key] = "";
-  let budget = MAX_CHAT_BYTES - utf8ByteLength(fillTemplate(template, fixed));
-  let remaining = slots.reduce((sum, slot) => sum + slot.count, 0);
-
-  // Shortest first, so a short {oldTask} keeps its full text and leaves the
-  // rest of the budget to a long {newTask}.
-  const bounded = { ...vars };
-  const ellipsisBytes = utf8ByteLength(ELLIPSIS);
-  slots.sort((a, b) => utf8ByteLength(a.value) - utf8ByteLength(b.value));
-  for (const { key, value, count } of slots) {
-    const share = Math.floor(budget / remaining);
-    const fitted =
-      utf8ByteLength(value) <= share
-        ? value
-        : `${truncateToBytes(value, Math.max(0, share - ellipsisBytes))}${ELLIPSIS}`;
-    bounded[key] = fitted;
-    budget -= utf8ByteLength(fitted) * count;
-    remaining -= count;
-  }
-  return fillTemplate(template, bounded);
-}
-
-/**
- * Fill `{name}` placeholders, bounded to the chat byte cap. A substituted value
- * (viewer task text) must never open the reply with a chat command — `!cmd`
- * would run in other channel bots with this bot's role, `/me` or `.ban` in
- * Twitch itself — so a leading command character the owner's template didn't
- * start with is stripped. Templates that deliberately start with `/me` or `!`
- * keep working.
- */
-export function interpolate(template: string, vars: Record<string, string>): string {
-  const out = fitToChatBytes(template, vars);
-  const lead = out.trimStart();
-  if (CHAT_COMMAND_LEAD.test(lead) && lead[0] !== template.trimStart()[0]) {
-    return lead.replace(/^[!./\s]+/, "");
-  }
-  return out;
-}
+// Template rendering lives in ../chat-text (zod-free) so the dashboard previews a reply with
+// the exact function the bot sends with. Re-exported here for the callers and tests that have
+// always imported it from the command module.
+export { interpolate };
 
 /**
  * Format a millisecond duration as a compact chat-friendly string ("18m",

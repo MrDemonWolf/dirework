@@ -1,0 +1,63 @@
+"use client";
+
+// Collapsible recessed section — the "instrument" the Theme Center editors and the Bot
+// settings page are built from: a console-label header with a chevron, an optional icon and
+// trailing slot, and a panel. ONE implementation, so the trigger styling and the chevron
+// rotation can't drift between pages.
+
+import type { ReactNode } from "react";
+import { ChevronDown } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
+export function SectionGroup({
+  title,
+  titleId,
+  icon,
+  trailing,
+  defaultOpen = true,
+  flush = false,
+  className,
+  children,
+}: {
+  title: ReactNode;
+  /** id for the title text, so a list inside can point `aria-labelledby` at it. */
+  titleId?: string;
+  icon?: ReactNode;
+  /** Renders at the right edge, before the chevron: a count, a status chip. */
+  trailing?: ReactNode;
+  defaultOpen?: boolean;
+  /** Content without the default padding, for lists that draw their own rows. */
+  flush?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Collapsible defaultOpen={defaultOpen} className={cn("panel-inset overflow-hidden", className)}>
+      <CollapsibleTrigger className="group/section flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+        <span className="flex min-w-0 items-center gap-2">
+          {icon}
+          <span
+            id={titleId}
+            className="console-label transition-colors group-hover/section:text-foreground"
+          >
+            {title}
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          {trailing}
+          <ChevronDown
+            aria-hidden
+            className="size-3.5 text-muted-foreground transition-transform group-data-[panel-open]/section:rotate-180"
+          />
+        </span>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className={flush ? "border-t border-border/40" : "space-y-3 px-4 pt-1.5 pb-4"}>
+          {children}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}

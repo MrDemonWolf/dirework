@@ -1,12 +1,12 @@
 "use client";
 
-// Bot settings (/dashboard/bot): the bot console URL, bot account connect/disconnect, and the
-// chat command toggles, reply messages and aliases. Messages and aliases save together in one
-// owner-only mutation; the bot OAuth flow returns here with `?bot=` status params.
+// Bot settings (/dashboard/bot): the bot console (secret page URL) and bot account cards side
+// by side, then the chat command toggles, reply messages and aliases. Messages and aliases
+// save together in one owner-only mutation; the bot OAuth flow returns here with `?bot=`
+// status params.
 
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, MonitorPlay, Unplug } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
@@ -16,37 +16,23 @@ import { updateBotSettingsInput } from "@dirework/api/routers/input-schemas";
 import type { TaskMessagesConfig, TimerMessagesConfig } from "@/lib/config-types";
 import { DEFAULT_TASK_MESSAGES, DEFAULT_TIMER_MESSAGES } from "@/lib/config-types";
 import { type AliasRow, aliasesToRows, rowsToAliases } from "@/lib/alias-rows";
-import { useOrigin } from "@/lib/use-origin";
+import { taskMessageFields, timerMessageFields } from "@/lib/message-fields";
+import { previewVars } from "@/lib/template-preview";
+import { describeTrpcError } from "@/lib/trpc-errors";
 import { cn } from "@/lib/utils";
 import { describeIssues, formatMutationError } from "@/lib/validation-errors";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { ConfirmDialog } from "@/components/confirm-dialog";
+import { BotAccountCard } from "@/components/bot-settings/bot-account-card";
+import { BotConsoleCard } from "@/components/bot-settings/bot-console-card";
+import { CommandAliasEditor } from "@/components/bot-settings/command-alias-editor";
+import { taskCommands, timerCommands } from "@/components/bot-settings/command-reference";
+import { CommandTabPanel } from "@/components/bot-settings/command-tab-panel";
+import { BotSettingsSkeleton } from "@/components/bot-settings-skeleton";
 import { ConsoleRule } from "@/components/console-rule";
 import { QueryError } from "@/components/query-error";
 import { SaveBar } from "@/components/save-bar";
-import { SecretUrlRow } from "@/components/secret-url-row";
-import { TwitchIcon } from "@/components/icons/twitch-icon";
-import { Skeleton } from "@/components/ui/skeleton";
-import { StatusChip } from "@/components/status-chip";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { taskMessageFields, timerMessageFields } from "@/components/bot-settings/message-editor";
-import {
-  CommandTabPanel,
-  taskCommands,
-  timerCommands,
-} from "@/components/bot-settings/command-tab-panel";
-import { CommandAliasEditor } from "@/components/bot-settings/command-alias-editor";
-import { BotSettingsSkeleton } from "@/components/bot-settings-skeleton";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
-import { describeTrpcError } from "@/lib/trpc-errors";
 import { trpc } from "@/utils/trpc";
 
 /** Everything the Save bar persists, held as one object so draft and saved can't drift. */
@@ -72,126 +58,6 @@ function shallowEqualRecords<T extends object>(a: T, b: T): boolean {
   const keys = Object.keys(a) as (keyof T)[];
   if (keys.length !== Object.keys(b).length) return false;
   return keys.every((key) => a[key] === b[key]);
-}
-
-/**
- * Bot Console card — the browser page that IS the bot in the CF rebuild. Shows the secret
- * `/bot/<token>` URL and resets it; a reset also tries to revoke the chat token the old page
- * was given, and the returned `chatToken` outcome picks one of the fixed toasts below.
- */
-function BotConsoleCard({
-  hasBotAccount,
-  botName,
-}: {
-  hasBotAccount: boolean;
-  botName: string | null;
-}) {
-  const queryClient = useQueryClient();
-  const ingestInfo = useQuery(trpc.bot.getIngestInfo.queryOptions());
-  const origin = useOrigin();
-
-  const regenerateBotToken = useMutation({
-    ...trpc.bot.regenerateBotToken.mutationOptions(),
-    onSuccess: ({ chatToken }) => {
-      queryClient.invalidateQueries({ queryKey: trpc.bot.getIngestInfo.queryKey() });
-      // Fixed copy per outcome — never Twitch's own text.
-      if (chatToken === "unconfirmed") {
-        toast.warning("Bot page URL reset, but Twitch didn't confirm the old chat login is dead", {
-          description:
-            "The old URL no longer works. A copied chat login expires on its own within a few hours; to end it now, remove Dirework from the bot account's connections at twitch.tv/settings/connections, then reconnect the bot.",
-        });
-      } else if (chatToken === "revoked") {
-        toast.success("Bot page URL reset — the old URL and its Twitch chat login no longer work");
-      } else {
-        toast.success("Bot page URL reset — the old one no longer works");
-      }
-    },
-    onError: (err) => {
-      toast.error(`Couldn't reset the bot page URL: ${describeTrpcError(err)}`);
-    },
-  });
-
-  const botToken = ingestInfo.data?.botToken;
-  const botPath = botToken ? `/bot/${botToken}` : null;
-  // `origin` is "" during SSR/hydration (useOrigin), so the Open button starts disabled.
-  const botUrl = origin && botPath ? `${origin}${botPath}` : "";
-  const ready = hasBotAccount && Boolean(botToken);
-
-  return (
-    <Card className="panel-hero">
-      <CardHeader className="border-b border-border/40 px-5">
-        <ConsoleRule label="Console" />
-        <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
-          {botName ?? "Bot console"}
-        </CardTitle>
-        <CardAction>
-          <StatusChip tone={ready ? "accent" : "idle"} label={ready ? "Ready" : "Not set up"} />
-        </CardAction>
-        <CardDescription>
-          The bot runs inside a browser page — it chats while the page stays open.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4 px-5">
-        {!hasBotAccount ? (
-          <p className="text-sm text-muted-foreground">
-            Connect a bot account below to activate the bot console.
-          </p>
-        ) : ingestInfo.isPending ? (
-          <Skeleton className="h-9 w-full" />
-        ) : !ingestInfo.data ? (
-          <QueryError
-            title="Couldn't load the bot page URL"
-            onRetry={() => ingestInfo.refetch()}
-            retrying={ingestInfo.isFetching}
-          />
-        ) : (
-          <>
-            {/* auto, not a fixed width: the tracked uppercase "Channel" label is wider
-                than 3.5rem and ran into its value. */}
-            <div className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1">
-              <span className="console-label">Bot</span>
-              <span className="truncate font-mono text-xs text-foreground">
-                {ingestInfo.data?.botUsername ?? "—"}
-              </span>
-              <span className="console-label">Channel</span>
-              <span className="truncate font-mono text-xs text-foreground">
-                #{ingestInfo.data?.channelName ?? "—"}
-              </span>
-            </div>
-
-            <SecretUrlRow
-              label="Bot page"
-              path={botPath}
-              onRegenerate={() => regenerateBotToken.mutate()}
-              regenerating={regenerateBotToken.isPending}
-              resetDescription="The current bot page URL and the Twitch chat login it was given stop working immediately. Any OBS browser source or pinned tab running the bot goes offline until you open the new URL."
-            />
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                nativeButton={false}
-                render={<a href={botUrl || "#"} target="_blank" rel="noopener noreferrer" />}
-                disabled={!botUrl}
-              >
-                <ExternalLink className="size-3.5" />
-                Open bot page
-              </Button>
-            </div>
-
-            <div className="panel-inset flex items-start gap-2.5 p-3">
-              <MonitorPlay className="mt-0.5 size-4 shrink-0 text-primary" />
-              <p className="text-xs/relaxed text-muted-foreground">
-                Add the URL as an OBS browser source (recommended size 400×200) or keep the tab
-                pinned — the bot listens while the bot page is open. The URL contains a secret
-                token, so treat it like a stream key.
-              </p>
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
 }
 
 /**
@@ -360,6 +226,11 @@ export default function BotSettingsPage() {
   }
 
   const botAccount = user.data.botAccount ?? null;
+  // Reply previews read like a line in the streamer's own chat, spoken by the bot account.
+  const preview = {
+    speaker: botAccount?.username ?? "bot",
+    vars: previewVars(user.data.name || "streamer"),
+  };
 
   return (
     <div className={cn("container mx-auto max-w-6xl px-4 py-8", hasUnsaved && "pb-24")}>
@@ -368,179 +239,112 @@ export default function BotSettingsPage() {
       <div className="mb-8">
         <h1 className="font-heading text-3xl font-bold tracking-tight">Bot settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Connect the bot account, run the bot console, and tune its chat responses
+          Connect the bot account and decide what it says in chat
         </p>
       </div>
 
-      <div className="stagger-reveal flex flex-col gap-6 lg:flex-row lg:items-start">
-        {/* Left rail — runtime hero above identity */}
-        <div className="flex w-full flex-col gap-6 lg:sticky lg:top-20 lg:max-h-[calc(100vh-5rem)] lg:w-80 lg:shrink-0 lg:overflow-y-auto">
-          {/* Bot Console — the browser-bot runtime */}
-          <BotConsoleCard
-            hasBotAccount={botAccount !== null}
-            botName={botAccount?.displayName ?? null}
+      <div className="stagger-reveal space-y-6">
+        {/* Runtime + identity, side by side on wide screens. */}
+        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+          <BotConsoleCard hasBotAccount={botAccount !== null} />
+          <BotAccountCard
+            botAccount={botAccount}
+            onDisconnect={() => disconnectBot.mutate()}
+            disconnecting={disconnectBot.isPending}
           />
-
-          {/* Bot Account */}
-          <Card className="panel">
-            <CardHeader className="px-5">
-              <ConsoleRule label="Identity" />
-              <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
-                Bot account
-              </CardTitle>
-              <CardAction>
-                {botAccount ? (
-                  <StatusChip tone="live" label="Connected" />
-                ) : (
-                  <StatusChip tone="idle" label="Not connected" />
-                )}
-              </CardAction>
-              <CardDescription>The Twitch account that talks in your chat</CardDescription>
-            </CardHeader>
-            <CardContent className="px-5">
-              {botAccount ? (
-                <div className="flex flex-col gap-3">
-                  <div>
-                    <p className="text-sm">
-                      Connected as <span className="font-medium">{botAccount.displayName}</span>
-                    </p>
-                    <p className="font-mono text-xs text-muted-foreground">
-                      @{botAccount.username}
-                    </p>
-                  </div>
-                  <ConfirmDialog
-                    trigger={
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="self-start"
-                        disabled={disconnectBot.isPending}
-                      >
-                        <Unplug className="size-3" />
-                        Disconnect
-                      </Button>
-                    }
-                    title="Disconnect the bot account?"
-                    description="The bot stops responding in chat immediately and DireWork asks Twitch to revoke its authorization. Any open bot page goes offline. You can reconnect the same account later."
-                    confirmLabel="Disconnect bot"
-                    onConfirm={() => disconnectBot.mutate()}
-                  />
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    No bot account connected yet. Sign in with the account the bot should chat from
-                    — most streamers use a separate second account so replies don&apos;t post as
-                    them.
-                  </p>
-                  <Button
-                    size="sm"
-                    className="bg-twitch text-white hover:bg-twitch-hover"
-                    nativeButton={false}
-                    // A plain link, not next/link: /api/bot/authorize is a proxied route
-                    // handler that redirects the browser to Twitch's consent screen.
-                    render={<a href="/api/bot/authorize" />}
-                  >
-                    <TwitchIcon className="size-3.5" />
-                    Connect bot account
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
 
-        {/* Right — chat commands console */}
-        <div className="min-w-0 flex-1">
-          <Card className="panel">
-            <CardHeader className="border-b border-border/40 px-5">
-              <ConsoleRule label="Chat commands" />
-              <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
-                Commands &amp; messages
-              </CardTitle>
-              <CardDescription>
-                Toggle command groups, review usage, and tune the bot&apos;s replies
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="px-5">
-              <Tabs defaultValue="tasks">
-                {/* Full-width rail: triggers are flex-1, so the three tabs
-                    share the row equally and resize with it. */}
-                <TabsList className="h-9 w-full gap-1">
-                  <TabsTrigger
-                    value="tasks"
-                    aria-label={taskDirty ? "Task commands (unsaved changes)" : undefined}
-                  >
-                    Task commands
-                    {taskDirty && <span aria-hidden className="size-1.5 rounded-full bg-warning" />}
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="timer"
-                    aria-label={timerDirty ? "Timer commands (unsaved changes)" : undefined}
-                  >
-                    Timer commands
-                    {timerDirty && (
-                      <span aria-hidden className="size-1.5 rounded-full bg-warning" />
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="aliases"
-                    aria-label={aliasDirty ? "Aliases (unsaved changes)" : undefined}
-                  >
-                    Aliases
-                    {aliasDirty && (
-                      <span aria-hidden className="size-1.5 rounded-full bg-warning" />
-                    )}
-                  </TabsTrigger>
-                </TabsList>
+        {/* Chat commands console, full width. */}
+        <Card className="panel">
+          <CardHeader className="border-b border-border/40 px-5">
+            <ConsoleRule label="Chat commands" />
+            <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
+              Commands &amp; messages
+            </CardTitle>
+            <CardDescription>
+              Switch command groups on or off and word the bot&apos;s replies
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-5">
+            <Tabs defaultValue="tasks">
+              {/* Full-width rail: triggers are flex-1, so the three tabs
+                  share the row equally and resize with it. */}
+              <TabsList className="h-9 w-full gap-1">
+                <TabsTrigger
+                  value="tasks"
+                  aria-label={taskDirty ? "Task commands (unsaved changes)" : undefined}
+                >
+                  Task commands
+                  {taskDirty && <span aria-hidden className="size-1.5 rounded-full bg-warning" />}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="timer"
+                  aria-label={timerDirty ? "Timer commands (unsaved changes)" : undefined}
+                >
+                  Timer commands
+                  {timerDirty && <span aria-hidden className="size-1.5 rounded-full bg-warning" />}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="aliases"
+                  aria-label={aliasDirty ? "Aliases (unsaved changes)" : undefined}
+                >
+                  Aliases
+                  {aliasDirty && <span aria-hidden className="size-1.5 rounded-full bg-warning" />}
+                </TabsTrigger>
+              </TabsList>
 
-                {/* Task Commands Tab */}
-                <TabsContent value="tasks">
-                  <CommandTabPanel
-                    title="Task commands"
-                    subtitle="Viewers manage their tasks from chat"
-                    idPrefix="task"
-                    enabled={draft.taskCommandsEnabled}
-                    onEnabledChange={(taskCommandsEnabled) =>
-                      setDraft((d) => ({ ...d, taskCommandsEnabled }))
-                    }
-                    commands={taskCommands}
-                    fields={taskMessageFields}
-                    messages={draft.task}
-                    onMessagesChange={(task) => setDraft((d) => ({ ...d, task }))}
-                    disabledNote="Task commands are disabled — enable them to edit messages."
-                  />
-                </TabsContent>
+              {/* Task Commands Tab */}
+              <TabsContent value="tasks" className="pt-2">
+                <CommandTabPanel
+                  title="Task commands"
+                  subtitle="Viewers manage their tasks from chat"
+                  idPrefix="task"
+                  enabled={draft.taskCommandsEnabled}
+                  onEnabledChange={(taskCommandsEnabled) =>
+                    setDraft((d) => ({ ...d, taskCommandsEnabled }))
+                  }
+                  commands={taskCommands}
+                  fields={taskMessageFields}
+                  messages={draft.task}
+                  defaults={DEFAULT_TASK_MESSAGES}
+                  onMessagesChange={(task) => setDraft((d) => ({ ...d, task }))}
+                  preview={preview}
+                />
+              </TabsContent>
 
-                {/* Timer Commands Tab */}
-                <TabsContent value="timer">
-                  <CommandTabPanel
-                    title="Timer commands"
-                    subtitle="Mods control the timer from chat"
-                    idPrefix="timer"
-                    enabled={draft.timerCommandsEnabled}
-                    onEnabledChange={(timerCommandsEnabled) =>
-                      setDraft((d) => ({ ...d, timerCommandsEnabled }))
-                    }
-                    commands={timerCommands}
-                    fields={timerMessageFields}
-                    messages={draft.timer}
-                    onMessagesChange={(timer) => setDraft((d) => ({ ...d, timer }))}
-                    disabledNote="Timer commands are disabled — enable them to edit messages."
-                  />
-                </TabsContent>
+              {/* Timer Commands Tab */}
+              <TabsContent value="timer" className="pt-2">
+                <CommandTabPanel
+                  title="Timer commands"
+                  subtitle="Mods control the timer from chat"
+                  idPrefix="timer"
+                  enabled={draft.timerCommandsEnabled}
+                  onEnabledChange={(timerCommandsEnabled) =>
+                    setDraft((d) => ({ ...d, timerCommandsEnabled }))
+                  }
+                  commands={timerCommands}
+                  fields={timerMessageFields}
+                  messages={draft.timer}
+                  defaults={DEFAULT_TIMER_MESSAGES}
+                  onMessagesChange={(timer) => setDraft((d) => ({ ...d, timer }))}
+                  preview={preview}
+                />
+              </TabsContent>
 
-                {/* Aliases Tab */}
-                <TabsContent value="aliases">
-                  <CommandAliasEditor
-                    rows={draft.aliasRows}
-                    onChange={(aliasRows) => setDraft((d) => ({ ...d, aliasRows }))}
-                  />
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        </div>
+              {/* Aliases Tab */}
+              <TabsContent value="aliases" className="space-y-4 pt-2">
+                <CommandAliasEditor
+                  rows={draft.aliasRows}
+                  onChange={(aliasRows) => setDraft((d) => ({ ...d, aliasRows }))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  An open bot page picks up new aliases within an hour, or right away when you
+                  reload it.
+                </p>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Sticky Save / Reset Bar */}

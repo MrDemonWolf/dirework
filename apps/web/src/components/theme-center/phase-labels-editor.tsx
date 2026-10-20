@@ -7,7 +7,7 @@ import { messageBudget } from "@/lib/message-budget";
 import { ByteBudget } from "@/components/byte-budget";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SectionGroup } from "@/components/theme-center/section-group";
+import { SectionGroup } from "@/components/section-group";
 
 // One row per timer phase, in phase order; `key` is the PhaseLabelsConfig field.
 const labelFields: {
