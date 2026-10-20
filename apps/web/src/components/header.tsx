@@ -4,9 +4,9 @@
 // dashboard nav (desktop links + mobile dropdown), theme toggle, and the account menu.
 
 import { useState } from "react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { Bot, LayoutDashboard, Menu, Palette, X } from "lucide-react";
+import { Bot, LayoutDashboard, type LucideIcon, Menu, Palette, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
@@ -20,6 +20,17 @@ const navItems = [
   { href: "/dashboard/styles" as const, label: "Theme Center", icon: Palette },
   { href: "/dashboard/bot" as const, label: "Bot", icon: Bot },
 ];
+
+/**
+ * Nav item icon. Pulses while its link's navigation is pending (`useLinkStatus`, so it must
+ * render inside the Link), giving the click feedback the moment it happens rather than after
+ * the next page's server round trip. The pulse starts at full opacity, so a navigation that
+ * finishes in under ~100ms never shows it.
+ */
+function NavIcon({ icon: Icon }: { icon: LucideIcon }) {
+  const { pending } = useLinkStatus();
+  return <Icon className={cn("size-4", pending && "animate-led-pulse")} />;
+}
 
 /**
  * Site header. The nav only renders once a client session exists; it is navigation, not
@@ -85,7 +96,7 @@ export default function Header() {
                         : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
                     )}
                   >
-                    <item.icon className="size-4" />
+                    <NavIcon icon={item.icon} />
                     {item.label}
                   </Link>
                 );
@@ -139,7 +150,7 @@ export default function Header() {
                       : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
                   )}
                 >
-                  <item.icon className="size-4" />
+                  <NavIcon icon={item.icon} />
                   {item.label}
                 </Link>
               );

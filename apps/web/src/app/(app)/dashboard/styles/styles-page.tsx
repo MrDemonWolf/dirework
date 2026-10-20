@@ -24,7 +24,7 @@ import { ConsoleRule } from "@/components/console-rule";
 import { QueryError } from "@/components/query-error";
 import { SaveBar } from "@/components/save-bar";
 import { StatusChip } from "@/components/status-chip";
-import { Skeleton } from "@/components/ui/skeleton";
+import { StylesSkeleton } from "@/components/styles-skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PhaseLabelsEditor } from "@/components/theme-center/phase-labels-editor";
 import { ThemeBrowser } from "@/components/theme-center/theme-browser";
@@ -33,39 +33,6 @@ import { TaskStyleEditor } from "@/components/theme-center/task-style-editor";
 import { StylePreviewPanel } from "@/components/theme-center/style-preview-panel";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import { trpc } from "@/utils/trpc";
-
-function StylesSkeleton() {
-  return (
-    <div className="container mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-6 space-y-2">
-        <Skeleton className="h-3 w-28" />
-        <Skeleton className="h-9 w-52" />
-        <Skeleton className="h-4 w-64" />
-      </div>
-      {/* Preset rail skeleton */}
-      <div className="mb-6 space-y-3">
-        <Skeleton className="h-3 w-16" />
-        <div className="flex gap-3 overflow-hidden p-1">
-          {["preset-1", "preset-2", "preset-3", "preset-4", "preset-5"].map((key) => (
-            <Skeleton key={key} className="h-32 w-36 shrink-0 rounded-lg" />
-          ))}
-        </div>
-      </div>
-      {/* Editor + preview column skeleton */}
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <div className="w-full min-w-0 space-y-3 lg:w-[380px] lg:shrink-0">
-          <Skeleton className="h-9 w-40" />
-          {["editor-1", "editor-2", "editor-3", "editor-4"].map((key) => (
-            <Skeleton key={key} className="h-24 w-full rounded-xl" />
-          ))}
-        </div>
-        <div className="min-w-0 flex-1">
-          <Skeleton className="h-[560px] w-full rounded-2xl" />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /** Pre-load placeholder only; real values replace it once `config.get` resolves. */
 const defaultPhaseLabels: PhaseLabelsConfig = DEFAULT_PHASE_LABELS;
