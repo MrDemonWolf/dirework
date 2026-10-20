@@ -262,7 +262,8 @@ it again.
 New DireWork releases reach your instance when your fork's `main` changes:
 
 1. Read [`CHANGELOG.md`](https://github.com/mrdemonwolf/dirework/blob/main/CHANGELOG.md)
-   for the releases you're catching up on. Add any new required secrets or variables, and
+   (or the [GitHub Releases](https://github.com/mrdemonwolf/dirework/releases) page, which
+   carries the same notes per version) for the releases you're catching up on. Add any new required secrets or variables, and
    note any reconnect steps, **before** you sync — the deploy fails early when a required
    value is missing.
 2. Optionally back up the database first:
@@ -296,9 +297,10 @@ If a release misbehaves, roll back the **workers**, not the database.
   `production` environment to `main`, revert on `main` rather than deploying another branch.
 
 A worker rollback is only safe when the older code works with the **current** D1 schema.
-DireWork migrations are forward-only and expand-only (they add tables, columns and
-indexes; nothing is dropped or renamed in the same release), so an older worker generally
-keeps working against a newer schema. Check `CHANGELOG.md` for upgrade notes first.
+DireWork migrations are forward-only and expand/contract: a release only adds tables,
+nullable or defaulted columns and indexes, and anything removed (so far one redundant index,
+migration `0017`) goes a release after no shipped code reads it, so an older worker keeps
+working against a newer schema. Check `CHANGELOG.md` for upgrade notes first.
 
 <Callout type="warn">
   Never roll the database back to undo a bad release. The only D1 rollback is Time Travel,

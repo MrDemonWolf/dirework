@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-20
+
+Why 2.0.0: deploying this release needs a new required secret (`PROXY_SECRET`) and moves the
+deploy job into a `production` GitHub environment, so every fork's deploy setup changes. Nothing
+changes for viewers, and your tasks, settings and bot connection carry over.
+
 ### Upgrade notes
 - **New required GitHub secret `PROXY_SECRET`** (min 32 characters,
   `openssl rand -base64 32`). Add it **before** syncing your fork — the deploy fails
@@ -16,9 +22,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Environments**, add the seven deploy secrets there, then delete the repository-level
   copies so no other workflow can read them. Nothing breaks if you wait: until you move
   them, the deploy keeps reading the repository secrets.
-- Database migrations `0012`–`0016` apply automatically on the next deploy. They only add
-  tables, columns and indexes, plus a one-time scrub of data DireWork no longer keeps
-  (see Security).
+- Database migrations `0012`–`0017` apply automatically on the next deploy. `0012`–`0016` only
+  add tables, columns and indexes, plus a one-time scrub of data DireWork no longer keeps (see
+  Security). `0017` drops one index, `task_status_idx`, which `0015`'s `task_status_completed_idx`
+  already covers; no shipped build relies on it, so rolling the workers back after this deploy
+  stays safe.
 - After updating, reload the bot page (or refresh its OBS browser source) so it runs the
   new bot code.
 
