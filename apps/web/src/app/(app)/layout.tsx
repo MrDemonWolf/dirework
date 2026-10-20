@@ -4,7 +4,7 @@
 
 import Header from "@/components/header";
 import { VersionBadge } from "@/components/version-badge";
-import { montserrat } from "@/lib/heading-font";
+import { headingFontBodyCss } from "@/lib/heading-font";
 
 /** Optional legal links render only when their URLs are configured on the web worker. */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -17,73 +17,80 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA;
 
   return (
-    // The heading face (preloaded) is scoped here so OBS overlays never fetch it; `--font-heading`
-    // in index.css falls back to the body face wherever this variable is absent.
-    <div className={`${montserrat.variable} grid min-h-svh grid-rows-[auto_1fr_auto]`}>
-      <a
-        href="#main"
-        className="sr-only z-[60] rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
-      >
-        Skip to content
-      </a>
-      <Header />
-      <main id="main">{children}</main>
-      {/* suppressHydrationWarning: the copyright year comes from `new Date()`, which can differ
+    <>
+      {/* The heading face (preloaded) is published from this layout, not the root, so OBS
+          overlays never fetch it; `--font-heading` in index.css falls back to the body face
+          wherever the variable is absent. It goes on <body> rather than this wrapper because
+          dialogs and menus portal to <body> and would otherwise lose it. */}
+      <style href="heading-font" precedence="default">
+        {headingFontBodyCss}
+      </style>
+      <div className="grid min-h-svh grid-rows-[auto_1fr_auto]">
+        <a
+          href="#main"
+          className="sr-only z-[60] rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+        >
+          Skip to content
+        </a>
+        <Header />
+        <main id="main">{children}</main>
+        {/* suppressHydrationWarning: the copyright year comes from `new Date()`, which can differ
           between the server render and the client around New Year. */}
-      <footer
-        className="border-t border-border/40 py-4 text-center text-xs text-muted-foreground"
-        suppressHydrationWarning
-      >
-        <div className="flex flex-wrap items-center justify-center gap-x-3">
-          <span>
-            &copy; {new Date().getFullYear()}{" "}
-            <a
-              href="https://github.com/mrdemonwolf/dirework"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              DireWork
-            </a>{" "}
-            by{" "}
-            <a
-              href="https://www.mrdemonwolf.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              MrDemonWolf, Inc.
-            </a>
-          </span>
-          {/* Renders its own leading separator, so nothing dangles when there is no SHA. */}
-          <VersionBadge sha={commitSha} />
-        </div>
-        {showLegalLinks && (
-          <div className="mt-2 flex items-center justify-center gap-3">
-            {privacyPolicyUrl && (
+        <footer
+          className="border-t border-border/40 py-4 text-center text-xs text-muted-foreground"
+          suppressHydrationWarning
+        >
+          <div className="flex flex-wrap items-center justify-center gap-x-3">
+            <span>
+              &copy; {new Date().getFullYear()}{" "}
               <a
-                href={privacyPolicyUrl}
+                href="https://github.com/mrdemonwolf/dirework"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="font-medium transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                Privacy Policy
-              </a>
-            )}
-            {privacyPolicyUrl && termsOfServiceUrl && <span>&middot;</span>}
-            {termsOfServiceUrl && (
+                DireWork
+              </a>{" "}
+              by{" "}
               <a
-                href={termsOfServiceUrl}
+                href="https://www.mrdemonwolf.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="font-medium transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                Terms of Service
+                MrDemonWolf, Inc.
               </a>
-            )}
+            </span>
+            {/* Renders its own leading separator, so nothing dangles when there is no SHA. */}
+            <VersionBadge sha={commitSha} />
           </div>
-        )}
-      </footer>
-    </div>
+          {showLegalLinks && (
+            <div className="mt-2 flex items-center justify-center gap-3">
+              {privacyPolicyUrl && (
+                <a
+                  href={privacyPolicyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Privacy Policy
+                </a>
+              )}
+              {privacyPolicyUrl && termsOfServiceUrl && <span>&middot;</span>}
+              {termsOfServiceUrl && (
+                <a
+                  href={termsOfServiceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Terms of Service
+                </a>
+              )}
+            </div>
+          )}
+        </footer>
+      </div>
+    </>
   );
 }

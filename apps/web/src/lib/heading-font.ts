@@ -10,3 +10,11 @@ export const montserrat = Montserrat({
   subsets: ["latin"],
   preload: true,
 });
+
+/**
+ * Dialogs, menus and selects portal to <body>, outside any layout's wrapper element, so a
+ * layout that scopes the face also publishes the variable on body with this rule — rendered
+ * from that layout, never the root, which keeps the preload scoped. next/font's hashed family
+ * name is only known here, so the rule is built from `montserrat.style`.
+ */
+export const headingFontBodyCss = `body{--font-montserrat:${montserrat.style.fontFamily}}`;

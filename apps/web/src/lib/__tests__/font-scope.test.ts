@@ -41,4 +41,17 @@ describe("font scoping", () => {
     );
     expect(readFileSync(path.join(srcRoot, "lib/fonts.ts"), "utf8")).not.toContain("preload: true");
   });
+
+  // Dialogs, menus and selects portal to <body>, outside the layouts' wrapper elements, so a
+  // class on the wrapper would leave every portaled heading on the fallback face. Each layout
+  // that owns the face must publish it on body instead.
+  it("publishes the heading face on <body> so portaled dialogs inherit it", () => {
+    const rule = readFileSync(path.join(srcRoot, "lib/heading-font.ts"), "utf8");
+    expect(rule).toContain(["body{--font-montserrat:", "{montserrat.style.fontFamily}}"].join("$"));
+    for (const layout of ["app/(app)/layout.tsx", "app/(bot)/layout.tsx"]) {
+      const source = readFileSync(path.join(srcRoot, layout), "utf8");
+      expect(source, layout).toContain("{headingFontBodyCss}");
+      expect(source, layout).not.toContain("montserrat.variable");
+    }
+  });
 });
