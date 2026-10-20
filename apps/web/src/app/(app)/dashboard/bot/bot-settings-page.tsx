@@ -197,7 +197,9 @@ function BotConsoleCard({
           />
         ) : (
           <>
-            <div className="grid grid-cols-[3.5rem_1fr] items-baseline gap-y-1">
+            {/* auto, not a fixed width: the tracked uppercase "Channel" label is wider
+                than 3.5rem and ran into its value. */}
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1">
               <span className="console-label">Bot</span>
               <span className="truncate font-mono text-xs text-foreground">
                 {ingestInfo.data?.botUsername ?? "—"}
