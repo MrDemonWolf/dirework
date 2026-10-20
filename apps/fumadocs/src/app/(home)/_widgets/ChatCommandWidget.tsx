@@ -31,7 +31,7 @@ const LINES: Line[] = [
   { kind: "bot", text: "@ada_codes nice — task #1 complete 🎉" },
   // A mod, not a viewer: a viewer's !timer gets the "mods only" reply.
   { kind: "cmd", user: "den_mod", color: "var(--chat-user-3)", text: "!timer eta" },
-  { kind: "bot", text: "This phase ends in 19m · the hunt is done in 1h 32m" },
+  { kind: "bot", text: "This phase ends in 19m · the session ends in 1h 32m" },
 ];
 
 /** Mock `#stream chat` panel rendering the scripted `LINES` conversation. */

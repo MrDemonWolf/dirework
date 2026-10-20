@@ -114,8 +114,19 @@ describe("formatTodayPlan", () => {
         { text: "Queued third", status: "pending" },
       ]),
     ).toBe(
-      "Viewer's plan: Now: Current focus · Next: Queued first · Then: Queued second · +1 more",
+      "Viewer's plan: Now: #2 Current focus · Next: #1 Queued first · Then: #3 Queued second · +1 more",
     );
+  });
+
+  it("numbers tasks by their list position, not by display order", () => {
+    // The numbers are what !done/!remove/!focus [number] accept, so the active task
+    // moving to the front must not renumber anything.
+    const message = formatTodayPlan("Viewer", [
+      { text: "first", status: "pending" },
+      { text: "second", status: "pending" },
+      { text: "third", status: "active" },
+    ]);
+    expect(message).toBe("Viewer's plan: Now: #3 third · Next: #1 first · Then: #2 second");
   });
 
   it("fits long task text within Twitch's byte limit and preserves whole characters", () => {

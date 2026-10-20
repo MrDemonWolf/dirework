@@ -1,11 +1,89 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  LEGACY_TASK_MESSAGES,
+  LEGACY_TIMER_MESSAGES,
+  TASK_MESSAGE_COLUMN_DEFAULTS,
+  TIMER_MESSAGE_COLUMN_DEFAULTS,
+} from "@dirework/db/defaults";
+
+import {
   buildTimerConfig,
   buildTimerStylesConfig,
   buildTaskStylesConfig,
   buildBotConfig,
+  chatMessageSchema,
+  DEFAULT_TASK_MESSAGES,
+  DEFAULT_TIMER_MESSAGES,
+  TASK_MESSAGE_FIELDS,
+  TIMER_MESSAGE_FIELDS,
 } from "../../config-shared";
+
+type BotConfigRow = Parameters<typeof buildBotConfig>[0];
+type TaskKey = keyof typeof TASK_MESSAGE_FIELDS;
+type TimerKey = keyof typeof TIMER_MESSAGE_FIELDS;
+
+/** A full bot_config row whose every message is the owner's own text. */
+function customRow(): BotConfigRow {
+  const columns = [...Object.values(TASK_MESSAGE_FIELDS), ...Object.values(TIMER_MESSAGE_FIELDS)];
+  return {
+    id: "singleton",
+    taskCommandsEnabled: true,
+    timerCommandsEnabled: true,
+    commandAliases: {},
+    ...Object.fromEntries(columns.map((column) => [column, `custom ${column}`])),
+  } as unknown as BotConfigRow;
+}
+
+describe("buildBotConfig legacy default upgrade", () => {
+  it("reads the frozen column default (what a fresh row holds) as the current wording", () => {
+    const result = buildBotConfig({
+      ...customRow(),
+      msgTaskDone: TASK_MESSAGE_COLUMN_DEFAULTS.taskDone,
+      msgEta: TIMER_MESSAGE_COLUMN_DEFAULTS.eta,
+    });
+    expect(result.task.taskDone).toBe(DEFAULT_TASK_MESSAGES.taskDone);
+    expect(result.timer.eta).toBe(DEFAULT_TIMER_MESSAGES.eta);
+  });
+
+  it("upgrades every wording an earlier release shipped", () => {
+    for (const key of Object.keys(TASK_MESSAGE_FIELDS) as TaskKey[]) {
+      for (const old of [...LEGACY_TASK_MESSAGES[key], TASK_MESSAGE_COLUMN_DEFAULTS[key]]) {
+        const row = { ...customRow(), [TASK_MESSAGE_FIELDS[key]]: old };
+        expect(buildBotConfig(row).task[key], `${key}: ${old}`).toBe(DEFAULT_TASK_MESSAGES[key]);
+      }
+    }
+    for (const key of Object.keys(TIMER_MESSAGE_FIELDS) as TimerKey[]) {
+      for (const old of [...LEGACY_TIMER_MESSAGES[key], TIMER_MESSAGE_COLUMN_DEFAULTS[key]]) {
+        const row = { ...customRow(), [TIMER_MESSAGE_FIELDS[key]]: old };
+        expect(buildBotConfig(row).timer[key], `${key}: ${old}`).toBe(DEFAULT_TIMER_MESSAGES[key]);
+      }
+    }
+  });
+
+  it("leaves the owner's own wording alone", () => {
+    const result = buildBotConfig(customRow());
+    expect(result.task.taskDone).toBe("custom msgTaskDone");
+    expect(result.timer.eta).toBe("custom msgEta");
+  });
+
+  it("ships defaults that are valid templates and distinct from every legacy wording", () => {
+    for (const key of Object.keys(DEFAULT_TASK_MESSAGES) as TaskKey[]) {
+      const value = DEFAULT_TASK_MESSAGES[key];
+      expect(chatMessageSchema.safeParse(value).success, key).toBe(true);
+      expect(value, key).not.toMatch(/^[!./]/);
+      expect(LEGACY_TASK_MESSAGES[key], key).not.toContain(value);
+      expect(TASK_MESSAGE_COLUMN_DEFAULTS[key], key).not.toBe(value);
+    }
+    for (const key of Object.keys(DEFAULT_TIMER_MESSAGES) as TimerKey[]) {
+      const value = DEFAULT_TIMER_MESSAGES[key];
+      expect(chatMessageSchema.safeParse(value).success, key).toBe(true);
+      expect(value, key).not.toMatch(/^[!./]/);
+      expect(LEGACY_TIMER_MESSAGES[key], key).not.toContain(value);
+      expect(TIMER_MESSAGE_COLUMN_DEFAULTS[key], key).not.toBe(value);
+    }
+  });
+});
 
 describe("buildTimerConfig", () => {
   const fakeTimerConfig = {

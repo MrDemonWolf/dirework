@@ -24,7 +24,7 @@ Once you've connected a [bot account](/docs/twitch-oauth#step-5-connect-the-bot-
 | `!focus <number>` | Set a task as your active/focused task |
 | `!check` | Show your current active task |
 | `!check @user` | Show another user's active task |
-| `!today` | Show your active task, next two tasks, and how many more are queued |
+| `!today` | Show your active task, next two tasks (with their numbers), and how many more are queued |
 | `!next <text>` | Complete your active task and start a new one |
 | `!help` | Show available commands in chat |
 
@@ -67,7 +67,7 @@ When you add your first task with `!task`, it automatically becomes your **activ
 
 ## Today's plan
 
-`!today` shows your active task first, followed by the next two tasks in your list. If you have more open tasks, it shows how many remain. It only shows your own tasks; it does not assign due dates or expose another viewer's list.
+`!today` shows your active task first, followed by the next two tasks in your list, each with its number (`Now: #2 … · Next: #1 …`). Those are the numbers `!done`, `!edit`, `!remove` and `!focus` take. If you have more open tasks, it shows how many remain. It only shows your own tasks; it does not assign due dates or expose another viewer's list.
 
 ## Command aliases
 
@@ -89,35 +89,37 @@ All bot response messages are customizable from the **Bot Settings** page (`/das
 
 | Message | Default | Variables |
 | --- | --- | --- |
-| Task Added | `Awooo! The task "{task}" has been added to the pack, {user}!` | `{task}`, `{user}` |
-| No Task Added | `Your paws are full, {user}! Finish a task with !done before adding another.` | `{user}` |
-| No Task Content | `Tell the pack what you're working on! Use !task [task], {user}!` | `{user}` |
-| No Task to Edit | `No task in your den to edit, {user} — try !edit [number] [new task]!` | `{user}` |
-| Task Edited | `The hunt has changed! Task updated to "{task}" {user}` | `{task}`, `{user}` |
-| Task Removed | `Task "{task}" has been scent-wiped from the list, {user}` | `{task}`, `{user}` |
-| Task Next | `Paws-ome work finishing '{oldTask}'! Now tracking '{newTask}', {user}!` | `{oldTask}`, `{newTask}`, `{user}` |
-| Admin Delete Tasks | `All of the user's tasks have been cleared from the forest.` | none |
-| Task Done | `Alpha work! You finished "{task}" {user}!` | `{task}`, `{user}` |
-| Task Check | `{user}, you're on the scent of "{task}"` | `{user}`, `{task}` |
-| Task Check User | `{user}, {user2} is currently tracking: "{task}"` | `{user}`, `{user2}`, `{task}` |
-| No Task | `Looks like you aren't tracking anything in the forest right now, {user} — start a hunt with !task [task]!` | `{user}` |
-| No Task (Other) | `The scent is cold, {user} — that viewer isn't tracking a task right now.` | `{user}` |
-| Not Mod | `Grrr! Permission denied, {user} — only pack leaders (mods) can do that.` | `{user}` |
-| Cleared All | `The forest has been cleared of all tasks!` | none |
-| Cleared Done | `All finished tasks have been cleared from the den!` | none |
-| Next No Content | `Don't leave the pack hanging! Try !next [task], {user}!` | `{user}` |
-| Help | `{user}, join the hunt: !task, !done, !edit, !remove, !focus, !check, !next — or !dwhelp for the full list.` | `{user}` |
+| Task Added | `Added "{task}" to the pack, {user}.` | `{task}`, `{user}` |
+| No Task Added | `Your paws are full, {user}. Finish one with !done before adding another.` | `{user}` |
+| No Task Content | `Tell the pack what you're working on, {user}: !task [task]` | `{user}` |
+| No Task to Edit | `Nothing to edit there, {user}. Try !edit [number] [new task].` | `{user}` |
+| Task Edited | `Updated your task to "{task}", {user}.` | `{task}`, `{user}` |
+| Task Removed | `Removed "{task}" from the list, {user}.` | `{task}`, `{user}` |
+| Task Next | `Finished "{oldTask}". Now on "{newTask}", {user}.` | `{oldTask}`, `{newTask}`, `{user}` |
+| Admin Delete Tasks | `Cleared that viewer's tasks.` | none |
+| Task Done | `Nice work, {user}. "{task}" is done.` | `{task}`, `{user}` |
+| Task Check | `{user}, you're on "{task}".` | `{user}`, `{task}` |
+| Task Check User | `{user}, {user2} is on "{task}".` | `{user}`, `{user2}`, `{task}` |
+| No Task | `You don't have a task yet, {user}. Start one with !task [task].` | `{user}` |
+| No Task (Other) | `{user}, that viewer doesn't have a task right now.` | `{user}` |
+| Not Mod | `Sorry {user}, only mods can do that.` | `{user}` |
+| Cleared All | `Cleared every task.` | none |
+| Cleared Done | `Cleared the finished tasks.` | none |
+| Next No Content | `What's next, {user}? Try !next [task].` | `{user}` |
+| Help | `{user}, commands: !task, !done, !edit, !remove, !focus, !check, !today, !next. Full list: !dwhelp` | `{user}` |
+
+If you never edited a reply, your bot picks up new default wording automatically when you update DireWork. Replies you customized are never touched; use **Reset to default** on the Bot settings page to get the stock wording back.
 
 ### Timer bot responses
 
 | Message | Default | Variables |
 | --- | --- | --- |
-| Not Running | `The timer isn't howling yet! Start it up first.` | none |
-| Wrong Command | `My ears didn't catch that... Try !timer start, pause, resume, skip, reset, or eta.` | none |
-| Timer Running | `The hunt is already in progress!` | none |
-| Command Success | `Paw-fect! Done!` | none |
-| Cycle Wrong | `That cycle count won't work — pick 1 to 99, like !timer start 4.` | none |
-| ETA | `This phase ends in {phase} · the hunt is done in {time}` | `{phase}`, `{time}` |
+| Not Running | `The timer isn't running. Start it first.` | none |
+| Wrong Command | `Didn't catch that. Try !timer start, pause, resume, skip, reset, or eta.` | none |
+| Timer Running | `The timer is already running.` | none |
+| Command Success | `Done.` | none |
+| Cycle Wrong | `Pick a cycle count from 1 to 99, like !timer start 4.` | none |
+| ETA | `This phase ends in {phase} · the session ends in {time}` | `{phase}`, `{time}` |
 
 <Callout type="info">
   The bot replies to `!timer` commands, but does not announce phase changes on

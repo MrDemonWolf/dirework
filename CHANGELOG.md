@@ -49,6 +49,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   legend next to the reply editor; every reply has a live preview with sample values, a
   "Reset to default" once you have changed it, and variable chips that explain themselves
   on hover.
+- **Default bot replies reworded** in plain language ("Nice work, {user}. \"{task}\" is done." instead of "Alpha work! You finished \"{task}\" {user}!"), and the default `!help` reply now lists `!focus`, `!check`, `!today` and `!next`. If you never edited a reply, your bot picks the new wording up on its own, including instances set up before 1.1 that still had the original 2025 text. Replies you customized are untouched.
+- `!today` shows each task's number (`Now: #2 … · Next: #1 …`), the number `!done`, `!edit`, `!remove` and `!focus` take.
 - The footer shows the deployed commit hash on its own, without a version number. Every deploy is one commit, so the hash is the version that matters.
 - **The product name is spelled "DireWork" everywhere** in the dashboard, overlays and docs.
 - **An overlay with an old or reset URL now shows nothing** instead of a fake 00:00 timer or
@@ -99,6 +101,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the database), updating your instance, and recovering an instance someone else claimed.
 
 ### Fixed
+- `!remove` and `!focus` without a number used to answer with one shared line that named both commands and sent viewers to `!check` for their numbers, which `!check` never shows. Each now explains its own usage and points at `!today`.
+- A mod's `!clear` with no target did nothing. It now lists the targets: `!clear done`, `!clear all`, `!clear @user`.
 - Two open bot pages no longer run each chat command twice.
 - The bot reconnects on its own when the Twitch chat connection silently drops, re-sends a
   reply Twitch rejected as a duplicate, and explains chat-mode, ban and timeout errors.
