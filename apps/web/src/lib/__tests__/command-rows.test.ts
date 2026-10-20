@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { KNOWN_ALIAS_TARGETS } from "@dirework/api/chat-commands";
 
-import { taskCommands, timerCommands } from "@/components/bot-settings/command-tab-panel";
+import { taskCommands, timerCommands } from "@/components/bot-settings/command-reference";
 
-// The Bot settings reference tables are hand-written; this pins them to the
+// The Bot settings command legend rows are hand-written; this pins them to the
 // command names the chat resolver actually accepts, so a new or renamed
 // command can't silently go missing from (or linger in) the dashboard.
 describe("bot settings command tables", () => {

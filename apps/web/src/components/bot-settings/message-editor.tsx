@@ -1,123 +1,43 @@
 "use client";
 
-// Chat reply-template editor used by both command tabs of the bot settings page, plus the field
-// lists (labels, groups, template variables) for the task and timer message sets.
+// Chat reply-template editor used by both command tabs of the bot settings page. The field
+// lists it renders live in lib/message-fields.ts.
 
 import { useRef, useState } from "react";
-import { Search } from "lucide-react";
+import { RotateCcw, Search } from "lucide-react";
 
-import type { TaskMessagesConfig, TimerMessagesConfig } from "@/lib/config-types";
+import { interpolate, TEMPLATE_VARIABLES } from "@dirework/api/chat-text";
+
 import { messageBudget } from "@/lib/message-budget";
+import type { MessageField } from "@/lib/message-fields";
 import { ByteBudget } from "@/components/byte-budget";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ConsoleRule } from "@/components/console-rule";
+import { CountBadge } from "@/components/count-badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-/** Editor metadata for one message template key. */
-interface MessageField<K extends string = string> {
-  key: K;
-  label: string;
-  /** Comma-separated template variables, or "none" */
-  placeholder: string;
-  /** Console-rule subgroup the field renders under */
-  group: string;
+/** What the preview line shows: who speaks, and the sample values filled into each template. */
+export interface ReplyPreview {
+  /** The bot account's username. */
+  speaker: string;
+  /** See `previewVars` in lib/template-preview.ts. */
+  vars: Record<string, string>;
 }
-
-/**
- * Fields for the task message set, in display order. `as const satisfies` keeps the literal
- * keys (needed by the coverage check below) while type-checking each entry.
- */
-export const taskMessageFields = [
-  { key: "taskAdded", label: "Task added", placeholder: "{task}, {user}", group: "Adding" },
-  { key: "noTaskAdded", label: "Task limit reached", placeholder: "{user}", group: "Adding" },
-  { key: "noTaskContent", label: "No task text (!task)", placeholder: "{user}", group: "Adding" },
-  { key: "taskDone", label: "Task done", placeholder: "{task}, {user}", group: "Completing" },
-  {
-    key: "taskNext",
-    label: "Next task started",
-    placeholder: "{oldTask}, {newTask}, {user}",
-    group: "Completing",
-  },
-  {
-    key: "nextNoContent",
-    label: "No task text (!next)",
-    placeholder: "{user}",
-    group: "Completing",
-  },
-  { key: "taskCheck", label: "Task check", placeholder: "{user}, {task}", group: "Completing" },
-  {
-    key: "taskCheckUser",
-    label: "Task check (other user)",
-    placeholder: "{user}, {user2}, {task}",
-    group: "Completing",
-  },
-  {
-    key: "taskEdited",
-    label: "Task edited",
-    placeholder: "{task}, {user}",
-    group: "Editing & removing",
-  },
-  {
-    key: "taskRemoved",
-    label: "Task removed",
-    placeholder: "{task}, {user}",
-    group: "Editing & removing",
-  },
-  {
-    key: "noTaskToEdit",
-    label: "No task to edit",
-    placeholder: "{user}",
-    group: "Editing & removing",
-  },
-  { key: "clearedAll", label: "Cleared all", placeholder: "none", group: "Editing & removing" },
-  { key: "clearedDone", label: "Cleared done", placeholder: "none", group: "Editing & removing" },
-  {
-    key: "adminDeleteTasks",
-    label: "Mod cleared user's tasks",
-    placeholder: "none",
-    group: "Editing & removing",
-  },
-  { key: "noTask", label: "No task", placeholder: "{user}", group: "Errors & limits" },
-  {
-    key: "noTaskOther",
-    label: "No task (other user)",
-    placeholder: "{user}",
-    group: "Errors & limits",
-  },
-  { key: "notMod", label: "Not a mod", placeholder: "{user}", group: "Errors & limits" },
-  { key: "help", label: "Help", placeholder: "{user}", group: "Errors & limits" },
-] as const satisfies readonly MessageField<keyof TaskMessagesConfig>[];
-
-/** Fields for the timer message set, in display order. */
-export const timerMessageFields = [
-  // Only messages the bot actually sends. The old "Phase changes" group
-  // (focus/break/long-break/stream-starting/finished) was removed in the P1
-  // cleanup — Workers has no always-on process to fire phase announcements, so
-  // those fields were editable and did nothing.
-  { key: "commandSuccess", label: "Command success", placeholder: "none", group: "Status" },
-  { key: "eta", label: "ETA", placeholder: "{phase}, {time}", group: "Status" },
-  { key: "notRunning", label: "Timer not running", placeholder: "none", group: "Errors" },
-  { key: "wrongCommand", label: "Unknown command", placeholder: "none", group: "Errors" },
-  { key: "timerRunning", label: "Timer already running", placeholder: "none", group: "Errors" },
-  { key: "cycleWrong", label: "Invalid cycle count", placeholder: "none", group: "Errors" },
-] as const satisfies readonly MessageField<keyof TimerMessagesConfig>[];
-
-/** Message keys (from config-shared) that have no editor field above. */
-type UncoveredKeys<K, F extends readonly { key: unknown }[]> = Exclude<K, F[number]["key"]>;
-
-// Compile-time coverage: a message key added to config-shared without an
-// editor field here fails type-checking instead of silently being uneditable.
-const _allMessageKeysEditable: [
-  UncoveredKeys<keyof TaskMessagesConfig, typeof taskMessageFields>,
-  UncoveredKeys<keyof TimerMessagesConfig, typeof timerMessageFields>,
-] extends [never, never]
-  ? true
-  : never = true;
 
 /**
  * ONE generic chat-message editor rendered for both the task and timer message
  * sets (audit L15 — replaces the two near-identical editors). Fields render in
- * console-rule subgroups; variable chips insert at the input's cursor.
+ * console-rule subgroups; variable chips insert at the input's cursor and explain
+ * themselves in a tooltip.
+ *
+ * Under every input sits the reply as the bot would send it — rendered by the bot's own
+ * `interpolate`, so byte fitting and command-lead stripping show up too — filled with
+ * `preview.vars` and spoken by `preview.speaker`. A field whose value differs from
+ * `defaults` offers "Reset to default"; "Reset all" above the list resets the whole tab.
+ * Both only touch the draft — nothing persists until the page's Save bar.
  *
  * Each field shows its UTF-8 byte budget (`messageBudget`, capped at the server's
  * MAX_MESSAGE_TEMPLATE_BYTES). Typing past the cap is allowed and marked invalid; only chip
@@ -127,16 +47,19 @@ export function MessageEditor<T extends object>({
   fields,
   idPrefix,
   values,
+  defaults,
   onChange,
+  preview,
   disabled,
-  disabledNote,
 }: {
   fields: readonly MessageField<Extract<keyof T, string>>[];
   idPrefix: string;
   values: T;
+  /** Stock wording per key; drives the per-field and whole-tab "Reset to default". */
+  defaults: T;
   onChange: (values: T) => void;
+  preview: ReplyPreview;
   disabled?: boolean;
-  disabledNote?: string;
 }) {
   const [search, setSearch] = useState("");
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -145,12 +68,12 @@ export function MessageEditor<T extends object>({
     onChange({ ...values, [key]: value });
   };
 
-  const insertVariable = (key: Extract<keyof T, string>, variable: string) => {
+  const insertVariable = (key: Extract<keyof T, string>, token: string) => {
     const el = inputRefs.current[key];
     const current = values[key] as string;
     const start = el?.selectionStart ?? current.length;
     const end = el?.selectionEnd ?? current.length;
-    const next = current.slice(0, start) + variable + current.slice(end);
+    const next = current.slice(0, start) + token + current.slice(end);
     // Refuse an insert that would push the template past the byte cap — the
     // counter already explains why nothing happened.
     if (messageBudget(next).over) return;
@@ -160,10 +83,12 @@ export function MessageEditor<T extends object>({
       const node = inputRefs.current[key];
       if (!node) return;
       node.focus();
-      const cursor = start + variable.length;
+      const cursor = start + token.length;
       node.setSelectionRange(cursor, cursor);
     });
   };
+
+  const anyCustomized = fields.some((field) => values[field.key] !== defaults[field.key]);
 
   const query = search.toLowerCase();
   const filteredFields = fields.filter(
@@ -173,43 +98,83 @@ export function MessageEditor<T extends object>({
       f.group.toLowerCase().includes(query),
   );
 
-  // Groups in first-appearance order, so the field arrays above control section order.
+  // Groups in first-appearance order, so the field arrays control section order.
   const groups: string[] = [];
   for (const field of filteredFields) {
     if (!groups.includes(field.group)) groups.push(field.group);
   }
 
   return (
-    <div className="space-y-4">
-      <div className="relative">
-        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          className="h-9 pl-8 md:h-8"
-          placeholder="Filter messages..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          aria-label="Filter messages"
-          disabled={disabled}
+    <div className="space-y-5">
+      <div className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="h-9 pl-8 md:h-8"
+            placeholder={`Filter ${fields.length} messages…`}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Filter messages"
+            disabled={disabled}
+          />
+        </div>
+        {/* Resets every field in the tab, so it confirms (destructive-action rule) even
+            though nothing persists until Save. */}
+        <ConfirmDialog
+          trigger={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="shrink-0 text-muted-foreground"
+              disabled={disabled || !anyCustomized}
+            >
+              <RotateCcw className="size-3.5" />
+              Reset all
+            </Button>
+          }
+          title="Reset every message to its default?"
+          description={`All ${fields.length} messages in this tab go back to the stock wording. Nothing is saved until you press Save changes.`}
+          confirmLabel="Reset all"
+          onConfirm={() => onChange(defaults)}
         />
       </div>
 
-      {disabled && disabledNote && <p className="text-xs text-muted-foreground">{disabledNote}</p>}
-
-      {groups.map((group) => (
-        <div key={group} className="space-y-3">
-          <ConsoleRule label={group} />
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            {filteredFields
-              .filter((field) => field.group === group)
-              .map((field) => {
+      {groups.map((group) => {
+        const groupFields = filteredFields.filter((field) => field.group === group);
+        return (
+          <section key={group} aria-label={group} className="space-y-3">
+            <ConsoleRule label={group}>
+              <CountBadge count={groupFields.length} />
+            </ConsoleRule>
+            <div className="space-y-4">
+              {groupFields.map((field) => {
                 const value = values[field.key] as string;
+                const stock = defaults[field.key] as string;
                 const budget = messageBudget(value);
                 const budgetId = `${idPrefix}-${field.key}-bytes`;
+                const previewId = `${idPrefix}-${field.key}-preview`;
+                const describedBy = [previewId, budget.nearLimit ? budgetId : null]
+                  .filter(Boolean)
+                  .join(" ");
                 return (
-                  <div key={field.key} className="space-y-1">
-                    <Label htmlFor={`${idPrefix}-${field.key}`} className="text-xs font-medium">
-                      {field.label}
-                    </Label>
+                  <div key={field.key} className="space-y-1.5">
+                    <div className="flex min-h-6 items-center justify-between gap-2">
+                      <Label htmlFor={`${idPrefix}-${field.key}`} className="text-xs font-medium">
+                        {field.label}
+                      </Label>
+                      {value !== stock && (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className="text-muted-foreground"
+                          disabled={disabled}
+                          onClick={() => handleChange(field.key, stock)}
+                        >
+                          <RotateCcw />
+                          Reset to default
+                        </Button>
+                      )}
+                    </div>
                     <Input
                       id={`${idPrefix}-${field.key}`}
                       ref={(node) => {
@@ -219,31 +184,56 @@ export function MessageEditor<T extends object>({
                       onChange={(e) => handleChange(field.key, e.target.value)}
                       disabled={disabled}
                       aria-invalid={budget.over || undefined}
-                      aria-describedby={budget.nearLimit ? budgetId : undefined}
+                      aria-describedby={describedBy}
                     />
                     <ByteBudget id={budgetId} budget={budget} />
-                    {field.placeholder !== "none" && (
+                    <p
+                      id={previewId}
+                      className="rounded-lg bg-muted/40 px-2.5 py-1.5 text-xs/relaxed break-words text-muted-foreground"
+                    >
+                      <span className="sr-only">Preview: </span>
+                      <span className="font-medium text-primary">{preview.speaker}</span>
+                      <span aria-hidden>: </span>
+                      {value.trim() ? (
+                        interpolate(value, preview.vars)
+                      ) : (
+                        <span className="italic">(empty)</span>
+                      )}
+                    </p>
+                    {field.variables.length > 0 && (
                       <div className="flex flex-wrap gap-1">
-                        {field.placeholder.split(", ").map((v) => (
-                          <button
-                            key={v}
-                            type="button"
-                            onClick={() => insertVariable(field.key, v)}
-                            disabled={disabled}
-                            aria-label={`Insert ${v} template variable`}
-                            className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
-                          >
-                            {v}
-                          </button>
-                        ))}
+                        {field.variables.map((name) => {
+                          const token = `{${name}}`;
+                          return (
+                            <Tooltip key={name}>
+                              <TooltipTrigger
+                                render={
+                                  <button
+                                    type="button"
+                                    onClick={() => insertVariable(field.key, token)}
+                                    disabled={disabled}
+                                    aria-label={`Insert ${token}`}
+                                    className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+                                  >
+                                    {token}
+                                  </button>
+                                }
+                              />
+                              <TooltipContent>
+                                {TEMPLATE_VARIABLES[name].description}
+                              </TooltipContent>
+                            </Tooltip>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
                 );
               })}
-          </div>
-        </div>
-      ))}
+            </div>
+          </section>
+        );
+      })}
 
       {filteredFields.length === 0 && (
         <p className="py-2 text-center text-xs text-muted-foreground">

@@ -44,6 +44,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   dependencies, including Next.js.
 
 ### Changed
+- **Bot settings page redesigned.** The bot console and bot account cards sit side by side,
+  with a numbered "How to run it in OBS" guide. Each command tab shows a compact command
+  legend next to the reply editor; every reply has a live preview with sample values, a
+  "Reset to default" once you have changed it, and variable chips that explain themselves
+  on hover.
 - The footer shows the deployed commit hash on its own, without a version number. Every deploy is one commit, so the hash is the version that matters.
 - **The product name is spelled "DireWork" everywhere** in the dashboard, overlays and docs.
 - **An overlay with an old or reset URL now shows nothing** instead of a fake 00:00 timer or
