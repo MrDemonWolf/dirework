@@ -85,6 +85,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   budget and invariants) used for every pull request review.
 
 ### Added
+- Browser end-to-end tests in CI (`packages/e2e`, Playwright): both workers run in local workerd over a fresh database, the suite signs in through the development bypass, and it exercises the dashboard, task list and overlay, Theme Center and Bot settings before anything can deploy.
 - Dashboard pages show their loading skeleton the instant you click a nav link, instead of
   the previous page sitting still until the new one arrives. The clicked nav icon pulses
   while the page loads, and skeletons sweep a soft highlight instead of pulsing.

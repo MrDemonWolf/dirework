@@ -69,6 +69,19 @@ git checkout -b feat/your-feature-name
 
 ## Testing
 
+End-to-end (browser) tests live in `packages/e2e` and run against the real workers in local
+workerd. Once per machine: `bun run e2e:install` (downloads Chromium). Then build the web
+bundle and run the suite:
+
+```bash
+cd apps/web && SKIP_ENV_VALIDATION=true bun run build:worker && cd ../..
+bun run e2e
+```
+
+The suite boots the api worker on port 3000 and the web worker on 3001, so stop `bun run dev`
+first. Add specs under `packages/e2e/tests`; select elements by role and label.
+
+
 Run the dependency audit and lint gate:
 
 ```bash

@@ -189,4 +189,20 @@ describe("workflow supply-chain controls", () => {
     const deploy = readWorkflow("deploy.yml");
     expect(deploy.indexOf("smoke-check.ts")).toBeGreaterThan(deploy.indexOf("alchemy.run.ts"));
   });
+
+  it("runs the browser end-to-end suite in the shared gate, after the web bundle is built", () => {
+    const rootPackage = JSON.parse(readFileSync(`${repoRoot}/package.json`, "utf8")) as {
+      scripts?: Record<string, string>;
+    };
+    const verify = readWorkflow("verify.yml");
+
+    expect(rootPackage.scripts?.e2e).toBe("bun run --cwd packages/e2e e2e");
+    // The e2e web worker is the bundle build:worker produced, so it must come after it,
+    // and after the cheaper smoke check has already caught a bundle that cannot boot.
+    expect(verify.indexOf("bun run e2e")).toBeGreaterThan(verify.indexOf("bun run smoke:worker"));
+    // Under the same build gate as the build step: a docs-only run has no bundle to test.
+    expect(verify).toMatch(
+      /- name: Browser end-to-end tests\n\s+if: \$\{\{ inputs\.run-build \}\}/,
+    );
+  });
 });
