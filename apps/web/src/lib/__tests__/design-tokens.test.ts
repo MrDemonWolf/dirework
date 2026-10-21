@@ -35,9 +35,10 @@ describe("design tokens", () => {
     expect(Object.keys(dark)).toEqual(Object.keys(light));
   });
 
-  it("keeps hex out of the theme palette (phase, partner and brand only)", () => {
+  it("keeps hex out of the theme palette (phase, partner, brand and OBS only)", () => {
+    // color-obs-*: the bot dock copies OBS Studio's Yami palette, which OBS defines in hex.
     const allowed =
-      /^\s*--(phase-[a-z-]+|twitch|twitch-hover|color-twitch|color-twitch-hover|brand-[a-z0-9-]+):/;
+      /^\s*--(phase-[a-z-]+|twitch|twitch-hover|color-twitch|color-twitch-hover|brand-[a-z0-9-]+|color-obs-[a-z-]+):/;
     for (const path of [OUTPUTS.web, OUTPUTS.docs]) {
       const css = rendered[path] ?? "";
       const hexLines = css.split("\n").filter((line) => line.includes("#"));

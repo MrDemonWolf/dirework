@@ -128,10 +128,19 @@ status follows `!mute` without a request) and `bot.getSession` carries `muted` f
 bot_config read. Bot lives only while that page is open (OBS browser
 source, OBS custom browser dock, or pinned tab). `?view=dock` (`parseBotView` in
 `lib/bot-view.ts`) swaps the ~400×200 source layout for a narrow control panel
-(`bot-dock.tsx`: LED, mute state, last error, recent commands, Reconnect) over the SAME
-session — no extra request or poll; Reconnect re-creates the session (one `getSession`,
-like a reload). Mute there is display-only: no token-gated mute procedure exists, and
-adding one would be new public surface. A closed OBS dock destroys the page (stops the
+(`bot-dock.tsx`: LED, mute state, last error, recent commands, Reconnect, command buttons)
+over the SAME session — no poll; Reconnect re-creates the session (one `getSession`, like a
+reload). The dock wears OBS Studio's Yami dark palette (`color.obs` tokens → `*-obs-*`
+classes) in every app theme. Its command buttons (`lib/bot-dock-commands.ts`: Start/Pause/
+Resume/Skip/Reset, Mute/Unmute, Clear done; Reset and Clear done confirm) add NO server
+surface: `session.runCommand(line)` sends the chat line (`!timer pause`, `!mute`,
+`!clear done`) through the same serialized `bot.ingest` as the channel broadcaster —
+`username` = channel login, `twitchId` = `getSession`'s `broadcasterId` (the owner's Twitch
+id, which `deriveChatPrivileges` turns into broadcaster/mod rights; `isMod` is not claimed),
+and a fresh `crypto.randomUUID()` `messageId` per click for the `processed_chat_message`
+claim. Replies are shown in the dock, never `client.say`'d. One request per click (a busy
+guard disables every button while one is in flight); while muted only Unmute is enabled; with
+no `broadcasterId` (an older api worker) the buttons stay off. A closed OBS dock destroys the page (stops the
 bot); a tabbed one keeps running. The setup checklist's bot step hands out both URLs.
 Chat token comes from `bot.getSession` (server refreshes it; the
 refresh token and client secret never reach the browser). Each PRIVMSG's IRC `id` tag is
@@ -680,7 +689,9 @@ database). Spec files are numbered and run in order: `00-first-run` sees the fre
 `15-landing` (the viewer landing: claimed notice + deploy link, docs links, no `/rpc`),
 `20-dashboard`, `25-setup-checklist` (confirm/revert a step, Finish later), `30-timer` (Pomodoro start/stop and the ticking timer overlay; phase labels
 come from `@dirework/api/config-defaults`), `40-theme-center`, `50-bot-settings`,
-`55-bot-dock` (`/bot/<token>?view=dock` renders the dock; the default view doesn't),
+`55-bot-dock` (`/bot/<token>?view=dock` renders the dock; the default view doesn't; a
+button click sends one `bot.ingest` as the broadcaster, with getSession/ingest stubbed and the
+IRC socket held by `routeWebSocket`),
 `60-token-reset` (the old overlay URL blanks), `70-sign-out`, `80-a11y`, `90-mobile`. Every
 spec passes when run twice in a row, because CI retries run immediately against the same
 database. Two projects: `chromium` runs all but `90-mobile`; `mobile` (Pixel 7) runs only
