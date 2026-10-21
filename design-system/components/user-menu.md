@@ -8,7 +8,7 @@ tokens: [color.scheme, color.partner, radius]
 ## Purpose
 
 The header's account control (`header.tsx`): a Twitch sign-in button when signed out,
-otherwise an avatar dropdown with the dashboard links and Sign out. It gets the `(app)`
+otherwise an avatar dropdown with Sign out. It gets the `(app)`
 layout's server session, so the right control is in the server HTML with no loading flash.
 
 ## Anatomy
@@ -17,7 +17,7 @@ layout's server session, so the right control is in the server HTML with no load
   its own quiet owner sign-in.
 - Signed in: a round trigger (avatar image or a CSS-drawn initial on `bg-primary`, the name
   from `sm` up, a chevron) opening a `DropdownMenu` (`w-56 bg-card`, aligned end):
-  Dashboard, Theme Center, Bot (links), a separator, then a destructive Sign out item.
+  A single destructive Sign out item. The dashboard links live in the header nav, not here.
 
 ## Props and variants
 
@@ -43,7 +43,7 @@ an editor with unsaved edits asks first, then signs out and refreshes the server
 
 ## Do / Don't
 
-- **Do** add dashboard destinations to `menuLinks`, keeping display order.
+- **Don't** add dashboard destinations here; they belong in the header nav and its phone menu.
 - **Do** route any action that leaves the page through `confirmDiscardIfDirty`.
 - **Don't** render a second Twitch sign-in on `/`.
 - **Don't** put the user's initial back into a text node.

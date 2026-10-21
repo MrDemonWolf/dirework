@@ -56,6 +56,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hover that could never happen.
 
 ### Changed
+- **A tidier account menu.** The avatar dropdown now holds just Sign out. Dashboard, Theme Center and
+  Bot stay in the header nav, so the menu no longer repeats them.
 - **No more preview URLs.** Both workers deploy with Cloudflare's version and preview URLs turned off.
   The production workers.dev addresses stay on, because OBS, the bot page and the web proxy use them.
 - **OBS overlays check for changes every 5 seconds instead of every 3.** That is 40% fewer

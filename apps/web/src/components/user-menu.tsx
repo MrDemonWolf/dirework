@@ -1,18 +1,17 @@
 "use client";
 
 // Header account control: a Twitch sign-in button when signed out, otherwise an
-// avatar dropdown with the dashboard links and sign-out.
+// avatar dropdown with sign-out. The dashboard links live in the header nav (and its phone
+// menu), so the dropdown does not repeat them.
 
 import { startTransition } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bot, ChevronDown, LayoutDashboard, LogOut, Palette } from "lucide-react";
+import { ChevronDown, LogOut } from "lucide-react";
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { authClient, signInWithTwitch } from "@/lib/auth-client";
@@ -21,13 +20,6 @@ import { confirmDiscardIfDirty } from "@/lib/unsaved-changes";
 import { TwitchIcon } from "@/components/icons/twitch-icon";
 
 import { Button } from "./ui/button";
-
-/** Dashboard destinations listed in the dropdown, in display order. */
-const menuLinks = [
-  { href: "/dashboard" as const, label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/styles" as const, label: "Theme Center", icon: Palette },
-  { href: "/dashboard/bot" as const, label: "Bot", icon: Bot },
-];
 
 /** Round avatar image, or the name's first letter when there is no image. */
 function Avatar({
@@ -97,13 +89,6 @@ export default function UserMenu({ session }: { session: ServerSession | null })
         <ChevronDown className="size-3.5 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56 bg-card" align="end">
-        {menuLinks.map((item) => (
-          <DropdownMenuItem key={item.href} nativeButton={false} render={<Link href={item.href} />}>
-            <item.icon className="size-3.5" />
-            {item.label}
-          </DropdownMenuItem>
-        ))}
-        <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
           onClick={() => {

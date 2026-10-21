@@ -35,6 +35,13 @@ describe("menu interaction consistency", () => {
     expect(userMenu).not.toContain("h-9 w-9");
   });
 
+  it("leaves the dashboard links to the header instead of repeating them in the account menu", () => {
+    for (const href of ['"/dashboard"', '"/dashboard/styles"', '"/dashboard/bot"']) {
+      expect(userMenu).not.toContain(href);
+      expect(header).toContain(href);
+    }
+  });
+
   it("wires the mobile nav to its toggle", () => {
     expect(header).toContain('aria-controls="mobile-nav"');
     expect(header).toContain('id="mobile-nav"');
