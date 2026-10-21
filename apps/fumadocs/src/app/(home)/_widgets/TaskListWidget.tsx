@@ -93,7 +93,7 @@ export function TaskListWidget({
                 borderTopRightRadius: 12,
                 padding: "10px 14px",
                 fontFamily: "var(--font-display)",
-                // Montserrat is loaded at 700/800 only (see app/layout.tsx).
+                // Docs headings use Montserrat at 700/800 (see app/layout.tsx).
                 fontWeight: 700,
               }}
             >

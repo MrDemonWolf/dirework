@@ -1,0 +1,14 @@
+Self-hosted UI font files for the Dirework dashboard (apps/web) and docs site
+(apps/fumadocs), loaded at build time through next/font/local. All files in
+files/ are latin subsets of Google Fonts families, downloaded by
+apps/web/scripts/fetch-fonts.ts and redistributed under their original
+license. The full license text ships alongside this file:
+
+  OFL-1.1.txt     SIL Open Font License, Version 1.1
+
+Per-family license and copyright:
+
+SIL Open Font License 1.1 (see OFL-1.1.txt):
+  Montserrat        Copyright 2011 The Montserrat Project Authors
+  IBM Plex Sans     Copyright © 2017 IBM Corp. with Reserved Font Name "Plex"
+  IBM Plex Mono     Copyright © 2017 IBM Corp. with Reserved Font Name "Plex"

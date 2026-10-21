@@ -138,7 +138,7 @@ export function TimerOverlayWidget({
         <div
           style={{
             fontSize: 18,
-            // Montserrat is loaded at 700/800 only (see app/layout.tsx).
+            // Docs headings use Montserrat at 700/800 (see app/layout.tsx).
             fontWeight: 700,
             letterSpacing: "0.08em",
             textTransform: "uppercase",

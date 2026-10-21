@@ -186,6 +186,14 @@
         "typescript": "catalog:",
       },
     },
+    "packages/fonts": {
+      "name": "@dirework/fonts",
+      "devDependencies": {
+        "@dirework/config": "workspace:*",
+        "typescript": "catalog:",
+        "vitest": "catalog:",
+      },
+    },
     "packages/infra": {
       "name": "@dirework/infra",
       "dependencies": {
@@ -460,6 +468,8 @@
     "@dirework/e2e": ["@dirework/e2e@workspace:packages/e2e"],
 
     "@dirework/env": ["@dirework/env@workspace:packages/env"],
+
+    "@dirework/fonts": ["@dirework/fonts@workspace:packages/fonts"],
 
     "@dirework/infra": ["@dirework/infra@workspace:packages/infra"],
 
