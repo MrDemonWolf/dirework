@@ -65,11 +65,13 @@ export default function Header({ session }: { session: ServerSession | null }) {
 
   return (
     <header className="sticky top-0 z-(--z-header) border-b border-border/40 bg-background/60 pt-[env(safe-area-inset-top,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] backdrop-blur-2xl backdrop-saturate-150">
-      <div className="mx-auto flex h-header max-w-content items-center justify-between px-4">
+      {/* Tighter padding and gaps below `sm`: at 320px the logo, theme switch, avatar and the
+          44px touch-size menu button otherwise overran the viewport by ~17px. */}
+      <div className="mx-auto flex h-header max-w-content items-center justify-between px-3 sm:px-4">
         <div className="flex items-center gap-8">
           <Link
             href="/"
-            className="flex items-center gap-2 font-heading text-lg font-bold tracking-tight transition-opacity hover:opacity-80"
+            className="flex items-center gap-1.5 font-heading text-lg sm:gap-2 font-bold tracking-tight transition-opacity hover:opacity-80"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -126,7 +128,7 @@ export default function Header({ session }: { session: ServerSession | null }) {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <ModeToggle />
           {/* UserMenu renders its own signed-out Twitch sign-in button, so the
               sticky header always offers an entry point — not just the hero CTA. */}

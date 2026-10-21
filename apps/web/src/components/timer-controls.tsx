@@ -428,6 +428,8 @@ export function TimerTransport() {
     wasIdle.current = isIdle;
   }, [isIdle]);
 
+  // On a 320px phone the column is ~246px wide: the primary button may shrink (smaller
+  // padding below `sm`, a truncating label) so Skip and Stop always fit beside it.
   return (
     <div className="flex items-center gap-2">
       <Button
@@ -437,10 +439,10 @@ export function TimerTransport() {
         onClick={primary.onClick}
         disabled={primary.pending}
         focusableWhenDisabled
-        className="h-12 flex-1 gap-2 px-8 text-base"
+        className="h-12 min-w-0 flex-1 gap-2 px-4 text-base sm:px-8"
       >
         <primary.Icon className="size-4" />
-        {primary.label}
+        <span className="truncate">{primary.label}</span>
       </Button>
       {!isIdle && (
         <>
@@ -463,7 +465,7 @@ export function TimerTransport() {
             <TooltipContent>Skip to the next phase</TooltipContent>
           </Tooltip>
           {/* Hairline between the reversible Skip and the destructive Stop */}
-          <div aria-hidden className="mx-1 h-8 w-px bg-border" />
+          <div aria-hidden className="mx-0.5 h-8 w-px shrink-0 bg-border sm:mx-1" />
           <ConfirmDialog
             trigger={
               <Button
@@ -585,7 +587,12 @@ export function TimerSettings() {
     >
       {!isIdle && <p className="text-xs text-muted-foreground">Stop the timer to change these.</p>}
       {fields.map((field) => (
-        <div key={field.id} className="grid grid-cols-[6.75rem_4.5rem_auto] items-center gap-2">
+        // Below `sm` a flex row: the label takes what is left (a long label wraps) and the
+        // unit slot is fixed so the inputs still line up; a 320px phone leaves ~214px here.
+        <div
+          key={field.id}
+          className="flex items-center gap-2 sm:grid sm:grid-cols-[6.75rem_4.5rem_auto]"
+        >
           {/* Help rides on aria-describedby (screen readers + keyboard get it,
               not just mouse hover); the tooltip stays as the pointer surface. */}
           <Tooltip>
@@ -593,7 +600,7 @@ export function TimerSettings() {
               render={
                 <Label
                   htmlFor={field.id}
-                  className="console-label inline-flex items-center gap-1 whitespace-nowrap"
+                  className="console-label inline-flex min-w-0 flex-1 items-center gap-1 sm:whitespace-nowrap"
                 />
               }
             >
@@ -622,12 +629,16 @@ export function TimerSettings() {
               field.save(clamped);
             }}
             disabled={!isIdle}
-            className="h-8 text-right font-mono tabular-nums"
+            className="h-8 w-18 shrink-0 text-right font-mono tabular-nums"
           />
           <span id={`${field.id}-help`} className="sr-only">
             {field.tooltip}
           </span>
-          {field.unit ? <span className="console-label">{field.unit}</span> : <span aria-hidden />}
+          {field.unit ? (
+            <span className="console-label w-12 shrink-0 sm:w-auto">{field.unit}</span>
+          ) : (
+            <span aria-hidden className="w-12 shrink-0 sm:w-auto" />
+          )}
         </div>
       ))}
     </SectionGroup>
