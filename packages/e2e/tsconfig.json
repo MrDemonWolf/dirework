@@ -3,6 +3,8 @@
   "compilerOptions": {
     "allowJs": true,
     "noEmit": true,
+    // page.evaluate callbacks run in the browser, so the specs type-check against the DOM too.
+    "lib": ["ESNext", "DOM"],
     "types": ["node"]
   },
   "include": ["playwright.config.ts", "src/**/*.ts", "tests/**/*.ts"]

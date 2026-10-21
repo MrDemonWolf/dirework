@@ -43,12 +43,14 @@ function Avatar({
     // biome-ignore lint/performance/noImgElement: Twitch-CDN avatar — next/image would need remotePatterns plus the Workers image optimizer; a plain img with no-referrer is smaller and safer.
     <img src={image} alt="" className={`${className} rounded-full`} referrerPolicy="no-referrer" />
   ) : (
+    // The initial is drawn by CSS, not a text node: axe (WCAG 2.5.3) counts visible text,
+    // even under aria-hidden, as the trigger's visible label, so a "D" here would not match
+    // its aria-label. The letter is decorative; the name beside it is the real label.
     <div
       aria-hidden
-      className={`${className} flex items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground`}
-    >
-      {name?.charAt(0).toUpperCase()}
-    </div>
+      data-initial={name?.charAt(0).toUpperCase()}
+      className={`${className} flex items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground before:content-[attr(data-initial)]`}
+    />
   );
 }
 

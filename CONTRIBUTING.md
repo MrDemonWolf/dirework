@@ -80,6 +80,9 @@ bun run e2e
 
 The suite boots the api worker on port 3000 and the web worker on 3001, so stop `bun run dev`
 first. Add specs under `packages/e2e/tests`; select elements by role and label.
+Spec files are numbered (`00-first-run` … `90-mobile`) and run in that order against one
+database: give a new spec the number of its place in the flow, and make it pass when run twice
+in a row.
 
 
 Run the dependency audit and lint gate:
