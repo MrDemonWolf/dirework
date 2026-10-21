@@ -22,9 +22,16 @@ function nextThemesScript(): string {
       disableTransitionOnChange: true,
     }),
   );
-  const match = /<script[^>]*>([\s\S]*?)<\/script>/.exec(html);
-  if (!match) throw new Error("next-themes rendered no script");
-  return match[1].replaceAll("&quot;", '"').replaceAll("&amp;", "&");
+  // Plain string slicing, not a tag regex: this is the markup React just rendered for one
+  // known element, and a regex-based tag filter would (rightly) trip CodeQL.
+  const open = html.indexOf("<script");
+  const start = open === -1 ? -1 : html.indexOf(">", open);
+  const end = start === -1 ? -1 : html.indexOf("</script>", start);
+  if (end === -1) throw new Error("next-themes rendered no script");
+  return html
+    .slice(start + 1, end)
+    .replaceAll("&quot;", '"')
+    .replaceAll("&amp;", "&");
 }
 
 /** Minimal <html> stand-in: a real class set, attributes, and a style object. */
