@@ -5,7 +5,9 @@ import {
   formatEtaDuration,
   formatTodayPlan,
   interpolate,
+  parsePositionArg,
   parseTaskEditArgs,
+  parseUserTarget,
   resolveAlias,
 } from "../commands";
 
@@ -65,7 +67,7 @@ describe("interpolate", () => {
 
 describe("parseTaskEditArgs", () => {
   it("parses a numbered edit and enforces the task length cap", () => {
-    expect(parseTaskEditArgs(["2", "new", "task"])).toEqual({ position: "2", text: "new task" });
+    expect(parseTaskEditArgs(["2", "new", "task"])).toEqual({ position: 2, text: "new task" });
     expect(parseTaskEditArgs(["1", "x".repeat(600)])?.text).toHaveLength(500);
     // Capped by code units like the tRPC schema, but never mid-surrogate-pair.
     const emoji = parseTaskEditArgs(["1", `a${"🐺".repeat(300)}`])?.text ?? "";
@@ -77,6 +79,37 @@ describe("parseTaskEditArgs", () => {
     expect(parseTaskEditArgs([])).toBeNull();
     expect(parseTaskEditArgs(["first", "text"])).toBeNull();
     expect(parseTaskEditArgs(["1", "   "])).toBeNull();
+  });
+
+  it("accepts the #-prefixed numbers !today shows", () => {
+    expect(parseTaskEditArgs(["#2", "new"])).toEqual({ position: 2, text: "new" });
+  });
+});
+
+describe("parsePositionArg", () => {
+  it("accepts a number with or without one leading #", () => {
+    expect(parsePositionArg("2")).toBe(2);
+    expect(parsePositionArg("#2")).toBe(2);
+  });
+
+  it("rejects everything else", () => {
+    for (const arg of [undefined, "", "#", "##2", "2nd", "-1", "two", "#2!"]) {
+      expect(parsePositionArg(arg)).toBeNull();
+    }
+  });
+});
+
+describe("parseUserTarget", () => {
+  it("normalizes like !block and drops trailing punctuation", () => {
+    expect(parseUserTarget("@Viewer?")).toBe("viewer");
+    expect(parseUserTarget("@viewer,")).toBe("viewer");
+    expect(parseUserTarget("viewer")).toBe("viewer");
+  });
+
+  it("rejects what can't be a Twitch login", () => {
+    for (const arg of ["@", "@not-a-login", "@?", `@${"a".repeat(26)}`]) {
+      expect(parseUserTarget(arg)).toBeNull();
+    }
   });
 });
 

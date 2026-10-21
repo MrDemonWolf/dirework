@@ -247,6 +247,45 @@ describe("bot.ingest chat parsing", () => {
   });
 });
 
+describe("bot.ingest owner reads", () => {
+  // bot.ingest already reads the owner row to derive chat privileges; the task
+  // placement must reuse that answer instead of reading the owner again.
+  async function ownerReadsFor(line: string, chatter: Chatter = {}) {
+    const spy = vi.spyOn(db.query.user, "findFirst");
+    try {
+      await say(line, chatter);
+      return spy.mock.calls.length;
+    } finally {
+      spy.mockRestore();
+    }
+  }
+
+  it("reads the owner once for !task", async () => {
+    expect(await ownerReadsFor("!task one")).toBe(1);
+    expect(await ownerReadsFor("!task two")).toBe(1);
+  });
+
+  it("reads the owner once for !next, with or without an active task", async () => {
+    expect(await ownerReadsFor("!next first")).toBe(1);
+    expect(await ownerReadsFor("!next second")).toBe(1);
+  });
+
+  it("still pins the streamer's own chat tasks to the top", async () => {
+    await say("!task viewer task");
+    await say("!task streamer task", { username: "streamer", twitchId: OWNER_TWITCH_ID });
+    await say("!next streamer next", { username: "streamer", twitchId: OWNER_TWITCH_ID });
+
+    const rows = await db.query.task.findMany({ columns: { text: true, priority: true } });
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        { text: "viewer task", priority: 1 },
+        { text: "streamer task", priority: 0 },
+        { text: "streamer next", priority: 0 },
+      ]),
+    );
+  });
+});
+
 describe("bot.ingest !next", () => {
   it("does not announce a replacement when the active task went stale", async () => {
     await say("!task first");
@@ -700,6 +739,51 @@ describe("bot.ingest task commands end to end", () => {
     ]);
   });
 
+  it("!done #2 completes the second task, the way !today numbers it", async () => {
+    await seedTwo();
+
+    const { replies } = await say("!done #2");
+
+    expect(replies).toEqual([reply(T.taskDone, { task: "second thing" })]);
+    expect(await viewerTasks()).toMatchObject([
+      { text: "first thing", status: "active" },
+      { text: "second thing", status: "done" },
+    ]);
+  });
+
+  it("!done with an argument that isn't a number replies with usage and completes nothing", async () => {
+    await seedTwo();
+
+    for (const line of ["!done intro", "!done #", "!done 2nd", "!done ##2"]) {
+      const { replies } = await say(line);
+      expect(replies).toEqual([
+        "Viewer, use !done to finish your current task, or !done [number] for another one. !today lists the numbers.",
+      ]);
+    }
+    expect(await viewerTasks()).toMatchObject([
+      { text: "first thing", status: "active" },
+      { text: "second thing", status: "pending" },
+    ]);
+  });
+
+  it("!remove, !focus and !edit accept a #-prefixed number", async () => {
+    await seedTwo();
+
+    expect((await say("!edit #2 renamed")).replies).toEqual([
+      reply(T.taskEdited, { task: "renamed" }),
+    ]);
+    expect((await say("!focus #2")).replies).toEqual([reply(T.taskCheck, { task: "renamed" })]);
+    expect(await viewerTasks()).toMatchObject([
+      { text: "first thing", status: "pending" },
+      { text: "renamed", status: "active" },
+    ]);
+
+    expect((await say("!remove #1")).replies).toEqual([
+      reply(T.taskRemoved, { task: "first thing" }),
+    ]);
+    expect(await viewerTasks()).toMatchObject([{ text: "renamed", status: "active" }]);
+  });
+
   it("!done with nothing open replies noTask", async () => {
     expect((await say("!done")).replies).toEqual([reply(T.noTask)]);
     expect((await say("!done 1")).replies).toEqual([reply(T.noTask)]);
@@ -711,6 +795,22 @@ describe("bot.ingest task commands end to end", () => {
     const { replies } = await say("!check @VIEWER", { username: "other", twitchId: "3000" });
 
     expect(replies).toEqual([reply(T.taskCheckUser, { user2: "Viewer", task: "first thing" })]);
+  });
+
+  it("!check accepts a target with trailing punctuation or without @", async () => {
+    await seedTwo();
+    const other = { username: "other", twitchId: "3000" };
+    const expected = [reply(T.taskCheckUser, { user2: "Viewer", task: "first thing" })];
+
+    expect((await say("!check @Viewer?", other)).replies).toEqual(expected);
+    expect((await say("!check viewer", other)).replies).toEqual(expected);
+  });
+
+  it("!check with a target that can't be a login replies with usage", async () => {
+    await seedTwo();
+    expect((await say("!check @not-a-login")).replies).toEqual([
+      "Viewer, use !check for your own task or !check @user for someone else's.",
+    ]);
   });
 
   it("!check @user with no active task replies noTaskOther", async () => {
@@ -807,6 +907,32 @@ describe("bot.ingest task commands end to end", () => {
     expect(await viewerTasks()).toHaveLength(2);
   });
 
+  it("a mod's !clear @user, ignores trailing punctuation", async () => {
+    await seedTwo();
+    await say("!task theirs", { username: "other", twitchId: "3000" });
+
+    const { replies } = await say("!clear @viewer,", { isMod: true });
+
+    expect(replies).toEqual([reply(T.adminDeleteTasks)]);
+    expect(await viewerTasks()).toHaveLength(0);
+    expect((await tasks()).map((t) => t.text)).toEqual(["theirs"]);
+  });
+
+  it("a mod's !clear @user says so when that viewer had nothing to clear", async () => {
+    await seedTwo();
+    expect((await say("!clear @nobody", { isMod: true })).replies).toEqual([
+      "nobody has no tasks to clear.",
+    ]);
+    expect(await viewerTasks()).toHaveLength(2);
+  });
+
+  it("a mod's !clear @ with an invalid login replies with usage and deletes nothing", async () => {
+    await seedTwo();
+    const { replies } = await say("!clear @not-a-login", { isMod: true });
+    expect(replies[0]).toContain("!clear @user");
+    expect(await viewerTasks()).toHaveLength(2);
+  });
+
   it("a mod's !clear with no target replies with the targets and deletes nothing", async () => {
     await seedTwo();
     const { replies } = await say("!clear", { isMod: true });
@@ -849,8 +975,20 @@ describe("bot.ingest !timer subcommands", () => {
     });
     expect(paused?.pausedWithRemaining).toEqual(expect.any(Number));
 
-    // A paused timer has no end time to project.
-    expect((await mod("!timer eta")).replies).toEqual([reply(M.notRunning)]);
+    // Pausing again says so instead of "isn't running", and changes nothing.
+    expect((await mod("!timer pause")).replies).toEqual([
+      "The timer is already paused. Use !timer resume to continue.",
+    ]);
+    expect(await timerRow()).toEqual(paused);
+
+    // A paused timer reports its frozen time left, not "isn't running".
+    const pausedEtaReplies = (await mod("!timer eta")).replies;
+    const pausedEta = await getTimerEta(db);
+    if (!pausedEta || paused?.pausedWithRemaining == null) throw new Error("expected a paused ETA");
+    expect(pausedEta.paused).toBe(true);
+    expect(pausedEtaReplies).toEqual([
+      `The timer is paused with ${formatEtaDuration(paused.pausedWithRemaining)} left in this phase and ${formatEtaDuration(pausedEta.sessionEnd.getTime() - Date.now())} left in the session.`,
+    ]);
     // Starting over a paused timer is refused like any running state.
     expect((await mod("!timer start")).replies).toEqual([reply(M.timerRunning)]);
 
@@ -862,8 +1000,8 @@ describe("bot.ingest !timer subcommands", () => {
       pausedWithRemaining: null,
     });
     expect(resumed?.targetEndTime).toBeInstanceOf(Date);
-    // Resuming a timer that isn't paused is a no-op.
-    expect((await mod("!timer resume")).replies).toEqual([reply(M.notRunning)]);
+    // Resuming a running timer is a no-op that says it's already running.
+    expect((await mod("!timer resume")).replies).toEqual([reply(M.timerRunning)]);
 
     expect((await mod("!timer skip")).replies).toEqual([reply(M.commandSuccess)]);
     expect(await timerRow()).toMatchObject({ status: "work", currentCycle: 1 });

@@ -4,7 +4,20 @@ import type { DbClient } from "@dirework/db";
 import { TIMER_CONFIG_DEFAULTS } from "@dirework/db/defaults";
 
 import { createSqliteDb } from "../../__tests__/helpers/sqlite-db";
-import { pauseTimer, resetTimer, resumeTimer, skipTimer, startTimer } from "../timer-service";
+import { provisionSingletonRows } from "@dirework/db/provision";
+
+import { handleMessage } from "../../bot/commands";
+import { buildBotConfig } from "../../config-shared";
+import {
+  pauseTimer,
+  pauseTimerWithResult,
+  resetTimer,
+  resumeTimer,
+  resumeTimerWithResult,
+  skipTimer,
+  skipTimerWithResult,
+  startTimer,
+} from "../timer-service";
 
 /**
  * The timer state machine against a real SQLite engine with the D1 migrations
@@ -196,5 +209,94 @@ describe("casTimer compare-and-swap", () => {
 
     expect(result?.targetEndTime?.getTime()).toBe(concurrentEnd);
     expect(rawTimer()).toMatchObject({ status: "starting", target_end_time: concurrentEnd });
+  });
+});
+
+describe("timer actions report why nothing changed", () => {
+  it("pause: already-paused, not-running, and lost-race", async () => {
+    expect(await pauseTimerWithResult(db)).toMatchObject({ changed: false, reason: "not-running" });
+
+    await startTimer(db);
+    expect(await pauseTimerWithResult(db)).toMatchObject({ changed: true });
+    expect(await pauseTimerWithResult(db)).toMatchObject({
+      changed: false,
+      reason: "already-paused",
+    });
+
+    await resumeTimer(db);
+    interleaveBeforeTimerUpdate(() => {
+      sqlite.run("UPDATE timer_state SET target_end_time = ?", [T0 + 42_000]);
+    });
+    const raced = await pauseTimerWithResult(db);
+    expect(raced).toMatchObject({ changed: false, reason: "lost-race" });
+    expect(raced.row?.targetEndTime?.getTime()).toBe(T0 + 42_000);
+  });
+
+  it("resume: not-paused while running, not-running when idle, and lost-race", async () => {
+    expect(await resumeTimerWithResult(db)).toMatchObject({
+      changed: false,
+      reason: "not-running",
+    });
+
+    await startTimer(db);
+    expect(await resumeTimerWithResult(db)).toMatchObject({ changed: false, reason: "not-paused" });
+
+    await pauseTimer(db);
+    interleaveBeforeTimerUpdate(() => {
+      sqlite.run(
+        "UPDATE timer_state SET status = 'starting', target_end_time = ?, paused_with_remaining = NULL, paused_from_status = NULL",
+        [T0 + 99_000],
+      );
+    });
+    expect(await resumeTimerWithResult(db)).toMatchObject({ changed: false, reason: "lost-race" });
+
+    await resetTimer(db);
+    expect(await resumeTimerWithResult(db)).toMatchObject({
+      changed: false,
+      reason: "not-running",
+    });
+  });
+
+  it("skip: not-running when idle, lost-race when the phase moved underneath it", async () => {
+    expect(await skipTimerWithResult(db)).toMatchObject({ changed: false, reason: "not-running" });
+
+    await startTimer(db);
+    interleaveBeforeTimerUpdate(() => {
+      sqlite.run("UPDATE timer_state SET status = 'work', target_end_time = ?", [T0 + 7_777]);
+    });
+    expect(await skipTimerWithResult(db)).toMatchObject({ changed: false, reason: "lost-race" });
+    expect(rawTimer()).toMatchObject({ status: "work", target_end_time: T0 + 7_777 });
+  });
+
+  it("chat says the timer changed instead of 'Done.' when a !timer pause loses the race", async () => {
+    await provisionSingletonRows(db);
+    const configRow = await db.query.botConfig.findFirst();
+    if (!configRow) throw new Error("botConfig not provisioned");
+    await startTimer(db);
+    interleaveBeforeTimerUpdate(() => {
+      sqlite.run("UPDATE timer_state SET target_end_time = ?", [T0 + 42_000]);
+    });
+
+    const replies: string[] = [];
+    await handleMessage({
+      db,
+      channelName: "streamer",
+      config: buildBotConfig(configRow),
+      message: "!timer pause",
+      userInfo: {
+        twitchId: "1",
+        username: "mod",
+        displayName: "Mod",
+        color: null,
+        isBroadcaster: false,
+        isMod: true,
+      },
+      say: (text) => replies.push(text),
+    });
+
+    expect(replies).toEqual([
+      "The timer changed just before that, so I left it alone. Check it and try again.",
+    ]);
+    expect(rawTimer()).toMatchObject({ status: "starting", paused_with_remaining: null });
   });
 });

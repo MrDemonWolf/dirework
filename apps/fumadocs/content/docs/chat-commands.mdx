@@ -26,12 +26,12 @@ Once you've connected a [bot account](/docs/twitch-oauth#step-5-connect-the-bot-
 | --- | --- |
 | `!task <text>` | Add a new task (your first task automatically becomes your active one) |
 | `!done` | Mark your active task as done |
-| `!done <number>` | Mark a specific task by position as done |
+| `!done <number>` | Mark a specific task by position as done (`!done 2` and `!done #2` both work; anything that isn't a number gets a usage hint instead of completing your active task) |
 | `!edit <number> <text>` | Edit a specific task by position |
 | `!remove <number>` | Remove a specific task by position |
 | `!focus <number>` | Set a task as your active/focused task |
 | `!check` | Show your current active task |
-| `!check @user` | Show another user's active task |
+| `!check @user` | Show another user's active task (the `@` is optional, and trailing punctuation like `@user?` is ignored) |
 | `!today` | Show your active task, next two tasks (with their numbers), and how many more are queued |
 | `!next <text>` | Complete your active task and start a new one |
 | `!help` | Post the 3-step starter guide (the streamer can reword it) |
@@ -42,7 +42,7 @@ Once you've connected a [bot account](/docs/twitch-oauth#step-5-connect-the-bot-
 | --- | --- |
 | `!clear all` | Clear all tasks from the list |
 | `!clear done` | Clear all completed tasks |
-| `!clear @user` | Remove all tasks from a specific user |
+| `!clear @user` | Remove all tasks from a specific user (the bot says so when that user had none) |
 
 ## Timer commands (broadcaster / mods)
 
@@ -54,7 +54,15 @@ Once you've connected a [bot account](/docs/twitch-oauth#step-5-connect-the-bot-
 | `!timer resume` | Resume the timer |
 | `!timer skip` | Skip the current phase |
 | `!timer reset` | Reset the timer to idle |
-| `!timer eta` | Show time remaining in the current phase and the whole session |
+| `!timer eta` | Show time remaining in the current phase and the whole session (while paused, the frozen time left) |
+
+Task numbers are the ones `!today` shows, so `!edit #2 …`, `!remove #2` and `!focus #2` work as well as the plain number.
+
+When `!timer pause`, `resume` or `skip` can't do anything, the bot says why instead of
+replying "Done.": pausing a paused timer gets `The timer is already paused. Use !timer resume
+to continue.`, resuming a running one gets your **Timer Running** reply, and if another
+action changed the timer at the same moment it replies `The timer changed just before that,
+so I left it alone. Check it and try again.` These fixed replies aren't editable.
 
 ## Moderation commands (broadcaster / mods)
 
