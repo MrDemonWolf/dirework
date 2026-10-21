@@ -47,7 +47,8 @@ export interface ReplyPreview {
  *
  * Each field shows its UTF-8 byte budget (`messageBudget`, capped at the server's
  * MAX_MESSAGE_TEMPLATE_BYTES). Typing past the cap is allowed and marked invalid; only chip
- * inserts are refused. The search filter is local UI state and matches label, key, or group.
+ * inserts are refused. The filter matches label, key, or group. Its text is held by the page (one
+ * per tab), so the Save bar's link to a reply can clear a filter that hides that reply.
  */
 export function MessageEditor<T extends object>({
   fields,
@@ -56,6 +57,8 @@ export function MessageEditor<T extends object>({
   defaults,
   saved,
   invalidKeys,
+  filter,
+  onFilterChange,
   onChange,
   preview,
 }: {
@@ -68,10 +71,12 @@ export function MessageEditor<T extends object>({
   saved: T;
   /** Keys the server's input schema rejects as they stand (besides the byte budget). */
   invalidKeys?: ReadonlySet<string>;
+  /** The filter box's text (the page's state; see the doc comment). */
+  filter: string;
+  onFilterChange: (filter: string) => void;
   onChange: (values: T) => void;
   preview: ReplyPreview;
 }) {
-  const [search, setSearch] = useState("");
   // Only groups the owner toggled; the rest follow the open rule in the doc comment.
   const [toggledGroups, setToggledGroups] = useState<Record<string, boolean>>({});
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -102,7 +107,7 @@ export function MessageEditor<T extends object>({
 
   const anyCustomized = fields.some((field) => values[field.key] !== defaults[field.key]);
 
-  const query = search.toLowerCase();
+  const query = filter.toLowerCase();
   const filteredFields = fields.filter(
     (f) =>
       f.label.toLowerCase().includes(query) ||
@@ -124,8 +129,8 @@ export function MessageEditor<T extends object>({
           <Input
             className="h-9 pl-8 md:h-8"
             placeholder={`Filter ${fields.length} messages…`}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={filter}
+            onChange={(e) => onFilterChange(e.target.value)}
             aria-label="Filter messages"
           />
         </div>
@@ -267,7 +272,7 @@ export function MessageEditor<T extends object>({
 
       {filteredFields.length === 0 && (
         <p className="py-2 text-center text-xs text-muted-foreground">
-          No messages match &quot;{search}&quot;.
+          No messages match &quot;{filter}&quot;.
         </p>
       )}
     </div>

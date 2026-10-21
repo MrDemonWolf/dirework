@@ -37,6 +37,8 @@ export function CommandTabPanel<T extends object>({
   invalidKeys,
   defaults,
   onMessagesChange,
+  filter,
+  onFilterChange,
   preview,
 }: {
   title: string;
@@ -52,6 +54,9 @@ export function CommandTabPanel<T extends object>({
   invalidKeys?: ReadonlySet<string>;
   defaults: T;
   onMessagesChange: (values: T) => void;
+  /** The reply filter's text, held by the page (see MessageEditor). */
+  filter: string;
+  onFilterChange: (filter: string) => void;
   preview: ReplyPreview;
 }) {
   const switchable = commands.filter((cmd) => !cmd.alwaysOn);
@@ -106,6 +111,8 @@ export function CommandTabPanel<T extends object>({
             invalidKeys={invalidKeys}
             defaults={defaults}
             onChange={onMessagesChange}
+            filter={filter}
+            onFilterChange={onFilterChange}
             preview={preview}
           />
         </div>

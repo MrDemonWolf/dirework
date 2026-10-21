@@ -187,7 +187,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   now marks both fields with their own message, instead of only the first problem. The Save
   bar names the reply at fault (*'Task added' is over the 300-byte chat limit* instead of
   *task › task added: Message must be at most 300 bytes*), and clicking it takes you to that
-  field.
+  field, clearing a message filter that hides it.
 - Pressing Enter in the **Block viewer** field now opens the block confirmation, like the
   button does.
 - The command reference's usage lines on Bot settings were below the AA contrast minimum

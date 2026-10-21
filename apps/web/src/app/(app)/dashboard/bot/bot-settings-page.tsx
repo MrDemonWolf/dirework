@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import {
   BOT_MESSAGE_TAB_VALUE,
   type BotMessageFieldRef,
+  type BotMessageTab,
   botMessageFieldFor,
   invalidMessageKeys,
 } from "@/lib/bot-settings-fields";
@@ -143,6 +144,12 @@ function BotSettingsEditor({ config, user }: { config: ConfigData; user: MeData 
   const [saved, setSaved] = useState<BotSettingsDraft>(draft);
   // Controlled, so the Save bar's blocked reason can switch to the tab holding the bad field.
   const [tab, setTab] = useState("tasks");
+  // Each command tab's reply filter, held here rather than in the editor so the Save bar's
+  // link can clear a filter that hides the field it names.
+  const [messageFilters, setMessageFilters] = useState<Record<BotMessageTab, string>>({
+    task: "",
+    timer: "",
+  });
 
   const disconnectBot = useMutation({
     ...trpc.user.disconnectBot.mutationOptions(),
@@ -207,7 +214,10 @@ function BotSettingsEditor({ config, user }: { config: ConfigData; user: MeData 
       return;
     }
     setTab(BOT_MESSAGE_TAB_VALUE[blockedField.tab]);
-    // After the tab's panel mounts; the field's group is open (it holds an invalid field).
+    // A filter on that tab may be hiding the field (the editor renders only matches).
+    setMessageFilters((filters) => ({ ...filters, [blockedField.tab]: "" }));
+    // After the panel and the field render; the field's group is open (it holds an invalid
+    // field).
     requestAnimationFrame(() => {
       const el = document.getElementById(blockedField.fieldId);
       el?.scrollIntoView({ block: "center" });
@@ -352,6 +362,8 @@ function BotSettingsEditor({ config, user }: { config: ConfigData; user: MeData 
                   invalidKeys={invalidMessageKeys(payloadIssues, "task")}
                   defaults={DEFAULT_TASK_MESSAGES}
                   onMessagesChange={(task) => setDraft((d) => ({ ...d, task }))}
+                  filter={messageFilters.task}
+                  onFilterChange={(task) => setMessageFilters((f) => ({ ...f, task }))}
                   preview={preview}
                 />
               </TabsContent>
@@ -373,6 +385,8 @@ function BotSettingsEditor({ config, user }: { config: ConfigData; user: MeData 
                   invalidKeys={invalidMessageKeys(payloadIssues, "timer")}
                   defaults={DEFAULT_TIMER_MESSAGES}
                   onMessagesChange={(timer) => setDraft((d) => ({ ...d, timer }))}
+                  filter={messageFilters.timer}
+                  onFilterChange={(timer) => setMessageFilters((f) => ({ ...f, timer }))}
                   preview={preview}
                 />
               </TabsContent>
