@@ -32,5 +32,14 @@ export function TimerStatusBadge() {
   const status: TimerStatus = toTimerStatus(timer.data?.status ?? "idle");
   const { tone, pulse } = TIMER_TONES[status];
 
-  return <StatusChip tone={tone} label={statusLabels[status]} pulse={pulse} />;
+  // Keyed on the status: a change remounts the chip and plays its crossfade.
+  return (
+    <StatusChip
+      key={status}
+      className="chip-swap"
+      tone={tone}
+      label={statusLabels[status]}
+      pulse={pulse}
+    />
+  );
 }

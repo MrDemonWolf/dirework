@@ -154,7 +154,7 @@ export default function Header() {
         <nav
           id="mobile-nav"
           aria-label="Mobile"
-          className="animate-[console-rise_0.2s_cubic-bezier(0.22,1,0.36,1)_both] border-t border-border/40 bg-background/80 backdrop-blur-2xl md:hidden"
+          className="save-bar-enter border-t border-border/40 bg-background/80 backdrop-blur-2xl md:hidden"
         >
           <div className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3">
             {navItems.map((item) => {
