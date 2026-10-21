@@ -15,6 +15,13 @@ export const DASHBOARD_TIMER_POLL_MS = 2000;
 export const DASHBOARD_IDLE_AFTER_MS = 2 * 60_000;
 export const DASHBOARD_IDLE_POLL_MS = 15_000;
 
+/**
+ * A payload younger than this is reused on mount/tab-focus instead of refetched (hydrated
+ * SSR data, back-navigation). `refetchInterval` polls and `invalidateQueries` ignore
+ * staleness, so every cadence above is unchanged.
+ */
+export const QUERY_FRESH_MS = 30_000;
+
 const ACTIVITY_EVENTS = ["pointerdown", "pointermove", "keydown", "wheel", "touchstart"] as const;
 
 let lastActivityAt = Date.now();

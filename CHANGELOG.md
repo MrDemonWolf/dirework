@@ -67,6 +67,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - A hard reload in dark mode no longer flashes white: the saved theme is now applied in the
   page `<head>` before anything paints, the page canvas itself takes the theme colour, and
   the header's light/dark switch shows the right position from the first frame.
+- The dashboard, Theme Center and Bot settings now arrive with their data: the server fetches
+  your session, timer, tasks and settings in one batched call and streams the finished page —
+  no skeleton hand-off, no idle "Ready 25:00" flash, navigation present on first paint. A
+  dashboard load makes 2 API requests instead of 7.
 
 ## [2.0.0] - 2026-10-20
 

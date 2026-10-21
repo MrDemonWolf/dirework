@@ -7,15 +7,27 @@ import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { TRPC_MAX_BATCH_SIZE } from "@dirework/api/config-shared";
 import { apiOrigin } from "@/lib/api-origin";
 import { withRequestTimeout } from "@/lib/fetch-timeout";
+import { QUERY_FRESH_MS } from "@/lib/poll-intervals";
 import { toastQueryError } from "@/lib/query-error-toast";
 
 function makeQueryClient(): QueryClient {
   return new QueryClient({
     queryCache: new QueryCache({
       // Toasts with a retry action; queries marked meta.silent (OBS overlay
-      // polling) never toast, so nothing is composited onto the stream.
-      onError: toastQueryError,
+      // polling) never toast, so nothing is composited onto the stream. Not on
+      // the server: a failed SSR prefetch just falls back to the client fetch,
+      // and sonner's toast store is module state that no render would drain.
+      onError: isServer ? undefined : toastQueryError,
     }),
+    defaultOptions: {
+      // A client default, not per-query: several observers share one key
+      // (timer.get is observed by TimerProvider and TimerStatusBadge) and React
+      // Query applies each observer's own staleTime, so a per-query value would
+      // have to be repeated everywhere. It only stops hydrated SSR data from
+      // being refetched on mount; polls and invalidations ignore it, so the
+      // request budget is unchanged.
+      queries: { staleTime: QUERY_FRESH_MS },
+    },
   });
 }
 

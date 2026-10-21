@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { headers } from "next/headers";
 
 import { apiOrigin } from "@/lib/api-origin";
@@ -10,7 +11,8 @@ import type { authClient } from "@/lib/auth-client";
  */
 export type ServerSession = typeof authClient.$Infer.Session;
 
-const INTERNAL_FETCH_TIMEOUT_MS = 5_000;
+/** Time box for every server-render fetch to the api worker (session, prefetch, hasOwner). */
+export const INTERNAL_FETCH_TIMEOUT_MS = 5_000;
 
 /**
  * The api worker couldn't answer the session check (429, 5xx, timeout, network
@@ -35,8 +37,12 @@ export class SessionUnavailableError extends Error {
  *
  * Returns null ONLY when the api worker answered 2xx with no session; any other
  * outcome throws SessionUnavailableError.
+ *
+ * `cache()`d per request: the (app) layout's header and the page's
+ * `requireSession()` share ONE get-session fetch. A rejection is memoised too,
+ * so a failed check is not retried within the same render.
  */
-export async function getServerSession(): Promise<ServerSession | null> {
+export const getServerSession = cache(async (): Promise<ServerSession | null> => {
   const h = await headers();
 
   let res: Response;
@@ -59,7 +65,7 @@ export async function getServerSession(): Promise<ServerSession | null> {
   } catch {
     throw new SessionUnavailableError();
   }
-}
+});
 
 /**
  * Whether this single-tenant instance has already been claimed by an owner.
