@@ -1,0 +1,15 @@
+{
+  "name": "@dirework/fonts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "vitest run",
+    "test:coverage": "vitest run",
+    "check-types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@dirework/config": "workspace:*",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -38,10 +38,13 @@ describe("font scoping", () => {
       .map(relative)
       .sort();
     expect(importers).toEqual(["app/(app)/layout.tsx"]);
-    expect(readFileSync(path.join(srcRoot, "lib/heading-font.ts"), "utf8")).toContain(
-      "preload: true",
-    );
-    expect(readFileSync(path.join(srcRoot, "lib/fonts.ts"), "utf8")).not.toContain("preload: true");
+    const heading = readFileSync(path.join(srcRoot, "lib/heading-font.ts"), "utf8");
+    const ui = readFileSync(path.join(srcRoot, "lib/fonts.ts"), "utf8");
+    // Self-hosted faces (packages/fonts): a build must never fetch from Google Fonts.
+    expect(heading).toContain('from "next/font/local"');
+    expect(ui).toContain('from "next/font/local"');
+    expect(heading).toContain("preload: true");
+    expect(ui).not.toContain("preload: true");
   });
 
   // Dialogs, menus and selects portal to <body>, outside the layout's wrapper element, so a

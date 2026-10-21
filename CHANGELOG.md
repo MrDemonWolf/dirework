@@ -41,6 +41,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   weighs KV, Durable Objects, Queues, Cron Triggers and other Cloudflare services against
   the Free-plan limits. Nothing changes today; a server-hosted bot on a Durable Object is
   the one experiment it recommends.
+- **Builds no longer download fonts.** The dashboard and docs site now load Montserrat and
+  IBM Plex Sans/Mono from self-hosted files (`packages/fonts`, about 104 KiB) instead of
+  fetching them from Google Fonts at build time, so a build can't fail because Google was
+  unreachable from the runner. The faces and weights you see are unchanged.
 - **One tagline everywhere:** "A focus timer for your Twitch stream." The docs home page,
   the web app's link previews and both share cards now use the same words, and both share
   cards are navy and cerulean with the same example timer (18:24, Cycle 2 / 4).

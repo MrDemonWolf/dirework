@@ -174,6 +174,7 @@ packages/auth      → Better Auth (Twitch OAuth) — createAuth() factory
 packages/db        → Drizzle ORM schema + createDb() (drizzle-orm/d1) + migrations
 packages/env       → cloudflare:workers bindings (server), t3-env (web)
 packages/infra     → Alchemy IaC (both workers + D1)
+packages/fonts     → self-hosted UI woff2 files (Montserrat, IBM Plex Sans/Mono) both apps load via next/font/local; no code
 packages/overlay-kit → pure overlay geometry (squircle path) + clock formatting + `BRAND` copy + `DEMO_SESSION` demo data, shared by web overlays, docs mocks and both OG cards; zero runtime deps
 packages/e2e       → Playwright browser tests: both workers in local workerd over a fresh local D1 (CI gate)
 packages/config    → Shared TypeScript configuration
@@ -421,7 +422,14 @@ the dashboard's own faces come from `lib/fonts.ts` (body/mono, on `<body>`, not 
 `lib/heading-font.ts` (Montserrat, preloaded, published on `<body>` by the `(app)` layout only,
 via `headingFontBodyCss` — on body, not a wrapper, so portaled dialogs and menus inherit it; the
 root, `(bot)` and `(overlay)` layouts never import it, so an overlay or bot console never fetches
-it). `font-scope.test.ts` pins all of it.
+it). `font-scope.test.ts` pins all of it. Those UI faces (and the docs site's, in
+`apps/fumadocs/src/app/layout.tsx`) are `next/font/local` over the self-hosted woff2 files in
+`packages/fonts/files` (Montserrat 400–800 variable, Plex Sans 400–700 variable, Plex Mono
+400/500/600), so builds make NO network calls — `next/font/google` downloads at build time and
+failed CI whenever the runner couldn't reach Google (`Can't resolve
+'@vercel/turbopack-next/internal/font/google/font'`). `scripts/fetch-fonts.ts` (`UI_FACES`) is
+the only thing that talks to Google Fonts, run by hand; `packages/fonts`' test forbids
+`next/font/google` in either app and checks every `src` path resolves to a committed file.
 
 ### Theme Center & Frontend
 

@@ -2,13 +2,16 @@
 // landing and dashboard view, so it is preloaded; but next/font emits that preload for the
 // routes whose module graph includes this file, so it is imported ONLY by the (app) layout —
 // never by the root layout, and not by the (bot) or (overlay) layouts, whose pages render in
-// other faces — so an OBS overlay or bot console never downloads it.
+// other faces — so an OBS overlay or bot console never downloads it. Self-hosted in
+// packages/fonts like the faces in fonts.ts, so a build never calls Google Fonts.
 
-import { Montserrat } from "next/font/google";
+import localFont from "next/font/local";
 
-export const montserrat = Montserrat({
+export const montserrat = localFont({
   variable: "--font-montserrat",
-  subsets: ["latin"],
+  // Variable font, 400–800 (shared with the docs site); dashboard headings use 500–700.
+  src: [{ path: "../../../../packages/fonts/files/montserrat-400_800.woff2", weight: "400 800" }],
+  display: "swap",
   preload: true,
 });
 

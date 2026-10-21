@@ -1,7 +1,15 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { faceFileName, isWoff2, latinBlocks, parseFace } from "../../../scripts/font-faces";
+import {
+  canonicalWeight,
+  faceFileName,
+  isAllowedFontUrl,
+  isWoff2,
+  KNOWN_WEIGHTS,
+  latinBlocks,
+  parseFace,
+} from "../../../scripts/font-faces";
 
 const GSTATIC = "https://fonts.gstatic.com/s/montserrat/v1/abc.woff2";
 
@@ -78,5 +86,29 @@ describe("faceFileName", () => {
 
   it("refuses names that would escape the output directory", () => {
     expect(() => faceFileName(outDir, "../../etc", "400")).toThrow(/Refusing/);
+  });
+});
+
+describe("isAllowedFontUrl", () => {
+  it("allows only HTTPS URLs on fonts.gstatic.com", () => {
+    expect(isAllowedFontUrl(GSTATIC)).toBe(true);
+    expect(isAllowedFontUrl("http://fonts.gstatic.com/s/x.woff2")).toBe(false);
+    expect(isAllowedFontUrl("https://fonts.gstatic.com.evil.example/x.woff2")).toBe(false);
+    expect(isAllowedFontUrl("https://evil.example/fonts.gstatic.com/x.woff2")).toBe(false);
+  });
+});
+
+describe("canonicalWeight", () => {
+  it("returns our own constant for a static weight or an ascending range", () => {
+    expect(canonicalWeight("400")).toBe("400");
+    expect(canonicalWeight("400 800")).toBe("400 800");
+    expect(KNOWN_WEIGHTS).toContain(canonicalWeight("100 900"));
+  });
+
+  it("rejects anything else", () => {
+    expect(canonicalWeight("800 400")).toBeNull();
+    expect(canonicalWeight("450")).toBeNull();
+    expect(canonicalWeight("400/../x")).toBeNull();
+    expect(canonicalWeight("")).toBeNull();
   });
 });

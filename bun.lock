@@ -21,6 +21,7 @@
       "name": "fumadocs",
       "version": "0.0.0",
       "dependencies": {
+        "@dirework/fonts": "workspace:*",
         "@dirework/overlay-kit": "workspace:*",
         "@orama/orama": "^3.1.18",
         "fumadocs-core": "16.5.1",
@@ -71,6 +72,7 @@
         "@base-ui/react": "^1.0.0",
         "@dirework/api": "workspace:*",
         "@dirework/env": "workspace:*",
+        "@dirework/fonts": "workspace:*",
         "@dirework/overlay-kit": "workspace:*",
         "@opennextjs/cloudflare": "1.20.12",
         "@tanstack/react-query": "^5.101.4",
@@ -184,6 +186,14 @@
         "@dirework/infra": "workspace:*",
         "@types/node": "catalog:",
         "typescript": "catalog:",
+      },
+    },
+    "packages/fonts": {
+      "name": "@dirework/fonts",
+      "devDependencies": {
+        "@dirework/config": "workspace:*",
+        "typescript": "catalog:",
+        "vitest": "catalog:",
       },
     },
     "packages/infra": {
@@ -460,6 +470,8 @@
     "@dirework/e2e": ["@dirework/e2e@workspace:packages/e2e"],
 
     "@dirework/env": ["@dirework/env@workspace:packages/env"],
+
+    "@dirework/fonts": ["@dirework/fonts@workspace:packages/fonts"],
 
     "@dirework/infra": ["@dirework/infra@workspace:packages/infra"],
 

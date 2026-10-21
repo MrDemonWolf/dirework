@@ -2,7 +2,7 @@
 // Owns fonts, site-wide metadata, the skip link, the shared footer and JSON-LD; the home and
 // docs route groups add their own Fumadocs layouts underneath.
 
-import { IBM_Plex_Sans, IBM_Plex_Mono, Montserrat } from "next/font/google";
+import localFont from "next/font/local";
 import Script from "next/script";
 import type { Metadata } from "next";
 import { BRAND } from "@dirework/overlay-kit";
@@ -14,25 +14,36 @@ import "./global.css";
 
 // Match the web app's "Focus Console" type system exactly:
 // Montserrat display · IBM Plex Sans body · IBM Plex Mono labels & numerals.
-const plexSans = IBM_Plex_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+// The same self-hosted files as the web app (packages/fonts, downloaded once by
+// apps/web/scripts/fetch-fonts.ts and committed), so a build never calls Google Fonts.
+// next/font/local needs literal paths, relative to this file.
+const plexSans = localFont({
+  // Variable font: one file covers weights 400–700.
+  src: [
+    { path: "../../../../packages/fonts/files/ibm-plex-sans-400_700.woff2", weight: "400 700" },
+  ],
   variable: "--font-plex-sans",
+  display: "swap",
 });
 
-const plexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+const plexMono = localFont({
+  src: [
+    { path: "../../../../packages/fonts/files/ibm-plex-mono-400.woff2", weight: "400" },
+    { path: "../../../../packages/fonts/files/ibm-plex-mono-500.woff2", weight: "500" },
+    { path: "../../../../packages/fonts/files/ibm-plex-mono-600.woff2", weight: "600" },
+  ],
   variable: "--font-plex-mono",
+  display: "swap",
   // Small labels only: not worth a preload on every page.
   preload: false,
 });
 
-const montserrat = Montserrat({
-  subsets: ["latin"],
-  // The two weights headings use. Fumadocs' prose h2/h3 ask for 600 and render at 700.
-  weight: ["700", "800"],
+const montserrat = localFont({
+  // Variable font, 400–800, shared with the web app: headings here use 700 and 800
+  // (Fumadocs' prose h2/h3 ask for 600 and render at 700).
+  src: [{ path: "../../../../packages/fonts/files/montserrat-400_800.woff2", weight: "400 800" }],
   variable: "--font-montserrat",
+  display: "swap",
 });
 
 /**
