@@ -7,9 +7,10 @@ tokens: []
 
 ## Purpose
 
-Unstyled Base UI `Collapsible` with `data-slot` hooks. Its only consumer is `SectionGroup`
-(`section-group.tsx`), which supplies the visual treatment for the Theme Center and bot
-settings disclosure groups.
+Unstyled Base UI `Collapsible` with `data-slot` hooks. Consumers: `SectionGroup`
+(`section-group.tsx`), which supplies the visual treatment for the Theme Center, bot
+settings and dashboard session-settings disclosure groups, and `TaskManager`, whose author
+groups fold from their header.
 
 ## Anatomy
 

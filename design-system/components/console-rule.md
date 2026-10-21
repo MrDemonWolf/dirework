@@ -9,7 +9,7 @@ tokens: [color.scheme, font.family, tracking]
 
 The "Focus Console" section header: a mono uppercase label followed by a hairline that fills
 the row. It replaced about fifteen copy-pasted variants. Used across the dashboard, Theme
-Center, bot settings cards, `TaskManager`, `TimerControls` and `StylePreviewPanel`.
+Center, bot settings cards, `TaskManager` and `StylePreviewPanel`.
 
 ## Anatomy
 
