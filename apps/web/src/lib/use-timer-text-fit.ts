@@ -34,31 +34,44 @@ type ResizeObserverCtor = new (
   disconnect(): void;
 };
 
+/** The viewport the frame lives in: its size and resize events. */
+type Viewport = Pick<
+  Window,
+  "innerWidth" | "innerHeight" | "addEventListener" | "removeEventListener"
+>;
+
 /**
- * Calls `onSize` with the frame's layout size (`offsetWidth`×`offsetHeight`, as
- * "WxH") now and whenever it changes. Relative dimensions (`50vw`, `80%`) resize the
- * frame when the OBS source or browser viewport does, without any fit input changing,
- * so the fit must key on the measured size too. Layout size ignores AutoScale's
- * transform, and the fitted text never resizes the explicitly sized frame, so this
- * cannot loop. Without ResizeObserver it reports once. Returns the cleanup.
+ * Calls `onSize` with the frame's layout size and the viewport's
+ * (`offsetWidth`×`offsetHeight`@`innerWidth`×`innerHeight`) now and whenever either
+ * changes. Relative dimensions (`50vw`, `80%`) resize the frame, and viewport-relative
+ * font sizes (`8vw`) resize the text, when the OBS source or browser viewport does,
+ * without any fit input changing, so the fit must key on both. Layout size ignores
+ * AutoScale's transform, and the fitted text never resizes the explicitly sized frame,
+ * so this cannot loop. Without ResizeObserver or a window it reports what it can.
+ * Returns the cleanup.
  */
 export function observeFrameSize(
   frame: HTMLElement,
   onSize: (size: string) => void,
   Observer: ResizeObserverCtor | undefined = globalThis.ResizeObserver,
+  view: Viewport | undefined = typeof window === "undefined" ? undefined : window,
 ): () => void {
   let last = "";
   const report = () => {
-    const size = `${frame.offsetWidth}x${frame.offsetHeight}`;
+    const viewport = view ? `@${view.innerWidth}x${view.innerHeight}` : "";
+    const size = `${frame.offsetWidth}x${frame.offsetHeight}${viewport}`;
     if (size === last) return;
     last = size;
     onSize(size);
   };
   report();
-  if (!Observer) return () => {};
-  const observer = new Observer(report);
-  observer.observe(frame);
-  return () => observer.disconnect();
+  const observer = Observer ? new Observer(report) : undefined;
+  observer?.observe(frame);
+  view?.addEventListener("resize", report);
+  return () => {
+    observer?.disconnect();
+    view?.removeEventListener("resize", report);
+  };
 }
 
 /**
