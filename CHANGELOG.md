@@ -37,6 +37,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hover that could never happen.
 
 ### Changed
+- Docs: an architecture decision record (`docs/decisions/0001-cloudflare-services.md`)
+  weighs KV, Durable Objects, Queues, Cron Triggers and other Cloudflare services against
+  the Free-plan limits. Nothing changes today; a server-hosted bot on a Durable Object is
+  the one experiment it recommends.
 - **One tagline everywhere:** "A focus timer for your Twitch stream." The docs home page,
   the web app's link previews and both share cards now use the same words, and both share
   cards are navy and cerulean with the same example timer (18:24, Cycle 2 / 4).
