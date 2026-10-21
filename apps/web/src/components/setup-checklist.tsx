@@ -6,15 +6,7 @@
 // beyond the bot page URL (`bot.getIngestInfo`), which loads only while that step is open.
 // A confirm is one UPDATE; its result is patched into the `user.me` cache, never refetched.
 
-import {
-  type Ref,
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { type Ref, useCallback, useId, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Check, ChevronDown, Palette } from "lucide-react";
@@ -254,10 +246,13 @@ export function SetupChecklist({
   me,
   collapsed,
   onCollapse,
+  headingRef,
 }: {
   me: SetupMe;
   collapsed: boolean;
   onCollapse: () => void;
+  /** The card's heading (tabIndex -1): the dashboard focuses it after a header-button reopen. */
+  headingRef?: Ref<HTMLHeadingElement>;
 }) {
   const queryClient = useQueryClient();
   const progress = setupProgress(me);
@@ -265,15 +260,7 @@ export function SetupChecklist({
   // Accordion: one step open at a time, starting on the next one to do.
   const [openStep, setOpenStep] = useState<SetupStepId | null>(progress.nextStep);
   const [showSteps, setShowSteps] = useState(false);
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const wasCollapsed = useRef(collapsed);
   const baseId = useId();
-
-  // Reopened from the header button: move focus into the card it revealed.
-  useEffect(() => {
-    if (wasCollapsed.current && !collapsed) headingRef.current?.focus();
-    wasCollapsed.current = collapsed;
-  }, [collapsed]);
 
   const meKey = trpc.user.me.queryKey();
   // Optimistic: the chip and the count move on the click. No refetch afterwards, the

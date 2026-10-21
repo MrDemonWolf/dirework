@@ -157,17 +157,23 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
   const [showTasksPreview, setShowTasksPreview] = useState(false);
 
   // Setup checklist: "Finish later" hides the card and the header band's Setup button
-  // brings it back. Collapsing hands focus to that button, so it never drops to <body>.
+  // brings it back. Focus follows only those clicks: collapsing hands it to the button,
+  // reopening to the card's heading. A transition driven by hydration or the stored choice
+  // (no click) never moves focus.
   const [setupCollapsed, setSetupCollapsed] = useSetupCollapsed(
     // undefined until user.me loads (e.g. after a failed SSR prefetch), so the
     // collapse default waits for real data.
     user.data ? setupProgress(user.data).nextStep === null : undefined,
   );
   const setupButtonRef = useRef<HTMLButtonElement>(null);
+  const setupHeadingRef = useRef<HTMLHeadingElement>(null);
   const collapsedByClick = useRef(false);
+  const reopenRequested = useRef(false);
   useEffect(() => {
     if (setupCollapsed && collapsedByClick.current) setupButtonRef.current?.focus();
+    if (!setupCollapsed && reopenRequested.current) setupHeadingRef.current?.focus();
     collapsedByClick.current = false;
+    reopenRequested.current = false;
   }, [setupCollapsed]);
 
   // `user.me` normally arrives hydrated from the server prefetch (page.tsx), so the live
@@ -211,7 +217,10 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
             <SetupReopenButton
               me={me}
               buttonRef={setupButtonRef}
-              onOpen={() => setSetupCollapsed(false)}
+              onOpen={() => {
+                reopenRequested.current = true;
+                setSetupCollapsed(false);
+              }}
             />
           )}
           <TimerStatusBadge />
@@ -225,6 +234,7 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
       <SetupChecklist
         me={me}
         collapsed={setupCollapsed}
+        headingRef={setupHeadingRef}
         onCollapse={() => {
           collapsedByClick.current = true;
           setSetupCollapsed(true);

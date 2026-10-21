@@ -179,6 +179,29 @@ describe("Finish later storage helpers", () => {
   });
 });
 
+describe("setup checklist focus", () => {
+  const dashboard = readFileSync(
+    path.resolve(import.meta.dirname, "../../app/(app)/dashboard/dashboard.tsx"),
+    "utf8",
+  );
+  const checklist = readFileSync(
+    path.resolve(import.meta.dirname, "../../components/setup-checklist.tsx"),
+    "utf8",
+  );
+
+  it("moves focus only after a click, never on a hydration-driven reveal", () => {
+    // The reopen focus is gated on a flag only the Setup button's click sets.
+    expect(dashboard).toContain(
+      "if (!setupCollapsed && reopenRequested.current) setupHeadingRef.current?.focus();",
+    );
+    expect(dashboard).toMatch(/onOpen=\{\(\) => \{\s*reopenRequested\.current = true;/);
+    expect(dashboard).toContain("reopenRequested.current = false;");
+    // The card itself no longer infers a reopen from a collapsed → open transition.
+    expect(checklist).not.toContain("wasCollapsed");
+    expect(checklist).not.toContain(".focus()");
+  });
+});
+
 describe("setup checklist collapsed state", () => {
   const src = readFileSync(
     path.resolve(import.meta.dirname, "../../components/setup-checklist.tsx"),
