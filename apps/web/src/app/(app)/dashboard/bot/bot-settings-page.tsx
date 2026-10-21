@@ -26,7 +26,7 @@ import { BotAccountCard } from "@/components/bot-settings/bot-account-card";
 import { BotConsoleCard } from "@/components/bot-settings/bot-console-card";
 import { BotMuteBar } from "@/components/bot-settings/bot-mute-bar";
 import { CommandAliasEditor } from "@/components/bot-settings/command-alias-editor";
-import { taskCommands, timerCommands } from "@/components/bot-settings/command-reference";
+import { taskCommands, timerCommands } from "@/lib/command-rows";
 import { CommandTabPanel } from "@/components/bot-settings/command-tab-panel";
 import { BotSettingsSkeleton } from "@/components/bot-settings-skeleton";
 import { ConsoleRule } from "@/components/console-rule";

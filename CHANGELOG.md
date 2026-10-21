@@ -48,6 +48,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Token sweep (no visual change).** The web app's arbitrary type, tracking, z-index, width
   and gray-palette classes now use design tokens (new: `tracking-eyebrow`/`marquee`,
   `rounded-xs`, the `console-*` bot-console colors), and `token-bypass.test.ts` keeps it so.
+- **The home page is now a viewer landing.** Only people who don't own your DireWork see `/`
+  (you go straight to the dashboard), so it now explains what they're looking at: a still of a
+  co-working stream (timer, task list, chat), the `!task` / `!today` / `!done` commands, and
+  links to deploy their own copy. "Sign in with Twitch" stays as a small owner-only button, and
+  the header no longer shows a second one there. Someone refused because the instance is
+  already claimed now gets a link to the deploy guide. The page is server-rendered and makes
+  no API requests. Its docs links follow your `DOCS_URL`, which the web worker now receives
+  too.
 - **One tagline everywhere:** "A focus timer for your Twitch stream." The docs home page,
   the web app's link previews and both share cards now use the same words, and both share
   cards are navy and cerulean with the same example timer (18:24, Cycle 2 / 4).

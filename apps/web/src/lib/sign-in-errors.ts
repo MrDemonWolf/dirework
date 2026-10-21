@@ -1,13 +1,19 @@
 export interface SignInError {
   title: string;
   hint: string;
+  /**
+   * Link text that points the visitor at the deploy guide. Only the claimed-instance
+   * refusal has one: whoever sees it is almost always a streamer who wants their own copy.
+   */
+  cta?: string;
 }
 
 /** Copy for the `?error=` codes better-auth appends to the sign-in redirect. */
 export const SIGN_IN_ERRORS = {
   instance_claimed: {
     title: "This DireWork already belongs to a different Twitch account.",
-    hint: "Each DireWork belongs to one streamer. Sign in with the account that claimed it, or deploy your own copy.",
+    hint: "If this is your channel, sign in with the Twitch account that claimed it.",
+    cta: "This DireWork belongs to another streamer. Deploy your own →",
   },
   // Bot-account OAuth (/api/bot/authorize) bounces here when the request has
   // no streamer session — usually an expired session or a bookmarked link.
