@@ -61,6 +61,22 @@ test.describe("on a 320px phone", () => {
     }));
     expect(layout.scroll, "page wider than a 320px viewport").toBeLessThanOrEqual(layout.client);
 
+    // The header row must keep real slack, not fit to the pixel: text renders a few px wider
+    // on Linux than on macOS, so a 1.5px margin here overflowed the page on CI.
+    const logo = await page
+      .getByRole("link", { name: /DireWork/ })
+      .first()
+      .boundingBox();
+    const themeSwitch = await page.getByRole("switch", { name: "Toggle dark mode" }).boundingBox();
+    expect(logo, "logo has no box").not.toBeNull();
+    expect(themeSwitch, "theme switch has no box").not.toBeNull();
+    // The 16px sun icon and an 8px gap sit left of the switch.
+    const toggleLeft = themeSwitch!.x - 24;
+    expect(
+      toggleLeft - (logo!.x + logo!.width),
+      "logo crowds the theme toggle",
+    ).toBeGreaterThanOrEqual(4);
+
     // The timer panels clip with overflow-hidden, so a too-wide row never widens the page:
     // check that the right-most controls end inside the viewport instead.
     for (const [name, locator] of [
