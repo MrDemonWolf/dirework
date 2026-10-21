@@ -7,7 +7,12 @@ import { describe, expect, it } from "vitest";
 // Base UI's starting/ending-style transitions rather than tw-animate's
 // `animate-in` run.
 const srcDir = path.join(__dirname, "../..");
-const css = readFileSync(path.join(srcDir, "index.css"), "utf8");
+// console-rise and the console easing come from the generated token stylesheet; the
+// motion-specific keyframes stay in index.css. The contract covers both files.
+const css = [
+  readFileSync(path.join(srcDir, "index.css"), "utf8"),
+  readFileSync(path.join(srcDir, "tokens.generated.css"), "utf8"),
+].join("\n");
 
 const componentsDir = path.join(srcDir, "components");
 const componentSources = (readdirSync(componentsDir, { recursive: true }) as string[])
