@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { buttonVariants } from "@/components/ui/button";
 
 const read = (rel: string) => readFileSync(path.join(__dirname, "../..", rel), "utf8");
+const reEscape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 describe("touch targets", () => {
   it("gives every button size a larger minimum hit area on coarse pointers", () => {
@@ -34,6 +35,29 @@ describe("touch targets", () => {
     // (wrapped in @media (hover: hover)) can never reveal them.
     expect(taskManager).not.toContain("lg:opacity-0");
     expect(taskManager.match(/can-hover:opacity-0 group-hover:opacity-100/g)).toHaveLength(2);
+  });
+
+  it("pads every full-width edge container for the side safe-area insets", () => {
+    // viewport-fit=cover lets content run under a landscape notch; these must pad for it.
+    const sides = "pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]";
+    const appLayout = read("app/(app)/layout.tsx");
+    expect(appLayout).toMatch(new RegExp(`<main[^>]*${reEscape(sides)}`));
+    expect(appLayout).toMatch(new RegExp(`<footer[\\s\\S]*?${reEscape(sides)}`));
+    expect(read("components/header.tsx")).toMatch(new RegExp(`<header[^>]*${reEscape(sides)}`));
+    expect(read("components/save-bar.tsx")).toMatch(
+      new RegExp(`data-save-bar[\\s\\S]*?${reEscape(sides)}`),
+    );
+  });
+
+  it("offsets toasts by the safe-area insets on both breakpoints", async () => {
+    const { TOAST_OFFSET, TOAST_MOBILE_OFFSET } = await import("@/components/providers");
+    for (const offset of [TOAST_OFFSET, TOAST_MOBILE_OFFSET]) {
+      expect(offset.bottom).toContain("env(safe-area-inset-bottom");
+      expect(offset.left).toContain("env(safe-area-inset-left");
+      expect(offset.right).toContain("env(safe-area-inset-right");
+    }
+    const providers = read("components/providers.tsx");
+    expect(providers).toContain("offset={TOAST_OFFSET} mobileOffset={TOAST_MOBILE_OFFSET}");
   });
 
   it("defines the can-hover variant on a hover media query", () => {

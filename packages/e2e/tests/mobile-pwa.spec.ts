@@ -34,6 +34,15 @@ test("the dashboard links an installable standalone manifest", async ({ page }) 
   expect(await res.json()).toMatchObject({ display: "standalone", start_url: "/dashboard" });
 });
 
+test("the browser bar follows the app's theme, not the OS's", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.evaluate(() => localStorage.setItem("theme", "dark"));
+  await page.reload();
+  const metas = page.locator('meta[name="theme-color"]');
+  await expect(metas).toHaveCount(2);
+  for (const meta of await metas.all()) await expect(meta).toHaveAttribute("content", "#081225");
+});
+
 test("task-row actions are shown on touch without a hover", async ({ page }) => {
   const text = `Phone task ${Date.now()}`;
   await page.getByLabel("New task text").fill(text);

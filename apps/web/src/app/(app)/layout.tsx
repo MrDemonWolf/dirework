@@ -5,6 +5,7 @@
 import type { Metadata } from "next";
 
 import Header from "@/components/header";
+import { ThemeColorSync } from "@/components/theme-color-sync";
 import { VersionBadge } from "@/components/version-badge";
 import { headingFontBodyCss } from "@/lib/heading-font";
 import { getServerSession } from "@/lib/server-session";
@@ -51,12 +52,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         >
           Skip to content
         </a>
+        <ThemeColorSync />
         <Header session={session} />
-        <main id="main">{children}</main>
+        {/* Safe-area side insets (landscape phones with viewport-fit=cover) add to each
+            page's own gutter; the header, footer and save bar pad themselves the same way. */}
+        <main
+          id="main"
+          className="pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]"
+        >
+          {children}
+        </main>
         {/* suppressHydrationWarning: the copyright year comes from `new Date()`, which can differ
           between the server render and the client around New Year. */}
         <footer
-          className="border-t border-border/40 py-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] text-center text-xs text-muted-foreground"
+          className="border-t border-border/40 py-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] text-center text-xs text-muted-foreground"
           suppressHydrationWarning
         >
           <div className="flex flex-wrap items-center justify-center gap-x-3">

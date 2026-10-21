@@ -66,7 +66,7 @@ function SaveBarPanel({
   return (
     <div
       data-save-bar
-      className="fixed inset-x-0 bottom-0 z-40 save-bar-enter border-t border-border/40 bg-background/80 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-2xl"
+      className="fixed inset-x-0 bottom-0 z-40 save-bar-enter border-t border-border/40 bg-background/80 pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] backdrop-blur-2xl"
     >
       <div className="container mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">

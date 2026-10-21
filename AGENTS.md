@@ -447,8 +447,10 @@ hand-written in both stylesheets (they wrap next/font variables). Palette AA is 
 logo inside the inner 80% on the dark background) plus `app/apple-icon.png` (180×180,
 opaque); `icon.svg` stays the favicon. Only the `(app)` layout links the manifest and the
 `appleWebApp` tags, so overlay and bot loads never fetch it. The root `viewport` export sets
-`viewportFit: "cover"`, `colorScheme`, and per-scheme `themeColor`; the header, footer,
-save bar, and toasts pad with `env(safe-area-inset-*)`. **No service worker**: install
+`viewportFit: "cover"`, `colorScheme`, and per-scheme `themeColor` (the SSR fallback;
+`components/theme-color-sync.tsx`, mounted by `(app)`, rewrites the tags from next-themes'
+`resolvedTheme` via `lib/theme-color.ts`); the header, main, footer, save bar, and toasts
+pad with `env(safe-area-inset-*)` on the bottom and both sides. **No service worker**: install
 doesn't need one and an offline live dashboard would only show stale state. Touch
 conventions: hide hover-revealed controls with `can-hover:opacity-0` (custom variant on
 `@media (hover: hover)` in `index.css`), never a width breakpoint — `lg:opacity-0` hid them
