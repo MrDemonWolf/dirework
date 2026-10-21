@@ -51,6 +51,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the free plan's daily budget. The countdown and ring still tick smoothly on their own;
   only a change such as starting, pausing or adding a task can take up to 2 seconds longer
   to appear.
+- **Dashboard layout.** The timer console puts the clock on the left and the controls on
+  the right: **Start**, **Skip** and **Stop**, then **Edit session settings**, which stays
+  folded and shows the saved session at a glance (`FOCUS 25m · BREAK 5m · LONG 15m ·
+  EVERY 4`), then the timer overlay's URL with its **Live preview** toggle. The task board
+  takes two thirds of its panel with the tasks overlay's URL and preview beside it. Long
+  tasks wrap to two lines, rows are easier to tap, and each author's group folds from its
+  header. **Clear done** and **Clear all** moved into the board's options menu (each still
+  asks first), and the bot's status shows once, on the bot strip. No new requests.
 - **The claim page leads with the claim.** `/setup` now reads "Claim your DireWork
   instance", says in two sentences that the first Twitch sign-in becomes the owner and how
   to recover if someone else gets there first, and shows the Claim with Twitch button, an
