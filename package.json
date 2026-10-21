@@ -34,11 +34,6 @@
       "@types/sql.js": "^1.4.11",
       "@biomejs/biome": "^2.5.15",
       "@types/node": "^22.20.1"
-    },
-    "catalogs": {
-      "fumadocs": {
-        "lucide-react": "^0.563.0"
-      }
     }
   },
   "type": "module",

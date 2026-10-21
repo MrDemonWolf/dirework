@@ -128,6 +128,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   closes on Escape and navigation.
 - Subtler, consistent motion across menus, dialogs, task rows and status chips (CSS only,
   honours reduced-motion).
+- Docs site dependencies: fumadocs-ui and fumadocs-core 16.5.1 → 16.17.5 and fumadocs-mdx
+  14.2.6 → 15.4.7, moved in one step so the docs keep a single fumadocs-core. Docs search now
+  runs on ZBSearch (fumadocs-core's successor to Orama) and still searches a static index in
+  your browser. The docs app drops its own `@orama/orama` and shares the web app's
+  lucide-react 1.x pin, and Dependabot now bumps the fumadocs packages together.
 
 ### Fixed
 - **Theme Center and Bot settings open on your saved values.** Both editors used to render
