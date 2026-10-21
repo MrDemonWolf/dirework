@@ -45,7 +45,7 @@ const PROVISIONED = {
   timerConfig: { id: "singleton", workDuration: 1_500_000, defaultCycles: 4 },
   timerStyle: { id: "singleton" },
   taskStyle: { id: "singleton" },
-  botConfig: { id: "singleton", commandAliases: {} },
+  botConfig: { id: "singleton", commandAliases: {}, muted: false, blockedViewers: [] },
 };
 
 /** Records every write so tests can assert real DB effects, not just returns. */
@@ -104,7 +104,11 @@ function makeDb(rows: DbRows = {}) {
         return {
           where: () => ({
             kind: "update",
-            returning: async () => rows.updateReturns ?? [{ id: "row", ...values }],
+            // Still tagged after .returning(), so a batch of guarded UPDATEs is recorded.
+            returning: () =>
+              Object.assign(Promise.resolve(rows.updateReturns ?? [{ id: "row", ...values }]), {
+                kind: "update",
+              }),
           }),
         };
       },
@@ -474,6 +478,56 @@ describe("database effects of owner mutations", () => {
       msgNotMod: "mods only, {user}",
     });
   });
+
+  it("config.setBotMuted writes only the mute flag", async () => {
+    const { caller: owner, updated } = caller(ownerSession);
+
+    await expect(owner.config.setBotMuted({ muted: true })).resolves.toEqual({ muted: true });
+    expect(updated).toEqual([{ muted: true }]);
+  });
+
+  it("config.blockViewer normalizes the login and blocks + removes tasks in one batch", async () => {
+    const { caller: owner, batches } = caller(ownerSession);
+
+    await expect(owner.config.blockViewer({ login: "@Viewer" })).resolves.toEqual({
+      login: "viewer",
+    });
+    expect(batches).toHaveLength(1);
+    expect(batches[0]).toHaveLength(2);
+  });
+
+  it("config.blockViewer refuses the streamer and writes nothing", async () => {
+    const { caller: owner, batches, updated } = caller(ownerSession);
+
+    await expect(owner.config.blockViewer({ login: "@Streamer" })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+    expect(batches).toHaveLength(0);
+    expect(updated).toHaveLength(0);
+  });
+
+  it("config.blockViewer refuses a new login once the list is full", async () => {
+    const full = Array.from({ length: 200 }, (_, i) => `viewer${i}`);
+    const { caller: owner, batches } = caller(ownerSession, {
+      botConfig: { ...PROVISIONED.botConfig, blockedViewers: full },
+    });
+
+    await expect(owner.config.blockViewer({ login: "onemore" })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+    expect(batches).toHaveLength(0);
+  });
+
+  it.each(["", "bad name", "x".repeat(27), "émoji"])(
+    "config.blockViewer rejects the invalid login %j",
+    async (login) => {
+      const { caller: owner, batches } = caller(ownerSession);
+      await expect(owner.config.blockViewer({ login })).rejects.toMatchObject({
+        code: "BAD_REQUEST",
+      });
+      expect(batches).toHaveLength(0);
+    },
+  );
 
   it.each([
     ["botSource", "setupBotSourceConfirmed"],

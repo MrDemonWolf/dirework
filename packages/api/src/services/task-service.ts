@@ -481,9 +481,17 @@ export async function restoreTask(db: DbClient, snapshot: TaskSnapshot) {
   return row ?? null;
 }
 
+/**
+ * The unexecuted DELETE behind removeTasksByUsername — safe to include in a
+ * db.batch (the viewer block list removes tasks atomically with the list edit).
+ */
+export function removeTasksByUsernameStmt(db: DbClient, username: string) {
+  return db.delete(schema.task).where(authorUsernameEquals(username));
+}
+
 /** Delete every task by username, case-insensitive (L9 — ban/timeout/!clear @user). */
 export async function removeTasksByUsername(db: DbClient, username: string) {
-  return db.delete(schema.task).where(authorUsernameEquals(username));
+  return removeTasksByUsernameStmt(db, username);
 }
 
 export async function clearAllTasks(db: DbClient) {

@@ -6,14 +6,18 @@ import {
   CHAT_OPEN_TASK_CAP,
   cleanChatLine,
   isBuiltinCommandName,
+  MAX_BLOCKED_VIEWERS,
   MAX_CHAT_BYTES,
   MAX_TASK_LEN,
+  MODERATION_COMMANDS,
   normalizeAliasToken,
+  normalizeTwitchLogin,
   replaceControlCharacters,
   truncateToBytes,
   truncateToLength,
   utf8ByteLength,
 } from "../config-shared";
+import { blockViewer, setBotMuted, unblockViewer } from "../services/bot-moderation";
 import {
   activateTask,
   clearAllTasks,
@@ -113,6 +117,23 @@ const POSITIONAL_USAGE_REPLY = (command: string, displayName: string) =>
 const CLEAR_USAGE_REPLY = (displayName: string) =>
   `${displayName}, tell me what to clear: !clear done, !clear all, or !clear @user.`;
 
+// Moderation replies are fixed like CLEAR_USAGE_REPLY: they report bot state, not
+// a viewer's task, so there is no owner template to fill. `name` is the mod's
+// display name; a target login is never "@"-prefixed, so a reply can't ping a
+// viewer who was just blocked.
+const MUTED_REPLY = "Muted. I'll ignore commands and stay quiet until a mod sends !unmute.";
+const UNMUTED_REPLY = "Unmuted. Commands are back on.";
+const NOT_MUTED_REPLY = (name: string) => `${name}, I'm not muted.`;
+const BLOCK_USAGE_REPLY = (name: string) => `${name}, tell me who to block: !block @user.`;
+const UNBLOCK_USAGE_REPLY = (name: string) => `${name}, tell me who to unblock: !unblock @user.`;
+const BLOCK_BROADCASTER_REPLY = (name: string) => `${name}, I can't block the streamer.`;
+const BLOCKED_REPLY = (login: string) => `Blocked ${login} and removed their tasks.`;
+const ALREADY_BLOCKED_REPLY = (login: string) => `${login} is already blocked.`;
+const BLOCKLIST_FULL_REPLY = (name: string) =>
+  `${name}, the block list is full (${MAX_BLOCKED_VIEWERS} names). Unblock someone first.`;
+const UNBLOCKED_REPLY = (login: string) => `Unblocked ${login}. Their commands work again.`;
+const NOT_BLOCKED_REPLY = (login: string) => `${login} isn't blocked.`;
+
 /** Hardcoded like POSITIONAL_USAGE_REPLY: no owner template fits "retry". */
 const STALE_NEXT_REPLY = (displayName: string) =>
   `Your current task changed before I could replace it, ${displayName}. Check it with !check and try !next again.`;
@@ -161,7 +182,25 @@ const TASK_COMMANDS = new Set([
   "!clear",
 ]);
 
-export async function handleMessage(ctx: MessageContext): Promise<void> {
+/** `!mute`, `!unmute`, `!block`, `!unblock` — mod-only, never alias targets. */
+const MODERATION_COMMAND_SET = new Set<string>(MODERATION_COMMANDS.map((name) => `!${name}`));
+
+/** The bot's mute state after a message ran, reported back to the bot page. */
+interface ModerationState {
+  muted: boolean;
+}
+
+/**
+ * Run one chat line. Resolves to the mute state AFTER the command, so the bot
+ * page can show "Muted" without another request.
+ */
+export async function handleMessage(ctx: MessageContext): Promise<ModerationState> {
+  const state: ModerationState = { muted: ctx.config.muted === true };
+  await dispatchMessage(ctx, state);
+  return state;
+}
+
+async function dispatchMessage(ctx: MessageContext, state: ModerationState): Promise<void> {
   const { config, userInfo, say, channelName } = ctx;
   const claim = async () => (ctx.claim ? ctx.claim() : true);
   const message = cleanChatLine(ctx.message);
@@ -175,10 +214,28 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
 
   command = resolveAlias(command, config.commandAliases);
 
+  // Moderation gate, BEFORE any claim(): an ignored line costs no write and gets
+  // no reply. The broadcaster can never be blocked; while muted, only a mod's
+  // !unmute gets through.
+  if (!userInfo.isBroadcaster && config.blockedViewers.includes(userInfo.username.toLowerCase())) {
+    return;
+  }
+  if (state.muted && !(command === "!unmute" && userInfo.isMod)) return;
+
   const vars = {
     user: userInfo.displayName,
     channel: channelName,
   };
+
+  if (MODERATION_COMMAND_SET.has(command)) {
+    if (!(await claim())) return;
+    if (!userInfo.isMod) {
+      say(interpolate(config.task.notMod, vars));
+      return;
+    }
+    await handleModerationCommand(command, args, ctx, state);
+    return;
+  }
 
   if (command === "!timer") {
     if (!config.timerCommandsEnabled) return;
@@ -199,7 +256,7 @@ export async function handleMessage(ctx: MessageContext): Promise<void> {
       );
     } else {
       say(
-        `${userInfo.displayName}, available commands: !task, !done, !edit, !remove, !focus, !check, !today, !next, !help, !clear (mods), !timer (mods)`,
+        `${userInfo.displayName}, available commands: !task, !done, !edit, !remove, !focus, !check, !today, !next, !help, !clear (mods), !timer (mods), !block, !unblock, !mute, !unmute (mods)`,
       );
     }
     return;
@@ -488,6 +545,73 @@ async function handleClear(args: string[], ctx: MessageContext): Promise<void> {
     // A mod typed !clear with no target (or an unknown one): say what the targets are
     // instead of silently doing nothing.
     say(CLEAR_USAGE_REPLY(userInfo.displayName));
+  }
+}
+
+async function handleModerationCommand(
+  command: string,
+  args: string[],
+  ctx: MessageContext,
+  state: ModerationState,
+): Promise<void> {
+  const { config, userInfo, say, db } = ctx;
+  const name = userInfo.displayName;
+
+  switch (command) {
+    case "!mute":
+      await setBotMuted(db, true);
+      state.muted = true;
+      say(MUTED_REPLY);
+      return;
+
+    case "!unmute":
+      if (!state.muted) {
+        say(NOT_MUTED_REPLY(name));
+        return;
+      }
+      await setBotMuted(db, false);
+      state.muted = false;
+      say(UNMUTED_REPLY);
+      return;
+
+    case "!block": {
+      const target = normalizeTwitchLogin(args[0] ?? "");
+      if (!target) {
+        say(BLOCK_USAGE_REPLY(name));
+        return;
+      }
+      if (target === ctx.channelName.toLowerCase()) {
+        say(BLOCK_BROADCASTER_REPLY(name));
+        return;
+      }
+      // Answered from the row bot.ingest already loaded: no write for a repeat.
+      if (config.blockedViewers.includes(target)) {
+        say(ALREADY_BLOCKED_REPLY(target));
+        return;
+      }
+      if (config.blockedViewers.length >= MAX_BLOCKED_VIEWERS) {
+        say(BLOCKLIST_FULL_REPLY(name));
+        return;
+      }
+      await blockViewer(db, target);
+      say(BLOCKED_REPLY(target));
+      return;
+    }
+
+    case "!unblock": {
+      const target = normalizeTwitchLogin(args[0] ?? "");
+      if (!target) {
+        say(UNBLOCK_USAGE_REPLY(name));
+        return;
+      }
+      if (!config.blockedViewers.includes(target)) {
+        say(NOT_BLOCKED_REPLY(target));
+        return;
+      }
+      await unblockViewer(db, target);
+      say(UNBLOCKED_REPLY(target));
+      return;
+    }
   }
 }
 

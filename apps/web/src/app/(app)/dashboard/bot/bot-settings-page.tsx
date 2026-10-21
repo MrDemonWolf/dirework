@@ -21,8 +21,10 @@ import { previewVars } from "@/lib/template-preview";
 import { describeTrpcError } from "@/lib/trpc-errors";
 import { cn } from "@/lib/utils";
 import { describeIssues, formatMutationError } from "@/lib/validation-errors";
+import { BlockedViewersCard } from "@/components/bot-settings/blocked-viewers-card";
 import { BotAccountCard } from "@/components/bot-settings/bot-account-card";
 import { BotConsoleCard } from "@/components/bot-settings/bot-console-card";
+import { BotMuteBar } from "@/components/bot-settings/bot-mute-bar";
 import { CommandAliasEditor } from "@/components/bot-settings/command-alias-editor";
 import { taskCommands, timerCommands } from "@/components/bot-settings/command-reference";
 import { CommandTabPanel } from "@/components/bot-settings/command-tab-panel";
@@ -244,6 +246,10 @@ export default function BotSettingsPage() {
       </div>
 
       <div className="stagger-reveal space-y-6">
+        {/* Mute switch and the Moderation card save on their own (not through the Save bar),
+            so both read the live query data, never the draft. */}
+        <BotMuteBar muted={config.data.botConfig.muted} />
+
         {/* Runtime + identity, side by side on wide screens. */}
         <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
           <BotConsoleCard hasBotAccount={botAccount !== null} />
@@ -345,6 +351,8 @@ export default function BotSettingsPage() {
             </Tabs>
           </CardContent>
         </Card>
+
+        <BlockedViewersCard blockedViewers={config.data.botConfig.blockedViewers} />
       </div>
 
       {/* Sticky Save / Reset Bar */}

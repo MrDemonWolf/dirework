@@ -300,6 +300,150 @@ describe("bot.ingest multi-page dedupe", () => {
   });
 });
 
+describe("bot.ingest moderation", () => {
+  const mod = { isMod: true };
+  const broadcaster = { username: "streamer", twitchId: OWNER_TWITCH_ID };
+  const claims = () => db.query.processedChatMessage.findMany();
+  let nextId = 0;
+  /** A fresh, well-formed IRC message id, so every claim is observable. */
+  const messageId = () => `${String(++nextId).padStart(8, "0")}-0000-4000-8000-000000000000`;
+
+  it("a blocked viewer's command gets no reply, no task, and no claim", async () => {
+    await db.update(schema.botConfig).set({ blockedViewers: ["viewer"] });
+
+    const result = await say("!task sneaky", { messageId: messageId() });
+
+    expect(result.replies).toEqual([]);
+    expect(await tasks()).toEqual([]);
+    expect(await claims()).toEqual([]);
+  });
+
+  it("a mod's !block lists the login and removes only that viewer's tasks", async () => {
+    await seedTasks();
+
+    const { replies } = await say("!block @VIEWER", mod);
+
+    expect(replies).toEqual(["Blocked viewer and removed their tasks."]);
+    expect((await tasks()).map((t) => t.text)).toEqual(["other one"]);
+    expect((await config()).blockedViewers).toEqual(["viewer"]);
+  });
+
+  it("blocking an already-blocked viewer says so and changes nothing", async () => {
+    await say("!block @viewer", { ...mod, username: "moddy", twitchId: "5000" });
+    const { replies } = await say("!block viewer", { ...mod, username: "moddy", twitchId: "5000" });
+
+    expect(replies).toEqual(["viewer is already blocked."]);
+    expect((await config()).blockedViewers).toEqual(["viewer"]);
+  });
+
+  it("the streamer can't be blocked", async () => {
+    const { replies } = await say("!block @streamer", mod);
+
+    expect(replies).toEqual(["Viewer, I can't block the streamer."]);
+    expect((await config()).blockedViewers).toEqual([]);
+  });
+
+  it("the broadcaster's commands run even if their login is on the list", async () => {
+    await db.update(schema.botConfig).set({ blockedViewers: ["streamer"] });
+
+    const { replies } = await say("!task still mine", broadcaster);
+
+    expect(replies).toHaveLength(1);
+    expect((await tasks()).map((t) => t.text)).toEqual(["still mine"]);
+  });
+
+  it("!unblock restores commands but not the removed tasks", async () => {
+    await say("!task before block");
+    await say("!block viewer", { ...mod, username: "moddy", twitchId: "5000" });
+
+    const { replies } = await say("!unblock @Viewer", {
+      ...mod,
+      username: "moddy",
+      twitchId: "5000",
+    });
+    expect(replies).toEqual(["Unblocked viewer. Their commands work again."]);
+    expect((await config()).blockedViewers).toEqual([]);
+
+    await say("!task after unblock");
+    expect((await tasks()).map((t) => t.text)).toEqual(["after unblock"]);
+  });
+
+  it("!unblock of someone not on the list says so", async () => {
+    expect((await say("!unblock nobody", mod)).replies).toEqual(["nobody isn't blocked."]);
+  });
+
+  it.each(["!block", "!block @", "!block bad-name!"])("%j replies with usage", async (line) => {
+    const { replies } = await say(line, mod);
+
+    expect(replies).toEqual(["Viewer, tell me who to block: !block @user."]);
+    expect((await config()).blockedViewers).toEqual([]);
+  });
+
+  it("!unblock with no target replies with usage", async () => {
+    expect((await say("!unblock", mod)).replies).toEqual([
+      "Viewer, tell me who to unblock: !unblock @user.",
+    ]);
+  });
+
+  it("a non-mod !block is refused with notMod", async () => {
+    const { replies } = await say("!block @someone");
+
+    expect(replies).toEqual([reply(DEFAULT_TASK_MESSAGES.notMod)]);
+    expect((await config()).blockedViewers).toEqual([]);
+  });
+
+  it("a mod's !mute flips the switch and reports muted", async () => {
+    const result = await say("!mute", mod);
+
+    expect(result.replies).toEqual([
+      "Muted. I'll ignore commands and stay quiet until a mod sends !unmute.",
+    ]);
+    expect(result.muted).toBe(true);
+    expect((await config()).muted).toBe(true);
+  });
+
+  it("a non-mod !mute is refused with notMod", async () => {
+    const result = await say("!mute");
+
+    expect(result.replies).toEqual([reply(DEFAULT_TASK_MESSAGES.notMod)]);
+    expect(result.muted).toBe(false);
+    expect((await config()).muted).toBe(false);
+  });
+
+  it.each<[string, Chatter]>([
+    ["!task muted", {}],
+    ["!timer start", mod],
+    ["!dwhelp", {}],
+    ["!block @someone", mod],
+    ["!unmute", {}],
+  ])("while muted, %j is ignored with no claim and no write", async (line, chatter) => {
+    await db.update(schema.botConfig).set({ muted: true });
+
+    const result = await say(line, { ...chatter, messageId: messageId() });
+
+    expect(result).toEqual({ replies: [], muted: true });
+    expect(await claims()).toEqual([]);
+    expect(await tasks()).toEqual([]);
+    expect(await timerRow()).toBeUndefined();
+    expect(await config()).toMatchObject({ muted: true, blockedViewers: [] });
+  });
+
+  it("a mod's !unmute while muted turns commands back on", async () => {
+    await db.update(schema.botConfig).set({ muted: true });
+
+    const result = await say("!unmute", mod);
+
+    expect(result).toEqual({ replies: ["Unmuted. Commands are back on."], muted: false });
+    expect((await config()).muted).toBe(false);
+  });
+
+  it("!unmute when not muted says so", async () => {
+    const result = await say("!unmute", mod);
+
+    expect(result).toEqual({ replies: ["Viewer, I'm not muted."], muted: false });
+  });
+});
+
 describe("bot.getSession", () => {
   it("returns only what the IRC client needs — never the refresh token", async () => {
     await db.insert(schema.botAccount).values({
@@ -318,8 +462,23 @@ describe("bot.getSession", () => {
       botUsername: "direbot",
       chatToken: "chat-access-token",
       aliases: [],
+      muted: false,
     });
     expect(JSON.stringify(session)).not.toContain("secret-refresh-token");
+  });
+
+  it("reports the mute switch from the same bot_config read", async () => {
+    await db.insert(schema.botAccount).values({
+      twitchId: "4000",
+      username: "direbot",
+      displayName: "DireBot",
+      accessToken: "chat-access-token",
+      refreshToken: "secret-refresh-token",
+      expiresAt: new Date(Date.now() + 60 * 60_000),
+    });
+    await db.update(schema.botConfig).set({ muted: true });
+
+    expect((await api().bot.getSession({ token: BOT_TOKEN })).muted).toBe(true);
   });
 
   it("returns the configured alias keys so the bot page can skip other bots' commands", async () => {
@@ -571,6 +730,7 @@ describe("bot.ingest task commands end to end", () => {
       expect(replies).toHaveLength(1);
       expect(replies[0]).toMatch(/^Viewer, available commands: /);
       expect(replies[0]).toContain("!timer (mods)");
+      expect(replies[0]).toContain("!mute");
       expect(replies[0]).not.toContain("http");
     } finally {
       stubEnv.DOCS_URL = original;

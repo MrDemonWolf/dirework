@@ -49,8 +49,10 @@ function setup(api: Partial<BotSessionApi> = {}) {
     dispose: vi.fn(),
     say: vi.fn(),
   } satisfies BotIrcClient;
-  const getSession = vi.fn(api.getSession ?? (async () => SESSION));
-  const ingest = vi.fn(api.ingest ?? (async () => ({ replies: [] as string[] })));
+  const getSession = vi.fn<BotSessionApi["getSession"]>(api.getSession ?? (async () => SESSION));
+  const ingest = vi.fn<BotSessionApi["ingest"]>(
+    api.ingest ?? (async () => ({ replies: [] as string[] })),
+  );
   const events = {
     onPhase: vi.fn(),
     onIrcStatus: vi.fn(),
@@ -58,6 +60,7 @@ function setup(api: Partial<BotSessionApi> = {}) {
     onConnected: vi.fn(),
     onCounter: vi.fn(),
     onActivity: vi.fn(),
+    onMuted: vi.fn(),
   };
   const session = createBotSession({
     token: "bot-token",
@@ -522,6 +525,61 @@ describe("createBotSession ingest", () => {
     callbacks().onError?.("socket closed");
     expect(events.onIrcStatus).toHaveBeenCalledWith("reconnecting");
     expect(events.onActivity).toHaveBeenCalledWith("error", "socket closed");
+  });
+});
+
+describe("createBotSession mute state", () => {
+  it("reports a muted bot from getSession once", async () => {
+    const { events } = setup({ getSession: async () => ({ ...SESSION, muted: true }) });
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(REVALIDATE_INTERVAL_MS);
+
+    expect(events.onMuted.mock.calls).toEqual([[true]]);
+    expect(events.onActivity).toHaveBeenCalledWith(
+      "info",
+      "bot muted — ignoring commands until !unmute",
+    );
+  });
+
+  it("follows the state each ingest reports, firing only on change", async () => {
+    const { events, callbacks } = setup({
+      ingest: async () => ({ replies: [], muted: true }),
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    callbacks().onChat?.(chat("!mute", { isMod: true }));
+    callbacks().onChat?.(chat("!task ignored"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(events.onMuted.mock.calls).toEqual([[true]]);
+  });
+
+  it("logs unmuting when a later ingest reports it", async () => {
+    let muted = true;
+    const { events, callbacks } = setup({
+      ingest: async () => ({ replies: [], muted }),
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    callbacks().onChat?.(chat("!mute", { isMod: true }));
+    await vi.advanceTimersByTimeAsync(0);
+    muted = false;
+    callbacks().onChat?.(chat("!unmute", { isMod: true }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(events.onMuted.mock.calls).toEqual([[true], [false]]);
+    expect(events.onActivity).toHaveBeenCalledWith("info", "bot unmuted");
+  });
+
+  it("never fires for an api worker that omits the field", async () => {
+    const { events, callbacks } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+
+    callbacks().onChat?.(chat("!task write docs"));
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(REVALIDATE_INTERVAL_MS);
+
+    expect(events.onMuted).not.toHaveBeenCalled();
   });
 });
 

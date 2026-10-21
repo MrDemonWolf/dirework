@@ -53,6 +53,8 @@ export interface BotSessionInfo {
    * worker from before this field (rollback, or a split deploy) omits it.
    */
   aliases?: string[];
+  /** The bot's mute switch. Optional for the same reason as `aliases`. */
+  muted?: boolean;
 }
 
 export interface BotSessionApi {
@@ -61,7 +63,8 @@ export interface BotSessionApi {
     forceRefresh?: boolean;
     revalidate?: boolean;
   }): Promise<BotSessionInfo>;
-  ingest(input: BotIngestInput): Promise<{ replies: string[] }>;
+  /** `muted` is the state after the line ran; absent for clearchat and older api workers. */
+  ingest(input: BotIngestInput): Promise<{ replies: string[]; muted?: boolean }>;
 }
 
 /** The slice of TwitchIrcClient the session drives. */
@@ -80,6 +83,8 @@ export interface BotSessionEvents {
   onConnected(): void;
   onCounter(counter: BotCounter): void;
   onActivity(kind: BotActivityKind, text: string): void;
+  /** Fired only when the mute switch changes (a mod's !mute/!unmute, or the dashboard). */
+  onMuted(muted: boolean): void;
 }
 
 export interface BotSessionOptions {
@@ -138,6 +143,8 @@ export function createBotSession({
   let currentChannelName: string | null = null;
   // Alias keys from the latest getSession; refreshed on every revalidation.
   let aliasKeys: ReadonlySet<string> = new Set();
+  // Starts unmuted (the console's default), so a normal startup logs nothing.
+  let muted = false;
   let authRecoveryAttempts = 0;
   let retryAttempts = 0;
   let revalidateTimer: ReturnType<typeof setInterval> | null = null;
@@ -174,6 +181,9 @@ export function createBotSession({
     if (inactive()) return [];
     try {
       const result = await api.ingest(input);
+      // Every relayed line reports the mute state, so a mod's !mute shows here
+      // without another request.
+      applyMuted(result.muted);
       return result.replies;
     } catch (err) {
       if (classifyBotError(err) === "revoked") enterRevoked();
@@ -294,6 +304,14 @@ export function createBotSession({
     aliasKeys = new Set(Array.isArray(session.aliases) ? session.aliases : []);
   }
 
+  function applyMuted(next: boolean | undefined) {
+    // Missing (clearchat, or an api worker from before the field) → unknown, keep the last state.
+    if (typeof next !== "boolean" || next === muted) return;
+    muted = next;
+    events.onMuted(next);
+    events.onActivity("info", next ? "bot muted — ignoring commands until !unmute" : "bot unmuted");
+  }
+
   function connectWith(session: BotSessionInfo) {
     currentChatToken = session.chatToken;
     currentChannelName = session.channelName;
@@ -320,6 +338,7 @@ export function createBotSession({
       wasLive = true;
       events.onPhase("live");
       applyAliases(session);
+      applyMuted(session.muted);
       connectWith(session);
       startRevalidateLoop();
     } catch (err) {
@@ -384,6 +403,7 @@ export function createBotSession({
       if (inactive()) return;
       // Alias edits on the dashboard reach a running page here (or on reload).
       applyAliases(session);
+      applyMuted(session.muted);
       // Only reconnect when the token rotated or the streamer renamed their
       // Twitch login — otherwise the socket is still valid and must not be
       // churned hourly.

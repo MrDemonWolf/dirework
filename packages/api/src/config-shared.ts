@@ -99,8 +99,12 @@ export {
   isBuiltinCommandName,
   isDireworkCommandLine,
   KNOWN_ALIAS_TARGETS,
+  MAX_BLOCKED_VIEWERS,
   META_COMMANDS,
+  MODERATION_COMMANDS,
   normalizeAliasToken,
+  normalizeTwitchLogin,
+  TWITCH_LOGIN_PATTERN,
 } from "./chat-commands";
 
 /**
@@ -345,6 +349,10 @@ export interface BotConfigData {
   taskCommandsEnabled: boolean;
   timerCommandsEnabled: boolean;
   commandAliases: Record<string, string>;
+  /** True while a mod or the owner has muted the bot (only !unmute runs). */
+  muted: boolean;
+  /** Lowercase Twitch logins whose commands are ignored. */
+  blockedViewers: string[];
   task: TaskMessagesConfig;
   timer: TimerMessagesConfig;
 }
@@ -508,6 +516,10 @@ export function buildBotConfig(bc: BotConfig): BotConfigData {
     taskCommandsEnabled: bc.taskCommandsEnabled,
     timerCommandsEnabled: bc.timerCommandsEnabled,
     commandAliases: bc.commandAliases as Record<string, string>,
+    muted: bc.muted === true,
+    blockedViewers: Array.isArray(bc.blockedViewers)
+      ? bc.blockedViewers.filter((v): v is string => typeof v === "string")
+      : [],
     task: upgradeLegacyDefaults(
       buildFromFieldMap(TASK_MESSAGE_FIELDS, bc),
       DEFAULT_TASK_MESSAGES,

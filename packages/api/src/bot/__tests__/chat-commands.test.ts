@@ -21,6 +21,8 @@ async function serverRunsCommand(message: string): Promise<boolean> {
       taskCommandsEnabled: true,
       timerCommandsEnabled: true,
       commandAliases: ALIASES,
+      muted: false,
+      blockedViewers: [],
     } as unknown as BotConfigData,
     message,
     userInfo: {
@@ -60,6 +62,9 @@ const LINES = [
   "!task\u{E0000}",
   "\u{E0000}!done",
   "!done\u{E0000} 2",
+  "!mute",
+  "!block @someone",
+  "!UNBLOCK x",
 ];
 
 describe("isDireworkCommandLine", () => {

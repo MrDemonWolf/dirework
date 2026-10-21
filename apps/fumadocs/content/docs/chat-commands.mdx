@@ -48,9 +48,30 @@ Once you've connected a [bot account](/docs/twitch-oauth#step-5-connect-the-bot-
 | `!timer reset` | Reset the timer to idle |
 | `!timer eta` | Show time remaining in the current phase and the whole session |
 
+## Moderation commands (broadcaster / mods)
+
+| Command | Description |
+| --- | --- |
+| `!mute` | Pause the bot: it ignores every command and posts nothing |
+| `!unmute` | Resume the bot |
+| `!block @user` | Block a viewer and remove every task they added |
+| `!unblock @user` | Let a blocked viewer use commands again |
+
+- **Muted means everything.** While muted the bot ignores every command, task, timer and
+  meta commands included, and posts nothing in chat. The only command that works is a
+  mod's `!unmute`. The board and timer stay as they are. You can also flip the **Muted**
+  switch at the top of **Dashboard → Bot**.
+- **Blocked viewers get no reply.** The bot silently ignores their commands, and blocking
+  removes every task they added. `!unblock` restores their commands, not their tasks.
+- **The streamer can't be blocked**, and the streamer's own commands always run.
+- **Blocking is by Twitch login.** A viewer who renames their account slips the block;
+  block the new name too. The block list holds up to 200 names and is also editable under
+  **Moderation** on **Dashboard → Bot**.
+
 ## Meta commands (always available)
 
-These commands are always enabled regardless of task or timer command settings.
+These commands are always enabled regardless of task or timer command settings (but, like
+everything else, they stay silent while the bot is muted).
 
 | Command | Description |
 | --- | --- |
@@ -73,7 +94,7 @@ When you add your first task with `!task`, it automatically becomes your **activ
 
 Broadcasters can remap command names in **Bot Settings** (`/dashboard/bot`). For example, you could set `add` to map to `task`, so viewers can use `!add` instead of `!task`.
 
-An alias can point at any task or timer command (`task`, `done`, `edit`, `remove`, `focus`, `check`, `today`, `next`, `help`, `clear`, `timer`) — not the meta commands (`!dwhelp`, `!dwcommands`). Each alias and target is a single command name with no arguments, so `!ts` → `!timer start` is not supported. Aliases can't reuse a built-in command name, so the built-in commands always keep working regardless of your aliases.
+An alias can point at any task or timer command (`task`, `done`, `edit`, `remove`, `focus`, `check`, `today`, `next`, `help`, `clear`, `timer`) — not the meta or moderation commands (`!dwhelp`, `!dwcommands`, `!mute`, `!unmute`, `!block`, `!unblock`). Each alias and target is a single command name with no arguments, so `!ts` → `!timer start` is not supported. Aliases can't reuse a built-in command name, so the built-in commands always keep working regardless of your aliases.
 
 To save requests on Cloudflare's free plan, the bot page only forwards chat lines that start with a DireWork command or one of your aliases; other bots' commands (`!lurk`, `!so`) never leave the page. An open bot page picks up **new aliases** within an hour; reload the bot page (or refresh the OBS browser source) to use them right away.
 

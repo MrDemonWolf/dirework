@@ -13,6 +13,7 @@ import {
   isBuiltinCommandName,
   normalizeAliasToken,
   twitchAuthorColorSchema,
+  TWITCH_LOGIN_PATTERN,
 } from "../config-shared";
 import { ownerProcedure, publicProcedure, router } from "../index";
 import { claimChatMessage } from "../services/chat-dedupe";
@@ -30,12 +31,9 @@ import {
 // connection and relays every chat line here. These procedures are stateless —
 // the twurple TwitchBotService is gone.
 
-const twitchLoginInput = z
-  .string()
-  .trim()
-  .min(1)
-  .max(25)
-  .regex(/^[a-z0-9_]+$/i);
+// Lowercased before the shared login pattern, so a mixed-case relay still parses
+// and the block list (stored lowercase) compares like for like.
+const twitchLoginInput = z.string().trim().toLowerCase().min(1).max(25).regex(TWITCH_LOGIN_PATTERN);
 const twitchIdInput = z.string().min(1).max(32).regex(/^\d+$/);
 const safeChatTextInput = z
   .string()
@@ -135,7 +133,8 @@ export const botRouter = router({
         loadOwnerAndBotAccount(ctx.db),
         // Read once per bootstrap/revalidation (never per chat line) so the bot
         // page can skip chat lines that can't be Dirework commands.
-        ctx.db.query.botConfig.findFirst({ columns: { commandAliases: true } }),
+        // The mute flag rides on the same read, so a reloaded page shows "Muted".
+        ctx.db.query.botConfig.findFirst({ columns: { commandAliases: true, muted: true } }),
       ]);
 
       if (!botAccount) {
@@ -172,16 +171,19 @@ export const botRouter = router({
         botUsername: botAccount.username,
         chatToken,
         aliases: aliasKeys(botConfigRow?.commandAliases),
+        muted: botConfigRow?.muted === true,
       };
     }),
 
   /**
    * Stateless chat ingest: the bot page posts each chat line (or a CLEARCHAT
-   * ban/timeout event) and receives the replies to send back to chat.
+   * ban/timeout event) and receives the replies to send back to chat, plus the
+   * bot's mute state after a message ran (so the page's "Muted" status follows a
+   * mod's !mute/!unmute without another request).
    */
   ingest: publicProcedure
     .input(botIngestInputSchema)
-    .mutation(async ({ ctx, input }): Promise<{ replies: string[] }> => {
+    .mutation(async ({ ctx, input }): Promise<{ replies: string[]; muted?: boolean }> => {
       await requireBotToken(ctx.db, input.token);
 
       // Moderation piggyback (L9): CLEARCHAT (ban/timeout) → drop the user's tasks.
@@ -208,7 +210,7 @@ export const botRouter = router({
       const { messageId } = input;
       const privileges = deriveChatPrivileges(owner?.twitchId, input.twitchId, input.isMod);
       const replies: string[] = [];
-      await handleMessage({
+      const { muted } = await handleMessage({
         db: ctx.db,
         channelName: owner?.name ?? "",
         config: buildBotConfig(botConfigRow),
@@ -227,7 +229,7 @@ export const botRouter = router({
         claim: messageId ? () => claimChatMessage(ctx.db, messageId) : undefined,
       });
 
-      return { replies };
+      return { replies, muted };
     }),
 
   /**

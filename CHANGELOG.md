@@ -14,6 +14,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   issue labelled `uptime` while the instance is unreachable and closing it once it
   recovers. A free fallback when you don't run an external monitor; see the deployment
   guide's Monitoring section.
+- **Mute switch.** A mod's `!mute` (or the new **Muted** switch at the top of Dashboard → Bot)
+  pauses the bot: it ignores every command and posts nothing until a mod sends `!unmute` or
+  you flip the switch back. The tasks and timer on stream stay as they are. The bot page shows
+  **Muted** while it is.
+- **Viewer block list.** A mod's `!block @user` (or the new **Moderation** card on Dashboard →
+  Bot) makes the bot silently ignore that viewer's commands and removes every task they added.
+  `!unblock @user` restores their commands, not their tasks. The streamer can't be blocked.
+- **Permission badges in the command reference.** Mod-only commands (`!clear`, `!timer`, and
+  the new moderation commands) carry a **Mods** chip on the Bot settings page.
 
 ### Changed
 - **One tagline everywhere:** "A focus timer for your Twitch stream." The docs home page,
@@ -30,6 +39,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   instead of three times.
 - The historical planning documents (migration plan, pre-migration audit, marketing
   review, logo prompt) moved from the repository root to `docs/history/`.
+- The inline `!dwhelp` command list (shown when no docs URL is configured) now includes
+  `!block`, `!unblock`, `!mute` and `!unmute`.
+- `mute`, `unmute`, `block` and `unblock` are now built-in command names, so they can't be
+  used as alias names.
 - The landing page and dashboard preload their heading font, and only the overlay pages and
   the Theme Center load the overlay font stylesheet, so each page downloads only the type it
   shows. The public pages (`/`, `/setup`) show a loading skeleton the moment you navigate to
@@ -41,6 +54,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - Small labels on the docs home page were 10–11px; they are now at least 12px. Headings
   there no longer ask for font weights the page never loads.
+### Upgrade notes
+- Database migration `0019_bot_mute_blocklist` applies automatically on the next deploy. It
+  only adds two columns to `bot_config` (`muted`, `blocked_viewers`), so rolling the workers
+  back stays safe.
+- After updating, reload the bot page (or refresh its OBS browser source) so it shows the
+  **Muted** status and relays the new commands.
 
 ## [2.0.0] - 2026-10-20
 

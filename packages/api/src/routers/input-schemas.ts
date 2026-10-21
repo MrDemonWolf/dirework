@@ -4,6 +4,7 @@ import {
   MAX_TASK_LEN,
   hasControlCharacters,
   normalizeAliases,
+  normalizeTwitchLogin,
   phaseLabelsInputSchema,
   taskMessagesInputSchema,
   taskStylesInputSchema,
@@ -129,3 +130,30 @@ export const updateStylesInput = z.object({
 
 /** Messages + aliases saved together — the web editor safeParses the same schema before sending. */
 export const updateBotSettingsInput = updateMessagesInput.extend(commandAliasesInput.shape);
+
+/** Dashboard mute switch. */
+export const setBotMutedInput = z.object({ muted: z.boolean() }).strict();
+
+/**
+ * A viewer to block or unblock from the dashboard. Accepts "@Name" like the
+ * chat command (max 26 = "@" + a 25-char login) and normalizes through the
+ * same normalizeTwitchLogin, so both paths store the same lowercase login.
+ */
+export const blockedViewerInput = z.object({
+  login: z
+    .string()
+    .trim()
+    .min(1)
+    .max(26)
+    .transform((raw, ctx) => {
+      const login = normalizeTwitchLogin(raw);
+      if (!login) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Use a Twitch username: letters, numbers and underscores only",
+        });
+        return z.NEVER;
+      }
+      return login;
+    }),
+});
