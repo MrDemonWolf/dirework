@@ -441,6 +441,11 @@ in the workspace catalog.
 
 Mounted-state pattern for client-only values (next-themes); controlled props on Base UI
 Switch placeholders pre-mount; `suppressHydrationWarning` on time-of-day greeting.
+The theme is applied before first paint by a static inline script in the root layout's
+`<head>` (`lib/theme-init.ts`, kept in sync with the next-themes props in
+`providers.tsx`), and `html` carries the theme background and `color-scheme`, so a
+streamed dark page never paints white first. Pre-mount theme placeholders (the header
+`ModeToggle`) style themselves with `dark:` classes off that class rather than guessing.
 
 ## Testing
 

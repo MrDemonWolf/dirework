@@ -8,6 +8,7 @@ import { BRAND } from "@dirework/overlay-kit";
 import "../index.css";
 import Providers from "@/components/providers";
 import { plexMono, plexSans } from "@/lib/fonts";
+import { THEME_INIT_SCRIPT } from "@/lib/theme-init";
 
 // Only the body and mono faces live here (not preloaded: this layout also wraps the OBS
 // overlays, which render their own configured fonts). The heading face is applied by the
@@ -57,8 +58,11 @@ export function generateMetadata(): Metadata {
 }
 
 /**
- * suppressHydrationWarning on <html>: next-themes sets the theme class before React hydrates
- * (see AGENTS.md "Hydration Safety").
+ * suppressHydrationWarning on <html>: the inline <head> script (lib/theme-init.ts) sets the
+ * theme class and color-scheme before first paint, and next-themes keeps them in sync after,
+ * so <html> never matches the server markup (see AGENTS.md "Hydration Safety"). The script
+ * sits in <head>, not <body>, so a streamed dark page never paints white first. Next merges
+ * the metadata tags into this <head>.
  */
 export default function RootLayout({
   children,
@@ -67,6 +71,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* A static constant, never user input: see lib/theme-init.ts. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className={`${plexSans.variable} ${plexMono.variable} antialiased`}>
         <Providers>{children}</Providers>
       </body>
