@@ -11,6 +11,7 @@
  */
 
 import { isDireworkCommandLine } from "@dirework/api/chat-commands";
+import { truncateToLength } from "@dirework/api/chat-text";
 
 import { classifyBotError } from "./bot-session-errors";
 import type { IrcChatMessage, IrcClientCallbacks, IrcCredentials, IrcStatus } from "./irc-client";
@@ -23,6 +24,16 @@ import { createSerialQueue } from "./serial-queue";
  * - `reauth`: the link is fine but the bot's Twitch login can no longer be
  *   refreshed (or Twitch kept rejecting it) — reconnect the bot account.
  */
+/**
+ * Longest `message` bot.ingest accepts: its schema's `.max(600)` in
+ * packages/api/src/routers/bot.ts, which counts UTF-16 code units. Twitch's
+ * 500-character cap counts code points, so an emoji-heavy line (`!task` + 300
+ * emoji = 606 code units) is valid chat yet fails that schema. The relay is
+ * clamped to this, never splitting a surrogate pair, so it always parses.
+ * Keep in step with the server schema.
+ */
+export const MAX_RELAYED_MESSAGE_LENGTH = 600;
+
 export type BotPhase = "boot" | "live" | "not-configured" | "invalid" | "revoked" | "reauth";
 
 export type BotActivityKind = "info" | "chat" | "reply" | "error";
@@ -232,6 +243,7 @@ export function createBotSession({
     // would each cost a free-tier Worker request for nothing. The server still
     // decides what actually runs (disabled commands, permissions).
     if (!isDireworkCommandLine(text, aliasKeys)) return;
+    const message = truncateToLength(text, MAX_RELAYED_MESSAGE_LENGTH);
     events.onCounter("commands");
     events.onActivity("chat", `${chat.displayName ?? chat.username}: ${text}`);
     void (async () => {
@@ -241,7 +253,7 @@ export function createBotSession({
         username: chat.username,
         displayName: chat.displayName,
         twitchId: chat.twitchId,
-        message: text,
+        message,
         color: chat.color,
         isMod: chat.isMod,
         messageId: chat.messageId,

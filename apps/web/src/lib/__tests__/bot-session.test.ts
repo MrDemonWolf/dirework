@@ -6,6 +6,7 @@ import {
   AUTH_RECOVERY_DELAY_MS,
   MAX_AUTH_RECOVERY,
   MAX_PENDING_INGESTS,
+  MAX_RELAYED_MESSAGE_LENGTH,
   NOT_CONFIGURED_POLL_MS,
   RETRY_BASE_MS,
   RETRY_MAX_MS,
@@ -413,6 +414,21 @@ describe("createBotSession ingest", () => {
     expect(counters.filter((c) => c === "seen")).toHaveLength(3);
     expect(counters.filter((c) => c === "commands")).toHaveLength(2);
     expect(counters.filter((c) => c === "replies")).toHaveLength(2);
+  });
+
+  it("clamps an emoji-heavy command to the ingest schema without splitting an emoji", async () => {
+    const { ingest, callbacks } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+
+    // 306 code points (under Twitch's 500) but 606 UTF-16 code units.
+    callbacks().onChat?.(chat(`!task ${"😀".repeat(300)}`));
+    await vi.advanceTimersByTimeAsync(0);
+
+    const input = ingest.mock.calls[0]?.[0];
+    const message = input?.kind === "message" ? input.message : "";
+    expect(message.length).toBeLessThanOrEqual(MAX_RELAYED_MESSAGE_LENGTH);
+    expect(message).toBe(`!task ${"😀".repeat(297)}`);
+    expect(message.isWellFormed()).toBe(true);
   });
 
   it("skips other bots' commands but relays Dirework commands and aliases", async () => {

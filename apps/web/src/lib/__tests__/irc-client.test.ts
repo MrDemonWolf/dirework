@@ -366,6 +366,62 @@ describe("TwitchIrcClient chat", () => {
     expect(onClearChat).toHaveBeenCalledExactlyOnceWith("badviewer");
   });
 
+  it("ignores Shared Chat lines and bans copied in from a partner channel", () => {
+    const onChat = vi.fn();
+    const onClearChat = vi.fn();
+    const { ws } = connected({ onChat, onClearChat });
+
+    // A partner channel's mod, copied into our IRC with the source's badges.
+    ws.receive(
+      privmsg(
+        "badges=moderator/1;id=copy-1;mod=1;room-id=100;source-badges=moderator/1;source-id=orig-1;source-room-id=200;user-id=9",
+        "partnermod",
+        "!clear all",
+      ),
+    );
+    ws.receive(
+      "@room-id=100;source-room-id=200;target-user-id=42 :tmi.twitch.tv CLEARCHAT #streamer :viewer",
+    );
+    expect(onChat).not.toHaveBeenCalled();
+    expect(onClearChat).not.toHaveBeenCalled();
+
+    // Our own channel's line during a Shared Chat session: source = this room.
+    ws.receive(
+      privmsg(
+        "id=own-1;room-id=100;source-id=own-1;source-room-id=100;user-id=42",
+        "viewer",
+        "!done",
+      ),
+    );
+    ws.receive(
+      "@room-id=100;source-room-id=100;target-user-id=42 :tmi.twitch.tv CLEARCHAT #streamer :viewer",
+    );
+    expect(onChat).toHaveBeenCalledOnce();
+    expect(onChat.mock.calls[0]?.[0]).toMatchObject({ message: "!done", messageId: "own-1" });
+    expect(onClearChat).toHaveBeenCalledExactlyOnceWith("viewer");
+  });
+
+  it("strips the Reply button's @mention of the parent so the command comes first", () => {
+    const onChat = vi.fn();
+    const { ws } = connected({ onChat });
+    const reply =
+      "reply-parent-display-name=DireBot;reply-parent-msg-id=p-1;reply-parent-user-id=7;reply-parent-user-login=direbot;user-id=42";
+
+    ws.receive(privmsg(reply, "viewer", "@DireBot  !done"));
+    ws.receive(privmsg(reply, "viewer", "@direbot"));
+    // Only one mention, only the parent's, only on a reply.
+    ws.receive(privmsg(reply, "viewer", "@direbotfan !done"));
+    ws.receive(privmsg(reply, "viewer", "@someoneelse !done"));
+    ws.receive(privmsg("user-id=42", "viewer", "@direbot !done"));
+
+    expect(onChat.mock.calls.map(([c]) => c.message)).toEqual([
+      "!done",
+      "@direbotfan !done",
+      "@someoneelse !done",
+      "@direbot !done",
+    ]);
+  });
+
   it("holds replies until joined, then sends them under the rate limiter", () => {
     const { client, ws } = setup();
     client.say("first");
