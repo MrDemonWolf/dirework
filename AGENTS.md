@@ -362,8 +362,12 @@ it (e.g. `0017_drop_task_status_idx` contracted 0015's superseded `task_status_i
   the Bot settings reference). The page reads `?error=` from `searchParams` and passes the
   resolved copy to the `sign-in-notice.tsx` island, which only strips the query via
   `history.replaceState`; `owner-sign-in.tsx` holds the one "Sign in with Twitch" button
-  (the header's signed-out button hides on `/`). Docs links come from the web worker's
-  `DOCS_URL` binding (`lib/landing-links.ts`).
+  (the header's signed-out button hides on `/` and `/setup`). Docs links come from the web
+  worker's `DOCS_URL` binding (`lib/landing-links.ts`). `/setup` (unclaimed only) is built
+  the same way: a static server component (`setup/setup-content.tsx`, pinned by
+  `setup-page.test.ts`) with the `claim-button.tsx` island ("Claim with Twitch", error
+  callback `/setup`), the same `?error=` notice, and `<StreamScene compact>` (overlays, no
+  chat). Its headings are single text nodes because `00-first-run` greps the raw HTML.
   "Claimed" = the `user` table has ANY row (`hasOwner`); there is no in-app ownership
   transfer — recovery from a squatted first deploy is the D1 reset documented in
   deployment.mdx ("Recovering an instance someone else claimed").

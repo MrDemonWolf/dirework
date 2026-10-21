@@ -1,138 +1,113 @@
-"use client";
-
 // First-run claim screen: shown only while the instance has no owner (see setup/page.tsx).
 // The first Twitch sign-in claims the instance; later sign-ins by anyone else are refused.
+// Server-rendered and static: no queries, no polling. The only client code is the Twitch
+// button, the sign-in notice's URL cleanup and the dev-only bypass button.
 
-import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Timer, ListTodo, Bot, Palette } from "lucide-react";
+import { BRAND } from "@dirework/overlay-kit";
 
-import { signInWithTwitch } from "@/lib/auth-client";
-import { Button } from "@/components/ui/button";
-import { Callout } from "@/components/ui/callout";
+import type { LandingLinks } from "@/lib/landing-links";
+import type { SignInError } from "@/lib/sign-in-errors";
 import { DevLoginButton } from "@/components/dev-login-button";
-import { TwitchIcon } from "@/components/icons/twitch-icon";
+import { StreamScene } from "@/components/stream-scene";
+import { SignInNotice } from "../sign-in-notice";
+import { ClaimButton } from "./claim-button";
 
-const perks = [
-  { icon: Timer, label: "A Pomodoro timer your viewers can see on stream" },
-  { icon: ListTodo, label: "A shared task list your chat fills in" },
-  { icon: Bot, label: "A Twitch bot that answers chat commands for you" },
-  { icon: Palette, label: "6 themes, or style it yourself" },
-];
+/** The deployment guide's section on resetting the database after someone else claimed it. */
+export const RECOVERY_ANCHOR = "#recovering-an-instance-someone-else-claimed";
 
-/** Shows a generic failure callout for any `?error=` code returned to /setup. */
-function SetupInner() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [signInFailed, setSignInFailed] = useState(false);
+/**
+ * What the owner does next, named as the dashboard's setup checklist names its steps (the
+ * three OBS browser sources folded into one), so the owner meets the same words after the
+ * claim.
+ */
+export const AFTER_CLAIM_STEPS = [
+  {
+    title: "Connect the bot account",
+    body: "The bot is the Twitch account that reads chat commands and replies in your channel.",
+  },
+  {
+    title: "Add the overlays to OBS",
+    body: "Copy the bot page, timer overlay and tasks overlay URLs into OBS browser sources.",
+  },
+  {
+    title: "Viewers join from chat",
+    body: (
+      <>
+        Viewers add their own tasks with <code className="font-mono text-foreground">!task</code>,
+        and the list on stream shows them.
+      </>
+    ),
+  },
+] as const;
 
-  // Surface a failed/cancelled Twitch OAuth inline — previously the error
-  // callback pointed at "/" whose server redirect dropped the query string,
-  // so a failed claim landed back here with zero feedback.
-  useEffect(() => {
-    if (!searchParams.get("error")) return;
-    setSignInFailed(true);
-    router.replace("/setup", { scroll: false });
-  }, [searchParams, router]);
+const inlineLink =
+  "font-medium text-foreground underline underline-offset-4 hover:text-primary focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
 
+export default function SetupContent({
+  links,
+  signInError,
+}: {
+  links: LandingLinks;
+  signInError: SignInError | null;
+}) {
   return (
-    <div className="flex min-h-full flex-col items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md">
-        {/* Focus ring badge — the brand motif */}
-        <div className="mb-6 flex justify-center">
-          <div className="relative size-20">
-            <div className="absolute -inset-4 rounded-full bg-primary/10 blur-2xl" aria-hidden />
-            <svg viewBox="0 0 80 80" className="relative size-full">
-              <title>Decorative focus timer ring</title>
-              <circle
-                cx="40"
-                cy="40"
-                r="34"
-                fill="none"
-                className="stroke-border"
-                strokeWidth="5"
-              />
-              <circle
-                cx="40"
-                cy="40"
-                r="34"
-                fill="none"
-                className="stroke-primary"
-                strokeWidth="5"
-                strokeLinecap="round"
-                strokeDasharray="90 214"
-                transform="rotate(-90 40 40)"
-              />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Timer className="size-7 text-primary" />
-            </div>
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-4 pt-10 pb-16 sm:px-6 sm:pt-14 lg:gap-16">
+      <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-12">
+        <section aria-labelledby="setup-title" className="flex min-w-0 flex-col items-start gap-5">
+          <div className="space-y-2">
+            {/* One text node each: the e2e suite finds the page by this exact string in the HTML,
+                and an interpolated `{BRAND.name}` would stream with `<!-- -->` separators. */}
+            <h1
+              id="setup-title"
+              className="font-heading text-4xl font-bold tracking-tight text-balance sm:text-5xl"
+            >
+              {`Claim your ${BRAND.name} instance`}
+            </h1>
+            <h2 className="font-heading text-xl font-semibold text-muted-foreground">
+              {`This ${BRAND.name} is all yours`}
+            </h2>
           </div>
-        </div>
-
-        {/* Heading — warm, plain language */}
-        <div className="space-y-3 text-center">
-          <span className="console-label inline-block rounded-full border bg-muted/50 px-3 py-1">
-            Welcome — let&apos;s get you set up
-          </span>
-          <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-            This DireWork is all yours
-          </h1>
-          <p className="text-muted-foreground">
-            Sign in with Twitch to claim it. That&apos;s the whole setup: one sign-in and
-            you&apos;re the owner. No forms, no passwords to remember.
+          <p className="max-w-xl text-lg text-pretty text-muted-foreground">
+            The first Twitch account to sign in here becomes the owner, and nobody else can sign in
+            after that. If someone else gets there first, reset the database as the{" "}
+            <a href={`${links.deployGuide}${RECOVERY_ANCHOR}`} className={inlineLink}>
+              deployment guide
+            </a>{" "}
+            explains.
           </p>
-        </div>
 
-        {/* What you get */}
-        <div className="mt-6 rounded-2xl border bg-card p-5 shadow-sm">
-          <p className="console-label mb-4">Here&apos;s what you&apos;re turning on</p>
-          <ul className="space-y-3">
-            {perks.map((perk) => (
-              <li key={perk.label} className="flex items-start gap-3 text-sm text-muted-foreground">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                  <perk.icon className="size-4 text-primary" />
-                </span>
-                <span className="pt-1">{perk.label}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+          {signInError && <SignInNotice error={signInError} deployUrl={links.deployGuide} />}
 
-        {signInFailed && (
-          <Callout className="mt-6" title="Twitch sign-in didn't complete.">
-            This DireWork is still unclaimed. Try again below.
-          </Callout>
-        )}
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-start">
+            <ClaimButton />
+            <DevLoginButton />
+          </div>
+        </section>
 
-        {/* CTA */}
-        <Button
-          size="lg"
-          className="mt-6 w-full cursor-pointer gap-2 bg-twitch text-white hover:bg-twitch-hover"
-          onClick={() => signInWithTwitch("/setup")}
-        >
-          <TwitchIcon className="size-4" />
-          Claim with Twitch
-        </Button>
-
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          One streamer per DireWork. Once you claim it, this page turns off for good.
-        </p>
-
-        <div className="mt-4 flex justify-center">
-          <DevLoginButton />
-        </div>
+        <StreamScene compact className="min-w-0" />
       </div>
-    </div>
-  );
-}
 
-/** Client half of the `/setup` route. */
-export default function SetupContent() {
-  // useSearchParams requires a Suspense boundary in the App Router.
-  return (
-    <Suspense fallback={null}>
-      <SetupInner />
-    </Suspense>
+      <section aria-labelledby="after-claim-title" className="space-y-5">
+        <h2 id="after-claim-title" className="font-heading text-2xl font-bold tracking-tight">
+          After you claim
+        </h2>
+        <ol className="grid gap-3 md:grid-cols-3">
+          {AFTER_CLAIM_STEPS.map((step, index) => (
+            <li key={step.title} className="panel-inset flex gap-3 p-4">
+              <span
+                aria-hidden
+                className="flex size-7 shrink-0 items-center justify-center rounded-full border border-primary/40 font-heading text-sm font-bold text-primary tabular-nums"
+              >
+                {index + 1}
+              </span>
+              <div className="space-y-1">
+                <h3 className="font-heading text-base font-bold">{step.title}</h3>
+                <p className="text-sm text-muted-foreground">{step.body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+    </div>
   );
 }
