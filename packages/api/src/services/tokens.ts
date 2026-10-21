@@ -94,9 +94,20 @@ export async function requireBotInstance(
 export type InstanceTokenField = "overlayTimerToken" | "overlayTasksToken" | "botToken";
 
 /**
+ * The setup checklist step each token's URL backs. Rotating the token kills the
+ * URL the owner confirmed adding to OBS, so the same UPDATE clears that step.
+ */
+const TOKEN_SETUP_COLUMN = {
+  overlayTimerToken: "setupTimerOverlayConfirmed",
+  overlayTasksToken: "setupTasksOverlayConfirmed",
+  botToken: "setupBotSourceConfirmed",
+} as const satisfies Record<InstanceTokenField, keyof typeof schema.instanceConfig.$inferSelect>;
+
+/**
  * Rotate one instance token (invalidates any previously copied URL). Provisions
  * the row first and fails loudly if the write did not land, so a caller is never
- * handed a token that was not saved.
+ * handed a token that was not saved. The same UPDATE un-confirms the setup step
+ * for that URL: the copy in OBS stops working, so "added to OBS" no longer holds.
  */
 export async function rotateInstanceToken(
   db: DbClient,
@@ -104,7 +115,10 @@ export async function rotateInstanceToken(
 ): Promise<string> {
   await ensureInstanceConfig(db);
   const token = crypto.randomUUID();
-  const updated = await updateSingleton(db, schema.instanceConfig, { [field]: token });
+  const updated = await updateSingleton(db, schema.instanceConfig, {
+    [field]: token,
+    [TOKEN_SETUP_COLUMN[field]]: false,
+  });
   if (updated?.[field] !== token) {
     throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to rotate token" });
   }

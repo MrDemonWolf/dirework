@@ -5,7 +5,7 @@
 // procedures: hydrated from the server prefetch on first load, then polled through the
 // same-origin /rpc proxy.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Bot, Eye, EyeOff } from "lucide-react";
@@ -17,12 +17,14 @@ import { ConsoleRule } from "@/components/console-rule";
 import { DashboardSkeleton } from "@/components/dashboard-skeleton";
 import { QueryError } from "@/components/query-error";
 import { SecretUrlRow } from "@/components/secret-url-row";
+import { SetupChecklist, SetupReopenButton, useSetupCollapsed } from "@/components/setup-checklist";
 import { overlayPath } from "@/lib/overlay-view";
 import { StatusChip } from "@/components/status-chip";
 import { TaskManager } from "@/components/task-manager";
 import { TimerProvider, TimerInstrument, TimerSettings } from "@/components/timer-controls";
 import { TimerStatusBadge } from "@/components/timer-status-badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { setupProgress } from "@/lib/setup-steps";
 import { describeTrpcError } from "@/lib/trpc-errors";
 import { trpc } from "@/utils/trpc";
 
@@ -154,6 +156,26 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
   const [showTimerPreview, setShowTimerPreview] = useState(false);
   const [showTasksPreview, setShowTasksPreview] = useState(false);
 
+  // Setup checklist: "Finish later" hides the card and the header band's Setup button
+  // brings it back. Focus follows only those clicks: collapsing hands it to the button,
+  // reopening to the card's heading. A transition driven by hydration or the stored choice
+  // (no click) never moves focus.
+  const [setupCollapsed, setSetupCollapsed] = useSetupCollapsed(
+    // undefined until user.me loads (e.g. after a failed SSR prefetch), so the
+    // collapse default waits for real data.
+    user.data ? setupProgress(user.data).nextStep === null : undefined,
+  );
+  const setupButtonRef = useRef<HTMLButtonElement>(null);
+  const setupHeadingRef = useRef<HTMLHeadingElement>(null);
+  const collapsedByClick = useRef(false);
+  const reopenRequested = useRef(false);
+  useEffect(() => {
+    if (setupCollapsed && collapsedByClick.current) setupButtonRef.current?.focus();
+    if (!setupCollapsed && reopenRequested.current) setupHeadingRef.current?.focus();
+    collapsedByClick.current = false;
+    reopenRequested.current = false;
+  }, [setupCollapsed]);
+
   // `user.me` normally arrives hydrated from the server prefetch (page.tsx), so the live
   // tree renders on the first pass. The skeleton is only the fallback for a failed prefetch
   // while the client fetch is in flight.
@@ -190,7 +212,17 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
             {getSubGreeting()}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {setupCollapsed && (
+            <SetupReopenButton
+              me={me}
+              buttonRef={setupButtonRef}
+              onOpen={() => {
+                reopenRequested.current = true;
+                setSetupCollapsed(false);
+              }}
+            />
+          )}
           <TimerStatusBadge />
           <StatusChip
             tone={botAccount ? "accent" : "idle"}
@@ -198,6 +230,16 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
           />
         </div>
       </div>
+
+      <SetupChecklist
+        me={me}
+        collapsed={setupCollapsed}
+        headingRef={setupHeadingRef}
+        onCollapse={() => {
+          collapsedByClick.current = true;
+          setSetupCollapsed(true);
+        }}
+      />
 
       <div className="stagger-reveal grid items-start gap-6 lg:grid-cols-3">
         {/* Hero instrument: the timer console — its overlay monitor lives beside it */}

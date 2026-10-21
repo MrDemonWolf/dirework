@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Set up streaming checklist.** The dashboard opens with four steps: connect the bot
+  account, then add the bot page, the timer overlay and the tasks overlay to OBS. Each OBS
+  step hands you its URL (Show / Copy) and an **I added it to OBS** button; DireWork never
+  guesses whether OBS has the page, so **Mark as not added** takes it back. **Finish later**
+  hides the card (remembered in this browser) and the **Setup** button beside the greeting
+  brings it back. It adds no polling: each click is one save.
+- **A friendlier empty task board.** With no tasks the board asks *What are you working on
+  today?*, offers an **Add a task** button that jumps to the add field, and reminds you
+  viewers add theirs with `!task`.
 - **Uptime probe workflow** (`.github/workflows/uptime.yml`). Set the repository variables
   `UPTIME_API_URL` and `UPTIME_WEB_URL` and GitHub Actions requests the API's `/ready` and
   the web app's `/api/version` every 30 minutes — 96 Worker requests a day, up to 288 while both are down and

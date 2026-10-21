@@ -241,6 +241,22 @@ columns from the `instance_config` row it already reads and returns
 returns the fresh `setup`, so the dashboard can patch `me` in place instead of refetching.
 Detection is explicit owner confirmation: a flag must never be set from an overlay poll
 or `bot.ingest`, which would be a write on a poll path.
+Owner actions that kill a confirmed URL clear its flag in the write they already do:
+`rotateInstanceToken` (overlay or bot URL reset) un-confirms that step in the same UPDATE,
+and `disconnectBotAccount` resets `setupBotSourceConfirmed` in the batch that deletes the
+account (`user.disconnectBot` returns the fresh `setup`).
+The dashboard renders it as the **"Set up streaming" checklist**
+(`components/setup-checklist.tsx`; steps, copy and progress math in the pure
+`lib/setup-steps.ts`): step 1 (bot account) is the only *detected* step (`me.botAccount`);
+steps 2–4 are the owner's "I added it to OBS" / "Mark as not added" clicks — explicit
+confirmation, never detection. A click patches only `setup` on the current `user.me`
+entry with a functional `setQueryData` (optimistic; rollback restores just that flag, never a
+snapshot), never cancels an in-flight `user.me` fetch (an overlay reset's refetch carries
+the rotated token), and refetches once only if such a fetch overlapped or the write failed
+(`shouldRefreshMeAfterConfirm`); the checklist never polls, and the bot page URL
+(`bot.getIngestInfo`) loads only while step 2 is open. Step handoffs reuse `SecretUrlRow`
+without its Reset action (omit `onRegenerate`). "Finish later" is per-browser localStorage
+(`dirework.setup-collapsed`); the header band's Setup button reopens the card.
 
 **Done-task retention + bounded list reads.** Task polls (overlay every 3s, dashboard)
 must never scan the task table — D1's free tier caps rows read at 5M/day.
@@ -582,7 +598,7 @@ bypass with a fixed test secret. One worker and serial specs (single-owner insta
 database). Spec files are numbered and run in order: `00-first-run` sees the fresh database
 (the claim page, then the first dev-login claims the instance), then `10-smoke`,
 `15-landing` (the viewer landing: claimed notice + deploy link, docs links, no `/rpc`),
-`20-dashboard`, `30-timer` (Pomodoro start/stop and the ticking timer overlay; phase labels
+`20-dashboard`, `25-setup-checklist` (confirm/revert a step, Finish later), `30-timer` (Pomodoro start/stop and the ticking timer overlay; phase labels
 come from `@dirework/api/config-defaults`), `40-theme-center`, `50-bot-settings`,
 `60-token-reset` (the old overlay URL blanks), `70-sign-out`, `80-a11y`, `90-mobile`. Every
 spec passes when run twice in a row, because CI retries run immediately against the same
