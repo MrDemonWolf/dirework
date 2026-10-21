@@ -199,6 +199,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   The bot page now ignores chat and bans that come from a partner channel.
 - **Commands sent with Twitch's Reply button work.** Replying to the bot with `!done` sends
   `@yourbot !done`, which the bot used to ignore. It now drops that leading mention.
+- **The Bot page no longer says the bot is live when it can't be.** With no bot account the
+  mute bar showed a green **Live** chip and "The bot answers chat commands"; it now says
+  **Off** and *Connect a bot account first*. The switch still works there, so you can mute
+  before connecting, and it is now labelled **Mute bot** (the chip carries the state). On a
+  phone the bar puts the chip and switch on one row with the sentence under them.
+- The Bot console card's **Ready** chip only meant the bot page URL exists, not that the page
+  is open anywhere. It now reads **URL ready**, and the card says the bot runs only while that
+  page is open in OBS or a browser tab.
+- **The bot page shows chat errors in its header.** When Twitch refuses the bot's replies
+  (banned, timed out, slow mode, followers-only…) the reason used to appear only in the
+  activity log, which a 400×200 OBS source never shows, while the header kept a green
+  **Connected**. The LED now turns amber, the header reads **Chat error** and the reason sits
+  under it, until a later reply goes through. The **Seen** counter is now **Chat lines**, and
+  "Dashboard → Bot" on the bot page is a link.
 - **Theme Center and Bot settings open on your saved values.** Both editors used to render
   the stock defaults first and swap in the saved theme or messages a moment after the page
   loaded (the server HTML carried the defaults too). They now start from the saved values,

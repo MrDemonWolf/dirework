@@ -21,6 +21,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
+import {
+  type ChatErrorState,
+  currentChatError,
+  noteChatError,
+  noteChatReply,
+} from "@/lib/bot-chat-error";
 import { createBotSession, type BotActivityKind, type BotPhase } from "@/lib/bot-session";
 import { TwitchIrcClient, type IrcStatus } from "@/lib/irc-client";
 import { publicTrpc } from "@/utils/trpc";
@@ -69,6 +75,21 @@ function formatUptime(ms: number): string {
   return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
 }
 
+/**
+ * "Dashboard → Bot" as a real link. A plain anchor, not next/link: it must never prefetch
+ * the dashboard from an OBS source, and OBS ignores clicks anyway.
+ */
+function DashboardBotLink() {
+  return (
+    <a
+      href="/dashboard/bot"
+      className="text-console-fg underline underline-offset-2 hover:text-console-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
+    >
+      Dashboard → Bot
+    </a>
+  );
+}
+
 function StatCell({
   label,
   value,
@@ -108,6 +129,9 @@ export function BotConsole() {
   const [connectedAt, setConnectedAt] = useState<number | null>(null);
   // Mod !mute / !unmute (or the dashboard switch), reported by every ingest and getSession.
   const [muted, setMuted] = useState(false);
+  // The latest error the session logged (Twitch refusing a reply, a dropped command…), kept
+  // so the header can show it: at 400x200 the activity log is below the fold.
+  const [chatErrorState, setChatErrorState] = useState<ChatErrorState | null>(null);
   const [nowTick, setNowTick] = useState(0);
 
   const logRef = useRef<HTMLDivElement | null>(null);
@@ -131,6 +155,8 @@ export function BotConsole() {
     if (!token) return;
 
     const pushActivity = (kind: BotActivityKind, text: string) => {
+      if (kind === "error") setChatErrorState(noteChatError(text, Date.now()));
+      else if (kind === "reply") setChatErrorState((prev) => noteChatReply(prev, Date.now()));
       const line: ActivityLine = {
         id: ++lineIdRef.current,
         time: timeStamp(),
@@ -155,7 +181,12 @@ export function BotConsole() {
           setBotUsername(botUsername);
         },
         // Keep the first connect time: uptime spans IRC reconnects within this page load.
-        onConnected: () => setConnectedAt((prev) => prev ?? Date.now()),
+        onConnected: () => {
+          setConnectedAt((prev) => prev ?? Date.now());
+          // A fresh connection supersedes connection errors; a ban or chat-mode refusal
+          // comes straight back on the next reply.
+          setChatErrorState(null);
+        },
         onCounter: (counter) => setCounters((c) => ({ ...c, [counter]: c[counter] + 1 })),
         onActivity: pushActivity,
         onMuted: setMuted,
@@ -184,17 +215,17 @@ export function BotConsole() {
         </h1>
         {phase === "revoked" ? (
           <p className="max-w-sm text-sm text-console-muted">
-            This URL was reset. Copy the new one from Dashboard → Bot and paste it into your OBS
-            browser source or tab.
+            This URL was reset. Copy the new one from <DashboardBotLink /> and paste it into your
+            OBS browser source or tab.
           </p>
         ) : phase === "reauth" ? (
           <p className="max-w-sm text-sm text-console-muted">
-            Twitch no longer accepts the bot account&apos;s login. Reconnect it in Dashboard → Bot,
-            then refresh this page (OBS: right-click the source → Refresh).
+            Twitch no longer accepts the bot account&apos;s login. Reconnect it in{" "}
+            <DashboardBotLink />, then refresh this page (OBS: right-click the source → Refresh).
           </p>
         ) : (
           <p className="max-w-sm text-sm text-console-muted">
-            This isn&apos;t a valid bot page URL. Copy the current one from Dashboard → Bot.
+            This isn&apos;t a valid bot page URL. Copy the current one from <DashboardBotLink />.
           </p>
         )}
       </main>
@@ -204,12 +235,15 @@ export function BotConsole() {
   const connected = phase !== "boot" && phase !== "not-configured" && ircStatus === "connected";
   // Muted is a deliberate state, not a fault: a steady amber LED, like not-configured.
   const showMuted = connected && muted;
+  // Muted posts nothing, so a reply error can only be stale there. `nowTick` (the uptime
+  // tick) re-evaluates the clear window every second without a timer of its own.
+  const chatError = connected && !showMuted ? currentChatError(chatErrorState, nowTick) : null;
 
   const led: "green" | "amber" | "red" =
     phase === "boot" || phase === "not-configured"
       ? "amber"
       : ircStatus === "connected"
-        ? showMuted
+        ? showMuted || chatError
           ? "amber"
           : "green"
         : ircStatus === "closed"
@@ -224,7 +258,9 @@ export function BotConsole() {
         : ircStatus === "connected"
           ? showMuted
             ? "Muted"
-            : "Connected"
+            : chatError
+              ? "Chat error"
+              : "Connected"
           : ircStatus === "connecting"
             ? "Connecting"
             : ircStatus === "reconnecting"
@@ -239,11 +275,11 @@ export function BotConsole() {
     <main className="flex h-dvh w-full flex-col bg-console-base font-mono text-console-fg">
       {/* Status header — must read as a tiny OBS source (400x200): big LED +
           state text pinned top-left. */}
-      <header className="flex items-center gap-3 border-b border-console-line/80 px-4 py-3">
+      <header className="flex shrink-0 items-center gap-3 border-b border-console-line/80 px-4 py-3">
         <span
-          // Not-configured and muted wait on a person, not on the bot — a steady
-          // LED, so neither reads as "Connecting".
-          className={`h-3.5 w-3.5 shrink-0 rounded-full ${LED_CLASS[led]}${phase === "not-configured" || showMuted ? " animate-none" : ""}`}
+          // Not-configured, muted and a chat error wait on a person, not on the bot — a
+          // steady LED, so none of them reads as "Connecting".
+          className={`h-3.5 w-3.5 shrink-0 rounded-full ${LED_CLASS[led]}${phase === "not-configured" || showMuted || chatError ? " animate-none" : ""}`}
           aria-hidden="true"
         />
         <span
@@ -258,20 +294,32 @@ export function BotConsole() {
       </header>
 
       {phase === "not-configured" && (
-        <p className="border-b border-console-line/80 px-4 py-2 text-sm text-console-muted">
-          Connect a bot account in Dashboard → Bot. This page goes live on its own.
+        <p className="shrink-0 border-b border-console-line/80 px-4 py-2 text-sm text-console-muted">
+          Connect a bot account in <DashboardBotLink />. This page goes live on its own.
         </p>
       )}
 
       {showMuted && (
-        <p className="border-b border-console-line/80 px-4 py-2 text-sm text-console-muted">
-          Muted — ignoring commands and posting nothing. A mod can send !unmute, or flip the Muted
-          switch in Dashboard → Bot.
+        <p className="shrink-0 border-b border-console-line/80 px-4 py-2 text-sm text-console-muted">
+          Muted — ignoring commands and posting nothing. A mod can send !unmute, or flip the Mute
+          bot switch in <DashboardBotLink />.
+        </p>
+      )}
+
+      {chatError && (
+        // Same slot as the muted banner. Clamped to two lines so the counters stay in a
+        // 400x200 source; the full text is in the activity log and the title. The header,
+        // banners and counters never shrink: the activity log gives up the space instead.
+        <p
+          title={chatError}
+          className="line-clamp-2 shrink-0 border-b border-console-line/80 px-4 py-2 text-xs leading-5 text-amber-300"
+        >
+          {chatError}
         </p>
       )}
 
       {/* Identity + uptime */}
-      <div className="grid grid-cols-3 gap-px border-b border-console-line/80 bg-console-line/40">
+      <div className="grid shrink-0 grid-cols-3 gap-px border-b border-console-line/80 bg-console-line/40">
         <StatCell label="Channel" value={channelName ? `#${channelName}` : "—"} />
         <StatCell label="Bot" value={botUsername || "—"} />
         <StatCell
@@ -281,8 +329,9 @@ export function BotConsole() {
       </div>
 
       {/* Counters */}
-      <div className="grid grid-cols-3 gap-px border-b border-console-line/80 bg-console-line/40">
-        <StatCell label="Seen" value={String(counters.seen)} />
+      <div className="grid shrink-0 grid-cols-3 gap-px border-b border-console-line/80 bg-console-line/40">
+        {/* Every chat line the bot saw; Commands = the ones relayed to DireWork. */}
+        <StatCell label="Chat lines" value={String(counters.seen)} />
         <StatCell label="Commands" value={String(counters.commands)} accent />
         <StatCell label="Replies" value={String(counters.replies)} accent />
       </div>
@@ -295,7 +344,7 @@ export function BotConsole() {
         // Scrollable region: focusable so keyboard users can scroll it.
         // biome-ignore lint/a11y/noNoninteractiveTabindex: scroll container
         tabIndex={0}
-        className="flex-1 overflow-y-auto px-4 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
+        className="min-h-0 flex-1 overflow-y-auto px-4 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
       >
         {activity.length === 0 ? (
           <p className="py-2 text-xs text-console-muted">waiting for chat…</p>
