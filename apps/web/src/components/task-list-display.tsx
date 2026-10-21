@@ -9,12 +9,15 @@ import { useEffect, useRef, useState } from "react";
 
 import { countDoneByAuthor, groupTasksByAuthor } from "@/lib/task-utils";
 import {
+  ACTIVE_ROW_TINT_PERCENT,
   AUTHOR_COUNT_OPACITY,
   AUTHOR_HEADER_TINT_PERCENT,
   HEADER_COUNT_OPACITY,
+  countHiddenRows,
+  MORE_FOOTER_OPACITY,
+  TASK_ROW_GAP_PX,
 } from "@/lib/overlay-view";
 import { colorWithOpacity, quoteFontFamily } from "@/lib/timer-utils";
-import { cn } from "@/lib/utils";
 import type { Task, TaskGroup } from "@/lib/task-utils";
 // Style shape comes from the shared config source of truth (audit M4)
 import type { TaskStylesConfig } from "@/lib/config-types";
@@ -84,8 +87,10 @@ function InfiniteScroll({
       >
         {children}
       </div>
+      {/* The loop's second copy is decoration: screen readers get the list once. */}
       {shouldScroll && (
         <div
+          aria-hidden
           className="animate-scroll-secondary"
           style={
             {
@@ -101,7 +106,78 @@ function InfiniteScroll({
   );
 }
 
-/** One task row: checkbox (or bullet) plus the line-clamped task text. */
+/**
+ * The list when scrolling is off: rows that don't fit are cut off, and a "+N more"
+ * footer says how many (`countHiddenRows`). The footer is overlaid on the bottom
+ * of the list area (always laid out, hidden while nothing is cut off) instead of
+ * taking layout space, so the area every row is measured against never changes
+ * size with it: when the list shrinks back to fit, `hidden` returns to 0. While
+ * the footer shows, the rows are clipped above it. Re-measured whenever the area,
+ * the rows or the footer resize (same ResizeObserver pattern as InfiniteScroll).
+ */
+function StaticList({ children, config }: { children: React.ReactNode; config: TaskStylesConfig }) {
+  const areaRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
+  const [hidden, setHidden] = useState(0);
+  const [footerHeight, setFooterHeight] = useState(0);
+
+  useEffect(() => {
+    const area = areaRef.current;
+    const content = contentRef.current;
+    const footer = footerRef.current;
+    if (!area || !content || !footer) return;
+
+    const measure = () => {
+      // The clip box sits at the area's top edge and is the rows' offsetParent,
+      // so each bottom is measured from the top of the list area.
+      const bottoms = Array.from(
+        content.querySelectorAll<HTMLElement>("[data-task-row]"),
+        (row) => row.offsetTop + row.offsetHeight,
+      );
+      setFooterHeight(footer.offsetHeight);
+      setHidden(countHiddenRows(bottoms, area.clientHeight, footer.offsetHeight));
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(area);
+    observer.observe(content);
+    observer.observe(footer);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={areaRef} className="relative min-h-0 flex-1 overflow-hidden">
+      <div
+        className="absolute inset-x-0 top-0 overflow-hidden"
+        style={{ bottom: hidden > 0 ? footerHeight : 0 }}
+      >
+        <div ref={contentRef}>{children}</div>
+      </div>
+      <div
+        ref={footerRef}
+        aria-hidden={hidden === 0}
+        className="absolute inset-x-0 bottom-0"
+        style={{
+          visibility: hidden > 0 ? "visible" : "hidden",
+          color: config.task.fontColor,
+          opacity: MORE_FOOTER_OPACITY,
+          fontSize: `calc(${config.task.fontSize} * 0.75)`,
+          paddingTop: config.body.padding.vertical,
+        }}
+      >
+        +{hidden} more
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One task row: checkbox (or bullet), the line-clamped task text, and for the
+ * active task a static username-color tint plus an "Active" label (no glow, no
+ * pulse: a perpetual animation on a stream overlay is noise).
+ */
 function TaskItem({
   task,
   config,
@@ -116,13 +192,17 @@ function TaskItem({
 
   return (
     <div
-      className={cn("flex flex-row items-start gap-0", isActive && "overlay-active-glow")}
+      data-task-row
+      className="flex flex-row items-start gap-0"
       style={{
         backgroundColor: isDone
           ? colorWithOpacity(config.taskDone.background.color, config.taskDone.background.opacity)
-          : "transparent",
+          : isActive
+            ? `color-mix(in srgb, ${config.task.usernameColor} ${ACTIVE_ROW_TINT_PERCENT}%, transparent)`
+            : "transparent",
+        borderRadius: config.task.border.radius,
         padding: config.task.padding,
-        marginBottom: isLast ? "0" : "1px",
+        marginBottom: isLast ? 0 : TASK_ROW_GAP_PX,
         maxWidth: config.task.maxWidth,
         // No extra row-wide fade for done rows: it multiplied over the
         // configured `taskDone.fontColor`, so the color the streamer picked (and
@@ -195,6 +275,25 @@ function TaskItem({
       >
         {task.text}
       </span>
+
+      {isActive && (
+        // Plain visible text, so screen readers announce it as-is (an aria-label
+        // on a role-less span is ignored).
+        <span
+          className="ml-auto shrink-0 self-center font-bold uppercase"
+          style={{
+            color: config.task.usernameColor,
+            fontSize: `calc(${config.task.fontSize} * 0.55)`,
+            letterSpacing: "0.1em",
+            // Padding, not margin: an inline margin-left would override `ml-auto`,
+            // which pushes the label to the end of the row.
+            paddingLeft: 12,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Active
+        </span>
+      )}
     </div>
   );
 }
@@ -367,11 +466,11 @@ export function TaskListDisplay({
             ))}
           </InfiniteScroll>
         ) : (
-          <div className="flex-1 overflow-y-auto">
+          <StaticList config={config}>
             {groups.map((group) => (
               <AuthorGroup key={group.authorKey} group={group} config={config} />
             ))}
-          </div>
+          </StaticList>
         )}
       </div>
     </div>

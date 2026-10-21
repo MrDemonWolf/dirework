@@ -3,83 +3,25 @@
 // design-system/tokens.json (theme-palette-sync test), and every preset must pass
 // the WCAG AA contrast test (theme-contrast test) and the server's input schemas.
 
-import type { ThemePreset, TimerStylesConfig, TaskStylesConfig } from "./config-types";
+import {
+  DEFAULT_TASK_STYLES,
+  DEFAULT_TIMER_STYLES,
+  type ThemePreset,
+  type TimerStylesConfig,
+  type TaskStylesConfig,
+} from "./config-types";
 import { isDeepEqual } from "./utils";
 
 /**
  * Timer overlay styles used before the saved config loads and as the "Default"
- * preset. Treat as read-only: clone before mutating (as the presets below do).
+ * preset: the shipped defaults from @dirework/db/defaults, which a fresh or
+ * never-customized instance also gets from the API. Treat as read-only: clone
+ * before mutating (as the presets below do).
  */
-export const defaultTimerStyles: TimerStylesConfig = {
-  dimensions: { width: "300px", height: "300px" },
-  background: { color: "#091533", opacity: 0.85, borderRadius: "22%" },
-  ring: {
-    enabled: true,
-    trackColor: "#ffffff",
-    trackOpacity: 0.18,
-    fillColor: "#00aced",
-    fillOpacity: 1,
-    width: 8,
-    gap: 6,
-  },
-  text: { color: "#ffffff", outlineColor: "#000000", outlineSize: "0px", fontFamily: "Montserrat" },
-  fontSizes: { label: "18px", time: "48px", cycle: "16px" },
-};
+export const defaultTimerStyles: TimerStylesConfig = DEFAULT_TIMER_STYLES;
 
 /** Task overlay counterpart of `defaultTimerStyles`; also the base `tasks()` merges onto. */
-export const defaultTaskStyles: TaskStylesConfig = {
-  display: {
-    showDone: true,
-    showCount: true,
-    useCheckboxes: true,
-    crossOnDone: true,
-    numberOfLines: 2,
-  },
-  fonts: { header: "Montserrat", body: "Roboto" },
-  scroll: { enabled: true, pixelsPerSecond: 40, gapBetweenLoops: 100 },
-  header: {
-    height: "52px",
-    background: { color: "#091533", opacity: 0.95 },
-    border: { color: "#1b2b52", width: "1px", radius: "12px 12px 0 0" },
-    fontSize: "24px",
-    fontColor: "#ffffff",
-    padding: "12px 16px",
-  },
-  body: {
-    background: { color: "#091533", opacity: 0.85 },
-    border: { color: "#1b2b52", width: "1px", radius: "0 0 12px 12px" },
-    padding: { vertical: "6px", horizontal: "6px" },
-  },
-  task: {
-    background: { color: "#12244a", opacity: 0.9 },
-    border: { color: "#1b2b52", width: "0px", radius: "10px" },
-    fontSize: "22px",
-    fontColor: "#eaf2ff",
-    usernameColor: "#6b8bf5",
-    padding: "10px 14px",
-    marginBottom: "4px",
-    maxWidth: "100%",
-  },
-  taskDone: {
-    background: { color: "#091533", opacity: 0.5 },
-    fontColor: "#8fa0c2",
-  },
-  checkbox: {
-    size: "20px",
-    background: { color: "#000000", opacity: 0 },
-    border: { color: "#4a5b82", width: "2px", radius: "6px" },
-    margin: { top: "4px", left: "2px", right: "8px" },
-    tickChar: "✔",
-    tickSize: "14px",
-    tickColor: "#00aced",
-  },
-  bullet: {
-    char: "•",
-    size: "20px",
-    color: "#7c8db0",
-    margin: { top: "0px", left: "2px", right: "8px" },
-  },
-};
+export const defaultTaskStyles: TaskStylesConfig = DEFAULT_TASK_STYLES;
 
 // --- Helper to build a full task styles config quickly ---
 function tasks(
@@ -118,8 +60,9 @@ export const themePresets: ThemePreset[] = [
     name: "Default",
     description: "Midnight blue with bright cyan accents",
     preview: { bg: "#091533", accent: "#00aced", text: "#ffffff" },
-    // Deep-clone so nested objects (ring, header, checkbox…) aren't shared
-    // with the exported defaults — same isolation the tasks() helper gives.
+    // The shipped defaults (a fresh instance matches this preset). Deep-clone so
+    // nested objects (ring, header, checkbox…) aren't shared with the exported
+    // defaults — same isolation the tasks() helper gives.
     timerStyles: JSON.parse(JSON.stringify(defaultTimerStyles)) as TimerStylesConfig,
     taskStyles: JSON.parse(JSON.stringify(defaultTaskStyles)) as TaskStylesConfig,
   },
@@ -132,15 +75,15 @@ export const themePresets: ThemePreset[] = [
     preview: { bg: "#0a1628", accent: "#2dd4bf", text: "#e0f2fe" },
     timerStyles: {
       dimensions: { width: "300px", height: "300px" },
-      background: { color: "#0a1628", opacity: 0.88, borderRadius: "22%" },
+      background: { color: "#0a1628", opacity: 0.92, borderRadius: "22%" },
       ring: {
         enabled: true,
         trackColor: "#2dd4bf",
         trackOpacity: 0.12,
         fillColor: "#2dd4bf",
         fillOpacity: 1,
-        width: 8,
-        gap: 6,
+        width: 14,
+        gap: 10,
       },
       text: {
         color: "#e0f2fe",
@@ -148,30 +91,30 @@ export const themePresets: ThemePreset[] = [
         outlineSize: "0px",
         fontFamily: "Montserrat",
       },
-      fontSizes: { label: "18px", time: "48px", cycle: "16px" },
+      fontSizes: { label: "24px", time: "76px", cycle: "20px" },
     },
     taskStyles: tasks({
       header: {
-        height: "52px",
+        height: "56px",
         background: { color: "#0c1e3a", opacity: 0.95 },
-        border: { color: "#2dd4bf", width: "1px", radius: "12px 12px 0 0" },
-        fontSize: "24px",
+        border: { color: "#2dd4bf", width: "0px", radius: "12px 12px 0 0" },
+        fontSize: "26px",
         fontColor: "#e0f2fe",
-        padding: "12px 16px",
+        padding: "12px 18px",
       },
       body: {
-        background: { color: "#0a1628", opacity: 0.85 },
-        border: { color: "#163050", width: "1px", radius: "0 0 12px 12px" },
-        padding: { vertical: "6px", horizontal: "6px" },
+        background: { color: "#0a1628", opacity: 0.9 },
+        border: { color: "#163050", width: "0px", radius: "0 0 12px 12px" },
+        padding: { vertical: "8px", horizontal: "8px" },
       },
       task: {
-        background: { color: "#0e2240", opacity: 0.9 },
-        border: { color: "#1a3a5f", width: "1px", radius: "10px" },
-        fontSize: "22px",
+        background: { color: "#0e2240", opacity: 0.92 },
+        border: { color: "#1a3a5f", width: "0px", radius: "10px" },
+        fontSize: "24px",
         fontColor: "#e0f2fe",
         usernameColor: "#2dd4bf",
         padding: "10px 14px",
-        marginBottom: "4px",
+        marginBottom: "8px",
         maxWidth: "100%",
       },
       taskDone: { background: { color: "#0a1628", opacity: 0.5 }, fontColor: "#7fa6bf" },
@@ -195,15 +138,15 @@ export const themePresets: ThemePreset[] = [
     preview: { bg: "#1c1c1e", accent: "#0a84ff", text: "#f5f5f7" },
     timerStyles: {
       dimensions: { width: "300px", height: "300px" },
-      background: { color: "#2c2c2e", opacity: 0.78, borderRadius: "22%" },
+      background: { color: "#2c2c2e", opacity: 0.86, borderRadius: "22%" },
       ring: {
         enabled: true,
         trackColor: "#48484a",
         trackOpacity: 0.6,
         fillColor: "#0a84ff",
         fillOpacity: 1,
-        width: 7,
-        gap: 6,
+        width: 14,
+        gap: 10,
       },
       text: {
         color: "#f5f5f7",
@@ -211,31 +154,31 @@ export const themePresets: ThemePreset[] = [
         outlineSize: "0px",
         fontFamily: "Montserrat",
       },
-      fontSizes: { label: "17px", time: "48px", cycle: "15px" },
+      fontSizes: { label: "24px", time: "76px", cycle: "20px" },
     },
     taskStyles: tasks({
       fonts: { header: "Montserrat", body: "Roboto" },
       header: {
-        height: "52px",
-        background: { color: "#2c2c2e", opacity: 0.82 },
-        border: { color: "#48484a", width: "1px", radius: "16px 16px 0 0" },
-        fontSize: "24px",
+        height: "56px",
+        background: { color: "#2c2c2e", opacity: 0.88 },
+        border: { color: "#48484a", width: "0px", radius: "16px 16px 0 0" },
+        fontSize: "26px",
         fontColor: "#f5f5f7",
-        padding: "12px 16px",
+        padding: "12px 18px",
       },
       body: {
-        background: { color: "#1c1c1e", opacity: 0.72 },
-        border: { color: "#48484a", width: "1px", radius: "0 0 16px 16px" },
-        padding: { vertical: "6px", horizontal: "6px" },
+        background: { color: "#1c1c1e", opacity: 0.82 },
+        border: { color: "#48484a", width: "0px", radius: "0 0 16px 16px" },
+        padding: { vertical: "8px", horizontal: "8px" },
       },
       task: {
-        background: { color: "#3a3a3c", opacity: 0.6 },
-        border: { color: "#48484a", width: "1px", radius: "12px" },
-        fontSize: "22px",
+        background: { color: "#3a3a3c", opacity: 0.7 },
+        border: { color: "#48484a", width: "0px", radius: "12px" },
+        fontSize: "24px",
         fontColor: "#f5f5f7",
-        usernameColor: "#5aa9ff",
+        usernameColor: "#6db3ff",
         padding: "10px 14px",
-        marginBottom: "4px",
+        marginBottom: "8px",
         maxWidth: "100%",
       },
       taskDone: { background: { color: "#2c2c2e", opacity: 0.4 }, fontColor: "#a1a1a6" },
@@ -259,15 +202,15 @@ export const themePresets: ThemePreset[] = [
     preview: { bg: "#faf3e8", accent: "#b8860b", text: "#5c3d1a" },
     timerStyles: {
       dimensions: { width: "300px", height: "300px" },
-      background: { color: "#faf3e8", opacity: 0.92, borderRadius: "22%" },
+      background: { color: "#faf3e8", opacity: 0.94, borderRadius: "22%" },
       ring: {
         enabled: true,
         trackColor: "#d4b896",
         trackOpacity: 0.3,
         fillColor: "#b8860b",
         fillOpacity: 0.9,
-        width: 8,
-        gap: 6,
+        width: 14,
+        gap: 10,
       },
       text: {
         color: "#5c3d1a",
@@ -275,31 +218,31 @@ export const themePresets: ThemePreset[] = [
         outlineSize: "0px",
         fontFamily: "Montserrat",
       },
-      fontSizes: { label: "18px", time: "48px", cycle: "16px" },
+      fontSizes: { label: "24px", time: "76px", cycle: "20px" },
     },
     taskStyles: tasks({
       fonts: { header: "Montserrat", body: "Roboto" },
       header: {
-        height: "52px",
-        background: { color: "#8a5a00", opacity: 0.9 },
+        height: "56px",
+        background: { color: "#faf3e8", opacity: 0.95 },
         border: { color: "#d4a843", width: "0px", radius: "14px 14px 0 0" },
-        fontSize: "24px",
-        fontColor: "#fef9f0",
-        padding: "12px 16px",
+        fontSize: "26px",
+        fontColor: "#5c3d1a",
+        padding: "12px 18px",
       },
       body: {
-        background: { color: "#faf3e8", opacity: 0.88 },
+        background: { color: "#faf3e8", opacity: 0.92 },
         border: { color: "#e0d0b8", width: "0px", radius: "0 0 14px 14px" },
-        padding: { vertical: "6px", horizontal: "6px" },
+        padding: { vertical: "8px", horizontal: "8px" },
       },
       task: {
         background: { color: "#fff8ee", opacity: 0.95 },
-        border: { color: "#e8d8c0", width: "1px", radius: "10px" },
-        fontSize: "22px",
+        border: { color: "#e8d8c0", width: "0px", radius: "10px" },
+        fontSize: "24px",
         fontColor: "#5c3d1a",
         usernameColor: "#8a5a00",
         padding: "10px 14px",
-        marginBottom: "4px",
+        marginBottom: "8px",
         maxWidth: "100%",
       },
       taskDone: { background: { color: "#f0e8d8", opacity: 0.6 }, fontColor: "#6f5c45" },
@@ -330,8 +273,8 @@ export const themePresets: ThemePreset[] = [
         trackOpacity: 1,
         fillColor: "#6366f1",
         fillOpacity: 1,
-        width: 8,
-        gap: 6,
+        width: 14,
+        gap: 10,
       },
       text: {
         color: "#111827",
@@ -339,30 +282,30 @@ export const themePresets: ThemePreset[] = [
         outlineSize: "0px",
         fontFamily: "Montserrat",
       },
-      fontSizes: { label: "18px", time: "48px", cycle: "16px" },
+      fontSizes: { label: "24px", time: "76px", cycle: "20px" },
     },
     taskStyles: tasks({
       header: {
-        height: "52px",
-        background: { color: "#f9fafb", opacity: 0.98 },
+        height: "56px",
+        background: { color: "#ffffff", opacity: 0.98 },
         border: { color: "#e5e7eb", width: "1px", radius: "10px 10px 0 0" },
-        fontSize: "24px",
+        fontSize: "26px",
         fontColor: "#111827",
-        padding: "12px 16px",
+        padding: "12px 18px",
       },
       body: {
         background: { color: "#ffffff", opacity: 0.96 },
         border: { color: "#e5e7eb", width: "1px", radius: "0 0 10px 10px" },
-        padding: { vertical: "6px", horizontal: "6px" },
+        padding: { vertical: "8px", horizontal: "8px" },
       },
       task: {
         background: { color: "#f9fafb", opacity: 0.98 },
-        border: { color: "#e5e7eb", width: "1px", radius: "8px" },
-        fontSize: "22px",
+        border: { color: "#e5e7eb", width: "0px", radius: "8px" },
+        fontSize: "24px",
         fontColor: "#111827",
         usernameColor: "#4f46e5",
         padding: "10px 14px",
-        marginBottom: "4px",
+        marginBottom: "8px",
         maxWidth: "100%",
       },
       taskDone: { background: { color: "#f3f4f6", opacity: 0.7 }, fontColor: "#5f6672" },
@@ -393,8 +336,8 @@ export const themePresets: ThemePreset[] = [
         trackOpacity: 0.15,
         fillColor: "#9146ff",
         fillOpacity: 1,
-        width: 8,
-        gap: 6,
+        width: 14,
+        gap: 10,
       },
       text: {
         color: "#efeff1",
@@ -402,30 +345,30 @@ export const themePresets: ThemePreset[] = [
         outlineSize: "0px",
         fontFamily: "Montserrat",
       },
-      fontSizes: { label: "18px", time: "48px", cycle: "16px" },
+      fontSizes: { label: "24px", time: "76px", cycle: "20px" },
     },
     taskStyles: tasks({
       header: {
-        height: "52px",
-        background: { color: "#9146ff", opacity: 0.95 },
+        height: "56px",
+        background: { color: "#0e0e10", opacity: 0.95 },
         border: { color: "#bf94ff", width: "0px", radius: "12px 12px 0 0" },
-        fontSize: "24px",
-        fontColor: "#ffffff",
-        padding: "12px 16px",
+        fontSize: "26px",
+        fontColor: "#efeff1",
+        padding: "12px 18px",
       },
       body: {
-        background: { color: "#0e0e10", opacity: 0.9 },
-        border: { color: "#1f1f23", width: "1px", radius: "0 0 12px 12px" },
-        padding: { vertical: "6px", horizontal: "6px" },
+        background: { color: "#0e0e10", opacity: 0.92 },
+        border: { color: "#1f1f23", width: "0px", radius: "0 0 12px 12px" },
+        padding: { vertical: "8px", horizontal: "8px" },
       },
       task: {
         background: { color: "#18181b", opacity: 0.95 },
-        border: { color: "#26262c", width: "1px", radius: "10px" },
-        fontSize: "22px",
+        border: { color: "#26262c", width: "0px", radius: "10px" },
+        fontSize: "24px",
         fontColor: "#efeff1",
         usernameColor: "#bf94ff",
         padding: "10px 14px",
-        marginBottom: "4px",
+        marginBottom: "8px",
         maxWidth: "100%",
       },
       taskDone: { background: { color: "#0e0e10", opacity: 0.5 }, fontColor: "#8a8a96" },

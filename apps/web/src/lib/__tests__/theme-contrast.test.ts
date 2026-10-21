@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ACTIVE_ROW_TINT_PERCENT,
   AUTHOR_COUNT_OPACITY,
   AUTHOR_HEADER_TINT_PERCENT,
   HEADER_COUNT_OPACITY,
+  MORE_FOOTER_OPACITY,
+  TIMER_CYCLE_OPACITY,
 } from "../overlay-view";
 import { themePresets } from "../theme-presets";
 
@@ -111,5 +114,47 @@ describe.each(themePresets)("$name preset task overlay contrast", (preset) => {
     // Rendered at header.fontSize: WCAG "large text" (>= 24px) needs only 3:1.
     const bar = Number.parseFloat(styles.header.fontSize) >= 24 ? AA_LARGE_TEXT : AA_NORMAL_TEXT;
     expect(contrastRatio(text, bg)).toBeGreaterThanOrEqual(bar);
+  });
+
+  // The active row is a static username-color tint over the author group, and
+  // its "Active" label is set in the username color itself.
+  it('"Active" label meets AA on the active-row tint', () => {
+    const activeRow = composite(username, ACTIVE_ROW_TINT_PERCENT / 100, group);
+    expect(contrastRatio(username, activeRow)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+  });
+
+  it('"+N more" footer meets AA on the body', () => {
+    const text = composite(parseHex(styles.task.fontColor), MORE_FOOTER_OPACITY, body);
+    expect(contrastRatio(text, body)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+  });
+});
+
+/**
+ * The timer background is translucent, so the stream shows through it. A preset
+ * can't know the stream, so check both extremes: the background composited over
+ * black AND over white.
+ */
+describe.each(themePresets)("$name preset timer contrast", (preset) => {
+  const styles = preset.timerStyles;
+  const text = parseHex(styles.text.color);
+
+  describe.each([
+    ["black", "#000000"],
+    ["white", "#ffffff"],
+  ])("over %s", (_name, behind) => {
+    const bg = composite(
+      parseHex(styles.background.color),
+      styles.background.opacity,
+      parseHex(behind),
+    );
+
+    it("label and countdown text meet AA", () => {
+      expect(contrastRatio(text, bg)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+    });
+
+    it("faded cycle counter meets AA", () => {
+      const cycle = composite(text, TIMER_CYCLE_OPACITY, bg);
+      expect(contrastRatio(cycle, bg)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+    });
   });
 });

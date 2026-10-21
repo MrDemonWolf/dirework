@@ -58,7 +58,9 @@ The task list overlay shows:
 - Checkboxes (or bullets) for task status
 - Completed tasks with strikethrough text
 
-When scroll is enabled, the task list loops in a smooth, continuous scroll so every task gets screen time. You can turn scroll off in the Theme Center to show a fixed list instead.
+The task a viewer is working on right now gets a soft tint in the username color and an **Active** label at the end of the row. Nothing pulses or glows.
+
+When scroll is enabled, the task list loops in a smooth, continuous scroll so every task gets screen time. You can turn scroll off in the Theme Center to show a fixed list instead; when the list is longer than the overlay, a "+N more" line at the bottom says how many tasks are cut off.
 
 ## Dashboard preview
 
@@ -83,6 +85,10 @@ Both overlays are fully customizable through the **Theme Center** at `/dashboard
 > border radius. Set the border radius to `50%` for a circle; any other value (e.g. `22%`)
 > renders a rounded rectangle (squircle).
 
+> The default countdown is 76px, sized for `25:00` in a 300×300 timer. With **Show hours**
+> on, hours shrink the digits automatically: the longer `01:25:00` is drawn no wider than
+> `25:00` would be, so it still fits inside the ring.
+
 ### Task list overlay settings
 
 | Category | Options |
@@ -99,16 +105,22 @@ Both overlays are fully customizable through the **Theme Center** at `/dashboard
 
 ### Theme presets
 
-The Theme Center includes 6 built-in presets to get you started:
+The Theme Center includes 6 built-in presets to get you started. All of them share the same
+proportions: a thick progress ring, a large countdown, large task text, and no outlines around
+the panels.
 
-1. **Default** — Midnight blue with cyan accents
-2. **Ocean Depths** — Deep navy with teal accents
-3. **Liquid Glass Dark** — Translucent dark glass
-4. **Cozy Cottage** — Warm earth tones on soft cream
-5. **Minimal Light** — Plain white, easy to read
-6. **Twitch Purple** — Twitch purple on dark panels
+1. **Default** — Midnight blue with a cyan ring. A fresh install starts on this preset.
+2. **Ocean Depths** — Deep navy with a teal ring and teal names
+3. **Liquid Glass Dark** — Translucent graphite panels with a blue ring
+4. **Cozy Cottage** — Soft cream panels with brown text and a gold ring
+5. **Minimal Light** — Plain white with an indigo ring and thin grey edges
+6. **Twitch Purple** — Near-black panels with a Twitch purple ring and lavender names
 
 Apply a preset as a starting point, then customize individual settings to match your stream.
+
+If you never changed a style, your overlays pick up new default styles when DireWork updates
+them. Any group of settings you changed (for example the ring, or the task header) stays exactly
+as you saved it.
 
 ## Transparent background
 

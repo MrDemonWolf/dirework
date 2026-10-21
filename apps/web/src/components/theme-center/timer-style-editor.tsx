@@ -114,7 +114,7 @@ export function TimerStyleEditor({
           value={styles.ring.width}
           onChange={(v) => update("ring", { width: v })}
           min={2}
-          max={20}
+          max={24}
           format={(v) => `${v}px`}
         />
         <SliderRow
@@ -123,7 +123,7 @@ export function TimerStyleEditor({
           value={styles.ring.gap}
           onChange={(v) => update("ring", { gap: v })}
           min={0}
-          max={20}
+          max={16}
           format={(v) => `${v}px`}
         />
       </SectionGroup>

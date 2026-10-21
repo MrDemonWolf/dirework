@@ -9,6 +9,8 @@ import {
   buildTaskStylesConfig,
   buildTimerConfig,
   buildTimerStylesConfig,
+  expandTaskStylePatch,
+  expandTimerStylePatch,
   flattenTaskStyles,
   flattenTimerStyles,
   flattenWithFieldMap,
@@ -60,9 +62,16 @@ export const configRouter = router({
    * D1 round trip.
    */
   updateStyles: ownerProcedure.input(updateStylesInput).mutation(async ({ ctx, input }) => {
-    await ensureSingletons(ctx.db);
-    const timerStylePatch = definedValues(flattenTimerStyles(input.timerStyles));
-    const taskStylePatch = definedValues(flattenTaskStyles(input.taskStyles));
+    const before = await ensureSingletons(ctx.db);
+    // Each touched style group is written whole, at the values it currently
+    // reads as (never-customized defaults upgraded), with the edit on top — so
+    // a one-field edit can't strand the group's other fields on old defaults.
+    const timerStylePatch = definedValues(
+      expandTimerStylePatch(before.timerStyle, flattenTimerStyles(input.timerStyles)),
+    );
+    const taskStylePatch = definedValues(
+      expandTaskStylePatch(before.taskStyle, flattenTaskStyles(input.taskStyles)),
+    );
     const labelsPatch = definedValues(flattenWithFieldMap(PHASE_LABEL_FIELDS, input.phaseLabels));
     // An empty SET is a SQL error, so only the groups that changed are written.
     const statements = [

@@ -43,6 +43,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `!block`, `!unblock`, `!mute` and `!unmute`.
 - `mute`, `unmute`, `block` and `unblock` are now built-in command names, so they can't be
   used as alias names.
+- Overlay presets refreshed: thicker ring, larger countdown and task text, fewer outlines, no
+  pulsing glow; instances that never customized a style value pick the new defaults up
+  automatically. The active task is now a soft tint with an "Active" label, and a list with
+  scrolling off shows "+N more" when tasks are cut off.
 - The landing page and dashboard preload their heading font, and only the overlay pages and
   the Theme Center load the overlay font stylesheet, so each page downloads only the type it
   shows. The public pages (`/`, `/setup`) show a loading skeleton the moment you navigate to

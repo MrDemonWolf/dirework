@@ -5,8 +5,10 @@
 // circle or rounded-rect progress ring. Pure presentation — no fetching.
 
 import type { PhaseLabelsConfig, TimerStylesConfig } from "@/lib/config-types";
+import { TIMER_CYCLE_OPACITY } from "@/lib/overlay-view";
 import {
   type TimerState,
+  clockFontSize,
   colorWithOpacity,
   cssLengthToPx,
   formatTime,
@@ -196,7 +198,7 @@ export function TimerDisplay({
 
   return (
     <div
-      className="relative flex flex-col items-center justify-center"
+      className="relative flex flex-col items-center justify-center gap-1"
       style={{
         width: config.dimensions.width,
         height: config.dimensions.height,
@@ -230,7 +232,7 @@ export function TimerDisplay({
       <span
         className="relative font-bold tabular-nums"
         style={{
-          fontSize: config.fontSizes.time,
+          fontSize: clockFontSize(config.fontSizes.time, timeDisplay),
           color: config.text.color,
           textShadow,
           lineHeight: 1.1,
@@ -244,7 +246,7 @@ export function TimerDisplay({
         style={{
           fontSize: config.fontSizes.cycle,
           color: config.text.color,
-          opacity: 0.6,
+          opacity: TIMER_CYCLE_OPACITY,
         }}
       >
         {state.currentCycle}/{state.totalCycles}

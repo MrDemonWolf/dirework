@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { taskStylesInputSchema, timerStylesInputSchema } from "@dirework/api/config-shared";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+import {
+  buildTaskStylesConfig,
+  buildTimerStylesConfig,
+  flattenTaskStyles,
+  flattenTimerStyles,
+  SINGLETON_ID,
+  taskStylesInputSchema,
+  timerStylesInputSchema,
+} from "@dirework/api/config-shared";
 
 import {
   defaultTimerStyles,
@@ -48,6 +59,35 @@ describe("themePresets", () => {
       expectSavable(taskStylesInputSchema, preset.taskStyles);
     },
   );
+
+  it("the Default preset equals the shipped defaults", () => {
+    const preset = themePresets.find((p) => p.id === "default");
+    expect(preset?.timerStyles).toEqual(defaultTimerStyles);
+    expect(preset?.taskStyles).toEqual(defaultTaskStyles);
+  });
+
+  // The API upgrades never-customized style values on read. A saved preset must
+  // read back exactly as saved, or reloading the Theme Center loses the preset.
+  it.each(themePresets.map((p) => [p.id, p] as const))(
+    "preset '%s' reads back unchanged after a save",
+    (_id, preset) => {
+      const timerRow = { id: SINGLETON_ID, ...flattenTimerStyles(preset.timerStyles) };
+      const taskRow = { id: SINGLETON_ID, ...flattenTaskStyles(preset.taskStyles) };
+      expect(
+        buildTimerStylesConfig(timerRow as Parameters<typeof buildTimerStylesConfig>[0]),
+      ).toEqual(preset.timerStyles);
+      expect(buildTaskStylesConfig(taskRow as Parameters<typeof buildTaskStylesConfig>[0])).toEqual(
+        preset.taskStyles,
+      );
+    },
+  );
+});
+
+describe("overlay stylesheet", () => {
+  it("ships no pulsing active-task glow", () => {
+    const css = readFileSync(fileURLToPath(new URL("../../index.css", import.meta.url)), "utf8");
+    expect(css).not.toContain("active-glow");
+  });
 });
 
 describe("detectMatchingPreset", () => {

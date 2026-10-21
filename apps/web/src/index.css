@@ -276,36 +276,6 @@
 }
 
 /*
- * Active task glow (overlay). The shadow is static on a pseudo-element and only
- * its opacity pulses — opacity composites on the GPU, whereas animating
- * box-shadow repaints the task row every frame for the whole stream.
- */
-.overlay-active-glow {
-  position: relative;
-}
-
-.overlay-active-glow::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  box-shadow: 0 0 12px 4px rgba(59, 130, 246, 0.6);
-  opacity: 0.7;
-  will-change: opacity;
-  animation: active-glow 2s ease-in-out infinite;
-}
-
-@keyframes active-glow {
-  0%, 100% {
-    opacity: 0.4;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-/*
  * Reduced motion: kill every pulse, spin, reveal, and marquee globally.
  * (Audit M11 — no perpetual motion for users who opted out.)
  */

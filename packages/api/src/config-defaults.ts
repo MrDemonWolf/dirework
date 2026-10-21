@@ -5,11 +5,19 @@
 import {
   DEFAULT_PHASE_LABELS as DB_DEFAULT_PHASE_LABELS,
   DEFAULT_TASK_MESSAGES as DB_DEFAULT_TASK_MESSAGES,
+  DEFAULT_TASK_STYLES as DB_DEFAULT_TASK_STYLES,
   DEFAULT_TIMER_MESSAGES as DB_DEFAULT_TIMER_MESSAGES,
+  DEFAULT_TIMER_STYLES as DB_DEFAULT_TIMER_STYLES,
   TIMER_CONFIG_DEFAULTS as DB_TIMER_CONFIG_DEFAULTS,
 } from "@dirework/db/defaults";
 
-import type { PhaseLabelsConfig, TaskMessagesConfig, TimerMessagesConfig } from "./config-shared";
+import type {
+  PhaseLabelsConfig,
+  TaskMessagesConfig,
+  TaskStylesConfig,
+  TimerMessagesConfig,
+  TimerStylesConfig,
+} from "./config-shared";
 
 /** Maximum task text length — enforced by tRPC input schemas AND the chat path. */
 export const MAX_TASK_LEN = 500;
@@ -21,6 +29,11 @@ export const MAX_TASK_LEN = 500;
 export const DEFAULT_PHASE_LABELS: PhaseLabelsConfig = DB_DEFAULT_PHASE_LABELS;
 export const DEFAULT_TASK_MESSAGES: TaskMessagesConfig = DB_DEFAULT_TASK_MESSAGES;
 export const DEFAULT_TIMER_MESSAGES: TimerMessagesConfig = DB_DEFAULT_TIMER_MESSAGES;
+
+/** Overlay styles a never-customized instance renders (also the "Default" preset).
+ * Treat as read-only: clone before mutating. */
+export const DEFAULT_TIMER_STYLES: TimerStylesConfig = DB_DEFAULT_TIMER_STYLES;
+export const DEFAULT_TASK_STYLES: TaskStylesConfig = DB_DEFAULT_TASK_STYLES;
 
 /** Canonical timer duration/cycle defaults — single source for the dashboard
  * controls, the overlay/preview progress fallbacks, and the schema columns. */

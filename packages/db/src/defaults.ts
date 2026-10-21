@@ -5,8 +5,9 @@
 //   - @dirework/api timer-logic (DEFAULTS fallback when no config row exists)
 // Changing a value that feeds a schema column default changes the drizzle
 // snapshot → regenerate a migration with `bun run db:generate`. The bot message
-// defaults are the exception: the schema reads the frozen *_MESSAGE_COLUMN_DEFAULTS,
-// and the wording the app uses (DEFAULT_*_MESSAGES) can change freely.
+// and overlay style defaults are the exception: the schema reads the frozen
+// *_MESSAGE_COLUMN_DEFAULTS / *_STYLE_COLUMN_DEFAULTS, and what the app uses
+// (DEFAULT_*_MESSAGES / DEFAULT_*_STYLES) can change freely.
 
 /** Every timer state-machine status — single source for status literals. */
 export const TIMER_STATUSES = [
@@ -173,3 +174,191 @@ export const LEGACY_TIMER_MESSAGES: Record<keyof typeof DEFAULT_TIMER_MESSAGES, 
     cycleWrong: ["The cycle cannot outrun the goal!"],
     eta: ["The hunt will end at {time}"],
   };
+
+// ── Overlay style defaults ──────────────────────────────────────────────────
+
+/**
+ * The timer_style column DEFAULTs exactly as the applied migrations wrote them.
+ * FROZEN for the same reason as the message column defaults above: a fresh row
+ * starts with these values and `buildTimerStylesConfig` (@dirework/api
+ * config-shared) reads them back as DEFAULT_TIMER_STYLES. Only the schema and
+ * that read-time upgrade use them.
+ */
+export const TIMER_STYLE_COLUMN_DEFAULTS = {
+  width: "300px",
+  height: "300px",
+  bgColor: "#091533",
+  bgOpacity: 0.85,
+  bgBorderRadius: "22%",
+  ringEnabled: true,
+  ringTrackColor: "#ffffff",
+  ringTrackOpacity: 0.18,
+  ringFillColor: "#00aced",
+  ringFillOpacity: 1,
+  ringWidth: 8,
+  ringGap: 6,
+  textColor: "#ffffff",
+  textOutlineColor: "#000000",
+  textOutlineSize: "0px",
+  textFontFamily: "Montserrat",
+  fontSizeLabel: "18px",
+  fontSizeTime: "48px",
+  fontSizeCycle: "16px",
+} as const;
+
+/** The task_style column DEFAULTs as the applied migrations wrote them. FROZEN. */
+export const TASK_STYLE_COLUMN_DEFAULTS = {
+  displayShowDone: true,
+  displayShowCount: true,
+  displayUseCheckboxes: true,
+  displayCrossOnDone: true,
+  displayNumberOfLines: 2,
+  fontHeader: "Montserrat",
+  fontBody: "Roboto",
+  scrollEnabled: true,
+  scrollPixelsPerSecond: 40,
+  scrollGapBetweenLoops: 100,
+  headerHeight: "52px",
+  headerBgColor: "#091533",
+  headerBgOpacity: 0.95,
+  headerBorderColor: "#1b2b52",
+  headerBorderWidth: "1px",
+  headerBorderRadius: "12px 12px 0 0",
+  headerFontSize: "24px",
+  headerFontColor: "#ffffff",
+  headerPadding: "12px 16px",
+  bodyBgColor: "#091533",
+  bodyBgOpacity: 0.85,
+  bodyBorderColor: "#1b2b52",
+  bodyBorderWidth: "1px",
+  bodyBorderRadius: "0 0 12px 12px",
+  bodyPaddingVertical: "6px",
+  bodyPaddingHorizontal: "6px",
+  taskBgColor: "#12244a",
+  taskBgOpacity: 0.9,
+  taskBorderColor: "#1b2b52",
+  taskBorderWidth: "0px",
+  taskBorderRadius: "10px",
+  taskFontSize: "22px",
+  taskFontColor: "#eaf2ff",
+  taskUsernameColor: "#6b8bf5",
+  taskPadding: "10px 14px",
+  taskMarginBottom: "4px",
+  taskMaxWidth: "100%",
+  taskDoneBgColor: "#091533",
+  taskDoneBgOpacity: 0.5,
+  taskDoneFontColor: "#7c8db0",
+  checkboxSize: "20px",
+  checkboxBgColor: "#000000",
+  checkboxBgOpacity: 0,
+  checkboxBorderColor: "#4a5b82",
+  checkboxBorderWidth: "2px",
+  checkboxBorderRadius: "6px",
+  checkboxMarginTop: "4px",
+  checkboxMarginLeft: "2px",
+  checkboxMarginRight: "8px",
+  checkboxTickChar: "✔",
+  checkboxTickSize: "14px",
+  checkboxTickColor: "#00aced",
+  bulletChar: "•",
+  bulletSize: "20px",
+  bulletColor: "#7c8db0",
+  bulletMarginTop: "0px",
+  bulletMarginLeft: "2px",
+  bulletMarginRight: "8px",
+} as const;
+
+/** A stored overlay style column value. */
+export type StyleColumnValue = string | number | boolean;
+
+/**
+ * Every earlier default a timer_style column may still hold, other than the
+ * frozen column default above. Whenever a DEFAULT_TIMER_STYLES value changes,
+ * append the value it replaced here (keyed by column), or instances still on the
+ * old default keep it. Append, never remove.
+ */
+export const LEGACY_TIMER_STYLE_VALUES: Partial<
+  Record<keyof typeof TIMER_STYLE_COLUMN_DEFAULTS, readonly StyleColumnValue[]>
+> = {};
+
+/** task_style counterpart of LEGACY_TIMER_STYLE_VALUES. Append, never remove. */
+export const LEGACY_TASK_STYLE_VALUES: Partial<
+  Record<keyof typeof TASK_STYLE_COLUMN_DEFAULTS, readonly StyleColumnValue[]>
+> = {};
+
+/**
+ * The timer overlay style a never-customized instance renders, and the "Default"
+ * Theme Center preset. Nested like the config the API returns. Free to change
+ * (it feeds no column default): when a value changes, append the value it
+ * replaced to LEGACY_TIMER_STYLE_VALUES.
+ */
+export const DEFAULT_TIMER_STYLES = {
+  dimensions: { width: "300px", height: "300px" },
+  background: { color: "#091533", opacity: 0.92, borderRadius: "22%" },
+  ring: {
+    enabled: true,
+    trackColor: "#ffffff",
+    trackOpacity: 0.14,
+    fillColor: "#00aced",
+    fillOpacity: 1,
+    width: 14,
+    gap: 10,
+  },
+  text: { color: "#ffffff", outlineColor: "#000000", outlineSize: "0px", fontFamily: "Montserrat" },
+  fontSizes: { label: "24px", time: "76px", cycle: "20px" },
+};
+
+/** Task overlay counterpart of DEFAULT_TIMER_STYLES (same rules). */
+export const DEFAULT_TASK_STYLES = {
+  display: {
+    showDone: true,
+    showCount: true,
+    useCheckboxes: true,
+    crossOnDone: true,
+    numberOfLines: 2,
+  },
+  fonts: { header: "Montserrat", body: "Roboto" },
+  scroll: { enabled: true, pixelsPerSecond: 40, gapBetweenLoops: 100 },
+  header: {
+    height: "56px",
+    background: { color: "#091533", opacity: 0.95 },
+    border: { color: "#1b2b52", width: "0px", radius: "14px 14px 0 0" },
+    fontSize: "26px",
+    fontColor: "#ffffff",
+    padding: "12px 18px",
+  },
+  body: {
+    background: { color: "#091533", opacity: 0.9 },
+    border: { color: "#1b2b52", width: "0px", radius: "0 0 14px 14px" },
+    padding: { vertical: "8px", horizontal: "8px" },
+  },
+  task: {
+    background: { color: "#12244a", opacity: 0.9 },
+    border: { color: "#1b2b52", width: "0px", radius: "12px" },
+    fontSize: "24px",
+    fontColor: "#eaf2ff",
+    usernameColor: "#7f9cff",
+    padding: "10px 14px",
+    marginBottom: "8px",
+    maxWidth: "100%",
+  },
+  taskDone: {
+    background: { color: "#091533", opacity: 0.5 },
+    fontColor: "#8fa0c2",
+  },
+  checkbox: {
+    size: "20px",
+    background: { color: "#000000", opacity: 0 },
+    border: { color: "#4a5b82", width: "2px", radius: "6px" },
+    margin: { top: "4px", left: "2px", right: "8px" },
+    tickChar: "✔",
+    tickSize: "14px",
+    tickColor: "#00aced",
+  },
+  bullet: {
+    char: "•",
+    size: "20px",
+    color: "#7c8db0",
+    margin: { top: "0px", left: "2px", right: "8px" },
+  },
+};

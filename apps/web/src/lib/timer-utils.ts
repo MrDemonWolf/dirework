@@ -92,6 +92,34 @@ export function formatTime(
   };
 }
 
+/**
+ * Approximate advance widths (em) of the countdown glyphs in Montserrat bold with
+ * tabular digits: "25:00" ≈ 4 × 0.7 + 0.3 = 3.1em, which at the default 76px is
+ * ≈ 236px, inside a 300px timer's ≈ 252px ring interior.
+ */
+const CLOCK_DIGIT_EM = 0.7;
+const CLOCK_SEPARATOR_EM = 0.3;
+/** The minute form ("MM:SS") the configured time size is chosen for. */
+const CLOCK_REFERENCE_EM = 4 * CLOCK_DIGIT_EM + CLOCK_SEPARATOR_EM;
+
+/**
+ * Factor to scale the configured time font size by so a longer clock ("01:25:00"
+ * with hours shown, or "120:00" past 99 minutes) is no wider than the "MM:SS"
+ * form the size was picked for. 1 for the minute form, so it never grows text.
+ */
+export function clockFontScale(text: string): number {
+  let em = 0;
+  for (const char of text) em += /\d/.test(char) ? CLOCK_DIGIT_EM : CLOCK_SEPARATOR_EM;
+  if (em <= CLOCK_REFERENCE_EM) return 1;
+  return Math.round((CLOCK_REFERENCE_EM / em) * 1000) / 1000;
+}
+
+/** The countdown's CSS font size: the configured size, scaled down for long clocks. */
+export function clockFontSize(configured: string, text: string): string {
+  const scale = clockFontScale(text);
+  return scale === 1 ? configured : `calc(${configured} * ${scale})`;
+}
+
 /** Configured phase lengths (ms) — shape matches the overlay timerConfig payload. */
 export interface PhaseDurations {
   workDuration: number;

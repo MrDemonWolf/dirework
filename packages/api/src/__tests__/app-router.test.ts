@@ -878,3 +878,32 @@ describe("config.blockViewer against real SQLite", () => {
     expect(await taskIds(db)).toEqual(["o1", "v1"]);
   });
 });
+
+describe("config.updateStyles against real SQLite (style default upgrade)", () => {
+  const session = {
+    user: { id: "owner", isOwner: true, name: "streamer", twitchId: "1000", displayName: "S" },
+  };
+
+  it("a one-field edit of a never-customized group keeps the group's current defaults", async () => {
+    const { db } = await createSqliteDb();
+    // Fresh rows hold the frozen SQL column defaults (the old 8px ring).
+    await provisionSingletonRows(db);
+    const owner = appRouter.createCaller({ session, db } as unknown as Context);
+
+    const saved = await owner.config.updateStyles({
+      timerStyles: { ring: { fillColor: "#ff0000" } },
+      taskStyles: {},
+      phaseLabels: DEFAULT_PHASE_LABELS,
+    });
+    expect(saved.timerStyles.ring).toMatchObject({ width: 14, gap: 10, fillColor: "#ff0000" });
+
+    // Stable on later reads: the group was written whole, so nothing reverts.
+    const read = await owner.config.get();
+    expect(read.timerStyles.ring).toMatchObject({ width: 14, gap: 10, fillColor: "#ff0000" });
+    const row = await db.query.timerStyle.findFirst();
+    expect(row).toMatchObject({ ringWidth: 14, ringGap: 10, ringFillColor: "#ff0000" });
+    // Untouched groups are not written: they keep upgrading on read.
+    expect(row?.fontSizeTime).toBe("48px");
+    expect(read.timerStyles.fontSizes.time).toBe("76px");
+  });
+});

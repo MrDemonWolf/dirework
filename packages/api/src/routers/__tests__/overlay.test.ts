@@ -114,6 +114,9 @@ describe("overlay router input validation", () => {
       expect(payload.timerConfig?.workDuration).toBe(1_500_000);
       expect(payload.timerStyles?.dimensions.width).toBe("300px");
       expect(payload.timerStyles?.ring.fillColor).toBe("#00aced");
+      // The row holds the frozen column defaults, so the service returns the
+      // current DEFAULT_TIMER_STYLES (read-time upgrade), not the old 8px ring.
+      expect(payload.timerStyles?.ring.width).toBe(14);
     });
 
     it("returns nulls rather than throwing when config rows are missing", async () => {

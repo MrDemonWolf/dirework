@@ -5,9 +5,11 @@ import { createId } from "@paralleldrive/cuid2";
 import {
   DEFAULT_PHASE_LABELS,
   TASK_MESSAGE_COLUMN_DEFAULTS,
+  TASK_STYLE_COLUMN_DEFAULTS,
   TIMER_CONFIG_DEFAULTS,
   TIMER_MESSAGE_COLUMN_DEFAULTS,
   TIMER_STATUSES,
+  TIMER_STYLE_COLUMN_DEFAULTS,
 } from "../defaults";
 
 // Singleton pattern: one row per table, primary key pinned to "singleton".
@@ -165,89 +167,199 @@ export const timerConfig = sqliteTable("timer_config", {
 
 export const timerStyle = sqliteTable("timer_style", {
   id: text("id").primaryKey().default(SINGLETON_ID),
-  width: text("width").notNull().default("300px"),
-  height: text("height").notNull().default("300px"),
-  bgColor: text("bg_color").notNull().default("#091533"),
-  bgOpacity: real("bg_opacity").notNull().default(0.85),
-  bgBorderRadius: text("bg_border_radius").notNull().default("22%"),
-  ringEnabled: integer("ring_enabled", { mode: "boolean" }).notNull().default(true),
-  ringTrackColor: text("ring_track_color").notNull().default("#ffffff"),
-  ringTrackOpacity: real("ring_track_opacity").notNull().default(0.18),
-  ringFillColor: text("ring_fill_color").notNull().default("#00aced"),
-  ringFillOpacity: real("ring_fill_opacity").notNull().default(1.0),
-  ringWidth: integer("ring_width").notNull().default(8),
-  ringGap: integer("ring_gap").notNull().default(6),
-  textColor: text("text_color").notNull().default("#ffffff"),
-  textOutlineColor: text("text_outline_color").notNull().default("#000000"),
-  textOutlineSize: text("text_outline_size").notNull().default("0px"),
-  textFontFamily: text("text_font_family").notNull().default("Montserrat"),
-  fontSizeLabel: text("font_size_label").notNull().default("18px"),
-  fontSizeTime: text("font_size_time").notNull().default("48px"),
-  fontSizeCycle: text("font_size_cycle").notNull().default("16px"),
+  width: text("width").notNull().default(TIMER_STYLE_COLUMN_DEFAULTS.width),
+  height: text("height").notNull().default(TIMER_STYLE_COLUMN_DEFAULTS.height),
+  bgColor: text("bg_color").notNull().default(TIMER_STYLE_COLUMN_DEFAULTS.bgColor),
+  bgOpacity: real("bg_opacity").notNull().default(TIMER_STYLE_COLUMN_DEFAULTS.bgOpacity),
+  bgBorderRadius: text("bg_border_radius")
+    .notNull()
+    .default(TIMER_STYLE_COLUMN_DEFAULTS.bgBorderRadius),
+  ringEnabled: integer("ring_enabled", { mode: "boolean" })
+    .notNull()
+    .default(TIMER_STYLE_COLUMN_DEFAULTS.ringEnabled),
+  ringTrackColor: text("ring_track_color")
+    .notNull()
+    .default(TIMER_STYLE_COLUMN_DEFAULTS.ringTrackColor),
+  ringTrackOpacity: real("ring_track_opacity")
+    .notNull()
+    .default(TIMER_STYLE_COLUMN_DEFAULTS.ringTrackOpacity),
+  ringFillColor: text("ring_fill_color")
+    .notNull()
+    .default(TIMER_STYLE_COLUMN_DEFAULTS.ringFillColor),
+  ringFillOpacity: real("ring_fill_opacity")
+    .notNull()
+    .default(TIMER_STYLE_COLUMN_DEFAULTS.ringFillOpacity),
+  ringWidth: integer("ring_width").notNull().default(TIMER_STYLE_COLUMN_DEFAULTS.ringWidth),
+  ringGap: integer("ring_gap").notNull().default(TIMER_STYLE_COLUMN_DEFAULTS.ringGap),
+  textColor: text("text_color").notNull().default(TIMER_STYLE_COLUMN_DEFAULTS.textColor),
+  textOutlineColor: text("text_outline_color")
+    .notNull()
+    .default(TIMER_STYLE_COLUMN_DEFAULTS.textOutlineColor),
+  textOutlineSize: text("text_outline_size")
+    .notNull()
+    .default(TIMER_STYLE_COLUMN_DEFAULTS.textOutlineSize),
+  textFontFamily: text("text_font_family")
+    .notNull()
+    .default(TIMER_STYLE_COLUMN_DEFAULTS.textFontFamily),
+  fontSizeLabel: text("font_size_label")
+    .notNull()
+    .default(TIMER_STYLE_COLUMN_DEFAULTS.fontSizeLabel),
+  fontSizeTime: text("font_size_time").notNull().default(TIMER_STYLE_COLUMN_DEFAULTS.fontSizeTime),
+  fontSizeCycle: text("font_size_cycle")
+    .notNull()
+    .default(TIMER_STYLE_COLUMN_DEFAULTS.fontSizeCycle),
 });
 
 export const taskStyle = sqliteTable("task_style", {
   id: text("id").primaryKey().default(SINGLETON_ID),
-  displayShowDone: integer("display_show_done", { mode: "boolean" }).notNull().default(true),
-  displayShowCount: integer("display_show_count", { mode: "boolean" }).notNull().default(true),
+  displayShowDone: integer("display_show_done", { mode: "boolean" })
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.displayShowDone),
+  displayShowCount: integer("display_show_count", { mode: "boolean" })
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.displayShowCount),
   displayUseCheckboxes: integer("display_use_checkboxes", { mode: "boolean" })
     .notNull()
-    .default(true),
-  displayCrossOnDone: integer("display_cross_on_done", { mode: "boolean" }).notNull().default(true),
-  displayNumberOfLines: integer("display_number_of_lines").notNull().default(2),
-  fontHeader: text("font_header").notNull().default("Montserrat"),
-  fontBody: text("font_body").notNull().default("Roboto"),
-  scrollEnabled: integer("scroll_enabled", { mode: "boolean" }).notNull().default(true),
-  scrollPixelsPerSecond: integer("scroll_pixels_per_second").notNull().default(40),
-  scrollGapBetweenLoops: integer("scroll_gap_between_loops").notNull().default(100),
-  headerHeight: text("header_height").notNull().default("52px"),
-  headerBgColor: text("header_bg_color").notNull().default("#091533"),
-  headerBgOpacity: real("header_bg_opacity").notNull().default(0.95),
-  headerBorderColor: text("header_border_color").notNull().default("#1b2b52"),
-  headerBorderWidth: text("header_border_width").notNull().default("1px"),
-  headerBorderRadius: text("header_border_radius").notNull().default("12px 12px 0 0"),
-  headerFontSize: text("header_font_size").notNull().default("24px"),
-  headerFontColor: text("header_font_color").notNull().default("#ffffff"),
-  headerPadding: text("header_padding").notNull().default("12px 16px"),
-  bodyBgColor: text("body_bg_color").notNull().default("#091533"),
-  bodyBgOpacity: real("body_bg_opacity").notNull().default(0.85),
-  bodyBorderColor: text("body_border_color").notNull().default("#1b2b52"),
-  bodyBorderWidth: text("body_border_width").notNull().default("1px"),
-  bodyBorderRadius: text("body_border_radius").notNull().default("0 0 12px 12px"),
-  bodyPaddingVertical: text("body_padding_vertical").notNull().default("6px"),
-  bodyPaddingHorizontal: text("body_padding_horizontal").notNull().default("6px"),
-  taskBgColor: text("task_bg_color").notNull().default("#12244a"),
-  taskBgOpacity: real("task_bg_opacity").notNull().default(0.9),
-  taskBorderColor: text("task_border_color").notNull().default("#1b2b52"),
-  taskBorderWidth: text("task_border_width").notNull().default("0px"),
-  taskBorderRadius: text("task_border_radius").notNull().default("10px"),
-  taskFontSize: text("task_font_size").notNull().default("22px"),
-  taskFontColor: text("task_font_color").notNull().default("#eaf2ff"),
-  taskUsernameColor: text("task_username_color").notNull().default("#6b8bf5"),
-  taskPadding: text("task_padding").notNull().default("10px 14px"),
-  taskMarginBottom: text("task_margin_bottom").notNull().default("4px"),
-  taskMaxWidth: text("task_max_width").notNull().default("100%"),
-  taskDoneBgColor: text("task_done_bg_color").notNull().default("#091533"),
-  taskDoneBgOpacity: real("task_done_bg_opacity").notNull().default(0.5),
-  taskDoneFontColor: text("task_done_font_color").notNull().default("#7c8db0"),
-  checkboxSize: text("checkbox_size").notNull().default("20px"),
-  checkboxBgColor: text("checkbox_bg_color").notNull().default("#000000"),
-  checkboxBgOpacity: real("checkbox_bg_opacity").notNull().default(0),
-  checkboxBorderColor: text("checkbox_border_color").notNull().default("#4a5b82"),
-  checkboxBorderWidth: text("checkbox_border_width").notNull().default("2px"),
-  checkboxBorderRadius: text("checkbox_border_radius").notNull().default("6px"),
-  checkboxMarginTop: text("checkbox_margin_top").notNull().default("4px"),
-  checkboxMarginLeft: text("checkbox_margin_left").notNull().default("2px"),
-  checkboxMarginRight: text("checkbox_margin_right").notNull().default("8px"),
-  checkboxTickChar: text("checkbox_tick_char").notNull().default("✔"),
-  checkboxTickSize: text("checkbox_tick_size").notNull().default("14px"),
-  checkboxTickColor: text("checkbox_tick_color").notNull().default("#00aced"),
-  bulletChar: text("bullet_char").notNull().default("•"),
-  bulletSize: text("bullet_size").notNull().default("20px"),
-  bulletColor: text("bullet_color").notNull().default("#7c8db0"),
-  bulletMarginTop: text("bullet_margin_top").notNull().default("0px"),
-  bulletMarginLeft: text("bullet_margin_left").notNull().default("2px"),
-  bulletMarginRight: text("bullet_margin_right").notNull().default("8px"),
+    .default(TASK_STYLE_COLUMN_DEFAULTS.displayUseCheckboxes),
+  displayCrossOnDone: integer("display_cross_on_done", { mode: "boolean" })
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.displayCrossOnDone),
+  displayNumberOfLines: integer("display_number_of_lines")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.displayNumberOfLines),
+  fontHeader: text("font_header").notNull().default(TASK_STYLE_COLUMN_DEFAULTS.fontHeader),
+  fontBody: text("font_body").notNull().default(TASK_STYLE_COLUMN_DEFAULTS.fontBody),
+  scrollEnabled: integer("scroll_enabled", { mode: "boolean" })
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.scrollEnabled),
+  scrollPixelsPerSecond: integer("scroll_pixels_per_second")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.scrollPixelsPerSecond),
+  scrollGapBetweenLoops: integer("scroll_gap_between_loops")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.scrollGapBetweenLoops),
+  headerHeight: text("header_height").notNull().default(TASK_STYLE_COLUMN_DEFAULTS.headerHeight),
+  headerBgColor: text("header_bg_color")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.headerBgColor),
+  headerBgOpacity: real("header_bg_opacity")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.headerBgOpacity),
+  headerBorderColor: text("header_border_color")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.headerBorderColor),
+  headerBorderWidth: text("header_border_width")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.headerBorderWidth),
+  headerBorderRadius: text("header_border_radius")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.headerBorderRadius),
+  headerFontSize: text("header_font_size")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.headerFontSize),
+  headerFontColor: text("header_font_color")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.headerFontColor),
+  headerPadding: text("header_padding").notNull().default(TASK_STYLE_COLUMN_DEFAULTS.headerPadding),
+  bodyBgColor: text("body_bg_color").notNull().default(TASK_STYLE_COLUMN_DEFAULTS.bodyBgColor),
+  bodyBgOpacity: real("body_bg_opacity")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.bodyBgOpacity),
+  bodyBorderColor: text("body_border_color")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.bodyBorderColor),
+  bodyBorderWidth: text("body_border_width")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.bodyBorderWidth),
+  bodyBorderRadius: text("body_border_radius")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.bodyBorderRadius),
+  bodyPaddingVertical: text("body_padding_vertical")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.bodyPaddingVertical),
+  bodyPaddingHorizontal: text("body_padding_horizontal")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.bodyPaddingHorizontal),
+  taskBgColor: text("task_bg_color").notNull().default(TASK_STYLE_COLUMN_DEFAULTS.taskBgColor),
+  taskBgOpacity: real("task_bg_opacity")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.taskBgOpacity),
+  taskBorderColor: text("task_border_color")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.taskBorderColor),
+  taskBorderWidth: text("task_border_width")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.taskBorderWidth),
+  taskBorderRadius: text("task_border_radius")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.taskBorderRadius),
+  taskFontSize: text("task_font_size").notNull().default(TASK_STYLE_COLUMN_DEFAULTS.taskFontSize),
+  taskFontColor: text("task_font_color")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.taskFontColor),
+  taskUsernameColor: text("task_username_color")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.taskUsernameColor),
+  taskPadding: text("task_padding").notNull().default(TASK_STYLE_COLUMN_DEFAULTS.taskPadding),
+  taskMarginBottom: text("task_margin_bottom")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.taskMarginBottom),
+  taskMaxWidth: text("task_max_width").notNull().default(TASK_STYLE_COLUMN_DEFAULTS.taskMaxWidth),
+  taskDoneBgColor: text("task_done_bg_color")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.taskDoneBgColor),
+  taskDoneBgOpacity: real("task_done_bg_opacity")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.taskDoneBgOpacity),
+  taskDoneFontColor: text("task_done_font_color")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.taskDoneFontColor),
+  checkboxSize: text("checkbox_size").notNull().default(TASK_STYLE_COLUMN_DEFAULTS.checkboxSize),
+  checkboxBgColor: text("checkbox_bg_color")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.checkboxBgColor),
+  checkboxBgOpacity: real("checkbox_bg_opacity")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.checkboxBgOpacity),
+  checkboxBorderColor: text("checkbox_border_color")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.checkboxBorderColor),
+  checkboxBorderWidth: text("checkbox_border_width")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.checkboxBorderWidth),
+  checkboxBorderRadius: text("checkbox_border_radius")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.checkboxBorderRadius),
+  checkboxMarginTop: text("checkbox_margin_top")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.checkboxMarginTop),
+  checkboxMarginLeft: text("checkbox_margin_left")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.checkboxMarginLeft),
+  checkboxMarginRight: text("checkbox_margin_right")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.checkboxMarginRight),
+  checkboxTickChar: text("checkbox_tick_char")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.checkboxTickChar),
+  checkboxTickSize: text("checkbox_tick_size")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.checkboxTickSize),
+  checkboxTickColor: text("checkbox_tick_color")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.checkboxTickColor),
+  bulletChar: text("bullet_char").notNull().default(TASK_STYLE_COLUMN_DEFAULTS.bulletChar),
+  bulletSize: text("bullet_size").notNull().default(TASK_STYLE_COLUMN_DEFAULTS.bulletSize),
+  bulletColor: text("bullet_color").notNull().default(TASK_STYLE_COLUMN_DEFAULTS.bulletColor),
+  bulletMarginTop: text("bullet_margin_top")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.bulletMarginTop),
+  bulletMarginLeft: text("bullet_margin_left")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.bulletMarginLeft),
+  bulletMarginRight: text("bullet_margin_right")
+    .notNull()
+    .default(TASK_STYLE_COLUMN_DEFAULTS.bulletMarginRight),
 });
 
 export const botConfig = sqliteTable("bot_config", {
