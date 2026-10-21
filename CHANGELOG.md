@@ -46,6 +46,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hover that could never happen.
 
 ### Changed
+- **OBS overlays check for changes every 5 seconds instead of every 3.** That is 40% fewer
+  overlay requests (about 1.4k an hour for both overlays, down from 2.4k), leaving more of
+  the free plan's daily budget. The countdown and ring still tick smoothly on their own;
+  only a change such as starting, pausing or adding a task can take up to 2 seconds longer
+  to appear.
 - **The claim page leads with the claim.** `/setup` now reads "Claim your DireWork
   instance", says in two sentences that the first Twitch sign-in becomes the owner and how
   to recover if someone else gets there first, and shows the Claim with Twitch button, an

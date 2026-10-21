@@ -24,7 +24,7 @@ export async function loadTimerOverlayPayload(db: DbClient) {
 
 export async function loadTaskOverlayPayload(db: DbClient) {
   // Style first: when the overlay hides done tasks, their rows are never read
-  // (only counted), which keeps every 3s poll to the open tasks.
+  // (only counted), which keeps every 5s poll to the open tasks.
   const taskStyleRow = await db.query.taskStyle.findFirst();
   const taskStyles = taskStyleRow ? buildTaskStylesConfig(taskStyleRow) : null;
   const showDone = taskStyles?.display.showDone ?? true;

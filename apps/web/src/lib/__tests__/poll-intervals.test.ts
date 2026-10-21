@@ -8,6 +8,7 @@ import {
   DASHBOARD_TIMER_QUERY_OPTS,
   dashboardPollInterval,
   idleAwareInterval,
+  OVERLAY_POLL_MS,
 } from "../poll-intervals";
 
 describe("idleAwareInterval", () => {
@@ -37,5 +38,18 @@ describe("dashboardPollInterval", () => {
   it("starts at the active cadence (a fresh page counts as activity)", () => {
     expect(dashboardPollInterval(DASHBOARD_TASKS_POLL_MS)()).toBe(DASHBOARD_TASKS_POLL_MS);
     expect(DASHBOARD_TIMER_QUERY_OPTS.refetchInterval()).toBe(DASHBOARD_TIMER_POLL_MS);
+  });
+});
+
+describe("OVERLAY_POLL_MS", () => {
+  // Both OBS overlays poll all stream long, even in the background: the largest steady
+  // Worker request and D1 read cost on the free plan. A faster poll needs a stated
+  // request-budget reason (AGENTS.md), so this pin must be changed deliberately.
+  it("polls every 5s", () => {
+    expect(OVERLAY_POLL_MS).toBe(5000);
+  });
+
+  it("never polls faster than every 5s", () => {
+    expect(OVERLAY_POLL_MS).toBeGreaterThanOrEqual(5000);
   });
 });

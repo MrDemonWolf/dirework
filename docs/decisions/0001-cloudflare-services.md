@@ -16,13 +16,13 @@ Today's load, for one streamer on an 8-hour stream:
 
 | Traffic | Path | Worker requests | D1 work per request |
 | --- | --- | --- | --- |
-| Timer overlay poll, every 3 s (`OVERLAY_POLL_MS`) | browser → api via `publicTrpc` | 9,600 | token check, then 3 parallel reads (state, config, style) |
-| Task overlay poll, every 3 s | browser → api | 9,600 | token check, style, then open tasks + ≤50 done + index COUNTs |
+| Timer overlay poll, every 5 s (`OVERLAY_POLL_MS`) | browser → api via `publicTrpc` | 5,760 | token check, then 3 parallel reads (state, config, style) |
+| Task overlay poll, every 5 s | browser → api | 5,760 | token check, style, then open tasks + ≤50 done + index COUNTs |
 | Dashboard, active (timer 2 s + tasks 3 s, billed twice via `/rpc`) | browser → web → api | 100 per minute | as above, owner-gated |
 | Dashboard, idle (15 s, billed twice) | browser → web → api | 16 per minute | as above |
 | Chat command | Twitch IRC → bot page → `bot.ingest` | 1 per command | dedupe batch (`processed_chat_message`), then command logic |
 
-The two overlays alone are ~19,200 of the 100,000 requests/day Workers Free allows. Each
+The two overlays alone are ~11,520 of the 100,000 requests/day Workers Free allows. Each
 api request makes 2–3 sequential D1 round trips. Housekeeping is lazy: the done-task purge
 runs on task and timer writes (`purgeExpiredDoneTasks`), dedupe pruning rides in the same
 batch as each claim (`chat-dedupe.ts`), and the owner token scrub runs once per deploy
@@ -48,7 +48,7 @@ or more to be visible in other global network locations".
   `targetEndTime`, so a stale pause or skip shows the wrong clock for up to a minute.
 - Caching only the rarely written rows (styles, timer config) in front of D1 saves D1 rows
   we are nowhere near limiting (5M/day), spends a KV read per poll against a 100k/day KV
-  budget (19,200 per stream for overlays alone), and adds invalidation code.
+  budget (11,520 per stream for overlays alone), and adds invalidation code.
 - Sessions: better-auth reads one indexed D1 row; KV would add a stale window after sign-out.
 
 Where KV would fit: immutable, read-heavy data that changes once per deploy. Workers static
@@ -105,11 +105,11 @@ Failure modes, from the DO docs:
 #### 2b. Push to overlays over hibernating inbound WebSockets
 
 Shape: overlays open a WebSocket to an `OverlayHub` DO and receive state on change instead
-of polling every 3 s. Hibernation applies here (the DO is the server) and while hibernated
+of polling every 5 s. Hibernation applies here (the DO is the server) and while hibernated
 "Billable Duration (GB-s) charges" do not accrue. Outgoing messages are free; each connect
 costs one request.
 
-Saves ~19,200 Worker requests per 8 h stream. Costs: one DO RPC from the api worker on
+Saves ~11,520 Worker requests per 8 h stream. Costs: one DO RPC from the api worker on
 every task/timer write (to broadcast); reconnects after every deploy and network blip; and
 a new phase-advance mechanism, because `maybeAdvanceOverdueTimer` runs inside the overlay
 poll today, so without polls an alarm at `targetEndTime` must advance the phase. If 2a and
@@ -160,7 +160,7 @@ All api traffic starts on one machine: the streamer's (OBS overlays, bot page, d
 Viewers never call the api; their chat reaches it through the streamer's bot page. So
 there is no "far-away viewer" case. If the streamer is far from the D1 primary (say Europe
 vs. eastern North America, ~80–100 ms per round trip), a poll costs 2–3 sequential round
-trips, about 200–300 ms. That is invisible on a 3 s poll and small next to Twitch chat
+trips, about 200–300 ms. That is invisible on a 5 s poll and small next to Twitch chat
 latency for command replies.
 
 - Smart Placement is "available on all Workers plans" but "requires consistent traffic to

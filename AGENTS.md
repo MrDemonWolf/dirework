@@ -81,7 +81,7 @@ the batch) and no web-worker `/rpc` hops before the first poll.
 `createDb()` (packages/db), `createAuth()` (packages/auth), `createContext({ context })`
 (packages/api). Never add module-level db/auth/EventEmitter state.
 
-**Real-time = polling.** Overlays poll public tRPC procedures every 3s — POST mutations,
+**Real-time = polling.** Overlays poll public tRPC procedures every 5s — POST mutations,
 not queries, so the overlay token stays in the request body and out of URLs and logs —
 and compute the countdown locally from `targetEndTime`. There is no SSE, no event bus. (The
 countdown is local, so the poll only catches state changes; the interval is kept
@@ -258,7 +258,7 @@ the rotated token), and refetches once only if such a fetch overlapped or the wr
 without its Reset action (omit `onRegenerate`). "Finish later" is per-browser localStorage
 (`dirework.setup-collapsed`); the header band's Setup button reopens the card.
 
-**Done-task retention + bounded list reads.** Task polls (overlay every 3s, dashboard)
+**Done-task retention + bounded list reads.** Task polls (overlay every 5s, dashboard)
 must never scan the task table — D1's free tier caps rows read at 5M/day.
 `listTasks` / `listOverlayTasks` read open tasks plus the newest `DONE_TASK_LIST_LIMIT`
 (50) done tasks via `task_status_completed_idx` (status, completed_at), merge them into
@@ -416,7 +416,7 @@ it (e.g. `0017_drop_task_status_idx` contracted 0015's superseded `task_status_i
 
 Public routes `/overlay/t/[token]` (timer) and `/overlay/l/[token]` (tasks), transparent
 for OBS. Poll `publicTrpc.overlay.getTimerState` / `getTaskList` (POST mutations, token
-in the body) every 3s (`refetchIntervalInBackground: true`, `meta: { silent: true }` so a
+in the body) every 5s (`refetchIntervalInBackground: true`, `meta: { silent: true }` so a
 failed poll never toasts onto the stream); timer display re-renders locally once per
 displayed second from `targetEndTime` (a `setTimeout` chain aligned to the countdown's own
 second boundary via `msUntilNextSecond`), and the ring uses a matching 1s linear
