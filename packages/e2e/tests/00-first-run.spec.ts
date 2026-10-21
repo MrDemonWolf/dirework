@@ -1,7 +1,15 @@
-import { expect, test } from "@playwright/test";
+import { type APIRequestContext, expect, test } from "@playwright/test";
 
 import { WEB_ORIGIN } from "../src/env";
 import { signIn } from "./helpers";
+
+const CLAIM_HEADING = "This DireWork is all yours";
+
+/** True when a signed-out GET /setup renders the claim page (the instance has no owner). */
+async function servesClaimPage(request: APIRequestContext): Promise<boolean> {
+  const res = await request.get("/setup");
+  return res.status() === 200 && (await res.text()).includes(CLAIM_HEADING);
+}
 
 // Runs first (one worker, files in name order) against the fresh database: the instance
 // has no owner yet, so these are the only tests that ever see the claim page.
@@ -9,18 +17,20 @@ test.describe.configure({ mode: "serial" });
 
 test("an unclaimed instance sends every visitor to the claim page", async ({ page, request }) => {
   // Signing in below claims the instance. A retry of this test after that has nothing left
-  // to check: /setup is gone (404), and nothing short of a new database brings it back. On
-  // the first attempt the database is fresh, so a 404 there is a real regression (a claim
-  // page that never shows) and must fail rather than skip.
-  const setup = await request.get("/setup");
+  // to check: the claim page is gone, and nothing short of a new database brings it back. On
+  // the first attempt the database is fresh, so a missing claim page is a real regression
+  // and must fail rather than skip. The body is checked, not the status: the (app) route
+  // group streams its loading shell first, so a notFound() thrown later in the page still
+  // arrives with status 200.
+  const claimPage = await servesClaimPage(request);
   if (test.info().retry > 0) {
-    test.skip(setup.status() === 404, "the instance is already claimed (a retry after the claim)");
+    test.skip(!claimPage, "the instance is already claimed (a retry after the claim)");
   }
-  expect(setup.status(), "a fresh instance must serve the claim page").not.toBe(404);
+  expect(claimPage, "a fresh instance must serve the claim page").toBe(true);
 
   await page.goto("/");
   await expect(page).toHaveURL(`${WEB_ORIGIN}/setup`);
-  await expect(page.getByRole("heading", { name: "This DireWork is all yours" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: CLAIM_HEADING })).toBeVisible();
   await expect(page.getByRole("button", { name: "Claim with Twitch" })).toBeVisible();
 
   // The dashboard asks for a session, then the home page redirects on to the claim page.
@@ -37,8 +47,7 @@ test("the first sign-in claims the instance and turns the claim page off", async
   await signIn(page);
 
   // Signed out (the `request` fixture has its own cookie jar), the claim page no longer exists.
-  const setup = await request.get("/setup");
-  expect(setup.status()).toBe(404);
+  expect(await servesClaimPage(request)).toBe(false);
 
   // The owner lands on the dashboard, both from the claim page and from the home page.
   await page.goto("/setup");
