@@ -194,8 +194,11 @@ describe("design-system component spec catalog", () => {
       [
         "header.height",
         "header.fontSize",
+        "header.padding",
+        "header.border.radius",
         "task.fontSize",
         "task.border.radius",
+        "task.marginBottom",
         "ACTIVE_ROW_TINT_PERCENT",
         "AUTHOR_HEADER_TINT_PERCENT",
         "MORE_FOOTER_OPACITY",
