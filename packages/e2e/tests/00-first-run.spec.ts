@@ -9,9 +9,14 @@ test.describe.configure({ mode: "serial" });
 
 test("an unclaimed instance sends every visitor to the claim page", async ({ page, request }) => {
   // Signing in below claims the instance. A retry of this test after that has nothing left
-  // to check: /setup is gone (404), and nothing short of a new database brings it back.
+  // to check: /setup is gone (404), and nothing short of a new database brings it back. On
+  // the first attempt the database is fresh, so a 404 there is a real regression (a claim
+  // page that never shows) and must fail rather than skip.
   const setup = await request.get("/setup");
-  test.skip(setup.status() === 404, "the instance is already claimed (a retry after the claim)");
+  if (test.info().retry > 0) {
+    test.skip(setup.status() === 404, "the instance is already claimed (a retry after the claim)");
+  }
+  expect(setup.status(), "a fresh instance must serve the claim page").not.toBe(404);
 
   await page.goto("/");
   await expect(page).toHaveURL(`${WEB_ORIGIN}/setup`);
