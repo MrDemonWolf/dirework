@@ -3,6 +3,7 @@
 // Header account control: a Twitch sign-in button when signed out, otherwise an
 // avatar dropdown with the dashboard links and sign-out.
 
+import { startTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bot, ChevronDown, LayoutDashboard, LogOut, Palette } from "lucide-react";
@@ -15,11 +16,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { authClient, signInWithTwitch } from "@/lib/auth-client";
+import type { ServerSession } from "@/lib/server-session";
 import { confirmDiscardIfDirty } from "@/lib/unsaved-changes";
 import { TwitchIcon } from "@/components/icons/twitch-icon";
 
 import { Button } from "./ui/button";
-import { Skeleton } from "./ui/skeleton";
 
 /** Dashboard destinations listed in the dropdown, in display order. */
 const menuLinks = [
@@ -52,19 +53,15 @@ function Avatar({
 }
 
 /**
- * Session-aware account menu. Renders a skeleton while the session loads, so
- * the header never flashes the sign-in button for a signed-in owner.
+ * Session-aware account menu. `session` is the (app) layout's server session, so the
+ * right control is in the server HTML — no loading state, and a signed-in owner never
+ * sees the sign-in button flash.
  */
-export default function UserMenu() {
+export default function UserMenu({ session }: { session: ServerSession | null }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { data: session, isPending } = authClient.useSession();
 
-  if (isPending) {
-    return <Skeleton className="h-8 w-8 rounded-full" />;
-  }
-
-  if (!session) {
+  if (session === null) {
     return (
       <Button
         className="bg-twitch text-white hover:bg-twitch-hover"
@@ -109,8 +106,13 @@ export default function UserMenu() {
             confirmDiscardIfDirty(() => {
               authClient.signOut({
                 fetchOptions: {
+                  // The header's session comes from the server layout, so
+                  // refresh it as well as leaving the page.
                   onSuccess: () => {
-                    router.push("/");
+                    startTransition(() => {
+                      router.push("/");
+                      router.refresh();
+                    });
                   },
                 },
               });

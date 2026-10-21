@@ -1,8 +1,25 @@
-// Loading placeholder for the dashboard page, shown while the first `user.me` query is pending.
-// Its blocks mirror the live layout (timer hero, task board, tasks output, bot strip) so the
-// page doesn't jump when data lands; update it alongside dashboard.tsx.
+// Loading placeholder for the dashboard page. A hard load streams the finished page (the
+// server prefetches its data), so this shows only on client navigation (dashboard/loading.tsx,
+// while the next page's server render round-trips) and as the fallback when the server
+// prefetch failed and `user.me` is fetching in the browser. Its blocks mirror the live layout
+// (timer hero, task hero, bot strip) so the page doesn't jump when data lands; update it
+// alongside dashboard.tsx and task-manager.tsx.
 
 import { Skeleton } from "@/components/ui/skeleton";
+
+/** Bottom overlay-URL strip shared by both heroes. */
+function UrlStripSkeleton() {
+  return (
+    <div className="space-y-2 border-t border-border/40 px-5 py-4">
+      <div className="flex items-center justify-between gap-3">
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-5 w-20 rounded-full" />
+      </div>
+      <Skeleton className="h-9 w-full" />
+      <Skeleton className="h-3 w-56" />
+    </div>
+  );
+}
 
 /** Static, data-free skeleton of the dashboard grid. */
 export function DashboardSkeleton() {
@@ -22,7 +39,7 @@ export function DashboardSkeleton() {
       </div>
 
       <div className="stagger-reveal grid items-start gap-6 lg:grid-cols-3">
-        {/* Timer hero skeleton */}
+        {/* Timer hero skeleton: clock | settings rail | preview rail, URL strip below */}
         <div className="panel-hero lg:col-span-3">
           <div className="space-y-2 border-b border-border/40 px-5 pt-4 pb-3">
             <Skeleton className="h-3 w-28" />
@@ -49,18 +66,16 @@ export function DashboardSkeleton() {
                 <Skeleton key={key} className="h-8 w-full" />
               ))}
             </div>
-            {/* Timer monitor + URL column, matching the live hero's third rail */}
             <div className="w-full space-y-2 lg:w-72 lg:shrink-0 lg:border-l lg:border-border/40 lg:pl-6">
               <Skeleton className="h-3 w-28" />
               <Skeleton className="aspect-square w-full rounded-xl" />
-              <Skeleton className="h-9 w-full" />
-              <Skeleton className="h-3 w-44" />
             </div>
           </div>
+          <UrlStripSkeleton />
         </div>
 
-        {/* Task board skeleton */}
-        <div className="panel min-w-0 lg:col-span-2">
+        {/* Task hero skeleton: header band; form + groups left, preview rail right; URL strip */}
+        <div className="panel-hero min-w-0 lg:col-span-3">
           <div className="border-b border-border/40 px-5 pt-4 pb-3">
             <Skeleton className="h-3 w-24" />
             <div className="mt-2 flex items-end justify-between gap-3">
@@ -74,31 +89,24 @@ export function DashboardSkeleton() {
               </div>
             </div>
           </div>
-          <div className="space-y-4 px-5 py-5">
-            <div className="flex gap-2">
-              <Skeleton className="h-10 flex-1" />
-              <Skeleton className="h-10 w-16" />
+          <div className="flex flex-col lg:flex-row lg:items-start">
+            <div className="min-w-0 flex-1 space-y-4 px-5 py-5">
+              <div className="flex gap-2">
+                <Skeleton className="h-10 flex-1" />
+                <Skeleton className="h-10 w-16" />
+              </div>
+              <div className="space-y-3">
+                {["task-group-1", "task-group-2"].map((key) => (
+                  <Skeleton key={key} className="h-24 w-full rounded-xl" />
+                ))}
+              </div>
             </div>
-            <div className="space-y-3">
-              {["task-group-1", "task-group-2"].map((key) => (
-                <Skeleton key={key} className="h-24 w-full rounded-xl" />
-              ))}
+            <div className="w-full space-y-2 border-t border-border/40 p-5 lg:w-72 lg:shrink-0 lg:border-t-0 lg:border-l">
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="aspect-square w-full rounded-xl" />
             </div>
           </div>
-        </div>
-
-        {/* Tasks output skeleton — single monitor + URL, matching the live panel */}
-        <div className="panel min-w-0">
-          <div className="space-y-2 border-b border-border/40 px-5 pt-4 pb-3">
-            <Skeleton className="h-3 w-20" />
-            <Skeleton className="h-5 w-32" />
-            <Skeleton className="h-4 w-44" />
-          </div>
-          <div className="space-y-2 px-5 py-5">
-            <Skeleton className="h-3 w-28" />
-            <Skeleton className="aspect-square w-full rounded-xl" />
-            <Skeleton className="h-9 w-full" />
-          </div>
+          <UrlStripSkeleton />
         </div>
 
         {/* Bot quick status skeleton — slim full-width strip like the live section */}

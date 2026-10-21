@@ -60,6 +60,22 @@ ever sees the web origin for authenticated traffic (sameSite lax cookies). Publi
 token-authenticated traffic (overlay polling, bot page) goes DIRECT to the api worker via
 `publicTrpc` (no cookies) to avoid double-hop request burn on the free tier.
 
+**SSR prefetch + hydration.** `/dashboard`, `/dashboard/styles` and `/dashboard/bot` render
+with their data: each page runs `requireSession()` first (a signed-out visitor never spends a
+batch), then `prefetchDashboard` / `prefetchStyles` / `prefetchBot` (`lib/server-query.ts`),
+which use a per-call `createServerTrpc(queryClient)` (`lib/server-trpc.ts`, no module state)
+to issue every query in one tick — `httpBatchLink` folds them into ONE GET straight to the
+api worker's `/trpc` (cookie + signed client IP, 5s `INTERNAL_FETCH_TIMEOUT_MS`; never via
+`/rpc`). The dehydrated cache goes into a `<HydrationBoundary>`; query keys are path + input
+only, so they match the browser `trpc` proxy's. `prefetchQuery` never throws and `dehydrate`
+keeps only successes, so a failed prefetch falls back to the client fetch (and its skeleton).
+The client `QueryClient` defaults `staleTime` to `QUERY_FRESH_MS` (30s, `poll-intervals.ts`)
+so hydrated data isn't refetched on mount; polls and invalidations ignore staleness, so no
+cadence changes. `getServerSession` is wrapped in React `cache()`, so the `(app)` layout
+(which passes the session to `Header`/`UserMenu` as a prop — no client `useSession`) and the
+page share one get-session fetch. A dashboard hard load costs 2 api requests (get-session +
+the batch) and no web-worker `/rpc` hops before the first poll.
+
 **Per-request factories, no module singletons** (Workers isolate per request):
 `createDb()` (packages/db), `createAuth()` (packages/auth), `createContext({ context })`
 (packages/api). Never add module-level db/auth/EventEmitter state.
@@ -459,6 +475,10 @@ The theme is applied before first paint by a static inline script in the root la
 `providers.tsx`), and `html` carries the theme background and `color-scheme`, so a
 streamed dark page never paints white first. Pre-mount theme placeholders (the header
 `ModeToggle`) style themselves with `dark:` classes off that class rather than guessing.
+`TimerProvider` seeds its editable minutes lazily (`useState(() => …)`) from the hydrated
+`config.get`, so server and first client render agree on the configured durations (no
+"25:00" → configured-minutes flash); its seeding effect remains only for the
+failed-prefetch fallback.
 
 ## Testing
 
@@ -717,8 +737,9 @@ free, so anything that multiplies requests or rows read is a bug, not a style ni
   `config-shared.ts`; chat text is bounded in UTF-8 bytes, not characters.
 - Browser traffic that goes web-to-api is proxied by a route handler (`auth-proxy.ts`),
   never a `next.config` rewrite. Server-side renders call the api directly with a
-  signed client identity (`lib/server-session.ts`, `stampForwardedClient`); routing
-  them through a route handler would add a Worker hop per render.
+  signed client identity (`lib/server-session.ts`, `stampForwardedClient`) — including
+  tRPC prefetches (`lib/server-trpc.ts`), never via `/rpc`; routing them through a
+  route handler would add a Worker hop per render.
 - Bug fixes come with a test that fails without the fix; SQL-dependent behavior is
   tested against real SQLite (`createSqliteDb`), not mocks.
 

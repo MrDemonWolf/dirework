@@ -128,16 +128,29 @@ function useTimerContext() {
  */
 export function TimerProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const [cycles, setCycles] = useState(TIMER_CONFIG_DEFAULTS.defaultCycles);
-  const [workMin, setWorkMin] = useState(msToMinutes(TIMER_CONFIG_DEFAULTS.workDuration));
-  const [breakMin, setBreakMin] = useState(msToMinutes(TIMER_CONFIG_DEFAULTS.breakDuration));
-  const [longBreakMin, setLongBreakMin] = useState(
-    msToMinutes(TIMER_CONFIG_DEFAULTS.longBreakDuration),
+  const config = useQuery(trpc.config.get.queryOptions());
+
+  // Seeded lazily from the config when it is already in the cache (hydrated from the
+  // server prefetch), so the first render shows the configured minutes, never an idle
+  // "25:00" that then jumps. Without it (failed prefetch), the defaults stand in until
+  // the effect below seeds the fields once the fetch lands.
+  const seed = config.data?.timerConfig;
+  const [cycles, setCycles] = useState(
+    () => seed?.defaultCycles ?? TIMER_CONFIG_DEFAULTS.defaultCycles,
+  );
+  const [workMin, setWorkMin] = useState(() =>
+    msToMinutes(seed?.workDuration ?? TIMER_CONFIG_DEFAULTS.workDuration),
+  );
+  const [breakMin, setBreakMin] = useState(() =>
+    msToMinutes(seed?.breakDuration ?? TIMER_CONFIG_DEFAULTS.breakDuration),
+  );
+  const [longBreakMin, setLongBreakMin] = useState(() =>
+    msToMinutes(seed?.longBreakDuration ?? TIMER_CONFIG_DEFAULTS.longBreakDuration),
   );
   const [longBreakInterval, setLongBreakInterval] = useState(
-    TIMER_CONFIG_DEFAULTS.longBreakInterval,
+    () => seed?.longBreakInterval ?? TIMER_CONFIG_DEFAULTS.longBreakInterval,
   );
-  const [configLoaded, setConfigLoaded] = useState(false);
+  const [configLoaded, setConfigLoaded] = useState(() => Boolean(seed));
 
   const timer = useQuery({
     ...trpc.timer.get.queryOptions(),
@@ -145,8 +158,6 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     // polling when its tab is hidden (Cloudflare free tier).
     ...DASHBOARD_TIMER_QUERY_OPTS,
   });
-
-  const config = useQuery(trpc.config.get.queryOptions());
 
   const configLabels = config.data?.timerConfig?.labels ?? DEFAULT_PHASE_LABELS;
 
@@ -163,6 +174,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // Fallback seeding for a config that arrives after mount (no hydrated cache).
   // Seed the fields from the saved config exactly once: later config refetches
   // (e.g. after a save) must not clobber what the owner is typing.
   useEffect(() => {

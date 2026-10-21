@@ -8,9 +8,9 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { Bot, LayoutDashboard, type LucideIcon, Menu, Palette, X } from "lucide-react";
 
+import type { ServerSession } from "@/lib/server-session";
 import { cn } from "@/lib/utils";
 import { closeOnRouteChange, type MobileMenuState, onEscape } from "@/lib/mobile-menu";
-import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
@@ -34,13 +34,14 @@ function NavIcon({ icon: Icon }: { icon: LucideIcon }) {
 }
 
 /**
- * Site header. The nav only renders once a client session exists; it is navigation, not
- * access control — the pages call `requireSession()` and the API's `ownerProcedure` does the
- * real authorization.
+ * Site header. `session` is the (app) layout's server session (type-only import, so
+ * next/headers never reaches the client bundle): the nav is in the server HTML instead of
+ * appearing after a client session fetch, and sign-out refreshes the layout. The nav is
+ * navigation, not access control — the pages call `requireSession()` and the API's
+ * `ownerProcedure` does the real authorization.
  */
-export default function Header() {
+export default function Header({ session }: { session: ServerSession | null }) {
   const pathname = usePathname();
-  const { data: session } = authClient.useSession();
   const [menu, setMenu] = useState<MobileMenuState>({ open: false, pathname });
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -129,7 +130,7 @@ export default function Header() {
           <ModeToggle />
           {/* UserMenu renders its own signed-out Twitch sign-in button, so the
               sticky header always offers an entry point — not just the hero CTA. */}
-          <UserMenu />
+          <UserMenu session={session} />
           {/* Mobile hamburger */}
           {session && (
             <Button

@@ -5,9 +5,19 @@
 import Header from "@/components/header";
 import { VersionBadge } from "@/components/version-badge";
 import { headingFontBodyCss } from "@/lib/heading-font";
+import { getServerSession } from "@/lib/server-session";
 
-/** Optional legal links render only when their URLs are configured on the web worker. */
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+/**
+ * Optional legal links render only when their URLs are configured on the web worker.
+ * The header gets the server session as a prop, so the nav and account menu are in the
+ * first paint; `getServerSession` is `cache()`d, so the page's `requireSession()` reuses
+ * this same fetch.
+ */
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  // A throw here would bypass (app)/error.tsx (it sits below this layout), so an
+  // unreachable api renders a signed-out header; the page's own check still throws into
+  // the error boundary with its retry.
+  const session = await getServerSession().catch(() => null);
   // Plain worker vars surfaced through process.env by OpenNext — the web
   // worker has no @dirework/env/server (that module is cloudflare:workers +
   // D1 bindings owned by the api worker).
@@ -32,7 +42,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         >
           Skip to content
         </a>
-        <Header />
+        <Header session={session} />
         <main id="main">{children}</main>
         {/* suppressHydrationWarning: the copyright year comes from `new Date()`, which can differ
           between the server render and the client around New Year. */}

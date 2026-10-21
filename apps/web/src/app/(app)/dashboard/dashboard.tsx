@@ -2,7 +2,8 @@
 
 // Owner dashboard home (/dashboard): timer console, task board, both OBS overlay URLs with
 // optional live previews, and a bot status strip. All data comes from owner-only tRPC
-// procedures through the same-origin /rpc proxy.
+// procedures: hydrated from the server prefetch on first load, then polled through the
+// same-origin /rpc proxy.
 
 import { useState } from "react";
 import Link from "next/link";
@@ -153,12 +154,12 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
   const [showTimerPreview, setShowTimerPreview] = useState(false);
   const [showTasksPreview, setShowTasksPreview] = useState(false);
 
-  if (user.isPending) {
-    return <DashboardSkeleton />;
-  }
-
+  // `user.me` normally arrives hydrated from the server prefetch (page.tsx), so the live
+  // tree renders on the first pass. The skeleton is only the fallback for a failed prefetch
+  // while the client fetch is in flight.
   const me = user.data;
   if (!me) {
+    if (user.isPending) return <DashboardSkeleton />;
     return (
       <div className="container mx-auto max-w-6xl px-4 py-8">
         <QueryError
