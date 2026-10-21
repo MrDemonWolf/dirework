@@ -16,6 +16,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the Theme Center load the overlay font stylesheet, so each page downloads only the type it
   shows. The public pages (`/`, `/setup`) show a loading skeleton the moment you navigate to
   them.
+- Account menu trimmed (no duplicate avatar header); menu items highlight with a fill
+  instead of a boxed outline; active task rows lose the coloured edge bar; mobile nav
+  closes on Escape and navigation.
 
 ### Fixed
 - Small labels on the docs home page were 10–11px; they are now at least 12px. Headings

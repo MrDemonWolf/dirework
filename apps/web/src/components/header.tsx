@@ -3,12 +3,13 @@
 // Sticky top bar for the (app) route group (rendered by app/(app)/layout.tsx): logo, the
 // dashboard nav (desktop links + mobile dropdown), theme toggle, and the account menu.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { Bot, LayoutDashboard, type LucideIcon, Menu, Palette, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { closeOnRouteChange, type MobileMenuState, onEscape } from "@/lib/mobile-menu";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "./mode-toggle";
@@ -40,7 +41,26 @@ function NavIcon({ icon: Icon }: { icon: LucideIcon }) {
 export default function Header() {
   const pathname = usePathname();
   const { data: session } = authClient.useSession();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [menu, setMenu] = useState<MobileMenuState>({ open: false, pathname });
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  // A route change closes the menu. Adjusted during render (the reducer returns the
+  // same object when the path is unchanged), so React re-renders before committing
+  // and the stale open menu never paints on the new route.
+  const routed = closeOnRouteChange(menu, pathname);
+  if (routed !== menu) setMenu(routed);
+  const mobileMenuOpen = routed.open;
+  const setMenuOpen = (open: boolean) => setMenu((m) => ({ ...m, open }));
+
+  // Escape (never mid-IME-composition) closes the open menu and hands focus back to
+  // the hamburger, so a keyboard user is never left on a link that just disappeared.
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    return onEscape(document, () => {
+      setMenu((m) => ({ ...m, open: false }));
+      menuButtonRef.current?.focus();
+    });
+  }, [mobileMenuOpen]);
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-background/60 backdrop-blur-2xl backdrop-saturate-150">
@@ -113,13 +133,15 @@ export default function Header() {
           {/* Mobile hamburger */}
           {session && (
             <Button
+              ref={menuButtonRef}
               variant="ghost"
               size="icon"
               // The ::after inset enlarges the touch target past the visible icon button.
               className="relative after:absolute after:-inset-1.5 md:hidden"
-              onClick={() => setMobileMenuOpen((v) => !v)}
+              onClick={() => setMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
               aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-nav"
             >
               {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </Button>
@@ -129,7 +151,11 @@ export default function Header() {
 
       {/* Mobile nav dropdown */}
       {session && mobileMenuOpen && (
-        <nav className="animate-[console-rise_0.2s_cubic-bezier(0.22,1,0.36,1)_both] border-t border-border/40 bg-background/80 backdrop-blur-2xl md:hidden">
+        <nav
+          id="mobile-nav"
+          aria-label="Mobile"
+          className="animate-[console-rise_0.2s_cubic-bezier(0.22,1,0.36,1)_both] border-t border-border/40 bg-background/80 backdrop-blur-2xl md:hidden"
+        >
           <div className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3">
             {navItems.map((item) => {
               const isActive =
@@ -141,10 +167,10 @@ export default function Header() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={() => setMenuOpen(false)}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                    "flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                     isActive
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
