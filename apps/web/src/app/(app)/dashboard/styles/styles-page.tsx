@@ -23,7 +23,6 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ConsoleRule } from "@/components/console-rule";
 import { QueryError } from "@/components/query-error";
 import { SaveBar } from "@/components/save-bar";
-import { StatusChip } from "@/components/status-chip";
 import { StylesSkeleton } from "@/components/styles-skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PhaseLabelsEditor } from "@/components/theme-center/phase-labels-editor";
@@ -173,10 +172,7 @@ export default function StylesPage() {
       <div className="stagger-reveal">
         {/* Header band */}
         <div className="mb-6">
-          <div className="flex items-center gap-3">
-            <ConsoleRule label="Theme Center" className="min-w-0 flex-1" />
-            {hasUnsaved && <StatusChip tone="warn" label="Unsaved" />}
-          </div>
+          <ConsoleRule label="Theme Center" />
           <h1 className="mt-2 font-heading text-3xl font-bold tracking-tight">Theme Center</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Browse preset themes or customize your overlay styles
@@ -192,7 +188,7 @@ export default function StylesPage() {
         {/* Editor + Preview */}
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
           {/* Editor Column */}
-          <div className="w-full min-w-0 lg:w-editor lg:shrink-0">
+          <div className="w-full min-w-0 lg:flex-1">
             <Tabs defaultValue="timer">
               <TabsList className="h-9 w-full gap-1">
                 <TabsTrigger value="timer">Timer</TabsTrigger>
@@ -210,15 +206,16 @@ export default function StylesPage() {
             </Tabs>
           </div>
 
-          {/* Preview Column — sticky so live feedback survives scrolling;
-              capped to the viewport so short laptops can still scroll to
-              the task-list canvas at the bottom of the panel */}
-          <div className="min-w-0 flex-1 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto">
+          {/* Preview Column — a fixed-width sticky rail, so live feedback stays in view
+              while the editor scrolls; capped to the viewport so a short laptop can
+              still scroll the canvas into view */}
+          <div className="w-full min-w-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:w-96 lg:shrink-0 lg:self-start lg:overflow-y-auto">
             <StylePreviewPanel
               timerStyles={timerStyles}
               taskStyles={taskStyles}
               phaseLabels={phaseLabels}
               showHours={config.data?.timerConfig?.showHours ?? false}
+              dirty={hasUnsaved}
             />
           </div>
         </div>
@@ -245,6 +242,8 @@ export default function StylesPage() {
         saving={isSaving}
         onSave={handleSave}
         onReset={handleReset}
+        label="Unsaved — not on stream yet"
+        saveHint="Saving updates both OBS overlays"
         blockedReason={blockedReason}
       />
     </div>

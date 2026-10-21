@@ -456,6 +456,16 @@ live/connected (LED-style chips). All animation respects `prefers-reduced-motion
 inputs ≥16px on touch (iOS zoom). Destructive actions (token regenerate, disconnect,
 clear, stop) always confirm via the AlertDialog primitive. Editors with dirty state use
 the unsaved-changes guard hook. 6 theme presets in `lib/theme-presets.ts`.
+**Theme Center** (`/dashboard/styles`, `styles-page.tsx`): editor column (`lg:flex-1`) beside
+a sticky `lg:w-96` preview (`theme-center/style-preview-panel.tsx`), which renders the REAL
+`TimerDisplay` / `TaskListDisplay` client-side (no polling) over `lib/preview-session.ts` —
+`DEMO_SESSION`'s tasks and countdown, so the preview, landing and docs agree. One overlay at
+a time (`aria-pressed` "Preview timer" / "Preview tasks"), both scaled with `AutoScale` (tasks
+drawn at the 700×800 source). Backdrops dark / light / bright / checker are CSS classes in
+`index.css` (`preview-scene-*`, `bg-checker`), deliberately outside the palette. The preview's
+header chip is the page's dirty indicator ("Previewing unsaved changes" / "Matches the saved
+theme"); `SaveBar` takes `label` and `saveHint` (Theme Center: "Unsaved — not on stream yet",
+"Saving updates both OBS overlays", the Save button's description).
 
 **Design tokens are generated.** `design-system/tokens.json` → `design-system/scripts/render.ts`
 (pure) + `generate.ts` (I/O) → `apps/web/src/tokens.generated.css` (imported by `index.css`)

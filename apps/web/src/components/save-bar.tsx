@@ -19,6 +19,7 @@ export function SaveBar({
   onSave,
   onReset,
   label = "Unsaved changes",
+  saveHint,
   blockedReason,
 }: {
   visible: boolean;
@@ -26,6 +27,8 @@ export function SaveBar({
   onSave: () => void;
   onReset: () => void;
   label?: string;
+  /** What Save does, beside the button and as its description (e.g. where the change goes live). */
+  saveHint?: string;
   /** Why Save is unavailable (a field the server would reject); disables Save while set. */
   blockedReason?: string | null;
 }) {
@@ -42,6 +45,7 @@ export function SaveBar({
           onSave={onSave}
           onReset={onReset}
           label={label}
+          saveHint={saveHint ?? null}
           blockedReason={blockedReason ?? null}
         />
       )}
@@ -55,14 +59,19 @@ function SaveBarPanel({
   onSave,
   onReset,
   label,
+  saveHint,
   blockedReason,
 }: {
   saving: boolean;
   onSave: () => void;
   onReset: () => void;
   label: string;
+  saveHint: string | null;
   blockedReason: string | null;
 }) {
+  // The blocked reason wins: it is why Save is disabled. The hint stays in the
+  // accessible description even where it is hidden on narrow screens.
+  const describedBy = blockedReason ? "save-bar-blocked" : saveHint ? "save-bar-hint" : undefined;
   return (
     <div
       data-save-bar
@@ -78,6 +87,11 @@ function SaveBarPanel({
           )}
         </div>
         <div className="flex items-center gap-2">
+          {saveHint && !blockedReason && (
+            <p id="save-bar-hint" className="mr-1 hidden text-xs text-muted-foreground md:block">
+              {saveHint}
+            </p>
+          )}
           {/* Reset discards edits, so it confirms first (destructive-action rule). */}
           <ConfirmDialog
             trigger={
@@ -95,7 +109,7 @@ function SaveBarPanel({
             size="sm"
             onClick={onSave}
             disabled={saving || Boolean(blockedReason)}
-            aria-describedby={blockedReason ? "save-bar-blocked" : undefined}
+            aria-describedby={describedBy}
           >
             {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
             Save changes
