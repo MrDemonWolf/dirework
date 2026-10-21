@@ -151,11 +151,18 @@
   }
   /* Paint the canvas itself with the theme and tell the UA which scheme it is, so the
      frames before <body> streams in (and the overscroll area) match the theme instead of
-     flashing white. The class comes from the <head> script in lib/theme-init.ts. Overlays
-     override this with their own transparent html,body rule ((overlay)/layout.tsx). */
+     flashing white. The class comes from the <head> script in lib/theme-init.ts. OBS
+     overlays are marked data-surface="overlay" by that same script before any paint, so
+     their canvas (and body) stays transparent from the first frame — the (overlay)
+     layout's own transparent override sits in <body> and would arrive too late. */
   html {
-    background-color: var(--background);
     color-scheme: light;
+  }
+  html:not([data-surface="overlay"]) {
+    background-color: var(--background);
+  }
+  html[data-surface="overlay"] body {
+    background-color: transparent;
   }
   html.dark {
     color-scheme: dark;

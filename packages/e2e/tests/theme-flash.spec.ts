@@ -41,6 +41,29 @@ async function reloadWithoutScripts(page: Page, storedTheme: string): Promise<vo
   await page.goto("/", { waitUntil: "domcontentloaded" });
 }
 
+/**
+ * Serve `path` with everything from `<body` on cut off: the moment of a streamed response
+ * when the <head> (stylesheets and the inline theme script) has arrived and painted but the
+ * body chunk hasn't. Waits for "load" so the head's stylesheets have applied.
+ */
+async function gotoHeadOnly(page: Page, pagePath: string): Promise<void> {
+  await page.route("**/_next/static/**/*.js", (route) => route.abort());
+  await page.route(
+    (url) => url.pathname === pagePath,
+    async (route) => {
+      // Only the navigation itself; a leftover RSC prefetch of the same path passes through.
+      if (route.request().resourceType() !== "document") return route.continue();
+      const response = await route.fetch();
+      const html = await response.text();
+      const bodyAt = html.indexOf("<body");
+      expect(bodyAt, "the document has a <body>").toBeGreaterThan(0);
+      const { "content-length": _length, ...headers } = response.headers();
+      await route.fulfill({ response, headers, body: html.slice(0, bodyAt) });
+    },
+  );
+  await page.goto(pagePath, { waitUntil: "load" });
+}
+
 test("a stored dark theme paints dark before hydration, even on a light OS", async ({ page }) => {
   await reloadWithoutScripts(page, "dark");
   const paint = await readHtmlPaint(page);
@@ -60,10 +83,37 @@ test("a stored light theme paints light before hydration", async ({ page }) => {
   for (const channel of paint.rgba.slice(0, 3)) expect(channel).toBeGreaterThan(200);
 });
 
+test("the head alone already paints a stored dark theme", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => localStorage.setItem("theme", "dark"));
+  await page.emulateMedia({ colorScheme: "light" });
+  await gotoHeadOnly(page, "/");
+  const paint = await readHtmlPaint(page);
+  expect(paint.className.split(" ")).toContain("dark");
+  expect(paint.rgba[3]).toBe(255);
+  for (const channel of paint.rgba.slice(0, 3)) expect(channel).toBeLessThan(60);
+});
+
 test("overlays keep a transparent canvas for OBS", async ({ page }) => {
   await page.goto("/overlay/t/anything");
   const background = await page.evaluate(
     () => getComputedStyle(document.documentElement).backgroundColor,
   );
   expect(background).toBe("rgba(0, 0, 0, 0)");
+});
+
+test("an overlay's canvas is transparent before its body arrives", async ({ page }) => {
+  // The (overlay) layout's own transparent override lives in <body>; with only the head
+  // painted, the canvas must already be transparent or OBS shows a navy frame.
+  await gotoHeadOnly(page, "/overlay/t/anything");
+  const paint = await page.evaluate(() => ({
+    surface: document.documentElement.dataset.surface,
+    html: getComputedStyle(document.documentElement).backgroundColor,
+    body: getComputedStyle(document.body).backgroundColor,
+  }));
+  expect(paint).toEqual({
+    surface: "overlay",
+    html: "rgba(0, 0, 0, 0)",
+    body: "rgba(0, 0, 0, 0)",
+  });
 });
