@@ -14,8 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hides the card (remembered in this browser) and the **Setup** button beside the greeting
   brings it back. It adds no polling: each click is one save.
 - **A friendlier empty task board.** With no tasks the board asks *What are you working on
-  today?*, puts the cursor in the add field (not on touch screens), and reminds you viewers
-  add theirs with `!task`.
+  today?*, offers an **Add a task** button that jumps to the add field, and reminds you
+  viewers add theirs with `!task`.
 - **Uptime probe workflow** (`.github/workflows/uptime.yml`). Set the repository variables
   `UPTIME_API_URL` and `UPTIME_WEB_URL` and GitHub Actions requests the API's `/ready` and
   the web app's `/api/version` every 30 minutes — 96 Worker requests a day, up to 288 while both are down and
