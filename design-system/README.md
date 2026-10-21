@@ -10,7 +10,7 @@ design-system/
   scripts/render.ts    # pure renderers: tokens → CSS / TS strings (imported by tests)
   scripts/generate.ts  # bun script: reads tokens.json, writes the outputs
   README.md            # this file
-  components/          # markdown catalog (one .md per shared UI primitive)
+  components/          # one spec per component (README = index + page map)
 ```
 
 ## Generated outputs
@@ -77,4 +77,4 @@ Focus Console is dark-first: a MrDemonWolf midnight navy base (the `#091533` fam
 
 ## Component catalog
 
-`components/` documents the shared UI primitives used on the marketing/docs surfaces (the `dw-*` utility classes defined in `apps/fumadocs/src/app/global.css`). Each entry covers purpose, tokens used, accessibility notes, and a usage snippet.
+`components/` holds one spec per component: every module in `apps/web/src/components/` plus the two docs landing widgets. Each spec has `source:` and `tokens:` frontmatter and the same sections (Purpose, Anatomy, Props and variants, States, Accessibility, Do / Don't). `components/README.md` is the index and the page → components map; `apps/web/src/lib/__tests__/spec-catalog.test.ts` fails when a component has no spec, a `source:` path is missing, or an overlay default drifts from `timer-ring.md` / `task-card.md`. The `dw-*` utility classes are documented in `apps/fumadocs/content/docs/design-system.mdx`.

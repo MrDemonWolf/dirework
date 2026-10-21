@@ -1,20 +1,79 @@
 # Component Catalog
 
-Shared UI primitives for Dirework's marketing + docs surfaces. These are implemented as `dw-*` utility classes in `apps/fumadocs/src/app/global.css`. The palette, phase and partner colors they read are generated from `design-system/tokens.json` into `apps/fumadocs/src/app/tokens.generated.css`; `global.css` maps them onto the semantic names the classes use (`--brand-*`, `--bg-*`, `--txt-*`, `--hairline`, `--phase-*`, `--font-*`, `--dw-radius-control`).
+One spec per component. Every module in `apps/web/src/components/` (the `ui/` primitives,
+the shared components, and the `theme-center/`, `bot-settings/` and `icons/` folders) has
+exactly one spec here, plus the two docs landing widgets that have their own (`chat-bubble`,
+`theme-swatch`). `apps/web/src/lib/__tests__/spec-catalog.test.ts` enforces it.
 
-| Component | Class(es) | Purpose |
+## Spec format
+
+```markdown
+---
+source: apps/web/src/components/<path>.tsx
+tokens: [color.scheme, radius]
+---
+
+# Name
+
+## Purpose
+## Anatomy
+## Props and variants
+## States
+## Accessibility
+## Do / Don't
+```
+
+- `source` is the one file the spec documents; it must exist, and no two specs share one.
+- `tokens` lists the `tokens.json` families the component reads: `color.scheme`,
+  `color.phase`, `color.console`, `color.partner`, `font.size`, `tracking`, `radius`,
+  `motion`, `layout`, `z`, `overlay` (also `color.brand`, `color.brandDark`,
+  `color.semantic`, `font.family`, `font.lineHeight`). `[]` when it reads none.
+- Accessibility names the roles and accessible names the e2e specs (`packages/e2e/tests`)
+  pin, so renaming one means updating both.
+- The overlay specs (`timer-ring`, `task-card`) carry a "Pinned values" table the test
+  checks against `DEFAULT_TIMER_STYLES` / `DEFAULT_TASK_STYLES` and `lib/overlay-view.ts`.
+
+New component? Add its spec and a row below in the same PR, or the test fails.
+
+## Page to components
+
+| Page | Route | Components |
 |---|---|---|
-| [Button](./button.md) | `dw-btn`, `dw-btn-primary`, `dw-btn-secondary`, `dw-btn-ghost` | Primary calls to action |
-| [Card](./card.md) | `dw-card`, `dw-card-hover` | Content container |
-| [Pill](./pill.md) | `dw-pill` | Compact metadata / trust badge |
-| [Timer Ring](./timer-ring.md) | `TimerOverlayWidget` | Pomodoro progress ring (circle/squircle) |
-| [Task Card](./task-card.md) | `TaskListWidget` | Viewer task grouped by author |
-| [Chat Bubble](./chat-bubble.md) | `ChatCommandWidget` | Twitch chat command preview |
-| [Theme Swatch](./theme-swatch.md) | `OverlayThemePreview` | Overlay theme preview grid |
+| App shell | `(app)/layout.tsx` | [header](./header.md), [user-menu](./user-menu.md), [mode-toggle](./mode-toggle.md), [version-badge](./version-badge.md), [theme-color-sync](./theme-color-sync.md) |
+| Root | `app/layout.tsx` | [providers](./providers.md), [theme-provider](./theme-provider.md), [sonner](./sonner.md) |
+| Viewer landing | `/` | [stream-scene](./stream-scene.md), [status-chip](./status-chip.md), [button](./button.md), [dev-login-button](./dev-login-button.md), [callout](./callout.md) |
+| Setup (claim) | `/setup` | [button](./button.md), [callout](./callout.md), [dev-login-button](./dev-login-button.md), [twitch-icon](./twitch-icon.md) |
+| Dashboard | `/dashboard` | [timer-controls](./timer-controls.md), [task-manager](./task-manager.md), [secret-url-row](./secret-url-row.md), [timer-status-badge](./timer-status-badge.md), [status-chip](./status-chip.md), [console-rule](./console-rule.md), [query-error](./query-error.md), [dashboard-skeleton](./dashboard-skeleton.md), [confirm-dialog](./confirm-dialog.md), [input](./input.md), [label](./label.md), [tooltip](./tooltip.md), [skeleton](./skeleton.md) |
+| Theme Center | `/dashboard/styles` | [theme-browser](./theme-browser.md), [theme-card](./theme-card.md), [timer-style-editor](./timer-style-editor.md), [task-style-editor](./task-style-editor.md), [phase-labels-editor](./phase-labels-editor.md), [style-field-groups](./style-field-groups.md), [field-row](./field-row.md), [color-input](./color-input.md), [font-select](./font-select.md), [style-preview-panel](./style-preview-panel.md), [timer-ring](./timer-ring.md), [task-card](./task-card.md), [section-group](./section-group.md), [byte-budget](./byte-budget.md), [save-bar](./save-bar.md), [unsaved-changes-guard](./unsaved-changes-guard.md), [styles-skeleton](./styles-skeleton.md), [tabs](./tabs.md), [select](./select.md), [slider](./slider.md), [switch](./switch.md), [collapsible](./collapsible.md) |
+| Bot settings | `/dashboard/bot` | [bot-account-card](./bot-account-card.md), [bot-console-card](./bot-console-card.md), [bot-mute-bar](./bot-mute-bar.md), [blocked-viewers-card](./blocked-viewers-card.md), [command-tab-panel](./command-tab-panel.md), [command-reference](./command-reference.md), [command-alias-editor](./command-alias-editor.md), [message-editor](./message-editor.md), [count-badge](./count-badge.md), [bot-settings-skeleton](./bot-settings-skeleton.md), [card](./card.md), [save-bar](./save-bar.md) |
+| Timer overlay | `/overlay/t/[token]` | [timer-ring](./timer-ring.md), [auto-scale](./auto-scale.md), [font-gate](./font-gate.md) |
+| Task overlay | `/overlay/l/[token]` | [task-card](./task-card.md), [font-gate](./font-gate.md) |
+| Error boundaries | `error.tsx` | [callout](./callout.md), [button](./button.md) |
+| Docs landing | `apps/fumadocs` | [chat-bubble](./chat-bubble.md), [theme-swatch](./theme-swatch.md) |
+
+Dialogs and menus reached from any of these: [confirm-dialog](./confirm-dialog.md) (on
+[alert-dialog](./alert-dialog.md)), [dropdown-menu](./dropdown-menu.md) (the account
+menu). [loader](./loader.md) is currently unused by any page.
+
+## Catalog
+
+| Group | Specs |
+|---|---|
+| Primitives (`ui/`) | [alert-dialog](./alert-dialog.md), [button](./button.md), [callout](./callout.md), [card](./card.md), [collapsible](./collapsible.md), [dropdown-menu](./dropdown-menu.md), [input](./input.md), [label](./label.md), [select](./select.md), [skeleton](./skeleton.md), [slider](./slider.md), [sonner](./sonner.md), [switch](./switch.md), [tabs](./tabs.md), [tooltip](./tooltip.md) |
+| Status and chrome | [status-chip](./status-chip.md), [timer-status-badge](./timer-status-badge.md), [count-badge](./count-badge.md), [version-badge](./version-badge.md), [console-rule](./console-rule.md), [byte-budget](./byte-budget.md), [loader](./loader.md), [twitch-icon](./twitch-icon.md) |
+| Shell | [header](./header.md), [user-menu](./user-menu.md), [mode-toggle](./mode-toggle.md), [dev-login-button](./dev-login-button.md), [providers](./providers.md), [theme-provider](./theme-provider.md), [theme-color-sync](./theme-color-sync.md), [font-gate](./font-gate.md) |
+| Forms and flows | [save-bar](./save-bar.md), [confirm-dialog](./confirm-dialog.md), [unsaved-changes-guard](./unsaved-changes-guard.md), [secret-url-row](./secret-url-row.md), [section-group](./section-group.md), [query-error](./query-error.md) |
+| Skeletons | [dashboard-skeleton](./dashboard-skeleton.md), [styles-skeleton](./styles-skeleton.md), [bot-settings-skeleton](./bot-settings-skeleton.md) |
+| Dashboard | [timer-controls](./timer-controls.md), [task-manager](./task-manager.md), [stream-scene](./stream-scene.md) |
+| Overlays | [timer-ring](./timer-ring.md), [task-card](./task-card.md), [auto-scale](./auto-scale.md) |
+| Theme Center (`theme-center/`) | [color-input](./color-input.md), [field-row](./field-row.md), [font-select](./font-select.md), [phase-labels-editor](./phase-labels-editor.md), [style-field-groups](./style-field-groups.md), [style-preview-panel](./style-preview-panel.md), [task-style-editor](./task-style-editor.md), [theme-browser](./theme-browser.md), [theme-card](./theme-card.md), [timer-style-editor](./timer-style-editor.md) |
+| Bot settings (`bot-settings/`) | [blocked-viewers-card](./blocked-viewers-card.md), [bot-account-card](./bot-account-card.md), [bot-console-card](./bot-console-card.md), [bot-mute-bar](./bot-mute-bar.md), [command-alias-editor](./command-alias-editor.md), [command-reference](./command-reference.md), [command-tab-panel](./command-tab-panel.md), [message-editor](./message-editor.md) |
+| Docs landing | [chat-bubble](./chat-bubble.md), [theme-swatch](./theme-swatch.md) |
 
 ## Principles
 
-- **Token-first.** Never hardcode a hex/size that exists as a semantic CSS token in `global.css`.
+- **Token-first.** Never hardcode a hex, size or z-index that exists as a token; use the
+  Tailwind names `tokens.json` generates (`token-bypass.test.ts` enforces it in the app).
 - **Two themes, always.** Every component must read in light and dark. Test both.
 - **Reduced motion.** All animated primitives honor `prefers-reduced-motion: reduce`.
 - **On brand.** Cerulean brand (#00ACED), Montserrat display, IBM Plex Sans body. Twitch purple is a *partner* color, used only where Twitch is referenced.

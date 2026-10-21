@@ -72,6 +72,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the preview **matches the saved theme**, and the save bar says unsaved edits are **not on
   stream yet** and that saving updates both OBS overlays. On wide screens the preview is a
   fixed-width column that stays in view while you scroll the editor.
+- Docs: every web component now has one spec in `design-system/components/` (purpose,
+  anatomy, props, states, accessibility, do and don't), with a page-to-components map in
+  its README and the index on the Design System docs page. The timer and task overlay
+  specs match the refreshed renderers, and the stale `dw-*` Button, Card and Pill specs
+  are gone (listed under Legacy on the docs page). A unit test fails when a component has
+  no spec, a spec points at a missing file, or an overlay default drifts from its spec.
 - Docs: an architecture decision record (`docs/decisions/0001-cloudflare-services.md`)
   weighs KV, Durable Objects, Queues, Cron Triggers and other Cloudflare services against
   the Free-plan limits. Nothing changes today; a server-hosted bot on a Durable Object is
