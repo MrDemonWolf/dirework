@@ -2,8 +2,9 @@
 
 One spec per component. Every module in `apps/web/src/components/` (the `ui/` primitives,
 the shared components, and the `theme-center/`, `bot-settings/` and `icons/` folders) has
-exactly one spec here, plus the two docs landing widgets that have their own (`chat-bubble`,
-`theme-swatch`). `apps/web/src/lib/__tests__/spec-catalog.test.ts` enforces it.
+exactly one spec here, and so does every docs landing widget
+(`apps/fumadocs/src/app/(home)/_widgets/*.tsx`; its `.ts` helpers and generated data are not
+components). `apps/web/src/lib/__tests__/spec-catalog.test.ts` enforces both.
 
 ## Spec format
 
@@ -49,7 +50,7 @@ New component? Add its spec and a row below in the same PR, or the test fails.
 | Timer overlay | `/overlay/t/[token]` | [timer-ring](./timer-ring.md), [auto-scale](./auto-scale.md), [font-gate](./font-gate.md) |
 | Task overlay | `/overlay/l/[token]` | [task-card](./task-card.md), [font-gate](./font-gate.md) |
 | Error boundaries | `error.tsx` | [callout](./callout.md), [button](./button.md) |
-| Docs landing | `apps/fumadocs` | [chat-bubble](./chat-bubble.md), [theme-swatch](./theme-swatch.md) |
+| Docs landing | `apps/fumadocs` | [chat-bubble](./chat-bubble.md), [theme-swatch](./theme-swatch.md), [timer-overlay-widget](./timer-overlay-widget.md), [task-list-widget](./task-list-widget.md) |
 
 Dialogs and menus reached from any of these: [confirm-dialog](./confirm-dialog.md) (on
 [alert-dialog](./alert-dialog.md)), [dropdown-menu](./dropdown-menu.md) (the account
@@ -68,7 +69,7 @@ menu). [loader](./loader.md) is currently unused by any page.
 | Overlays | [timer-ring](./timer-ring.md), [task-card](./task-card.md), [auto-scale](./auto-scale.md) |
 | Theme Center (`theme-center/`) | [color-input](./color-input.md), [field-row](./field-row.md), [font-select](./font-select.md), [phase-labels-editor](./phase-labels-editor.md), [style-field-groups](./style-field-groups.md), [style-preview-panel](./style-preview-panel.md), [task-style-editor](./task-style-editor.md), [theme-browser](./theme-browser.md), [theme-card](./theme-card.md), [timer-style-editor](./timer-style-editor.md) |
 | Bot settings (`bot-settings/`) | [blocked-viewers-card](./blocked-viewers-card.md), [bot-account-card](./bot-account-card.md), [bot-console-card](./bot-console-card.md), [bot-mute-bar](./bot-mute-bar.md), [command-alias-editor](./command-alias-editor.md), [command-reference](./command-reference.md), [command-tab-panel](./command-tab-panel.md), [message-editor](./message-editor.md) |
-| Docs landing | [chat-bubble](./chat-bubble.md), [theme-swatch](./theme-swatch.md) |
+| Docs landing (`_widgets/`) | [chat-bubble](./chat-bubble.md), [theme-swatch](./theme-swatch.md), [timer-overlay-widget](./timer-overlay-widget.md), [task-list-widget](./task-list-widget.md) |
 
 ## Principles
 

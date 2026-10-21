@@ -112,7 +112,7 @@ token-backed without pulling in a component framework.
 
 Every component has one spec under `design-system/components/`: each module in
 `apps/web/src/components/` (the `ui/` primitives, the shared components, and the
-`theme-center/`, `bot-settings/` and `icons/` folders), plus the two docs landing widgets. A
+`theme-center/`, `bot-settings/` and `icons/` folders), plus every docs landing widget (the `.tsx` files in `apps/fumadocs/src/app/(home)/_widgets/`). A
 spec opens with `source:` (the file it documents) and `tokens:` (the `tokens.json` families
 it reads) frontmatter, then Purpose, Anatomy, Props and variants, States, Accessibility
 (including the roles and names the e2e tests pin), and Do / Don't. The catalog's
@@ -179,6 +179,7 @@ Sources are relative to `apps/web/src/components/` unless they start with `apps/
 | `switch.md` | Switch | `ui/switch.tsx` |
 | `tabs.md` | Tabs | `ui/tabs.tsx` |
 | `task-card.md` | Task Card (TaskListDisplay) | `task-list-display.tsx` |
+| `task-list-widget.md` | Task List Widget (docs mock) | `apps/fumadocs/src/app/(home)/_widgets/TaskListWidget.tsx` |
 | `task-manager.md` | Task Manager | `task-manager.tsx` |
 | `task-style-editor.md` | Task Style Editor | `theme-center/task-style-editor.tsx` |
 | `theme-browser.md` | Theme Browser | `theme-center/theme-browser.tsx` |
@@ -187,6 +188,7 @@ Sources are relative to `apps/web/src/components/` unless they start with `apps/
 | `theme-provider.md` | Theme Provider | `theme-provider.tsx` |
 | `theme-swatch.md` | Theme Swatch (OverlayThemePreview) | `apps/fumadocs/src/app/(home)/_widgets/OverlayThemePreview.tsx` |
 | `timer-controls.md` | Timer Controls | `timer-controls.tsx` |
+| `timer-overlay-widget.md` | Timer Overlay Widget (docs mock) | `apps/fumadocs/src/app/(home)/_widgets/TimerOverlayWidget.tsx` |
 | `timer-ring.md` | Timer Ring (TimerDisplay) | `timer-display.tsx` |
 | `timer-status-badge.md` | Timer Status Badge | `timer-status-badge.tsx` |
 | `timer-style-editor.md` | Timer Style Editor | `theme-center/timer-style-editor.tsx` |

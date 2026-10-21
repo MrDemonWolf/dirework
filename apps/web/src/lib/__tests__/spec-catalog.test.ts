@@ -13,6 +13,8 @@ import * as overlayView from "@/lib/overlay-view";
 const repoRoot = path.resolve(__dirname, "../../../../..");
 const specDir = path.join(repoRoot, "design-system/components");
 const componentsDir = path.join(repoRoot, "apps/web/src/components");
+/** The docs landing widgets: components are the `.tsx` files; `.ts` modules are helpers or generated. */
+const docsWidgetsDir = path.join(repoRoot, "apps/fumadocs/src/app/(home)/_widgets");
 const read = (file: string) => readFileSync(file, "utf8");
 
 const SECTIONS = [
@@ -64,6 +66,8 @@ const TOKEN_FAMILIES = new Set(
     ),
 );
 
+const repoRelative = (full: string) => path.relative(repoRoot, full).split(path.sep).join("/");
+
 /** Every component module under apps/web/src/components, repo-relative. */
 function componentFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -72,9 +76,22 @@ function componentFiles(dir: string): string[] {
     if (!/\.tsx?$/.test(name)) return [];
     if (name === "index.ts" || /\.(test|spec)\.tsx?$/.test(name) || name.includes(".generated."))
       return [];
-    return [path.relative(repoRoot, full).split(path.sep).join("/")];
+    return [repoRelative(full)];
   });
 }
+
+/**
+ * The docs landing widgets: each `.tsx` is a component. Plain `.ts` modules
+ * (`theme-util.ts`, `overlay-themes.generated.ts`) are helpers and generated data,
+ * excluded by that rule rather than by name, and so is anything generated.
+ */
+function docsWidgetFiles(): string[] {
+  return readdirSync(docsWidgetsDir)
+    .filter((name) => name.endsWith(".tsx") && !name.includes(".generated."))
+    .map((name) => repoRelative(path.join(docsWidgetsDir, name)));
+}
+
+const inventory = () => [...componentFiles(componentsDir), ...docsWidgetFiles()];
 
 /** Rows of a spec's "Pinned values" table: `| \`key\` | \`Source\` | \`value\` |`. */
 function pinnedRows(body: string): Map<string, { source: string; value: string }> {
@@ -101,6 +118,16 @@ describe("design-system component spec catalog", () => {
   it("finds the specs and the components", () => {
     expect(specs.length).toBeGreaterThan(40);
     expect(componentFiles(componentsDir).length).toBeGreaterThan(40);
+    expect(docsWidgetFiles().length).toBeGreaterThan(0);
+  });
+
+  it("documents only inventoried components", () => {
+    const known = new Set(inventory());
+    const strays = specs.filter((spec) => spec.source && !known.has(spec.source));
+    expect(
+      strays.map((spec) => `${spec.file} -> ${spec.source}`),
+      "specs whose source is outside the inventory",
+    ).toEqual([]);
   });
 
   it.each(specs.map((spec) => [spec.file, spec] as const))(
@@ -131,7 +158,7 @@ describe("design-system component spec catalog", () => {
       if (!spec.source) continue;
       bySource.set(spec.source, [...(bySource.get(spec.source) ?? []), spec.file]);
     }
-    const missing = componentFiles(componentsDir).filter((file) => !bySource.has(file));
+    const missing = inventory().filter((file) => !bySource.has(file));
     expect(missing, "components without a spec").toEqual([]);
     const shared = [...bySource].filter(([, files]) => files.length > 1);
     expect(shared, "sources claimed by more than one spec").toEqual([]);
