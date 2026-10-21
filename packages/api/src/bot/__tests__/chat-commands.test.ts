@@ -47,6 +47,11 @@ const LINES = [
   "!today",
   "!dwhelp",
   "!DwCommands",
+  "!dw",
+  "!DW  help  !task",
+  "!dw help t",
+  "!dwx",
+  "!dw\u{E0000}",
   "!t aliased",
   "!T aliased caps",
   "!d",
@@ -78,6 +83,8 @@ describe("isDireworkCommandLine", () => {
     expect(isDireworkCommandLine("!lurk", new Set())).toBe(false);
     expect(isDireworkCommandLine("!task a", new Set())).toBe(true);
     expect(isDireworkCommandLine("!today", new Set())).toBe(true);
+    expect(isDireworkCommandLine("!dw help task", new Set())).toBe(true);
+    expect(isDireworkCommandLine("!DW", new Set())).toBe(true);
     expect(isDireworkCommandLine("!t a", new Set())).toBe(false);
   });
 });

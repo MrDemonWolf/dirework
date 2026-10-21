@@ -92,8 +92,9 @@ account configuration, and OBS setup, see the
 | `!timer eta`            | Show time left in the current phase and the whole session |
 
 See the [full command reference](https://dirework.mrdemonwolf.dev/docs/chat-commands)
-for all options and customizable bot responses. Viewers can also run `!dwhelp` or
-`!dwcommands` in chat at any time to get the command list.
+for all options and customizable bot responses. Viewers can run `!dw help` in chat at any
+time for a 3-step starter guide, `!dw help task` (or any command) for a plain-language
+explanation, and `!dwhelp` or `!dwcommands` for the full command list.
 
 ### Bot Configuration
 

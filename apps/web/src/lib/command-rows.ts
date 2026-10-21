@@ -11,9 +11,60 @@ export interface CommandRow {
   description: string;
   /** Who can run it in chat; "mods" covers moderators and the streamer. */
   permission: "everyone" | "mods";
+  /**
+   * Answers even while its tab's enable switch is off (the meta commands). The tab lists
+   * these rows in their own "Always on" legend, which the switch never dims.
+   */
+  alwaysOn?: boolean;
 }
 
-/** Reference rows for the Task tab. */
+/**
+ * The always-on meta commands (`META_COMMANDS`): they answer even when task commands are
+ * switched off. Part of the Task tab's rows, where the Help reply that points at them is
+ * edited, but `alwaysOn` puts them in a legend of their own that the Task switch never dims.
+ */
+export const metaCommands: CommandRow[] = [
+  {
+    command: "!dw help",
+    usage: "!dw help",
+    description: "3-step starter guide for viewers",
+    permission: "everyone",
+    alwaysOn: true,
+  },
+  {
+    command: "!dw help [command]",
+    usage: "!dw help [command]",
+    description: "Explain one command with an example",
+    permission: "everyone",
+    alwaysOn: true,
+  },
+  {
+    command: "!dw commands",
+    usage: "!dw commands",
+    description: "Link to the full command list",
+    permission: "everyone",
+    alwaysOn: true,
+  },
+  {
+    command: "!dwhelp",
+    usage: "!dwhelp",
+    description: "Link to the full command list",
+    permission: "everyone",
+    alwaysOn: true,
+  },
+  {
+    command: "!dwcommands",
+    usage: "!dwcommands",
+    description: "Same as !dwhelp",
+    permission: "everyone",
+    alwaysOn: true,
+  },
+];
+
+/**
+ * Rows for the Task tab: the task commands, which its switch turns off, then the always-on
+ * meta commands.
+ */
 export const taskCommands: CommandRow[] = [
   { command: "!task", usage: "!task [task]", description: "Add a task", permission: "everyone" },
   {
@@ -58,13 +109,19 @@ export const taskCommands: CommandRow[] = [
     description: "Finish the current task and start the next",
     permission: "everyone",
   },
-  { command: "!help", usage: "!help", description: "Show help in chat", permission: "everyone" },
+  {
+    command: "!help",
+    usage: "!help",
+    description: "Starter guide for viewers (your Help reply)",
+    permission: "everyone",
+  },
   {
     command: "!clear",
     usage: "!clear all/done/@user",
     description: "Clear tasks",
     permission: "mods",
   },
+  ...metaCommands,
 ];
 
 /** Reference rows for the Timer tab. Every timer command is mod-only. */

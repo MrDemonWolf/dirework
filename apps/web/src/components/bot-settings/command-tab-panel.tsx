@@ -2,7 +2,8 @@
 
 // Body of the Task and Timer tabs on the bot settings page: a header carrying the group's
 // enable switch, then the command reference beside the reply editor. On small screens the
-// editor comes first and the reference trails it as a legend.
+// editor comes first and the reference trails it as a legend. Rows marked `alwaysOn` (the
+// meta commands) get a legend of their own under it, because the switch doesn't turn them off.
 
 import { CommandReference } from "@/components/bot-settings/command-reference";
 import type { CommandRow } from "@/lib/command-rows";
@@ -18,7 +19,8 @@ import type { MessageField } from "@/lib/message-fields";
  *
  * Fully controlled: the switch and message edits only update the page's draft, which the
  * page's SaveBar persists. When `enabled` is off the message fields are disabled, a note
- * says why, and the reference legend shows the group as off.
+ * says why, and the reference legend shows the group as off. The "Always on" legend never
+ * does: those commands still answer in chat.
  */
 export function CommandTabPanel<T extends object>({
   title,
@@ -45,6 +47,8 @@ export function CommandTabPanel<T extends object>({
   onMessagesChange: (values: T) => void;
   preview: ReplyPreview;
 }) {
+  const switchable = commands.filter((cmd) => !cmd.alwaysOn);
+  const alwaysOn = commands.filter((cmd) => cmd.alwaysOn);
   return (
     <div className="space-y-5">
       {/* Stable header: the switch keeps its place no matter how long the list below gets. */}
@@ -75,11 +79,10 @@ export function CommandTabPanel<T extends object>({
       )}
 
       <div className="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
-        <CommandReference
-          commands={commands}
-          disabled={!enabled}
-          className="order-last lg:order-first"
-        />
+        <div className="order-last space-y-3 lg:order-first">
+          <CommandReference commands={switchable} disabled={!enabled} />
+          {alwaysOn.length > 0 && <CommandReference title="Always on" commands={alwaysOn} />}
+        </div>
         <div className="min-w-0 space-y-3">
           <ConsoleRule as="h3" label="Messages" />
           <MessageEditor

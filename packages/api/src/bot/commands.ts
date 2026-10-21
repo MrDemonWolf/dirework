@@ -41,6 +41,14 @@ import {
   skipTimer,
   startTimer,
 } from "../services/timer-service";
+import {
+  COMMAND_HELP_LINES,
+  DW_GUIDE_REPLY,
+  DW_TASKS_OFF_REPLY,
+  DW_TIMER_OFF_REPLY,
+  DW_UNKNOWN_REPLY,
+  parseDwArgs,
+} from "./viewer-help";
 
 // Chat command handling for the browser-bot ingest path. This module is pure
 // with respect to the runtime: no env, no event bus — all state changes go
@@ -256,15 +264,15 @@ async function dispatchMessage(ctx: MessageContext, state: ModerationState): Pro
 
   if (command === "!dwhelp" || command === "!dwcommands") {
     if (!(await claim())) return;
-    if (ctx.docsUrl) {
-      say(
-        `${userInfo.displayName}, the full command list is here: ${ctx.docsUrl}/docs/chat-commands`,
-      );
-    } else {
-      say(
-        `${userInfo.displayName}, available commands: !task, !done, !edit, !remove, !focus, !check, !today, !next, !help, !clear (mods), !timer (mods), !block, !unblock, !mute, !unmute (mods)`,
-      );
-    }
+    sayCommandList(ctx);
+    return;
+  }
+
+  // The `!dw` help namespace: always on like !dwhelp, answered from the config
+  // bot.ingest already loaded (no D1 read or write past the claim).
+  if (command === "!dw") {
+    if (!(await claim())) return;
+    handleDwCommand(args, ctx);
     return;
   }
 
@@ -303,6 +311,48 @@ async function dispatchMessage(ctx: MessageContext, state: ModerationState): Pro
       await handleClear(args, ctx);
       break;
   }
+}
+
+/** `!dwhelp`, `!dwcommands` and `!dw commands`: the docs page, or an inline list without one. */
+function sayCommandList(ctx: MessageContext): void {
+  const name = ctx.userInfo.displayName;
+  if (ctx.docsUrl) {
+    ctx.say(`${name}, the full command list is here: ${ctx.docsUrl}/docs/chat-commands`);
+  } else {
+    ctx.say(
+      `${name}, available commands: !dw help, !task, !done, !edit, !remove, !focus, !check, !today, !next, !help, !clear (mods), !timer (mods), !block, !unblock, !mute, !unmute (mods)`,
+    );
+  }
+}
+
+/** `!dw`, `!dw help`, `!dw help <command>`, `!dw commands` (see bot/viewer-help.ts). */
+function handleDwCommand(args: string[], ctx: MessageContext): void {
+  const { config, userInfo, say } = ctx;
+  const name = userInfo.displayName;
+  const request = parseDwArgs(args, (command) => resolveAlias(command, config.commandAliases));
+
+  if (request.kind === "commands") {
+    sayCommandList(ctx);
+    return;
+  }
+  if (request.kind === "guide") {
+    say(config.taskCommandsEnabled ? DW_GUIDE_REPLY(name) : DW_TASKS_OFF_REPLY(name));
+    return;
+  }
+  if (!request.name) {
+    say(DW_UNKNOWN_REPLY(name));
+    return;
+  }
+  // Don't explain a command that won't answer right now.
+  if (!config.taskCommandsEnabled && TASK_COMMANDS.has(`!${request.name}`)) {
+    say(DW_TASKS_OFF_REPLY(name));
+    return;
+  }
+  if (!config.timerCommandsEnabled && request.name === "timer") {
+    say(DW_TIMER_OFF_REPLY(name));
+    return;
+  }
+  say(`${name}, ${COMMAND_HELP_LINES[request.name]}`);
 }
 
 const TODAY_PREVIEW_BYTES = 100;

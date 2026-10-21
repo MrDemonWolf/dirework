@@ -7,6 +7,13 @@ import * as schema from "@dirework/db/schema";
 import { env } from "cloudflare:workers";
 
 import { formatEtaDuration, handleMessage, interpolate } from "../bot/commands";
+import {
+  COMMAND_HELP_LINES,
+  DW_GUIDE_REPLY,
+  DW_TASKS_OFF_REPLY,
+  DW_TIMER_OFF_REPLY,
+  DW_UNKNOWN_REPLY,
+} from "../bot/viewer-help";
 import type { Context } from "../context";
 import {
   BOT_REAUTH_REQUIRED_MESSAGE,
@@ -470,6 +477,7 @@ describe("bot.ingest moderation", () => {
     ["!task muted", {}],
     ["!timer start", mod],
     ["!dwhelp", {}],
+    ["!dw help", {}],
     ["!block @someone", mod],
     ["!unmute", {}],
   ])("while muted, %j is ignored with no claim and no write", async (line, chatter) => {
@@ -929,5 +937,86 @@ describe("bot.getSession without a bot account", () => {
     await expect(api().bot.getSession({ token: BOT_TOKEN })).rejects.toMatchObject({
       code: "NOT_FOUND",
     });
+  });
+});
+
+describe("bot.ingest !dw help", () => {
+  const claims = () => db.query.processedChatMessage.findMany();
+  let nextId = 0;
+  const messageId = () => `${String(++nextId).padStart(8, "0")}-0000-4000-8000-0000000000dd`;
+
+  it("!dw and !dw help post the built-in starter guide", async () => {
+    for (const line of ["!dw", "!dw help", "!DW  HELP"]) {
+      expect((await say(line)).replies, line).toEqual([DW_GUIDE_REPLY("Viewer")]);
+    }
+  });
+
+  it("keeps the built-in guide when the owner reworded !help", async () => {
+    await db.update(schema.botConfig).set({ msgHelp: "Ask the streamer, {user}." });
+
+    expect((await say("!help")).replies).toEqual(["Ask the streamer, Viewer."]);
+    expect((await say("!dw help")).replies).toEqual([DW_GUIDE_REPLY("Viewer")]);
+  });
+
+  it("!dw help <command> explains one command, by name, !name, any case or alias", async () => {
+    await db.update(schema.botConfig).set({ commandAliases: { add: "task" } });
+    const taskLine = `Viewer, ${COMMAND_HELP_LINES.task}`;
+
+    for (const line of ["!dw help task", "!DW  HELP  !TASK", "!dw help add", "!dw task"]) {
+      expect((await say(line)).replies, line).toEqual([taskLine]);
+    }
+    expect((await say("!dw help clear")).replies[0]).toContain("(mods only)");
+  });
+
+  it("answers an unknown command with a friendly example, never echoing it", async () => {
+    const { replies } = await say("!dw help lurk");
+    expect(replies).toEqual([DW_UNKNOWN_REPLY("Viewer")]);
+    expect(replies[0]).not.toContain("lurk");
+  });
+
+  it("!dw commands lists every command like !dwcommands", async () => {
+    const { replies } = await say("!dw commands");
+    expect(replies).toEqual((await say("!dwcommands")).replies);
+    expect(replies[0]).toContain("/docs/chat-commands");
+  });
+
+  it("says the task list is off instead of teaching task commands", async () => {
+    await db.update(schema.botConfig).set({ taskCommandsEnabled: false });
+
+    expect((await say("!dw help")).replies).toEqual([DW_TASKS_OFF_REPLY("Viewer")]);
+    expect((await say("!dw help done")).replies).toEqual([DW_TASKS_OFF_REPLY("Viewer")]);
+    // Moderation commands still answer, so they are still explained.
+    expect((await say("!dw help mute")).replies).toEqual([`Viewer, ${COMMAND_HELP_LINES.mute}`]);
+  });
+
+  it("says the timer commands are off when they are", async () => {
+    await db.update(schema.botConfig).set({ timerCommandsEnabled: false });
+    expect((await say("!dw help timer")).replies).toEqual([DW_TIMER_OFF_REPLY("Viewer")]);
+  });
+
+  it("is ignored while muted, and for a blocked viewer, with no claim", async () => {
+    await db.update(schema.botConfig).set({ muted: true });
+    expect(await say("!dw help", { messageId: messageId() })).toEqual({
+      replies: [],
+      muted: true,
+    });
+
+    await db.update(schema.botConfig).set({ muted: false, blockedViewers: ["viewer"] });
+    expect((await say("!dw help", { messageId: messageId() })).replies).toEqual([]);
+    expect(await claims()).toEqual([]);
+  });
+
+  it("answers once when two bot pages relay the same line, writing only the claim", async () => {
+    const id = messageId();
+    const before = await config();
+
+    const first = await say("!dw help task", { messageId: id });
+    const second = await say("!dw help task", { messageId: id });
+
+    expect(first.replies).toHaveLength(1);
+    expect(second.replies).toEqual([]);
+    expect(await claims()).toHaveLength(1);
+    expect(await tasks()).toEqual([]);
+    expect(await config()).toEqual(before);
   });
 });

@@ -18,14 +18,16 @@ import { StatusChip } from "@/components/status-chip";
  * Collapsible legend of a tab's commands. Open by default; `disabled` dims the rows and
  * chips the header so a switched-off group is visible where the commands are listed, not
  * only at the switch. Mod-only rows carry a "Mods" chip, explained by a legend line under
- * the list.
+ * the list. `title` names a second legend in the same tab (the Task tab's "Always on").
  */
 export function CommandReference({
   commands,
+  title = "Command reference",
   disabled = false,
   className,
 }: {
   commands: CommandRow[];
+  title?: string;
   disabled?: boolean;
   className?: string;
 }) {
@@ -33,7 +35,7 @@ export function CommandReference({
   const hasModRows = commands.some((cmd) => cmd.permission === "mods");
   return (
     <SectionGroup
-      title="Command reference"
+      title={title}
       titleId={headingId}
       trailing={
         <>

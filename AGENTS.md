@@ -99,7 +99,15 @@ alias are relayed (`isDireworkCommandLine` in the zod-free `@dirework/api/chat-c
 which also owns `KNOWN_ALIAS_TARGETS` / `META_COMMANDS` / `normalizeAliasToken` and is
 the parser `handleMessage` uses); `bot.getSession` returns the alias keys, so new aliases
 reach an open page at the hourly revalidation or on reload. Disabled commands are still
-relayed (the server drops them), so an enable toggle applies instantly. `MODERATION_COMMANDS`
+relayed (the server drops them), so an enable toggle applies instantly. `META_COMMANDS`
+(`dw`, `dwhelp`, `dwcommands`) are always on (no enable switch) but still muted/blocked and
+claimed like any command. `!dw` is the viewer help namespace (`packages/api/src/bot/viewer-help.ts`):
+`!dw` / `!dw help` → the built-in starter guide (not editable, so it survives a reworded
+`!help`; a tasks-off line when task commands are disabled), `!dw help <command>` (name,
+`!name`, any case, or an alias via `resolveAlias`) → one fixed plain-language line,
+`!dw commands` → the `!dwcommands` reply. Answered from the bot_config row ingest already
+loaded: no extra D1 read or write. The default `msg_help` holds the same `STARTER_STEPS`
+(a test pins it), and every built-in line is byte-tested under `MAX_CHAT_BYTES`. `MODERATION_COMMANDS`
 (`mute`/`unmute`/`block`/`unblock`, also in `chat-commands`) are built-in names (relayed, never
 aliasable) but NOT alias targets; they are mod-only. `handleMessage` gates every line on the
 `bot_config` row ingest already loads, BEFORE any claim: a blocked login (unless broadcaster)

@@ -79,7 +79,7 @@ describe("commandAliasesInput validation", () => {
   });
 
   it("rejects an alias named after a built-in command", () => {
-    for (const key of ["done", "!Task", "timer", "dwhelp", "dwcommands"]) {
+    for (const key of ["done", "!Task", "timer", "dw", "!DW", "dwhelp", "dwcommands"]) {
       expect(() => commandAliasesSchema.parse({ commandAliases: { [key]: "next" } })).toThrow(
         /shadows-builtin/,
       );

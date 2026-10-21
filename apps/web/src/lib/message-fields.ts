@@ -20,6 +20,14 @@ export interface MessageField<K extends string = string> {
  * keys (needed by the coverage check below) while type-checking each entry.
  */
 export const taskMessageFields = [
+  // First, in its own group: the reply a brand-new viewer reads. `!dw help` always answers
+  // with the built-in guide, so rewording this never leaves chat without one.
+  {
+    key: "help",
+    label: "Viewer starter guide (!help)",
+    variables: ["user"],
+    group: "Viewer help",
+  },
   { key: "taskAdded", label: "Task added", variables: ["task", "user"], group: "Adding" },
   { key: "noTaskAdded", label: "Task limit reached", variables: ["user"], group: "Adding" },
   { key: "noTaskContent", label: "No task text (!task)", variables: ["user"], group: "Adding" },
@@ -72,7 +80,6 @@ export const taskMessageFields = [
     group: "Errors & limits",
   },
   { key: "notMod", label: "Not a mod", variables: ["user"], group: "Errors & limits" },
-  { key: "help", label: "Help", variables: ["user"], group: "Errors & limits" },
 ] as const satisfies readonly MessageField<keyof TaskMessagesConfig>[];
 
 /** Fields for the timer message set, in display order. */
