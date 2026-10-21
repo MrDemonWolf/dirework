@@ -85,14 +85,17 @@ export async function findActiveTaskByUsername(db: DbClient, username: string) {
   return task ?? null;
 }
 
-/** Broadcaster lookup + priority/order derivation (M6). */
-export async function resolveTaskPlacement(db: DbClient, authorTwitchId: string) {
-  const owner = await db.query.user.findFirst({
-    columns: { id: true, twitchId: true },
-    where: eq(schema.user.isOwner, true),
-  });
-  const ownerTaskId = owner ? await resolveOwnerTaskId(db, owner) : null;
-  const isBroadcaster = ownerTaskId === authorTwitchId;
+/**
+ * Broadcaster lookup + priority/order derivation (M6). `knownIsBroadcaster`
+ * lets a caller that already loaded the owner (bot ingest, which derives chat
+ * privileges from it) skip reading the owner row a second time per chat line.
+ */
+export async function resolveTaskPlacement(
+  db: DbClient,
+  authorTwitchId: string,
+  knownIsBroadcaster?: boolean,
+) {
+  const isBroadcaster = knownIsBroadcaster ?? (await isOwnerTaskAuthor(db, authorTwitchId));
   const priority = isBroadcaster ? 0 : 1;
 
   const lastTask = await db.query.task.findFirst({
@@ -102,6 +105,24 @@ export async function resolveTaskPlacement(db: DbClient, authorTwitchId: string)
   });
 
   return { isBroadcaster, priority, nextOrder: (lastTask?.order ?? 0) + 1 };
+}
+
+async function isOwnerTaskAuthor(db: DbClient, authorTwitchId: string) {
+  const owner = await db.query.user.findFirst({
+    columns: { id: true, twitchId: true },
+    where: eq(schema.user.isOwner, true),
+  });
+  const ownerTaskId = owner ? await resolveOwnerTaskId(db, owner) : null;
+  return ownerTaskId === authorTwitchId;
+}
+
+/**
+ * Options shared by the task-creating mutations. `isBroadcaster` is the
+ * already-known "author is the streamer" answer (bot ingest passes the one it
+ * derived chat privileges from); omitted, the owner row is read.
+ */
+interface TaskPlacementOpts {
+  isBroadcaster?: boolean;
 }
 
 /**
@@ -151,17 +172,18 @@ export async function promoteNextPending(db: DbClient, twitchId: string) {
  * `openTaskCount` lets a caller that already read the author's open tasks (the
  * chat cap check) pass the count instead of paying for the same query twice
  * per chat line. With `activate: true` the count is irrelevant and not read.
+ * `isBroadcaster` skips the owner lookup (see TaskPlacementOpts).
  */
 export async function createTask(
   db: DbClient,
   author: TaskAuthor,
   text: string,
-  opts?: { activate?: boolean; openTaskCount?: number },
+  opts?: { activate?: boolean; openTaskCount?: number } & TaskPlacementOpts,
 ) {
   const knownCount = opts?.activate ? 0 : opts?.openTaskCount;
   const [openTaskCount, placement] = await Promise.all([
     knownCount ?? getViewerOpenTasks(db, author.twitchId).then((rows) => rows.length),
-    resolveTaskPlacement(db, author.twitchId),
+    resolveTaskPlacement(db, author.twitchId, opts?.isBroadcaster),
     purgeExpiredDoneTasks(db),
   ]);
 
@@ -299,9 +321,10 @@ export async function replaceActiveTask(
   activeTask: { id: string },
   author: TaskAuthor,
   text: string,
+  opts?: TaskPlacementOpts,
 ) {
   const [placement] = await Promise.all([
-    resolveTaskPlacement(db, author.twitchId),
+    resolveTaskPlacement(db, author.twitchId, opts?.isBroadcaster),
     purgeExpiredDoneTasks(db),
   ]);
   const replacementId = crypto.randomUUID();
@@ -492,9 +515,14 @@ export function removeTasksByUsernameStmt(db: DbClient, username: string, onlyIf
     .where(onlyIf ? and(authorUsernameEquals(username), onlyIf) : authorUsernameEquals(username));
 }
 
-/** Delete every task by username, case-insensitive (L9 — ban/timeout/!clear @user). */
-export async function removeTasksByUsername(db: DbClient, username: string) {
-  return removeTasksByUsernameStmt(db, username);
+/**
+ * Delete every task by username, case-insensitive (L9 — ban/timeout/!clear @user).
+ * Resolves to how many tasks were removed (same single DELETE, with RETURNING),
+ * so `!clear @user` can say when there was nothing to clear.
+ */
+export async function removeTasksByUsername(db: DbClient, username: string): Promise<number> {
+  const removed = await removeTasksByUsernameStmt(db, username).returning({ id: schema.task.id });
+  return removed.length;
 }
 
 export async function clearAllTasks(db: DbClient) {

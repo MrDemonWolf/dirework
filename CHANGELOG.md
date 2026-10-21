@@ -119,6 +119,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   honours reduced-motion).
 
 ### Fixed
+- **`!done #2` finishes task #2.** `!today` shows task numbers as `#2`, but typing them back
+  that way made `!done` complete your current task instead, with a cheerful reply.
+  `!done`, `!edit`, `!remove` and `!focus` now accept `#2` as well as `2`, and `!done`
+  followed by anything that isn't a number replies with how to use it instead of finishing
+  the wrong task.
+- **`!timer` says why nothing happened.** Pausing a paused timer, resuming a running one, or
+  asking for the ETA while paused all used to answer "The timer isn't running", and a
+  pause or skip that lost a race with another action answered "Done." anyway. The bot now
+  says the timer is already paused or already running, reports the frozen time left while
+  paused, and says when the timer changed underneath a command.
+- **`!check @user` and `!clear @user` read the name the way `!block` does.** A trailing `?` or
+  `,` no longer breaks the lookup, `!check viewer` without the `@` checks that viewer instead
+  of showing your own task, a name that can't be a Twitch login gets a usage hint, and
+  `!clear @user` says so when that viewer had no tasks.
+- `!task` and `!next` read the streamer's account once per chat line instead of twice.
 - **Theme Center and Bot settings open on your saved values.** Both editors used to render
   the stock defaults first and swap in the saved theme or messages a moment after the page
   loaded (the server HTML carried the defaults too). They now start from the saved values,

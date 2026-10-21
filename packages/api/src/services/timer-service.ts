@@ -152,10 +152,41 @@ export async function startTimer(db: DbClient, opts?: { totalCycles?: number }) 
   return row ?? null;
 }
 
+/**
+ * What a pause/resume/skip did. `changed: false` carries why nothing happened,
+ * so the chat path can say "already paused" instead of a misleading "Done." or
+ * "isn't running". `row` is the timer as it stands afterwards (null when there
+ * is no timer row at all). `lost-race` means the guarded UPDATE matched no row
+ * because something else moved the timer between our read and our write.
+ */
+export type TimerActionResult<Reason extends string> =
+  | { changed: true; row: TimerStateRow }
+  | { changed: false; reason: Reason | "lost-race"; row: TimerStateRow | null };
+
+export type PauseNoopReason = "not-running" | "already-paused";
+export type ResumeNoopReason = "not-running" | "not-paused";
+export type SkipNoopReason = "not-running";
+
+/** Re-read after a lost compare-and-swap, so callers see the state that won. */
+async function lostRace(db: DbClient): Promise<{
+  changed: false;
+  reason: "lost-race";
+  row: TimerStateRow | null;
+}> {
+  return {
+    changed: false,
+    reason: "lost-race",
+    row: (await db.query.timerState.findFirst()) ?? null,
+  };
+}
+
 /** Pause a running timer, storing the remaining milliseconds. */
-export async function pauseTimer(db: DbClient) {
+export async function pauseTimerWithResult(
+  db: DbClient,
+): Promise<TimerActionResult<PauseNoopReason>> {
   const timer = await getTimerState(db);
-  if (!timer?.targetEndTime) return null;
+  if (timer?.status === "paused") return { changed: false, reason: "already-paused", row: timer };
+  if (!timer?.targetEndTime) return { changed: false, reason: "not-running", row: timer };
 
   const remaining = Math.max(0, timer.targetEndTime.getTime() - Date.now());
 
@@ -165,16 +196,30 @@ export async function pauseTimer(db: DbClient) {
     pausedWithRemaining: remaining,
     targetEndTime: null,
   });
-  return row ?? (await db.query.timerState.findFirst()) ?? null;
+  return row ? { changed: true, row } : lostRace(db);
+}
+
+/**
+ * Dashboard shape of {@link pauseTimerWithResult}: the row after the pause (or
+ * the current row when a concurrent action won the race), null when there was
+ * nothing to pause.
+ */
+export async function pauseTimer(db: DbClient) {
+  return rowOrNull(await pauseTimerWithResult(db));
 }
 
 /**
  * Resume a paused timer. M2 fix: nullish check — a timer paused with exactly
  * 0ms remaining must still resume (the old falsy check left it stuck forever).
  */
-export async function resumeTimer(db: DbClient) {
+export async function resumeTimerWithResult(
+  db: DbClient,
+): Promise<TimerActionResult<ResumeNoopReason>> {
   const timer = await getTimerState(db);
-  if (timer?.pausedWithRemaining == null) return null;
+  if (timer?.pausedWithRemaining == null) {
+    const running = timer != null && RUNNING_STATUSES.has(timer.status);
+    return { changed: false, reason: running ? "not-paused" : "not-running", row: timer };
+  }
 
   const [row] = await casTimer(db, timer, {
     status: timer.pausedFromStatus ?? "work",
@@ -182,21 +227,28 @@ export async function resumeTimer(db: DbClient) {
     pausedWithRemaining: null,
     pausedFromStatus: null,
   });
-  return row ?? (await db.query.timerState.findFirst()) ?? null;
+  return row ? { changed: true, row } : lostRace(db);
+}
+
+/** Dashboard shape of {@link resumeTimerWithResult} (see {@link pauseTimer}). */
+export async function resumeTimer(db: DbClient) {
+  return rowOrNull(await resumeTimerWithResult(db));
 }
 
 /**
  * Skip to the next phase; a paused timer skips from its pre-pause phase.
  * Overdue phases are advanced first, so skip always acts on the phase that is
- * actually current. Returns null when there is nothing to skip (no timer, or
+ * actually current. `not-running` when there is nothing to skip (no timer, or
  * idle/finished).
  */
-export async function skipTimer(db: DbClient) {
+export async function skipTimerWithResult(
+  db: DbClient,
+): Promise<TimerActionResult<SkipNoopReason>> {
   const [timer, timerConfigRow] = await Promise.all([
     maybeAdvanceOverdueTimer(db),
     db.query.timerConfig.findFirst(),
   ]);
-  if (!timer) return null;
+  if (!timer) return { changed: false, reason: "not-running", row: null };
 
   const effectiveStatus =
     timer.status === "paused" ? (timer.pausedFromStatus ?? "work") : timer.status;
@@ -209,11 +261,11 @@ export async function skipTimer(db: DbClient) {
 
   // No-op guard: from idle/finished nothing changes — skip the DB write.
   if (nextStatus === timer.status && nextDuration === null && nextCycle === timer.currentCycle) {
-    return null;
+    return { changed: false, reason: "not-running", row: timer };
   }
 
   // Guarded CAS on the state we read: if a concurrent action already moved
-  // past this phase, our UPDATE matches no row — return the current state
+  // past this phase, our UPDATE matches no row — report the current state
   // instead of clobbering it (which would skip a second phase).
   const [row] = await casTimer(db, timer, {
     status: nextStatus,
@@ -222,7 +274,20 @@ export async function skipTimer(db: DbClient) {
     pausedWithRemaining: null,
     targetEndTime: nextDuration ? new Date(Date.now() + nextDuration) : null,
   });
-  return row ?? (await db.query.timerState.findFirst()) ?? null;
+  return row ? { changed: true, row } : lostRace(db);
+}
+
+/**
+ * Dashboard shape of {@link skipTimerWithResult}: null when there is nothing
+ * to skip, the current row when a concurrent action won the race.
+ */
+export async function skipTimer(db: DbClient) {
+  return rowOrNull(await skipTimerWithResult(db));
+}
+
+/** The legacy return contract: a row unless nothing could have happened. */
+function rowOrNull(result: TimerActionResult<string>): TimerStateRow | null {
+  return result.changed || result.reason === "lost-race" ? result.row : null;
 }
 
 /**
@@ -243,25 +308,44 @@ export async function resetTimer(db: DbClient) {
 }
 
 export interface TimerEta {
-  /** End of the current phase. */
+  /** End of the current phase (for a paused timer: if it resumed right now). */
   phaseEnd: Date;
-  /** Projected end of the whole session. */
+  /** Projected end of the whole session (paused: if it resumed right now). */
   sessionEnd: Date;
+  /** True when the timer is paused, so the remaining time is frozen. */
+  paused: boolean;
 }
 
-/** Projected end of the current phase + whole session, or null if not running. */
+/**
+ * Projected end of the current phase + whole session, or null when there is
+ * nothing to project (no timer, idle, finished). A paused timer projects from
+ * its frozen remaining time and pre-pause phase.
+ */
 export async function getTimerEta(db: DbClient): Promise<TimerEta | null> {
   const [timer, timerConfigRow] = await Promise.all([
     maybeAdvanceOverdueTimer(db),
     db.query.timerConfig.findFirst(),
   ]);
-  if (!timer?.targetEndTime) return null;
+  if (!timer) return null;
+
+  const now = Date.now();
+  const paused = timer.status === "paused" && timer.pausedWithRemaining != null;
+  let phaseMs: number;
+  let status: TimerStateRow["status"];
+  if (paused) {
+    phaseMs = timer.pausedWithRemaining ?? 0;
+    status = timer.pausedFromStatus ?? "work";
+  } else if (timer.targetEndTime) {
+    phaseMs = timer.targetEndTime.getTime() - now;
+    status = timer.status;
+  } else {
+    return null;
+  }
 
   const tc = getTimerConfig(timerConfigRow ?? null);
 
-  let totalMs = timer.targetEndTime.getTime() - Date.now();
+  let totalMs = phaseMs;
   let cycle = timer.currentCycle;
-  let status = timer.status;
 
   // Bounded so a pathological state can't spin, but sized to the session: each
   // cycle is at most two transitions (work → break → work), plus slack for a
@@ -281,7 +365,8 @@ export async function getTimerEta(db: DbClient): Promise<TimerEta | null> {
   }
 
   return {
-    phaseEnd: timer.targetEndTime,
-    sessionEnd: new Date(Date.now() + totalMs),
+    phaseEnd: new Date(now + phaseMs),
+    sessionEnd: new Date(now + totalMs),
+    paused,
   };
 }

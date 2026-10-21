@@ -68,9 +68,11 @@ describe("removeTasksByUsername (ban / timeout / !clear @user)", () => {
       { id: "c", authorTwitchId: "2", authorUsername: "someone" },
     );
 
-    await removeTasksByUsername(db, "ViEwEr");
+    expect(await removeTasksByUsername(db, "ViEwEr")).toBe(2);
 
     expect(await statusById()).toEqual({ c: "pending" });
+    // Nothing left to remove: reports zero so !clear @user can say so.
+    expect(await removeTasksByUsername(db, "viewer")).toBe(0);
   });
 
   it("uses the lower(author_username) expression index instead of a full scan", async () => {

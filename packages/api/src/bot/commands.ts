@@ -35,10 +35,10 @@ import {
 import {
   getTimerEta,
   getTimerState,
-  pauseTimer,
+  pauseTimerWithResult,
   resetTimer,
-  resumeTimer,
-  skipTimer,
+  resumeTimerWithResult,
+  skipTimerWithResult,
   startTimer,
 } from "../services/timer-service";
 
@@ -98,16 +98,32 @@ export function formatEtaDuration(ms: number): string {
   return `${hours}h ${minutes}m`;
 }
 
-/** True when the arg is a 1-based task position ("!done 2", "!remove 1", …). */
-function isPositionArg(arg: string | undefined): arg is string {
-  return arg != null && /^\d+$/.test(arg);
+/**
+ * A 1-based task position arg ("!done 2", "!remove #1", …) as a number, or
+ * null when the arg isn't one. One leading "#" is accepted because `!today`
+ * shows positions as "#2", so viewers type them back that way.
+ */
+export function parsePositionArg(arg: string | undefined): number | null {
+  const match = arg == null ? null : /^#?(\d{1,6})$/.exec(arg);
+  return match?.[1] ? parseInt(match[1], 10) : null;
 }
 
 /** `!edit <position> <new text>`, or null when either part is missing. */
-export function parseTaskEditArgs(args: string[]): { position: string; text: string } | null {
-  if (args.length < 2 || !isPositionArg(args[0])) return null;
+export function parseTaskEditArgs(args: string[]): { position: number; text: string } | null {
+  const position = parsePositionArg(args[0]);
+  if (args.length < 2 || position === null) return null;
   const text = truncateToLength(args.slice(1).join(" ").trim(), MAX_TASK_LEN);
-  return text ? { position: args[0], text } : null;
+  return text ? { position, text } : null;
+}
+
+/**
+ * A `@user` command target ("!check @Viewer?", "!clear @viewer,") as the
+ * lowercase login, through the same normalizer !block uses. Trailing sentence
+ * punctuation is dropped first, since chat often types the name mid-sentence;
+ * anything that still isn't a Twitch login is null.
+ */
+export function parseUserTarget(arg: string): string | null {
+  return normalizeTwitchLogin(arg.replace(/[.,!?;:]+$/, ""));
 }
 
 /**
@@ -122,6 +138,23 @@ const POSITIONAL_USAGE_REPLY = (command: string, displayName: string) =>
 
 const CLEAR_USAGE_REPLY = (displayName: string) =>
   `${displayName}, tell me what to clear: !clear done, !clear all, or !clear @user.`;
+
+const DONE_USAGE_REPLY = (displayName: string) =>
+  `${displayName}, use !done to finish your current task, or !done [number] for another one. !today lists the numbers.`;
+
+const CHECK_USAGE_REPLY = (displayName: string) =>
+  `${displayName}, use !check for your own task or !check @user for someone else's.`;
+
+/** `login` is never "@"-prefixed, like the moderation replies below. */
+const NOTHING_TO_CLEAR_REPLY = (login: string) => `${login} has no tasks to clear.`;
+
+// Timer no-op replies: fixed like the usage replies above, because the owner's
+// templates only cover "not running" and "already running".
+const TIMER_ALREADY_PAUSED_REPLY = "The timer is already paused. Use !timer resume to continue.";
+const TIMER_CHANGED_REPLY =
+  "The timer changed just before that, so I left it alone. Check it and try again.";
+const TIMER_PAUSED_ETA_REPLY = (phase: string, time: string) =>
+  `The timer is paused with ${phase} left in this phase and ${time} left in the session.`;
 
 // Moderation replies are fixed like CLEAR_USAGE_REPLY: they report bot state, not
 // a viewer's task, so there is no owner template to fill. `name` is the mod's
@@ -149,9 +182,9 @@ const STALE_NEXT_REPLY = (displayName: string) =>
  * every positional task command (!done/!edit/!remove/!focus) repeats. Returns
  * null when the position is out of range.
  */
-async function getTaskAtPosition(db: DbClient, twitchId: string, arg: string) {
+async function getTaskAtPosition(db: DbClient, twitchId: string, position: number) {
   const viewerTasks = await getViewerOpenTasks(db, twitchId);
-  return viewerTasks[parseInt(arg, 10) - 1] ?? null;
+  return viewerTasks[position - 1] ?? null;
 }
 
 /**
@@ -371,7 +404,12 @@ async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void>
     return;
   }
 
-  await createTask(db, userInfo, text, { openTaskCount: openTasks.length });
+  // isBroadcaster was derived from the owner row bot.ingest already read, so
+  // createTask doesn't read it again for this chat line.
+  await createTask(db, userInfo, text, {
+    openTaskCount: openTasks.length,
+    isBroadcaster: userInfo.isBroadcaster,
+  });
   say(interpolate(config.task.taskAdded, vars));
 }
 
@@ -379,9 +417,19 @@ async function handleTaskDone(args: string[], ctx: MessageContext): Promise<void
   const { config, userInfo, say, db } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
-  const task = isPositionArg(args[0])
-    ? await getTaskAtPosition(db, userInfo.twitchId, args[0])
-    : await getActiveTask(db, userInfo.twitchId);
+  // A bare !done finishes the active task. Anything else must be a position:
+  // falling back to the active task for "!done intro" would complete the
+  // wrong task and announce it.
+  const position = parsePositionArg(args[0]);
+  if (args[0] !== undefined && position === null) {
+    say(DONE_USAGE_REPLY(userInfo.displayName));
+    return;
+  }
+
+  const task =
+    position !== null
+      ? await getTaskAtPosition(db, userInfo.twitchId, position)
+      : await getActiveTask(db, userInfo.twitchId);
 
   if (!task) {
     say(interpolate(config.task.noTask, vars));
@@ -416,12 +464,13 @@ async function handleTaskRemove(args: string[], ctx: MessageContext): Promise<vo
   const { config, userInfo, say, db } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
-  if (!isPositionArg(args[0])) {
+  const position = parsePositionArg(args[0]);
+  if (position === null) {
     say(POSITIONAL_USAGE_REPLY("!remove", userInfo.displayName));
     return;
   }
 
-  const task = await getTaskAtPosition(db, userInfo.twitchId, args[0]);
+  const task = await getTaskAtPosition(db, userInfo.twitchId, position);
   if (!task) {
     say(interpolate(config.task.noTask, vars));
     return;
@@ -435,12 +484,13 @@ async function handleTaskFocus(args: string[], ctx: MessageContext): Promise<voi
   const { config, userInfo, say, db } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
-  if (!isPositionArg(args[0])) {
+  const position = parsePositionArg(args[0]);
+  if (position === null) {
     say(POSITIONAL_USAGE_REPLY("!focus", userInfo.displayName));
     return;
   }
 
-  const task = await getTaskAtPosition(db, userInfo.twitchId, args[0]);
+  const task = await getTaskAtPosition(db, userInfo.twitchId, position);
   if (!task) {
     say(interpolate(config.task.noTask, vars));
     return;
@@ -454,8 +504,15 @@ async function handleTaskCheck(args: string[], ctx: MessageContext): Promise<voi
   const { config, userInfo, say, db } = ctx;
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
-  if (args[0]?.startsWith("@")) {
-    const targetTask = await findActiveTaskByUsername(db, args[0].slice(1));
+  // Any argument is a target, "@" or not: ignoring "!check viewer" and showing
+  // the sender's own task instead answered a question nobody asked.
+  if (args[0] !== undefined) {
+    const target = parseUserTarget(args[0]);
+    if (!target) {
+      say(CHECK_USAGE_REPLY(userInfo.displayName));
+      return;
+    }
+    const targetTask = await findActiveTaskByUsername(db, target);
 
     if (!targetTask) {
       say(interpolate(config.task.noTaskOther, vars));
@@ -506,12 +563,17 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
   // No active task means there is no {oldTask} to announce — fall back to the
   // plain taskAdded template instead of interpolating empty quotes.
   if (!activeTask) {
-    await createTask(db, userInfo, newText, { activate: true });
+    await createTask(db, userInfo, newText, {
+      activate: true,
+      isBroadcaster: userInfo.isBroadcaster,
+    });
     say(interpolate(config.task.taskAdded, { ...vars, task: newText }));
     return;
   }
 
-  const result = await replaceActiveTask(db, activeTask, userInfo, newText);
+  const result = await replaceActiveTask(db, activeTask, userInfo, newText, {
+    isBroadcaster: userInfo.isBroadcaster,
+  });
   if (!result.created) {
     // The active task was completed or removed after we read it, so the guarded
     // batch created nothing — don't announce a replacement that never happened.
@@ -545,8 +607,19 @@ async function handleClear(args: string[], ctx: MessageContext): Promise<void> {
     await clearDoneTasks(db);
     say(interpolate(config.task.clearedDone, vars));
   } else if (sub?.startsWith("@")) {
-    await removeTasksByUsername(db, sub.slice(1));
-    say(interpolate(config.task.adminDeleteTasks, vars));
+    // "@" is required here (unlike !check): a typo like "!clear dones" must not
+    // delete the tasks of a viewer called "dones".
+    const target = parseUserTarget(sub);
+    if (!target) {
+      say(CLEAR_USAGE_REPLY(userInfo.displayName));
+      return;
+    }
+    const removed = await removeTasksByUsername(db, target);
+    say(
+      removed > 0
+        ? interpolate(config.task.adminDeleteTasks, vars)
+        : NOTHING_TO_CLEAR_REPLY(target),
+    );
   } else {
     // A mod typed !clear with no target (or an unknown one): say what the targets are
     // instead of silently doing nothing.
@@ -654,20 +727,28 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
     }
 
     case "pause": {
-      const result = await pauseTimer(db);
-      say(interpolate(result ? config.timer.commandSuccess : config.timer.notRunning, vars));
+      const result = await pauseTimerWithResult(db);
+      if (result.changed) say(interpolate(config.timer.commandSuccess, vars));
+      else if (result.reason === "already-paused") say(TIMER_ALREADY_PAUSED_REPLY);
+      else if (result.reason === "lost-race") say(TIMER_CHANGED_REPLY);
+      else say(interpolate(config.timer.notRunning, vars));
       break;
     }
 
     case "resume": {
-      const result = await resumeTimer(db);
-      say(interpolate(result ? config.timer.commandSuccess : config.timer.notRunning, vars));
+      const result = await resumeTimerWithResult(db);
+      if (result.changed) say(interpolate(config.timer.commandSuccess, vars));
+      else if (result.reason === "not-paused") say(interpolate(config.timer.timerRunning, vars));
+      else if (result.reason === "lost-race") say(TIMER_CHANGED_REPLY);
+      else say(interpolate(config.timer.notRunning, vars));
       break;
     }
 
     case "skip": {
-      const result = await skipTimer(db);
-      say(interpolate(result ? config.timer.commandSuccess : config.timer.notRunning, vars));
+      const result = await skipTimerWithResult(db);
+      if (result.changed) say(interpolate(config.timer.commandSuccess, vars));
+      else if (result.reason === "lost-race") say(TIMER_CHANGED_REPLY);
+      else say(interpolate(config.timer.notRunning, vars));
       break;
     }
 
@@ -687,12 +768,14 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
       // Relative durations, not wall-clock times — the Worker has no idea
       // what timezone the channel is in (Date#toLocaleTimeString is UTC here).
       const now = Date.now();
+      const phase = formatEtaDuration(eta.phaseEnd.getTime() - now);
+      const time = formatEtaDuration(eta.sessionEnd.getTime() - now);
+      // Paused: the owner's template says "ends in", which isn't true while the
+      // clock is frozen, so report the frozen time left instead.
       say(
-        interpolate(config.timer.eta, {
-          ...vars,
-          phase: formatEtaDuration(eta.phaseEnd.getTime() - now),
-          time: formatEtaDuration(eta.sessionEnd.getTime() - now),
-        }),
+        eta.paused
+          ? TIMER_PAUSED_ETA_REPLY(phase, time)
+          : interpolate(config.timer.eta, { ...vars, phase, time }),
       );
       break;
     }
