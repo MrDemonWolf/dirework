@@ -23,6 +23,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `!unblock @user` restores their commands, not their tasks. The streamer can't be blocked.
 - **Permission badges in the command reference.** Mod-only commands (`!clear`, `!timer`, and
   the new moderation commands) carry a **Mods** chip on the Bot settings page.
+- Browser end-to-end tests now cover the first-run claim page, starting and stopping a
+  Pomodoro (including the ticking timer overlay), resetting an overlay URL, and signing out.
+- Accessibility (axe-core, WCAG 2.1 A/AA) and phone-sized (Pixel 7) tests for the home page,
+  dashboard, Theme Center and Bot settings.
 
 ### Changed
 - **One tagline everywhere:** "A focus timer for your Twitch stream." The docs home page,

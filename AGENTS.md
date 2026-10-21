@@ -488,8 +488,20 @@ api worker from source and the web worker from its built bundle (`bun run build:
 apps/web first), both in local workerd on 127.0.0.1:3000/3001 over a fresh local D1 with every
 migration applied (`src/boot-api.ts`, `src/boot-web.ts`), signed in through the `DEV_LOGIN`
 bypass with a fixed test secret. One worker and serial specs (single-owner instance, one
-database). Specs use roles and labels, never CSS classes. Runs in `verify.yml` after the smoke
-check, so a PR and a deploy are gated the same way; the Playwright report uploads on failure.
+database). Spec files are numbered and run in order: `00-first-run` sees the fresh database
+(the claim page, then the first dev-login claims the instance), then `10-smoke`,
+`20-dashboard`, `30-timer` (Pomodoro start/stop and the ticking timer overlay; phase labels
+come from `@dirework/api/config-defaults`), `40-theme-center`, `50-bot-settings`,
+`60-token-reset` (the old overlay URL blanks), `70-sign-out`, `80-a11y`, `90-mobile`. Every
+spec passes when run twice in a row, because CI retries run immediately against the same
+database. Two projects: `chromium` runs all but `90-mobile`; `mobile` (Pixel 7) runs only
+`90-mobile` (no horizontal scroll, hamburger nav). `80-a11y` scans with axe-core against
+WCAG 2.0/2.1 A and AA, fails on serious/critical violations, attaches the full JSON, and
+runs under reduced motion (the entrance fade otherwise skews measured contrast); the Bot
+settings scan skips `color-contrast` until its 4.37:1 usage lines are fixed. Shared
+helpers in `tests/helpers.ts`: `signIn`, `confirmDialog`, `revealSecretUrl`. Specs use roles
+and labels, never CSS classes. Runs in `verify.yml` after the smoke check, so a PR and a
+deploy are gated the same way; the Playwright report uploads on failure.
 verify's `run-e2e` input (default `true`) skips the suite, never the build: docs deploys pass
 `false`, and deploy.yml's `skip_e2e` dispatch input (hotfix only) passes `!skip_e2e`. The
 Chromium download is cached on `hashFiles('bun.lock')` (which pins `@playwright/test`); a cache
