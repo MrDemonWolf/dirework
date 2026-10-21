@@ -40,6 +40,7 @@ Shared overlay geometry (squircle path/perimeter, `SQUIRCLE_RADIUS`, MM:SS clock
 | `color.scheme.{light,dark}` | `--<key>` on `:root` / `.dark`, `--color-<key>` in Tailwind | `background`, `primary`, `success`, `border`, `hairline`, `cornflower`, `chart-1…5`, `sidebar-*`. Values are oklch; `"{cornflower}"` aliases another key (`var(--cornflower)`). Both schemes must have the same keys. |
 | `color.phase` | `--phase-{work,break,long-break,paused}` | `work = #34C759`, `paused = #FF9F0A` |
 | `color.console` | `--color-console-<key>` (web only, literal) | Bot console (`/bot/<token>`), always dark: `base`, `line`, `edge`, `muted`, `soft`, `fg`, `bright` (Tailwind zinc 950…100) |
+| `color.obs` | `--color-obs-<key>` (web only, literal) | Bot dock (`/bot/<token>?view=dock`), always OBS Yami dark (from obs-studio `frontend/data/themes/Yami.obt`): `window` grey7, `base` grey6, `title` grey5, `control` grey4, `controlHover` grey3, `edge` grey1, `text` white1, `muted` white5, `primary` blue3, `primaryHover` blue2, `focus` blue1, `green` green1, `yellow` yellow1, `red` red1 |
 | `color.partner` | `--twitch`, `--twitch-hover`, `--color-twitch(-hover)` | `twitch = #9146FF`, `twitchHover = #7C3AE6`; `discord`, `obs` are reference only |
 | `color.brand`, `color.brandDark`, `color.semantic` | nothing | Hex palette for places that can't read CSS variables (OG images, docs widgets, design files). Not generated. |
 | `font.family` | nothing | Typeface names (Montserrat, IBM Plex Sans, IBM Plex Mono) |

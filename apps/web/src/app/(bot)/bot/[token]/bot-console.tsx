@@ -21,7 +21,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
-import { createBotSession, type BotActivityKind, type BotPhase } from "@/lib/bot-session";
+import {
+  DOCK_COMMANDS,
+  dockControls,
+  dockResultText,
+  type DockCommandId,
+} from "@/lib/bot-dock-commands";
+import {
+  createBotSession,
+  type BotActivityKind,
+  type BotPhase,
+  type BotSession,
+} from "@/lib/bot-session";
 import type { BotActivityLine, BotView } from "@/lib/bot-view";
 import { TwitchIrcClient, type IrcStatus } from "@/lib/irc-client";
 import { publicTrpc } from "@/utils/trpc";
@@ -113,6 +124,18 @@ export function BotConsole({ view = "source" }: { view?: BotView }) {
   const [lastError, setLastError] = useState<{ time: string; text: string } | null>(null);
   // Bumped by the dock's Reconnect button: the session effect tears down and starts over.
   const [generation, setGeneration] = useState(0);
+  // The dock's buttons: whether the session knows the broadcaster, the click in flight, and
+  // the last click's outcome.
+  const [commandsReady, setCommandsReady] = useState(false);
+  const [pendingCommand, setPendingCommand] = useState<DockCommandId | null>(null);
+  const [commandResult, setCommandResult] = useState<{
+    time: string;
+    text: string;
+    ok: boolean;
+  } | null>(null);
+  const sessionRef = useRef<BotSession | null>(null);
+  // Synchronous in-flight guard: state lags a double click by a render.
+  const commandBusyRef = useRef(false);
 
   const logRef = useRef<HTMLDivElement | null>(null);
   const lineIdRef = useRef(0);
@@ -157,9 +180,10 @@ export function BotConsole({ view = "source" }: { view?: BotView }) {
       events: {
         onPhase: setPhase,
         onIrcStatus: setIrcStatus,
-        onIdentity: ({ channelName, botUsername }) => {
+        onIdentity: ({ channelName, botUsername, commandsReady }) => {
           setChannelName(channelName);
           setBotUsername(botUsername);
+          setCommandsReady(commandsReady);
         },
         // Keep the first connect time: uptime spans IRC reconnects within this page load.
         onConnected: () => setConnectedAt((prev) => prev ?? Date.now()),
@@ -168,10 +192,29 @@ export function BotConsole({ view = "source" }: { view?: BotView }) {
         onMuted: setMuted,
       },
     });
+    sessionRef.current = session;
     // Disposing closes the IRC socket and timers, so a token change or unmount never leaves
     // a second bot relaying the same chat.
-    return session.dispose;
+    return () => {
+      sessionRef.current = null;
+      session.dispose();
+    };
   }, [token, generation]);
+
+  // One dock click = one bot.ingest request, never retried and never stacked.
+  const runDockCommand = async (id: DockCommandId) => {
+    const session = sessionRef.current;
+    if (!session || commandBusyRef.current) return;
+    commandBusyRef.current = true;
+    setPendingCommand(id);
+    try {
+      const result = await session.runCommand(DOCK_COMMANDS[id].line);
+      setCommandResult({ time: timeStamp(), text: dockResultText(result), ok: result.ok });
+    } finally {
+      commandBusyRef.current = false;
+      setPendingCommand(null);
+    }
+  };
 
   if (phase === "invalid" || phase === "revoked" || phase === "reauth") {
     return (
@@ -258,7 +301,6 @@ export function BotConsole({ view = "source" }: { view?: BotView }) {
         uptime={connectedAt && nowTick ? formatUptime(nowTick - connectedAt) : "—"}
         counters={counters}
         activity={activity}
-        lineClass={LINE_CLASS}
         lastError={lastError}
         // A manual restart costs one getSession, like a page reload; disabled while the bot
         // is already starting or connecting, so repeated clicks can't stack requests.
@@ -268,8 +310,17 @@ export function BotConsole({ view = "source" }: { view?: BotView }) {
         onReconnect={() => {
           setPhase("boot");
           setIrcStatus("idle");
+          setCommandsReady(false);
           setGeneration((g) => g + 1);
         }}
+        controls={dockControls({
+          ready: phase === "live" && commandsReady,
+          muted,
+          busy: pendingCommand !== null,
+        })}
+        onCommand={(id) => void runDockCommand(id)}
+        pending={pendingCommand}
+        result={commandResult}
       />
     );
   }

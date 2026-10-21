@@ -114,6 +114,8 @@ describe("createBotSession bootstrap", () => {
     expect(events.onIdentity).toHaveBeenCalledWith({
       channelName: "streamer",
       botUsername: "dirework_bot",
+      // SESSION carries no broadcasterId (an older api worker): the dock's buttons stay off.
+      commandsReady: false,
     });
     expect(client.connect).toHaveBeenCalledWith({
       botUsername: "dirework_bot",
@@ -777,5 +779,103 @@ describe("createBotSession ingest backlog", () => {
     expect(overflowNotices(events)).toHaveLength(2);
     gate.release?.();
     await vi.advanceTimersByTimeAsync(0);
+  });
+});
+
+describe("createBotSession runCommand (dock buttons)", () => {
+  const DOCK_SESSION = { ...SESSION, broadcasterId: "1000" };
+
+  it("sends the line as the broadcaster through ingest, with a fresh message id per call", async () => {
+    const { session, ingest, client, events } = setup({
+      getSession: async () => DOCK_SESSION,
+      ingest: async () => ({ replies: ["Done."], muted: false }),
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(events.onIdentity).toHaveBeenCalledWith(
+      expect.objectContaining({ commandsReady: true }),
+    );
+
+    await expect(session.runCommand("!timer pause")).resolves.toEqual({
+      ok: true,
+      replies: ["Done."],
+    });
+    await session.runCommand("!timer pause");
+
+    const sent = ingest.mock.calls.map(([input]) => input);
+    expect(sent[0]).toEqual({
+      token: "bot-token",
+      kind: "message",
+      username: "streamer",
+      twitchId: "1000",
+      message: "!timer pause",
+      isMod: false,
+      messageId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+    });
+    const ids = sent.map((input) => (input.kind === "message" ? input.messageId : undefined));
+    expect(new Set(ids).size).toBe(2);
+    // Dock replies are shown in the dock, never posted to Twitch chat.
+    expect(client.say).not.toHaveBeenCalled();
+    expect(events.onCounter).not.toHaveBeenCalledWith("replies");
+    expect(events.onActivity).toHaveBeenCalledWith("reply", "→ (dock) Done.");
+  });
+
+  it("applies the mute state an !unmute reports", async () => {
+    const { session, events } = setup({
+      getSession: async () => ({ ...DOCK_SESSION, muted: true }),
+      ingest: async () => ({ replies: ["Unmuted. Commands are back on."], muted: false }),
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(events.onMuted).toHaveBeenLastCalledWith(true);
+
+    await session.runCommand("!unmute");
+
+    expect(events.onMuted).toHaveBeenLastCalledWith(false);
+  });
+
+  it("refuses before the session is live or without the broadcaster id, with no request", async () => {
+    const early = setup({ getSession: () => new Promise(() => undefined) });
+    await expect(early.session.runCommand("!mute")).resolves.toEqual({
+      ok: false,
+      reason: "not-ready",
+    });
+    expect(early.ingest).not.toHaveBeenCalled();
+
+    const legacy = setup(); // an api worker that predates broadcasterId
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(legacy.session.runCommand("!mute")).resolves.toEqual({
+      ok: false,
+      reason: "not-ready",
+    });
+    expect(legacy.ingest).not.toHaveBeenCalled();
+  });
+
+  it("reports a failed request without retrying it", async () => {
+    const { session, ingest } = setup({
+      getSession: async () => DOCK_SESSION,
+      ingest: async () => {
+        throw new Error("fetch failed");
+      },
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    await expect(session.runCommand("!timer skip")).resolves.toEqual({
+      ok: false,
+      reason: "failed",
+    });
+    expect(ingest).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops on a reset bot link", async () => {
+    const { session, events } = setup({
+      getSession: async () => DOCK_SESSION,
+      ingest: async () => {
+        throw trpcError("UNAUTHORIZED");
+      },
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    await session.runCommand("!timer reset");
+
+    expect(phases(events)).toContain("revoked");
   });
 });
