@@ -162,6 +162,18 @@ describe("fitTimerLines", () => {
     for (const fit of fits) expect(fit.scale).toBeGreaterThan(0);
   });
 
+  it("never shrinks below MIN_FIT_SCALE in a frame shorter than the stack", () => {
+    // A 300x20 panel has no vertical room after padding and gaps: the uniform vertical
+    // shrink scaled every line to 0 and blanked the timer. The floor holds and each line
+    // keeps the panel's width through its middle.
+    const shape = fitShape(300, 20, "0", RING);
+    const fits = fitTimerLines(shape, 20, [LABEL, CLOCK, CYCLE], GAP);
+    for (const fit of fits) {
+      expect(fit.scale).toBeGreaterThanOrEqual(MIN_FIT_SCALE);
+      if (fit.maxWidth !== null) expect(fit.maxWidth).toBeGreaterThan(0);
+    }
+  });
+
   it("stops at MIN_FIT_SCALE and clips with an ellipsis width past it", () => {
     const shape = fitShape(300, 300, "22%", RING);
     const fits = fitTimerLines(shape, 300, [{ width: 1200, height: 29 }, CLOCK, CYCLE], GAP);

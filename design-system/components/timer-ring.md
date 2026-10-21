@@ -128,4 +128,6 @@ black and white (`theme-contrast.test.ts`).
   of the stream.
 - **Don't** compute the countdown from the poll; it ticks locally from `targetEndTime`.
 - **Don't** let a text line wrap or grow past its configured size, and don't measure per
-  tick or add a ResizeObserver: `useTimerTextFit` reads each box once per input change.
+  tick: `useTimerTextFit` reads each box once per input change. Keep `observeFrameSize`
+  (a ResizeObserver on the frame plus a window `resize` listener): relative dimensions and
+  viewport-relative font sizes change the boxes without changing any input.

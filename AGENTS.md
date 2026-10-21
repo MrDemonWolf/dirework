@@ -433,8 +433,12 @@ the pure `fitTimerLines` / `fitShape` (`lib/timer-fit.ts`: circle chord at the l
 squircle inner width narrowing in the corner bands, the panel with the ring off or too small
 to draw — `ringFitsFrame`, the same rule `ProgressRing` skips by) returns
 per-line scales ≤ 1 that commit before paint. Lines never wrap; below `MIN_FIT_SCALE` (0.5)
-a line is cut with an ellipsis. It re-fits only when an input changes (the clock's length,
-not each tick) or a web font finishes loading — no per-frame work, no ResizeObserver.
+a line is cut with an ellipsis (a frame too short for the stack even at that floor lets it
+overflow vertically rather than shrink to nothing). It re-fits only when an input changes
+(the clock's length, not each tick), a web font finishes loading, or the frame's layout size
+or the viewport changes (`observeFrameSize`: one ResizeObserver on the frame plus a window
+`resize` listener, so `vw`/`%` dimensions and `vw`/`vh` font sizes refit when the OBS source
+resizes) — no per-frame or per-tick work.
 While idle the overlay renders a full preview (configured work
 length + full ring) instead of blanking, so streamers can position it during setup.
 Before the first payload lands, and whenever the server answers null (invalid or reset

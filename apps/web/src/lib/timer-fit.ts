@@ -125,7 +125,10 @@ export interface LineFit {
  * uniformly if it is taller than the shape; then each line shrinks on its own until
  * it is no wider than the chord at its own height. Shrinking a line only moves the
  * others toward the middle, where a convex shape is wider, so a couple of passes
- * settle it. Scales never exceed 1.
+ * settle it. Scales never exceed 1, and never drop below MIN_FIT_SCALE: a frame too
+ * short for the stack even at that floor lets it overflow vertically, and each line is
+ * then fitted to the chord through the frame's middle rather than its own band (which
+ * lies partly outside the shape and would clip it to nothing).
  */
 export function fitTimerLines(
   shape: FitShape,
@@ -138,9 +141,13 @@ export function fitTimerLines(
   const totalGap = gap * Math.max(0, lines.length - 1);
   const naturalHeight = lines.reduce((sum, line) => sum + line.height, 0);
   const roomY = availableHeight(shape, padding) - totalGap;
+  let overflowsY = false;
   if (naturalHeight > 0 && naturalHeight > roomY) {
-    scales.fill(Math.max(0, roomY) / naturalHeight);
+    const scale = Math.max(0, roomY) / naturalHeight;
+    overflowsY = scale < MIN_FIT_SCALE;
+    scales.fill(Math.max(MIN_FIT_SCALE, scale));
   }
+  const middle = frameHeight / 2;
 
   const maxWidths: (number | null)[] = lines.map(() => null);
   for (let pass = 0; pass < 3; pass++) {
@@ -148,7 +155,9 @@ export function fitTimerLines(
     let y = (frameHeight - (heights.reduce((a, b) => a + b, 0) + totalGap)) / 2;
     lines.forEach((line, i) => {
       const height = heights[i] ?? 0;
-      const room = availableWidth(shape, y, y + height, padding);
+      const room = overflowsY
+        ? availableWidth(shape, middle, middle, padding)
+        : availableWidth(shape, y, y + height, padding);
       y += height + gap;
       maxWidths[i] = null;
       if (line.width <= 0) return;
