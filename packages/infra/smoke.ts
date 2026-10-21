@@ -13,9 +13,16 @@
  *   build-time smoke check cannot boot without an api) has to work end to end.
  *   Those helpers fail closed when the api is unreachable, so the api hop
  *   itself is proven by the next probe.
- * - web `/rpc/user.me` answers 401: the authenticated proxy reaches the api and
- *   `ownerProcedure` refuses an anonymous caller. A GET, because `user.me` is a
- *   query — tRPC rejects a POST to a query before auth gets to answer.
+ * - web `/rpc/user.me` refuses an anonymous caller, one of two ways: 401, the
+ *   authenticated proxy reached the api and `ownerProcedure` said no; or a
+ *   302/303 to a Cloudflare Access login page, because the operator put Access
+ *   in front of `/rpc/*` (an extra layer, never a replacement for the owner
+ *   check). A GET, because `user.me` is a query — tRPC rejects a POST to a
+ *   query before auth gets to answer. Redirects are not followed: following one
+ *   lands on Access's own login page, a 200 that would read as "the proxy served
+ *   an anonymous caller". A 200 still fails, and so does a redirect anywhere but
+ *   Access. `/`, `/api/*`, `/bot/*` and `/overlay/*` are never behind Access, so
+ *   the other probes need no such case.
  *
  * Pure apart from the injected fetch, so the logic is unit-tested.
  */
@@ -31,6 +38,13 @@ export interface SmokeCheckOptions {
   attempts?: number;
   delayMs?: number;
   timeoutMs?: number;
+}
+
+export interface SmokeCheckResult {
+  /** One message per failed probe; empty means healthy. */
+  errors: string[];
+  /** How probes with more than one passing answer passed, for the success log. */
+  notes: string[];
 }
 
 /**
@@ -59,6 +73,28 @@ export function describeLimits(body: unknown): string | null {
 /** Where an anonymous GET of the web root may land: the landing page, or the claim page of an unclaimed instance. */
 const HOME_PATHS = new Set(["/", "/setup"]);
 
+/**
+ * True when `location` (resolved against the request URL) is a Cloudflare Access
+ * login page: https, a `*.cloudflareaccess.com` team domain on the default
+ * port, path under `/cdn-cgi/access/login/`. Parsed with URL, so a look-alike
+ * such as `cloudflareaccess.com.evil.example` or an `http:` downgrade fails.
+ */
+export function isAccessLoginRedirect(location: string | null, requestUrl: string): boolean {
+  if (!location) return false;
+  let target: URL;
+  try {
+    target = new URL(location, requestUrl);
+  } catch {
+    return false;
+  }
+  return (
+    target.protocol === "https:" &&
+    target.port === "" &&
+    target.hostname.endsWith(".cloudflareaccess.com") &&
+    target.pathname.startsWith("/cdn-cgi/access/login/")
+  );
+}
+
 function joinUrl(base: string, path: string): string {
   return `${base.replace(/\/+$/, "")}${path}`;
 }
@@ -71,11 +107,13 @@ async function poll(
   accept: (response: Response) => Promise<string | null>,
   options: Required<Pick<SmokeCheckOptions, "fetchImpl" | "attempts" | "delayMs" | "timeoutMs">>,
   headers: Record<string, string> = {},
+  init: Pick<RequestInit, "redirect"> = {},
 ): Promise<string | null> {
   let failure = "no attempt made";
   for (let attempt = 1; attempt <= options.attempts; attempt++) {
     try {
       const response = await options.fetchImpl(url, {
+        ...init,
         signal: AbortSignal.timeout(options.timeoutMs),
         headers: { "cache-control": "no-cache", ...headers },
       });
@@ -90,8 +128,7 @@ async function poll(
   return failure;
 }
 
-/** Returns one message per failed probe; an empty array means healthy. */
-export async function runSmokeCheck(options: SmokeCheckOptions): Promise<string[]> {
+export async function runSmokeCheck(options: SmokeCheckOptions): Promise<SmokeCheckResult> {
   const settings = {
     fetchImpl: options.fetchImpl ?? fetch,
     attempts: options.attempts ?? 6,
@@ -99,6 +136,7 @@ export async function runSmokeCheck(options: SmokeCheckOptions): Promise<string[
     timeoutMs: options.timeoutMs ?? 10_000,
   };
   const errors: string[] = [];
+  const notes: string[] = [];
 
   const ready = await poll(
     joinUrl(options.apiUrl, "/ready"),
@@ -141,13 +179,30 @@ export async function runSmokeCheck(options: SmokeCheckOptions): Promise<string[
   );
   if (home !== null) errors.push(`web / did not render (${home})`);
 
+  const rpcUrl = joinUrl(options.webUrl, "/rpc/user.me");
+  let rpcPass = "";
   const rpc = await poll(
-    joinUrl(options.webUrl, "/rpc/user.me"),
-    async (response) => (response.status === 401 ? null : `status ${response.status}`),
+    rpcUrl,
+    async (response) => {
+      if (response.status === 401) {
+        rpcPass = "answered 401 through the proxy";
+        return null;
+      }
+      if (
+        (response.status === 302 || response.status === 303) &&
+        isAccessLoginRedirect(response.headers.get("location"), rpcUrl)
+      ) {
+        rpcPass = "protected by Cloudflare Access (login redirect)";
+        return null;
+      }
+      return `status ${response.status}`;
+    },
     settings,
     { accept: "application/json" },
+    { redirect: "manual" },
   );
-  if (rpc !== null) errors.push(`web /rpc/user.me did not answer 401 through the proxy (${rpc})`);
+  if (rpc === null) notes.push(`web /rpc/user.me ${rpcPass}`);
+  else errors.push(`web /rpc/user.me did not answer 401 through the proxy (${rpc})`);
 
-  return errors;
+  return { errors, notes };
 }

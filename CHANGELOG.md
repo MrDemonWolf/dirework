@@ -129,6 +129,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   loaded (the server HTML carried the defaults too). They now start from the saved values,
   so nothing flickers on load and an edit made right away can no longer be mangled by the
   swap.
+- **Deploys behind Cloudflare Access end green again.** With Access in front of `/rpc/*`,
+  the post-deploy smoke check followed the redirect to Access's login page, saw `200` and
+  failed every deploy. The `/rpc/user.me` probe no longer follows redirects and passes on
+  either a `401` from the proxy or a redirect to an `https://*.cloudflareaccess.com` login
+  page, naming which in its output; a `200`, a `5xx` or a redirect anywhere else still
+  fails. The home probe likewise accepts an unclaimed instance's `/` → `/setup` redirect
+  when Access fronts `/setup`. Keep `/`, `/api/*`, `/bot/*` and `/overlay/*` outside
+  Access.
 - The Theme Center preview's **Dark** and **Light** backdrops showed the panel color instead:
   the class merge dropped them. They now paint the simulated scene.
 - On a phone the Theme Center was wider than the screen (the preset row stretched the page),

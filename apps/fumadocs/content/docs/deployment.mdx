@@ -211,12 +211,24 @@ To tear everything down again: `bun run destroy` (with the same values exported)
 Each deploy ends with a smoke check: the workflow fails unless the api worker's `/ready`
 answers with `limits: "ok"` (it pings D1 and confirms all four rate-limit bindings
 attached), the web worker's `/api/version` reports the commit that was just deployed, the
-home page renders, and the dashboard's `/rpc` proxy reaches the api (an anonymous request
-gets `401`). `limits` reads `missing:RL_AUTH,…` when a binding did not attach; the worker
+home page renders, and the dashboard's `/rpc` proxy refuses an anonymous request (`401`
+from the api, or a Cloudflare Access login redirect; see below). `limits` reads `missing:RL_AUTH,…` when a binding did not attach; the worker
 stays ready regardless, because the limiter fails open rather than taking the app down,
 but the smoke check does not pass it. So a fork's first deploy fails at the smoke check if
 the rate-limit bindings did not bind — look for the four `RateLimit` resources in the
-Alchemy step's output. Between deploys nothing watches the instance, so:
+Alchemy step's output.
+
+<Callout title="Cloudflare Access">
+  You can put [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/)
+  in front of `/dashboard`, `/setup` and `/rpc/*` as an extra layer on top of DireWork's own
+  owner check (it never replaces it). The smoke check accepts Access's login redirect
+  (a `302`/`303` to `https://<team>.cloudflareaccess.com/cdn-cgi/access/login/…`) from
+  `/rpc/user.me` and says so in its output. Keep `/`, `/api/*`, `/bot/*` and `/overlay/*`
+  outside the Access application: the Twitch OAuth callbacks, the OBS overlays and the bot
+  page must reach them without an Access login.
+</Callout>
+
+Between deploys nothing watches the instance, so:
 
 - Point a free uptime monitor (UptimeRobot, Better Stack, etc.) at
   `https://dirework-api.<your-subdomain>.workers.dev/ready`. It returns `503` when D1 is

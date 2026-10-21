@@ -9,9 +9,9 @@ if (!apiUrl || !webUrl || !expectedSha) {
   process.exit(1);
 }
 
-const errors = await runSmokeCheck({ apiUrl, webUrl, expectedSha });
+const { errors, notes } = await runSmokeCheck({ apiUrl, webUrl, expectedSha });
 if (errors.length > 0) {
   console.error(`Post-deploy smoke check failed:\n- ${errors.join("\n- ")}`);
   process.exit(1);
 }
-console.log("Post-deploy smoke check passed.");
+console.log(`Post-deploy smoke check passed.${notes.map((note) => `\n- ${note}`).join("")}`);
