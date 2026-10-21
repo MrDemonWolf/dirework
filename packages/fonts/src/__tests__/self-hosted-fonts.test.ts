@@ -58,6 +58,18 @@ describe("self-hosted UI fonts", () => {
     expect([...referenced].sort()).toEqual(readdirSync(filesDir).sort());
   });
 
+  // Both apps reach the files by relative path, so Turbo only rebuilds them when a font
+  // changes because of these two edges: without them a font-only change could restore a
+  // stale cached build.
+  it("makes a font change invalidate both apps' cached builds", () => {
+    for (const app of ["apps/web", "apps/fumadocs"]) {
+      const pkg = JSON.parse(readFileSync(path.join(repoRoot, app, "package.json"), "utf8"));
+      expect(pkg.dependencies?.["@dirework/fonts"], app).toBe("workspace:*");
+    }
+    const turbo = JSON.parse(readFileSync(path.join(repoRoot, "turbo.json"), "utf8"));
+    expect(turbo.tasks.build.inputs).toContain("$TURBO_ROOT$/packages/fonts/files/**");
+  });
+
   it("ships only real woff2 files", () => {
     for (const file of readdirSync(filesDir)) {
       expect(file).toMatch(/^[a-z0-9_-]+\.woff2$/);

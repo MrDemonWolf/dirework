@@ -45,6 +45,35 @@ export function parseFace(block: string, family: string): Face | null {
   return { family, weight, style, url };
 }
 
+/** The only origin a font file is ever downloaded from. */
+export const FONT_URL_PREFIX = `https://${FONT_HOST}/`;
+
+/** True when `url` is a fonts.gstatic.com HTTPS URL (checked again right before download). */
+export function isAllowedFontUrl(url: string): boolean {
+  return url.startsWith(FONT_URL_PREFIX);
+}
+
+const WEIGHT_STEPS = ["100", "200", "300", "400", "500", "600", "700", "800", "900"] as const;
+
+/**
+ * Every weight string the script will ever put in a file name or in fonts.css: the nine
+ * static weights and each ascending variable range between them. All are built here from
+ * constants, never from a response.
+ */
+export const KNOWN_WEIGHTS: readonly string[] = [
+  ...WEIGHT_STEPS,
+  ...WEIGHT_STEPS.flatMap((low, i) => WEIGHT_STEPS.slice(i + 1).map((high) => `${low} ${high}`)),
+];
+
+/**
+ * Map a weight parsed from a Google Fonts response onto our own constant, or null when it
+ * isn't one. Callers use the RETURNED value, so a file name or CSS rule never carries a
+ * string that came off the network.
+ */
+export function canonicalWeight(weight: string): string | null {
+  return KNOWN_WEIGHTS.find((known) => known === weight) ?? null;
+}
+
 /** woff2 files start with the "wOF2" signature. */
 export function isWoff2(buf: Uint8Array): boolean {
   return buf.length > 4 && buf[0] === 0x77 && buf[1] === 0x4f && buf[2] === 0x46 && buf[3] === 0x32;

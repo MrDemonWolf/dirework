@@ -19,7 +19,15 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { FONT_OPTIONS } from "../src/lib/overlay-font-options";
-import { type Face, faceFileName, isWoff2, latinBlocks, parseFace } from "./font-faces";
+import {
+  canonicalWeight,
+  type Face,
+  faceFileName,
+  isAllowedFontUrl,
+  isWoff2,
+  latinBlocks,
+  parseFace,
+} from "./font-faces";
 
 const OUT_DIR = path.join(import.meta.dirname, "../public/fonts");
 const UI_OUT_DIR = path.join(import.meta.dirname, "../../../packages/fonts/files");
@@ -30,14 +38,16 @@ const WEIGHTS = [400, 500, 600, 700];
 
 /**
  * The UI faces: exactly the weights the dashboard (apps/web/src/lib/fonts.ts,
- * heading-font.ts) and the docs site (apps/fumadocs/src/lib/fonts.ts) declare.
+ * heading-font.ts) and the docs site (apps/fumadocs/src/app/layout.tsx) declare.
  * Montserrat and Plex Sans are variable (one file each); Plex Mono is static.
+ * `weights` are the faces we expect back, and they name the files: the response
+ * only has to match them.
  */
 const UI_FACES = [
   // 400–700 for dashboard headings, 700/800 for the docs and marketing headings.
-  { family: "Montserrat", axis: "wght@400..800" },
-  { family: "IBM Plex Sans", axis: "wght@400..700" },
-  { family: "IBM Plex Mono", axis: "wght@400;500;600" },
+  { family: "Montserrat", axis: "wght@400..800", weights: ["400 800"] },
+  { family: "IBM Plex Sans", axis: "wght@400..700", weights: ["400 700"] },
+  { family: "IBM Plex Mono", axis: "wght@400;500;600", weights: ["400", "500", "600"] },
 ] as const;
 
 async function fetchCss(family: string, axis?: string): Promise<string | null> {
@@ -103,19 +113,35 @@ async function latinFaces(family: string, axis?: string): Promise<Face[] | null>
   });
 }
 
-/** Download one face into `stageDir`; returns its file name, or null after reporting why. */
-async function downloadFace(face: Face, outDir: string, stageDir: string): Promise<string | null> {
-  const res = await fetch(face.url, { headers: { "User-Agent": UA } });
+/**
+ * Download one face into `stageDir`. The response body is the only network data that reaches
+ * the disk, and only after three checks: `family` and `weight` are OUR constants (a family
+ * from FONT_OPTIONS/UI_FACES, a weight from canonicalWeight or UI_FACES), so the destination
+ * name never derives from a response; the URL must be on fonts.gstatic.com; and the bytes
+ * must carry the woff2 signature. Returns the file name, or null after reporting why.
+ */
+async function downloadFace(
+  family: string,
+  weight: string,
+  url: string,
+  outDir: string,
+  stageDir: string,
+): Promise<string | null> {
+  const file = faceFileName(outDir, family, weight);
+  if (!isAllowedFontUrl(url)) {
+    fail(`${family} ${weight}: font URL is not on fonts.gstatic.com`);
+    return null;
+  }
+  const res = await fetch(url, { headers: { "User-Agent": UA } });
   if (!res.ok) {
-    fail(`${face.family} ${face.weight}: ${res.status}`);
+    fail(`${family} ${weight}: ${res.status}`);
     return null;
   }
   const buf = Buffer.from(await res.arrayBuffer());
   if (!isWoff2(buf)) {
-    fail(`${face.family} ${face.weight}: response is not a woff2 file`);
+    fail(`${family} ${weight}: response is not a woff2 file`);
     return null;
   }
-  const file = faceFileName(outDir, face.family, face.weight);
   await writeFile(path.join(stageDir, file), buf);
   fileCount += 1;
   byteCount += buf.length;
@@ -125,31 +151,44 @@ async function downloadFace(face: Face, outDir: string, stageDir: string): Promi
 for (const family of FONT_OPTIONS) {
   const faces = await latinFaces(family);
   if (!faces) continue;
+  let saved = 0;
   for (const face of faces) {
-    const file = await downloadFace(face, OUT_DIR, STAGE_DIR);
+    const weight = canonicalWeight(face.weight);
+    if (!weight) {
+      fail(`${family}: unexpected weight`);
+      continue;
+    }
+    const file = await downloadFace(family, weight, face.url, OUT_DIR, STAGE_DIR);
     if (!file) continue;
+    saved += 1;
     cssParts.push(
       `@font-face {`,
       `  font-family: "${family}";`,
       `  font-style: normal;`,
-      `  font-weight: ${face.weight};`,
+      `  font-weight: ${weight};`,
       `  font-display: swap;`,
       `  src: url("./${file}") format("woff2");`,
       `}`,
       "",
     );
   }
-  if (faces.length === 0) fail(`${family}: no usable faces`);
-  else console.log(`ok ${family}: ${faces.length} face(s)`);
+  if (saved === 0) fail(`${family}: no usable faces`);
+  else console.log(`ok ${family}: ${saved} face(s)`);
 }
 
 // UI faces: plain woff2 files, no stylesheet — next/font/local writes the @font-face rules.
-for (const { family, axis } of UI_FACES) {
+for (const { family, axis, weights } of UI_FACES) {
   const faces = await latinFaces(family, axis);
   if (!faces) continue;
-  for (const face of faces) await downloadFace(face, UI_OUT_DIR, UI_STAGE_DIR);
-  if (faces.length === 0) fail(`${family}: no usable UI faces`);
-  else console.log(`ok ${family} (UI): ${faces.length} face(s)`);
+  for (const weight of weights) {
+    const face = faces.find((candidate) => candidate.weight === weight);
+    if (!face) {
+      fail(`${family} ${weight}: not in the Google Fonts response`);
+      continue;
+    }
+    await downloadFace(family, weight, face.url, UI_OUT_DIR, UI_STAGE_DIR);
+  }
+  console.log(`ok ${family} (UI): ${weights.length} face(s)`);
 }
 
 if (failed) {
