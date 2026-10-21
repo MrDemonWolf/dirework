@@ -78,6 +78,15 @@
   }
   html:has([data-save-bar]) {
     scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+    /* The SaveBar's height above the safe area (border + py-3 + an h-7 button), so toasts
+       (TOAST_OFFSET in providers.tsx) rise above its Reset / Save buttons instead of
+       covering them. Coarse pointers get the 40px button minimum. */
+    --save-bar-clearance: 3.5rem;
+  }
+  @media (pointer: coarse) {
+    html:has([data-save-bar]) {
+      --save-bar-clearance: 4.25rem;
+    }
   }
 }
 

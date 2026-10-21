@@ -60,6 +60,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Bot stay in the header nav, so the menu no longer repeats them.
 - **No more preview URLs.** Both workers deploy with Cloudflare's version and preview URLs turned off.
   The production workers.dev addresses stay on, because OBS, the bot page and the web proxy use them.
+- **Bot settings: shorter command tabs.** Each group of reply messages (Adding, Completing…)
+  starts collapsed, so the Task commands tab no longer runs thousands of pixels; a group opens
+  itself while it holds an unsaved edit or a message the save would reject. A **Jump to
+  Moderation** link sits under the page title, and on wide screens the command reference stays
+  in view beside the replies.
+- **Switched-off command groups keep their replies editable.** Turning Task or Timer commands
+  off used to lock their reply fields; they now stay editable (dimmed), and the note explains
+  they take effect once the group is back on.
+- **Unblock is a plain "Unblock" button** instead of a red trash icon (it's low risk, so it
+  still doesn't ask first).
 - **OBS overlays check for changes every 5 seconds instead of every 3.** That is 40% fewer
   overlay requests (about 1.4k an hour for both overlays, down from 2.4k), leaving more of
   the free plan's daily budget. The countdown and ring still tick smoothly on their own;
@@ -167,6 +177,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   of showing your own task, a name that can't be a Twitch login gets a usage hint, and
   `!clear @user` says so when that viewer had no tasks.
 - `!task` and `!next` read the streamer's account once per chat line instead of twice.
+- **Toasts no longer cover the Save bar.** While a page has unsaved changes, notifications
+  rise above the Save bar instead of sitting on its Reset and Save buttons, on every page
+  with one and on phones too.
+- **Bigger touch targets on phones and tablets.** Tabs, switches, collapsible section headers
+  and the `{user}`-style insert chips are now at least 44px tall on touch screens, like
+  buttons and inputs already were.
+- **Bot settings: clearer validation.** An alias row whose alias and command are both wrong
+  now marks both fields with their own message, instead of only the first problem. The Save
+  bar names the reply at fault (*'Task added' is over the 300-byte chat limit* instead of
+  *task › task added: Message must be at most 300 bytes*), and clicking it takes you to that
+  field.
+- Pressing Enter in the **Block viewer** field now opens the block confirmation, like the
+  button does.
+- The command reference's usage lines on Bot settings were below the AA contrast minimum
+  (4.37:1); they now use the regular muted text colour, and the accessibility check no longer
+  skips colour contrast on that page.
 - **Theme Center and Bot settings open on your saved values.** Both editors used to render
   the stock defaults first and swap in the saved theme or messages a moment after the page
   loaded (the server HTML carried the defaults too). They now start from the saved values,

@@ -57,7 +57,7 @@ export function CommandReference({
               <span className="text-xs text-muted-foreground">{cmd.description}</span>
               {cmd.permission === "mods" && <StatusChip tone="alt" size="sm" label="Mods" />}
             </div>
-            <code className="block font-mono text-2xs text-muted-foreground/80">{cmd.usage}</code>
+            <code className="block font-mono text-2xs text-muted-foreground">{cmd.usage}</code>
           </li>
         ))}
       </ul>

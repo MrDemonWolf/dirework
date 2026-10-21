@@ -14,13 +14,14 @@ function Switch({
   // Light-mode unchecked track uses muted-foreground (>=3:1 on card/background,
   // WCAG 1.4.11); the dark track already contrasts through its bright thumb.
   // Focus is an offset ring: a ring-coloured border vanished against the
-  // primary fill of a checked switch.
+  // primary fill of a checked switch. The ::after hit area is 56x34px by default; on coarse
+  // pointers it grows to at least 44px tall (18.4 + 2*14 / 14 + 2*16), see touch-targets.test.ts.
   return (
     <SwitchPrimitive.Root
       data-slot="switch"
       data-size={size}
       className={cn(
-        "data-checked:bg-primary data-unchecked:bg-muted-foreground/70 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 dark:data-unchecked:bg-input/80 shrink-0 rounded-full border border-transparent focus-visible:ring-2 aria-invalid:ring-1 data-[size=default]:h-[18.4px] data-[size=default]:w-8 data-[size=sm]:h-3.5 data-[size=sm]:w-6 peer group/switch relative inline-flex items-center transition-all outline-none after:absolute after:-inset-x-3 after:-inset-y-2 data-disabled:cursor-not-allowed data-disabled:opacity-50",
+        "data-checked:bg-primary data-unchecked:bg-muted-foreground/70 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 dark:data-unchecked:bg-input/80 shrink-0 rounded-full border border-transparent focus-visible:ring-2 aria-invalid:ring-1 data-[size=default]:h-[18.4px] data-[size=default]:w-8 data-[size=sm]:h-3.5 data-[size=sm]:w-6 peer group/switch relative inline-flex items-center transition-all outline-none after:absolute after:-inset-x-3 after:-inset-y-2 pointer-coarse:after:-inset-y-3.5 pointer-coarse:data-[size=sm]:after:-inset-y-4 data-disabled:cursor-not-allowed data-disabled:opacity-50",
         className,
       )}
       {...props}

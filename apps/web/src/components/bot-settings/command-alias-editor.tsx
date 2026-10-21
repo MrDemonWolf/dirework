@@ -7,30 +7,21 @@
 import { Plus, Trash2 } from "lucide-react";
 
 import {
-  type AliasIssueReason,
-  aliasTokenHasWhitespace,
-  normalizeAliasToken,
-} from "@dirework/api/config-shared";
-
-import { type AliasRow, nextAliasRowId, rowsToAliases } from "@/lib/alias-rows";
+  type AliasRow,
+  type AliasRowIssue,
+  aliasIssueMessage,
+  nextAliasRowId,
+  rowsToAliases,
+} from "@/lib/alias-rows";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-/** Row-level copy for each reason the shared alias validator rejects. */
-const ISSUE_MESSAGES: Record<AliasIssueReason, string> = {
-  empty: "Fill in both the alias and the command, or remove the row.",
-  "multi-word": "Use a single command name — aliases can't include arguments.",
-  "shadows-builtin": "That's a built-in command — pick a different alias name.",
-  duplicate: "Duplicate alias — rename or remove one before saving.",
-  recursive: "An alias can't point at itself.",
-  "unknown-target": "Unknown command — pick one of the built-in commands.",
-};
-
 /**
  * Controlled editor for the command-alias rows. Validates on every render with the same shared
- * validator the server runs and flags each rejected row inline, against the field at fault.
+ * validator the server runs and flags each rejected row inline, against the field at fault —
+ * both fields, each with its own message, when the alias and the command are both wrong.
  * `maxRows` (default 50) and the inputs' `maxLength` (50 / 100) mirror the caps in the server's
  * `commandAliasesInput` schema. Either form ("!t" or "t") is accepted; the "!" is stripped
  * when the rows are normalized.
@@ -46,9 +37,10 @@ export function CommandAliasEditor({
 }) {
   // The same validator the save path and the server run, so every row the
   // server would reject is flagged here instead of failing the whole save.
-  const issueByRow = new Map(
-    rowsToAliases(rows).issues.map((issue) => [issue.rowId, issue.reason] as const),
-  );
+  const issuesByRow = new Map<string, AliasRowIssue[]>();
+  for (const issue of rowsToAliases(rows).issues) {
+    issuesByRow.set(issue.rowId, [...(issuesByRow.get(issue.rowId) ?? []), issue]);
+  }
 
   const handleAdd = () => {
     onChange([...rows, { id: nextAliasRowId(), key: "", value: "" }]);
@@ -79,19 +71,13 @@ export function CommandAliasEditor({
 
       <div className="space-y-2">
         {rows.map((row) => {
-          const issue = issueByRow.get(row.id);
-          const errorId = `${row.id}-error`;
-          // Point the error at the field that caused it.
-          const keyInvalid =
-            issue === "duplicate" ||
-            issue === "recursive" ||
-            issue === "shadows-builtin" ||
-            (issue === "multi-word" && aliasTokenHasWhitespace(row.key)) ||
-            (issue === "empty" && normalizeAliasToken(row.key) === "");
-          const cmdInvalid =
-            issue === "unknown-target" ||
-            (issue === "multi-word" && aliasTokenHasWhitespace(row.value)) ||
-            (issue === "empty" && normalizeAliasToken(row.value) === "");
+          const rowIssues = issuesByRow.get(row.id) ?? [];
+          const keyIssue = rowIssues.find((issue) => issue.field === "key");
+          const cmdIssue = rowIssues.find((issue) => issue.field === "value");
+          const keyErrorId = `${row.id}-key-error`;
+          const cmdErrorId = `${row.id}-cmd-error`;
+          const keyInvalid = keyIssue !== undefined;
+          const cmdInvalid = cmdIssue !== undefined;
           return (
             <div key={row.id} className="space-y-1">
               <div className="flex items-end gap-2">
@@ -106,7 +92,7 @@ export function CommandAliasEditor({
                     placeholder="!t"
                     maxLength={50}
                     aria-invalid={keyInvalid || undefined}
-                    aria-describedby={issue ? errorId : undefined}
+                    aria-describedby={keyIssue ? keyErrorId : undefined}
                     className={cn("font-mono", keyInvalid && "border-destructive")}
                   />
                 </div>
@@ -121,7 +107,7 @@ export function CommandAliasEditor({
                     placeholder="!task"
                     maxLength={100}
                     aria-invalid={cmdInvalid || undefined}
-                    aria-describedby={issue ? errorId : undefined}
+                    aria-describedby={cmdIssue ? cmdErrorId : undefined}
                     className={cn("font-mono", cmdInvalid && "border-destructive")}
                   />
                 </div>
@@ -135,9 +121,16 @@ export function CommandAliasEditor({
                   <Trash2 className="size-4" />
                 </Button>
               </div>
-              {issue && (
-                <p id={errorId} className="text-xs text-destructive">
-                  {ISSUE_MESSAGES[issue]}
+              {keyIssue && (
+                <p id={keyErrorId} className="text-xs text-destructive">
+                  <span className="font-medium">Alias:</span>{" "}
+                  {aliasIssueMessage("key", keyIssue.reason)}
+                </p>
+              )}
+              {cmdIssue && (
+                <p id={cmdErrorId} className="text-xs text-destructive">
+                  <span className="font-medium">Command:</span>{" "}
+                  {aliasIssueMessage("value", cmdIssue.reason)}
                 </p>
               )}
             </div>
@@ -148,7 +141,7 @@ export function CommandAliasEditor({
             No aliases yet. Click &quot;Add alias&quot; to create one.
           </p>
         )}
-        {issueByRow.size > 0 && (
+        {issuesByRow.size > 0 && (
           <p id="alias-error-summary" className="text-xs text-destructive" role="alert">
             Fix the highlighted aliases before saving.
           </p>

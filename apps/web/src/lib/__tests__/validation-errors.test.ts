@@ -6,7 +6,7 @@ import { updateStylesInput } from "@dirework/api/routers/input-schemas";
 import { DEFAULT_PHASE_LABELS } from "../config-types";
 import { defaultTaskStyles, defaultTimerStyles, themePresets } from "../theme-presets";
 import { API_UNREACHABLE_MESSAGE } from "../trpc-errors";
-import { describeIssues, formatMutationError } from "../validation-errors";
+import { describeFieldIssues, describeIssues, formatMutationError } from "../validation-errors";
 
 function invalidStylesError() {
   const result = updateStylesInput.safeParse({
@@ -28,6 +28,41 @@ describe("describeIssues", () => {
   it("falls back for an empty list or a path-less issue", () => {
     expect(describeIssues([])).toBe("Invalid input");
     expect(describeIssues([{ path: [], message: "Bad" }])).toBe("Bad");
+  });
+});
+
+describe("describeFieldIssues", () => {
+  const label = (path: readonly PropertyKey[]) =>
+    path[0] === "task" ? { label: "Task added", id: "task-taskAdded" } : null;
+
+  it("names a resolved field by its label and rewrites the byte cap as the chat limit", () => {
+    const { text, field } = describeFieldIssues(
+      [{ path: ["task", "taskAdded"], message: "Message must be at most 300 bytes" }],
+      label,
+    );
+    expect(text).toBe("'Task added' is over the 300-byte chat limit");
+    expect(field?.id).toBe("task-taskAdded");
+  });
+
+  it("words control characters and other messages against the label", () => {
+    expect(
+      describeFieldIssues(
+        [{ path: ["task"], message: "Message must not contain control characters" }],
+        label,
+      ).text,
+    ).toBe("'Task added' contains a control character");
+    expect(describeFieldIssues([{ path: ["task"], message: "Too long" }], label).text).toBe(
+      "'Task added': Too long",
+    );
+  });
+
+  it("falls back to the path in words for a field it can't name", () => {
+    const issues = invalidStylesError().issues;
+    expect(describeFieldIssues(issues, label)).toEqual({
+      text: describeIssues(issues),
+      field: null,
+    });
+    expect(describeFieldIssues([], label)).toEqual({ text: "Invalid input", field: null });
   });
 });
 

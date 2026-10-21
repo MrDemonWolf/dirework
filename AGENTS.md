@@ -651,8 +651,9 @@ spec passes when run twice in a row, because CI retries run immediately against 
 database. Two projects: `chromium` runs all but `90-mobile`; `mobile` (Pixel 7) runs only
 `90-mobile` (no horizontal scroll, hamburger nav). `80-a11y` scans with axe-core against
 WCAG 2.0/2.1 A and AA, fails on serious/critical violations, attaches the full JSON, and
-runs under reduced motion (the entrance fade otherwise skews measured contrast); the Bot
-settings scan skips `color-contrast` until its 4.37:1 usage lines are fixed. Shared
+runs under reduced motion (the entrance fade otherwise skews measured contrast); no page
+skips a rule (the Bot settings usage lines that once measured 4.37:1 are full
+`text-muted-foreground` now). Shared
 helpers in `tests/helpers.ts`: `signIn`, `confirmDialog`, `revealSecretUrl`. Specs use roles
 and labels, never CSS classes. Runs in `verify.yml` after the smoke check, so a PR and a
 deploy are gated the same way; the Playwright report uploads on failure.

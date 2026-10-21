@@ -19,6 +19,8 @@ export function SectionGroup({
   menu,
   summary,
   defaultOpen = true,
+  open,
+  onOpenChange,
   flush = false,
   className,
   children,
@@ -37,15 +39,23 @@ export function SectionGroup({
   /** A one-line digest under the title, shown only while the section is collapsed. */
   summary?: ReactNode;
   defaultOpen?: boolean;
+  /** Controlled open state (with `onOpenChange`), for a section that must open itself. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   /** Content without the default padding, for lists that draw their own rows. */
   flush?: boolean;
   className?: string;
   children: ReactNode;
 }) {
   return (
-    <Collapsible defaultOpen={defaultOpen} className={cn("panel-inset overflow-hidden", className)}>
+    <Collapsible
+      defaultOpen={defaultOpen}
+      open={open}
+      onOpenChange={onOpenChange}
+      className={cn("panel-inset overflow-hidden", className)}
+    >
       <div className="flex items-center">
-        <CollapsibleTrigger className="group/section flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+        <CollapsibleTrigger className="group/section flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 px-3 py-2.5 text-left pointer-coarse:min-h-11 transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
           <span className="flex min-w-0 items-center gap-2">
             {icon}
             <span className="flex min-w-0 flex-col gap-1">

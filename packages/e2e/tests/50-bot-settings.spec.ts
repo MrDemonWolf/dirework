@@ -11,6 +11,9 @@ test("edits a reply, previews it as chat would show it, saves, and resets it", a
   // saved its own value, and the Save bar only appears when the draft differs from it.
   const stamp = `${test.info().retry}-${Date.now()}`;
   const custom = `Got it, {user}: "{task}" is on the list. [${stamp}]`;
+  // Reply groups start collapsed (a group with an unsaved or invalid field opens itself).
+  const adding = page.getByRole("button", { name: /^Adding/ });
+  await adding.click();
   const field = page.getByLabel("Task added", { exact: true });
   await field.fill(custom);
   // The preview runs the bot's own interpolate with sample values: the owner's name
@@ -23,6 +26,8 @@ test("edits a reply, previews it as chat would show it, saves, and resets it", a
   await expect(page.getByText("Bot settings saved")).toBeVisible();
 
   await page.reload();
+  await waitForHydration(page);
+  await page.getByRole("button", { name: /^Adding/ }).click();
   await expect(page.getByLabel("Task added", { exact: true })).toHaveValue(custom);
 
   // Back to stock, and saved, so the database ends where it started.
@@ -31,4 +36,21 @@ test("edits a reply, previews it as chat would show it, saves, and resets it", a
   await expect(page.getByRole("button", { name: "Reset to default" })).toHaveCount(0);
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByText("Bot settings saved")).toBeVisible();
+});
+
+test("Enter in the block field opens the block confirm", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/dashboard/bot");
+  await waitForHydration(page);
+
+  await page.getByRole("link", { name: "Jump to Moderation" }).click();
+  const login = page.getByLabel("Twitch username");
+  await login.fill("@E2E_Enter_Check");
+  await login.press("Enter");
+  const dialog = page.getByRole("alertdialog", { name: "Block e2e_enter_check?" });
+  await expect(dialog).toBeVisible();
+  // Cancel, so nothing is blocked and the spec stays repeatable.
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(login).toHaveValue("@E2E_Enter_Check");
 });
