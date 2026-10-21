@@ -905,6 +905,62 @@ function styleGroups<C extends object>(
   );
 }
 
+/**
+ * A partial style write, widened so every group it touches is written whole: the
+ * group's other columns are written at the values they READ as (old defaults
+ * upgraded to current ones), then the patch is applied on top. Without this,
+ * editing one field of a never-customized group would leave the rest of that
+ * group on the frozen column defaults — and, the group now being customized,
+ * they would stop reading as the current defaults. Untouched groups are not
+ * written, so they keep picking up future default changes.
+ */
+function expandStylePatch(
+  upgraded: StyleRow,
+  patch: StyleRow,
+  groups: readonly (readonly string[])[],
+): StyleRow {
+  const out: StyleRow = {};
+  for (const group of groups) {
+    if (!group.some((key) => key in patch)) continue;
+    for (const key of group) {
+      if (upgraded[key] !== undefined) out[key] = upgraded[key];
+    }
+  }
+  return { ...out, ...patch };
+}
+
+/** `expandStylePatch` for a timer_style row. */
+export function expandTimerStylePatch<P extends object>(row: TimerStyle, patch: P): P {
+  const upgraded = upgradeLegacyStyleRow(
+    row,
+    TIMER_STYLE_COLUMN_DEFAULTS,
+    LEGACY_TIMER_STYLE_VALUES,
+    CURRENT_TIMER_STYLE_ROW,
+    TIMER_STYLE_GROUPS,
+  );
+  return expandStylePatch(
+    upgraded as unknown as StyleRow,
+    patch as StyleRow,
+    TIMER_STYLE_GROUPS,
+  ) as P;
+}
+
+/** `expandStylePatch` for a task_style row. */
+export function expandTaskStylePatch<P extends object>(row: TaskStyle, patch: P): P {
+  const upgraded = upgradeLegacyStyleRow(
+    row,
+    TASK_STYLE_COLUMN_DEFAULTS,
+    LEGACY_TASK_STYLE_VALUES,
+    CURRENT_TASK_STYLE_ROW,
+    TASK_STYLE_GROUPS,
+  );
+  return expandStylePatch(
+    upgraded as unknown as StyleRow,
+    patch as StyleRow,
+    TASK_STYLE_GROUPS,
+  ) as P;
+}
+
 // Declared after the flatten helpers they call. The build functions above read
 // them only when called, never while this module is still loading.
 

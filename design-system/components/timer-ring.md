@@ -20,7 +20,9 @@ Mirrors `apps/web/src/components/timer-display.tsx` + helpers in `apps/web/src/l
   box is 266px and the clear interior about 252px.
 - Label `24px`, countdown `76px` (Montserrat bold, tabular digits), cycle `20px`; the column
   has a 4px gap (`gap-1`). `25:00` at 76px is about 234–240px wide, and the three lines stack
-  to about 137px, so both fit inside the ring. With hours shown, use about `56px` for the time.
+  to about 137px, so both fit inside the ring. With hours shown (or past 99 minutes),
+  `clockFontSize` (timer-utils) scales the time down so `01:25:00` is no wider than `25:00`
+  (about 49px at the default).
 - Track opacity `0.14` on the default theme: present, but the fill reads first.
 - The cycle line is the text color at `TIMER_CYCLE_OPACITY` (0.8), contrast-tested over the
   background composited on both black and white.

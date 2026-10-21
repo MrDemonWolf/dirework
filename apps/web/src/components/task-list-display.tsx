@@ -13,6 +13,7 @@ import {
   AUTHOR_COUNT_OPACITY,
   AUTHOR_HEADER_TINT_PERCENT,
   HEADER_COUNT_OPACITY,
+  countHiddenRows,
   MORE_FOOTER_OPACITY,
   TASK_ROW_GAP_PX,
 } from "@/lib/overlay-view";
@@ -107,57 +108,67 @@ function InfiniteScroll({
 
 /**
  * The list when scrolling is off: rows that don't fit are cut off, and a "+N more"
- * footer says how many. `hidden` counts the task rows whose bottom edge falls
- * below the visible list area, re-measured whenever the list area or its content
- * resizes (same ResizeObserver pattern as InfiniteScroll). The footer takes space
- * from the list area, so showing it can only hide more rows, never fewer: the
- * second measurement converges instead of flickering the footer on and off.
+ * footer says how many (`countHiddenRows`). The footer is overlaid on the bottom
+ * of the list area (always laid out, hidden while nothing is cut off) instead of
+ * taking layout space, so the area every row is measured against never changes
+ * size with it: when the list shrinks back to fit, `hidden` returns to 0. While
+ * the footer shows, the rows are clipped above it. Re-measured whenever the area,
+ * the rows or the footer resize (same ResizeObserver pattern as InfiniteScroll).
  */
 function StaticList({ children, config }: { children: React.ReactNode; config: TaskStylesConfig }) {
-  const viewportRef = useRef<HTMLDivElement>(null);
+  const areaRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
   const [hidden, setHidden] = useState(0);
+  const [footerHeight, setFooterHeight] = useState(0);
 
   useEffect(() => {
-    const viewport = viewportRef.current;
+    const area = areaRef.current;
     const content = contentRef.current;
-    if (!viewport || !content) return;
+    const footer = footerRef.current;
+    if (!area || !content || !footer) return;
 
     const measure = () => {
-      // The viewport is `relative`, so it is each row's offsetParent.
-      const limit = viewport.clientHeight;
-      let count = 0;
-      for (const row of content.querySelectorAll<HTMLElement>("[data-task-row]")) {
-        if (row.offsetTop + row.offsetHeight > limit) count++;
-      }
-      setHidden(count);
+      // The clip box sits at the area's top edge and is the rows' offsetParent,
+      // so each bottom is measured from the top of the list area.
+      const bottoms = Array.from(
+        content.querySelectorAll<HTMLElement>("[data-task-row]"),
+        (row) => row.offsetTop + row.offsetHeight,
+      );
+      setFooterHeight(footer.offsetHeight);
+      setHidden(countHiddenRows(bottoms, area.clientHeight, footer.offsetHeight));
     };
 
     measure();
     const observer = new ResizeObserver(measure);
-    observer.observe(viewport);
+    observer.observe(area);
     observer.observe(content);
+    observer.observe(footer);
     return () => observer.disconnect();
   }, []);
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div ref={viewportRef} className="relative min-h-0 flex-1 overflow-hidden">
+    <div ref={areaRef} className="relative min-h-0 flex-1 overflow-hidden">
+      <div
+        className="absolute inset-x-0 top-0 overflow-hidden"
+        style={{ bottom: hidden > 0 ? footerHeight : 0 }}
+      >
         <div ref={contentRef}>{children}</div>
       </div>
-      {hidden > 0 && (
-        <div
-          className="flex-shrink-0"
-          style={{
-            color: config.task.fontColor,
-            opacity: MORE_FOOTER_OPACITY,
-            fontSize: `calc(${config.task.fontSize} * 0.75)`,
-            paddingTop: config.body.padding.vertical,
-          }}
-        >
-          +{hidden} more
-        </div>
-      )}
+      <div
+        ref={footerRef}
+        aria-hidden={hidden === 0}
+        className="absolute inset-x-0 bottom-0"
+        style={{
+          visibility: hidden > 0 ? "visible" : "hidden",
+          color: config.task.fontColor,
+          opacity: MORE_FOOTER_OPACITY,
+          fontSize: `calc(${config.task.fontSize} * 0.75)`,
+          paddingTop: config.body.padding.vertical,
+        }}
+      >
+        +{hidden} more
+      </div>
     </div>
   );
 }

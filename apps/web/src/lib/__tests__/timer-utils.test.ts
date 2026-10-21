@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   toHexOpacity,
+  clockFontScale,
+  clockFontSize,
   colorWithOpacity,
   formatTime,
   formatClock,
@@ -274,5 +276,29 @@ describe("phaseTotalMs", () => {
     expect(phaseTotalMs({ status: "paused", pausedFromStatus: "break" }, undefined)).toBe(
       TIMER_CONFIG_DEFAULTS.breakDuration,
     );
+  });
+});
+
+describe("clockFontScale / clockFontSize", () => {
+  it("leaves the MM:SS form at the configured size", () => {
+    expect(clockFontScale("25:00")).toBe(1);
+    expect(clockFontScale("5:00")).toBe(1);
+    expect(clockFontSize("76px", "25:00")).toBe("76px");
+  });
+
+  it("shrinks the hour form so it is no wider than MM:SS", () => {
+    const scale = clockFontScale("01:25:00");
+    expect(scale).toBeLessThan(1);
+    // 6 digits + 2 separators at the scaled size fit in the 4 + 1 width.
+    expect((6 * 0.7 + 2 * 0.3) * scale).toBeLessThanOrEqual(4 * 0.7 + 0.3 + 1e-3);
+    expect(clockFontSize("76px", "01:25:00")).toBe(`calc(76px * ${scale})`);
+  });
+
+  it("at the 76px default, the hour form lands near 49px", () => {
+    expect(76 * clockFontScale("01:25:00")).toBeCloseTo(49, 0);
+  });
+
+  it("also shrinks minute counts past 99", () => {
+    expect(clockFontScale("120:00")).toBeLessThan(1);
   });
 });

@@ -46,6 +46,24 @@ export const MORE_FOOTER_OPACITY = 0.8;
 export const TASK_ROW_GAP_PX = 2;
 
 /**
+ * How many task rows the "+N more" footer reports on a non-scrolling list.
+ * `rowBottoms` are each row's bottom edge measured from the top of the list area.
+ * If every row fits the whole area, nothing is hidden and no footer shows.
+ * Otherwise the footer is overlaid on the bottom of the area, so a row counts as
+ * hidden when its bottom falls below the space left above the footer. The area
+ * itself never shrinks for the footer, so the result can return to 0.
+ */
+export function countHiddenRows(
+  rowBottoms: readonly number[],
+  areaHeight: number,
+  footerHeight: number,
+): number {
+  if (rowBottoms.every((bottom) => bottom <= areaHeight)) return 0;
+  const limit = areaHeight - footerHeight;
+  return rowBottoms.filter((bottom) => bottom > limit).length;
+}
+
+/**
  * Path of an OBS overlay page for a token, or null while the token is missing
  * (not loaded yet, or `user.me` found no instance row). Null keeps
  * `SecretUrlRow` masked and disabled; interpolating the token directly would
