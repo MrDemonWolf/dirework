@@ -14,11 +14,10 @@
   "dependencies": {
     "@dirework/fonts": "workspace:*",
     "@dirework/overlay-kit": "workspace:*",
-    "@orama/orama": "^3.1.18",
-    "fumadocs-core": "16.5.1",
-    "fumadocs-mdx": "14.2.6",
-    "fumadocs-ui": "16.5.1",
-    "lucide-react": "catalog:fumadocs",
+    "fumadocs-core": "16.17.7",
+    "fumadocs-mdx": "15.4.9",
+    "fumadocs-ui": "16.17.7",
+    "lucide-react": "catalog:",
     "next": "16.4.2",
     "react": "catalog:",
     "react-dom": "catalog:"
