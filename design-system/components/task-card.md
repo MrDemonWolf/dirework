@@ -67,6 +67,8 @@ spec moves with it.
 | `ACTIVE_ROW_TINT_PERCENT` | `lib/overlay-view.ts` | `10` |
 | `AUTHOR_HEADER_TINT_PERCENT` | `lib/overlay-view.ts` | `6` |
 | `MORE_FOOTER_OPACITY` | `lib/overlay-view.ts` | `0.8` |
+| `AUTHOR_COUNT_OPACITY` | `lib/overlay-view.ts` | `0.8` |
+| `HEADER_COUNT_OPACITY` | `lib/overlay-view.ts` | `0.8` |
 | `TASK_ROW_GAP_PX` | `lib/overlay-view.ts` | `2` |
 
 The tints and opacities are composited by `theme-contrast.test.ts` for every preset, so

@@ -202,6 +202,8 @@ describe("design-system component spec catalog", () => {
         "ACTIVE_ROW_TINT_PERCENT",
         "AUTHOR_HEADER_TINT_PERCENT",
         "MORE_FOOTER_OPACITY",
+        "AUTHOR_COUNT_OPACITY",
+        "HEADER_COUNT_OPACITY",
         "TASK_ROW_GAP_PX",
       ],
     ],
