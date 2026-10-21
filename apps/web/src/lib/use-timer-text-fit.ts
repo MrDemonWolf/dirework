@@ -16,7 +16,10 @@ export interface TimerTextFitInput {
   /** The CSS font sizes the three lines are rendered at before fitting. */
   sizes: readonly [label: string, clock: string, cycle: string];
   borderRadius: string;
-  /** Whether the ring is actually drawn (it is skipped for non-px dimensions). */
+  /**
+   * Whether the ring is on with px dimensions (it is skipped for non-px ones). A frame
+   * too small to draw it (`ringFitsFrame`) is caught by `fitShape` on the measured box.
+   */
   ringDrawn: boolean;
   ringWidth: number;
   ringGap: number;

@@ -3,7 +3,7 @@
 // natural (configured-size) box once and applies the scales this returns, so the
 // text only ever shrinks, never grows past the configured size.
 
-import { cssLengthToPx } from "./timer-utils";
+import { cssLengthToPx, ringFitsFrame } from "./timer-utils";
 
 /** The clear area text may use: the shape the ring's inner edge (or the panel) traces. */
 export type FitShape =
@@ -23,7 +23,9 @@ export const MIN_FIT_SCALE = 0.5;
 /**
  * The text area of a `width`×`height` timer frame. With the ring on, it is bounded by
  * the stroke's inner edge (the stroke is centered `width / 2 + gap` in from the frame,
- * so its inner edge sits `width + gap` in); with it off, by the panel itself. The shape
+ * so its inner edge sits `width + gap` in); with it off, by the panel itself. A ring the
+ * frame has no room for (`ringFitsFrame`) counts as off: ProgressRing doesn't draw it,
+ * and reserving its inset would leave the text a zero-sized area. The shape
  * follows the panel's corner radius exactly as ProgressRing draws it: `50%` is a circle
  * on the shorter side, anything else a rounded rect whose first radius value is a
  * percentage of the shorter side or a CSS length.
@@ -34,8 +36,9 @@ export function fitShape(
   borderRadius: string,
   ring: { enabled: boolean; width: number; gap: number },
 ): FitShape {
-  const stroke = ring.enabled ? Math.max(0, ring.width) : 0;
-  const gap = ring.enabled ? Math.max(0, ring.gap) : 0;
+  const drawn = ring.enabled && ringFitsFrame(width, height, ring);
+  const stroke = drawn ? Math.max(0, ring.width) : 0;
+  const gap = drawn ? Math.max(0, ring.gap) : 0;
   const inset = stroke + gap;
   const isCircle = borderRadius === "50%" || borderRadius === "50";
   if (isCircle) {

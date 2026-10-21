@@ -58,6 +58,15 @@ describe("fitShape", () => {
     });
   });
 
+  it("uses the whole panel when the frame has no room to draw the ring", () => {
+    // ProgressRing draws nothing once a side is no longer than 2 × (14 / 2 + 10) = 34px;
+    // reserving that ring's inset anyway would leave the text a zero-sized area.
+    const off = { ...RING, enabled: false };
+    expect(fitShape(30, 30, "22%", RING)).toEqual(fitShape(30, 30, "22%", off));
+    expect(fitShape(34, 300, "50%", RING)).toEqual(fitShape(34, 300, "50%", off));
+    expect(fitShape(400, 34, "0px", RING)).toEqual(fitShape(400, 34, "0px", off));
+  });
+
   it("reads px corner radii and the first value of a shorthand", () => {
     const shape = fitShape(300, 300, "40px 0 0 0", RING);
     expect(shape.kind === "rect" && shape.radius).toBe(40 - 7);
@@ -144,6 +153,13 @@ describe("fitTimerLines", () => {
     );
     expect(boxes[0]!.top).toBeGreaterThanOrEqual(24 + FIT_PADDING_PX - 1e-9);
     expect(boxes[2]!.bottom).toBeLessThanOrEqual(276 - FIT_PADDING_PX + 1e-9);
+  });
+
+  it("keeps every line visible in a frame too small to draw the ring", () => {
+    // The ring is skipped there, so the text gets the 30px panel; fitting it into the
+    // skipped ring's zero-sized interior scaled every line to 0 and blanked the timer.
+    const fits = fitTimerLines(fitShape(30, 30, "22%", RING), 30, [LABEL, CLOCK, CYCLE], GAP);
+    for (const fit of fits) expect(fit.scale).toBeGreaterThan(0);
   });
 
   it("stops at MIN_FIT_SCALE and clips with an ellipsis width past it", () => {

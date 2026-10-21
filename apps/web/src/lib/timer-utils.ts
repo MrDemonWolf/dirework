@@ -122,6 +122,22 @@ export function clockFontSize(configured: string, text: string): string {
   return scale === 1 ? configured : `calc(${configured} * ${scale})`;
 }
 
+/**
+ * Whether a `width`×`height` (px) timer frame has room to draw the progress ring. The
+ * stroke's centerline sits `ring.width / 2 + ring.gap` in from every edge, so a side no
+ * longer than twice that leaves no path: ProgressRing then draws nothing, and the text
+ * fit (`fitShape`) must treat the ring as off rather than fit the text inside a ring
+ * that isn't there.
+ */
+export function ringFitsFrame(
+  width: number,
+  height: number,
+  ring: { width: number; gap: number },
+): boolean {
+  const inset = ring.width / 2 + ring.gap;
+  return width - inset * 2 > 0 && height - inset * 2 > 0;
+}
+
 /** Configured phase lengths (ms) — shape matches the overlay timerConfig payload. */
 export interface PhaseDurations {
   workDuration: number;

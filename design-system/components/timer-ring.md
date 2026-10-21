@@ -37,10 +37,11 @@ in `tokens.json` mirrors the default 22% corner.
 - **Fit to the ring**: every line is measured at its configured size and shrunk (never
   grown) until it sits inside the ring's inner edge less `FIT_PADDING_PX` (6px) a side:
   the chord at the line's height for a circle, the inner width (narrowing in the corner
-  bands) for a squircle, the panel itself with the ring off (`fitShape` /
-  `fitTimerLines`, `lib/timer-fit.ts`). One still too wide at `MIN_FIT_SCALE` (half size)
-  ends in an ellipsis. So a long phase label ("Gathering the Pack" is about 290px at 20px)
-  shrinks instead of spilling over the ring.
+  bands) for a squircle, the panel itself with the ring off or with no room to draw it
+  (`ringFitsFrame`, the rule `ProgressRing` skips by). See `fitShape` / `fitTimerLines`
+  in `lib/timer-fit.ts`. One still too wide at `MIN_FIT_SCALE` (half size) ends in an
+  ellipsis. So a long phase label ("Gathering the Pack" is about 290px at 20px) shrinks
+  instead of spilling over the ring.
 
 ## Props and variants
 

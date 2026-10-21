@@ -430,7 +430,8 @@ fits the label, countdown and cycle lines to the ring's inner edge: each line fi
 at its configured size (deterministic first render), a `useLayoutEffect` reads each box once
 via `offsetWidth`/`offsetHeight` (layout px, so AutoScale's transform doesn't skew it), and
 the pure `fitTimerLines` / `fitShape` (`lib/timer-fit.ts`: circle chord at the line's height,
-squircle inner width narrowing in the corner bands, the panel with the ring off) returns
+squircle inner width narrowing in the corner bands, the panel with the ring off or too small
+to draw — `ringFitsFrame`, the same rule `ProgressRing` skips by) returns
 per-line scales ≤ 1 that commit before paint. Lines never wrap; below `MIN_FIT_SCALE` (0.5)
 a line is cut with an ellipsis. It re-fits only when an input changes (the clock's length,
 not each tick) or a web font finishes loading — no per-frame work, no ResizeObserver.

@@ -17,6 +17,7 @@ import {
   formatTime,
   phaseTotalMs,
   quoteFontFamily,
+  ringFitsFrame,
   roundedRectPath,
   roundedRectPerimeter,
 } from "@/lib/timer-utils";
@@ -70,13 +71,14 @@ function ProgressRing({
   ring: RingConfig;
   borderRadius: string;
 }) {
+  // Too small to fit the stroke + gap: nothing sensible to draw (fitShape applies the
+  // same rule, so the text then gets the whole panel).
+  if (!ringFitsFrame(width, height, ring)) return null;
   const strokeWidth = ring.width;
   const gap = ring.gap;
   const inset = strokeWidth / 2 + gap;
   const innerWidth = width - inset * 2;
   const innerHeight = height - inset * 2;
-  // Too small to fit the stroke + gap: nothing sensible to draw.
-  if (innerWidth <= 0 || innerHeight <= 0) return null;
 
   // Determine if we should draw a circle or rounded rect
   const isCircle = borderRadius === "50%" || borderRadius === "50";
