@@ -9,7 +9,7 @@ export const OVERLAY_THEMES = {
     bg: "#091533",
     accent: "#00ACED",
     text: "#FFFFFF",
-    username: "#6B8BF5",
+    username: "#7F9CFF",
   },
   "Ocean Depths": {
     bg: "#0A1628",
@@ -21,7 +21,7 @@ export const OVERLAY_THEMES = {
     bg: "#1C1C1E",
     accent: "#0A84FF",
     text: "#F5F5F7",
-    username: "#5AA9FF",
+    username: "#6DB3FF",
   },
   "Cozy Cottage": {
     bg: "#FAF3E8",

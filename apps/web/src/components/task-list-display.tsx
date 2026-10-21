@@ -9,12 +9,14 @@ import { useEffect, useRef, useState } from "react";
 
 import { countDoneByAuthor, groupTasksByAuthor } from "@/lib/task-utils";
 import {
+  ACTIVE_ROW_TINT_PERCENT,
   AUTHOR_COUNT_OPACITY,
   AUTHOR_HEADER_TINT_PERCENT,
   HEADER_COUNT_OPACITY,
+  MORE_FOOTER_OPACITY,
+  TASK_ROW_GAP_PX,
 } from "@/lib/overlay-view";
 import { colorWithOpacity, quoteFontFamily } from "@/lib/timer-utils";
-import { cn } from "@/lib/utils";
 import type { Task, TaskGroup } from "@/lib/task-utils";
 // Style shape comes from the shared config source of truth (audit M4)
 import type { TaskStylesConfig } from "@/lib/config-types";
@@ -84,8 +86,10 @@ function InfiniteScroll({
       >
         {children}
       </div>
+      {/* The loop's second copy is decoration: screen readers get the list once. */}
       {shouldScroll && (
         <div
+          aria-hidden
           className="animate-scroll-secondary"
           style={
             {
@@ -101,7 +105,68 @@ function InfiniteScroll({
   );
 }
 
-/** One task row: checkbox (or bullet) plus the line-clamped task text. */
+/**
+ * The list when scrolling is off: rows that don't fit are cut off, and a "+N more"
+ * footer says how many. `hidden` counts the task rows whose bottom edge falls
+ * below the visible list area, re-measured whenever the list area or its content
+ * resizes (same ResizeObserver pattern as InfiniteScroll). The footer takes space
+ * from the list area, so showing it can only hide more rows, never fewer: the
+ * second measurement converges instead of flickering the footer on and off.
+ */
+function StaticList({ children, config }: { children: React.ReactNode; config: TaskStylesConfig }) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [hidden, setHidden] = useState(0);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    const content = contentRef.current;
+    if (!viewport || !content) return;
+
+    const measure = () => {
+      // The viewport is `relative`, so it is each row's offsetParent.
+      const limit = viewport.clientHeight;
+      let count = 0;
+      for (const row of content.querySelectorAll<HTMLElement>("[data-task-row]")) {
+        if (row.offsetTop + row.offsetHeight > limit) count++;
+      }
+      setHidden(count);
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(viewport);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div ref={viewportRef} className="relative min-h-0 flex-1 overflow-hidden">
+        <div ref={contentRef}>{children}</div>
+      </div>
+      {hidden > 0 && (
+        <div
+          className="flex-shrink-0"
+          style={{
+            color: config.task.fontColor,
+            opacity: MORE_FOOTER_OPACITY,
+            fontSize: `calc(${config.task.fontSize} * 0.75)`,
+            paddingTop: config.body.padding.vertical,
+          }}
+        >
+          +{hidden} more
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * One task row: checkbox (or bullet), the line-clamped task text, and for the
+ * active task a static username-color tint plus an "Active" label (no glow, no
+ * pulse: a perpetual animation on a stream overlay is noise).
+ */
 function TaskItem({
   task,
   config,
@@ -116,13 +181,17 @@ function TaskItem({
 
   return (
     <div
-      className={cn("flex flex-row items-start gap-0", isActive && "overlay-active-glow")}
+      data-task-row
+      className="flex flex-row items-start gap-0"
       style={{
         backgroundColor: isDone
           ? colorWithOpacity(config.taskDone.background.color, config.taskDone.background.opacity)
-          : "transparent",
+          : isActive
+            ? `color-mix(in srgb, ${config.task.usernameColor} ${ACTIVE_ROW_TINT_PERCENT}%, transparent)`
+            : "transparent",
+        borderRadius: config.task.border.radius,
         padding: config.task.padding,
-        marginBottom: isLast ? "0" : "1px",
+        marginBottom: isLast ? 0 : TASK_ROW_GAP_PX,
         maxWidth: config.task.maxWidth,
         // No extra row-wide fade for done rows: it multiplied over the
         // configured `taskDone.fontColor`, so the color the streamer picked (and
@@ -195,6 +264,25 @@ function TaskItem({
       >
         {task.text}
       </span>
+
+      {isActive && (
+        // Plain visible text, so screen readers announce it as-is (an aria-label
+        // on a role-less span is ignored).
+        <span
+          className="ml-auto shrink-0 self-center font-bold uppercase"
+          style={{
+            color: config.task.usernameColor,
+            fontSize: `calc(${config.task.fontSize} * 0.55)`,
+            letterSpacing: "0.1em",
+            // Padding, not margin: an inline margin-left would override `ml-auto`,
+            // which pushes the label to the end of the row.
+            paddingLeft: 12,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Active
+        </span>
+      )}
     </div>
   );
 }
@@ -367,11 +455,11 @@ export function TaskListDisplay({
             ))}
           </InfiniteScroll>
         ) : (
-          <div className="flex-1 overflow-y-auto">
+          <StaticList config={config}>
             {groups.map((group) => (
               <AuthorGroup key={group.authorKey} group={group} config={config} />
             ))}
-          </div>
+          </StaticList>
         )}
       </div>
     </div>

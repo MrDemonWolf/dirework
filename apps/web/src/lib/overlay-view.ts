@@ -29,6 +29,22 @@ export const AUTHOR_HEADER_TINT_PERCENT = 6;
 export const AUTHOR_COUNT_OPACITY = 0.8;
 export const HEADER_COUNT_OPACITY = 0.8;
 
+/** The timer's `{n}/{total}` cycle line is faded with this opacity (contrast-tested). */
+export const TIMER_CYCLE_OPACITY = 0.8;
+
+/**
+ * The active task row is a static tint of the username color at this strength
+ * (no glow, no pulse), plus an "Active" label in that color. The contrast test
+ * measures the label against this tint over the author group.
+ */
+export const ACTIVE_ROW_TINT_PERCENT = 10;
+
+/** Opacity of the "+N more" footer a non-scrolling task list shows when rows are cut off. */
+export const MORE_FOOTER_OPACITY = 0.8;
+
+/** Vertical gap (px) between task rows inside an author group. */
+export const TASK_ROW_GAP_PX = 2;
+
 /**
  * Path of an OBS overlay page for a token, or null while the token is missing
  * (not loaded yet, or `user.me` found no instance row). Null keeps

@@ -26,17 +26,29 @@ export {
 export {
   DEFAULT_PHASE_LABELS,
   DEFAULT_TASK_MESSAGES,
+  DEFAULT_TASK_STYLES,
   DEFAULT_TIMER_MESSAGES,
+  DEFAULT_TIMER_STYLES,
   MAX_TASK_LEN,
   TIMER_CONFIG_DEFAULTS,
 } from "./config-defaults";
 import {
   LEGACY_TASK_MESSAGES,
+  LEGACY_TASK_STYLE_VALUES,
   LEGACY_TIMER_MESSAGES,
+  LEGACY_TIMER_STYLE_VALUES,
   TASK_MESSAGE_COLUMN_DEFAULTS,
+  TASK_STYLE_COLUMN_DEFAULTS,
   TIMER_MESSAGE_COLUMN_DEFAULTS,
+  TIMER_STYLE_COLUMN_DEFAULTS,
+  type StyleColumnValue,
 } from "@dirework/db/defaults";
-import { DEFAULT_TASK_MESSAGES, DEFAULT_TIMER_MESSAGES } from "./config-defaults";
+import {
+  DEFAULT_TASK_MESSAGES,
+  DEFAULT_TASK_STYLES,
+  DEFAULT_TIMER_MESSAGES,
+  DEFAULT_TIMER_STYLES,
+} from "./config-defaults";
 
 /** Singleton-row primary key used by every one-row config table (single source: packages/db schema). */
 export { SINGLETON_ID } from "@dirework/db/schema";
@@ -359,7 +371,24 @@ export interface BotConfigData {
 
 // ── Build helpers: flat DB rows → nested frontend objects ─────────────────────
 
-export function buildTimerStylesConfig(s: TimerStyle) {
+/**
+ * The timer overlay styles a timer_style row stands for: never-customized values
+ * upgraded to the current defaults (`upgradeLegacyStyleRow`), then nested.
+ */
+export function buildTimerStylesConfig(row: TimerStyle): TimerStylesConfig {
+  return nestTimerStyleRow(
+    upgradeLegacyStyleRow(
+      row,
+      TIMER_STYLE_COLUMN_DEFAULTS,
+      LEGACY_TIMER_STYLE_VALUES,
+      CURRENT_TIMER_STYLE_ROW,
+      TIMER_STYLE_GROUPS,
+    ),
+  );
+}
+
+/** A timer_style row as nested config, exactly as stored (no default upgrade). */
+export function nestTimerStyleRow(s: TimerStyle) {
   return {
     dimensions: { width: s.width, height: s.height },
     background: { color: s.bgColor, opacity: s.bgOpacity, borderRadius: s.bgBorderRadius },
@@ -382,9 +411,23 @@ export function buildTimerStylesConfig(s: TimerStyle) {
   };
 }
 
-export type TimerStylesConfig = ReturnType<typeof buildTimerStylesConfig>;
+export type TimerStylesConfig = ReturnType<typeof nestTimerStyleRow>;
 
-export function buildTaskStylesConfig(s: TaskStyle) {
+/** Task overlay counterpart of `buildTimerStylesConfig`. */
+export function buildTaskStylesConfig(row: TaskStyle): TaskStylesConfig {
+  return nestTaskStyleRow(
+    upgradeLegacyStyleRow(
+      row,
+      TASK_STYLE_COLUMN_DEFAULTS,
+      LEGACY_TASK_STYLE_VALUES,
+      CURRENT_TASK_STYLE_ROW,
+      TASK_STYLE_GROUPS,
+    ),
+  );
+}
+
+/** A task_style row as nested config, exactly as stored (no default upgrade). */
+export function nestTaskStyleRow(s: TaskStyle) {
   return {
     display: {
       showDone: s.displayShowDone,
@@ -456,7 +499,7 @@ export function buildTaskStylesConfig(s: TaskStyle) {
   };
 }
 
-export type TaskStylesConfig = ReturnType<typeof buildTaskStylesConfig>;
+export type TaskStylesConfig = ReturnType<typeof nestTaskStyleRow>;
 
 export function buildTimerConfig(tc: TimerConfig) {
   return {
@@ -809,3 +852,68 @@ export function flattenTaskStyles(input: TaskStylesInput) {
     ...(input.bullet?.margin?.right != null && { bulletMarginRight: input.bullet.margin.right }),
   };
 }
+
+// ── Read-time upgrade of never-customized style values ───────────────────────
+// Mirrors the bot-reply upgrade (`buildBotConfig`): the timer_style/task_style
+// column defaults are frozen (*_STYLE_COLUMN_DEFAULTS in @dirework/db/defaults),
+// so a row the owner never customized still holds them, and reads back as the
+// current DEFAULT_*_STYLES instead — no migration, no write.
+
+type StyleRow = Record<string, unknown>;
+
+/**
+ * Per style group (a top-level key of the nested config — `ring`, `fontSizes`,
+ * `header`, `task`…), every column whose value is still a default from an earlier
+ * release (the frozen column default or a LEGACY_* value) reads back as the
+ * current default — but only when EVERY column in that group is still a default.
+ * A group the owner touched is the owner's: a saved preset (Minimal Light's 1px
+ * borders, Ocean Depths' 12px radii) can legitimately repeat an old default for
+ * one column, and upgrading that column alone would turn the preset into a
+ * hybrid no preset matches. The trade-off, same as bot replies: a whole group
+ * hand-set to exactly the old defaults reads as "never customized".
+ */
+export function upgradeLegacyStyleRow<R extends object>(
+  row: R,
+  frozen: Partial<Record<keyof R, StyleColumnValue>>,
+  legacy: Partial<Record<keyof R, readonly StyleColumnValue[]>>,
+  current: StyleRow,
+  groups: readonly (readonly string[])[],
+): R {
+  const stored = row as unknown as StyleRow;
+  const frozenRow = frozen as StyleRow;
+  const legacyRow = legacy as Partial<Record<string, readonly unknown[]>>;
+  const isOldDefault = (key: string) =>
+    key in frozenRow &&
+    (stored[key] === frozenRow[key] || (legacyRow[key]?.includes(stored[key]) ?? false));
+  const out: StyleRow = { ...stored };
+  for (const group of groups) {
+    if (!group.every(isOldDefault)) continue;
+    for (const key of group) {
+      if (key in current) out[key] = current[key];
+    }
+  }
+  return out as R;
+}
+
+/** The column keys of each top-level style group, in config order. */
+function styleGroups<C extends object>(
+  defaults: C,
+  flatten: (group: Partial<C>) => object,
+): string[][] {
+  return (Object.keys(defaults) as (keyof C)[]).map((group) =>
+    Object.keys(flatten({ [group]: defaults[group] } as unknown as Partial<C>)),
+  );
+}
+
+// Declared after the flatten helpers they call. The build functions above read
+// them only when called, never while this module is still loading.
+
+/** DEFAULT_TIMER_STYLES as flat timer_style columns. */
+export const CURRENT_TIMER_STYLE_ROW: StyleRow = flattenTimerStyles(DEFAULT_TIMER_STYLES);
+/** DEFAULT_TASK_STYLES as flat task_style columns. */
+export const CURRENT_TASK_STYLE_ROW: StyleRow = flattenTaskStyles(DEFAULT_TASK_STYLES);
+const TIMER_STYLE_GROUPS: readonly string[][] = styleGroups(
+  DEFAULT_TIMER_STYLES,
+  flattenTimerStyles,
+);
+const TASK_STYLE_GROUPS: readonly string[][] = styleGroups(DEFAULT_TASK_STYLES, flattenTaskStyles);
