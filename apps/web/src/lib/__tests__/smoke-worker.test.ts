@@ -7,6 +7,7 @@ import {
   SMOKE_ROUTES,
   WEB_COMPATIBILITY_FLAGS,
   buildSmokeConfig,
+  checkManifestResponse,
   readCompatibilityDate,
 } from "../../../scripts/smoke-worker.mjs";
 
@@ -36,6 +37,21 @@ describe("web worker smoke check", () => {
     expect(config.main).toBe("/w/.open-next/worker.js");
     expect(config.assets).toEqual({ directory: "/w/.open-next/assets", binding: "ASSETS" });
     expect(config.compatibility_date).toBe("2026-01-01");
+  });
+
+  it("checks the install manifest's type and display mode, not just its status", async () => {
+    expect(SMOKE_ROUTES).toContain("/manifest.webmanifest");
+    const manifest = (type: string, body: unknown) =>
+      new Response(JSON.stringify(body), { headers: { "content-type": type } });
+    expect(
+      await checkManifestResponse(manifest("application/manifest+json", { display: "standalone" })),
+    ).toEqual([]);
+    expect(
+      await checkManifestResponse(manifest("text/html", { display: "standalone" })),
+    ).toHaveLength(1);
+    expect(
+      await checkManifestResponse(manifest("application/manifest+json", { display: "browser" })),
+    ).toHaveLength(1);
   });
 
   it("only checks routes that render without the api worker", () => {

@@ -10,3 +10,7 @@
 # day and then revalidate in the background instead of blocking the render.
 /fonts/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=2592000
+
+# PWA icons (app/manifest.ts) are not hashed either: same fresh-for-a-day policy.
+/icons/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=2592000

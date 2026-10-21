@@ -13,6 +13,12 @@ describe("web security header contract", () => {
     expect(nextConfig).toContain("poweredByHeader: false");
   });
 
+  it("lets the page load its own install manifest", () => {
+    // app/manifest.ts is served same-origin; without manifest-src the CSP's default-src
+    // would still allow it, but an explicit 'self' keeps it from silently widening.
+    expect(nextConfig).toContain(`"manifest-src 'self'"`);
+  });
+
   it("marks bearer-token routes no-store, no-referrer, and no-index", () => {
     expect(nextConfig).toContain('source: "/overlay/:path*"');
     expect(nextConfig).toContain('source: "/bot/:path*"');

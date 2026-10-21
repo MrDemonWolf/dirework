@@ -11,6 +11,20 @@ import { getQueryClient } from "@/utils/trpc";
 import { ThemeProvider } from "./theme-provider";
 import { Toaster } from "./ui/sonner";
 
+// Sonner's own gutters (24px, 16px under 600px wide) plus the safe-area insets, which are
+// non-zero on a phone with viewport-fit=cover (bottom: home indicator; left/right: the
+// notch in landscape, where Sonner uses the desktop `offset`).
+export const TOAST_OFFSET = {
+  bottom: "calc(24px + env(safe-area-inset-bottom, 0px))",
+  left: "calc(24px + env(safe-area-inset-left, 0px))",
+  right: "calc(24px + env(safe-area-inset-right, 0px))",
+};
+export const TOAST_MOBILE_OFFSET = {
+  bottom: "calc(1rem + env(safe-area-inset-bottom, 0px))",
+  left: "calc(1rem + env(safe-area-inset-left, 0px))",
+  right: "calc(1rem + env(safe-area-inset-right, 0px))",
+};
+
 /**
  * Wraps the whole app. Uses the shared browser QueryClient from `getQueryClient()` (a fresh one
  * per server render), so the tRPC hooks and this provider see the same cache.
@@ -25,7 +39,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         {/* The devtools package renders nothing in production builds. */}
         <ReactQueryDevtools />
       </QueryClientProvider>
-      <Toaster richColors />
+      {/* Clear of the notch and home indicator when installed to a phone's home screen. */}
+      <Toaster richColors offset={TOAST_OFFSET} mobileOffset={TOAST_MOBILE_OFFSET} />
     </ThemeProvider>
   );
 }
