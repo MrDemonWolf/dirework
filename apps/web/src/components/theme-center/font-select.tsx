@@ -15,19 +15,22 @@ import { FONT_OPTIONS } from "@/lib/overlay-font-options";
 import { FieldRow } from "./field-row";
 
 /**
- * Font family dropdown limited to `FONT_OPTIONS`. Its id is derived from `label`, so
- * labels must be unique within a page.
+ * Font family dropdown limited to `FONT_OPTIONS`. Its id is derived from `label` (so
+ * labels must be unique within a page) unless `id` is passed.
  */
 export function FontSelect({
   label,
   value,
   onChange,
+  id: idProp,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  /** Overrides the label-derived id, for a label that repeats on the page. */
+  id?: string;
 }) {
-  const id = `font-${label.toLowerCase().replace(/\s+/g, "-")}`;
+  const id = idProp ?? `font-${label.toLowerCase().replace(/\s+/g, "-")}`;
 
   return (
     <FieldRow label={label} htmlFor={id}>

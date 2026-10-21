@@ -53,6 +53,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (connect the bot account, add the overlays to OBS, viewers join from chat). A failed
   sign-in shows the same notice as the home page, and the header's own Sign in button steps
   aside on this page. The page is server-rendered and makes no API calls.
+- **Theme Center gallery and sections.** Presets are a grid instead of a sideways-scrolling row
+  (arrow keys move between them, Up/Down by row). The editor's tabs are **Timer style**,
+  **Task style** and **Phase labels**, each with a dot while it holds unsaved edits. Style tabs
+  are split into **Colors**, **Typography**, **Layout** and **Opacity** (Colors open first),
+  grouped by the part of the overlay they change. A section's menu has **Reset section**, and
+  the page menu has **Reset theme to Default**; both confirm and only change the draft until
+  you save.
 - **Theme Center preview.** The preview now shows one overlay at a time (**Timer** or
   **Tasks**), adds a **Bright** backdrop (a sunny camera feed) to dark, light and checkerboard,
   draws the task list at the 700 × 800 source size scaled to fit, and uses the same demo session

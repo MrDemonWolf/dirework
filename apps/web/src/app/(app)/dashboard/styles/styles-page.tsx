@@ -1,10 +1,11 @@
 "use client";
 
-// Theme Center (/dashboard/styles): preset rail, timer/task style editors, phase labels, and a
-// live preview. Edits stay local until Save, which persists all three slices in one mutation.
+// Theme Center (/dashboard/styles): preset gallery, timer/task style editors, phase labels, and
+// a live preview. Edits stay local until Save, which persists all three slices in one mutation.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { MoreHorizontal, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 import { updateStylesInput } from "@dirework/api/routers/input-schemas";
@@ -16,7 +17,12 @@ import type {
   ThemePreset,
 } from "@/lib/config-types";
 import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
-import { defaultTimerStyles, defaultTaskStyles, detectMatchingPreset } from "@/lib/theme-presets";
+import {
+  defaultTimerStyles,
+  defaultTaskStyles,
+  detectMatchingPreset,
+  themePresets,
+} from "@/lib/theme-presets";
 import { cn, isDeepEqual } from "@/lib/utils";
 import { describeIssues, formatMutationError } from "@/lib/validation-errors";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -24,6 +30,13 @@ import { ConsoleRule } from "@/components/console-rule";
 import { QueryError } from "@/components/query-error";
 import { SaveBar } from "@/components/save-bar";
 import { StylesSkeleton } from "@/components/styles-skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PhaseLabelsEditor } from "@/components/theme-center/phase-labels-editor";
 import { ThemeBrowser } from "@/components/theme-center/theme-browser";
@@ -35,6 +48,9 @@ import { trpc } from "@/utils/trpc";
 
 /** Pre-load placeholder only; real values replace it once `config.get` resolves. */
 const defaultPhaseLabels: PhaseLabelsConfig = DEFAULT_PHASE_LABELS;
+
+/** The preset a fresh install starts on ("Reset theme to Default"). */
+const DEFAULT_PRESET = themePresets.find((preset) => preset.id === "default")!;
 
 /**
  * Keeps a working copy and a last-saved snapshot of each slice; dirty state is derived by deep
@@ -51,6 +67,8 @@ export default function StylesPage() {
 
   // Preset apply held for confirmation while custom edits are unsaved
   const [pendingTheme, setPendingTheme] = useState<ThemePreset | null>(null);
+  // "Reset theme to Default" held for confirmation
+  const [confirmDefault, setConfirmDefault] = useState(false);
 
   // Saved state — what's persisted in the database
   const [savedTimerStyles, setSavedTimerStyles] = useState<TimerStylesConfig>(defaultTimerStyles);
@@ -79,10 +97,10 @@ export default function StylesPage() {
 
   // Derived, never tracked by hand: reverting an edit clears the unsaved
   // state, and editing back to a preset's exact values re-highlights it.
-  const hasUnsaved =
-    !isDeepEqual(timerStyles, savedTimerStyles) ||
-    !isDeepEqual(taskStyles, savedTaskStyles) ||
-    !isDeepEqual(phaseLabels, savedPhaseLabels);
+  const timerDirty = !isDeepEqual(timerStyles, savedTimerStyles);
+  const taskDirty = !isDeepEqual(taskStyles, savedTaskStyles);
+  const labelsDirty = !isDeepEqual(phaseLabels, savedPhaseLabels);
+  const hasUnsaved = timerDirty || taskDirty || labelsDirty;
   const activeThemeId = detectMatchingPreset(timerStyles, taskStyles);
 
   // ONE atomic mutation for the whole Theme Center — styles and phase labels
@@ -173,13 +191,33 @@ export default function StylesPage() {
         {/* Header band */}
         <div className="mb-6">
           <ConsoleRule label="Theme Center" />
-          <h1 className="mt-2 font-heading text-3xl font-bold tracking-tight">Theme Center</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Browse preset themes or customize your overlay styles
-          </p>
+          <div className="mt-2 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="font-heading text-3xl font-bold tracking-tight">Theme Center</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Browse preset themes or customize your overlay styles
+              </p>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={<Button variant="outline" size="icon" aria-label="Theme options" />}
+              >
+                <MoreHorizontal />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-card">
+                <DropdownMenuItem
+                  disabled={activeThemeId === DEFAULT_PRESET.id}
+                  onClick={() => setConfirmDefault(true)}
+                >
+                  <RotateCcw className="size-3.5" />
+                  Reset theme to Default
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
-        {/* Preset rail */}
+        {/* Preset gallery */}
         <div className="mb-6">
           <ConsoleRule label="Presets" className="mb-3" />
           <ThemeBrowser activeThemeId={activeThemeId} onApply={handleApplyTheme} />
@@ -190,18 +228,26 @@ export default function StylesPage() {
           {/* Editor Column */}
           <div className="w-full min-w-0 lg:flex-1">
             <Tabs defaultValue="timer">
+              {/* A dot marks each tab holding unsaved edits, so none hide behind another tab. */}
               <TabsList className="h-9 w-full gap-1">
-                <TabsTrigger value="timer">Timer</TabsTrigger>
-                <TabsTrigger value="tasks">Tasks</TabsTrigger>
+                <TabsTrigger value="timer" dirty={timerDirty}>
+                  Timer style
+                </TabsTrigger>
+                <TabsTrigger value="tasks" dirty={taskDirty}>
+                  Task style
+                </TabsTrigger>
+                <TabsTrigger value="labels" dirty={labelsDirty}>
+                  Phase labels
+                </TabsTrigger>
               </TabsList>
               <TabsContent value="timer">
-                <div className="space-y-3">
-                  <TimerStyleEditor styles={timerStyles} onChange={setTimerStyles} />
-                  <PhaseLabelsEditor labels={phaseLabels} onChange={setPhaseLabels} />
-                </div>
+                <TimerStyleEditor styles={timerStyles} onChange={setTimerStyles} />
               </TabsContent>
               <TabsContent value="tasks">
                 <TaskStyleEditor styles={taskStyles} onChange={setTaskStyles} />
+              </TabsContent>
+              <TabsContent value="labels">
+                <PhaseLabelsEditor labels={phaseLabels} onChange={setPhaseLabels} />
               </TabsContent>
             </Tabs>
           </div>
@@ -235,6 +281,16 @@ export default function StylesPage() {
         onConfirm={() => {
           if (pendingTheme) applyTheme(pendingTheme);
         }}
+      />
+
+      {/* Like a preset, the Default theme only replaces the draft; Save puts it on stream. */}
+      <ConfirmDialog
+        open={confirmDefault}
+        onOpenChange={setConfirmDefault}
+        title="Reset theme to Default?"
+        description="The timer and task styles go back to the Default theme. Phase labels stay as they are, and nothing reaches your stream until you save."
+        confirmLabel="Reset to Default"
+        onConfirm={() => applyTheme(DEFAULT_PRESET)}
       />
 
       <SaveBar
