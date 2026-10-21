@@ -763,11 +763,18 @@ icons; brand glyphs are inline SVG components (`apps/web/src/components/icons/`,
   The last step is a smoke check (`packages/infra/smoke-check.ts`, logic in `smoke.ts`,
   6×10s polling per probe): api `/ready` must answer 200 with `limits: "ok"` (all four
   rate-limit bindings attached), web `/api/version` must report the deployed commit, web `/`
-  must render (200 after redirects at `/` or `/setup`, `DireWork` and `<h1` in the body —
-  the SSR path, whose session helpers fail closed when the api is down), and
-  `GET /rpc/user.me` must answer 401 through the proxy (`ownerProcedure` refusing an
-  anonymous caller — the probe that proves the web → api hop; a GET because `user.me` is a
-  query).
+  must render, redirects not followed (the SSR path, whose session helpers fail closed when
+  the api is down): 200 with `DireWork` and `<h1` in the body (claimed), or a redirect to
+  same-origin `/setup` that then renders the claim page or answers an Access login
+  redirect (unclaimed; any other redirect fails), and
+  `GET /rpc/user.me` must refuse an anonymous caller (redirects not followed): 401 through
+  the proxy (`ownerProcedure` — the probe that proves the web → api hop; a GET because
+  `user.me` is a query), or, when Cloudflare Access fronts `/rpc/*`, a 302/303 to an
+  `https://*.cloudflareaccess.com/cdn-cgi/access/login/…` page (`isAccessLoginRedirect`).
+  A 200, a 5xx or a redirect anywhere else fails; the success log names which case passed
+  for `/` and `/rpc`. Access (account-level, not in this repo) is an extra layer only, never
+  a replacement for the owner checks: `/`, `/api/*`, `/bot/*` and `/overlay/*` stay outside
+  it, so the api and version probes need no redirect case.
 - `.github/workflows/deploy-docs-to-pages.yml` — `verify.yml` with `upload-docs` →
   fumadocs static export → GitHub Pages. Runs only on the upstream repo, so forks
   don't fail on a Pages site they never enabled.
