@@ -5,6 +5,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowDown, ArrowRight, Check, MessageSquare, Monitor, Radio, Timer } from "lucide-react";
+import {
+  BRAND,
+  DEMO_SESSION,
+  type DemoChatLine,
+  cycleLabel,
+  formatClock,
+} from "@dirework/overlay-kit";
 import { GithubIcon } from "@/components/icons/github-icon";
 import { ChatCommandWidget } from "./_widgets/ChatCommandWidget";
 import { OverlayThemePreview } from "./_widgets/OverlayThemePreview";
@@ -18,13 +25,22 @@ const GITHUB = "https://github.com/mrdemonwolf/dirework";
  */
 export const metadata: Metadata = {
   // absolute: the layout's "%s | DireWork" template would repeat the brand.
-  title: { absolute: "DireWork — A focus room for your Twitch stream" },
-  description:
-    "Bring your Twitch community into the same focus session. A self-hosted Pomodoro timer, viewer task lists, and customizable OBS overlays. Free and open source.",
+  title: { absolute: BRAND.title },
+  description: BRAND.description,
   alternates: { canonical: "/" },
 };
 
-/** Illustrative stream scene, not a screenshot or a live channel. */
+const SCENE_TASKS = DEMO_SESSION.tasks;
+const SCENE_DONE = SCENE_TASKS.filter((t) => t.status === "done").length;
+const SCENE_CYCLE = cycleLabel(DEMO_SESSION.cycle.current, DEMO_SESSION.cycle.total);
+
+/** The demo chat's `!done` line: the caption shows the command that finished a listed task. */
+const FINISHED_FROM_CHAT = DEMO_SESSION.chat.find(
+  (line): line is Extract<DemoChatLine, { kind: "command" }> =>
+    line.kind === "command" && line.text === "!done",
+);
+
+/** Illustrative stream scene built from the shared demo session, not a live channel. */
 function StreamScene() {
   return (
     <figure
@@ -33,7 +49,7 @@ function StreamScene() {
     >
       <div className="marketing-scene-bar">
         <span>
-          <Radio size={14} aria-hidden /> THE FOCUS ROOM
+          <Radio size={14} aria-hidden /> CO-WORKING STREAM
         </span>
         <span className="marketing-scene-example">EXAMPLE SCENE</span>
       </div>
@@ -50,50 +66,57 @@ function StreamScene() {
         </div>
         <div className="marketing-timer">
           <span className="marketing-label">
-            <span className="marketing-led" /> FOCUS SESSION
+            <span className="marketing-led" /> {DEMO_SESSION.phaseLabel.toUpperCase()}
           </span>
-          <span className="marketing-timer-clock">25:00</span>
-          <div className="marketing-cycle" role="img" aria-label="Focus cycle 1 of 4">
-            <span className="is-current" />
-            <span />
-            <span />
-            <span />
+          <span className="marketing-timer-clock">{formatClock(DEMO_SESSION.remainingMs)}</span>
+          <div className="marketing-cycle" aria-hidden>
+            {Array.from({ length: DEMO_SESSION.cycle.total }, (_, i) => {
+              const n = i + 1;
+              const state =
+                n < DEMO_SESSION.cycle.current
+                  ? "is-done"
+                  : n === DEMO_SESSION.cycle.current
+                    ? "is-current"
+                    : undefined;
+              return <span key={n} className={state} />;
+            })}
           </div>
-          <span className="marketing-timer-caption">One thing at a time.</span>
+          <span className="marketing-timer-caption">{SCENE_CYCLE}</span>
         </div>
         <div className="marketing-scene-tasks">
           <div className="marketing-scene-task-heading">
-            <span>IN THIS TOGETHER</span>
-            <span>Tasks</span>
+            <span>VIEWER TASKS</span>
+            <span>
+              {SCENE_DONE}/{SCENE_TASKS.length} done
+            </span>
           </div>
-          {[
-            { name: "ada_codes", task: "Ship the last little fix", done: false },
-            { name: "pixel_pat", task: "Finish the first sketch", done: false },
-            { name: "night_owl", task: "Read one chapter", done: true },
-          ].map(({ name, task, done }) => (
-            // The check icon is aria-hidden, so the sr-only "Completed" carries done state.
-            <div key={name} className={`marketing-scene-task ${done ? "is-done" : ""}`}>
+          {SCENE_TASKS.map(({ author, text, status }) => (
+            // The check icon is aria-hidden, so the sr-only status carries the row's state.
+            <div key={text} className={`marketing-scene-task is-${status}`}>
               <span className="marketing-task-check" aria-hidden>
-                {done && <Check size={14} />}
+                {status === "done" && <Check size={14} />}
               </span>
               <div>
-                <span className="marketing-task-author">{name}</span>
-                <p>{task}</p>
+                <span className="marketing-task-author">{author}</span>
+                <p>{text}</p>
               </div>
-              {done && <span className="sr-only">Completed</span>}
+              {status === "active" && <span className="sr-only">Active</span>}
+              {status === "done" && <span className="sr-only">Completed</span>}
             </div>
           ))}
         </div>
       </div>
-      <figcaption className="marketing-scene-caption">
-        <MessageSquare size={15} aria-hidden />
-        <span>
-          <strong>ada_codes</strong> !task Ship the last little fix
-        </span>
-        <span className="marketing-scene-added">
-          <Check size={13} aria-hidden /> Added to the room
-        </span>
-      </figcaption>
+      {FINISHED_FROM_CHAT && (
+        <figcaption className="marketing-scene-caption">
+          <MessageSquare size={15} aria-hidden />
+          <span>
+            <strong>{FINISHED_FROM_CHAT.user}</strong> {FINISHED_FROM_CHAT.text}
+          </span>
+          <span className="marketing-scene-added">
+            <Check size={13} aria-hidden /> Marked done
+          </span>
+        </figcaption>
+      )}
     </figure>
   );
 }
@@ -138,15 +161,8 @@ export default function HomePage() {
           </div>
           <div className="marketing-hero-grid">
             <div className="marketing-hero-copy">
-              <h1 id="hero-title">
-                Focus together.
-                <br />
-                <span>On your own stream.</span>
-              </h1>
-              <p>
-                Self-hosted Pomodoro timers, shared task lists, and OBS overlays for Twitch
-                co-working streams. Deploy your own instance and give your community a rhythm.
-              </p>
+              <h1 id="hero-title">{BRAND.tagline}.</h1>
+              <p>{BRAND.description}</p>
               <div className="marketing-actions">
                 <Link href="/docs/getting-started" className="dw-btn dw-btn-primary">
                   Deploy your own instance <ArrowRight size={17} aria-hidden />
@@ -155,9 +171,7 @@ export default function HomePage() {
                   Explore the overlays <ArrowDown size={16} aria-hidden />
                 </a>
               </div>
-              <p className="marketing-hero-fine">
-                Free &amp; open source. Self-hosted on your Cloudflare account.
-              </p>
+              <p className="marketing-hero-fine">Free and open source.</p>
             </div>
             <div className="marketing-scene-wrap">
               <StreamScene />

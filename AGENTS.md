@@ -143,7 +143,7 @@ packages/auth      → Better Auth (Twitch OAuth) — createAuth() factory
 packages/db        → Drizzle ORM schema + createDb() (drizzle-orm/d1) + migrations
 packages/env       → cloudflare:workers bindings (server), t3-env (web)
 packages/infra     → Alchemy IaC (both workers + D1)
-packages/overlay-kit → pure overlay geometry (squircle path) + clock formatting shared by web overlays and docs mocks; zero runtime deps
+packages/overlay-kit → pure overlay geometry (squircle path) + clock formatting + `BRAND` copy + `DEMO_SESSION` demo data, shared by web overlays, docs mocks and both OG cards; zero runtime deps
 packages/e2e       → Playwright browser tests: both workers in local workerd over a fresh local D1 (CI gate)
 packages/config    → Shared TypeScript configuration
 ```
@@ -400,7 +400,10 @@ existing home and reuse it:
   (`formatMutationError`, `describeIssues`). Each route group has an `error.tsx` boundary.
 - **Lib helpers** — `lib/utils.ts` (`cn`), `timer-utils` (`resolvePhaseDuration`,
   ms-from-state), `task-utils` (`groupTasksByAuthor`), `status-tones`, `config-types`;
-  overlay geometry/formatting in `@dirework/overlay-kit`.
+  overlay geometry/formatting (`formatClock`, `cycleLabel`) in `@dirework/overlay-kit`, which
+  also holds `BRAND` (the one tagline/description for metadata, docs hero, share cards) and
+  `DEMO_SESSION` (the example session every mock and card renders; its bot replies are held
+  to the real defaults by `apps/web/src/lib/__tests__/demo-session.test.ts`).
 - **Constants** — timer/config defaults come from `@dirework/db/defaults` (re-exported via
   `@dirework/api/config-shared`); never re-type `25*60*1000` etc. The M1/M3/M4 "don't
   duplicate" rules apply to the web component layer too, not only services/config.
@@ -431,7 +434,7 @@ Key suites: `packages/api/src/services/__tests__/` (tokens, timer-service, task-
 twitch-auth), `packages/api/src/routers/__tests__/` (timer-logic, config build/flatten/
 round-trip, aliases), `apps/web/src/lib/__tests__/` (timer-utils, task-utils, theme-presets,
 config-types, rate-limiter, irc-client, irc-sanitize, server-session, trpc-errors,
-api-origin, auth-proxy, bot-session, alias-rows), `apps/server/src/lib/__tests__/` (logger
+api-origin, auth-proxy, bot-session, alias-rows, demo-session), `apps/server/src/lib/__tests__/` (logger
 redaction), `packages/auth/src/__tests__/has-owner.test.ts`,
 `packages/auth/src/__tests__/create-auth.test.ts` (drives the REAL `createAuth()`: owner
 claim, linking refused, owner tokens dropped, openid-only scope, disabled paths plus a

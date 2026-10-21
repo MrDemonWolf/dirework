@@ -3,6 +3,8 @@
 
 import type { Metadata } from "next";
 
+import { BRAND } from "@dirework/overlay-kit";
+
 import "../index.css";
 import Providers from "@/components/providers";
 import { plexMono, plexSans } from "@/lib/fonts";
@@ -26,8 +28,7 @@ export function generateMetadata(): Metadata {
       default: "DireWork",
       template: "%s | DireWork",
     },
-    description:
-      "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working and body-doubling streams.",
+    description: BRAND.description,
     keywords: [
       "pomodoro",
       "twitch",
@@ -43,16 +44,14 @@ export function generateMetadata(): Metadata {
     creator: "MrDemonWolf, Inc.",
     openGraph: {
       title: "DireWork",
-      description:
-        "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working and body-doubling streams.",
+      description: BRAND.description,
       type: "website",
       siteName: "DireWork",
     },
     twitter: {
       card: "summary_large_image",
       title: "DireWork",
-      description:
-        "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working streams.",
+      description: BRAND.description,
     },
   };
 }

@@ -84,9 +84,9 @@
      WCAG AA on both the near-white (light) and near-black (dark) chip fills. */
   --chip-live-fg: #1F7A38;
   --chip-warn-fg: #9A5B00;
-  --chat-user-1: #1F7A38;          /* green  — ada_codes */
-  --chat-user-2: #0369A1;          /* blue   — pixel_pat */
-  --chat-user-3: #9A5B00;          /* amber  — night_owl */
+  --chat-user-1: #1F7A38;          /* green  — chat preview, 1st speaker */
+  --chat-user-2: #0369A1;          /* blue   — chat preview, 2nd speaker */
+  --chat-user-3: #9A5B00;          /* amber  — chat preview, 3rd speaker */
 
   --bg-base:    oklch(0.97 0.006 240);
   --bg-surface: oklch(0.935 0.01 245);

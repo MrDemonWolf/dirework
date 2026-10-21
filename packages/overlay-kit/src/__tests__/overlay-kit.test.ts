@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BRAND,
+  DEMO_SESSION,
   SQUIRCLE_RADIUS,
   cssLengthToPx,
+  cycleLabel,
   formatClock,
   quoteFontFamily,
   roundedRectPath,
@@ -93,6 +96,14 @@ describe("formatClock", () => {
   });
 });
 
+describe("cycleLabel", () => {
+  it("prints the counter the way the overlay does", () => {
+    expect(cycleLabel(2, 4)).toBe("Cycle 2 / 4");
+    expect(cycleLabel(1, 1)).toBe("Cycle 1 / 1");
+    expect(cycleLabel(12, 99)).toBe("Cycle 12 / 99");
+  });
+});
+
 describe("cssLengthToPx", () => {
   it("reads px and unitless values as px", () => {
     expect(cssLengthToPx("250px")).toBe(250);
@@ -125,5 +136,72 @@ describe("quoteFontFamily", () => {
 
   it("drops empty list entries", () => {
     expect(quoteFontFamily("Lato,,")).toBe('"Lato"');
+  });
+});
+
+describe("BRAND", () => {
+  it("builds the document title from the name and the bare tagline", () => {
+    expect(BRAND.tagline.endsWith(".")).toBe(false);
+    expect(BRAND.title).toBe(`${BRAND.name} - ${BRAND.tagline}`);
+    expect(BRAND.description).toContain(BRAND.name);
+  });
+});
+
+describe("DEMO_SESSION", () => {
+  const { tasks, chat, cycle } = DEMO_SESSION;
+  const authors = [...new Set(tasks.map((task) => task.author))];
+
+  it("is partway through a focus block, on a cycle that exists", () => {
+    expect(DEMO_SESSION.remainingMs).toBeGreaterThan(0);
+    expect(DEMO_SESSION.remainingMs).toBeLessThan(DEMO_SESSION.phaseMs);
+    expect(formatClock(DEMO_SESSION.remainingMs)).toBe("18:24");
+    expect(formatClock(DEMO_SESSION.phaseMs)).toBe("25:00");
+    expect(cycle.current).toBeGreaterThanOrEqual(1);
+    expect(cycle.current).toBeLessThanOrEqual(cycle.total);
+    expect(cycleLabel(cycle.current, cycle.total)).toBe("Cycle 2 / 4");
+  });
+
+  it("has three viewers with an active, a pending, one done and one long task", () => {
+    expect(authors).toEqual(["ada_codes", "pixel_pat", "night_owl"]);
+    const statuses = tasks.map((task) => task.status);
+    expect(statuses).toContain("active");
+    expect(statuses).toContain("pending");
+    expect(statuses.filter((status) => status === "done")).toHaveLength(1);
+    expect(tasks.some((task) => task.text.length >= 60)).toBe(true);
+  });
+
+  it("gives every viewer with open tasks exactly one active task, like the real list", () => {
+    for (const author of authors) {
+      const open = tasks.filter((task) => task.author === author && task.status !== "done");
+      const active = open.filter((task) => task.status === "active");
+      expect(active, author).toHaveLength(open.length === 0 ? 0 : 1);
+    }
+  });
+
+  it("answers each command with a reply about that viewer and their own task", () => {
+    expect(chat[0]?.kind).toBe("command");
+    chat.forEach((line, index) => {
+      if (line.kind !== "reply") return;
+      const previous = chat[index - 1];
+      expect(previous?.kind, `line ${index}`).toBe("command");
+      if (previous?.kind !== "command") return;
+      // A filled-in value missing from the text means the reply was edited by
+      // hand instead of being built from the template.
+      for (const value of Object.values(line.vars)) expect(line.text).toContain(value);
+      if (line.vars.user !== undefined) expect(line.vars.user).toBe(previous.user);
+      if (line.vars.task !== undefined) {
+        const own = tasks.filter((task) => task.author === previous.user).map((task) => task.text);
+        expect(own).toContain(line.vars.task);
+      }
+    });
+  });
+
+  it("adds and finishes the task the list shows as done", () => {
+    const added = chat.find((line) => line.kind === "command" && line.text.startsWith("!task "));
+    expect(added?.kind).toBe("command");
+    if (added?.kind !== "command") return;
+    const done = tasks.find((task) => task.status === "done");
+    expect(added.text).toBe(`!task ${done?.text}`);
+    expect(added.user).toBe(done?.author);
   });
 });

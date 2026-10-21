@@ -1,13 +1,15 @@
 "use client";
 
-// Live mock of the Dirework OBS timer overlay for the marketing home page. Shares geometry and
-// clock formatting with the real overlay (apps/web) via `@dirework/overlay-kit`, so the docs
-// preview cannot drift from what streamers actually get.
+// Live mock of the DireWork OBS timer overlay for the marketing home page. Shares geometry,
+// clock formatting and the demo session with the real overlay (apps/web) via
+// `@dirework/overlay-kit`, so the docs preview cannot drift from what streamers actually get.
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import {
+  DEMO_SESSION,
   SQUIRCLE_RADIUS,
+  cycleLabel,
   formatClock,
   roundedRectPath,
   roundedRectPerimeter,
@@ -25,7 +27,10 @@ function fmt(totalSeconds: number): string {
   return formatClock(totalSeconds * 1000);
 }
 
-const TOTAL = 25 * 60; // 25:00 focus block
+/** The demo session's focus block and where it starts, in whole seconds. */
+const TOTAL = DEMO_SESSION.phaseMs / 1000;
+const START = DEMO_SESSION.remainingMs / 1000;
+const CYCLE = cycleLabel(DEMO_SESSION.cycle.current, DEMO_SESSION.cycle.total);
 /** Rendered box size in px; the SVG viewBox uses the same units. */
 const SIZE = 250;
 const STROKE = 8;
@@ -55,10 +60,11 @@ function usePrefersReducedMotion(): boolean {
 }
 
 /**
- * Squircle-ring timer overlay mock. Counts down once a second from a mid-session value and
- * wraps back to a full 25:00 at zero, and stops ticking while `paused` (the preview's pause
- * button). Under reduced motion the digits still tick (a text change is not motion) but the
- * ring steps instead of sweeping, matching how the real overlay honours the preference.
+ * Squircle-ring timer overlay mock. Counts down once a second from the demo session's
+ * mid-block value and wraps back to a full block at zero, and stops ticking while `paused`
+ * (the preview's pause button). Under reduced motion the digits still tick (a text change
+ * is not motion) but the ring steps instead of sweeping, matching how the real overlay
+ * honours the preference.
  */
 export function TimerOverlayWidget({
   theme = OVERLAY_THEMES[DEFAULT_OVERLAY_THEME],
@@ -68,7 +74,7 @@ export function TimerOverlayWidget({
   paused?: boolean;
 }) {
   // Start partway through so the ring reads as "in progress" on first paint.
-  const [remaining, setRemaining] = useState(18 * 60 + 24);
+  const [remaining, setRemaining] = useState(START);
   const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
@@ -92,7 +98,7 @@ export function TimerOverlayWidget({
   return (
     <div
       role="img"
-      aria-label={`Pomodoro timer overlay: focus, ${fmt(remaining)} remaining`}
+      aria-label={`Pomodoro timer overlay: ${DEMO_SESSION.phaseLabel.toLowerCase()}, ${fmt(remaining)} remaining`}
       style={{
         width: SIZE,
         maxWidth: "100%",
@@ -132,13 +138,14 @@ export function TimerOverlayWidget({
         <div
           style={{
             fontSize: 18,
-            fontWeight: 600,
+            // Montserrat is loaded at 700/800 only (see app/layout.tsx).
+            fontWeight: 700,
             letterSpacing: "0.08em",
             textTransform: "uppercase",
             color: theme.accent,
           }}
         >
-          Focus
+          {DEMO_SESSION.phaseLabel}
         </div>
         <div
           style={{
@@ -150,7 +157,7 @@ export function TimerOverlayWidget({
         >
           {fmt(remaining)}
         </div>
-        <div style={{ fontSize: 16, color: hexToRgba(theme.text, 0.6) }}>Cycle 2 / 4</div>
+        <div style={{ fontSize: 16, color: hexToRgba(theme.text, 0.6) }}>{CYCLE}</div>
       </div>
     </div>
   );
