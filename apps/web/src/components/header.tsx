@@ -64,7 +64,7 @@ export default function Header({ session }: { session: ServerSession | null }) {
   }, [mobileMenuOpen]);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/40 bg-background/60 backdrop-blur-2xl backdrop-saturate-150">
+    <header className="sticky top-0 z-50 border-b border-border/40 bg-background/60 pt-[env(safe-area-inset-top,0px)] backdrop-blur-2xl backdrop-saturate-150">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <div className="flex items-center gap-8">
           <Link

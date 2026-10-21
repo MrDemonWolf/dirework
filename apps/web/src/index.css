@@ -3,6 +3,10 @@
 @import "./tokens.generated.css";
 
 @custom-variant dark (&:is(.dark *));
+/* The primary pointer can hover (mouse, trackpad). Hide hover-revealed controls behind it,
+   so touch screens of any width keep them visible; the built-in `pointer-coarse:` variant
+   sizes up touch targets. */
+@custom-variant can-hover (@media (hover: hover));
 
 /*
  * ── Focus Console palette ────────────────────────────────────────────────────
@@ -70,7 +74,7 @@
     scroll-padding-top: calc(var(--spacing-header) + 1rem);
   }
   html:has([data-save-bar]) {
-    scroll-padding-bottom: 5rem;
+    scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
   }
 }
 

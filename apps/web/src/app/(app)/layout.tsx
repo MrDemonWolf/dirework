@@ -2,10 +2,19 @@
 // footer (AGENTS.md "Footer Convention"). Overlays and the bot console live in other route
 // groups and don't get this chrome.
 
+import type { Metadata } from "next";
+
 import Header from "@/components/header";
 import { VersionBadge } from "@/components/version-badge";
 import { headingFontBodyCss } from "@/lib/heading-font";
 import { getServerSession } from "@/lib/server-session";
+
+// The install manifest (app/manifest.ts) and the iOS home-screen tags live here, not in the
+// root layout, so an OBS overlay or the bot console never fetches the manifest.
+export const metadata: Metadata = {
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "DireWork" },
+};
 
 /**
  * Optional legal links render only when their URLs are configured on the web worker.
@@ -47,7 +56,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {/* suppressHydrationWarning: the copyright year comes from `new Date()`, which can differ
           between the server render and the client around New Year. */}
         <footer
-          className="border-t border-border/40 py-4 text-center text-xs text-muted-foreground"
+          className="border-t border-border/40 py-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] text-center text-xs text-muted-foreground"
           suppressHydrationWarning
         >
           <div className="flex flex-wrap items-center justify-center gap-x-3">

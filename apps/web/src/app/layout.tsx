@@ -1,7 +1,7 @@
 // Root layout for every route (dashboard, overlays, bot console): fonts, global CSS, and
 // site-wide metadata. Keep it lean, since OBS overlays load it too.
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 import { BRAND } from "@dirework/overlay-kit";
 
@@ -9,6 +9,22 @@ import "../index.css";
 import Providers from "@/components/providers";
 import { plexMono, plexSans } from "@/lib/fonts";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-init";
+
+import { DARK_BACKGROUND_HEX, LIGHT_BACKGROUND_HEX } from "./manifest";
+
+// viewportFit "cover" lets an installed app draw under the notch and home indicator; the
+// header, footer, save bar and toasts pad themselves with env(safe-area-inset-*). The theme
+// colours tint the browser/status bar to match the page background.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  colorScheme: "dark light",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: DARK_BACKGROUND_HEX },
+    { media: "(prefers-color-scheme: light)", color: LIGHT_BACKGROUND_HEX },
+  ],
+};
 
 // Only the body and mono faces live here (not preloaded: this layout also wraps the OBS
 // overlays, which render their own configured fonts). The heading face is applied by the

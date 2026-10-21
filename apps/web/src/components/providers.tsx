@@ -25,7 +25,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         {/* The devtools package renders nothing in production builds. */}
         <ReactQueryDevtools />
       </QueryClientProvider>
-      <Toaster richColors />
+      {/* Clear of the home indicator when installed to a phone's home screen. */}
+      <Toaster
+        richColors
+        mobileOffset={{ bottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}
+      />
     </ThemeProvider>
   );
 }

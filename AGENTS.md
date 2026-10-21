@@ -441,6 +441,19 @@ never edit a generated file (`design-tokens.test.ts` and the CI drift step fail)
 has no radius scale (fumadocs-ui compiles its own `rounded-*` against it); fonts stay
 hand-written in both stylesheets (they wrap next/font variables). Palette AA is asserted by
 `tokens-contrast.test.ts`.
+**Installable app + touch.** `app/manifest.ts` serves `/manifest.webmanifest` (standalone,
+`start_url` `/dashboard`, `DARK_BACKGROUND_HEX`/`LIGHT_BACKGROUND_HEX` = the two
+`--background` tokens as hex) with PNG icons in `public/icons/` (192, 512, maskable 512 —
+logo inside the inner 80% on the dark background) plus `app/apple-icon.png` (180×180,
+opaque); `icon.svg` stays the favicon. Only the `(app)` layout links the manifest and the
+`appleWebApp` tags, so overlay and bot loads never fetch it. The root `viewport` export sets
+`viewportFit: "cover"`, `colorScheme`, and per-scheme `themeColor`; the header, footer,
+save bar, and toasts pad with `env(safe-area-inset-*)`. **No service worker**: install
+doesn't need one and an offline live dashboard would only show stale state. Touch
+conventions: hide hover-revealed controls with `can-hover:opacity-0` (custom variant on
+`@media (hover: hover)` in `index.css`), never a width breakpoint — `lg:opacity-0` hid them
+on touch tablets; size touch targets with the built-in `pointer-coarse:` variant
+(`ui/button.tsx`, `ui/input.tsx`). `touch-targets.test.ts` and `manifest.test.ts` pin it.
 
 ### Reuse, libraries & UI workflow
 

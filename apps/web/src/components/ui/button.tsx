@@ -23,16 +23,20 @@ const buttonVariants = cva(
           "bg-destructive/10 hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/20 text-destructive focus-visible:border-destructive/40 dark:hover:bg-destructive/30",
         link: "text-primary underline-offset-4 hover:underline",
       },
+      // Touch-first pointers (pointer-coarse) get bigger minimum hit areas: 44px for the
+      // default and large sizes, scaled down for the compact ones. Mouse layouts keep the
+      // dense instrument-panel sizing.
       size: {
         default:
-          "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        xs: "h-6 gap-1 rounded-md px-2 text-sm has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-7 gap-1 rounded-md px-2.5 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
-        icon: "size-8",
-        "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm": "size-7 rounded-md",
-        "icon-lg": "size-9",
+          "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 pointer-coarse:min-h-11",
+        xs: "h-6 gap-1 rounded-md px-2 text-sm has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3 pointer-coarse:min-h-9",
+        sm: "h-7 gap-1 rounded-md px-2.5 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5 pointer-coarse:min-h-10",
+        lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3 pointer-coarse:min-h-11",
+        icon: "size-8 pointer-coarse:min-h-11 pointer-coarse:min-w-11",
+        "icon-xs":
+          "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3 pointer-coarse:min-h-9 pointer-coarse:min-w-9",
+        "icon-sm": "size-7 rounded-md pointer-coarse:min-h-10 pointer-coarse:min-w-10",
+        "icon-lg": "size-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11",
       },
     },
     defaultVariants: {

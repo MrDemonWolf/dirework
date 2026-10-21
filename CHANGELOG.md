@@ -27,6 +27,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Pomodoro (including the ticking timer overlay), resetting an overlay URL, and signing out.
 - Accessibility (axe-core, WCAG 2.1 A/AA) and phone-sized (Pixel 7) tests for the home page,
   dashboard, Theme Center and Bot settings.
+- Install DireWork on your phone: the dashboard can be added to your home screen (Chrome on
+  Android: menu, **Install app**; Safari on iOS: **Share**, **Add to Home Screen**) and opens
+  straight to the dashboard in its own window, with a proper app icon and a status bar that
+  matches the theme. There is no offline mode.
+- Touch polish: larger tap targets for buttons and inputs on touch screens, and the header,
+  footer, save bar and toasts stay clear of the notch and home indicator. A task's Activate
+  and Remove buttons are now always visible on touch tablets, where they were hidden behind a
+  hover that could never happen.
 
 ### Changed
 - **One tagline everywhere:** "A focus timer for your Twitch stream." The docs home page,

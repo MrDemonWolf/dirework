@@ -15,7 +15,31 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 /** Routes that must answer 200 from the bundle alone (no api, no D1). */
-export const SMOKE_ROUTES = ["/api/version", "/overlay/t/smoke", "/overlay/l/smoke", "/bot/smoke"];
+export const SMOKE_ROUTES = [
+  "/api/version",
+  "/overlay/t/smoke",
+  "/overlay/l/smoke",
+  "/bot/smoke",
+  "/manifest.webmanifest",
+];
+
+/**
+ * Extra checks for the install manifest (app/manifest.ts): a browser ignores a manifest
+ * served with the wrong type or one that isn't standalone, so a 200 alone isn't enough.
+ * Returns the failure messages (empty when it passes).
+ */
+export async function checkManifestResponse(res) {
+  const failures = [];
+  const type = res.headers.get("content-type") ?? "";
+  if (!type.includes("manifest+json")) failures.push(`manifest content-type is "${type}"`);
+  try {
+    const body = await res.json();
+    if (body.display !== "standalone") failures.push(`manifest display is "${body.display}"`);
+  } catch {
+    failures.push("manifest body is not JSON");
+  }
+  return failures;
+}
 
 /**
  * Flags Alchemy's Nextjs resource always deploys the web worker with
@@ -111,6 +135,8 @@ async function main() {
       const res = await fetch(`${base}${route}`, { signal: AbortSignal.timeout(30_000) });
       console.log(`${res.status} ${route}`);
       if (res.status !== 200) failures.push(`${route} answered ${res.status}`);
+      else if (route === "/manifest.webmanifest")
+        failures.push(...(await checkManifestResponse(res)));
     }
   } catch (error) {
     failures.push(error instanceof Error ? error.message : String(error));

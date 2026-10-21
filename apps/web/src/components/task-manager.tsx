@@ -238,12 +238,12 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                 maxLength={MAX_TASK_LEN}
                 disabled={createTask.isPending}
                 aria-label="New task text"
-                className="h-10"
+                className="h-10 md:h-10"
               />
               <Button
                 type="submit"
                 disabled={!newTask.trim() || createTask.isPending}
-                className="h-10 px-4"
+                className="h-10 px-4 md:h-10"
               >
                 Add
               </Button>
@@ -389,7 +389,8 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                                 />
                               )}
 
-                              {/* Activate button (always visible on touch, hover reveal on pointer) */}
+                              {/* Activate button: always shown unless the primary pointer can hover (at any
+                                  width, so touch tablets keep it); focus reveals it too. */}
                               {!isDone && !isActive && (
                                 <Tooltip>
                                   <TooltipTrigger
@@ -417,7 +418,7 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                                         }
                                         focusableWhenDisabled
                                         aria-label={`Set "${task.text}" as active`}
-                                        className="relative opacity-100 transition-opacity after:absolute after:-inset-2 focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+                                        className="relative opacity-100 transition-opacity after:absolute after:-inset-2 focus-visible:opacity-100 can-hover:opacity-0 group-hover:opacity-100"
                                       />
                                     }
                                   >
@@ -427,7 +428,8 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                                 </Tooltip>
                               )}
 
-                              {/* Remove button (always visible on touch, hover reveal on pointer) */}
+                              {/* Remove button: always shown unless the primary pointer can hover (at any
+                                  width, so touch tablets keep it); focus reveals it too. */}
                               <Button
                                 variant="ghost"
                                 size="icon-xs"
@@ -452,7 +454,7 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                                 focusableWhenDisabled
                                 data-remove-task={task.id}
                                 aria-label={`Remove "${task.text}"`}
-                                className="relative text-destructive opacity-100 transition-opacity after:absolute after:-inset-2 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+                                className="relative text-destructive opacity-100 transition-opacity after:absolute after:-inset-2 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 can-hover:opacity-0 group-hover:opacity-100"
                               >
                                 <Trash2 className="size-3" />
                               </Button>
