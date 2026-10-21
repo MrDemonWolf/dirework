@@ -39,6 +39,14 @@ describe("web worker smoke check", () => {
     expect(config.compatibility_date).toBe("2026-01-01");
   });
 
+  it("bundles without esbuild keepNames, like the deploy, so no __name helper leaks", () => {
+    // next-themes inlines `fn.toString()` into the page; with keepNames that string
+    // calls a `__name` helper the browser doesn't have (a pageerror on every load).
+    const config = buildSmokeConfig({ webDir: "/w", compatibilityDate: "2026-01-01" });
+    expect(config.keep_names).toBe(false);
+    expect(read("packages/infra/alchemy.run.ts")).not.toMatch(/keepNames:\s*true/);
+  });
+
   it("checks the install manifest's type and display mode, not just its status", async () => {
     expect(SMOKE_ROUTES).toContain("/manifest.webmanifest");
     const manifest = (type: string, body: unknown) =>

@@ -1,10 +1,10 @@
 "use client";
 
-// Light/dark switch in the site header, backed by next-themes.
+// Light/dark switch in the site header, backed by next-themes (via useAppTheme).
 
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useAppTheme } from "@/components/theme-provider";
 
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch";
  * any "system" preference.
  */
 export function ModeToggle() {
-  const { resolvedTheme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useAppTheme();
   const [mounted, setMounted] = useState(false);
 
   // Mounted-state pattern: next-themes can't know the theme during SSR, so render a static

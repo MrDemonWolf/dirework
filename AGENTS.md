@@ -510,6 +510,18 @@ streamed dark page never paints white first. Pre-mount theme placeholders (the h
 `config.get`, so server and first client render agree on the configured durations (no
 "25:00" → configured-minutes flash); its seeding effect remains only for the
 failed-prefetch fallback.
+**No context update may reach a streamed page before it hydrates.** React batches streamed
+Suspense reveals (up to ~300ms after first paint); an update that reaches a boundary still
+waiting for its reveal makes React discard the server HTML and client-render it — silently in
+production, with both copies in the DOM until the reveal runs. next-themes' context value
+flips right after hydration whenever the OS scheme differs from the app theme, so its
+provider wraps only a bridge (`components/theme-provider.tsx`) that copies its value into a
+stable store (`lib/theme-store.ts`); read the theme with `useAppTheme()`, never next-themes'
+`useTheme` (a test pins both). e2e: `watchHydration` + `expectNoHydrationErrors`
+(`packages/e2e/tests/helpers.ts`) fail on any page error and on a client-generated useId
+(`_r_`) inside `<main>`; `hydration.spec.ts` holds React's reveal back to make the race
+deterministic. The smoke/e2e wrangler config sets `keep_names: false` like the deploy bundle,
+else esbuild's `__name` helper leaks into next-themes' `fn.toString()` inline script.
 
 ## Testing
 

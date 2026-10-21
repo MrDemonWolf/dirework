@@ -1,13 +1,17 @@
 import { expect, test } from "@playwright/test";
 
-import { revealSecretUrl, signIn } from "./helpers";
+import { expectNoHydrationErrors, revealSecretUrl, signIn, watchHydration } from "./helpers";
 
 // One owner, one task list: these build on each other, so they run in order.
 test.describe.configure({ mode: "serial" });
 
 test.beforeEach(async ({ page }) => {
   await signIn(page);
+  watchHydration(page);
   await page.goto("/dashboard");
+  // The streamed dashboard must hydrate, not be thrown away and client-rendered (which
+  // briefly left two copies of every control in the DOM).
+  await expectNoHydrationErrors(page);
 });
 
 test("signs in through the dev bypass and greets the owner", async ({ page }) => {
@@ -17,7 +21,7 @@ test("signs in through the dev bypass and greets the owner", async ({ page }) =>
 
 test("adds a task, shows it on the tasks overlay, and marks it done", async ({ page, context }) => {
   const text = `Write the e2e suite ${Date.now()}`;
-  await page.getByLabel("New task text").fill(text);
+  await page.getByRole("textbox", { name: "New task text" }).fill(text);
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByText(text)).toBeVisible();
 
@@ -34,7 +38,7 @@ test("adds a task, shows it on the tasks overlay, and marks it done", async ({ p
 
 test("removing a task offers Undo, and Undo puts it back", async ({ page }) => {
   const text = `Undo me ${Date.now()}`;
-  await page.getByLabel("New task text").fill(text);
+  await page.getByRole("textbox", { name: "New task text" }).fill(text);
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByText(text)).toBeVisible();
 
@@ -43,4 +47,23 @@ test("removing a task offers Undo, and Undo puts it back", async ({ page }) => {
 
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(page.getByText(text)).toBeVisible();
+});
+
+test("the header toggle switches the theme and the browser bar follows", async ({ page }) => {
+  // The toggle and ThemeColorSync read next-themes through the theme store
+  // (components/theme-provider.tsx), not its context: this drives that bridge both ways.
+  const toggle = page.getByRole("switch", { name: "Toggle dark mode" });
+  const html = page.locator("html");
+  const metas = page.locator('meta[name="theme-color"]');
+  await expect(toggle).toBeChecked();
+
+  await toggle.click();
+  await expect(toggle).not.toBeChecked();
+  await expect(html).toHaveClass(/\blight\b/);
+  for (const meta of await metas.all()) await expect(meta).toHaveAttribute("content", "#f2f6f9");
+
+  await toggle.click();
+  await expect(toggle).toBeChecked();
+  await expect(html).toHaveClass(/\bdark\b/);
+  for (const meta of await metas.all()) await expect(meta).toHaveAttribute("content", "#081225");
 });
