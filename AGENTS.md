@@ -13,7 +13,7 @@ This file provides guidance for coding agents working on the Dirework codebase.
 - Database schemas → `packages/db/src/schema/` (index.ts, auth.ts, app.ts)
 - Setup guides → `.env.example`, docs `apps/fumadocs/content/docs/deployment.mdx`
 - Contributor setup + branch/PR workflow → `CONTRIBUTING.md`
-- Design system (tokens + component specs) → `design-system/`, docs `apps/fumadocs/content/docs/design-system.mdx`
+- Design system (tokens → generated CSS for app + docs, component specs) → `design-system/` (README), docs `apps/fumadocs/content/docs/design-system.mdx`; drift check `bun run tokens && git diff --exit-code`
 - PR review checklist (Codex + humans; free-tier cost rules) → `## Code Review Rules` below
 - Owner to-dos (secrets move, Codex auto-review) + product backlog → `TODO.md`
 
@@ -385,6 +385,15 @@ live/connected (LED-style chips). All animation respects `prefers-reduced-motion
 inputs ≥16px on touch (iOS zoom). Destructive actions (token regenerate, disconnect,
 clear, stop) always confirm via the AlertDialog primitive. Editors with dirty state use
 the unsaved-changes guard hook. 6 theme presets in `lib/theme-presets.ts`.
+
+**Design tokens are generated.** `design-system/tokens.json` → `design-system/scripts/render.ts`
+(pure) + `generate.ts` (I/O) → `apps/web/src/tokens.generated.css` (imported by `index.css`)
+and `apps/fumadocs/src/app/tokens.generated.css` (imported by `global.css`, which maps it onto
+the `--color-fd-*` / `--bg-*` / `--txt-*` names). Edit `tokens.json` and run `bun run tokens`;
+never edit a generated file (`design-tokens.test.ts` and the CI drift step fail). The docs twin
+has no radius scale (fumadocs-ui compiles its own `rounded-*` against it); fonts stay
+hand-written in both stylesheets (they wrap next/font variables). Palette AA is asserted by
+`tokens-contrast.test.ts`.
 
 ### Reuse, libraries & UI workflow
 

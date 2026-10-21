@@ -114,6 +114,9 @@ changes for viewers, and your tasks, settings and bot connection carry over.
 - Accessibility fixes for keyboard focus and color contrast across the dashboard.
 - Contributor docs: `AGENTS.md` now has a Code Review Rules checklist (free-tier cost
   budget and invariants) used for every pull request review.
+- Design tokens: `design-system/tokens.json` now generates the color, radius, type and
+  motion CSS for both the app and the docs site (`bun run tokens`), so the two can no
+  longer drift apart. No visual change.
 
 ### Added
 - Dashboard setup checklist groundwork: DireWork now remembers which setup steps you have

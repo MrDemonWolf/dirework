@@ -2,37 +2,48 @@
 @import "fumadocs-ui/css/ocean.css";
 @import "fumadocs-ui/css/preset.css";
 
+@import "./tokens.generated.css";
+
 /* ──────────────────────────────────────────────────────────────────────────
-   Dirework docs — "Focus Console" design language, ported 1:1 from the app
+   Dirework docs — "Focus Console" design language, shared with the app
    (apps/web/src/index.css). Dark is the hero: MrDemonWolf midnight navy base
    (#091533 family), cool-white text, Cerulean (#00ACED) as the brand accent,
    Cornflower as the secondary. Twitch purple is reserved for Twitch actions,
    amber = paused, emerald = live/work phase. IBM Plex Sans body · Montserrat
    display · IBM Plex Mono labels & numerals.
 
-   The token layer below intentionally KEEPS the old brand / surface / text
-   token names and the dw- class API so the landing widgets keep working — only
-   the values and surface treatments change (flat panels, no liquid glass).
+   The palette, phase and partner colors come from tokens.generated.css
+   (generated from design-system/tokens.json — run `bun run tokens`, never edit
+   it). The blocks below only MAP those onto the fumadocs (--color-fd-*) and
+   landing-page (--bg-*, --txt-*, --brand-*) names, plus the few docs-only
+   values, so the landing widgets and the dw- class API keep working.
    ────────────────────────────────────────────────────────────────────────── */
 
-/* ── Fumadocs UI tokens — Light (cool paper, navy cast) ─────────────────── */
+/* ── Token aliases ──────────────────────────────────────────────────────────
+   `.dark` is listed too: fumadocs-ui/css/ocean.css sets its own --color-fd-*
+   under `.dark`, which would otherwise win over a `:root`-only alias. */
+:root,
+.dark {
+  --color-fd-background: var(--background);
+  --color-fd-foreground: var(--foreground);
+  --color-fd-card: var(--card);
+  --color-fd-card-foreground: var(--card-foreground);
+  --color-fd-popover: var(--popover);
+  --color-fd-popover-foreground: var(--popover-foreground);
+  --color-fd-primary: var(--primary);
+  --color-fd-primary-foreground: var(--primary-foreground);
+  --color-fd-secondary: var(--secondary);
+  --color-fd-secondary-foreground: var(--secondary-foreground);
+  --color-fd-muted: var(--muted);
+  --color-fd-muted-foreground: var(--muted-foreground);
+  --color-fd-accent: var(--accent);
+  --color-fd-accent-foreground: var(--accent-foreground);
+  /* The lighter hairline, not the app's heavier functional --border. */
+  --color-fd-border: var(--hairline);
+  --color-fd-ring: var(--ring);
+}
+
 :root {
-  --color-fd-background: oklch(0.97 0.006 240);
-  --color-fd-foreground: oklch(0.23 0.04 260);
-  --color-fd-card: oklch(0.995 0.002 240);
-  --color-fd-card-foreground: oklch(0.23 0.04 260);
-  --color-fd-popover: oklch(0.995 0.002 240);
-  --color-fd-popover-foreground: oklch(0.23 0.04 260);
-  --color-fd-primary: oklch(0.49 0.105 230);
-  --color-fd-primary-foreground: oklch(0.99 0 0);
-  --color-fd-secondary: oklch(0.93 0.012 250);
-  --color-fd-secondary-foreground: oklch(0.3 0.045 255);
-  --color-fd-muted: oklch(0.935 0.01 245);
-  --color-fd-muted-foreground: oklch(0.46 0.035 255);
-  --color-fd-accent: oklch(0.93 0.03 230);
-  --color-fd-accent-foreground: oklch(0.34 0.08 235);
-  --color-fd-border: oklch(0.4 0.03 255 / 18%);
-  --color-fd-ring: oklch(0.52 0.1 230);
   --color-fd-overlay: oklch(0.23 0.04 260 / 30%);
 
   --shiki-light: #14233f;
@@ -40,40 +51,8 @@
 
   /* macOS-style control radius for pills / chips / kickers / buttons. */
   --dw-radius-control: 9px;
-}
 
-/* ── Fumadocs UI tokens — Dark (midnight navy, the hero) ────────────────── */
-.dark {
-  --color-fd-background: oklch(0.185 0.042 262);
-  --color-fd-foreground: oklch(0.93 0.012 240);
-  --color-fd-card: oklch(0.222 0.046 262);
-  --color-fd-card-foreground: oklch(0.93 0.012 240);
-  --color-fd-popover: oklch(0.235 0.048 262);
-  --color-fd-popover-foreground: oklch(0.93 0.012 240);
-  --color-fd-primary: oklch(0.69 0.13 222);
-  --color-fd-primary-foreground: oklch(0.2 0.05 245);
-  --color-fd-secondary: oklch(0.27 0.05 262);
-  --color-fd-secondary-foreground: oklch(0.9 0.015 240);
-  --color-fd-muted: oklch(0.255 0.045 262);
-  --color-fd-muted-foreground: oklch(0.67 0.03 250);
-  --color-fd-accent: oklch(0.3 0.06 250);
-  --color-fd-accent-foreground: oklch(0.89 0.045 230);
-  --color-fd-border: oklch(0.93 0.012 240 / 10%);
-  --color-fd-ring: oklch(0.65 0.12 225);
-  --color-fd-overlay: oklch(0.12 0.03 262 / 60%);
-
-  --shiki-dark: #dbe4f0;
-  --shiki-dark-bg: #121c33;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not(.light) {
-    color-scheme: dark;
-  }
-}
-
-/* ── Semantic brand aliases (Focus Console values) ──────────────────────── */
-:root {
+  /* Semantic brand aliases */
   --brand-500: #00ACED;            /* Cerulean — brand primary (fills, accents) */
   --brand-600: #0369A1;            /* darker cerulean — AA-safe as TEXT on light */
   --brand-600-fg: #fff;            /* label on a --brand-600 fill */
@@ -88,21 +67,16 @@
   --chat-user-2: #0369A1;          /* blue   — chat preview, 2nd speaker */
   --chat-user-3: #9A5B00;          /* amber  — chat preview, 3rd speaker */
 
-  --bg-base:    oklch(0.97 0.006 240);
-  --bg-surface: oklch(0.935 0.01 245);
-  --bg-elev:    oklch(0.995 0.002 240);
-  --txt-1:      oklch(0.23 0.04 260);
-  --txt-2:      oklch(0.46 0.035 255);
-  --hairline:   oklch(0.4 0.03 255 / 18%);
+  --bg-base:    var(--background);
+  --bg-surface: var(--muted);
+  --bg-elev:    var(--card);
+  --txt-1:      var(--foreground);
+  --txt-2:      var(--muted-foreground);
 
-  /* Phase + partner colors (from the app design system). */
-  --phase-work:       #34C759;
-  --phase-break:      #00ACED;
-  --phase-long-break: #6B8BF5;
-  --phase-paused:     #FF9F0A;
-  --color-twitch:     #9146FF;
-  --color-twitch-hover: #7C3AE6;
-  --color-live:       #34C759;
+  /* Partner + live colors (phase colors come straight from the tokens). */
+  --color-twitch:       var(--twitch);
+  --color-twitch-hover: var(--twitch-hover);
+  --color-live:         var(--phase-work);
 
   --font-display: var(--font-montserrat), "Montserrat", -apple-system,
     BlinkMacSystemFont, system-ui, sans-serif;
@@ -113,20 +87,16 @@
 }
 
 .dark {
+  --color-fd-overlay: oklch(0.12 0.03 262 / 60%);
+
+  --shiki-dark: #dbe4f0;
+  --shiki-dark-bg: #121c33;
+
   --brand-500: #29B6F0;            /* brighter cerulean on midnight */
   --brand-600: #6FCBF6;
   --brand-600-fg: #04141f;         /* white on the light cerulean fails AA */
   --brand-50:  oklch(0.69 0.13 222 / 0.14);
   --accent-cornflower: #8AA4F7;
-
-  --bg-base:    oklch(0.185 0.042 262);
-  --bg-surface: oklch(0.255 0.045 262);
-  --bg-elev:    oklch(0.222 0.046 262);
-  --txt-1:      oklch(0.93 0.012 240);
-  --txt-2:      oklch(0.67 0.03 250);
-  --hairline:   oklch(0.93 0.012 240 / 10%);
-
-  --phase-break: #29B6F0;
 
   /* On the near-black chip fills the bright saturated hues read fine. */
   --chip-live-fg: #34C759;
@@ -136,18 +106,15 @@
   --chat-user-3: #FF9F0A;
 }
 
+/* No class yet (before next-themes hydrates): follow the OS preference. The
+   palette itself flips in tokens.generated.css. */
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
+    color-scheme: dark;
     --brand-500: #29B6F0;
     --brand-600: #6FCBF6;
     --brand-600-fg: #04141f;
     --brand-50:  oklch(0.69 0.13 222 / 0.14);
-    --bg-base:    oklch(0.185 0.042 262);
-    --bg-surface: oklch(0.255 0.045 262);
-    --bg-elev:    oklch(0.222 0.046 262);
-    --txt-1:      oklch(0.93 0.012 240);
-    --txt-2:      oklch(0.67 0.03 250);
-    --hairline:   oklch(0.93 0.012 240 / 10%);
   }
 }
 
