@@ -226,7 +226,8 @@ Alchemy step's output. Between deploys nothing watches the instance, so:
   `UPTIME_API_URL` = `https://dirework-api.<your-subdomain>.workers.dev` and
   `UPTIME_WEB_URL` = `https://dirework.<your-subdomain>.workers.dev`. The **Uptime**
   workflow (`.github/workflows/uptime.yml`) then requests `/ready` and `/api/version` every
-  30 minutes — 96 Worker requests a day — and keeps one issue labelled `uptime`: it opens
+  30 minutes — 96 Worker requests a day, or up to 288 while both are down and every probe
+  retries — and keeps one issue labelled `uptime`: it opens
   the issue when either stops answering, adds a comment while the outage lasts, and
   comments "Recovered" and closes it once both answer again. Each failed probe is also a
   failed workflow run, so it shows up with your other Actions failures. Leave the

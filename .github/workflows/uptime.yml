@@ -6,7 +6,8 @@ name: Uptime
 # the result: opened when either stops answering, commented on while the
 # outage lasts, commented "Recovered" and closed when both answer again.
 #
-# Cost: 2 Worker requests per run, 48 runs a day = 96 requests/day, well under
+# Cost: 2 Worker requests per run, 48 runs a day = 96 requests/day; when both
+# workers keep failing, --retry 2 makes it 6 per run (288/day). Either way well under
 # the free tier. Nothing runs until both repository variables exist
 # (Settings → Secrets and variables → Actions → Variables):
 #   UPTIME_API_URL = https://dirework-api.<subdomain>.workers.dev

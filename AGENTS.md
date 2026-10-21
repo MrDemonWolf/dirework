@@ -562,7 +562,8 @@ icons; brand glyphs are inline SVG components (`apps/web/src/components/icons/`,
   instead of three times; `workflow-security.test.ts` pins the trigger.
 - `.github/workflows/uptime.yml` — every 30 minutes + manual, and only when the
   repository variables `UPTIME_API_URL` and `UPTIME_WEB_URL` are set: curls api `/ready`
-  and web `/api/version` (2 Worker requests per run, 96 a day) and keeps ONE
+  and web `/api/version` (2 Worker requests per run, 96 a day; up to 6 per run / 288 a day while both keep
+  failing and `--retry 2` fires) and keeps ONE
   `uptime`-labelled issue — opened when either fails, commented on while the outage
   lasts, "Recovered" + closed when both answer. `permissions: {}` at the top and only
   `issues: write` on the job; no checkout, no actions, no secrets (the test pins all of

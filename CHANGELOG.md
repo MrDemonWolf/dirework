@@ -9,7 +9,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - **Uptime probe workflow** (`.github/workflows/uptime.yml`). Set the repository variables
   `UPTIME_API_URL` and `UPTIME_WEB_URL` and GitHub Actions requests the API's `/ready` and
-  the web app's `/api/version` every 30 minutes — 96 Worker requests a day — opening one
+  the web app's `/api/version` every 30 minutes — 96 Worker requests a day, up to 288 while both are down and
+  every probe retries — opening one
   issue labelled `uptime` while the instance is unreachable and closing it once it
   recovers. A free fallback when you don't run an external monitor; see the deployment
   guide's Monitoring section.
