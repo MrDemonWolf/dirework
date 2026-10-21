@@ -4,7 +4,7 @@ import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 import { SINGLETON_ID } from "@dirework/db/schema";
 
-import { MAX_BLOCKED_VIEWERS } from "../chat-commands";
+import { MAX_BLOCKED_VIEWERS, normalizeTwitchLogin } from "../chat-commands";
 import { removeTasksByUsernameStmt } from "./task-service";
 
 // Bot moderation state (mute switch + viewer block list) on the bot_config
@@ -18,6 +18,16 @@ import { removeTasksByUsernameStmt } from "./task-service";
 
 const blocked = schema.botConfig.blockedViewers;
 
+/**
+ * The streamer's Twitch login, which the block list must refuse. Prefers the
+ * login resolveChannelLogin cached on instance_config (the IRC channel), and
+ * falls back to the owner's name only before anything has been cached: the
+ * owner's name can be a display name that differs from the login.
+ */
+export function streamerLogin(channelLogin: string | null | undefined, ownerName: string): string {
+  return normalizeTwitchLogin(channelLogin ?? "") ?? ownerName.trim().toLowerCase();
+}
+
 /** Set the mute switch. Resolves true when the row changed, false when it was already in that state. */
 export async function setBotMuted(db: DbClient, muted: boolean): Promise<boolean> {
   const rows = await db
@@ -28,13 +38,25 @@ export async function setBotMuted(db: DbClient, muted: boolean): Promise<boolean
   return rows.length > 0;
 }
 
+/** Why a block did not append: the login was already listed, or the list is full. */
+export type BlockViewerResult =
+  | { added: true }
+  | { added: false; reason: "already-blocked" | "full" };
+
 /**
  * Add a login to the block list and delete every task that viewer added, in
  * ONE db.batch (atomic on D1). The append is guarded: it is a no-op when the
  * login is already listed or the list holds MAX_BLOCKED_VIEWERS names. The task
- * DELETE runs either way, so re-blocking also sweeps tasks added since.
+ * DELETE is guarded on the login being listed AFTER the append, so re-blocking
+ * sweeps tasks added since, but a full list never removes an unblocked
+ * viewer's tasks.
+ *
+ * Callers check their snapshot of the row first; a no-op here means another
+ * write raced it, so the row is re-read (rare path) to say which case it was.
  */
-export async function blockViewer(db: DbClient, login: string): Promise<{ added: boolean }> {
+export async function blockViewer(db: DbClient, login: string): Promise<BlockViewerResult> {
+  const listed = sql`exists (select 1 from ${schema.botConfig}, json_each(${blocked})
+    where ${schema.botConfig.id} = ${SINGLETON_ID} and value = ${login})`;
   const [appended] = await db.batch([
     db
       .update(schema.botConfig)
@@ -47,9 +69,13 @@ export async function blockViewer(db: DbClient, login: string): Promise<{ added:
         ),
       )
       .returning({ id: schema.botConfig.id }),
-    removeTasksByUsernameStmt(db, login),
+    removeTasksByUsernameStmt(db, login, listed),
   ]);
-  return { added: appended.length > 0 };
+  if (appended.length > 0) return { added: true };
+
+  const row = await db.query.botConfig.findFirst({ columns: { blockedViewers: true } });
+  const current = Array.isArray(row?.blockedViewers) ? row.blockedViewers : [];
+  return { added: false, reason: current.includes(login) ? "already-blocked" : "full" };
 }
 
 /** Remove a login from the block list. Their deleted tasks do not come back. */

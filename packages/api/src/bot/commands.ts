@@ -17,7 +17,7 @@ import {
   truncateToLength,
   utf8ByteLength,
 } from "../config-shared";
-import { blockViewer, setBotMuted, unblockViewer } from "../services/bot-moderation";
+import { blockViewer, setBotMuted, streamerLogin, unblockViewer } from "../services/bot-moderation";
 import {
   activateTask,
   clearAllTasks,
@@ -58,6 +58,12 @@ export interface ChatUserInfo {
 export interface MessageContext {
   db: DbClient;
   channelName: string;
+  /**
+   * The streamer's real Twitch login as cached on instance_config (null before
+   * the bot page first resolved it). `channelName` is the owner's name, which
+   * can be a display name, so !block compares against this.
+   */
+  channelLogin?: string | null;
   config: BotConfigData;
   message: string;
   userInfo: ChatUserInfo;
@@ -580,7 +586,7 @@ async function handleModerationCommand(
         say(BLOCK_USAGE_REPLY(name));
         return;
       }
-      if (target === ctx.channelName.toLowerCase()) {
+      if (target === streamerLogin(ctx.channelLogin, ctx.channelName)) {
         say(BLOCK_BROADCASTER_REPLY(name));
         return;
       }
@@ -593,8 +599,12 @@ async function handleModerationCommand(
         say(BLOCKLIST_FULL_REPLY(name));
         return;
       }
-      await blockViewer(db, target);
-      say(BLOCKED_REPLY(target));
+      // The guarded append can still no-op if another write raced the snapshot
+      // above; never announce a block that didn't happen.
+      const result = await blockViewer(db, target);
+      if (result.added) say(BLOCKED_REPLY(target));
+      else if (result.reason === "already-blocked") say(ALREADY_BLOCKED_REPLY(target));
+      else say(BLOCKLIST_FULL_REPLY(name));
       return;
     }
 

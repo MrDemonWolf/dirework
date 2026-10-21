@@ -69,9 +69,25 @@ export async function withOverlayToken<T>(
 
 /** Bot-gate envelope: throw UNAUTHORIZED unless the bot-page token matches. */
 export async function requireBotToken(db: DbClient, token: string): Promise<void> {
-  if (!(await verifyBotToken(db, token))) {
+  await requireBotInstance(db, token);
+}
+
+/**
+ * requireBotToken that also hands back the cached channel login from the SAME
+ * instance_config read, so bot.ingest knows the streamer's real login (the one
+ * !block must refuse) without another D1 round trip per chat line.
+ */
+export async function requireBotInstance(
+  db: DbClient,
+  token: string,
+): Promise<{ channelLogin: string | null }> {
+  const instance = await db.query.instanceConfig.findFirst({
+    columns: { botToken: true, channelLogin: true },
+  });
+  if (!instance || !constantTimeEqual(instance.botToken, token)) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid bot token" });
   }
+  return { channelLogin: instance.channelLogin ?? null };
 }
 
 /** instanceConfig columns that hold a rotatable bearer token. */

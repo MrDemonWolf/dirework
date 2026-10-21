@@ -18,7 +18,7 @@ import {
   TIMER_MESSAGE_FIELDS,
 } from "../config-shared";
 import { ownerProcedure, router } from "../index";
-import { blockViewer, setBotMuted, unblockViewer } from "../services/bot-moderation";
+import { blockViewer, setBotMuted, streamerLogin, unblockViewer } from "../services/bot-moderation";
 import { ensureBotConfig, ensureSingletons } from "../services/provision";
 import { definedValues, hasValues, updateSingleton } from "../services/singleton";
 import {
@@ -132,17 +132,25 @@ export const configRouter = router({
 
   /** Block a viewer's chat commands and remove every task they added. */
   blockViewer: ownerProcedure.input(blockedViewerInput).mutation(async ({ ctx, input }) => {
-    if (input.login === ctx.session.user.name.toLowerCase()) {
+    // The streamer's real login is the one resolveChannelLogin cached for the bot's
+    // IRC channel; the session's name can be a display name that differs from it.
+    const [instance] = await Promise.all([
+      ctx.db.query.instanceConfig.findFirst({ columns: { channelLogin: true } }),
+      ensureBotConfig(ctx.db),
+    ]);
+    if (input.login === streamerLogin(instance?.channelLogin, ctx.session.user.name)) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "You can't block the streamer" });
     }
-    const botConfigRow = await ensureBotConfig(ctx.db);
-    const current = buildBotConfig(botConfigRow).blockedViewers;
-    // The guarded UPDATE enforces the cap too; this only turns a silent no-op
-    // into an error the dashboard can show.
-    if (current.length >= MAX_BLOCKED_VIEWERS && !current.includes(input.login)) {
-      throw new TRPCError({ code: "BAD_REQUEST", message: "The block list is full" });
+    // The guarded UPDATE decides; a no-op is reported, never shown as a success.
+    const result = await blockViewer(ctx.db, input.login);
+    if (!result.added) {
+      throw result.reason === "already-blocked"
+        ? new TRPCError({ code: "CONFLICT", message: `${input.login} is already blocked` })
+        : new TRPCError({
+            code: "BAD_REQUEST",
+            message: `The block list is full (${MAX_BLOCKED_VIEWERS} names). Unblock someone first`,
+          });
     }
-    await blockViewer(ctx.db, input.login);
     return { login: input.login };
   }),
 

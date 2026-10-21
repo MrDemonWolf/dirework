@@ -56,20 +56,32 @@ describe("blockViewer / unblockViewer", () => {
     await seedTask("b", "other");
 
     expect(await blockViewer(db, "viewer")).toEqual({ added: true });
-    expect(await blockViewer(db, "viewer")).toEqual({ added: false });
+    expect(await blockViewer(db, "viewer")).toEqual({ added: false, reason: "already-blocked" });
     expect((await row()).blockedViewers).toEqual(["viewer"]);
 
     const left = await db.query.task.findMany({ columns: { id: true } });
     expect(left.map((task) => task.id)).toEqual(["b"]);
   });
 
-  it(`stops appending at ${MAX_BLOCKED_VIEWERS} names`, async () => {
+  it("re-blocking sweeps tasks the viewer added since", async () => {
+    await db.update(schema.botConfig).set({ blockedViewers: ["viewer"] });
+    await seedTask("late", "viewer");
+
+    expect(await blockViewer(db, "viewer")).toEqual({ added: false, reason: "already-blocked" });
+    expect(await db.query.task.findMany()).toEqual([]);
+  });
+
+  it(`stops appending at ${MAX_BLOCKED_VIEWERS} names and keeps the viewer's tasks`, async () => {
     const full = Array.from({ length: MAX_BLOCKED_VIEWERS }, (_, i) => `viewer${i}`);
     await db.update(schema.botConfig).set({ blockedViewers: full });
+    await seedTask("kept", "onemore");
 
-    expect(await blockViewer(db, "onemore")).toEqual({ added: false });
+    expect(await blockViewer(db, "onemore")).toEqual({ added: false, reason: "full" });
     expect((await row()).blockedViewers).toHaveLength(MAX_BLOCKED_VIEWERS);
     expect((await row()).blockedViewers).not.toContain("onemore");
+    // Not blocked, so its tasks must not be removed.
+    const left = await db.query.task.findMany({ columns: { id: true } });
+    expect(left.map((task) => task.id)).toEqual(["kept"]);
   });
 
   it("unblock removes only the target and is a no-op for an unlisted login", async () => {

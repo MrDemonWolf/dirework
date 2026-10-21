@@ -6,10 +6,11 @@ import * as schema from "@dirework/db/schema";
 
 import { env } from "cloudflare:workers";
 
-import { formatEtaDuration, interpolate } from "../bot/commands";
+import { formatEtaDuration, handleMessage, interpolate } from "../bot/commands";
 import type { Context } from "../context";
 import {
   BOT_REAUTH_REQUIRED_MESSAGE,
+  buildBotConfig,
   CHAT_OPEN_TASK_CAP,
   DEFAULT_TASK_MESSAGES,
   DEFAULT_TIMER_MESSAGES,
@@ -341,6 +342,61 @@ describe("bot.ingest moderation", () => {
 
     expect(replies).toEqual(["Viewer, I can't block the streamer."]);
     expect((await config()).blockedViewers).toEqual([]);
+  });
+
+  it("refuses the streamer's real login when their name is not the login", async () => {
+    // The owner row's name is a display name; the bot page cached the real IRC login.
+    await db.update(schema.user).set({ name: "Streamer Name" });
+    await db.update(schema.instanceConfig).set({ channelLogin: "realstreamer" });
+
+    const { replies } = await say("!block @RealStreamer", mod);
+
+    expect(replies).toEqual(["Viewer, I can't block the streamer."]);
+    expect((await config()).blockedViewers).toEqual([]);
+  });
+
+  describe("when the row changed after ingest read it", () => {
+    // Drive handleMessage with a stale snapshot (empty list) while the real row has
+    // moved on, i.e. a concurrent !block landed between the read and the guarded UPDATE.
+    async function staleBlock(target: string) {
+      const replies: string[] = [];
+      await handleMessage({
+        db,
+        channelName: "streamer",
+        channelLogin: "streamer",
+        config: { ...buildBotConfig(await config()), blockedViewers: [] },
+        message: `!block ${target}`,
+        userInfo: {
+          twitchId: "5000",
+          username: "moddy",
+          displayName: "Moddy",
+          color: null,
+          isBroadcaster: false,
+          isMod: true,
+        },
+        say: (text) => replies.push(text),
+      });
+      return replies;
+    }
+
+    it("says already blocked instead of announcing a block", async () => {
+      await db.update(schema.botConfig).set({ blockedViewers: ["viewer"] });
+
+      expect(await staleBlock("viewer")).toEqual(["viewer is already blocked."]);
+      expect((await config()).blockedViewers).toEqual(["viewer"]);
+    });
+
+    it("says the list is full, keeps the viewer's tasks, and does not list them", async () => {
+      await say("!task keep me");
+      const full = Array.from({ length: 200 }, (_, i) => `name${i}`);
+      await db.update(schema.botConfig).set({ blockedViewers: full });
+
+      expect(await staleBlock("viewer")).toEqual([
+        "Moddy, the block list is full (200 names). Unblock someone first.",
+      ]);
+      expect((await config()).blockedViewers).toEqual(full);
+      expect((await tasks()).map((t) => t.text)).toEqual(["keep me"]);
+    });
   });
 
   it("the broadcaster's commands run even if their login is on the list", async () => {

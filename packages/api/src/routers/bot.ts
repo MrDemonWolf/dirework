@@ -19,7 +19,12 @@ import { ownerProcedure, publicProcedure, router } from "../index";
 import { claimChatMessage } from "../services/chat-dedupe";
 import { ensureBotConfig, ensureInstanceConfig } from "../services/provision";
 import { removeTasksByUsername, resolveOwnerTwitchId } from "../services/task-service";
-import { requireBotToken, rotateInstanceToken, tokenInput } from "../services/tokens";
+import {
+  requireBotInstance,
+  requireBotToken,
+  rotateInstanceToken,
+  tokenInput,
+} from "../services/tokens";
 import {
   BOT_REAUTH_REQUIRED_MESSAGE,
   getFreshChatToken,
@@ -184,7 +189,10 @@ export const botRouter = router({
   ingest: publicProcedure
     .input(botIngestInputSchema)
     .mutation(async ({ ctx, input }): Promise<{ replies: string[]; muted?: boolean }> => {
-      await requireBotToken(ctx.db, input.token);
+      // The token check's own instance_config read also yields the cached channel
+      // login (written by getSession's resolveChannelLogin), so !block can refuse
+      // the streamer's real login without another D1 read.
+      const { channelLogin } = await requireBotInstance(ctx.db, input.token);
 
       // Moderation piggyback (L9): CLEARCHAT (ban/timeout) → drop the user's tasks.
       if (input.kind === "clearchat") {
@@ -213,6 +221,7 @@ export const botRouter = router({
       const { muted } = await handleMessage({
         db: ctx.db,
         channelName: owner?.name ?? "",
+        channelLogin,
         config: buildBotConfig(botConfigRow),
         message: input.message.trim(),
         userInfo: {
