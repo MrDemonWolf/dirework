@@ -5,7 +5,7 @@ import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 
 import { createSqliteDb } from "../../__tests__/helpers/sqlite-db";
-import { refreshBotToken } from "../twitch-auth";
+import { disconnectBotAccount, refreshBotToken } from "../twitch-auth";
 
 const CREDS = { clientId: "client-id", clientSecret: "client-secret" };
 
@@ -94,5 +94,30 @@ describe("refreshBotToken lease (real SQLite)", () => {
 
     await expect(refreshBotToken(db, CREDS)).rejects.toThrow();
     expect((await row()).refreshLockedUntil).toBeNull();
+  });
+});
+
+describe("disconnectBotAccount (real SQLite)", () => {
+  it("clears the confirmed bot-page step with the account, in the same batch", async () => {
+    await db.insert(schema.instanceConfig).values({
+      setupBotSourceConfirmed: true,
+      setupTimerOverlayConfirmed: true,
+    });
+    // Twitch refuses everything: deletion and the flag reset must not depend on it.
+    fetchMock.mockImplementation(async () => new Response(null, { status: 400 }));
+
+    const result = await disconnectBotAccount(db, CREDS);
+
+    expect(result.revoked).toBe(false);
+    // The bot page can't run without the account; the other confirmations stand.
+    expect(result.setup).toEqual({
+      setupBotSourceConfirmed: false,
+      setupTimerOverlayConfirmed: true,
+      setupTasksOverlayConfirmed: false,
+    });
+    expect(await db.query.botAccount.findFirst()).toBeUndefined();
+    const instance = await db.query.instanceConfig.findFirst();
+    expect(instance?.setupBotSourceConfirmed).toBe(false);
+    expect(instance?.setupTimerOverlayConfirmed).toBe(true);
   });
 });

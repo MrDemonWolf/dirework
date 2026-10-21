@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { WEB_ORIGIN } from "../src/env";
-import { signIn } from "./helpers";
+import { confirmDialog, signIn } from "./helpers";
 
 // The dashboard's "Set up streaming" checklist. The e2e owner never connects a bot account
 // (dev-login creates none), so the baseline is 0 of 4. Each test puts the timer step back
@@ -95,4 +95,16 @@ test("Finish later still hides the card when the browser blocks storage", async 
   await page.getByRole("button", { name: /^Setup/ }).click();
   await expect(checklist(page)).toBeVisible();
   await context.close();
+});
+
+test("resetting the timer overlay URL un-confirms its step", async ({ page }) => {
+  const card = checklist(page);
+  await card.getByRole("button", { name: "I added it to OBS" }).click();
+  await expect(timerStep(page)).toContainText("Added (you confirmed)");
+
+  // The copy in OBS stops working, so "added to OBS" no longer holds.
+  await page.getByRole("button", { name: "Reset Timer overlay URL" }).click();
+  await confirmDialog(page, "Reset URL");
+  await expect(timerStep(page)).toContainText("Not yet");
+  await expect(card.getByText("0 of 4")).toBeVisible();
 });

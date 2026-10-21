@@ -241,6 +241,10 @@ columns from the `instance_config` row it already reads and returns
 returns the fresh `setup`, so the dashboard can patch `me` in place instead of refetching.
 Detection is explicit owner confirmation: a flag must never be set from an overlay poll
 or `bot.ingest`, which would be a write on a poll path.
+Owner actions that kill a confirmed URL clear its flag in the write they already do:
+`rotateInstanceToken` (overlay or bot URL reset) un-confirms that step in the same UPDATE,
+and `disconnectBotAccount` resets `setupBotSourceConfirmed` in the batch that deletes the
+account (`user.disconnectBot` returns the fresh `setup`).
 The dashboard renders it as the **"Set up streaming" checklist**
 (`components/setup-checklist.tsx`; steps, copy and progress math in the pure
 `lib/setup-steps.ts`): step 1 (bot account) is the only *detected* step (`me.botAccount`);

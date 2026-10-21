@@ -207,10 +207,31 @@ function StepHandoff({
   }
 
   if (id === "botSource" && !me.botAccount) {
+    // No bot account: the page can't run yet. The revert control stays reachable even so —
+    // a flag confirmed before a disconnect must never be stuck counting as done.
     return (
-      <p className="text-sm text-muted-foreground">
-        Connect the bot account first: the bot page signs in to chat as that account.
-      </p>
+      <>
+        <p className="text-sm text-muted-foreground">
+          Connect the bot account first: the bot page signs in to chat as that account.
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-fit"
+          nativeButton={false}
+          render={<Link href={"/dashboard/bot" as const} />}
+        >
+          Connect bot account
+          <ArrowRight className="size-3.5" />
+        </Button>
+        {me.setup.botSource && (
+          <ConfirmControls
+            confirmed
+            pending={pending}
+            onConfirm={(confirmed) => onConfirm(id, confirmed)}
+          />
+        )}
+      </>
     );
   }
 

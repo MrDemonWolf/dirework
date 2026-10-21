@@ -70,6 +70,8 @@ function makeDb(opts: DbOptions = {}) {
     },
     update,
     delete: del,
+    // The mock chains already return promises, so a batch just awaits them in order.
+    batch: vi.fn(async (queries: unknown[]) => Promise.all(queries)),
   } as unknown as DbClient;
 
   return { db, update, set, where, returning, del, deleteWhere };
@@ -538,7 +540,7 @@ describe("disconnectBotAccount", () => {
     const { db, del, deleteWhere } = makeDb({ botAccount: makeAccount() });
     fetchMock.mockResolvedValueOnce({ ok: true });
 
-    expect(await disconnectBotAccount(db, CREDS)).toEqual({ revoked: true });
+    expect(await disconnectBotAccount(db, CREDS)).toEqual({ revoked: true, setup: null });
 
     const [url, init] = fetchMock.mock.calls[0] as [string, { body: URLSearchParams }];
     expect(url).toBe("https://id.twitch.tv/oauth2/revoke");
@@ -553,7 +555,7 @@ describe("disconnectBotAccount", () => {
     const { db, del, deleteWhere } = makeDb({ botAccount: makeAccount() });
     fetchMock.mockRejectedValue(new Error("network down"));
 
-    expect(await disconnectBotAccount(db, CREDS)).toEqual({ revoked: false });
+    expect(await disconnectBotAccount(db, CREDS)).toEqual({ revoked: false, setup: null });
 
     expect(del).toHaveBeenCalledTimes(1);
     expect(deleteWhere).toHaveBeenCalledTimes(1);
@@ -568,7 +570,7 @@ describe("disconnectBotAccount", () => {
       const result = disconnectBotAccount(db, CREDS);
       await vi.advanceTimersByTimeAsync(REVOKE_BUDGET_MS);
 
-      expect(await result).toEqual({ revoked: false });
+      expect(await result).toEqual({ revoked: false, setup: null });
       expect(deleteWhere).toHaveBeenCalledTimes(1);
       // The /rpc proxy aborts at 15s; leave room for the D1 round trips.
       expect(REVOKE_BUDGET_MS).toBeLessThanOrEqual(10_000);
@@ -586,7 +588,7 @@ describe("disconnectBotAccount", () => {
       .mockResolvedValueOnce(okJson({ access_token: "fresh-access", expires_in: 3600 })) // refresh
       .mockResolvedValueOnce({ ok: true }); // revoke
 
-    expect(await disconnectBotAccount(db, CREDS)).toEqual({ revoked: true });
+    expect(await disconnectBotAccount(db, CREDS)).toMatchObject({ revoked: true });
 
     const [url, init] = fetchMock.mock.calls[1] as [string, { body: URLSearchParams }];
     expect(url).toBe("https://id.twitch.tv/oauth2/revoke");
@@ -604,7 +606,7 @@ describe("disconnectBotAccount", () => {
       .mockResolvedValueOnce(okJson({ access_token: "fresh-access", expires_in: 3600 }))
       .mockResolvedValueOnce({ ok: true }); // revoke fresh token
 
-    expect(await disconnectBotAccount(db, CREDS)).toEqual({ revoked: true });
+    expect(await disconnectBotAccount(db, CREDS)).toMatchObject({ revoked: true });
     const [, init] = fetchMock.mock.calls[2] as [string, { body: URLSearchParams }];
     expect(init.body.get("token")).toBe("fresh-access");
   });
@@ -615,14 +617,14 @@ describe("disconnectBotAccount", () => {
     });
     fetchMock.mockResolvedValueOnce({ ok: false, status: 400 }); // refresh rejected
 
-    expect(await disconnectBotAccount(db, CREDS)).toEqual({ revoked: false });
+    expect(await disconnectBotAccount(db, CREDS)).toEqual({ revoked: false, setup: null });
     expect(deleteWhere).toHaveBeenCalledTimes(1);
   });
 
   it("skips revocation when no account exists but still clears the row", async () => {
     const { db, del, deleteWhere } = makeDb({ botAccount: undefined });
 
-    expect(await disconnectBotAccount(db, CREDS)).toEqual({ revoked: false });
+    expect(await disconnectBotAccount(db, CREDS)).toEqual({ revoked: false, setup: null });
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(del).toHaveBeenCalledTimes(1);

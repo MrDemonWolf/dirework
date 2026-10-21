@@ -413,11 +413,16 @@ async function withinRevokeBudget(work: () => Promise<boolean>): Promise<boolean
  * fresh one revoked. Revocation failures — and revocation that outlasts
  * REVOKE_BUDGET_MS — never block deletion; `revoked` tells the caller whether
  * Twitch confirmed it.
+ *
+ * The same batch clears the setup checklist's "bot page added to OBS" flag: that
+ * page can't run without a bot account, so the confirmation no longer holds.
+ * `setup` is the instance row's checklist flags after the write (null if the
+ * row is missing).
  */
 export async function disconnectBotAccount(
   db: DbClient,
   creds: TwitchCredentials,
-): Promise<{ revoked: boolean }> {
+): Promise<{ revoked: boolean; setup: DisconnectSetupFlags | null }> {
   const account = await db.query.botAccount.findFirst({
     columns: { accessToken: true, expiresAt: true },
   });
@@ -435,9 +440,27 @@ export async function disconnectBotAccount(
     });
   }
 
-  await db.delete(schema.botAccount).where(eq(schema.botAccount.id, SINGLETON_ID));
-  return { revoked };
+  // One batch (atomic on D1, one round trip): delete the account and reset the flag.
+  const [, setupRows] = await db.batch([
+    db.delete(schema.botAccount).where(eq(schema.botAccount.id, SINGLETON_ID)),
+    db
+      .update(schema.instanceConfig)
+      .set({ setupBotSourceConfirmed: false })
+      .where(eq(schema.instanceConfig.id, SINGLETON_ID))
+      .returning({
+        setupBotSourceConfirmed: schema.instanceConfig.setupBotSourceConfirmed,
+        setupTimerOverlayConfirmed: schema.instanceConfig.setupTimerOverlayConfirmed,
+        setupTasksOverlayConfirmed: schema.instanceConfig.setupTasksOverlayConfirmed,
+      }),
+  ]);
+  return { revoked, setup: setupRows[0] ?? null };
 }
+
+/** The checklist columns `disconnectBotAccount` returns after clearing the bot-page flag. */
+export type DisconnectSetupFlags = Pick<
+  typeof schema.instanceConfig.$inferSelect,
+  "setupBotSourceConfirmed" | "setupTimerOverlayConfirmed" | "setupTasksOverlayConfirmed"
+>;
 
 /**
  * Outcome of killing the chat token a bot page was handed:

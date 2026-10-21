@@ -45,6 +45,8 @@ export function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
     ...trpc.bot.regenerateBotToken.mutationOptions(),
     onSuccess: ({ chatToken }) => {
       queryClient.invalidateQueries({ queryKey: trpc.bot.getIngestInfo.queryKey() });
+      // The reset also un-confirmed the checklist's bot-page step (the old URL is dead).
+      queryClient.invalidateQueries({ queryKey: trpc.user.me.queryKey() });
       // Fixed copy per outcome — never Twitch's own text.
       if (chatToken === "unconfirmed") {
         toast.warning(

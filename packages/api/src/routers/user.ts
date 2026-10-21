@@ -137,12 +137,14 @@ export const userRouter = router({
   /**
    * ownerProcedure → twitch-auth `disconnectBotAccount`. Deletes the bot account
    * even when Twitch revocation fails; `revoked` reports whether Twitch confirmed it.
+   * The same batch clears the "bot page added to OBS" checklist flag (the page
+   * can't run without the account); `setup` is the fresh checklist.
    */
   disconnectBot: ownerProcedure.mutation(async ({ ctx }) => {
-    const { revoked } = await disconnectBotAccount(ctx.db, {
+    const { revoked, setup } = await disconnectBotAccount(ctx.db, {
       clientId: env.TWITCH_CLIENT_ID,
       clientSecret: env.TWITCH_CLIENT_SECRET,
     });
-    return { success: true, revoked };
+    return { success: true, revoked, setup: setupState(setup) };
   }),
 });

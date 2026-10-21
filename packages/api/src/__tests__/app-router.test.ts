@@ -399,17 +399,21 @@ describe("database effects of owner mutations", () => {
   });
 
   it.each([
-    ["timer", "overlayTimerToken"],
-    ["tasks", "overlayTasksToken"],
+    ["timer", "overlayTimerToken", "setupTimerOverlayConfirmed"],
+    ["tasks", "overlayTasksToken", "setupTasksOverlayConfirmed"],
   ] as const)(
-    "user.regenerateOverlayToken(%s) writes a fresh token to %s and returns it",
-    async (type, column) => {
+    "user.regenerateOverlayToken(%s) writes a fresh token to %s and un-confirms %s",
+    async (type, column, setupColumn) => {
       const { caller: owner, updated } = caller(ownerSession, { instanceConfig: {} });
 
       const first = await owner.user.regenerateOverlayToken({ type });
       const second = await owner.user.regenerateOverlayToken({ type });
 
-      expect(updated).toEqual([{ [column]: first.token }, { [column]: second.token }]);
+      // One UPDATE per reset: the old URL in OBS is dead, so its setup step is cleared.
+      expect(updated).toEqual([
+        { [column]: first.token, [setupColumn]: false },
+        { [column]: second.token, [setupColumn]: false },
+      ]);
       expect(first.token.length).toBeGreaterThanOrEqual(32);
       expect(second.token).not.toBe(first.token);
     },
@@ -548,7 +552,10 @@ describe("database effects of owner mutations", () => {
     const { token } = await owner.user.regenerateOverlayToken({ type: "tasks" });
     const { botToken, chatToken } = await owner.bot.regenerateBotToken();
 
-    expect(updated).toEqual([{ overlayTasksToken: token }, { botToken }]);
+    expect(updated).toEqual([
+      { overlayTasksToken: token, setupTasksOverlayConfirmed: false },
+      { botToken, setupBotSourceConfirmed: false },
+    ]);
     // No bot account connected: only the URL rotates, nothing to revoke.
     expect(chatToken).toBe("no-account");
   });

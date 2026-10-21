@@ -146,6 +146,13 @@ describe("setup checklist source", () => {
     expect(src).toContain("queryClient.isFetching({ queryKey: meKey })");
   });
 
+  it("keeps Mark as not added reachable for the bot page step without a bot account", () => {
+    const noBot = src.slice(src.indexOf('if (id === "botSource" && !me.botAccount)'));
+    expect(noBot.slice(0, noBot.indexOf("\n  }\n"))).toContain(
+      "{me.setup.botSource && (\n          <ConfirmControls",
+    );
+  });
+
   it("loads the bot page URL only inside the open step", () => {
     // BotPageHandoff is the only caller of getIngestInfo, and it is rendered only for an
     // open step (`{open && (...)}`).
