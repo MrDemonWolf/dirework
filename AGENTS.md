@@ -787,6 +787,11 @@ icons; brand glyphs are inline SVG components (`apps/web/src/components/icons/`,
 
 ## Deployment
 
+Version/preview URLs are disabled at Nathanial's request. Keep
+`previewSubdomains: false` on both Alchemy resources; the production
+workers.dev URLs remain enabled because OBS, the bot, and the web proxy use them.
+Do not replace Better Auth owner checks with Access or gate the entire public API.
+
 Production: `dirework.mrdemonwolf.workers.dev` (web) + `dirework-api.mrdemonwolf.workers.dev`
 (api) + `dirework-db` (D1). Twitch app redirect URLs point at the WEB origin:
 `/api/auth/callback/twitch` and `/api/bot/callback/twitch`. Docs:
