@@ -12,6 +12,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   shows. The public pages (`/`, `/setup`) show a loading skeleton the moment you navigate to
   them.
 
+### Fixed
+- A hard reload in dark mode no longer flashes white: the saved theme is now applied in the
+  page `<head>` before anything paints, the page canvas itself takes the theme colour, and
+  the header's light/dark switch shows the right position from the first frame.
+
 ## [2.0.0] - 2026-10-20
 
 Why 2.0.0: deploying this release needs a new required secret (`PROXY_SECRET`) and moves the

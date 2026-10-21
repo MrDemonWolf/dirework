@@ -149,6 +149,17 @@
   body {
     @apply font-sans bg-background text-foreground;
   }
+  /* Paint the canvas itself with the theme and tell the UA which scheme it is, so the
+     frames before <body> streams in (and the overscroll area) match the theme instead of
+     flashing white. The class comes from the <head> script in lib/theme-init.ts. Overlays
+     override this with their own transparent html,body rule ((overlay)/layout.tsx). */
+  html {
+    background-color: var(--background);
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
   html {
     @apply font-sans;
   }
