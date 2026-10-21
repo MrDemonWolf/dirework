@@ -82,7 +82,11 @@ function scan(): Record<string, string[]> {
   for (const file of sourceFiles(SRC)) {
     const text = readFileSync(file, "utf8");
     const hits = new Set<string>();
-    for (const m of text.matchAll(ARBITRARY)) if (m[1]) hits.add(m[1]);
+    // Safe-area insets have no token form: `env(safe-area-inset-*)` is the platform's own
+    // value, so those paddings are allowed by rule rather than listed one by one.
+    for (const m of text.matchAll(ARBITRARY)) {
+      if (m[1] && !m[1].includes("env(safe-area-inset-")) hits.add(m[1]);
+    }
     for (const m of text.matchAll(PALETTE)) if (m[1]) hits.add(m[1]);
     if (hits.size > 0) found[relative(SRC, file).split("\\").join("/")] = [...hits].sort();
   }
