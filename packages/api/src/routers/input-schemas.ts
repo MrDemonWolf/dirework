@@ -63,6 +63,19 @@ export const regenerateOverlayTokenInput = z.object({
   type: z.enum(["timer", "tasks"]),
 });
 
+/**
+ * Dashboard setup checklist: the owner marks one step done (or not done) by
+ * hand. `strict`, so a misspelled field is rejected instead of ignored.
+ */
+export const confirmSetupStepInput = z
+  .object({
+    step: z.enum(["botSource", "timerOverlay", "tasksOverlay"]),
+    confirmed: z.boolean(),
+  })
+  .strict();
+
+export type SetupStep = z.infer<typeof confirmSetupStepInput>["step"];
+
 /** 24h — an upper bound on any single phase; also rejects NaN/Infinity. */
 const MAX_PHASE_MS = 24 * 60 * 60 * 1000;
 

@@ -99,6 +99,11 @@ changes for viewers, and your tasks, settings and bot connection carry over.
   budget and invariants) used for every pull request review.
 
 ### Added
+- Dashboard setup checklist groundwork: DireWork now remembers which setup steps you have
+  confirmed by hand (bot page added to OBS, timer overlay added, task overlay added).
+  Migration `0018` adds three flags to `instance_config`; the API returns them with
+  `user.me` and `user.confirmSetupStep` saves one per click. The checklist itself in the
+  dashboard comes in a later update.
 - Browser end-to-end tests in CI (`packages/e2e`, Playwright): both workers run in local workerd over a fresh database, the suite signs in through the development bypass, and it exercises the dashboard, task list and overlay, Theme Center and Bot settings before anything can deploy.
 - Dashboard pages show their loading skeleton the instant you click a nav link, instead of
   the previous page sitting still until the new one arrives. The clicked nav icon pulses

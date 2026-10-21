@@ -1,6 +1,8 @@
 // Owner identity + instance-level account actions: the setup gate, the
-// dashboard's `me` payload, overlay URL rotation, and bot disconnect.
+// dashboard's `me` payload (with the setup checklist flags), setup-step
+// confirmation, overlay URL rotation, and bot disconnect.
 
+import { TRPCError } from "@trpc/server";
 import { and, asc, eq, ne } from "drizzle-orm";
 
 import { hasOwner } from "@dirework/auth";
@@ -9,9 +11,38 @@ import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
 
 import { ownerProcedure, publicProcedure, router } from "../index";
+import { updateSingleton } from "../services/singleton";
 import { rotateInstanceToken } from "../services/tokens";
 import { disconnectBotAccount } from "../services/twitch-auth";
-import { regenerateOverlayTokenInput } from "./input-schemas";
+import {
+  confirmSetupStepInput,
+  regenerateOverlayTokenInput,
+  type SetupStep,
+} from "./input-schemas";
+
+/**
+ * Setup checklist step → the instance_config flag it flips. `satisfies` ties
+ * the input enum to real columns, so a step without a column fails type-check.
+ */
+const SETUP_STEP_COLUMNS = {
+  botSource: "setupBotSourceConfirmed",
+  timerOverlay: "setupTimerOverlayConfirmed",
+  tasksOverlay: "setupTasksOverlayConfirmed",
+} as const satisfies Record<SetupStep, keyof typeof schema.instanceConfig.$inferSelect>;
+
+type SetupColumns = Pick<
+  typeof schema.instanceConfig.$inferSelect,
+  (typeof SETUP_STEP_COLUMNS)[SetupStep]
+>;
+
+/** The checklist as the dashboard reads it: one boolean per step, false until the row exists. */
+function setupState(instance: SetupColumns | null | undefined): Record<SetupStep, boolean> {
+  return {
+    botSource: instance?.setupBotSourceConfirmed ?? false,
+    timerOverlay: instance?.setupTimerOverlayConfirmed ?? false,
+    tasksOverlay: instance?.setupTasksOverlayConfirmed ?? false,
+  };
+}
 
 export const userRouter = router({
   /**
@@ -23,7 +54,9 @@ export const userRouter = router({
 
   /**
    * ownerProcedure. The dashboard's identity payload: the user row, the overlay
-   * tokens, and the bot account's public fields (never its OAuth tokens).
+   * tokens, the setup checklist flags, and the bot account's public fields
+   * (never its OAuth tokens). The flags come from the instance row this already
+   * reads, so the checklist costs no extra statement.
    */
   me: ownerProcedure.query(async ({ ctx }) => {
     const [user, instance, botAccount, twitchAccount] = await Promise.all([
@@ -31,7 +64,13 @@ export const userRouter = router({
         where: eq(schema.user.id, ctx.session.user.id),
       }),
       ctx.db.query.instanceConfig.findFirst({
-        columns: { overlayTimerToken: true, overlayTasksToken: true },
+        columns: {
+          overlayTimerToken: true,
+          overlayTasksToken: true,
+          setupBotSourceConfirmed: true,
+          setupTimerOverlayConfirmed: true,
+          setupTasksOverlayConfirmed: true,
+        },
       }),
       // H1 fix: never select accessToken/refreshToken/scopes — chat-scoped
       // Twitch credentials must not be serialized to the dashboard.
@@ -58,7 +97,27 @@ export const userRouter = router({
       botAccount: botAccount ?? null,
       overlayTimerToken: instance?.overlayTimerToken ?? null,
       overlayTasksToken: instance?.overlayTasksToken ?? null,
+      setup: setupState(instance),
     };
+  }),
+
+  /**
+   * ownerProcedure. Records that the owner confirmed (or un-confirmed) one setup
+   * checklist step — "I added it to OBS". Exactly one UPDATE of one column, and
+   * only on this click: the flags are never inferred from overlay or bot-page
+   * traffic, which would be a write on a poll path. Returns the whole checklist
+   * so the dashboard can patch `me` in place instead of refetching it.
+   */
+  confirmSetupStep: ownerProcedure.input(confirmSetupStepInput).mutation(async ({ ctx, input }) => {
+    const column = SETUP_STEP_COLUMNS[input.step];
+    const updated = await updateSingleton(ctx.db, schema.instanceConfig, {
+      [column]: input.confirmed,
+    });
+    // The row is provisioned at sign-in, so a miss means the write did not land.
+    if (updated?.[column] !== input.confirmed) {
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to save setup step" });
+    }
+    return { setup: setupState(updated) };
   }),
 
   /**
