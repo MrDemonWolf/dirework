@@ -20,6 +20,8 @@ jobs:
     uses: ./.github/workflows/verify.yml
     with:
       upload-docs: true
+      # The browser suite gates PRs and app deploys; a docs publish ships no worker.
+      run-e2e: false
       # Warn-only audit on deploys (see deploy.yml); PRs still block on it.
       audit-blocking: false
 

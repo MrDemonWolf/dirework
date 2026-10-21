@@ -12,15 +12,20 @@ function readWorkflow(name: string): string {
 }
 
 describe("workflow supply-chain controls", () => {
-  it("pins every step action to a full commit SHA", () => {
+  it("pins every action to a full commit SHA, with the version it stands for alongside", () => {
     const workflowNames = readdirSync(workflowsDirectory).filter((name) => name.endsWith(".yml"));
     const actionRefs = workflowNames.flatMap((name) =>
-      [...readWorkflow(name).matchAll(/^\s*-\s+uses:\s+([^\s#]+)/gm)].map((match) => match[1]),
+      [...readWorkflow(name).matchAll(/^\s*(?:-\s+)?uses:\s+(.+)$/gm)]
+        .map((match) => match[1] ?? "")
+        // Local reusable workflows (./.github/workflows/verify.yml) ride on this commit.
+        .filter((ref) => !ref.startsWith("./")),
     );
 
     expect(actionRefs.length).toBeGreaterThan(0);
     for (const ref of actionRefs) {
-      expect(ref).toMatch(/^[^@\s]+@[0-9a-f]{40}$/);
+      // `owner/repo@<sha> # vN[.N.N]`: Dependabot moves the SHA and the comment
+      // together, and the comment is what a reviewer reads.
+      expect(ref).toMatch(/^[^@\s]+@[0-9a-f]{40} # v\d+(?:\.\d+)*$/);
     }
   });
 
@@ -200,9 +205,88 @@ describe("workflow supply-chain controls", () => {
     // The e2e web worker is the bundle build:worker produced, so it must come after it,
     // and after the cheaper smoke check has already caught a bundle that cannot boot.
     expect(verify.indexOf("bun run e2e")).toBeGreaterThan(verify.indexOf("bun run smoke:worker"));
-    // Under the same build gate as the build step: a docs-only run has no bundle to test.
+    // Under the build gate (a docs-only run has no bundle to test) and the e2e opt-out.
     expect(verify).toMatch(
-      /- name: Browser end-to-end tests\n\s+if: \$\{\{ inputs\.run-build \}\}/,
+      /- name: Browser end-to-end tests\n\s+if: \$\{\{ inputs\.run-build && inputs\.run-e2e \}\}/,
+    );
+  });
+
+  it("runs the browser suite by default and lets only the deploy workflows skip it", () => {
+    const verify = readWorkflow("verify.yml");
+    expect(verify).toMatch(/run-e2e:\n(?: {8}[^\n]*\n)+? {8}default: true/);
+    // Every e2e step hangs off both gates: no bundle (docs-only) or an explicit opt-out.
+    for (const step of ["Install Playwright browser", "Browser end-to-end tests"]) {
+      expect(verify).toMatch(
+        new RegExp(`- name: ${step}\\n\\s+if: \\$\\{\\{ inputs\\.run-build && inputs\\.run-e2e`),
+      );
+    }
+    expect(verify).toMatch(/if: \$\{\{ failure\(\) && inputs\.run-build && inputs\.run-e2e \}\}/);
+
+    // The PR/push gate takes the default; it must never opt out.
+    expect(readWorkflow("ci.yml")).not.toContain("run-e2e");
+    // A docs publish ships no worker, so it skips the suite (not the build).
+    expect(readWorkflow("deploy-docs-to-pages.yml")).toContain("run-e2e: false");
+    // A deploy runs it unless a hotfix dispatch opts out; on a push the input is
+    // null, so `!inputs.skip_e2e` is true and the suite gates the deploy.
+    const deploy = readWorkflow("deploy.yml");
+    expect(deploy).toMatch(/skip_e2e:\n(?: {8}[^\n]*\n)+? {8}default: false/);
+    expect(deploy).toMatch(/run-e2e: \$\{\{ !inputs\.skip_e2e \}\}/);
+  });
+
+  it("caches the Playwright browser on the lockfile and downloads it only on a miss", () => {
+    const verify = readWorkflow("verify.yml");
+    const cacheStep = verify.slice(verify.indexOf("uses: actions/cache@"));
+    expect(cacheStep).toMatch(/^\s+id: playwright-cache$/m);
+    expect(cacheStep).toContain("path: ~/.cache/ms-playwright");
+    // bun.lock pins @playwright/test, so a Playwright bump changes the key.
+    expect(cacheStep).toMatch(
+      /key: playwright-\$\{\{ runner\.os \}\}-\$\{\{ hashFiles\('bun\.lock'\) \}\}/,
+    );
+    expect(verify).toMatch(
+      /- name: Install Playwright browser\n\s+if: \$\{\{ inputs\.run-build && inputs\.run-e2e && steps\.playwright-cache\.outputs\.cache-hit != 'true' \}\}\n\s+run: bun run e2e:install\n/,
+    );
+    // The cache holds the browser only; a hit still needs its system libraries.
+    expect(verify).toMatch(
+      /- name: Install Playwright system dependencies\n\s+if: \$\{\{ inputs\.run-build && inputs\.run-e2e && steps\.playwright-cache\.outputs\.cache-hit == 'true' \}\}\n\s+run: bun run e2e:install-deps\n/,
+    );
+
+    const rootPackage = JSON.parse(readFileSync(`${repoRoot}/package.json`, "utf8")) as {
+      scripts?: Record<string, string>;
+    };
+    const e2ePackage = JSON.parse(
+      readFileSync(`${repoRoot}/packages/e2e/package.json`, "utf8"),
+    ) as { scripts?: Record<string, string> };
+    expect(rootPackage.scripts?.["e2e:install-deps"]).toBe(
+      "bun run --cwd packages/e2e e2e:install-deps",
+    );
+    expect(e2ePackage.scripts?.["e2e:install-deps"]).toBe("playwright install-deps chromium");
+    expect(e2ePackage.scripts?.["e2e:install"]).toContain("--with-deps");
+  });
+
+  it("refuses to deploy from any ref but main, before verify runs", () => {
+    const deploy = readWorkflow("deploy.yml");
+    expect(deploy).toMatch(/\n {2}guard:\n(?: {4}[^\n]*\n)*? {4}timeout-minutes: 2\n/);
+    expect(deploy).toContain("if: github.ref != 'refs/heads/main'");
+    expect(deploy).toContain(
+      "::error title=Deploy refused::Deploy runs only from refs/heads/main (got $GITHUB_REF). Merge to main instead.",
+    );
+    expect(deploy).toMatch(/Merge to main instead\."\n\s+exit 1\n/);
+    // verify (and so deploy) waits on the guard.
+    const needsGuard = deploy.indexOf("needs: guard");
+    expect(needsGuard).toBeGreaterThan(-1);
+    expect(needsGuard).toBeLessThan(deploy.indexOf("uses: ./.github/workflows/verify.yml"));
+    expect(deploy).toMatch(/\n {2}verify:\n {4}needs: guard\n/);
+  });
+
+  it("checks both Worker bundles against the free-plan budget before the runtime smoke check", () => {
+    const verify = readWorkflow("verify.yml");
+    const budgetStep = verify.indexOf("- name: Worker bundle budget");
+    // After the bundles exist, before the slower boot check spends time on an oversized one.
+    expect(budgetStep).toBeGreaterThan(verify.indexOf("bun run build:worker"));
+    expect(budgetStep).toBeLessThan(verify.indexOf("bun run smoke:worker"));
+    // Same gate as the build steps, run under Node via the lockfile-pinned tsx.
+    expect(verify.slice(budgetStep)).toMatch(
+      /^- name: Worker bundle budget\n\s+if: \$\{\{ inputs\.run-build \|\| inputs\.upload-docs \}\}\n\s+working-directory: packages\/infra\n\s+run: node \.\/node_modules\/\.bin\/tsx bundle-budget\.ts\n/,
     );
   });
 

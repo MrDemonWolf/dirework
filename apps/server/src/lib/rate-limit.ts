@@ -30,20 +30,37 @@ import { recordMetric } from "./telemetry";
  * renaming or dropping a binding there is a type error here instead of a
  * silent fail-open.
  */
-const BUCKETS = [
+export const RATE_LIMIT_BUCKETS = [
   "RL_AUTH",
   "RL_BOT",
   "RL_TOKEN",
   "RL_OVERLAY",
 ] as const satisfies readonly (keyof Env)[];
 
-export type BucketName = (typeof BUCKETS)[number];
+export type BucketName = (typeof RATE_LIMIT_BUCKETS)[number];
 
 /**
  * The inferred bindings, optional at runtime: tests inject them, and local dev
  * may lack them.
  */
 export type RateLimitBindings = Partial<Pick<Env, BucketName>>;
+
+/**
+ * Buckets whose binding is absent, or is not a limiter (nothing callable at
+ * `limit` — the middleware would throw on it and fail open). A property check,
+ * never a call: `/ready` reports this on every probe, and a `limit()` call
+ * would spend a token of that bucket. The limiter fails open by design, so
+ * this is how a deploy that lost its bindings becomes visible (readiness body,
+ * post-deploy smoke check) without waiting for a flood.
+ */
+export function missingRateLimitBindings(
+  env: Partial<Record<BucketName, unknown>> | undefined,
+): BucketName[] {
+  return RATE_LIMIT_BUCKETS.filter((bucket) => {
+    const binding = env?.[bucket] as { limit?: unknown } | null | undefined;
+    return typeof binding?.limit !== "function";
+  });
+}
 
 /**
  * Choose the bucket for a request path. Returns null for paths that should not

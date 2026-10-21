@@ -12,7 +12,14 @@ test("the landing page renders and both workers report healthy", async ({ page, 
   expect(await version.json()).toHaveProperty("sha");
 
   const ready = await request.get(`${API_ORIGIN}/ready`);
-  expect(await ready.json()).toMatchObject({ status: "ready", db: "ok" });
+  // boot-api.ts binds no rate limiters, so /ready names all four as missing — and
+  // stays 200, because the limiter fails open and readiness must not flap on it.
+  expect(ready.status()).toBe(200);
+  expect(await ready.json()).toMatchObject({
+    status: "ready",
+    db: "ok",
+    limits: "missing:RL_AUTH,RL_BOT,RL_TOKEN,RL_OVERLAY",
+  });
 });
 
 test("the dashboard sends a signed-out visitor home", async ({ page }) => {

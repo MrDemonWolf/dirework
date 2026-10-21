@@ -58,6 +58,14 @@ changes for viewers, and your tasks, settings and bot connection carry over.
   dependencies, including Next.js.
 
 ### Changed
+- **Deploys are guarded harder.** A deploy runs only from `main` (a manual run from any
+  other branch is refused before it starts); both Worker bundles must fit a 2560 KiB
+  compressed budget before anything ships (the free plan rejects a Worker over 3 MiB, and
+  only after the database migrations have run); and the post-deploy check now also confirms
+  the rate-limit bindings attached (`/ready` reports `limits`), that the home page renders,
+  and that the dashboard's API proxy answers. The browser test suite gates every pull
+  request and app deploy (docs publishes skip it) with the browser download cached between
+  runs, and a manual deploy can skip it with `skip_e2e` for a hotfix.
 - **Bot settings page redesigned.** The bot console and bot account cards sit side by side,
   with a numbered "How to run it in OBS" guide. Each command tab shows a compact command
   legend next to the reply editor; every reply has a live preview with sample values, a

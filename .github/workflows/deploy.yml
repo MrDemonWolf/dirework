@@ -9,6 +9,10 @@ on:
         description: "One-time recovery: overwrite the shared alchemy-state worker's token with ALCHEMY_STATE_TOKEN. Leave false for normal deploys."
         type: boolean
         default: false
+      skip_e2e:
+        description: "Hotfix only: skip the browser suite"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -18,14 +22,30 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Production ships only what is on main. A manual dispatch can be started
+  # from any branch or tag; this stops it in seconds, before verify spends half
+  # an hour on it. On a push the ref is always main, so the step is skipped.
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Refuse any ref but main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error title=Deploy refused::Deploy runs only from refs/heads/main (got $GITHUB_REF). Merge to main instead."
+          exit 1
+
   # The same reusable pipeline the PR gate runs, build included — a deploy must
   # never ship code that could not be built. The dependency audit only WARNS
   # here: PRs already block on it, and a freshly published advisory must not
-  # block a revert or hotfix.
+  # block a revert or hotfix. The browser suite runs too, unless a manual
+  # hotfix dispatch set skip_e2e (on a push the input is null, so it runs).
   verify:
+    needs: guard
     uses: ./.github/workflows/verify.yml
     with:
       run-build: true
+      run-e2e: ${{ !inputs.skip_e2e }}
       audit-blocking: false
 
   deploy:
@@ -91,8 +111,10 @@ jobs:
         run: node ./node_modules/.bin/tsx alchemy.run.ts
 
       # An upload that succeeds but serves errors (bad binding, D1 unreachable)
-      # must not show green: the api must pass /ready and the web worker must be
-      # serving this commit. Uses only the public URLs Alchemy resolved.
+      # must not show green: the api must pass /ready with every rate-limit
+      # binding attached, the web worker must be serving this commit, its home
+      # page must render, and its /rpc proxy must reach the api. Uses only the
+      # public URLs Alchemy resolved (packages/infra/smoke.ts).
       - name: Post-deploy smoke check
         working-directory: packages/infra
         env:

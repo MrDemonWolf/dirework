@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { deployedShaMatches, runSmokeCheck } from "../smoke";
+import { deployedShaMatches, describeLimits, runSmokeCheck } from "../smoke";
 
 const fullSha = "0123456789abcdef0123456789abcdef01234567";
 
@@ -8,9 +8,11 @@ type Route = (attempt: number) => Response | Error;
 
 function fakeFetch(routes: Record<string, Route>) {
   const calls: string[] = [];
+  const headers: Record<string, Record<string, string>> = {};
   const counts = new Map<string, number>();
-  const fetchImpl = async (url: string) => {
+  const fetchImpl = async (url: string, init?: RequestInit) => {
     calls.push(url);
+    headers[url] = Object.fromEntries(new Headers(init?.headers));
     const attempt = (counts.get(url) ?? 0) + 1;
     counts.set(url, attempt);
     const route = routes[url];
@@ -19,11 +21,49 @@ function fakeFetch(routes: Record<string, Route>) {
     if (result instanceof Error) throw result;
     return result;
   };
-  return { fetchImpl, calls };
+  return { fetchImpl, calls, headers };
 }
 
 const json = (body: unknown, status = 200) => Response.json(body, { status });
+
+/** An HTML page; `url` is where fetch landed after redirects (unset, like a constructed Response, means no redirect). */
+function html(body: string, { status = 200, url }: { status?: number; url?: string } = {}) {
+  const response = new Response(body, { status, headers: { "content-type": "text/html" } });
+  if (url) Object.defineProperty(response, "url", { value: url });
+  return response;
+}
+
+const landingPage =
+  "<!doctype html><html><head><title>DireWork</title></head><body><h1>Focus with your chat</h1></body></html>";
+const claimPage =
+  "<!doctype html><html><head><title>Setup | DireWork</title></head><body><h1>Claim this instance</h1></body></html>";
+
+const API = "https://api.example.com";
+const WEB = "https://web.example.com";
+const READY = `${API}/ready`;
+const VERSION = `${WEB}/api/version`;
+const HOME = `${WEB}/`;
+const RPC = `${WEB}/rpc/user.me`;
+
+/** Every probe answering the way a healthy, claimed instance does. */
+const healthy = (): Record<string, Route> => ({
+  [READY]: () => json({ status: "ready", db: "ok", limits: "ok" }),
+  [VERSION]: () => json({ sha: "0123456" }),
+  [HOME]: () => html(landingPage),
+  [RPC]: () => json({ error: { message: "UNAUTHORIZED" } }, 401),
+});
+
 const options = { attempts: 3, delayMs: 0, timeoutMs: 1000 };
+
+function check(fetchImpl: (url: string, init?: RequestInit) => Promise<Response>) {
+  return runSmokeCheck({
+    apiUrl: `${API}/`,
+    webUrl: WEB,
+    expectedSha: fullSha,
+    fetchImpl,
+    ...options,
+  });
+}
 
 describe("deployedShaMatches", () => {
   it("accepts a short SHA of any unambiguous length that prefixes the commit", () => {
@@ -42,83 +82,131 @@ describe("deployedShaMatches", () => {
   });
 });
 
+describe("describeLimits", () => {
+  it("passes only an explicit ok and echoes the api's own missing-bindings list", () => {
+    expect(describeLimits({ status: "ready", db: "ok", limits: "ok" })).toBeNull();
+    expect(describeLimits({ limits: "missing:RL_AUTH,RL_OVERLAY" })).toBe(
+      "limits missing:RL_AUTH,RL_OVERLAY",
+    );
+  });
+
+  it("treats a worker without the field, or with an unexpected value, as unknown rather than ok", () => {
+    expect(describeLimits({ status: "ready", db: "ok" })).toBe("limits unknown");
+    expect(describeLimits(null)).toBe("limits unknown");
+    expect(describeLimits({ limits: "<script>alert(1)</script>" })).toBe("limits unknown");
+  });
+});
+
 describe("runSmokeCheck", () => {
-  it("passes when the api is ready and the web worker serves the deployed commit", async () => {
-    const { fetchImpl, calls } = fakeFetch({
-      "https://api.example.com/ready": () => json({ status: "ready" }),
-      "https://web.example.com/api/version": () => json({ sha: "0123456" }),
-    });
+  it("passes when the api is ready, the web worker serves the deployed commit, the home page renders and the proxy answers", async () => {
+    const { fetchImpl, calls, headers } = fakeFetch(healthy());
 
-    const errors = await runSmokeCheck({
-      apiUrl: "https://api.example.com/",
-      webUrl: "https://web.example.com",
-      expectedSha: fullSha,
-      fetchImpl,
-      ...options,
-    });
-
-    expect(errors).toEqual([]);
-    expect(calls).toEqual(["https://api.example.com/ready", "https://web.example.com/api/version"]);
+    expect(await check(fetchImpl)).toEqual([]);
+    expect(calls).toEqual([READY, VERSION, HOME, RPC]);
+    // user.me is a query: a GET, asking for JSON so a stray HTML page can't pass for tRPC's answer.
+    expect(headers[RPC]).toMatchObject({ accept: "application/json" });
   });
 
   it("retries until a newly deployed worker starts answering", async () => {
     const { fetchImpl, calls } = fakeFetch({
-      "https://api.example.com/ready": (attempt) =>
-        attempt < 3 ? new TypeError("fetch failed") : json({ status: "ready" }),
-      "https://web.example.com/api/version": (attempt) =>
-        json({ sha: attempt === 1 ? "fedcba9" : "0123456" }),
+      ...healthy(),
+      [READY]: (attempt) =>
+        attempt < 3
+          ? new TypeError("fetch failed")
+          : json({ status: "ready", db: "ok", limits: "ok" }),
+      [VERSION]: (attempt) => json({ sha: attempt === 1 ? "fedcba9" : "0123456" }),
     });
 
-    const errors = await runSmokeCheck({
-      apiUrl: "https://api.example.com",
-      webUrl: "https://web.example.com",
-      expectedSha: fullSha,
-      fetchImpl,
-      ...options,
-    });
-
-    expect(errors).toEqual([]);
-    expect(calls).toHaveLength(5);
+    expect(await check(fetchImpl)).toEqual([]);
+    expect(calls).toHaveLength(7);
   });
 
   it("reports a degraded api and a stale web worker after exhausting retries", async () => {
     const { fetchImpl, calls } = fakeFetch({
-      "https://api.example.com/ready": () => json({ status: "degraded" }, 503),
-      "https://web.example.com/api/version": () => json({ sha: "dev" }),
+      ...healthy(),
+      [READY]: () => json({ status: "degraded", db: "unreachable", limits: "ok" }, 503),
+      [VERSION]: () => json({ sha: "dev" }),
     });
 
-    const errors = await runSmokeCheck({
-      apiUrl: "https://api.example.com",
-      webUrl: "https://web.example.com",
-      expectedSha: fullSha,
-      fetchImpl,
-      ...options,
-    });
-
-    expect(errors).toEqual([
+    expect(await check(fetchImpl)).toEqual([
       "api /ready failed (status 503)",
       "web /api/version is not the deployed commit (serving dev)",
     ]);
-    expect(calls).toHaveLength(6);
+    expect(calls).toHaveLength(8);
   });
 
   it("reports network errors by name only and non-JSON version bodies as unknown", async () => {
     const { fetchImpl } = fakeFetch({
-      "https://api.example.com/ready": () => new TypeError("fetch failed: https://secret"),
-      "https://web.example.com/api/version": () => new Response("<html>", { status: 200 }),
+      ...healthy(),
+      [READY]: () => new TypeError("fetch failed: https://secret"),
+      [VERSION]: () => new Response("<html>", { status: 200 }),
     });
 
-    const errors = await runSmokeCheck({
-      apiUrl: "https://api.example.com",
-      webUrl: "https://web.example.com",
-      expectedSha: fullSha,
-      fetchImpl,
-      ...options,
-    });
-
-    expect(errors).toEqual([
+    expect(await check(fetchImpl)).toEqual([
       "api /ready failed (TypeError)",
       "web /api/version is not the deployed commit (serving unknown)",
+    ]);
+  });
+
+  it("fails a ready api whose rate-limit bindings did not attach, naming them", async () => {
+    // The limiter fails open, so /ready stays 200 — this check is the only place a
+    // fork's first deploy learns its RateLimit resources did not bind.
+    const { fetchImpl } = fakeFetch({
+      ...healthy(),
+      [READY]: () =>
+        json({ status: "ready", db: "ok", limits: "missing:RL_AUTH,RL_BOT,RL_TOKEN,RL_OVERLAY" }),
+    });
+
+    expect(await check(fetchImpl)).toEqual([
+      "api /ready failed (limits missing:RL_AUTH,RL_BOT,RL_TOKEN,RL_OVERLAY)",
+    ]);
+  });
+
+  it("fails a ready api from a build that does not report limits at all", async () => {
+    const { fetchImpl } = fakeFetch({
+      ...healthy(),
+      [READY]: () => json({ status: "ready", db: "ok" }),
+    });
+
+    expect(await check(fetchImpl)).toEqual(["api /ready failed (limits unknown)"]);
+  });
+
+  it("accepts an unclaimed instance redirecting the home page to /setup", async () => {
+    const { fetchImpl } = fakeFetch({
+      ...healthy(),
+      [HOME]: () => html(claimPage, { url: `${WEB}/setup` }),
+    });
+
+    expect(await check(fetchImpl)).toEqual([]);
+  });
+
+  it.each([
+    ["errors", () => html("<h1>DireWork hit an error</h1>", { status: 500 }), "status 500"],
+    [
+      "lands anywhere else",
+      () => html(landingPage, { url: `${WEB}/dashboard` }),
+      "landed on /dashboard",
+    ],
+    [
+      "renders without the heading",
+      () => html("<html><body>Internal Server Error</body></html>"),
+      "no DireWork heading in the body",
+    ],
+  ])("fails when the home page %s", async (_label, route, reason) => {
+    const { fetchImpl } = fakeFetch({ ...healthy(), [HOME]: route });
+
+    expect(await check(fetchImpl)).toEqual([`web / did not render (${reason})`]);
+  });
+
+  it.each([
+    ["lets an anonymous caller through", 200],
+    ["cannot reach the api", 502],
+    ["is not routed", 404],
+  ])("fails when the authenticated proxy %s", async (_label, status) => {
+    const { fetchImpl } = fakeFetch({ ...healthy(), [RPC]: () => json({}, status) });
+
+    expect(await check(fetchImpl)).toEqual([
+      `web /rpc/user.me did not answer 401 through the proxy (status ${status})`,
     ]);
   });
 });

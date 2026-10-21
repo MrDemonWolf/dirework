@@ -10,7 +10,7 @@ import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 import { botOAuth } from "./routes/bot-oauth";
 import { getRequestId, requestLogger } from "./lib/logger";
-import { rateLimiter } from "./lib/rate-limit";
+import { missingRateLimitBindings, rateLimiter } from "./lib/rate-limit";
 import { requireJsonMutations } from "./lib/require-json";
 import { recordError, recordMetric } from "./lib/telemetry";
 import { trpcErrorReporter } from "./lib/trpc-error";
@@ -91,17 +91,26 @@ app.get("/health", (c) => c.json({ status: "ok" }));
  * query. Returns 503 (not 500) when the database is unreachable so a checker can
  * distinguish "starting/degraded" from "broken". The error body is deliberately
  * generic — the D1 error text can echo SQL.
+ *
+ * `limits` is `ok`, or `missing:RL_AUTH,…` naming the rate-limit bindings that
+ * did not attach. It never changes the status: the limiter fails open by
+ * design, so a lost binding must not make the worker look down and flap every
+ * uptime monitor — the post-deploy smoke check (packages/infra/smoke.ts) is
+ * what requires `ok`, so a deploy whose bindings did not bind fails there.
  */
 app.get("/ready", async (c) => {
+  // A property check on the env, never a limit() call, so the probe stays free.
+  const missing = missingRateLimitBindings(env);
+  const limits = missing.length > 0 ? `missing:${missing.join(",")}` : "ok";
   try {
     // Straight at the D1 binding — the cheapest possible round trip, and it
     // avoids pulling drizzle into the worker just for a health probe.
     await env.DB.prepare("select 1").first();
-    return c.json({ status: "ready", db: "ok" });
+    return c.json({ status: "ready", db: "ok", limits });
   } catch (error) {
     recordMetric("db.error", { requestId: getRequestId(c), label: "readiness" });
     recordError({ error, requestId: getRequestId(c), url: c.req.url, reason: "readiness_db_ping" });
-    return c.json({ status: "degraded", db: "unreachable" }, 503);
+    return c.json({ status: "degraded", db: "unreachable", limits }, 503);
   }
 });
 

@@ -46,6 +46,7 @@
     "dev": "turbo run dev",
     "e2e": "bun run --cwd packages/e2e e2e",
     "e2e:install": "bun run --cwd packages/e2e e2e:install",
+    "e2e:install-deps": "bun run --cwd packages/e2e e2e:install-deps",
     "build": "turbo run build",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
