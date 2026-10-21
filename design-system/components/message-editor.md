@@ -12,7 +12,7 @@ ONE generic chat reply-template editor for both the task and timer message sets 
 ## Anatomy
 
 - Toolbar: search input ("Filter N messages…") with a search icon, and a ghost "Reset all" button behind `ConfirmDialog`.
-- One `SectionGroup` per field group, with a `CountBadge` in `trailing`. Groups are closed by default; a group opens itself while it holds an invalid field (and can't be closed then, since Save is blocked on it), while the filter has text, and, until the owner toggles it, while it holds an unsaved edit (differs from `saved`).
+- One `aria-label`led `<section>` per field group, holding a `SectionGroup` with a `CountBadge` in `trailing`. Groups are closed by default; a group opens itself while it holds an invalid field (and can't be closed then, since Save is blocked on it), while the filter has text, and, until the owner toggles it, while it holds an unsaved edit (differs from `saved`).
 - Per field: label + "Reset to default" (only when the value differs from `defaults`), input, `ByteBudget`, a preview line (`{speaker}: {reply}`), and variable chips (`{user}`, `{task}`, …) with tooltips.
 - Empty-filter line `No messages match "…"`.
 
@@ -41,7 +41,7 @@ ONE generic chat reply-template editor for both the task and timer message sets 
 - Inputs are labelled by the field label; e2e pins `getByLabel("Task added")`, the preview text rendered by the bot's own `interpolate`, and the "Reset to default" button (gone once the value matches stock).
 - Inputs are `aria-describedby` the preview (prefixed with sr-only "Preview:") and, near the cap, the byte budget.
 - Chips are real buttons named `Insert {token}`; inserting refocuses the input with the caret after the token. On coarse pointers they are at least 44px (`pointer-coarse:min-h-11 min-w-11`).
-- Filter input `aria-label="Filter messages"`; each group is a `SectionGroup` disclosure (a real button with `aria-expanded`).
+- Filter input `aria-label="Filter messages"`; each group is an `aria-label`led `<section>` wrapping a `SectionGroup` disclosure (a real button with `aria-expanded`).
 - "Reset all" confirms ("Reset every message to its default?").
 
 ## Do / Don't
