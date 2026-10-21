@@ -223,7 +223,9 @@ Alchemy step's output.
   in front of `/dashboard`, `/setup` and `/rpc/*` as an extra layer on top of DireWork's own
   owner check (it never replaces it). The smoke check accepts Access's login redirect
   (a `302`/`303` to `https://<team>.cloudflareaccess.com/cdn-cgi/access/login/…`) from
-  `/rpc/user.me` and says so in its output. Keep `/`, `/api/*`, `/bot/*` and `/overlay/*`
+  `/rpc/user.me`, and from `/setup` when an unclaimed instance's home page sends visitors
+  there, so a fresh deploy passes before you claim it. It says which case passed in its
+  output. Keep `/`, `/api/*`, `/bot/*` and `/overlay/*`
   outside the Access application: the Twitch OAuth callbacks, the OBS overlays and the bot
   page must reach them without an Access login.
 </Callout>

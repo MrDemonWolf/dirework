@@ -28,11 +28,9 @@ function fakeFetch(routes: Record<string, Route>) {
 
 const json = (body: unknown, status = 200) => Response.json(body, { status });
 
-/** An HTML page; `url` is where fetch landed after redirects (unset, like a constructed Response, means no redirect). */
-function html(body: string, { status = 200, url }: { status?: number; url?: string } = {}) {
-  const response = new Response(body, { status, headers: { "content-type": "text/html" } });
-  if (url) Object.defineProperty(response, "url", { value: url });
-  return response;
+/** An HTML page. */
+function html(body: string, { status = 200 }: { status?: number } = {}) {
+  return new Response(body, { status, headers: { "content-type": "text/html" } });
 }
 
 const landingPage =
@@ -45,6 +43,7 @@ const WEB = "https://web.example.com";
 const READY = `${API}/ready`;
 const VERSION = `${WEB}/api/version`;
 const HOME = `${WEB}/`;
+const SETUP = `${WEB}/setup`;
 const RPC = `${WEB}/rpc/user.me`;
 
 /** Every probe answering the way a healthy, claimed instance does. */
@@ -117,9 +116,14 @@ describe("runSmokeCheck", () => {
 
     expect(await run(fetchImpl)).toEqual({
       errors: [],
-      notes: ["web /rpc/user.me answered 401 through the proxy"],
+      notes: [
+        "web / rendered the home page (claimed instance)",
+        "web /rpc/user.me answered 401 through the proxy",
+      ],
     });
     expect(calls).toEqual([READY, VERSION, HOME, RPC]);
+    // A followed redirect would hide where `/` sent the visitor.
+    expect(redirects[HOME]).toBe("manual");
     // user.me is a query: a GET, asking for JSON so a stray HTML page can't pass for tRPC's answer.
     expect(headers[RPC]).toMatchObject({ accept: "application/json" });
     // Following a redirect would land on Access's login page (a 200) and hide the real answer.
@@ -214,21 +218,92 @@ describe("runSmokeCheck", () => {
     ]);
   });
 
-  it("accepts an unclaimed instance redirecting the home page to /setup", async () => {
+  it.each([
+    ["relative", "/setup", 307],
+    ["absolute", SETUP, 302],
+  ])(
+    "accepts an unclaimed instance redirecting / to /setup (%s) and rendering the claim page",
+    async (_label, location, status) => {
+      const { fetchImpl, calls, redirects } = fakeFetch({
+        ...healthy(),
+        [HOME]: () => redirect(location, status),
+        [SETUP]: () => html(claimPage),
+      });
+
+      expect(await run(fetchImpl)).toEqual({
+        errors: [],
+        notes: [
+          "web / redirected to /setup and rendered the claim page (unclaimed instance)",
+          "web /rpc/user.me answered 401 through the proxy",
+        ],
+      });
+      expect(calls).toEqual([READY, VERSION, HOME, SETUP, RPC]);
+      expect(redirects[SETUP]).toBe("manual");
+    },
+  );
+
+  it("accepts an unclaimed instance whose /setup is behind Cloudflare Access", async () => {
     const { fetchImpl } = fakeFetch({
       ...healthy(),
-      [HOME]: () => html(claimPage, { url: `${WEB}/setup` }),
+      [HOME]: () => redirect("/setup", 307),
+      [SETUP]: () => redirect(ACCESS_LOGIN),
+      [RPC]: () => redirect(ACCESS_LOGIN),
     });
 
-    expect(await check(fetchImpl)).toEqual([]);
+    expect(await run(fetchImpl)).toEqual({
+      errors: [],
+      notes: [
+        "web / redirected to /setup, protected by Cloudflare Access (unclaimed instance)",
+        "web /rpc/user.me protected by Cloudflare Access (login redirect)",
+      ],
+    });
+  });
+
+  it.each([
+    ["errors", () => html("<pre>DireWork</pre>", { status: 500 }), "/setup status 500"],
+    [
+      "renders without the heading",
+      () => html("<html></html>"),
+      "/setup no DireWork heading in the body",
+    ],
+    [
+      "redirects to a look-alike Access host",
+      () => redirect("https://team.cloudflareaccess.com.evil.example/cdn-cgi/access/login/x"),
+      "/setup status 302",
+    ],
+    ["redirects anywhere else", () => redirect("/dashboard"), "/setup status 302"],
+  ])("fails an unclaimed instance whose /setup %s", async (_label, route, reason) => {
+    const { fetchImpl } = fakeFetch({
+      ...healthy(),
+      [HOME]: () => redirect("/setup", 307),
+      [SETUP]: route,
+    });
+
+    expect(await check(fetchImpl)).toEqual([`web / did not render (${reason})`]);
   });
 
   it.each([
     ["errors", () => html("<h1>DireWork hit an error</h1>", { status: 500 }), "status 500"],
+    ["redirects anywhere else", () => redirect("/dashboard", 307), "landed on /dashboard"],
     [
-      "lands anywhere else",
-      () => html(landingPage, { url: `${WEB}/dashboard` }),
-      "landed on /dashboard",
+      "redirects to another host's /setup",
+      () => redirect("https://evil.example/setup"),
+      "landed on evil.example/setup",
+    ],
+    [
+      "redirects straight to Access",
+      () => redirect(ACCESS_LOGIN),
+      "landed on team.cloudflareaccess.com/cdn-cgi/access/login/web.example.com",
+    ],
+    [
+      "redirects without a location",
+      () => new Response(null, { status: 308 }),
+      "redirect without a usable location",
+    ],
+    [
+      "redirects to an unparseable location",
+      () => redirect("http://[bad"),
+      "redirect without a usable location",
     ],
     [
       "renders without the heading",
@@ -263,7 +338,10 @@ describe("runSmokeCheck", () => {
 
       expect(await run(fetchImpl)).toEqual({
         errors: [],
-        notes: ["web /rpc/user.me protected by Cloudflare Access (login redirect)"],
+        notes: [
+          "web / rendered the home page (claimed instance)",
+          "web /rpc/user.me protected by Cloudflare Access (login redirect)",
+        ],
       });
     },
   );
