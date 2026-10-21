@@ -110,11 +110,24 @@ export function withSetupStep<T extends SetupSource>(
 export function shouldRefreshMeAfterConfirm({
   refreshInFlight,
   failed,
+  fetchingNow = false,
+  cachedFlag,
+  serverFlag,
 }: {
+  /** A `user.me` fetch was already running when the click happened. */
   refreshInFlight: boolean;
+  /** The write failed, so the server state is unknown. */
   failed: boolean;
+  /** A `user.me` fetch is running as the write settles (it started during the write). */
+  fetchingNow?: boolean;
+  /** The flag in the cache as the write settles, and the flag the server answered with. */
+  cachedFlag?: boolean;
+  serverFlag?: boolean;
 }): boolean {
-  return refreshInFlight || failed;
+  if (refreshInFlight || failed || fetchingNow) return true;
+  // Whatever the ordering, a cache that disagrees with the server's answer means a stale
+  // refetch landed on top of the optimistic patch; one refetch settles it.
+  return cachedFlag !== undefined && serverFlag !== undefined && cachedFlag !== serverFlag;
 }
 
 /** localStorage key for "Finish later": "1" = collapsed, "0" = open, absent = default. */

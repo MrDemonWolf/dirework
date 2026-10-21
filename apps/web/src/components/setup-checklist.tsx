@@ -313,13 +313,17 @@ export function SetupChecklist({
         }
         toast.error(`Couldn't save that step: ${describeTrpcError(err)}`);
       },
-      onSettled: (_data, error, _input, context) => {
-        // One refetch, only when the cache may now be wrong: an overlapping refresh could
-        // have landed stale data, or the write failed and the server state is unknown.
+      onSettled: (data, error, { step }, context) => {
+        // One refetch, only when the cache may now be wrong: a refresh overlapped the write
+        // (started before the click or during it), the write failed, or the cached flag no
+        // longer matches what the server answered — whatever the ordering of events.
         if (
           shouldRefreshMeAfterConfirm({
             refreshInFlight: context?.refreshInFlight ?? false,
             failed: error !== null,
+            fetchingNow: queryClient.isFetching({ queryKey: meKey }) > 0,
+            cachedFlag: queryClient.getQueryData(meKey)?.setup[step],
+            serverFlag: data?.setup[step],
           })
         ) {
           void queryClient.invalidateQueries({ queryKey: meKey });

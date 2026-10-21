@@ -300,3 +300,32 @@ describe("steps stay visible after the final confirmation", () => {
     expect(source).toContain("const stepsVisible = !allDone || showSteps || startedIncomplete;");
   });
 });
+
+describe("shouldRefreshMeAfterConfirm covers every ordering", () => {
+  it("refetches when a fetch is running as the write settles", () => {
+    expect(
+      shouldRefreshMeAfterConfirm({ refreshInFlight: false, failed: false, fetchingNow: true }),
+    ).toBe(true);
+  });
+  it("refetches when the cache disagrees with the server's answer", () => {
+    expect(
+      shouldRefreshMeAfterConfirm({
+        refreshInFlight: false,
+        failed: false,
+        cachedFlag: false,
+        serverFlag: true,
+      }),
+    ).toBe(true);
+  });
+  it("stays quiet when nothing overlapped and the cache matches", () => {
+    expect(
+      shouldRefreshMeAfterConfirm({
+        refreshInFlight: false,
+        failed: false,
+        fetchingNow: false,
+        cachedFlag: true,
+        serverFlag: true,
+      }),
+    ).toBe(false);
+  });
+});
