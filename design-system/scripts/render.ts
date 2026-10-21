@@ -19,6 +19,11 @@ export interface DesignTokens {
     partner: { twitch: string; twitchHover: string } & Record<string, string>;
     /** Bot console (`/bot/<token>`): a fixed dark terminal that never follows the theme. */
     console: Record<string, string>;
+    /**
+     * Bot dock (`/bot/<token>?view=dock`): OBS Studio's default dark theme (Yami,
+     * obs-studio `frontend/data/themes/Yami.obt`), so the dock looks native in OBS.
+     */
+    obs: Record<string, string>;
     scheme: { light: ColorScheme; dark: ColorScheme };
   };
   font: {
@@ -157,6 +162,12 @@ function themeInlineDecls(tokens: DesignTokens, target: CssTarget): string[] {
           `color-console-${kebab(k)}`,
           cssValue(v),
         ]),
+      ),
+    );
+    // The bot dock wears OBS's Yami palette in every app theme: literals too.
+    lines.push(
+      ...decls(
+        Object.entries(tokens.color.obs).map(([k, v]) => [`color-obs-${kebab(k)}`, cssValue(v)]),
       ),
     );
     // Offsets from `--radius` (= radius.lg), so the whole scale follows the knob.
