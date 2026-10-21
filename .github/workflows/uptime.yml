@@ -47,7 +47,7 @@ jobs:
         run: |
           failed=""
           for url in "${API_URL%/}/ready" "${WEB_URL%/}/api/version"; do
-            if ! curl -fsS --max-time 15 --retry 2 --retry-delay 20 --retry-all-errors -o /dev/null "$url"; then
+            if ! curl -fsS --max-time 15 --retry 2 --retry-delay 20 --retry-max-time 60 --retry-all-errors -o /dev/null "$url"; then
               failed="${failed:+$failed, }$url"
             fi
           done
