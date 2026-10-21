@@ -14,8 +14,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `!dw help task` (or any command, or one of your aliases) explains one command in plain
   words with an example. `!dw commands` works like `!dwcommands`. If task commands are off,
   the guide says so instead of teaching commands that won't answer. Bot settings lists the
-  `!dw` and `!dwhelp` commands, and the Help reply is now labelled **Viewer starter guide**.
-  Help costs no extra database reads.
+  `!dw` and `!dwhelp` commands in an **Always on** legend on the Task commands tab, which
+  stays lit when you switch task commands off, and the Help reply is now labelled **Viewer
+  starter guide**. Help costs no extra database reads.
 - **Set up streaming checklist.** The dashboard opens with four steps: connect the bot
   account, then add the bot page, the timer overlay and the tasks overlay to OBS. Each OBS
   step hands you its URL (Show / Copy) and an **I added it to OBS** button; DireWork never

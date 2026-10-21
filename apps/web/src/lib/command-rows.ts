@@ -11,47 +11,60 @@ export interface CommandRow {
   description: string;
   /** Who can run it in chat; "mods" covers moderators and the streamer. */
   permission: "everyone" | "mods";
+  /**
+   * Answers even while its tab's enable switch is off (the meta commands). The tab lists
+   * these rows in their own "Always on" legend, which the switch never dims.
+   */
+  alwaysOn?: boolean;
 }
 
 /**
  * The always-on meta commands (`META_COMMANDS`): they answer even when task commands are
- * switched off, so the descriptions say so. Listed at the end of the Task tab, where the
- * Help reply that points at them is edited.
+ * switched off. Part of the Task tab's rows, where the Help reply that points at them is
+ * edited, but `alwaysOn` puts them in a legend of their own that the Task switch never dims.
  */
 export const metaCommands: CommandRow[] = [
   {
     command: "!dw help",
     usage: "!dw help",
-    description: "3-step starter guide for viewers (always on)",
+    description: "3-step starter guide for viewers",
     permission: "everyone",
+    alwaysOn: true,
   },
   {
     command: "!dw help [command]",
     usage: "!dw help [command]",
-    description: "Explain one command with an example (always on)",
+    description: "Explain one command with an example",
     permission: "everyone",
+    alwaysOn: true,
   },
   {
     command: "!dw commands",
     usage: "!dw commands",
-    description: "Link to the full command list (always on)",
+    description: "Link to the full command list",
     permission: "everyone",
+    alwaysOn: true,
   },
   {
     command: "!dwhelp",
     usage: "!dwhelp",
-    description: "Link to the full command list (always on)",
+    description: "Link to the full command list",
     permission: "everyone",
+    alwaysOn: true,
   },
   {
     command: "!dwcommands",
     usage: "!dwcommands",
-    description: "Same as !dwhelp (always on)",
+    description: "Same as !dwhelp",
     permission: "everyone",
+    alwaysOn: true,
   },
 ];
 
-/** Reference rows for the Task tab: the task commands, then the always-on meta commands. */
+/**
+ * Rows for the Task tab: the task commands, which its switch turns off, then the always-on
+ * meta commands.
+ */
 export const taskCommands: CommandRow[] = [
   { command: "!task", usage: "!task [task]", description: "Add a task", permission: "everyone" },
   {

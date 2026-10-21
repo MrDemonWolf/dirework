@@ -30,13 +30,19 @@ describe("bot settings command tables", () => {
     for (const row of metaCommands) {
       expect(taskCommands).toContain(row);
       expect(row.permission).toBe("everyone");
-      expect(row.description).toMatch(/always on/);
       // The usage is a line the bot page relays, so the row teaches a command that works.
       expect(isDireworkCommandLine(row.usage, new Set()), row.usage).toBe(true);
     }
     expect(metaCommands.map((row) => row.usage)).toEqual(
       expect.arrayContaining(["!dw help", "!dw help [command]", "!dw commands"]),
     );
+  });
+
+  // `alwaysOn` keeps a row out of the legend its tab's switch dims (command-tab-panel.test.ts),
+  // so only the meta commands may carry it: a task or timer row marked always on would stay
+  // lit while the bot ignores it.
+  it("mark exactly the meta commands as always on", () => {
+    expect(allRows.filter((row) => row.alwaysOn)).toEqual(metaCommands);
   });
 
   it("list exactly the moderation commands in the Moderation card", () => {
