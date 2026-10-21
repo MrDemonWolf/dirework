@@ -25,7 +25,13 @@ export const WEB_ORIGIN = `http://localhost:${WEB_PORT}`;
 
 /** Loopback forms for the readiness probes: Node and Bun may resolve `localhost` to ::1 first. */
 export const API_HEALTH_URL = `http://127.0.0.1:${API_PORT}/ready`;
-export const WEB_HEALTH_URL = `http://127.0.0.1:${WEB_PORT}/api/version`;
+/**
+ * The web probe is the claim page, not `/api/version`: `/setup` renders only once the web
+ * worker can reach the api (`getInstanceOwned` fails closed to "owned", which 404s it), so
+ * Playwright waits until the whole web → api hop is warm. On the fresh e2e database that is
+ * the only answer short of a cold-start failure; `00-first-run` then sees the real state.
+ */
+export const WEB_HEALTH_URL = `http://127.0.0.1:${WEB_PORT}/setup`;
 
 /** Signs the forwarded client IP on the web → api hop; must be at least 32 characters. */
 export const PROXY_SECRET = "e2e-proxy-secret-0123456789abcdef0123456789";

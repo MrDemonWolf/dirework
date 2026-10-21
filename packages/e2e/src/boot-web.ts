@@ -1,6 +1,6 @@
 // Boot the built web worker (apps/web/.open-next, the exact bundle the deploy ships) in local
 // workerd, pointed at the e2e api worker. Playwright starts this as a webServer and waits for
-// /api/version.
+// /setup to answer 200, which proves the web → api hop works (see env.ts).
 
 import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
