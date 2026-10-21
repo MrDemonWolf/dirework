@@ -61,12 +61,12 @@ export function baseOptions(): BaseLayoutProps {
     },
     githubUrl: "https://github.com/mrdemonwolf/dirework",
     links: [
-      // Landing-section anchors (ids in app/(home)/page.tsx). Not in page order:
-      // the page runs features, overlays, chat, setup; Overlays is listed first.
-      // On the home page these scroll; from any other page they navigate home
-      // and then jump to the section.
-      { text: "Overlays & Themes", url: "/#overlays" },
+      // Landing-section anchors (ids in app/(home)/page.tsx), in page order. On the
+      // home page these scroll; from any other page they navigate home and then jump
+      // to the section.
       { text: "Features", url: "/#features" },
+      { text: "Overlays & Themes", url: "/#overlays" },
+      { text: "Chat", url: "/#chat" },
       { text: "Setup", url: "/#setup" },
       { text: "Docs", url: "/docs" },
       { text: "Support", url: "https://mrdwolf.net/discord" },

@@ -7,10 +7,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Changed
+- **One tagline everywhere:** "A focus timer for your Twitch stream." The docs home page,
+  the web app's link previews and both share cards now use the same words, and both share
+  cards are navy and cerulean with the same example timer (18:24, Cycle 2 / 4).
+- The docs home page mocks (stream scene, task list, timer and chat preview) now show one
+  example session, and the chat preview's bot replies are the bot's real default replies.
 - The landing page and dashboard preload their heading font, and only the overlay pages and
   the Theme Center load the overlay font stylesheet, so each page downloads only the type it
   shows. The public pages (`/`, `/setup`) show a loading skeleton the moment you navigate to
   them.
+
+### Fixed
+- Small labels on the docs home page were 10–11px; they are now at least 12px. Headings
+  there no longer ask for font weights the page never loads.
 
 ## [2.0.0] - 2026-10-20
 

@@ -1,9 +1,13 @@
 /**
- * Mock of the Dirework OBS task-list overlay. Tasks grouped by author,
+ * Mock of the DireWork OBS task-list overlay. Tasks grouped by author,
  * each author gets a tinted header row (name + done/total). Mirrors
  * apps/web/src/components/task-list-display.tsx + groupTasksByAuthor().
- * Static sample data only; restyled per theme by OverlayThemePreview.
+ * Sample data is the shared DEMO_SESSION from @dirework/overlay-kit, so the
+ * list agrees with the hero scene, chat preview and share cards; restyled
+ * per theme by OverlayThemePreview.
  */
+
+import { DEMO_SESSION, type DemoTask } from "@dirework/overlay-kit";
 
 import {
   OVERLAY_THEMES,
@@ -12,29 +16,18 @@ import {
 } from "./overlay-themes.generated";
 import { authorPalette, hexToRgba } from "./theme-util";
 
-type Task = { text: string; done: boolean };
-type Group = { author: string; tasks: Task[] };
+type Group = { author: string; tasks: DemoTask[] };
 
-const GROUPS: Group[] = [
-  {
-    author: "streamer",
-    tasks: [
-      { text: "Finish the design system docs", done: false },
-      { text: "Review overlay PR", done: true },
-    ],
-  },
-  {
-    author: "ada_codes",
-    tasks: [
-      { text: "Write migration tests", done: false },
-      { text: "Coffee refill", done: true },
-    ],
-  },
-  {
-    author: "pixel_pat",
-    tasks: [{ text: "Sketch new logo concepts", done: false }],
-  },
-];
+/** DEMO_SESSION's tasks grouped by author, in first-appearance order (as the overlay does). */
+const GROUPS: Group[] = (() => {
+  const byAuthor = new Map<string, DemoTask[]>();
+  for (const task of DEMO_SESSION.tasks) {
+    const list = byAuthor.get(task.author);
+    if (list) list.push(task);
+    else byAuthor.set(task.author, [task]);
+  }
+  return [...byAuthor].map(([author, tasks]) => ({ author, tasks }));
+})();
 
 /** Decorative checkbox (aria-hidden); the row's strikethrough text carries the done state. */
 function CheckBox({ done, theme }: { done: boolean; theme: OverlayTheme }) {
@@ -84,7 +77,7 @@ export function TaskListWidget({
       }}
     >
       {GROUPS.map((g, gi) => {
-        const done = g.tasks.filter((t) => t.done).length;
+        const done = g.tasks.filter((t) => t.status === "done").length;
         // Palette picks AA-safe name colors for light vs dark theme backgrounds; it has
         // three entries, so groups cycle through them.
         const authorColor = authorPalette(theme.bg)[gi % 3];
@@ -100,7 +93,8 @@ export function TaskListWidget({
                 borderTopRightRadius: 12,
                 padding: "10px 14px",
                 fontFamily: "var(--font-display)",
-                fontWeight: 600,
+                // Montserrat is loaded at 700/800 only (see app/layout.tsx).
+                fontWeight: 700,
               }}
             >
               <span style={{ color: authorColor }}>{g.author}</span>
@@ -116,31 +110,39 @@ export function TaskListWidget({
                 padding: 6,
               }}
             >
-              {g.tasks.map((t, i) => (
-                <div
-                  key={t.text}
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    background: t.done ? hexToRgba(theme.text, 0.04) : hexToRgba(theme.text, 0.08),
-                    borderRadius: 10,
-                    padding: "9px 12px",
-                    marginBottom: i === g.tasks.length - 1 ? 0 : 4,
-                  }}
-                >
-                  <CheckBox done={t.done} theme={theme} />
-                  <span
+              {g.tasks.map((t, i) => {
+                const isDone = t.status === "done";
+                const isActive = t.status === "active";
+                return (
+                  <div
+                    key={t.text}
                     style={{
-                      color: t.done ? hexToRgba(theme.text, 0.5) : theme.text,
-                      fontSize: 15,
-                      textDecoration: t.done ? "line-through" : "none",
-                      lineHeight: 1.35,
+                      display: "flex",
+                      alignItems: "flex-start",
+                      background: isDone
+                        ? hexToRgba(theme.text, 0.04)
+                        : hexToRgba(theme.text, isActive ? 0.12 : 0.08),
+                      // Accent edge marks the task the viewer is working on right now.
+                      boxShadow: isActive ? `inset 3px 0 0 ${theme.accent}` : undefined,
+                      borderRadius: 10,
+                      padding: "9px 12px",
+                      marginBottom: i === g.tasks.length - 1 ? 0 : 4,
                     }}
                   >
-                    {t.text}
-                  </span>
-                </div>
-              ))}
+                    <CheckBox done={isDone} theme={theme} />
+                    <span
+                      style={{
+                        color: isDone ? hexToRgba(theme.text, 0.5) : theme.text,
+                        fontSize: 15,
+                        textDecoration: isDone ? "line-through" : "none",
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      {t.text}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         );

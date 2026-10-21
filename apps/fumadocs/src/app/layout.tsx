@@ -5,6 +5,7 @@
 import { IBM_Plex_Sans, IBM_Plex_Mono, Montserrat } from "next/font/google";
 import Script from "next/script";
 import type { Metadata } from "next";
+import { BRAND } from "@dirework/overlay-kit";
 
 import { Provider } from "@/components/provider";
 import { Footer } from "@/components/footer";
@@ -23,11 +24,14 @@ const plexMono = IBM_Plex_Mono({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   variable: "--font-plex-mono",
+  // Small labels only: not worth a preload on every page.
+  preload: false,
 });
 
 const montserrat = Montserrat({
   subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
+  // The two weights headings use. Fumadocs' prose h2/h3 ask for 600 and render at 700.
+  weight: ["700", "800"],
   variable: "--font-montserrat",
 });
 
@@ -37,11 +41,10 @@ const montserrat = Montserrat({
  */
 export const metadata: Metadata = {
   title: {
-    default: "DireWork - Focus. Together.",
+    default: BRAND.title,
     template: "%s | DireWork",
   },
-  description:
-    "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working and body-doubling streams.",
+  description: BRAND.description,
   keywords: [
     "DireWork",
     "Pomodoro",
@@ -64,15 +67,13 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     siteName: "DireWork",
-    title: "DireWork - Focus. Together.",
-    description:
-      "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working and body-doubling streams.",
+    title: BRAND.title,
+    description: BRAND.description,
   },
   twitter: {
     card: "summary_large_image",
-    title: "DireWork - Focus. Together.",
-    description:
-      "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working and body-doubling streams.",
+    title: BRAND.title,
+    description: BRAND.description,
   },
   metadataBase: new URL("https://dirework.mrdemonwolf.dev"),
 };
@@ -101,8 +102,7 @@ export default function Layout({ children }: LayoutProps<"/">) {
             "@context": "https://schema.org",
             "@type": "SoftwareApplication",
             name: "DireWork",
-            description:
-              "Self-hosted Pomodoro timer and task list with Twitch chat integration for co-working and body-doubling streams.",
+            description: BRAND.description,
             applicationCategory: "MultimediaApplication",
             operatingSystem: "Web (Cloudflare Workers)",
             url: "https://dirework.mrdemonwolf.dev",
