@@ -27,6 +27,40 @@ export interface TimerTextFitInput {
   height: string;
 }
 
+type ResizeObserverCtor = new (
+  callback: () => void,
+) => {
+  observe(target: Element): void;
+  disconnect(): void;
+};
+
+/**
+ * Calls `onSize` with the frame's layout size (`offsetWidth`×`offsetHeight`, as
+ * "WxH") now and whenever it changes. Relative dimensions (`50vw`, `80%`) resize the
+ * frame when the OBS source or browser viewport does, without any fit input changing,
+ * so the fit must key on the measured size too. Layout size ignores AutoScale's
+ * transform, and the fitted text never resizes the explicitly sized frame, so this
+ * cannot loop. Without ResizeObserver it reports once. Returns the cleanup.
+ */
+export function observeFrameSize(
+  frame: HTMLElement,
+  onSize: (size: string) => void,
+  Observer: ResizeObserverCtor | undefined = globalThis.ResizeObserver,
+): () => void {
+  let last = "";
+  const report = () => {
+    const size = `${frame.offsetWidth}x${frame.offsetHeight}`;
+    if (size === last) return;
+    last = size;
+    onSize(size);
+  };
+  report();
+  if (!Observer) return () => {};
+  const observer = new Observer(report);
+  observer.observe(frame);
+  return () => observer.disconnect();
+}
+
 /**
  * Shrinks the timer widget's three text lines so each fits inside the ring's inner
  * area (`fitTimerLines`). The lines first render at their configured sizes (`lines`
@@ -35,7 +69,8 @@ export interface TimerTextFitInput {
  * size, so AutoScale's transform doesn't skew it — and the fitted sizes commit before
  * the browser paints, so OBS never shows the overflowing frame. It re-fits only when
  * an input changes (the countdown's length, not every tick) and when a web font
- * finishes loading, since the fallback face measures differently.
+ * finishes loading, since the fallback face measures differently, and when the frame's
+ * measured size changes (`observeFrameSize`).
  */
 export function useTimerTextFit(input: TimerTextFitInput) {
   const frameRef = useRef<HTMLDivElement>(null);
@@ -43,6 +78,7 @@ export function useTimerTextFit(input: TimerTextFitInput) {
   const clockRef = useRef<HTMLSpanElement>(null);
   const cycleRef = useRef<HTMLSpanElement>(null);
   const [fontEpoch, setFontEpoch] = useState(0);
+  const [frameSize, setFrameSize] = useState("");
   const [fit, setFit] = useState<{ key: string; lines: LineFit[] } | null>(null);
 
   useEffect(() => {
@@ -60,6 +96,14 @@ export function useTimerTextFit(input: TimerTextFitInput) {
     };
   }, []);
 
+  // A layout effect, so the first size lands before the first paint and the fit
+  // below measures once with it instead of re-fitting after paint.
+  useLayoutEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    return observeFrameSize(frame, setFrameSize);
+  }, []);
+
   const { borderRadius, ringDrawn, ringWidth, ringGap } = input;
   const key = JSON.stringify([
     input.label,
@@ -74,6 +118,7 @@ export function useTimerTextFit(input: TimerTextFitInput) {
     ringWidth,
     ringGap,
     fontEpoch,
+    frameSize,
   ]);
   // A fit measured for other inputs is stale: render at the configured sizes so the
   // effect below measures the natural boxes.
