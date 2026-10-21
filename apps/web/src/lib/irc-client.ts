@@ -181,6 +181,12 @@ export interface IrcClientCallbacks {
   onClearChat?: (targetUsername: string) => void;
   onError?: (message: string) => void;
   /**
+   * A queued reply was actually written to the socket as a PRIVMSG. `say()` only queues: the
+   * rate limiter can hold a reply for many seconds under a burst, and the queue pauses while
+   * disconnected, so anything timed from "the reply went out" must start here.
+   */
+  onSent?: () => void;
+  /**
    * Twitch rejected the login ("Login authentication failed" NOTICE). The
    * client stops auto-reconnecting; the owner should fetch a fresh chat token
    * (bot.getSession) and call connect() again with new credentials.
@@ -579,6 +585,7 @@ export class TwitchIrcClient {
     this.sendRaw(`PRIVMSG #${this.creds.channelName.toLowerCase()} :${text}`);
     this.lastSentText = text;
     this.limiter.record(Date.now());
+    this.callbacks.onSent?.();
     if (this.sendQueue.length > 0) this.scheduleSend();
   }
 

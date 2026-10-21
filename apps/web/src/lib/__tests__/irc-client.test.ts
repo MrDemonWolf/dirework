@@ -460,6 +460,26 @@ describe("TwitchIrcClient chat", () => {
     expect(ws.sent.at(-1)).toBe("PRIVMSG #streamer :second JOIN #evil");
   });
 
+  it("reports a reply as sent only when the PRIVMSG is written, not when it is queued", () => {
+    const onSent = vi.fn();
+    const { client, ws } = setup({ onSent });
+    client.say("first");
+    client.say("second");
+    ws.open();
+    vi.advanceTimersByTime(5000);
+    // Queued while not yet joined: nothing reached Twitch.
+    expect(onSent).not.toHaveBeenCalled();
+
+    ws.receive(":tmi.twitch.tv 001 direbot :Welcome");
+    vi.advanceTimersByTime(0);
+    expect(onSent).toHaveBeenCalledTimes(1);
+    // The second reply waits out the rate limiter's 1s gap before it counts as sent.
+    vi.advanceTimersByTime(999);
+    expect(onSent).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1);
+    expect(onSent).toHaveBeenCalledTimes(2);
+  });
+
   it("drops the oldest queued reply when the queue is full", () => {
     const onError = vi.fn();
     const { client } = setup({ onError });

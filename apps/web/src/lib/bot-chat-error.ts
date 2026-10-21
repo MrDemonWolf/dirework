@@ -8,8 +8,8 @@ import { isChatRejection } from "./irc-client";
  * How long a sent reply must go unanswered by a new error before the banner clears. Twitch
  * never acknowledges a delivered PRIVMSG; it only answers a rejected one with a NOTICE
  * (banned, slow mode, followers-only), which lands within a second or two of the send.
- * The session reports a reply when it is queued, and the rate limiter can hold it a few
- * seconds under a burst, so the window has headroom.
+ * The window starts when the IRC client actually writes the reply (`onSent`), not when it is
+ * queued, so a reply held by the rate limiter or a reconnect can't clear the banner early.
  */
 export const REPLY_CLEAR_GRACE_MS = 10_000;
 

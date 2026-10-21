@@ -157,7 +157,6 @@ export function BotConsole() {
 
     const pushActivity = (kind: BotActivityKind, text: string) => {
       if (kind === "error") setChatErrorState(noteChatError(text, Date.now()));
-      else if (kind === "reply") setChatErrorState((prev) => noteChatReply(prev, Date.now()));
       const line: ActivityLine = {
         id: ++lineIdRef.current,
         time: timeStamp(),
@@ -190,6 +189,9 @@ export function BotConsole() {
         },
         onCounter: (counter) => setCounters((c) => ({ ...c, [counter]: c[counter] + 1 })),
         onActivity: pushActivity,
+        // Timed from the actual send, not the "reply" activity line: that one fires when the
+        // reply is queued, and the rate limiter can hold it past the clear window.
+        onReplySent: () => setChatErrorState((prev) => noteChatReply(prev, Date.now())),
         onMuted: setMuted,
       },
     });

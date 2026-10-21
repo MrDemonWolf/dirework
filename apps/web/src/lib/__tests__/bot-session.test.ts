@@ -61,6 +61,7 @@ function setup(api: Partial<BotSessionApi> = {}) {
     onConnected: vi.fn(),
     onCounter: vi.fn(),
     onActivity: vi.fn(),
+    onReplySent: vi.fn(),
     onMuted: vi.fn(),
   };
   const session = createBotSession({
@@ -147,6 +148,20 @@ describe("createBotSession bootstrap", () => {
     expect(phases(events)).toEqual(["invalid"]);
     expect(client.dispose).toHaveBeenCalled();
     expect(getSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a reply sent only when the IRC client writes it, not when it is queued", async () => {
+    const { ingest, client, events, callbacks } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+    ingest.mockResolvedValueOnce({ replies: ["Task added!"] });
+
+    callbacks().onChat?.(chat("!task a"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(client.say).toHaveBeenCalledWith("Task added!");
+    expect(events.onReplySent).not.toHaveBeenCalled();
+
+    callbacks().onSent?.();
+    expect(events.onReplySent).toHaveBeenCalledTimes(1);
   });
 
   it("drops a BAD_REQUEST ingest without stopping the bot", async () => {

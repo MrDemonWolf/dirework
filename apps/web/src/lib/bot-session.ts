@@ -84,6 +84,8 @@ export interface BotSessionEvents {
   onConnected(): void;
   onCounter(counter: BotCounter): void;
   onActivity(kind: BotActivityKind, text: string): void;
+  /** A reply left the IRC send queue for Twitch (not when it was queued: see `onSent`). */
+  onReplySent(): void;
   /** Fired only when the mute switch changes (a mod's !mute/!unmute, or the dashboard). */
   onMuted(muted: boolean): void;
 }
@@ -284,6 +286,10 @@ export function createBotSession({
     onError: (message) => {
       if (inactive()) return;
       events.onActivity("error", message);
+    },
+    onSent: () => {
+      if (inactive()) return;
+      events.onReplySent();
     },
     onAuthFailure: () => {
       if (inactive()) return;
