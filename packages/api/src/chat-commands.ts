@@ -24,8 +24,11 @@ export const KNOWN_ALIAS_TARGETS = [
   "timer",
 ] as const;
 
-/** Always-on meta commands. Not alias targets, but their names can't be aliased either. */
-export const META_COMMANDS = ["dwhelp", "dwcommands"] as const;
+/**
+ * Always-on meta commands. Not alias targets, but their names can't be aliased either.
+ * `dw` is the viewer help namespace (`!dw help`, `!dw help <command>`, `!dw commands`).
+ */
+export const META_COMMANDS = ["dw", "dwhelp", "dwcommands"] as const;
 
 /**
  * Mod-only bot moderation commands. Built-in names (so the bot page relays them

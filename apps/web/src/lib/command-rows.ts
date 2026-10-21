@@ -13,7 +13,45 @@ export interface CommandRow {
   permission: "everyone" | "mods";
 }
 
-/** Reference rows for the Task tab. */
+/**
+ * The always-on meta commands (`META_COMMANDS`): they answer even when task commands are
+ * switched off, so the descriptions say so. Listed at the end of the Task tab, where the
+ * Help reply that points at them is edited.
+ */
+export const metaCommands: CommandRow[] = [
+  {
+    command: "!dw help",
+    usage: "!dw help",
+    description: "3-step starter guide for viewers (always on)",
+    permission: "everyone",
+  },
+  {
+    command: "!dw help [command]",
+    usage: "!dw help [command]",
+    description: "Explain one command with an example (always on)",
+    permission: "everyone",
+  },
+  {
+    command: "!dw commands",
+    usage: "!dw commands",
+    description: "Link to the full command list (always on)",
+    permission: "everyone",
+  },
+  {
+    command: "!dwhelp",
+    usage: "!dwhelp",
+    description: "Link to the full command list (always on)",
+    permission: "everyone",
+  },
+  {
+    command: "!dwcommands",
+    usage: "!dwcommands",
+    description: "Same as !dwhelp (always on)",
+    permission: "everyone",
+  },
+];
+
+/** Reference rows for the Task tab: the task commands, then the always-on meta commands. */
 export const taskCommands: CommandRow[] = [
   { command: "!task", usage: "!task [task]", description: "Add a task", permission: "everyone" },
   {
@@ -58,13 +96,19 @@ export const taskCommands: CommandRow[] = [
     description: "Finish the current task and start the next",
     permission: "everyone",
   },
-  { command: "!help", usage: "!help", description: "Show help in chat", permission: "everyone" },
+  {
+    command: "!help",
+    usage: "!help",
+    description: "Starter guide for viewers (your Help reply)",
+    permission: "everyone",
+  },
   {
     command: "!clear",
     usage: "!clear all/done/@user",
     description: "Clear tasks",
     permission: "mods",
   },
+  ...metaCommands,
 ];
 
 /** Reference rows for the Timer tab. Every timer command is mod-only. */

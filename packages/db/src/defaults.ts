@@ -73,7 +73,9 @@ export const DEFAULT_TASK_MESSAGES = {
   clearedAll: "Cleared every task.",
   clearedDone: "Cleared the finished tasks.",
   nextNoContent: "What's next, {user}? Try !next [task].",
-  help: "{user}, commands: !task, !done, !edit, !remove, !focus, !check, !today, !next. Full list: !dwhelp",
+  // The viewer starter guide. Its three steps match STARTER_STEPS in
+  // packages/api/src/bot/viewer-help.ts (the built-in `!dw help` guide); a test pins it.
+  help: "{user}, here's how it works: 1) Type !task and what you're working on, like !task read 10 pages. 2) Work along with the stream. 3) Type !done when you finish. Need more? Type !dw help",
 };
 
 /**
@@ -162,7 +164,10 @@ export const LEGACY_TASK_MESSAGES: Record<keyof typeof DEFAULT_TASK_MESSAGES, re
   clearedAll: [],
   clearedDone: [],
   nextNoContent: ["Don't leave the pack hanging! Try !next [task] {user}"],
-  help: ["{user} Join the hunt with !task, !remove, !edit, or !done."],
+  help: [
+    "{user} Join the hunt with !task, !remove, !edit, or !done.",
+    "{user}, commands: !task, !done, !edit, !remove, !focus, !check, !today, !next. Full list: !dwhelp",
+  ],
 };
 
 export const LEGACY_TIMER_MESSAGES: Record<keyof typeof DEFAULT_TIMER_MESSAGES, readonly string[]> =

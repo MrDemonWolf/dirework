@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Viewer help that shows what to type.** `!help` now replies with a 3-step starter guide
+  (add a task with `!task`, work along, finish with `!done`) instead of a list of command
+  names. If you never edited your Help reply, it switches over on its own; your own wording
+  is kept. New always-on `!dw help` posts the same guide even if you reworded `!help`, and
+  `!dw help task` (or any command, or one of your aliases) explains one command in plain
+  words with an example. `!dw commands` works like `!dwcommands`. If task commands are off,
+  the guide says so instead of teaching commands that won't answer. Bot settings lists the
+  `!dw` and `!dwhelp` commands, and the Help reply is now labelled **Viewer starter guide**.
+  Help costs no extra database reads.
 - **Set up streaming checklist.** The dashboard opens with four steps: connect the bot
   account, then add the bot page, the timer overlay and the tasks overlay to OBS. Each OBS
   step hands you its URL (Show / Copy) and an **I added it to OBS** button; DireWork never

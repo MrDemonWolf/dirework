@@ -5,6 +5,14 @@ description: All available Twitch chat commands
 
 Once you've connected a [bot account](/docs/twitch-oauth#step-5-connect-the-bot-account), viewers can interact with DireWork through Twitch chat commands.
 
+<Callout type="info" title="New to the stream? (for viewers)">
+  1. Type `!task` and what you're working on, like `!task read 10 pages`.
+  2. Work along with the stream.
+  3. Type `!done` when you finish.
+
+  Stuck on a command? Type `!dw help` and its name, like `!dw help done`.
+</Callout>
+
 <Callout>
   **The bot listens while its page is open.** Copy the bot page URL from
   **Dashboard → Bot** and add it to OBS as a browser source (or keep it in a pinned
@@ -26,7 +34,7 @@ Once you've connected a [bot account](/docs/twitch-oauth#step-5-connect-the-bot-
 | `!check @user` | Show another user's active task |
 | `!today` | Show your active task, next two tasks (with their numbers), and how many more are queued |
 | `!next <text>` | Complete your active task and start a new one |
-| `!help` | Show available commands in chat |
+| `!help` | Post the 3-step starter guide (the streamer can reword it) |
 
 ## Task commands (broadcaster / mods)
 
@@ -75,6 +83,9 @@ everything else, they stay silent while the bot is muted).
 
 | Command | Description |
 | --- | --- |
+| `!dw` or `!dw help` | Posts the built-in 3-step starter guide. It can't be reworded, so it still works if the streamer customized `!help`. If task commands are off, it says so instead |
+| `!dw help <command>` | Explains one command in plain words with an example, like `!dw help task`. Takes `task`, `!task`, any capitalization, or one of the streamer's aliases; mod-only commands are marked "(mods only)". `!dw task` works too |
+| `!dw commands` | Same as `!dwhelp` |
 | `!dwhelp` | Posts a link to this commands reference page — or, if no docs URL is configured, an inline list of the available commands |
 | `!dwcommands` | Same as `!dwhelp` |
 
@@ -94,7 +105,7 @@ When you add your first task with `!task`, it automatically becomes your **activ
 
 Broadcasters can remap command names in **Bot Settings** (`/dashboard/bot`). For example, you could set `add` to map to `task`, so viewers can use `!add` instead of `!task`.
 
-An alias can point at any task or timer command (`task`, `done`, `edit`, `remove`, `focus`, `check`, `today`, `next`, `help`, `clear`, `timer`) — not the meta or moderation commands (`!dwhelp`, `!dwcommands`, `!mute`, `!unmute`, `!block`, `!unblock`). Each alias and target is a single command name with no arguments, so `!ts` → `!timer start` is not supported. Aliases can't reuse a built-in command name, so the built-in commands always keep working regardless of your aliases.
+An alias can point at any task or timer command (`task`, `done`, `edit`, `remove`, `focus`, `check`, `today`, `next`, `help`, `clear`, `timer`) — not the meta or moderation commands (`!dw`, `!dwhelp`, `!dwcommands`, `!mute`, `!unmute`, `!block`, `!unblock`). Each alias and target is a single command name with no arguments, so `!ts` → `!timer start` is not supported. Aliases can't reuse a built-in command name, so the built-in commands always keep working regardless of your aliases.
 
 To save requests on Cloudflare's free plan, the bot page only forwards chat lines that start with a DireWork command or one of your aliases; other bots' commands (`!lurk`, `!so`) never leave the page. An open bot page picks up **new aliases** within an hour; reload the bot page (or refresh the OBS browser source) to use them right away.
 
@@ -127,7 +138,7 @@ All bot response messages are customizable from the **Bot Settings** page (`/das
 | Cleared All | `Cleared every task.` | none |
 | Cleared Done | `Cleared the finished tasks.` | none |
 | Next No Content | `What's next, {user}? Try !next [task].` | `{user}` |
-| Help | `{user}, commands: !task, !done, !edit, !remove, !focus, !check, !today, !next. Full list: !dwhelp` | `{user}` |
+| Viewer starter guide (`!help`) | `{user}, here's how it works: 1) Type !task and what you're working on, like !task read 10 pages. 2) Work along with the stream. 3) Type !done when you finish. Need more? Type !dw help` | `{user}` |
 
 If you never edited a reply, your bot picks up new default wording automatically when you update DireWork. Replies you customized are never touched; use **Reset to default** on the Bot settings page to get the stock wording back.
 
