@@ -3,7 +3,7 @@
 // Sticky top bar for the (app) route group (rendered by app/(app)/layout.tsx): logo, the
 // dashboard nav (desktop links + mobile dropdown), theme toggle, and the account menu.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { Bot, LayoutDashboard, type LucideIcon, Menu, Palette, X } from "lucide-react";
@@ -41,6 +41,27 @@ export default function Header() {
   const pathname = usePathname();
   const { data: session } = authClient.useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Close the mobile menu whenever the route changes (back/forward, a link
+  // elsewhere on the page), not only when one of its own links is tapped.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the trigger, not an input
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  // Escape closes the open menu and hands focus back to the hamburger, so a
+  // keyboard user is never left focused on a link that just disappeared.
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setMobileMenuOpen(false);
+      menuButtonRef.current?.focus();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [mobileMenuOpen]);
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-background/60 backdrop-blur-2xl backdrop-saturate-150">
@@ -113,6 +134,7 @@ export default function Header() {
           {/* Mobile hamburger */}
           {session && (
             <Button
+              ref={menuButtonRef}
               variant="ghost"
               size="icon"
               // The ::after inset enlarges the touch target past the visible icon button.
@@ -120,6 +142,7 @@ export default function Header() {
               onClick={() => setMobileMenuOpen((v) => !v)}
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
               aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-nav"
             >
               {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </Button>
@@ -129,7 +152,11 @@ export default function Header() {
 
       {/* Mobile nav dropdown */}
       {session && mobileMenuOpen && (
-        <nav className="animate-[console-rise_0.2s_cubic-bezier(0.22,1,0.36,1)_both] border-t border-border/40 bg-background/80 backdrop-blur-2xl md:hidden">
+        <nav
+          id="mobile-nav"
+          aria-label="Mobile"
+          className="animate-[console-rise_0.2s_cubic-bezier(0.22,1,0.36,1)_both] border-t border-border/40 bg-background/80 backdrop-blur-2xl md:hidden"
+        >
           <div className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3">
             {navItems.map((item) => {
               const isActive =
@@ -144,7 +171,7 @@ export default function Header() {
                   onClick={() => setMobileMenuOpen(false)}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                    "flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                     isActive
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",

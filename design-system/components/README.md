@@ -18,3 +18,15 @@ Shared UI primitives for Dirework's marketing + docs surfaces. These are impleme
 - **Two themes, always.** Every component must read in light and dark. Test both.
 - **Reduced motion.** All animated primitives honor `prefers-reduced-motion: reduce`.
 - **On brand.** Cerulean brand (#00ACED), Montserrat display, IBM Plex Sans body. Twitch purple is a *partner* color, used only where Twitch is referenced.
+
+## Focus
+
+Hover and keyboard focus are separate signals: hover (and arrow-key highlight) paints a fill, and only keyboard focus (`focus-visible`) draws a ring. Never use `focus:` outlines, which also fire on mouse click and read as a boxed hover.
+
+| Surface | Recipe |
+|---|---|
+| Menu and list items (dropdown items, select options) | `data-highlighted:bg-accent` fill + `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset` (shared as `menuItemRecipe` in `apps/web/src/components/ui/dropdown-menu.tsx`) |
+| Standalone controls and links | `focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none` |
+| Filled cards (a ring that must clear the fill) | the standalone recipe + `ring-offset-2 ring-offset-background` |
+
+The inset ring keeps a menu row's focus indicator inside its 10px radius, which nests inside the popup's `rounded-2xl` padding. Button, input, tabs, section-group and theme-card still carry their own focus styles and migrate to these recipes in a later pass.

@@ -282,7 +282,7 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                       className="overflow-hidden rounded-xl border border-border/40 bg-muted/20"
                     >
                       {/* Author header — Twitch color only ever tints the dot */}
-                      <div className="flex items-center gap-2 border-b border-border/40 bg-muted/40 px-3 py-2">
+                      <div className="flex items-center gap-2.5 border-b border-border/40 bg-muted/40 px-3 py-2">
                         <span
                           aria-hidden
                           className="size-2 shrink-0 rounded-full"
@@ -307,9 +307,12 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                           return (
                             <li
                               key={task.id}
+                              data-active={isActive || undefined}
+                              // The active row reads from a soft primary tint plus the
+                              // "Active" chip — no coloured edge bar.
                               className={cn(
-                                "group flex items-center gap-3 px-3 py-2 transition-colors hover:bg-muted/40",
-                                isActive && "-ml-px border-l-2 border-l-primary bg-primary/5",
+                                "group flex items-center gap-3 px-3 py-2 transition-colors",
+                                isActive ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/40",
                               )}
                             >
                               {/* Checkbox */}

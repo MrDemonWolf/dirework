@@ -94,14 +94,6 @@ export default function UserMenu() {
         <ChevronDown className="size-3.5 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56 bg-card" align="end">
-        {/* Identity header — non-interactive */}
-        <div className="flex items-center gap-3 px-2 py-2">
-          <Avatar image={session.user.image} name={session.user.name} className="h-9 w-9" />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{session.user.name}</p>
-          </div>
-        </div>
-        <DropdownMenuSeparator />
         {menuLinks.map((item) => (
           <DropdownMenuItem key={item.href} nativeButton={false} render={<Link href={item.href} />}>
             <item.icon className="size-3.5" />
