@@ -33,6 +33,8 @@ import { createBotSession, type BotActivityKind, type BotPhase } from "@/lib/bot
 import { TwitchIrcClient, type IrcStatus } from "@/lib/irc-client";
 import { publicTrpc } from "@/utils/trpc";
 
+import { DashboardBotLink } from "./dashboard-bot-link";
+
 /** Lines kept in the activity feed. */
 const MAX_ACTIVITY = 20;
 
@@ -75,21 +77,6 @@ function formatUptime(ms: number): string {
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
   return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
-}
-
-/**
- * "Dashboard → Bot" as a real link. A plain anchor, not next/link: it must never prefetch
- * the dashboard from an OBS source, and OBS ignores clicks anyway.
- */
-function DashboardBotLink() {
-  return (
-    <a
-      href="/dashboard/bot"
-      className="text-console-fg underline underline-offset-2 hover:text-console-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
-    >
-      Dashboard → Bot
-    </a>
-  );
 }
 
 function StatCell({
@@ -157,7 +144,7 @@ export function BotConsole() {
     if (!token) return;
 
     const pushActivity = (kind: BotActivityKind, text: string) => {
-      if (kind === "error") setChatErrorState(noteChatError(text, Date.now()));
+      if (kind === "error") setChatErrorState((prev) => noteChatError(prev, text, Date.now()));
       const line: ActivityLine = {
         id: ++lineIdRef.current,
         time: timeStamp(),

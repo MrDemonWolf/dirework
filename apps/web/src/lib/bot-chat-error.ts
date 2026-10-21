@@ -22,8 +22,30 @@ export interface ChatErrorState {
   replyAt: number | null;
 }
 
-/** A new error replaces the last one and restarts the clear window. */
-export function noteChatError(message: string, now: number): ChatErrorState {
+/**
+ * Errors whose cause outlives the IRC socket: a ban, timeout or chat mode belongs to the
+ * channel, and a failing DireWork API has nothing to do with IRC. Every other error is about
+ * the connection itself, which a fresh connect supersedes.
+ */
+function isDurable(message: string): boolean {
+  return isChatRejection(message) || isIngestError(message);
+}
+
+/**
+ * A new error replaces the last one and restarts the clear window, except that a connection
+ * error never hides a durable error still showing: the watchdog's "went silent" would
+ * otherwise replace a ban, and the reconnect that follows would clear it, turning the header
+ * green over a bot that still can't post. The connection error stays in the activity log, and
+ * the header's IRC status already says it is reconnecting.
+ */
+export function noteChatError(
+  state: ChatErrorState | null,
+  message: string,
+  now: number,
+): ChatErrorState {
+  if (state && !isDurable(message) && isDurable(state.message)) {
+    if (currentChatError(state, now) !== null) return state;
+  }
   return { message, at: now, replyAt: null };
 }
 
@@ -41,7 +63,7 @@ export function noteChatReply(state: ChatErrorState | null, now: number): ChatEr
  * or is still dropping commands.
  */
 export function noteChatConnected(state: ChatErrorState | null): ChatErrorState | null {
-  return state && (isChatRejection(state.message) || isIngestError(state.message)) ? state : null;
+  return state && isDurable(state.message) ? state : null;
 }
 
 /** The ingest queue drained after a command reached DireWork: an ingest error is over. */
