@@ -2,11 +2,22 @@ import { describe, expect, it } from "vitest";
 
 import { updateBotSettingsInput } from "@dirework/api/routers/input-schemas";
 
-import { aliasesToRows, rowsToAliases, type AliasRow } from "../alias-rows";
+import { aliasesToRows, nextAliasRowId, rowsToAliases, type AliasRow } from "../alias-rows";
 
 const row = (id: string, key: string, value: string): AliasRow => ({ id, key, value });
 
 describe("aliasesToRows", () => {
+  it("derives the same ids on every call, so SSR and hydration agree", () => {
+    const first = aliasesToRows({ t: "task", d: "done" });
+    const second = aliasesToRows({ t: "task", d: "done" });
+    expect(second.map((row) => row.id)).toEqual(first.map((row) => row.id));
+  });
+
+  it("never reuses an id a newly added row could get", () => {
+    const saved = aliasesToRows({ t: "task" }).map((row) => row.id);
+    expect(saved).not.toContain(nextAliasRowId());
+  });
+
   it("gives every alias a distinct row id", () => {
     const rows = aliasesToRows({ t: "task", d: "done" });
     expect(rows.map(({ key, value }) => [key, value])).toEqual([

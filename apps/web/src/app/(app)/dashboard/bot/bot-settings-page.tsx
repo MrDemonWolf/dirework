@@ -5,12 +5,14 @@
 // save together in one owner-only mutation; the bot OAuth flow returns here with `?bot=`
 // status params.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { inferRouterOutputs } from "@trpc/server";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { botOAuthErrorMessage } from "@dirework/api/config-shared";
+import type { AppRouter } from "@dirework/api/routers/index";
 import { updateBotSettingsInput } from "@dirework/api/routers/input-schemas";
 
 import type { TaskMessagesConfig, TimerMessagesConfig } from "@/lib/config-types";
@@ -46,14 +48,19 @@ interface BotSettingsDraft {
   aliasRows: AliasRow[];
 }
 
-/** Pre-load placeholder only; replaced by the stored bot config once `config.get` resolves. */
-const INITIAL_DRAFT: BotSettingsDraft = {
-  taskCommandsEnabled: true,
-  timerCommandsEnabled: true,
-  task: DEFAULT_TASK_MESSAGES,
-  timer: DEFAULT_TIMER_MESSAGES,
-  aliasRows: [],
-};
+type ConfigData = inferRouterOutputs<AppRouter>["config"]["get"];
+type MeData = NonNullable<inferRouterOutputs<AppRouter>["user"]["me"]>;
+
+/** The stored bot config as the editors hold it (defaults for a row with no values yet). */
+function draftFromConfig(bot: ConfigData["botConfig"] | null | undefined): BotSettingsDraft {
+  return {
+    taskCommandsEnabled: bot?.taskCommandsEnabled ?? true,
+    timerCommandsEnabled: bot?.timerCommandsEnabled ?? true,
+    task: bot?.task ?? DEFAULT_TASK_MESSAGES,
+    timer: bot?.timer ?? DEFAULT_TIMER_MESSAGES,
+    aliasRows: aliasesToRows(bot?.commandAliases ?? {}),
+  };
+}
 
 /** Cheap slice compare for the per-tab dirty indicator dots (spec §5.4). */
 function shallowEqualRecords<T extends object>(a: T, b: T): boolean {
@@ -62,13 +69,9 @@ function shallowEqualRecords<T extends object>(a: T, b: T): boolean {
   return keys.every((key) => a[key] === b[key]);
 }
 
-/**
- * Page body. Holds one draft/saved pair (`BotSettingsDraft`) so per-tab dirty dots, the
- * unsaved-changes guard and the Save bar all derive from the same comparison.
- */
+/** Loads both queries, handles the bot OAuth return, then hands the editors their data. */
 export default function BotSettingsPage() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const config = useQuery(trpc.config.get.queryOptions());
   const user = useQuery(trpc.user.me.queryOptions());
@@ -90,29 +93,45 @@ export default function BotSettingsPage() {
     }
   }, [searchParams, router]);
 
+  // Wait for BOTH queries — rendering on config alone flashed a false
+  // "Not connected / Not configured" while the user query was still loading.
+  if (config.isPending || user.isPending) {
+    return <BotSettingsSkeleton />;
+  }
+
+  // Never render the editors over defaults after a failed load: saving them
+  // would overwrite the streamer's real messages and aliases.
+  if (!config.data || !user.data) {
+    const failed = !config.data ? config : user;
+    return (
+      <div className="container mx-auto max-w-content px-4 py-8">
+        <QueryError
+          title="Couldn't load bot settings"
+          onRetry={() => failed.refetch()}
+          retrying={failed.isFetching}
+        />
+      </div>
+    );
+  }
+
+  return <BotSettingsEditor config={config.data} user={user.data} />;
+}
+
+/**
+ * Page body. Holds one draft/saved pair (`BotSettingsDraft`) so per-tab dirty dots, the
+ * unsaved-changes guard and the Save bar all derive from the same comparison.
+ *
+ * Both are seeded in STATE from the config this mounts with (the route prefetches it on the
+ * server, so it is in the cache on first render): the saved values land in the server HTML
+ * and no frame of defaults is painted first. A refetch (e.g. after Save) re-renders with new
+ * props but touches no state, so edits in progress survive it.
+ */
+function BotSettingsEditor({ config, user }: { config: ConfigData; user: MeData }) {
+  const queryClient = useQueryClient();
+
   // Working draft + last-saved snapshot (for reset and the dirty indicators)
-  const [draft, setDraft] = useState<BotSettingsDraft>(INITIAL_DRAFT);
-  const [saved, setSaved] = useState<BotSettingsDraft>(INITIAL_DRAFT);
-
-  // Once config loads, extract values — only the first time, so a refetch (e.g. after Save)
-  // never overwrites edits in progress.
-  const initializedRef = useRef(false);
-  useEffect(() => {
-    if (!config.data) return;
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-
-    const bot = config.data.botConfig;
-    const loaded: BotSettingsDraft = {
-      taskCommandsEnabled: bot?.taskCommandsEnabled ?? true,
-      timerCommandsEnabled: bot?.timerCommandsEnabled ?? true,
-      task: bot?.task ?? DEFAULT_TASK_MESSAGES,
-      timer: bot?.timer ?? DEFAULT_TIMER_MESSAGES,
-      aliasRows: aliasesToRows(bot?.commandAliases ?? {}),
-    };
-    setDraft(loaded);
-    setSaved(loaded);
-  }, [config.data]);
+  const [draft, setDraft] = useState<BotSettingsDraft>(() => draftFromConfig(config.botConfig));
+  const [saved, setSaved] = useState<BotSettingsDraft>(draft);
 
   const disconnectBot = useMutation({
     ...trpc.user.disconnectBot.mutationOptions(),
@@ -206,32 +225,11 @@ export default function BotSettingsPage() {
   // comparisons as the tab dots, so reverting an edit clears them all.
   const hasUnsaved = taskDirty || timerDirty || aliasDirty;
 
-  // Wait for BOTH queries — rendering on config alone flashed a false
-  // "Not connected / Not configured" while the user query was still loading.
-  if (config.isPending || user.isPending) {
-    return <BotSettingsSkeleton />;
-  }
-
-  // Never render the editors over defaults after a failed load: saving them
-  // would overwrite the streamer's real messages and aliases.
-  if (!config.data || !user.data) {
-    const failed = !config.data ? config : user;
-    return (
-      <div className="container mx-auto max-w-content px-4 py-8">
-        <QueryError
-          title="Couldn't load bot settings"
-          onRetry={() => failed.refetch()}
-          retrying={failed.isFetching}
-        />
-      </div>
-    );
-  }
-
-  const botAccount = user.data.botAccount ?? null;
+  const botAccount = user.botAccount ?? null;
   // Reply previews read like a line in the streamer's own chat, spoken by the bot account.
   const preview = {
     speaker: botAccount?.username ?? "bot",
-    vars: previewVars(user.data.name || "streamer"),
+    vars: previewVars(user.name || "streamer"),
   };
 
   return (
@@ -248,7 +246,7 @@ export default function BotSettingsPage() {
       <div className="stagger-reveal space-y-6">
         {/* Mute switch and the Moderation card save on their own (not through the Save bar),
             so both read the live query data, never the draft. */}
-        <BotMuteBar muted={config.data.botConfig.muted} />
+        <BotMuteBar muted={config.botConfig.muted} />
 
         {/* Runtime + identity, side by side on wide screens. */}
         <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
@@ -352,7 +350,7 @@ export default function BotSettingsPage() {
           </CardContent>
         </Card>
 
-        <BlockedViewersCard blockedViewers={config.data.botConfig.blockedViewers} />
+        <BlockedViewersCard blockedViewers={config.botConfig.blockedViewers} />
       </div>
 
       {/* Sticky Save / Reset Bar */}

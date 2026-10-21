@@ -3,11 +3,13 @@
 // Theme Center (/dashboard/styles): preset gallery, timer/task style editors, phase labels, and
 // a live preview. Edits stay local until Save, which persists all three slices in one mutation.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { inferRouterOutputs } from "@trpc/server";
 import { MoreHorizontal, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
+import type { AppRouter } from "@dirework/api/routers/index";
 import { updateStylesInput } from "@dirework/api/routers/input-schemas";
 
 import type {
@@ -46,24 +48,62 @@ import { StylePreviewPanel } from "@/components/theme-center/style-preview-panel
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import { trpc } from "@/utils/trpc";
 
-/** Pre-load placeholder only; real values replace it once `config.get` resolves. */
+type ConfigData = inferRouterOutputs<AppRouter>["config"]["get"];
+
+/** Fallback for a config row with no labels yet (defaults mirror the other two slices). */
 const defaultPhaseLabels: PhaseLabelsConfig = DEFAULT_PHASE_LABELS;
 
 /** The preset a fresh install starts on ("Reset theme to Default"). */
 const DEFAULT_PRESET = themePresets.find((preset) => preset.id === "default")!;
 
+/** Loads the config, then hands the editors a snapshot to seed from. */
+export default function StylesPage() {
+  const config = useQuery(trpc.config.get.queryOptions());
+
+  if (config.isPending) {
+    return <StylesSkeleton />;
+  }
+
+  // Never render the editors over defaults after a failed load: saving them
+  // would overwrite the streamer's real theme.
+  if (!config.data) {
+    return (
+      <div className="container mx-auto max-w-content px-4 py-8">
+        <QueryError
+          title="Couldn't load your styles"
+          onRetry={() => config.refetch()}
+          retrying={config.isFetching}
+        />
+      </div>
+    );
+  }
+
+  return <StylesEditor config={config.data} />;
+}
+
 /**
  * Keeps a working copy and a last-saved snapshot of each slice; dirty state is derived by deep
  * comparison. Applying a preset over unsaved custom edits asks for confirmation first.
+ *
+ * Both copies are seeded in STATE from the config this mounts with, never copied in from a
+ * later render: the route prefetches `config.get` on the server, so the data is already in
+ * the cache when this first renders, and seeding here puts the saved theme in the server
+ * HTML instead of painting (and serving) a frame of defaults that an effect then swaps out
+ * — an edit landing during that swap was appended to the saved value. A refetch (the
+ * post-save invalidation) re-renders with new props but touches no state, so edits in
+ * progress survive it.
  */
-export default function StylesPage() {
+function StylesEditor({ config }: { config: ConfigData }) {
   const queryClient = useQueryClient();
-  const config = useQuery(trpc.config.get.queryOptions());
+
+  const loadedTimer = config.timerStyles ?? defaultTimerStyles;
+  const loadedTask = config.taskStyles ?? defaultTaskStyles;
+  const loadedLabels = config.timerConfig?.labels ?? defaultPhaseLabels;
 
   // Working state — what the user sees and edits
-  const [timerStyles, setTimerStyles] = useState<TimerStylesConfig>(defaultTimerStyles);
-  const [taskStyles, setTaskStyles] = useState<TaskStylesConfig>(defaultTaskStyles);
-  const [phaseLabels, setPhaseLabels] = useState<PhaseLabelsConfig>(defaultPhaseLabels);
+  const [timerStyles, setTimerStyles] = useState<TimerStylesConfig>(loadedTimer);
+  const [taskStyles, setTaskStyles] = useState<TaskStylesConfig>(loadedTask);
+  const [phaseLabels, setPhaseLabels] = useState<PhaseLabelsConfig>(loadedLabels);
 
   // Preset apply held for confirmation while custom edits are unsaved
   const [pendingTheme, setPendingTheme] = useState<ThemePreset | null>(null);
@@ -71,29 +111,9 @@ export default function StylesPage() {
   const [confirmDefault, setConfirmDefault] = useState(false);
 
   // Saved state — what's persisted in the database
-  const [savedTimerStyles, setSavedTimerStyles] = useState<TimerStylesConfig>(defaultTimerStyles);
-  const [savedTaskStyles, setSavedTaskStyles] = useState<TaskStylesConfig>(defaultTaskStyles);
-  const [savedPhaseLabels, setSavedPhaseLabels] = useState<PhaseLabelsConfig>(defaultPhaseLabels);
-
-  // Once config loads, initialize — skip on subsequent refetches, so the post-save
-  // invalidation (or any refetch) never clobbers edits in progress.
-  const initializedRef = useRef(false);
-  useEffect(() => {
-    if (!config.data) return;
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-
-    const loadedTimer = config.data.timerStyles ?? defaultTimerStyles;
-    const loadedTask = config.data.taskStyles ?? defaultTaskStyles;
-    const loadedLabels = config.data.timerConfig?.labels ?? defaultPhaseLabels;
-
-    setTimerStyles(loadedTimer);
-    setTaskStyles(loadedTask);
-    setPhaseLabels(loadedLabels);
-    setSavedTimerStyles(loadedTimer);
-    setSavedTaskStyles(loadedTask);
-    setSavedPhaseLabels(loadedLabels);
-  }, [config.data]);
+  const [savedTimerStyles, setSavedTimerStyles] = useState<TimerStylesConfig>(loadedTimer);
+  const [savedTaskStyles, setSavedTaskStyles] = useState<TaskStylesConfig>(loadedTask);
+  const [savedPhaseLabels, setSavedPhaseLabels] = useState<PhaseLabelsConfig>(loadedLabels);
 
   // Derived, never tracked by hand: reverting an edit clears the unsaved
   // state, and editing back to a preset's exact values re-highlights it.
@@ -164,24 +184,6 @@ export default function StylesPage() {
       // onError already surfaced the specifics; nothing persisted.
     }
   }, [blockedReason, timerStyles, taskStyles, phaseLabels, saveStylesMutation]);
-
-  if (config.isPending) {
-    return <StylesSkeleton />;
-  }
-
-  // Never render the editors over defaults after a failed load: saving them
-  // would overwrite the streamer's real theme.
-  if (!config.data) {
-    return (
-      <div className="container mx-auto max-w-content px-4 py-8">
-        <QueryError
-          title="Couldn't load your styles"
-          onRetry={() => config.refetch()}
-          retrying={config.isFetching}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className={cn("container mx-auto max-w-content px-4 py-8", hasUnsaved && "pb-24")}>
@@ -260,7 +262,7 @@ export default function StylesPage() {
               timerStyles={timerStyles}
               taskStyles={taskStyles}
               phaseLabels={phaseLabels}
-              showHours={config.data?.timerConfig?.showHours ?? false}
+              showHours={config.timerConfig?.showHours ?? false}
               dirty={hasUnsaved}
             />
           </div>

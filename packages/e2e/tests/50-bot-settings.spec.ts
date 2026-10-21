@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-import { signIn } from "./helpers";
+import { signIn, waitForHydration } from "./helpers";
 
 test("edits a reply, previews it as chat would show it, saves, and resets it", async ({ page }) => {
   await signIn(page);
   await page.goto("/dashboard/bot");
-  await expect(page.getByRole("heading", { name: "Bot settings" })).toBeVisible();
+  await waitForHydration(page);
 
   // A per-attempt stamp keeps this idempotent under CI retries: a previous attempt may have
   // saved its own value, and the Save bar only appears when the draft differs from it.

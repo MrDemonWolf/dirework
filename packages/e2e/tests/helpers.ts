@@ -53,6 +53,21 @@ export function watchHydration(page: Page): void {
 }
 
 /**
+ * Wait until React has hydrated the page, so the next fill or click reaches a React handler.
+ * The server HTML already carries the editors with their saved values (the routes prefetch
+ * their data), so a locator can resolve — and type — before React attaches: that input event
+ * is lost, and a controlled value React then writes resets the caret, so a `fill` straddling
+ * it appends instead of replacing. Call it after `page.goto` and before the first edit.
+ */
+export async function waitForHydration(page: Page): Promise<void> {
+  // React's streamed segments (`<div hidden id="S:n">`) are gone once their reveal ran.
+  await page.waitForFunction(() => !document.querySelector('body > div[hidden][id^="S:"]'));
+  // The header's theme switch only mounts in an effect (a placeholder stands in before), so
+  // its presence means the effects of the hydrated tree have run.
+  await expect(page.getByRole("switch", { name: "Toggle dark mode" })).toBeVisible();
+}
+
+/**
  * Assert the page hydrated its server HTML instead of throwing it away. A production React
  * build bails out of hydration SILENTLY when an update reaches a streamed Suspense boundary
  * before its reveal (it just client-renders the boundary), so the console alone can't catch
@@ -61,11 +76,9 @@ export function watchHydration(page: Page): void {
  * copy is also how the dashboard briefly existed twice in the DOM.
  */
 export async function expectNoHydrationErrors(page: Page): Promise<void> {
-  // React's streamed segments (`<div hidden id="S:n">`) are gone once their reveal ran.
-  await page.waitForFunction(() => !document.querySelector('body > div[hidden][id^="S:"]'));
   // The header's theme switch mounts in the same effect flush that used to trigger the
   // bail-out, so by then the outcome is decided.
-  await expect(page.getByRole("switch", { name: "Toggle dark mode" })).toBeVisible();
+  await waitForHydration(page);
   const clientIds = await page.evaluate(() =>
     [...document.querySelectorAll('main [id^="base-ui-"]')]
       .map((element) => element.id)

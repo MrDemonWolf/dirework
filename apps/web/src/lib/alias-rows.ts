@@ -21,15 +21,23 @@ export interface AliasRowIssue {
   reason: AliasIssueReason;
 }
 
+/** Ids for rows the owner adds in this browser. Never used for saved rows (see below). */
 let aliasIdCounter = 0;
 export function nextAliasRowId(): string {
   aliasIdCounter += 1;
   return `alias-row-${aliasIdCounter}`;
 }
 
+/**
+ * Saved aliases as rows. The ids are derived from position, not the module counter: the
+ * Bot settings editor seeds these rows during SSR AND during hydration, and a counter that
+ * a reused Worker isolate (or an earlier client navigation) already advanced would give the
+ * two renders different input ids — a hydration mismatch. The `alias-saved-` prefix can't
+ * collide with `nextAliasRowId`'s.
+ */
 export function aliasesToRows(aliases: Record<string, string>): AliasRow[] {
-  return Object.entries(aliases).map(([key, value]) => ({
-    id: nextAliasRowId(),
+  return Object.entries(aliases).map(([key, value], index) => ({
+    id: `alias-saved-${index}`,
     key,
     value,
   }));

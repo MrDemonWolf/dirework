@@ -39,6 +39,21 @@ describe("dashboard SSR hydration", () => {
     },
   );
 
+  it.each([
+    "app/(app)/dashboard/styles/styles-page.tsx",
+    "app/(app)/dashboard/bot/bot-settings-page.tsx",
+  ])(
+    "%s seeds its editors from the hydrated config in state, not in a post-mount effect",
+    (file) => {
+      const page = read(file);
+      // The effect-copy pattern painted (and served) defaults first, then swapped in the
+      // saved values after hydration — an edit landing during the swap was appended to them.
+      expect(page).not.toContain("initializedRef");
+      expect(page).not.toMatch(/useEffect\(\(\) => \{\s*if \(!config\.data\) return;/);
+      expect(page).toMatch(/return <\w+Editor config=\{config\.data\}/);
+    },
+  );
+
   it("keeps hydrated data fresh on mount via the client default staleTime", () => {
     expect(read("utils/trpc.ts")).toContain("staleTime: QUERY_FRESH_MS");
   });
