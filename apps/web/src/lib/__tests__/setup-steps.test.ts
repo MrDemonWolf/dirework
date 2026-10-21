@@ -274,3 +274,16 @@ describe("shouldRefreshMeAfterConfirm", () => {
     expect(shouldRefreshMeAfterConfirm({ refreshInFlight: false, failed: true })).toBe(true);
   });
 });
+
+// The success handler must merge only the confirmed step: a newer user.me (e.g. after an
+// overlay URL reset) must keep its other flags.
+describe("confirmation success merges one flag", () => {
+  it("the component patches a single step from the response instead of replacing setup", () => {
+    const source = readFileSync(
+      path.join(__dirname, "../../components/setup-checklist.tsx"),
+      "utf8",
+    );
+    expect(source).toContain("withSetupStep(old, step, setup[step])");
+    expect(source).not.toContain("{ ...old, setup }");
+  });
+});

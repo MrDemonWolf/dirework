@@ -300,8 +300,12 @@ export function SetupChecklist({
         queryClient.setQueryData(meKey, (old) => (old ? withSetupStep(old, step, confirmed) : old));
         return { previousConfirmed, refreshInFlight };
       },
-      onSuccess: ({ setup }) => {
-        queryClient.setQueryData(meKey, (old) => (old ? { ...old, setup } : old));
+      onSuccess: ({ setup }, { step }) => {
+        // Merge only the flag this click changed: a later overlay URL reset may have landed
+        // a newer `setup` in the meantime, and that must win for every other step.
+        queryClient.setQueryData(meKey, (old) =>
+          old ? withSetupStep(old, step, setup[step]) : old,
+        );
       },
       onError: (err, { step }, context) => {
         const previousConfirmed = context?.previousConfirmed;
