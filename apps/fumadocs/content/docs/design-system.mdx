@@ -119,11 +119,12 @@ it reads) frontmatter, then Purpose, Anatomy, Props and variants, States, Access
 `README.md` maps each page to the components it renders.
 
 `apps/web/src/lib/__tests__/spec-catalog.test.ts` keeps the catalog honest: every `source:`
-must exist, every component file must be claimed by exactly one spec, every spec must be
-listed here and in the README, and the "Pinned values" tables in `timer-ring.md` and
-`task-card.md` must equal `DEFAULT_TIMER_STYLES` / `DEFAULT_TASK_STYLES` and the
-`lib/overlay-view.ts` constants. Renaming a component or changing an overlay default fails
-CI until its spec moves with it.
+must exist, every component file must be claimed by exactly one spec, every spec must have a
+row below whose Source matches its `source:`, sit in one README catalog group and in the
+README page map, and the "Pinned values" tables in `timer-ring.md` and `task-card.md` must
+quote every leaf of `DEFAULT_TIMER_STYLES` / `DEFAULT_TASK_STYLES` and every
+`lib/overlay-view.ts` constant. Renaming a component or changing or adding an overlay
+default fails CI until its spec moves with it.
 
 Sources are relative to `apps/web/src/components/` unless they start with `apps/`.
 

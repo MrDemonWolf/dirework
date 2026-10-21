@@ -6,9 +6,10 @@ import { DEFAULT_TASK_STYLES, DEFAULT_TIMER_STYLES } from "@dirework/api/config-
 import * as overlayView from "@/lib/overlay-view";
 
 // Source-level contract for design-system/components: one spec per component,
-// each pointing at a file that exists, and the overlay specs quoting the real
-// defaults. A renamed component, a new component without a spec, or a changed
-// overlay default fails here until the spec moves with it.
+// each pointing at a file that exists, listed row-for-row in the README and the
+// docs page, and the overlay specs quoting every real default. A renamed
+// component, a new component without a spec, a stale catalog row, or a changed or
+// added overlay default fails here until the docs move with it.
 
 const repoRoot = path.resolve(__dirname, "../../../../..");
 const specDir = path.join(repoRoot, "design-system/components");
@@ -108,11 +109,81 @@ function valueAt(root: unknown, dotted: string): unknown {
     .reduce<unknown>((node, key) => (node as Record<string, unknown> | undefined)?.[key], root);
 }
 
+const PINNED_OBJECTS: Record<string, object> = { DEFAULT_TIMER_STYLES, DEFAULT_TASK_STYLES };
+
 const PINNED_SOURCES: Record<string, (key: string) => unknown> = {
   DEFAULT_TIMER_STYLES: (key) => valueAt(DEFAULT_TIMER_STYLES, key),
   DEFAULT_TASK_STYLES: (key) => valueAt(DEFAULT_TASK_STYLES, key),
   "lib/overlay-view.ts": (key) => (overlayView as Record<string, unknown>)[key],
 };
+
+/**
+ * Each overlay spec and the defaults object its renderer draws. The required pinned
+ * rows are derived, not listed: every leaf of the object, so a changed or added
+ * default fails until the spec quotes it. No leaf is excluded — `timer-display.tsx`
+ * and `task-list-display.tsx` read every one (layout, colors, fonts, display
+ * toggles, scroll speed).
+ */
+const OVERLAY_SPECS: Record<string, keyof typeof PINNED_OBJECTS> = {
+  "timer-ring.md": "DEFAULT_TIMER_STYLES",
+  "task-card.md": "DEFAULT_TASK_STYLES",
+};
+
+/** Dotted paths of every non-object leaf, e.g. `header.border.radius`. */
+function leafKeys(node: object, prefix = ""): string[] {
+  return Object.entries(node).flatMap(([key, value]) =>
+    value !== null && typeof value === "object"
+      ? leafKeys(value as object, `${prefix}${key}.`)
+      : [`${prefix}${key}`],
+  );
+}
+
+/** The overlay-view tuning constants: every numeric export, sorted. */
+const OVERLAY_VIEW_CONSTANTS = Object.entries(overlayView)
+  .filter(([, value]) => typeof value === "number")
+  .map(([key]) => key)
+  .sort();
+
+const readme = read(path.join(specDir, "README.md"));
+
+/** The README text between two `## ` headings. */
+function readmeSection(from: string, to: string): string {
+  const start = readme.indexOf(`\n${from}\n`);
+  const end = readme.indexOf(`\n${to}\n`, start + 1);
+  expect(start, `README has ${from}`).toBeGreaterThan(-1);
+  expect(end, `README has ${to} after ${from}`).toBeGreaterThan(start);
+  return readme.slice(start, end);
+}
+
+/** Spec files a README section links, in order; a link's text must be its file's stem. */
+function readmeLinks(section: string): string[] {
+  return [...section.matchAll(/\[([^\]]+)\]\(\.\/([^)]+\.md)\)/g)].map(([, text, file]) => {
+    expect(`${text}.md`, `README link text for ${file}`).toBe(file);
+    return file as string;
+  });
+}
+
+/**
+ * The docs page's Spec | Component | Source rows, from the table under "Sources are
+ * relative to…" up to "### Legacy" (whose removed-spec rows are not the catalog).
+ * Sources resolve against `apps/web/src/components/` unless they start with `apps/`.
+ */
+const docsCatalog = (() => {
+  const docs = read(path.join(repoRoot, "apps/fumadocs/content/docs/design-system.mdx"));
+  const start = docs.indexOf("Sources are relative to `apps/web/src/components/`");
+  const end = docs.indexOf("### Legacy", start);
+  const rows = new Map<string, string>();
+  const duplicates: string[] = [];
+  if (start === -1 || end === -1) return { rows, duplicates };
+  for (const [, file, source] of docs
+    .slice(start, end)
+    .matchAll(/^\| `([^`]+\.md)` \| [^|]+ \| `([^`]+)` \|$/gm)) {
+    const full = source?.startsWith("apps/") ? source : `apps/web/src/components/${source}`;
+    if (rows.has(file as string)) duplicates.push(file as string);
+    rows.set(file as string, full);
+  }
+  return { rows, duplicates };
+})();
 
 describe("design-system component spec catalog", () => {
   it("finds the specs and the components", () => {
@@ -164,58 +235,61 @@ describe("design-system component spec catalog", () => {
     expect(shared, "sources claimed by more than one spec").toEqual([]);
   });
 
-  it("lists every spec in the catalog README and the docs page", () => {
-    const readme = read(path.join(specDir, "README.md"));
-    const docs = read(path.join(repoRoot, "apps/fumadocs/content/docs/design-system.mdx"));
-    for (const spec of specs) {
-      expect(readme, `README links ${spec.file}`).toContain(`(./${spec.file})`);
-      expect(docs, `design-system.mdx lists ${spec.file}`).toContain(`\`${spec.file}\``);
-    }
+  it("lists every spec in the docs page with its exact source", () => {
+    const expected = new Map(specs.map((spec) => [spec.file, spec.source]));
+    expect(docsCatalog.duplicates, "specs listed twice in design-system.mdx").toEqual([]);
+    expect(Object.fromEntries(docsCatalog.rows), "design-system.mdx Spec -> Source rows").toEqual(
+      Object.fromEntries(expected),
+    );
   });
 
-  it.each([
-    [
-      "timer-ring.md",
-      [
-        "dimensions.width",
-        "dimensions.height",
-        "background.borderRadius",
-        "ring.width",
-        "ring.gap",
-        "ring.trackOpacity",
-        "fontSizes.label",
-        "fontSizes.time",
-        "fontSizes.cycle",
-        "TIMER_CYCLE_OPACITY",
-      ],
-    ],
-    [
-      "task-card.md",
-      [
-        "header.height",
-        "header.fontSize",
-        "header.padding",
-        "header.border.radius",
-        "task.fontSize",
-        "task.border.radius",
-        "task.marginBottom",
-        "ACTIVE_ROW_TINT_PERCENT",
-        "AUTHOR_HEADER_TINT_PERCENT",
-        "MORE_FOOTER_OPACITY",
-        "AUTHOR_COUNT_OPACITY",
-        "HEADER_COUNT_OPACITY",
-        "TASK_ROW_GAP_PX",
-      ],
-    ],
-  ])("%s quotes the renderer's real defaults", (file, required) => {
-    const rows = pinnedRows(read(path.join(specDir, file)));
-    for (const key of required) expect([...rows.keys()], `${file} pins ${key}`).toContain(key);
-    for (const [key, { source, value }] of rows) {
-      const lookup = PINNED_SOURCES[source];
-      expect(lookup, `${file}: unknown source ${source}`).toBeDefined();
-      const actual = lookup?.(key);
-      expect(actual, `${file}: ${source} has no ${key}`).toBeDefined();
-      expect(value, `${file}: ${key}`).toBe(String(actual));
-    }
+  it("files every spec in exactly one README catalog group", () => {
+    const filed = readmeLinks(readmeSection("## Catalog", "## Principles"));
+    expect([...filed].sort(), "README catalog entries").toEqual(specs.map((spec) => spec.file));
+    const twice = [...filed].filter((file, index) => filed.indexOf(file) !== index);
+    expect(twice, "specs filed in more than one catalog group").toEqual([]);
   });
+
+  it("maps every spec to a page in the README", () => {
+    const mapped = new Set(readmeLinks(readmeSection("## Page to components", "## Catalog")));
+    const known = new Set(specs.map((spec) => spec.file));
+    expect(
+      specs.map((spec) => spec.file).filter((file) => !mapped.has(file)),
+      "specs missing from the page map",
+    ).toEqual([]);
+    expect(
+      [...mapped].filter((file) => !known.has(file)),
+      "page map links to no spec",
+    ).toEqual([]);
+  });
+
+  it("pins every overlay-view constant in exactly one overlay spec", () => {
+    const pinned = Object.keys(OVERLAY_SPECS).flatMap((file) =>
+      [...pinnedRows(read(path.join(specDir, file)))]
+        .filter(([, row]) => row.source === "lib/overlay-view.ts")
+        .map(([key]) => key),
+    );
+    expect(pinned.sort()).toEqual(OVERLAY_VIEW_CONSTANTS);
+  });
+
+  it.each(Object.entries(OVERLAY_SPECS))(
+    "%s pins every default its renderer reads, at its real value",
+    (file, defaultsName) => {
+      const rows = pinnedRows(read(path.join(specDir, file)));
+      const pinnedDefaults = [...rows]
+        .filter(([, row]) => row.source === defaultsName)
+        .map(([key]) => key);
+      const required = leafKeys(PINNED_OBJECTS[defaultsName]);
+      expect(pinnedDefaults.sort(), `${file} pins exactly the ${defaultsName} leaves`).toEqual(
+        [...required].sort(),
+      );
+      for (const [key, { source, value }] of rows) {
+        const lookup = PINNED_SOURCES[source];
+        expect(lookup, `${file}: unknown source ${source}`).toBeDefined();
+        const actual = lookup?.(key);
+        expect(actual, `${file}: ${source} has no ${key}`).toBeDefined();
+        expect(value, `${file}: ${key}`).toBe(String(actual));
+      }
+    },
+  );
 });

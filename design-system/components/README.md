@@ -32,9 +32,11 @@ tokens: [color.scheme, radius]
 - Accessibility names the roles and accessible names the e2e specs (`packages/e2e/tests`)
   pin, so renaming one means updating both.
 - The overlay specs (`timer-ring`, `task-card`) carry a "Pinned values" table the test
-  checks against `DEFAULT_TIMER_STYLES` / `DEFAULT_TASK_STYLES` and `lib/overlay-view.ts`.
+  checks against every leaf of `DEFAULT_TIMER_STYLES` / `DEFAULT_TASK_STYLES` and every
+  `lib/overlay-view.ts` constant.
 
-New component? Add its spec and a row below in the same PR, or the test fails.
+New component? Add its spec, a page-map entry and a catalog-group entry below, and its row
+on the docs page, in the same PR, or the test fails.
 
 ## Page to components
 

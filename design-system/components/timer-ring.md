@@ -46,18 +46,28 @@ Ring shape is the only visual variant: circle (`50%`) or squircle (anything else
 
 ### Pinned values
 
-The default theme (`DEFAULT_TIMER_STYLES`, `packages/db/src/defaults.ts`) and the overlay
-constants. `spec-catalog.test.ts` reads this table, so a changed default fails until this
-spec moves with it.
+Every value of the default theme (`DEFAULT_TIMER_STYLES`, `packages/db/src/defaults.ts`) and the
+overlay constants. `spec-catalog.test.ts` derives the required rows from that object, so a
+changed or added default fails until this spec moves with it.
 
 | Value | Source | Default |
 | --- | --- | --- |
 | `dimensions.width` | `DEFAULT_TIMER_STYLES` | `300px` |
 | `dimensions.height` | `DEFAULT_TIMER_STYLES` | `300px` |
+| `background.color` | `DEFAULT_TIMER_STYLES` | `#091533` |
+| `background.opacity` | `DEFAULT_TIMER_STYLES` | `0.92` |
 | `background.borderRadius` | `DEFAULT_TIMER_STYLES` | `22%` |
+| `ring.enabled` | `DEFAULT_TIMER_STYLES` | `true` |
+| `ring.trackColor` | `DEFAULT_TIMER_STYLES` | `#ffffff` |
+| `ring.trackOpacity` | `DEFAULT_TIMER_STYLES` | `0.14` |
+| `ring.fillColor` | `DEFAULT_TIMER_STYLES` | `#00aced` |
+| `ring.fillOpacity` | `DEFAULT_TIMER_STYLES` | `1` |
 | `ring.width` | `DEFAULT_TIMER_STYLES` | `14` |
 | `ring.gap` | `DEFAULT_TIMER_STYLES` | `10` |
-| `ring.trackOpacity` | `DEFAULT_TIMER_STYLES` | `0.14` |
+| `text.color` | `DEFAULT_TIMER_STYLES` | `#ffffff` |
+| `text.outlineColor` | `DEFAULT_TIMER_STYLES` | `#000000` |
+| `text.outlineSize` | `DEFAULT_TIMER_STYLES` | `0px` |
+| `text.fontFamily` | `DEFAULT_TIMER_STYLES` | `Montserrat` |
 | `fontSizes.label` | `DEFAULT_TIMER_STYLES` | `24px` |
 | `fontSizes.time` | `DEFAULT_TIMER_STYLES` | `76px` |
 | `fontSizes.cycle` | `DEFAULT_TIMER_STYLES` | `20px` |

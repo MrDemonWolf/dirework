@@ -51,19 +51,70 @@ Variants are style switches: `display.useCheckboxes` (checkbox or bullet),
 
 ### Pinned values
 
-The default theme (`DEFAULT_TASK_STYLES`, `packages/db/src/defaults.ts`) and the overlay
-constants. `spec-catalog.test.ts` reads this table, so a changed default fails until this
-spec moves with it.
+Every value of the default theme (`DEFAULT_TASK_STYLES`, `packages/db/src/defaults.ts`) and the
+overlay constants. `spec-catalog.test.ts` derives the required rows from that object, so a
+changed or added default fails until this spec moves with it.
 
 | Value | Source | Default |
 | --- | --- | --- |
+| `display.showDone` | `DEFAULT_TASK_STYLES` | `true` |
+| `display.showCount` | `DEFAULT_TASK_STYLES` | `true` |
+| `display.useCheckboxes` | `DEFAULT_TASK_STYLES` | `true` |
+| `display.crossOnDone` | `DEFAULT_TASK_STYLES` | `true` |
+| `display.numberOfLines` | `DEFAULT_TASK_STYLES` | `2` |
+| `fonts.header` | `DEFAULT_TASK_STYLES` | `Montserrat` |
+| `fonts.body` | `DEFAULT_TASK_STYLES` | `Roboto` |
+| `scroll.enabled` | `DEFAULT_TASK_STYLES` | `true` |
+| `scroll.pixelsPerSecond` | `DEFAULT_TASK_STYLES` | `40` |
+| `scroll.gapBetweenLoops` | `DEFAULT_TASK_STYLES` | `100` |
 | `header.height` | `DEFAULT_TASK_STYLES` | `56px` |
-| `header.fontSize` | `DEFAULT_TASK_STYLES` | `26px` |
-| `header.padding` | `DEFAULT_TASK_STYLES` | `12px 18px` |
+| `header.background.color` | `DEFAULT_TASK_STYLES` | `#091533` |
+| `header.background.opacity` | `DEFAULT_TASK_STYLES` | `0.95` |
+| `header.border.color` | `DEFAULT_TASK_STYLES` | `#1b2b52` |
+| `header.border.width` | `DEFAULT_TASK_STYLES` | `0px` |
 | `header.border.radius` | `DEFAULT_TASK_STYLES` | `14px 14px 0 0` |
-| `task.fontSize` | `DEFAULT_TASK_STYLES` | `24px` |
+| `header.fontSize` | `DEFAULT_TASK_STYLES` | `26px` |
+| `header.fontColor` | `DEFAULT_TASK_STYLES` | `#ffffff` |
+| `header.padding` | `DEFAULT_TASK_STYLES` | `12px 18px` |
+| `body.background.color` | `DEFAULT_TASK_STYLES` | `#091533` |
+| `body.background.opacity` | `DEFAULT_TASK_STYLES` | `0.9` |
+| `body.border.color` | `DEFAULT_TASK_STYLES` | `#1b2b52` |
+| `body.border.width` | `DEFAULT_TASK_STYLES` | `0px` |
+| `body.border.radius` | `DEFAULT_TASK_STYLES` | `0 0 14px 14px` |
+| `body.padding.vertical` | `DEFAULT_TASK_STYLES` | `8px` |
+| `body.padding.horizontal` | `DEFAULT_TASK_STYLES` | `8px` |
+| `task.background.color` | `DEFAULT_TASK_STYLES` | `#12244a` |
+| `task.background.opacity` | `DEFAULT_TASK_STYLES` | `0.9` |
+| `task.border.color` | `DEFAULT_TASK_STYLES` | `#1b2b52` |
+| `task.border.width` | `DEFAULT_TASK_STYLES` | `0px` |
 | `task.border.radius` | `DEFAULT_TASK_STYLES` | `12px` |
+| `task.fontSize` | `DEFAULT_TASK_STYLES` | `24px` |
+| `task.fontColor` | `DEFAULT_TASK_STYLES` | `#eaf2ff` |
+| `task.usernameColor` | `DEFAULT_TASK_STYLES` | `#7f9cff` |
+| `task.padding` | `DEFAULT_TASK_STYLES` | `10px 14px` |
 | `task.marginBottom` | `DEFAULT_TASK_STYLES` | `8px` |
+| `task.maxWidth` | `DEFAULT_TASK_STYLES` | `100%` |
+| `taskDone.background.color` | `DEFAULT_TASK_STYLES` | `#091533` |
+| `taskDone.background.opacity` | `DEFAULT_TASK_STYLES` | `0.5` |
+| `taskDone.fontColor` | `DEFAULT_TASK_STYLES` | `#8fa0c2` |
+| `checkbox.size` | `DEFAULT_TASK_STYLES` | `20px` |
+| `checkbox.background.color` | `DEFAULT_TASK_STYLES` | `#000000` |
+| `checkbox.background.opacity` | `DEFAULT_TASK_STYLES` | `0` |
+| `checkbox.border.color` | `DEFAULT_TASK_STYLES` | `#4a5b82` |
+| `checkbox.border.width` | `DEFAULT_TASK_STYLES` | `2px` |
+| `checkbox.border.radius` | `DEFAULT_TASK_STYLES` | `6px` |
+| `checkbox.margin.top` | `DEFAULT_TASK_STYLES` | `4px` |
+| `checkbox.margin.left` | `DEFAULT_TASK_STYLES` | `2px` |
+| `checkbox.margin.right` | `DEFAULT_TASK_STYLES` | `8px` |
+| `checkbox.tickChar` | `DEFAULT_TASK_STYLES` | `✔` |
+| `checkbox.tickSize` | `DEFAULT_TASK_STYLES` | `14px` |
+| `checkbox.tickColor` | `DEFAULT_TASK_STYLES` | `#00aced` |
+| `bullet.char` | `DEFAULT_TASK_STYLES` | `•` |
+| `bullet.size` | `DEFAULT_TASK_STYLES` | `20px` |
+| `bullet.color` | `DEFAULT_TASK_STYLES` | `#7c8db0` |
+| `bullet.margin.top` | `DEFAULT_TASK_STYLES` | `0px` |
+| `bullet.margin.left` | `DEFAULT_TASK_STYLES` | `2px` |
+| `bullet.margin.right` | `DEFAULT_TASK_STYLES` | `8px` |
 | `ACTIVE_ROW_TINT_PERCENT` | `lib/overlay-view.ts` | `10` |
 | `AUTHOR_HEADER_TINT_PERCENT` | `lib/overlay-view.ts` | `6` |
 | `MORE_FOOTER_OPACITY` | `lib/overlay-view.ts` | `0.8` |
