@@ -2,11 +2,12 @@ import { expect, test } from "@playwright/test";
 
 import { DEFAULT_TIMER_STYLES } from "@dirework/api/config-defaults";
 
-import { confirmDialog, signIn } from "./helpers";
+import { confirmDialog, signIn, waitForHydration } from "./helpers";
 
 test("applies a preset, saves it, and finds it selected after a reload", async ({ page }) => {
   await signIn(page);
   await page.goto("/dashboard/styles");
+  await waitForHydration(page);
 
   const presets = page.getByRole("radiogroup", { name: "Theme presets" }).getByRole("radio");
   await expect(presets.first()).toBeVisible();
@@ -34,6 +35,7 @@ test("previews either overlay over a chosen backdrop and says when edits are uns
 }) => {
   await signIn(page);
   await page.goto("/dashboard/styles");
+  await waitForHydration(page);
 
   // Freshly loaded, the preview shows exactly what OBS shows.
   await expect(page.getByText("Matches the saved theme")).toBeVisible();
@@ -76,6 +78,7 @@ test("previews either overlay over a chosen backdrop and says when edits are uns
 test("resets one section of the draft to the Default theme", async ({ page }) => {
   await signIn(page);
   await page.goto("/dashboard/styles");
+  await waitForHydration(page);
 
   // Save a non-default track color first, so resetting Colors has something to change.
   // A retry finds the previous attempt's color saved, so it picks the other one.
@@ -85,6 +88,12 @@ test("resets one section of the draft to the Default theme", async ({ page }) =>
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByText("Styles saved")).toBeVisible();
   await expect(page.getByText("Matches the saved theme")).toBeVisible();
+
+  // The editors are seeded from the server-prefetched config, so the saved color is in the
+  // server HTML itself — not painted over a frame of defaults after hydration (which is
+  // where a fill used to land, appended to the value the swap wrote).
+  const html = await (await page.request.get("/dashboard/styles")).text();
+  expect(html).toContain(`value="${custom}"`);
 
   await page.getByRole("button", { name: "Colors section options" }).click();
   await page.getByRole("menuitem", { name: "Reset section" }).click();

@@ -119,6 +119,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   honours reduced-motion).
 
 ### Fixed
+- **Theme Center and Bot settings open on your saved values.** Both editors used to render
+  the stock defaults first and swap in the saved theme or messages a moment after the page
+  loaded (the server HTML carried the defaults too). They now start from the saved values,
+  so nothing flickers on load and an edit made right away can no longer be mangled by the
+  swap.
 - The Theme Center preview's **Dark** and **Light** backdrops showed the panel color instead:
   the class merge dropped them. They now paint the simulated scene.
 - On a phone the Theme Center was wider than the screen (the preset row stretched the page),
