@@ -116,6 +116,19 @@ describe("GET /authorize", () => {
     expect(setCookie).toMatch(/HttpOnly/i);
     expect(setCookie).toMatch(/Secure/i);
   });
+
+  it("asks for the IRC pair, the Helix chat pair and user:bot", async () => {
+    mocks.getSession.mockResolvedValue(owner);
+    const res = await botOAuth.request("/authorize");
+    const location = new URL(res.headers.get("location") ?? "");
+    expect(location.searchParams.get("scope")?.split(" ")).toEqual([
+      "chat:read",
+      "chat:edit",
+      "user:read:chat",
+      "user:write:chat",
+      "user:bot",
+    ]);
+  });
 });
 
 describe("GET /callback/twitch", () => {

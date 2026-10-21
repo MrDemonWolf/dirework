@@ -31,20 +31,17 @@ import {
   noteSessionRefreshed,
 } from "@/lib/bot-chat-error";
 import { createBotSession, type BotActivityKind, type BotPhase } from "@/lib/bot-session";
+import type { BotActivityLine, BotView } from "@/lib/bot-view";
 import { TwitchIrcClient, type IrcStatus } from "@/lib/irc-client";
 import { publicTrpc } from "@/utils/trpc";
 
+import { BotDock } from "./bot-dock";
 import { DashboardBotLink } from "./dashboard-bot-link";
 
 /** Lines kept in the activity feed. */
 const MAX_ACTIVITY = 20;
 
-interface ActivityLine {
-  id: number;
-  time: string;
-  kind: BotActivityKind;
-  text: string;
-}
+type ActivityLine = BotActivityLine;
 
 /** Status LED colours; amber pulses unless the viewer prefers reduced motion. */
 const LED_CLASS: Record<"green" | "amber" | "red", string> = {
@@ -105,9 +102,10 @@ function StatCell({
  * The bot page. Wires `createBotSession` (state machine in lib/bot-session.ts) to React state;
  * it talks to the api worker directly via `publicTrpc` (token in the POST body, no cookies),
  * never through the web proxy. Terminal phases (`invalid`, `revoked`, `reauth`) replace the
- * console with a full-screen notice.
+ * console with a full-screen notice. `view="dock"` swaps the layout for the compact OBS
+ * custom-browser-dock panel (`bot-dock.tsx`); the session, and so every request, is the same.
  */
-export function BotConsole() {
+export function BotConsole({ view = "source" }: { view?: BotView }) {
   const { token } = useParams<{ token: string }>();
 
   const [phase, setPhase] = useState<BotPhase>("boot");
@@ -123,6 +121,11 @@ export function BotConsole() {
   // so the header can show it: at 400x200 the activity log is below the fold.
   const [chatErrorState, setChatErrorState] = useState<ChatErrorState | null>(null);
   const [nowTick, setNowTick] = useState(0);
+  // The newest error line, kept apart from the 20-line feed so the dock can show it after
+  // it scrolls out.
+  const [lastError, setLastError] = useState<{ time: string; text: string } | null>(null);
+  // Bumped by the dock's Reconnect button: the session effect tears down and starts over.
+  const [generation, setGeneration] = useState(0);
 
   const logRef = useRef<HTMLDivElement | null>(null);
   const lineIdRef = useRef(0);
@@ -153,7 +156,10 @@ export function BotConsole() {
         text,
       };
       setActivity((prev) => [...prev.slice(-(MAX_ACTIVITY - 1)), line]);
+      if (kind === "error") setLastError({ time: line.time, text });
     };
+
+    if (generation > 0) pushActivity("info", "reconnecting — requested from the dock");
 
     const session = createBotSession({
       token,
@@ -189,7 +195,7 @@ export function BotConsole() {
     // Disposing closes the IRC socket and timers, so a token change or unmount never leaves
     // a second bot relaying the same chat.
     return session.dispose;
-  }, [token]);
+  }, [token, generation]);
 
   if (phase === "invalid" || phase === "revoked" || phase === "reauth") {
     return (
@@ -265,17 +271,44 @@ export function BotConsole() {
                   ? "Offline"
                   : "Starting";
 
+  // Not-configured, muted and a chat error wait on a person, not on the bot — a steady LED,
+  // so none of them reads as "Connecting".
+  const ledClass = `${LED_CLASS[led]}${phase === "not-configured" || showMuted || chatError ? " animate-none" : ""}`;
+
+  if (view === "dock") {
+    return (
+      <BotDock
+        ledClass={ledClass}
+        statusText={statusText}
+        phase={phase}
+        muted={muted}
+        channelName={channelName}
+        botUsername={botUsername}
+        uptime={connectedAt && nowTick ? formatUptime(nowTick - connectedAt) : "—"}
+        counters={counters}
+        activity={activity}
+        lineClass={LINE_CLASS}
+        lastError={lastError}
+        // A manual restart costs one getSession, like a page reload; disabled while the bot
+        // is already starting or connecting, so repeated clicks can't stack requests.
+        reconnectDisabled={
+          phase === "boot" || ircStatus === "connecting" || ircStatus === "reconnecting"
+        }
+        onReconnect={() => {
+          setPhase("boot");
+          setIrcStatus("idle");
+          setGeneration((g) => g + 1);
+        }}
+      />
+    );
+  }
+
   return (
     <main className="flex h-dvh w-full flex-col bg-console-base font-mono text-console-fg">
       {/* Status header — must read as a tiny OBS source (400x200): big LED +
           state text pinned top-left. */}
       <header className="flex shrink-0 items-center gap-3 border-b border-console-line/80 px-4 py-3">
-        <span
-          // Not-configured, muted and a chat error wait on a person, not on the bot — a
-          // steady LED, so none of them reads as "Connecting".
-          className={`h-3.5 w-3.5 shrink-0 rounded-full ${LED_CLASS[led]}${phase === "not-configured" || showMuted || chatError ? " animate-none" : ""}`}
-          aria-hidden="true"
-        />
+        <span className={`h-3.5 w-3.5 shrink-0 rounded-full ${ledClass}`} aria-hidden="true" />
         <span
           role="status"
           className="truncate text-lg font-bold tracking-display text-console-bright uppercase"

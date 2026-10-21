@@ -147,8 +147,9 @@ If you changed the work duration (e.g. to 50 minutes) but the timer still uses 2
 The bot only listens to chat **while its bot page is open** somewhere. Run through this list:
 
 - **Is a bot page open?** Copy the bot page URL from **Dashboard → Bot** and add it to
-  OBS as a browser source (or keep it open in one pinned browser tab). If no copy is open,
-  the bot hears nothing. Extra copies are safe — each chat message runs once, deduplicated by
+  OBS as a browser source or a [custom browser dock](/docs/twitch-oauth#where-to-keep-the-bot-page)
+  (or keep it open in one pinned browser tab). If no copy is open, the bot hears nothing. A
+  **closed** OBS dock counts as not open — tab it behind another dock instead of closing it. Extra copies are safe — each chat message runs once, deduplicated by
   its Twitch message id, and only one copy replies — but each copy spends Worker requests, so
   close the ones you don't need.
 - **Was the bot token regenerated?** Regenerating the token kills any previously copied

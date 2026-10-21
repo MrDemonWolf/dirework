@@ -59,8 +59,9 @@ export function SecretUrlRow({
   // SSR (useOrigin), so the first render falls back to the bare path to match hydration.
   const fullUrl = path === null ? "" : origin ? `${origin}${path}` : path;
   // Last 6 chars of the token stay visible while masked, so the current
-  // token is identifiable (and visibly different after a regenerate).
-  const fingerprint = path === null ? "" : path.slice(-6);
+  // token is identifiable (and visibly different after a regenerate). The query string
+  // (the bot dock's `?view=dock`) is skipped so the fingerprint is always the token's tail.
+  const fingerprint = path === null ? "" : (path.split("?")[0] ?? path).slice(-6);
 
   const copyUrl = async () => {
     if (!path) return;

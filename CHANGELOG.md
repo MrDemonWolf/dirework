@@ -17,6 +17,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `!dw` and `!dwhelp` commands in an **Always on** legend on the Task commands tab, which
   stays lit when you switch task commands off, and the Help reply is now labelled **Viewer
   starter guide**. Help costs no extra database reads.
+- **Bot dock for OBS.** Open the bot page as `/bot/<token>?view=dock` in an OBS custom
+  browser dock (Docks → Custom Browser Docks) for a narrow control panel: status light,
+  muted state, the last error, recent commands and a **Reconnect** button. It runs the same
+  bot as the browser-source layout, with no extra requests or polling; mute stays on the
+  dashboard switch and the mods' `!mute` / `!unmute`. The **Set up streaming** checklist now
+  hands out both URLs and explains the options (browser source, dock, pinned tab; tab the
+  dock, don't close it; phone streamers keep it open on the OBS that receives the feed),
+  and the Twitch setup docs gained a "Where to keep the bot page" section.
+- **`user:bot` bot scope.** Connecting the bot account now also requests `user:bot`, so a
+  bot connected from here on is ready for a possible server-side bot. Existing bots keep
+  working; nothing needs a reconnect.
 - **Set up streaming checklist.** The dashboard opens with four steps: connect the bot
   account, then add the bot page, the timer overlay and the tasks overlay to OBS. Each OBS
   step hands you its URL (Show / Copy) and an **I added it to OBS** button; DireWork never
