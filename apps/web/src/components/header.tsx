@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 import { Bot, LayoutDashboard, type LucideIcon, Menu, Palette, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { closeOnRouteChange, type MobileMenuState, onEscape } from "@/lib/mobile-menu";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "./mode-toggle";
@@ -40,27 +41,25 @@ function NavIcon({ icon: Icon }: { icon: LucideIcon }) {
 export default function Header() {
   const pathname = usePathname();
   const { data: session } = authClient.useSession();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [menu, setMenu] = useState<MobileMenuState>({ open: false, pathname });
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Close the mobile menu whenever the route changes (back/forward, a link
-  // elsewhere on the page), not only when one of its own links is tapped.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the trigger, not an input
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [pathname]);
+  // A route change closes the menu. Adjusted during render (the reducer returns the
+  // same object when the path is unchanged), so React re-renders before committing
+  // and the stale open menu never paints on the new route.
+  const routed = closeOnRouteChange(menu, pathname);
+  if (routed !== menu) setMenu(routed);
+  const mobileMenuOpen = routed.open;
+  const setMenuOpen = (open: boolean) => setMenu((m) => ({ ...m, open }));
 
-  // Escape closes the open menu and hands focus back to the hamburger, so a
-  // keyboard user is never left focused on a link that just disappeared.
+  // Escape (never mid-IME-composition) closes the open menu and hands focus back to
+  // the hamburger, so a keyboard user is never left on a link that just disappeared.
   useEffect(() => {
     if (!mobileMenuOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      setMobileMenuOpen(false);
+    return onEscape(document, () => {
+      setMenu((m) => ({ ...m, open: false }));
       menuButtonRef.current?.focus();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    });
   }, [mobileMenuOpen]);
 
   return (
@@ -139,7 +138,7 @@ export default function Header() {
               size="icon"
               // The ::after inset enlarges the touch target past the visible icon button.
               className="relative after:absolute after:-inset-1.5 md:hidden"
-              onClick={() => setMobileMenuOpen((v) => !v)}
+              onClick={() => setMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-nav"
@@ -168,7 +167,7 @@ export default function Header() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={() => setMenuOpen(false)}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
                     "flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
