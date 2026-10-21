@@ -294,8 +294,8 @@ describe("clockFontScale / clockFontSize", () => {
     expect(clockFontSize("76px", "01:25:00")).toBe(`calc(76px * ${scale})`);
   });
 
-  it("at the 76px default, the hour form lands near 49px", () => {
-    expect(76 * clockFontScale("01:25:00")).toBeCloseTo(49, 0);
+  it("at the 64px default, the hour form lands near 41px", () => {
+    expect(64 * clockFontScale("01:25:00")).toBeCloseTo(41, 0);
   });
 
   it("also shrinks minute counts past 99", () => {

@@ -911,6 +911,6 @@ describe("config.updateStyles against real SQLite (style default upgrade)", () =
     expect(row).toMatchObject({ ringWidth: 14, ringGap: 10, ringFillColor: "#ff0000" });
     // Untouched groups are not written: they keep upgrading on read.
     expect(row?.fontSizeTime).toBe("48px");
-    expect(read.timerStyles.fontSizes.time).toBe("76px");
+    expect(read.timerStyles.fontSizes.time).toBe("64px");
   });
 });

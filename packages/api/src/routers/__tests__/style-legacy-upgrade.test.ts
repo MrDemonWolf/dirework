@@ -48,7 +48,7 @@ describe("read-time upgrade of never-customized style rows", () => {
     expect(styles.ring.width).toBe(12);
     // The rest of the ring group is the owner's too: it stays as stored.
     expect(styles.ring.gap).toBe(TIMER_STYLE_COLUMN_DEFAULTS.ringGap);
-    expect(styles.fontSizes.time).toBe("76px");
+    expect(styles.fontSizes.time).toBe("64px");
     expect(styles.fontSizes).toEqual(DEFAULT_TIMER_STYLES.fontSizes);
   });
 

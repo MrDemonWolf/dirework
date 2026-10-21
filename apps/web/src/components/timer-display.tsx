@@ -2,7 +2,10 @@
 
 // The timer widget as drawn in the OBS timer overlay (/overlay/t/[token]) and the
 // Theme Center preview: phase label, countdown digits, cycle counter and an optional
-// circle or rounded-rect progress ring. Pure presentation — no fetching.
+// circle or rounded-rect progress ring. Pure presentation — no fetching. The text
+// lines are shrunk to fit inside the ring (useTimerTextFit), never grown.
+
+import type { CSSProperties } from "react";
 
 import type { PhaseLabelsConfig, TimerStylesConfig } from "@/lib/config-types";
 import { TIMER_CYCLE_OPACITY } from "@/lib/overlay-view";
@@ -17,7 +20,9 @@ import {
   roundedRectPath,
   roundedRectPerimeter,
 } from "@/lib/timer-utils";
+import { type LineFit, scaledFontSize } from "@/lib/timer-fit";
 import { useTimerCountdown } from "@/lib/use-timer-countdown";
+import { TIMER_LINE_GAP_PX, useTimerTextFit } from "@/lib/use-timer-text-fit";
 
 // Style shape comes from the shared config source of truth (audit M4);
 // the overlay payload composes it with runtime labels + showHours.
@@ -31,6 +36,21 @@ type TimerConfig = TimerStylesConfig & {
 // The countdown ticks once per displayed second; a matching linear transition
 // glides the ring between ticks instead of restarting an ease every frame.
 const RING_TRANSITION = "stroke-dashoffset 1s linear";
+
+/**
+ * Inline styles for one fitted text line: its configured size times the fit's scale,
+ * never wrapping, and cut with an ellipsis only when even the smallest scale is too
+ * wide (a very long phase label). Unfitted (null) it renders at the configured size.
+ */
+function lineStyle(size: string, fit: LineFit | undefined): CSSProperties {
+  return {
+    fontSize: scaledFontSize(size, fit?.scale ?? 1),
+    whiteSpace: "nowrap",
+    ...(fit?.maxWidth != null
+      ? { maxWidth: fit.maxWidth, overflow: "hidden", textOverflow: "ellipsis" }
+      : null),
+  };
+}
 
 /**
  * SVG progress ring sized to the widget box. `progress` is the fraction remaining
@@ -195,11 +215,31 @@ export function TimerDisplay({
   const ringHeight = cssLengthToPx(config.dimensions.height);
 
   const ring = config.ring;
+  const ringDrawn = ring.enabled && ringWidth !== null && ringHeight !== null;
+
+  const cycle = `${state.currentCycle}/${state.totalCycles}`;
+  const clockSize = clockFontSize(config.fontSizes.time, timeDisplay);
+  // Every line shrinks (never grows) until it fits inside the ring's inner edge.
+  const { frameRef, labelRef, clockRef, cycleRef, lines } = useTimerTextFit({
+    label,
+    clock: timeDisplay,
+    cycle,
+    fontFamily: config.text.fontFamily,
+    sizes: [config.fontSizes.label, clockSize, config.fontSizes.cycle],
+    borderRadius: config.background.borderRadius,
+    ringDrawn,
+    ringWidth: ring.width,
+    ringGap: ring.gap,
+    width: config.dimensions.width,
+    height: config.dimensions.height,
+  });
 
   return (
     <div
-      className="relative flex flex-col items-center justify-center gap-1"
+      ref={frameRef}
+      className="relative flex flex-col items-center justify-center"
       style={{
+        gap: TIMER_LINE_GAP_PX,
         width: config.dimensions.width,
         height: config.dimensions.height,
         backgroundColor: colorWithOpacity(config.background.color, config.background.opacity),
@@ -207,7 +247,7 @@ export function TimerDisplay({
         fontFamily: quoteFontFamily(config.text.fontFamily),
       }}
     >
-      {ring.enabled && ringWidth !== null && ringHeight !== null && (
+      {ringDrawn && ringWidth !== null && ringHeight !== null && (
         <ProgressRing
           progress={progress}
           width={ringWidth}
@@ -218,9 +258,10 @@ export function TimerDisplay({
       )}
 
       <span
+        ref={labelRef}
         className="relative font-medium uppercase tracking-widest"
         style={{
-          fontSize: config.fontSizes.label,
+          ...lineStyle(config.fontSizes.label, lines?.[0]),
           color: config.text.color,
           textShadow,
           letterSpacing: "0.15em",
@@ -230,9 +271,10 @@ export function TimerDisplay({
       </span>
 
       <span
+        ref={clockRef}
         className="relative font-bold tabular-nums"
         style={{
-          fontSize: clockFontSize(config.fontSizes.time, timeDisplay),
+          ...lineStyle(clockSize, lines?.[1]),
           color: config.text.color,
           textShadow,
           lineHeight: 1.1,
@@ -242,14 +284,15 @@ export function TimerDisplay({
       </span>
 
       <span
+        ref={cycleRef}
         className="relative font-medium"
         style={{
-          fontSize: config.fontSizes.cycle,
+          ...lineStyle(config.fontSizes.cycle, lines?.[2]),
           color: config.text.color,
           opacity: TIMER_CYCLE_OPACITY,
         }}
       >
-        {state.currentCycle}/{state.totalCycles}
+        {cycle}
       </span>
     </div>
   );

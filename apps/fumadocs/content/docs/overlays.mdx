@@ -111,9 +111,11 @@ Break, Long break, Paused, Done. Defaults are wolf-themed: "Resting", "Gathering
 > **Corner radius** (Layout). Set the border radius to `50%` for a circle; any other value (e.g. `22%`)
 > renders a rounded rectangle (squircle).
 
-> The default countdown is 76px, sized for `25:00` in a 300×300 timer. With **Show hours**
-> on, hours shrink the digits automatically: the longer `01:25:00` is drawn no wider than
-> `25:00` would be, so it still fits inside the ring.
+> The default text is 20px (label), 64px (countdown) and 18px (cycle), sized for `25:00` in
+> a 300×300 timer. Text always stays inside the ring: if a line (a long phase label, a wide
+> font, a big size, or a circle ring) would cross it, that line shrinks just enough to fit.
+> It never grows past the size you set, and a label too long even at half size ends in "…".
+> With **Show hours** on, the longer `01:25:00` is drawn no wider than `25:00` would be.
 
 ### Task list overlay settings
 

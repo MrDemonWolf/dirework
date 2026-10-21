@@ -425,7 +425,16 @@ OBS sources don't blank, and the `(overlay)` error boundary renders nothing and 
 after 10s. Two ring shapes: circle + rounded-rect squircle. The timer is drawn at a
 fixed pixel size (`config.dimensions`) wrapped in `<AutoScale>` (`components/auto-scale.tsx`),
 which uses a ResizeObserver to scale it up/down to fill the OBS browser source while
-preserving aspect ratio. While idle the overlay renders a full preview (configured work
+preserving aspect ratio. Inside the frame, `useTimerTextFit` (`lib/use-timer-text-fit.ts`)
+fits the label, countdown and cycle lines to the ring's inner edge: each line first renders
+at its configured size (deterministic first render), a `useLayoutEffect` reads each box once
+via `offsetWidth`/`offsetHeight` (layout px, so AutoScale's transform doesn't skew it), and
+the pure `fitTimerLines` / `fitShape` (`lib/timer-fit.ts`: circle chord at the line's height,
+squircle inner width narrowing in the corner bands, the panel with the ring off) returns
+per-line scales ≤ 1 that commit before paint. Lines never wrap; below `MIN_FIT_SCALE` (0.5)
+a line is cut with an ellipsis. It re-fits only when an input changes (the clock's length,
+not each tick) or a web font finishes loading — no per-frame work, no ResizeObserver.
+While idle the overlay renders a full preview (configured work
 length + full ring) instead of blanking, so streamers can position it during setup.
 Before the first payload lands, and whenever the server answers null (invalid or reset
 token), both overlays render nothing (`lib/overlay-view.ts`), so a stale OBS URL goes

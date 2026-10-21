@@ -94,8 +94,10 @@ export function formatTime(
 
 /**
  * Approximate advance widths (em) of the countdown glyphs in Montserrat bold with
- * tabular digits: "25:00" ≈ 4 × 0.7 + 0.3 = 3.1em, which at the default 76px is
- * ≈ 236px, inside a 300px timer's ≈ 252px ring interior.
+ * tabular digits: "25:00" ≈ 4 × 0.7 + 0.3 = 3.1em, which at the default 64px is
+ * ≈ 198px, inside a 300px timer's 252px ring interior. This is only the first,
+ * deterministic guess: TimerDisplay then measures the real glyphs and shrinks any
+ * line that still crosses the ring (timer-fit.ts).
  */
 const CLOCK_DIGIT_EM = 0.7;
 const CLOCK_SEPARATOR_EM = 0.3;
