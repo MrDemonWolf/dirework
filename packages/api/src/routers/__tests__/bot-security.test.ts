@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { MAX_RELAYED_MESSAGE_LENGTH, truncateToLength } from "../../config-shared";
 import { botIngestInputSchema, deriveChatPrivileges } from "../bot";
 
 const messageInput = {
@@ -24,6 +25,29 @@ describe("public bot ingest validation", () => {
       expect(botIngestInputSchema.safeParse({ ...messageInput, message }).success).toBe(false);
     },
   );
+
+  // The bot page clamps its relay to MAX_RELAYED_MESSAGE_LENGTH (bot-session.ts);
+  // the schema must cap `message` at that same constant, or a drift either way
+  // rejects lines the page relays or clamps them for nothing.
+  it("caps the relayed message at exactly MAX_RELAYED_MESSAGE_LENGTH", () => {
+    const atLimit = "x".repeat(MAX_RELAYED_MESSAGE_LENGTH);
+    expect(botIngestInputSchema.safeParse({ ...messageInput, message: atLimit }).success).toBe(
+      true,
+    );
+    expect(
+      botIngestInputSchema.safeParse({ ...messageInput, message: `${atLimit}x` }).success,
+    ).toBe(false);
+  });
+
+  it("accepts any line once clamped the way the bot page does", () => {
+    // Over the cap even in code points (what zod's .max counts), so it fails raw.
+    const line = `!task ${"😀".repeat(700)}`;
+    expect(botIngestInputSchema.safeParse({ ...messageInput, message: line }).success).toBe(false);
+    const relayed = truncateToLength(line, MAX_RELAYED_MESSAGE_LENGTH);
+    expect(botIngestInputSchema.safeParse({ ...messageInput, message: relayed }).success).toBe(
+      true,
+    );
+  });
 
   it("rejects malformed Twitch identities and colors", () => {
     expect(

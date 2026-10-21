@@ -10,6 +10,14 @@
 /** Max bytes for a fully-interpolated chat message put on the wire. */
 export const MAX_CHAT_BYTES = 450;
 
+/**
+ * Longest chat line `bot.ingest` accepts. The ingest schema (routers/bot.ts)
+ * caps `message` at it and the bot page clamps its relay to it with
+ * truncateToLength; both read this one constant, so what the page sends
+ * always fits what the server accepts.
+ */
+export const MAX_RELAYED_MESSAGE_LENGTH = 600;
+
 export function utf8ByteLength(value: string): number {
   return new TextEncoder().encode(value).length;
 }
@@ -38,11 +46,12 @@ export function truncateToBytes(value: string, maxBytes: number = MAX_CHAT_BYTES
 }
 
 /**
- * Truncate to at most `maxLength` UTF-16 code units — the unit `.length` and
- * zod's `.max()` count, so the result still passes the tRPC schema — WITHOUT
- * splitting a surrogate pair. A plain `.slice(0, n)` can leave a lone high
- * surrogate (invalid UTF-16) at the cut. As with truncateToBytes, a
- * multi-code-point grapheme cluster may still be shortened.
+ * Truncate to at most `maxLength` UTF-16 code units (the unit `.length` counts)
+ * WITHOUT splitting a surrogate pair. zod's string `.max()` counts code points,
+ * and a string never has more code points than code units, so the result
+ * still passes a tRPC schema with the same cap. A plain `.slice(0, n)` can
+ * leave a lone high surrogate (invalid UTF-16) at the cut. As with
+ * truncateToBytes, a multi-code-point grapheme cluster may still be shortened.
  */
 export function truncateToLength(value: string, maxLength: number): string {
   if (value.length <= maxLength) return value;

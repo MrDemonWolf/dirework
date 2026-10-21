@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { MAX_RELAYED_MESSAGE_LENGTH } from "@dirework/api/chat-text";
 import { BOT_REAUTH_REQUIRED_MESSAGE } from "@dirework/api/config-shared";
 
 import {
   AUTH_RECOVERY_DELAY_MS,
   MAX_AUTH_RECOVERY,
   MAX_PENDING_INGESTS,
-  MAX_RELAYED_MESSAGE_LENGTH,
   NOT_CONFIGURED_POLL_MS,
   RETRY_BASE_MS,
   RETRY_MAX_MS,

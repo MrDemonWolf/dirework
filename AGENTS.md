@@ -105,9 +105,10 @@ copied into ours (its own `id`, the source channel's badges) and is dropped in
 mods can't moderate, and partner bans can't wipe tasks here. **Replies:** twitch.tv
 prefixes a Reply-button message with `@<parent login> `; when `reply-parent-msg-id` is set,
 `stripReplyMention` drops that one mention so `@bot !done` relays as `!done`. The relayed
-text is clamped to `MAX_RELAYED_MESSAGE_LENGTH` (600 UTF-16 units, the `bot.ingest` schema's
-`.max`) with `truncateToLength`, which never splits a surrogate pair — Twitch's 500-char cap
-counts code points, so an emoji-heavy command could otherwise fail the schema. Disabled commands are still
+text is clamped to `MAX_RELAYED_MESSAGE_LENGTH` (600, in `@dirework/api/chat-text`; the
+`bot.ingest` schema's `.max` reads the same constant) with `truncateToLength`, which counts
+UTF-16 units and never splits a surrogate pair. zod's string `.max()` counts code points,
+never more than units, so the clamped relay always parses. Disabled commands are still
 relayed (the server drops them), so an enable toggle applies instantly. `META_COMMANDS`
 (`dw`, `dwhelp`, `dwcommands`) are always on (no enable switch) but still muted/blocked and
 claimed like any command. `!dw` is the viewer help namespace (`packages/api/src/bot/viewer-help.ts`):

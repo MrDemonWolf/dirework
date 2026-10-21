@@ -199,9 +199,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   The bot page now ignores chat and bans that come from a partner channel.
 - **Commands sent with Twitch's Reply button work.** Replying to the bot with `!done` sends
   `@yourbot !done`, which the bot used to ignore. It now drops that leading mention.
-- **Long emoji-heavy commands get a reply.** A `!task` packed with emoji could be valid in
-  Twitch chat yet too long for DireWork, so the bot said nothing. The bot page now shortens
-  it to fit, without cutting an emoji in half.
 - **Theme Center and Bot settings open on your saved values.** Both editors used to render
   the stock defaults first and swap in the saved theme or messages a moment after the page
   loaded (the server HTML carried the defaults too). They now start from the saved values,

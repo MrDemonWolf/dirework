@@ -18,6 +18,7 @@ import { hasControlCharacters, utf8ByteLength } from "./chat-text";
 export {
   hasControlCharacters,
   MAX_CHAT_BYTES,
+  MAX_RELAYED_MESSAGE_LENGTH,
   replaceControlCharacters,
   truncateToBytes,
   truncateToLength,
