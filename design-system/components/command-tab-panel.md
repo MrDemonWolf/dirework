@@ -12,8 +12,8 @@ ONE body shared by the Task and Timer command tabs of `/dashboard/bot` (`bot-set
 ## Anatomy
 
 - Header: `h3` title + subtitle; "Enabled" `console-label` + `Switch` (`{idPrefix}-commands-toggle`).
-- Info `Callout` "{title} are off" when disabled.
-- Grid at `lg` (`15rem` + editor): `CommandReference` (ordered last on small screens), then `ConsoleRule` (h3) "Messages" and `MessageEditor`.
+- Info `Callout` "{title} are off" when disabled; it says the replies stay editable and take effect once the group is on.
+- Grid at `lg` (`15rem` + editor): `CommandReference` (ordered last on small screens; `lg:sticky lg:top-20` so it stays beside the editor while the reply groups scroll), then `ConsoleRule` (h3) "Messages" and `MessageEditor`.
 
 ## Props and variants
 
@@ -25,6 +25,9 @@ ONE body shared by the Task and Timer command tabs of `/dashboard/bot` (`bot-set
 | `commands` | `CommandRow[]` | Legend rows |
 | `fields` | `readonly MessageField<...>[]` | From `lib/message-fields.ts` |
 | `messages` / `defaults` | `T` | Draft and stock wording |
+| `savedMessages` | `T` | Last-saved replies, so a group with an unsaved edit opens itself |
+| `invalidKeys` | `ReadonlySet<string>` | Optional; keys the server schema would reject, so their group opens |
+| `filter` / `onFilterChange` | `string` / `(filter: string) => void` | Reply filter text, held by the page so the Save bar's link can clear it |
 | `onMessagesChange` | `(values: T) => void` | Draft update |
 | `preview` | `ReplyPreview` | Speaker + sample vars for the preview line |
 
@@ -33,7 +36,7 @@ Generic over the message object `T`.
 ## States
 
 - **Enabled**: fields editable.
-- **Disabled**: message fields disabled, callout shown, legend dimmed with an "Off" chip.
+- **Disabled** (group switched off): fields stay editable, the editor column is dimmed (`opacity-75`, full opacity on hover or focus within), callout shown, legend dimmed with an "Off" chip.
 
 ## Accessibility
 
@@ -45,4 +48,4 @@ Generic over the message object `T`.
 - **Do** use this for every command-group tab instead of a bespoke layout.
 - **Do** keep the header stable so the switch never moves with list length.
 - **Don't** save on toggle; the Save bar owns persistence here (unlike mute and block).
-- **Don't** hide the editor when disabled; say why it is locked.
+- **Don't** hide or lock the editor when the group is off; dim it and say the group is off, so the owner can prepare replies before switching it on.

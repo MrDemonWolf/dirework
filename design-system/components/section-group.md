@@ -17,9 +17,10 @@ the trigger styling and chevron rotation never drift. Used by `timer-style-edito
 
 - Root: Base UI `Collapsible` with the `panel-inset` well (recessed surface, hairline edge).
 - Header row: the trigger, then the optional `menu` beside it (`pr-1.5`), outside the trigger.
-- Trigger: optional `icon`, the title in `console-label` (mono, uppercase, `tracking-label`)
-  with the optional `summary` under it (`font-mono text-xs tabular-nums`, hidden while open),
-  then the `trailing` slot and a `ChevronDown` that rotates 180deg when open.
+- Trigger (at least 44px tall on coarse pointers, `pointer-coarse:min-h-11`): optional `icon`,
+  the title in `console-label` (mono, uppercase, `tracking-label`) with the optional `summary`
+  under it (`font-mono text-xs tabular-nums`, hidden while open), then the `trailing` slot and
+  a `ChevronDown` that rotates 180deg when open.
 - Panel: `space-y-3 px-4 pt-1.5 pb-4`, or a bare `border-t` wrapper when `flush`.
 
 ## Props and variants
@@ -33,6 +34,7 @@ the trigger styling and chevron rotation never drift. Used by `timer-style-edito
 | `menu` | `ReactNode` | none | Actions beside the header (a dropdown menu), outside the toggle button |
 | `summary` | `ReactNode` | none | One-line digest under the title, shown only while collapsed |
 | `defaultOpen` | `boolean` | `true` | Uncontrolled initial state |
+| `open` / `onOpenChange` | `boolean` / `(open: boolean) => void` | none | Controlled state, for a section that must open itself (a reply group holding an invalid field) |
 | `flush` | `boolean` | `false` | No body padding, for lists that draw their own rows |
 | `className` | `string` | none | Merged onto the root |
 | `children` | `ReactNode` | required | Panel content |
