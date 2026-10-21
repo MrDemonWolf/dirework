@@ -71,6 +71,12 @@ export function buildSmokeConfig({ webDir, compatibilityDate }) {
     // next/og's compiled default font (Geist-Regular.ttf.bin); Alchemy's bundle
     // config adds the same ".bin" binary loader.
     rules: [{ type: "Data", globs: ["**/*.bin"], fallthrough: true }],
+    // wrangler's esbuild pass keeps function names by default, wrapping them in a
+    // `__name(fn, "fn")` helper. next-themes ships its anti-flash script as
+    // `fn.toString()`, so that helper call leaked into the page and threw
+    // `__name is not defined` in the browser on every load. Alchemy's deploy bundle
+    // (minify, no keepNames) never adds it; match it here (the e2e boot reuses this).
+    keep_names: false,
     vars: {
       BETTER_AUTH_URL: "http://127.0.0.1",
       NEXT_PUBLIC_SERVER_URL: "http://127.0.0.1:9",

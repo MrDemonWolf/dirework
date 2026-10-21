@@ -72,6 +72,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - Small labels on the docs home page were 10–11px; they are now at least 12px. Headings
   there no longer ask for font weights the page never loads.
+- The dashboard, Theme Center and Bot pages no longer throw away their server render when your
+  OS colour scheme differs from the app theme. The page was being drawn a second time in the
+  browser, briefly showing every control twice.
 ### Upgrade notes
 - Database migration `0019_bot_mute_blocklist` applies automatically on the next deploy. It
   only adds two columns to `bot_config` (`muted`, `blocked_viewers`), so rolling the workers
