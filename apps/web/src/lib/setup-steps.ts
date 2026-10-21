@@ -101,6 +101,32 @@ export function withSetupStep<T extends SetupSource>(
 /** localStorage key for "Finish later": "1" = collapsed, "0" = open, absent = default. */
 export const SETUP_COLLAPSED_KEY = "dirework.setup-collapsed";
 
+/** The slice of Storage the helpers use, so tests can pass a throwing fake. */
+export type SetupStorage = Pick<Storage, "getItem" | "setItem">;
+
+/** The stored "Finish later" choice, or null when absent or storage is unavailable. */
+export function readSetupCollapsed(storage: SetupStorage | null): string | null {
+  try {
+    return storage?.getItem(SETUP_COLLAPSED_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persist the choice, best-effort: returns false when storage is missing or throws (private
+ * mode, blocked site data). The caller's in-memory state stays the source of truth.
+ */
+export function writeSetupCollapsed(storage: SetupStorage | null, collapsed: boolean): boolean {
+  try {
+    if (!storage) return false;
+    storage.setItem(SETUP_COLLAPSED_KEY, collapsed ? "1" : "0");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Whether the card is collapsed: the owner's stored choice wins; with none, it stays open
  * until every step is done.

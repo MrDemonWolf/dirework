@@ -7,9 +7,11 @@ import {
   SETUP_STEPS,
   STEP_STATE_LABELS,
   isSetupCollapsed,
+  readSetupCollapsed,
   setupProgress,
   stepState,
   withSetupStep,
+  writeSetupCollapsed,
   type SetupSource,
 } from "../setup-steps";
 
@@ -122,5 +124,62 @@ describe("setup checklist source", () => {
     // open step (`{open && (...)}`).
     expect(src.match(/trpc\.bot\.getIngestInfo/g)).toHaveLength(1);
     expect(src).toContain("{open && (");
+  });
+});
+
+describe("Finish later storage helpers", () => {
+  const throwing = {
+    getItem: () => {
+      throw new Error("SecurityError");
+    },
+    setItem: () => {
+      throw new Error("QuotaExceededError");
+    },
+  };
+
+  it("never throw when storage does, and report the write as not persisted", () => {
+    expect(readSetupCollapsed(throwing)).toBeNull();
+    expect(writeSetupCollapsed(throwing, true)).toBe(false);
+    expect(readSetupCollapsed(null)).toBeNull();
+    expect(writeSetupCollapsed(null, true)).toBe(false);
+  });
+
+  it("round-trip the choice through a working storage", () => {
+    const map = new Map<string, string>();
+    const storage = {
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => void map.set(k, v),
+    };
+    expect(readSetupCollapsed(storage)).toBeNull();
+    expect(writeSetupCollapsed(storage, true)).toBe(true);
+    expect(readSetupCollapsed(storage)).toBe("1");
+    expect(isSetupCollapsed(readSetupCollapsed(storage), false)).toBe(true);
+    writeSetupCollapsed(storage, false);
+    expect(isSetupCollapsed(readSetupCollapsed(storage), true)).toBe(false);
+  });
+});
+
+describe("setup checklist collapsed state", () => {
+  const src = readFileSync(
+    path.resolve(import.meta.dirname, "../../components/setup-checklist.tsx"),
+    "utf8",
+  );
+
+  it("keeps the click in component state, so blocked storage can't swallow it", () => {
+    expect(src).toContain("setChoice(collapsed);");
+    expect(src).toContain("choice ?? isSetupCollapsed(");
+  });
+});
+
+describe("empty task board", () => {
+  const src = readFileSync(
+    path.resolve(import.meta.dirname, "../../components/task-manager.tsx"),
+    "utf8",
+  );
+
+  it("focuses the add input only from its call to action, never on load", () => {
+    expect(src).toContain("onClick={focusAddInput}");
+    expect(src).not.toContain("focusedEmpty");
+    expect(src).not.toContain("(pointer: coarse)");
   });
 });

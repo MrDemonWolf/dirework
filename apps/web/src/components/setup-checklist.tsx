@@ -25,16 +25,18 @@ import type { SetupStep } from "@dirework/api/routers/input-schemas";
 import { cn } from "@/lib/utils";
 import { overlayPath } from "@/lib/overlay-view";
 import {
-  SETUP_COLLAPSED_KEY,
   SETUP_STEPS,
   STEP_STATE_LABELS,
   isSetupCollapsed,
+  readSetupCollapsed,
   setupProgress,
   stepState,
   withSetupStep,
+  writeSetupCollapsed,
   type SetupSource,
   type SetupStepId,
   type SetupStepState,
+  type SetupStorage,
 } from "@/lib/setup-steps";
 import { describeTrpcError } from "@/lib/trpc-errors";
 import { ConsoleRule } from "@/components/console-rule";
@@ -53,45 +55,41 @@ export interface SetupMe extends SetupSource {
 }
 
 // ── "Finish later" persistence ──────────────────────────────────────────────
-// localStorage is a per-browser convenience; every read and write is guarded, and the
-// server render (no storage) uses the default, so hydration always matches.
+// Component state is the source of truth for this page; localStorage only carries the
+// choice to the next load (read on mount, written best-effort). The server render (no
+// storage) uses the default, so hydration always matches.
 
-const STORAGE_EVENT = "dirework:setup-collapsed";
-
-function readStored(): string | null {
+/** `window.localStorage`, or null where even touching it throws (blocked site data). */
+function browserStorage(): SetupStorage | null {
   try {
-    return window.localStorage.getItem(SETUP_COLLAPSED_KEY);
+    return window.localStorage;
   } catch {
     return null;
   }
 }
 
-function subscribeStored(onChange: () => void) {
-  window.addEventListener(STORAGE_EVENT, onChange);
-  window.addEventListener("storage", onChange);
-  return () => {
-    window.removeEventListener(STORAGE_EVENT, onChange);
-    window.removeEventListener("storage", onChange);
-  };
-}
+const noSubscribe = () => () => {};
 
 /**
  * Collapsed state of the checklist, shared by the card and the header's "Setup" button.
- * With no stored choice the card starts collapsed only if every step was already done when
- * the dashboard loaded — finishing the last step in this visit keeps it open.
+ * A click sets it immediately, even when storage is blocked. With no choice yet the card
+ * starts collapsed only if every step was already done when the dashboard loaded —
+ * finishing the last step in this visit keeps it open.
  */
 export function useSetupCollapsed(allDone: boolean): [boolean, (collapsed: boolean) => void] {
   const [allDoneAtLoad] = useState(allDone);
-  const stored = useSyncExternalStore(subscribeStored, readStored, () => null);
+  const [choice, setChoice] = useState<boolean | null>(null);
+  // Read on the client only (null during SSR and hydration); never re-read after a click.
+  const stored = useSyncExternalStore(
+    noSubscribe,
+    () => readSetupCollapsed(browserStorage()),
+    () => null,
+  );
   const setCollapsed = useCallback((collapsed: boolean) => {
-    try {
-      window.localStorage.setItem(SETUP_COLLAPSED_KEY, collapsed ? "1" : "0");
-    } catch {
-      // Storage blocked: the choice lasts until reload, which is fine for a convenience.
-    }
-    window.dispatchEvent(new Event(STORAGE_EVENT));
+    setChoice(collapsed);
+    writeSetupCollapsed(browserStorage(), collapsed);
   }, []);
-  return [isSetupCollapsed(stored, allDoneAtLoad), setCollapsed];
+  return [choice ?? isSetupCollapsed(stored, allDoneAtLoad), setCollapsed];
 }
 
 // ── Rows ────────────────────────────────────────────────────────────────────

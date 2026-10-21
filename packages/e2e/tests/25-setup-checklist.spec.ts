@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import { WEB_ORIGIN } from "../src/env";
 import { signIn } from "./helpers";
 
 // The dashboard's "Set up streaming" checklist. The e2e owner never connects a bot account
@@ -76,4 +77,22 @@ test("Finish later hides the card until the header's Setup button reopens it", a
   await page.getByRole("button", { name: /^Setup/ }).click();
   await expect(checklist(page)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Set up streaming" })).toBeFocused();
+});
+
+test("Finish later still hides the card when the browser blocks storage", async ({ browser }) => {
+  // A fresh context whose localStorage writes throw, like blocked site data.
+  const context = await browser.newContext({ baseURL: WEB_ORIGIN });
+  await context.addInitScript(() => {
+    Storage.prototype.setItem = () => {
+      throw new DOMException("blocked", "SecurityError");
+    };
+  });
+  const page = await context.newPage();
+  await signIn(page);
+  await page.goto("/dashboard");
+  await checklist(page).getByRole("button", { name: "Finish later" }).click();
+  await expect(checklist(page)).toHaveCount(0);
+  await page.getByRole("button", { name: /^Setup/ }).click();
+  await expect(checklist(page)).toBeVisible();
+  await context.close();
 });
