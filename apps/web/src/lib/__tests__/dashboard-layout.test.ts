@@ -15,13 +15,13 @@ const timerControls = read("components/timer-controls.tsx");
 const skeleton = read("components/dashboard-skeleton.tsx");
 
 describe("dashboard layout", () => {
-  it("shows the bot's status exactly once, on the bot strip", () => {
-    // The header used to carry a second "Bot ready" / "Bot not connected" chip.
-    expect(dashboard).not.toContain("Bot ready");
-    expect(dashboard).not.toContain("Bot not connected");
-    const botChips = dashboard.match(/<StatusChip[^>]*label="(Ready|Not connected)"/g) ?? [];
-    expect(botChips).toHaveLength(2); // one per branch of the strip's ternary
-    expect(dashboard.match(/botAccount \? \(/g)).toHaveLength(1);
+  it("shows the bot's status exactly once, as the header chip that links to Bot settings", () => {
+    // The bottom bot strip repeated the header chip; the owner kept the chip.
+    expect(dashboard).not.toContain("Bot settings & console");
+    expect(
+      dashboard.match(/label=\{botAccount \? "Bot ready" : "Bot not connected"\}/g),
+    ).toHaveLength(1);
+    expect(dashboard).toMatch(/<Link\s+href=\{"\/dashboard\/bot" as const\}[\s\S]*?<StatusChip/);
   });
 
   it("splits the timer console 3/5 | 2/5 and the board 2/3 | 1/3", () => {
