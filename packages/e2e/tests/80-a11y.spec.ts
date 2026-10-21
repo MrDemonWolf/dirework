@@ -16,6 +16,9 @@ async function expectNoSeriousViolations(
   name: string,
   disabledRules: readonly string[] = [],
 ): Promise<void> {
+  // The theme class is applied by a script after the HTML streams in; until then the page
+  // shows the light palette, and a scan during that window measures the wrong colors.
+  await page.waitForFunction(() => document.documentElement.classList.contains("dark"));
   const results = await new AxeBuilder({ page })
     .withTags(WCAG_TAGS)
     .disableRules([...disabledRules])
