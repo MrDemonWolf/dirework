@@ -6,8 +6,10 @@ import {
   noteChatConnected,
   noteChatError,
   noteChatReply,
+  noteIngestHealthy,
   REPLY_CLEAR_GRACE_MS,
 } from "../bot-chat-error";
+import { INGEST_BACKLOG_MESSAGE, INGEST_DROPPED_MESSAGE } from "../bot-session";
 
 const BANNED = "Twitch didn't post the bot's reply: the bot account is banned from this channel";
 const WENT_SILENT = "Twitch IRC went silent — reconnecting";
@@ -53,6 +55,23 @@ describe("bot page chat error", () => {
 
     // Once cleared, a later reconnect doesn't bring the old error back.
     expect(currentChatError(noteChatConnected(state), 200_000)).toBeNull();
+  });
+
+  it("keeps a DireWork ingest error across an IRC reconnect until ingest recovers", () => {
+    for (const message of [INGEST_DROPPED_MESSAGE, INGEST_BACKLOG_MESSAGE]) {
+      // Reconnecting to Twitch says nothing about the API: commands may still be dropped.
+      const state = noteChatConnected(noteChatError(message, 1_000));
+      expect(currentChatError(state, 60_000)).toBe(message);
+      expect(noteIngestHealthy(state)).toBeNull();
+    }
+  });
+
+  it("leaves IRC errors to their own clear rules when ingest recovers", () => {
+    const banned = noteChatError(BANNED, 1_000);
+    expect(noteIngestHealthy(banned)).toBe(banned);
+    const silent = noteChatError(WENT_SILENT, 1_000);
+    expect(noteIngestHealthy(silent)).toBe(silent);
+    expect(noteIngestHealthy(null)).toBeNull();
   });
 
   it("clears a connection error on a fresh IRC connect", () => {

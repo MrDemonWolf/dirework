@@ -2,6 +2,7 @@
 // derive it from the bot session's existing events and the 1s uptime tick: no extra timers,
 // no change to the session state machine.
 
+import { isIngestError } from "./bot-session";
 import { isChatRejection } from "./irc-client";
 
 /**
@@ -35,11 +36,17 @@ export function noteChatReply(state: ChatErrorState | null, now: number): ChatEr
 /**
  * The IRC socket (re)connected: Twitch RECONNECT, the liveness watchdog, a token refresh. A
  * fresh connection supersedes connection errors, but a ban, timeout or chat mode belongs to
- * the channel and survives the new socket, so a chat rejection stays until a later reply
- * clears it. Clearing it here would put a green "Connected" over a bot that still can't post.
+ * the channel, and a failing DireWork API has nothing to do with IRC: both survive the new
+ * socket. Clearing them here would put a green "Connected" over a bot that still can't post
+ * or is still dropping commands.
  */
 export function noteChatConnected(state: ChatErrorState | null): ChatErrorState | null {
-  return state && isChatRejection(state.message) ? state : null;
+  return state && (isChatRejection(state.message) || isIngestError(state.message)) ? state : null;
+}
+
+/** The ingest queue drained after a command reached DireWork: an ingest error is over. */
+export function noteIngestHealthy(state: ChatErrorState | null): ChatErrorState | null {
+  return state && isIngestError(state.message) ? null : state;
 }
 
 /** The message to show at `now`, or null once a later reply has gone through cleanly. */

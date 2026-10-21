@@ -12,6 +12,7 @@ import {
   RETRY_MAX_MS,
   REVALIDATE_INTERVAL_MS,
   createBotSession,
+  INGEST_DROPPED_MESSAGE,
   retryDelayMs,
   type BotIngestInput,
   type BotIrcClient,
@@ -62,6 +63,7 @@ function setup(api: Partial<BotSessionApi> = {}) {
     onCounter: vi.fn(),
     onActivity: vi.fn(),
     onReplySent: vi.fn(),
+    onIngestHealthy: vi.fn(),
     onMuted: vi.fn(),
   };
   const session = createBotSession({
@@ -808,5 +810,41 @@ describe("createBotSession ingest backlog", () => {
     expect(overflowNotices(events)).toHaveLength(2);
     gate.release?.();
     await vi.advanceTimersByTimeAsync(0);
+  });
+
+  it("reports ingest healthy only once the backlog drains after a successful command", async () => {
+    const gate: { release?: () => void } = {};
+    const { ingest, events, callbacks } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+
+    ingest.mockImplementationOnce(
+      () => new Promise((r) => (gate.release = () => r({ replies: [] }))),
+    );
+    for (let i = 0; i < MAX_PENDING_INGESTS + 1; i++) {
+      callbacks().onChat?.(chat(`!task ${i}`));
+    }
+    await vi.advanceTimersByTimeAsync(0);
+    expect(overflowNotices(events)).toHaveLength(1);
+    // Still backed up: nothing is healthy yet.
+    expect(events.onIngestHealthy).not.toHaveBeenCalled();
+
+    gate.release?.();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(events.onIngestHealthy).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not report ingest healthy when the last command failed", async () => {
+    const { ingest, events, callbacks } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+    ingest.mockRejectedValueOnce(trpcError("INTERNAL_SERVER_ERROR"));
+
+    callbacks().onChat?.(chat("!task a"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(events.onActivity).toHaveBeenCalledWith("error", INGEST_DROPPED_MESSAGE);
+    expect(events.onIngestHealthy).not.toHaveBeenCalled();
+
+    callbacks().onChat?.(chat("!task b"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(events.onIngestHealthy).toHaveBeenCalledTimes(1);
   });
 });
