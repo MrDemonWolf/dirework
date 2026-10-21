@@ -129,6 +129,11 @@ the browser and are deliberately NOT reported back (it would burn free-tier requ
 
 **`/health` is liveness, `/ready` is readiness.** `/health` has no dependencies, so a D1
 outage can't make the worker look dead; `/ready` pings D1 and returns 503 when it can't.
+`/ready` also reports `limits`: `ok`, or `missing:RL_AUTH,…` naming the rate-limit bindings
+that did not attach (`missingRateLimitBindings` in `apps/server/src/lib/rate-limit.ts` — a
+property check on the env, never a `limit()` call). The status stays 200 either way: the
+limiter fails open by design and readiness must not flap, so the post-deploy smoke check is
+what requires `ok`.
 
 ## Monorepo Structure
 
@@ -451,6 +456,10 @@ migration applied (`src/boot-api.ts`, `src/boot-web.ts`), signed in through the 
 bypass with a fixed test secret. One worker and serial specs (single-owner instance, one
 database). Specs use roles and labels, never CSS classes. Runs in `verify.yml` after the smoke
 check, so a PR and a deploy are gated the same way; the Playwright report uploads on failure.
+verify's `run-e2e` input (default `true`) skips the suite, never the build: docs deploys pass
+`false`, and deploy.yml's `skip_e2e` dispatch input (hotfix only) passes `!skip_e2e`. The
+Chromium download is cached on `hashFiles('bun.lock')` (which pins `@playwright/test`); a cache
+hit installs only its system libraries (`e2e:install-deps`).
 `packages/auth/vitest.config.ts` aliases `cloudflare:workers` to a stub, and
 `packages/auth/src/__tests__/stubs/test-db.ts` gives real drizzle over sql.js with every
 migration applied (only `createDb` is mocked).
@@ -507,7 +516,8 @@ icons; brand glyphs are inline SVG components (`apps/web/src/components/icons/`,
   (install → dependency audit → design-token drift check → lint → check-types →
   test:coverage → build), called via `workflow_call`. CI and deploy both use it, so the
   deploy gate cannot drift from the PR gate. `build` is skippable via the `run-build`
-  input; `upload-docs` also builds and uploads the verified docs static export for Pages.
+  input, the Playwright suite via `run-e2e` (see Testing); `upload-docs` also builds and
+  uploads the verified docs static export for Pages.
   `audit-blocking` (default `true`): ci.yml keeps the default, so PRs/pushes FAIL on
   high advisories; deploy.yml and deploy-docs-to-pages.yml pass `false`, so the audit
   still runs but only emits a `::warning::` annotation (`continue-on-error`) — an
@@ -519,7 +529,12 @@ icons; brand glyphs are inline SVG components (`apps/web/src/components/icons/`,
   boots that bundle in local workerd with Alchemy's compatibility date and flags and
   requires 200 from routes that need no api (`/api/version`, both overlays, the bot
   page): a bundle can build and still throw on every request (Next 16.4 under OpenNext
-  1.20.9 did, in production — `Unexpected loadManifest(...preview-props.json)`). Coverage measures every `src/` file
+  1.20.9 did, in production — `Unexpected loadManifest(...preview-props.json)`). Between
+  `build:worker` and `smoke:worker`, `packages/infra/bundle-budget.ts` checks both Worker
+  bundles against `WORKER_BUDGET_KIB` (2560 KiB gzip; the free plan rejects a script over
+  3072 KiB compressed, and that rejection would come after the D1 migrations applied): api
+  = gzip of the dry-run `apps/server/dist/index.js`, web = `wrangler deploy --dry-run` over
+  the OpenNext output with the smoke config plus Alchemy's `minify: true`. Coverage measures every `src/` file
   (`coverage.include`), not just imported ones.
 - `.github/workflows/codeql.yml` — CodeQL JavaScript/TypeScript analysis plus a separate
   GitHub Actions (workflow) analysis job, both with the `security-extended` query suite on
@@ -531,8 +546,10 @@ icons; brand glyphs are inline SVG components (`apps/web/src/components/icons/`,
   `dependency-review` job on PRs (fails on high-severity advisories). GitHub's
   dependency graph reads only literal `package.json` ranges — not `bun.lock` or
   `catalog:` versions — so `bun audit` (in `verify.yml`) is the real lockfile gate.
-- `.github/workflows/deploy.yml` — push to main (or manual): `verify.yml` **including the
-  build**, then validates required secrets/vars, then Alchemy deploy.
+- `.github/workflows/deploy.yml` — push to main (or manual): a `guard` job refuses any ref
+  but `refs/heads/main` (`::error title=Deploy refused::`, before verify spends a runner
+  half-hour), then `verify.yml` **including the build** (`needs: guard`), then validates
+  required secrets/vars, then Alchemy deploy.
   **Deploy runs under Node via the lockfile-pinned local `tsx`
   (`node ./node_modules/.bin/tsx`) — Bun segfaults on the Alchemy program** (same lesson
   as Wolfathon), and `npx -y` would fetch an unpinned tsx at deploy time.
@@ -547,11 +564,18 @@ icons; brand glyphs are inline SVG components (`apps/web/src/components/icons/`,
   **variables**: `BETTER_AUTH_URL`, `CORS_ORIGIN` (required); `DOCS_URL`,
   `PRIVACY_POLICY_URL`, `TERMS_OF_SERVICE_URL` (optional).
   A manual dispatch takes a `force_state_token` input (→ `ALCHEMY_STATE_FORCE_UPDATE`)
-  for one-time state-token recovery; normal push deploys leave it false.
+  for one-time state-token recovery, and `skip_e2e` (hotfix only → `run-e2e: false`);
+  normal push deploys leave both false, so the browser suite always gates a push deploy.
   **`NEXT_PUBLIC_SERVER_URL` is deliberately NOT a deploy variable** — Alchemy injects the
   api worker's resolved URL at build and runtime, so setting it would be dead config.
-  The last step is a smoke check (`packages/infra/smoke-check.ts`): api `/ready` must pass
-  and web `/api/version` must report the deployed commit.
+  The last step is a smoke check (`packages/infra/smoke-check.ts`, logic in `smoke.ts`,
+  6×10s polling per probe): api `/ready` must answer 200 with `limits: "ok"` (all four
+  rate-limit bindings attached), web `/api/version` must report the deployed commit, web `/`
+  must render (200 after redirects at `/` or `/setup`, `DireWork` and `<h1` in the body —
+  the SSR path, whose session helpers fail closed when the api is down), and
+  `GET /rpc/user.me` must answer 401 through the proxy (`ownerProcedure` refusing an
+  anonymous caller — the probe that proves the web → api hop; a GET because `user.me` is a
+  query).
 - `.github/workflows/deploy-docs-to-pages.yml` — `verify.yml` with `upload-docs` →
   fumadocs static export → GitHub Pages. Runs only on the upstream repo, so forks
   don't fail on a Pages site they never enabled.
@@ -625,6 +649,8 @@ free, so anything that multiplies requests or rows read is a bug, not a style ni
   hop, a Twitch call). Public token-gated traffic goes direct to the api worker via
   `publicTrpc`, never through the web proxy.
 - Writes on hot paths only when they change something (guarded UPDATEs, `NOT EXISTS`).
+- Both Worker bundles stay under `WORKER_BUDGET_KIB` (`packages/infra/bundle-budget.ts`,
+  2560 KiB gzip against the free plan's 3072 KiB cap); raising it needs a stated reason.
 
 **Invariants that must not regress:**
 

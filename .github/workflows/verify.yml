@@ -10,6 +10,10 @@ on:
         description: Also run the production build (slower; required before deploying).
         type: boolean
         default: true
+      run-e2e:
+        description: "Run the Playwright suite after the build. Docs deploys pass false; deploy.yml passes !skip_e2e."
+        type: boolean
+        default: true
       upload-docs:
         description: Build and upload the verified GitHub Pages site.
         type: boolean
@@ -78,6 +82,15 @@ jobs:
         if: ${{ inputs.run-build || inputs.upload-docs }}
         working-directory: apps/web
         run: bun run build:worker
+      # The free Workers plan caps a script at 3 MiB compressed and rejects the
+      # upload past it — after the D1 migrations have already been applied.
+      # Budget 2560 KiB gzip per worker: api from the dry-run bundle the build
+      # step just wrote, web from a wrangler dry run over the OpenNext output
+      # (packages/infra/bundle-budget.ts).
+      - name: Worker bundle budget
+        if: ${{ inputs.run-build || inputs.upload-docs }}
+        working-directory: packages/infra
+        run: node ./node_modules/.bin/tsx bundle-budget.ts
       # A worker can build cleanly and still throw on every request at runtime
       # (Next 16.4 under OpenNext 1.20.9 did, in production). Boot the built
       # bundle in local workerd and request routes that need no api worker.
@@ -88,15 +101,28 @@ jobs:
       # Browser end-to-end tests (packages/e2e): the api worker from source and the
       # web bundle built above, both in local workerd over a fresh local D1 with
       # every migration applied, signed in through the DEV_LOGIN bypass and driven
-      # by Playwright. Same gate for a PR and a deploy.
+      # by Playwright. Same gate for a PR and a deploy; run-e2e=false (docs
+      # deploys, deploy.yml's skip_e2e hotfix input) skips the suite, never the
+      # build. The Chromium download is cached on bun.lock, which pins
+      # @playwright/test, so a Playwright bump changes the key; the cache holds
+      # only the browser, so a hit still installs its system libraries.
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        if: ${{ inputs.run-build && inputs.run-e2e }}
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
       - name: Install Playwright browser
-        if: ${{ inputs.run-build }}
+        if: ${{ inputs.run-build && inputs.run-e2e && steps.playwright-cache.outputs.cache-hit != 'true' }}
         run: bun run e2e:install
+      - name: Install Playwright system dependencies
+        if: ${{ inputs.run-build && inputs.run-e2e && steps.playwright-cache.outputs.cache-hit == 'true' }}
+        run: bun run e2e:install-deps
       - name: Browser end-to-end tests
-        if: ${{ inputs.run-build }}
+        if: ${{ inputs.run-build && inputs.run-e2e }}
         run: bun run e2e
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: ${{ failure() && inputs.run-build }}
+        if: ${{ failure() && inputs.run-build && inputs.run-e2e }}
         with:
           name: playwright-report
           path: |

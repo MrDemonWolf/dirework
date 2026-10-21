@@ -209,8 +209,14 @@ To tear everything down again: `bun run destroy` (with the same values exported)
 ## Monitoring
 
 Each deploy ends with a smoke check: the workflow fails unless the api worker's `/ready`
-answers (it pings D1) and the web worker's `/api/version` reports the commit that was just
-deployed. Between deploys nothing watches the instance, so:
+answers with `limits: "ok"` (it pings D1 and confirms all four rate-limit bindings
+attached), the web worker's `/api/version` reports the commit that was just deployed, the
+home page renders, and the dashboard's `/rpc` proxy reaches the api (an anonymous request
+gets `401`). `limits` reads `missing:RL_AUTH,…` when a binding did not attach; the worker
+stays ready regardless, because the limiter fails open rather than taking the app down,
+but the smoke check does not pass it. So a fork's first deploy fails at the smoke check if
+the rate-limit bindings did not bind — look for the four `RateLimit` resources in the
+Alchemy step's output. Between deploys nothing watches the instance, so:
 
 - Point a free uptime monitor (UptimeRobot, Better Stack, etc.) at
   `https://dirework-api.<your-subdomain>.workers.dev/ready`. It returns `503` when D1 is
@@ -351,3 +357,10 @@ stream polled by the task overlay *and* a dashboard (~14,400 polls) with 20 open
 100 done stays near 2.5M rows; the 24h purge keeps yesterday's tasks from adding to
 tomorrow's. For very busy co-working streams, `!clear done` between streams (or **Clear
 done** on the Dashboard) resets the count to zero immediately.
+
+### Worker size
+
+The free plan also caps each Worker at 3 MiB compressed, and Cloudflare rejects an upload
+past it — after the deploy has already applied the D1 migrations. The Verify workflow
+therefore measures both Worker bundles right after the build and fails at 2560 KiB
+(`packages/infra/bundle-budget.ts`), leaving room to trim before a deploy can hit the cap.

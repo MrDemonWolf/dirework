@@ -3,7 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 import { CLIENT_IP_SIGNATURE_HEADER, stampClientIp } from "@dirework/api/proxy-identity";
 import { makeSignature } from "better-auth/crypto";
 
-import { clientKey, rateLimiter, selectBucket } from "../rate-limit";
+import {
+  RATE_LIMIT_BUCKETS,
+  clientKey,
+  missingRateLimitBindings,
+  rateLimiter,
+  selectBucket,
+} from "../rate-limit";
 
 describe("selectBucket", () => {
   it("keeps liveness and root probes open but limits readiness reads", () => {
@@ -35,6 +41,31 @@ describe("selectBucket", () => {
 
   it("falls back to the token bucket for other tRPC paths", () => {
     expect(selectBucket("/trpc/user.hasOwner")).toBe("RL_TOKEN");
+  });
+});
+
+describe("missingRateLimitBindings", () => {
+  const limit = vi.fn(async () => ({ success: true }));
+  const allBound = () =>
+    Object.fromEntries(RATE_LIMIT_BUCKETS.map((bucket) => [bucket, { limit }]));
+
+  it("reports nothing when every bucket has a limiter bound", () => {
+    expect(missingRateLimitBindings(allBound())).toEqual([]);
+  });
+
+  it("names every bucket whose binding is absent or not a limiter, in bucket order", () => {
+    // A binding present under the right name but not a RateLimit (a plain var,
+    // an object without limit) counts as missing: the middleware would throw
+    // on it and fail open, exactly like an absent one.
+    expect(
+      missingRateLimitBindings({ RL_AUTH: { limit }, RL_BOT: {}, RL_TOKEN: "ratelimit" }),
+    ).toEqual(["RL_BOT", "RL_TOKEN", "RL_OVERLAY"]);
+    expect(missingRateLimitBindings(undefined)).toEqual([...RATE_LIMIT_BUCKETS]);
+  });
+
+  it("never calls a limiter: the check costs no quota", () => {
+    missingRateLimitBindings(allBound());
+    expect(limit).not.toHaveBeenCalled();
   });
 });
 
