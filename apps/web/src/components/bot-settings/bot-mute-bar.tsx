@@ -2,7 +2,8 @@
 
 // Slim full-width bar at the top of the bot settings page: the bot's mute switch. Saves on
 // flip (no Save bar): muting is an on-stream action, and the same switch a mod flips with
-// !mute / !unmute in chat. The chip only says Live when a bot account exists to answer.
+// !mute / !unmute in chat. The chip reports the switch (Off, Muted, Unmuted), never that the
+// bot is running: that depends on its bot page being open.
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";

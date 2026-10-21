@@ -19,9 +19,10 @@ describe("botMuteStatus", () => {
     expect(status.description).toMatch(/^Connect a bot account first\./);
   });
 
-  it("is Live with a bot account and not muted", () => {
+  it("says Unmuted, never Live, with a bot account and not muted", () => {
+    // The bot runs only while its page is open, which the dashboard can't know.
     const status = botMuteStatus({ muted: false, hasBotAccount: true });
-    expect(status).toMatchObject({ tone: "live", label: "Live", pulse: false });
+    expect(status).toMatchObject({ tone: "accent", label: "Unmuted", pulse: false });
     expect(status.description).toMatch(/while its bot page is open/);
   });
 

@@ -101,6 +101,31 @@ describe("bot page chat error", () => {
     }
   });
 
+  it("keeps a refused reply showing when a later ingest error clears", () => {
+    // Banned, then DireWork drops a command: the newer ingest error shows first.
+    let state: ChatErrorState | null = noteChatError(
+      noteChatError(null, BANNED, 1_000),
+      INGEST_DROPPED_MESSAGE,
+      2_000,
+    );
+    expect(currentChatError(state, 3_000)).toBe(INGEST_DROPPED_MESSAGE);
+    // A later command (with no reply for Twitch to refuse) gets through: the ban still holds.
+    state = noteIngestHealthy(state);
+    expect(currentChatError(state, 4_000)).toBe(BANNED);
+  });
+
+  it("keeps an ingest error when a refused reply clears", () => {
+    let state: ChatErrorState | null = noteChatError(
+      noteChatError(null, INGEST_BACKLOG_MESSAGE, 1_000),
+      BANNED,
+      2_000,
+    );
+    state = noteChatReply(state, 3_000);
+    // A reply can go out while the ingest queue is still backed up.
+    expect(currentChatError(state, 3_000 + REPLY_CLEAR_GRACE_MS)).toBe(INGEST_BACKLOG_MESSAGE);
+    expect(currentChatError(noteIngestHealthy(state), 3_000 + REPLY_CLEAR_GRACE_MS)).toBeNull();
+  });
+
   it("shows a connection error once the earlier durable error has cleared", () => {
     const cleared = noteChatReply(noteChatError(null, BANNED, 1_000), 2_000);
     const state = noteChatError(cleared, WENT_SILENT, 2_000 + REPLY_CLEAR_GRACE_MS);

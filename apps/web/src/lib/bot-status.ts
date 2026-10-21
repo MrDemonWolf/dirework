@@ -11,8 +11,8 @@ export interface BotMuteStatus {
 }
 
 /**
- * The mute bar's chip and sentence. Only a connected bot account can answer chat, so without
- * one the bar never claims Live; the switch still works there, so a streamer can pre-mute
+ * The mute bar's chip and sentence. The chip reports the mute switch, never that the bot is
+ * running. Only a connected bot account can answer chat, so without one it says Off; the switch still works there, so a streamer can pre-mute
  * before connecting.
  */
 export function botMuteStatus({
@@ -47,8 +47,10 @@ export function botMuteStatus({
           "The bot ignores every command and posts nothing until it's unmuted here or a mod sends !unmute.",
       }
     : {
-        tone: "live",
-        label: "Live",
+        // Unmuted, not "Live": the bot runs only while its bot page is open, which this page
+        // can't know without polling.
+        tone: "accent",
+        label: "Unmuted",
         pulse: false,
         description:
           "The bot answers chat commands while its bot page is open. Mute it to pause everything without closing the page.",
