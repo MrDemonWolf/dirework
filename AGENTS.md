@@ -15,6 +15,7 @@ This file provides guidance for coding agents working on the Dirework codebase.
 - Contributor setup + branch/PR workflow → `CONTRIBUTING.md`
 - Design system (tokens + component specs) → `design-system/`, docs `apps/fumadocs/content/docs/design-system.mdx`
 - PR review checklist (Codex + humans; free-tier cost rules) → `## Code Review Rules` below
+- Owner to-dos (secrets move, Codex auto-review) + product backlog → `TODO.md`
 
 ## Project Overview
 
