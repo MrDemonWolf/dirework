@@ -15,7 +15,7 @@ This file provides guidance for coding agents working on the Dirework codebase.
 - Database schemas → `packages/db/src/schema/` (index.ts, auth.ts, app.ts)
 - Setup guides → `.env.example`, docs `apps/fumadocs/content/docs/deployment.mdx`
 - Contributor setup + branch/PR workflow → `CONTRIBUTING.md`
-- Design system (tokens → generated CSS for app + docs, component specs) → `design-system/` (README), docs `apps/fumadocs/content/docs/design-system.mdx`; drift check `bun run tokens && git diff --exit-code`
+- Design system (tokens → generated CSS for app + docs, one spec per component, enforced by `spec-catalog.test.ts`) → `design-system/` (README), docs `apps/fumadocs/content/docs/design-system.mdx`; drift check `bun run tokens && git diff --exit-code`
 - Which Cloudflare services to use beyond Workers + D1 (KV, Durable Objects, Queues, Cron, …) → `docs/decisions/0001-cloudflare-services.md`
 - PR review checklist (Codex + humans; free-tier cost rules) → `## Code Review Rules` below
 - Owner to-dos (secrets move, Codex auto-review) + product backlog → `TODO.md`
@@ -532,6 +532,10 @@ existing home and reuse it:
   Save when the server's input schema would reject the payload), `status-chip`,
   `timer-status-badge`, `unsaved-changes-guard`, `auto-scale`, `loader`, `query-error`
   (failed first load — never render editors over defaults), `secret-url-row`.
+- **Specs** — every component has a spec in `design-system/components/` (frontmatter
+  `source:` + `tokens:`; README holds the page → components map), and
+  `apps/web/src/lib/__tests__/spec-catalog.test.ts` enforces it: a new, renamed or moved
+  component, or a changed overlay default, fails until its spec moves with it.
 - **Error handling** — `lib/trpc-errors.ts` (`describeTrpcError`: transport failures get
   one fixed "can't reach the API" message and a shared toast id), `lib/query-error-toast.ts`
   (the global QueryCache handler; honours `meta.silent`), `lib/validation-errors.ts`
