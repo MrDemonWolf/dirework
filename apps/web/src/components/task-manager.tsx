@@ -177,6 +177,15 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
     (target ?? addInputRef.current)?.focus();
   }, [tasks.data]);
 
+  // The empty board's call to action: bring the add input into view and focus it. Only
+  // on a click — focusing on load would jump past the checklist and timer on a hard load.
+  const focusAddInput = () => {
+    const input = addInputRef.current;
+    if (!input) return;
+    input.scrollIntoView({ block: "nearest" });
+    input.focus({ preventScroll: true });
+  };
+
   // Counts come from the server: the list carries only the newest done tasks
   // (DONE_TASK_LIST_LIMIT), so counting the array would undercount "Done".
   const pendingCount = tasks.data?.counts.open ?? 0;
@@ -287,13 +296,18 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                       transform="rotate(-90 24 24)"
                     />
                   </svg>
-                  <div className="max-w-60 text-center">
-                    <p className="text-sm font-medium">A clean slate</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Add the first task above, or let chat start with{" "}
-                      <code className="rounded bg-muted px-1 py-0.5 font-mono">!task</code>.
+                  <div className="max-w-72 text-center">
+                    <p className="font-heading text-base font-semibold tracking-tight">
+                      What are you working on today?
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Viewers add theirs in chat with{" "}
+                      <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">!task</code>.
                     </p>
                   </div>
+                  <Button variant="outline" size="sm" onClick={focusAddInput}>
+                    Add a task
+                  </Button>
                 </div>
               ) : (
                 orderedGroups.map((group) => {

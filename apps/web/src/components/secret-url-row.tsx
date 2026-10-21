@@ -17,6 +17,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
  * A secret, token-bearing URL (overlay or bot page): masked by default with a
  * visible fingerprint, plus Show / Copy / Reset. `path` is null until the
  * token has loaded; the row then stays masked and its actions are disabled.
+ * Without `onRegenerate` the row is Show / Copy only (the setup checklist hands the
+ * URL off; resetting stays where the URL lives).
  */
 export function SecretUrlRow({
   label,
@@ -27,10 +29,10 @@ export function SecretUrlRow({
 }: {
   label: string;
   path: string | null;
-  onRegenerate: () => void;
-  regenerating: boolean;
+  onRegenerate?: () => void;
+  regenerating?: boolean;
   /** What breaks when the URL is reset, shown in the confirm dialog. */
-  resetDescription: string;
+  resetDescription?: string;
 }) {
   const origin = useOrigin();
   const [revealed, setRevealed] = useState(false);
@@ -108,33 +110,37 @@ export function SecretUrlRow({
       >
         <Copy className="size-3.5" />
       </Button>
-      <div aria-hidden className="mx-1 w-px self-stretch bg-border/40" />
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <span className="inline-flex">
-              <ConfirmDialog
-                trigger={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    disabled={regenerating || !ready}
-                    aria-label={`Reset ${label} URL`}
-                  >
-                    <RefreshCw className={`size-3.5 ${regenerating ? "animate-spin" : ""}`} />
-                  </Button>
-                }
-                title={`Reset the ${label.toLowerCase()} URL?`}
-                description={resetDescription}
-                confirmLabel="Reset URL"
-                onConfirm={onRegenerate}
-              />
-            </span>
-          }
-        />
-        <TooltipContent>Reset the URL (the current one stops working)</TooltipContent>
-      </Tooltip>
+      {onRegenerate && (
+        <>
+          <div aria-hidden className="mx-1 w-px self-stretch bg-border/40" />
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <span className="inline-flex">
+                  <ConfirmDialog
+                    trigger={
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        disabled={regenerating || !ready}
+                        aria-label={`Reset ${label} URL`}
+                      >
+                        <RefreshCw className={`size-3.5 ${regenerating ? "animate-spin" : ""}`} />
+                      </Button>
+                    }
+                    title={`Reset the ${label.toLowerCase()} URL?`}
+                    description={resetDescription ?? ""}
+                    confirmLabel="Reset URL"
+                    onConfirm={onRegenerate}
+                  />
+                </span>
+              }
+            />
+            <TooltipContent>Reset the URL (the current one stops working)</TooltipContent>
+          </Tooltip>
+        </>
+      )}
     </div>
   );
 }
