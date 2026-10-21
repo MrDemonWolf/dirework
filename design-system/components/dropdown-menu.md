@@ -7,9 +7,10 @@ tokens: [color.scheme, radius]
 
 ## Purpose
 
-Base UI `Menu` styled as a frosted popup. Used by `UserMenu` (the header account menu). It
-also owns `menuItemRecipe`, the one row recipe `Select` imports, so every menu and list row
-in the app highlights the same way.
+Base UI `Menu` styled as a frosted popup. Used by `UserMenu` (the header account menu), the
+Theme Center section menus and the Task Board options menu. It also owns `menuItemRecipe`,
+the one row recipe `Select` imports, so every menu and list row in the app highlights the
+same way.
 
 ## Anatomy
 

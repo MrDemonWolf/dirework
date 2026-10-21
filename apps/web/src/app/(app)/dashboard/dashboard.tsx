@@ -1,7 +1,8 @@
 "use client";
 
-// Owner dashboard home (/dashboard): timer console, task board, both OBS overlay URLs with
-// optional live previews, and a bot status strip. All data comes from owner-only tRPC
+// Owner dashboard home (/dashboard): the timer console (instrument | controls, settings and
+// the timer-overlay monitor), the task board (board | tasks-overlay monitor) and a bot status
+// strip — the page's only bot status chip. All data comes from owner-only tRPC
 // procedures: hydrated from the server prefetch on first load, then polled through the
 // same-origin /rpc proxy.
 
@@ -21,7 +22,12 @@ import { SetupChecklist, SetupReopenButton, useSetupCollapsed } from "@/componen
 import { overlayPath } from "@/lib/overlay-view";
 import { StatusChip } from "@/components/status-chip";
 import { TaskManager } from "@/components/task-manager";
-import { TimerProvider, TimerInstrument, TimerSettings } from "@/components/timer-controls";
+import {
+  TimerInstrument,
+  TimerProvider,
+  TimerSettings,
+  TimerTransport,
+} from "@/components/timer-controls";
 import { TimerStatusBadge } from "@/components/timer-status-badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { setupProgress } from "@/lib/setup-steps";
@@ -52,58 +58,75 @@ function getDateStr(): string {
     .replace(",", "");
 }
 
-/** Inset monitor stage: labeled rule with an eye toggle + square overlay iframe. */
+/**
+ * An overlay's monitor: labeled rule with the recommended OBS size, the masked URL row,
+ * and a Live preview toggle. The preview is a live overlay iframe that polls the api on the
+ * overlay cadence while shown, so it starts hidden and its stage only exists while on.
+ */
 function OverlayMonitor({
   label,
-  caption,
+  noun,
+  size,
+  sizeHint,
+  aspectRatio,
   src,
-  title,
   show,
   onToggle,
+  onRegenerate,
+  regenerating,
 }: {
+  /** "Timer overlay" / "Tasks overlay": the rule and the URL row's accessible names. */
   label: string;
-  caption?: string;
+  noun: "timer" | "tasks";
+  size: string;
+  sizeHint: string;
+  aspectRatio: string;
   src: string | null;
-  title: string;
   show: boolean;
   onToggle: (next: boolean) => void;
+  onRegenerate: () => void;
+  regenerating: boolean;
 }) {
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-3">
-        <ConsoleRule label={label} className="min-w-0 flex-1" />
+    <div className="space-y-2.5">
+      <ConsoleRule label={label} className="flex items-center">
+        <SizeChip size={size} hint={sizeHint} />
+      </ConsoleRule>
+      <SecretUrlRow
+        label={label}
+        path={src}
+        onRegenerate={onRegenerate}
+        regenerating={regenerating}
+        resetDescription={OVERLAY_RESET_DESCRIPTION}
+      />
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <p className="text-xs text-muted-foreground">Add the URL as a browser source in OBS</p>
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="xs"
           onClick={() => onToggle(!show)}
           aria-pressed={show}
-          aria-label={`Show ${label.toLowerCase()}`}
+          disabled={!src}
+          className="ml-auto gap-1.5"
         >
           {show ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+          Live preview
+          <span className="sr-only"> of the {noun} overlay</span>
         </Button>
       </div>
-      <div
-        className="panel-inset bg-grain relative w-full overflow-hidden"
-        style={{ aspectRatio: "1 / 1" }}
-      >
-        {show && src ? (
+      {show && src && (
+        <div
+          className="panel-inset bg-grain relative w-full overflow-hidden"
+          style={{ aspectRatio }}
+        >
           <iframe
             src={src}
-            title={title}
+            title={`${label} preview`}
             className="pointer-events-none absolute inset-0 h-full w-full"
             style={{ border: "none", background: "transparent" }}
           />
-        ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-            <EyeOff className="size-5 text-muted-foreground/40" />
-            <p className="text-xs text-muted-foreground">Preview is off</p>
-            <Button variant="outline" size="sm" onClick={() => onToggle(true)}>
-              Show preview
-            </Button>
-          </div>
-        )}
-        {caption && <span className="console-label absolute right-2 bottom-1.5">{caption}</span>}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -199,7 +222,8 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
 
   return (
     <div className="container mx-auto max-w-content px-4 py-8">
-      {/* Header band: console kicker + greeting + LED status cluster */}
+      {/* Header band: console kicker + greeting + status cluster. The bot's status lives
+          once, on the bot strip at the bottom. */}
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="console-label mb-2" suppressHydrationWarning>
@@ -224,10 +248,6 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
             />
           )}
           <TimerStatusBadge />
-          <StatusChip
-            tone={botAccount ? "accent" : "idle"}
-            label={botAccount ? "Bot ready" : "Bot not connected"}
-          />
         </div>
       </div>
 
@@ -241,9 +261,10 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
         }}
       />
 
-      <div className="stagger-reveal grid items-start gap-6 lg:grid-cols-3">
-        {/* Hero instrument: the timer console — its overlay monitor lives beside it */}
-        <section className="panel-hero lg:col-span-3">
+      <div className="stagger-reveal grid gap-6">
+        {/* Hero instrument: the timer console. Instrument (3/5) | controls, session
+            settings and the timer-overlay monitor (2/5). */}
+        <section className="panel-hero">
           <div className="border-b border-border/40 px-5 pt-4 pb-3">
             <ConsoleRule label="Timer Console" />
             <h2 className="mt-2 font-heading text-lg font-semibold tracking-tight">Pomodoro</h2>
@@ -252,83 +273,53 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
             </p>
           </div>
           <TimerProvider>
-            <div className="flex flex-col gap-8 px-5 py-6 lg:flex-row lg:items-stretch">
-              <div className="flex flex-1 items-center justify-center py-2">
+            <div className="grid lg:grid-cols-5">
+              <div className="flex items-center justify-center px-5 py-8 lg:col-span-3">
                 <TimerInstrument />
               </div>
-              <div className="w-full lg:w-60 lg:shrink-0 lg:border-l lg:border-border/40 lg:pl-6">
+              <div className="flex min-w-0 flex-col gap-5 border-t border-border/40 px-5 py-5 lg:col-span-2 lg:border-t-0 lg:border-l">
+                <TimerTransport />
                 <TimerSettings />
-              </div>
-              {/* Timer output — the OBS view of THIS timer, right where it's controlled */}
-              <div className="w-full lg:w-72 lg:shrink-0 lg:border-l lg:border-border/40 lg:pl-6">
                 <OverlayMonitor
-                  label="Timer preview"
+                  label="Timer overlay"
+                  noun="timer"
+                  size="300 × 300"
+                  sizeHint="Square OBS browser source — the timer scales to fill it"
+                  aspectRatio="1 / 1"
                   src={timerPath}
-                  title="Timer overlay preview"
                   show={showTimerPreview}
                   onToggle={setShowTimerPreview}
+                  onRegenerate={() => regenerateToken.mutate({ type: "timer" })}
+                  regenerating={regenerateToken.isPending}
                 />
               </div>
             </div>
           </TimerProvider>
-          {/* Overlay URL — full-width strip along the bottom so the OBS source URL has room */}
-          <div className="space-y-2 border-t border-border/40 px-5 py-4">
-            <ConsoleRule label="Timer overlay URL" className="flex items-center">
-              <SizeChip
-                size="300 × 300"
-                hint="Square OBS browser source — the timer scales to fill it"
-              />
-            </ConsoleRule>
-            <SecretUrlRow
-              label="Timer overlay"
-              path={timerPath}
-              onRegenerate={() => regenerateToken.mutate({ type: "timer" })}
-              regenerating={regenerateToken.isPending}
-              resetDescription={OVERLAY_RESET_DESCRIPTION}
-            />
-            <p className="text-xs text-muted-foreground">Add the URL as a browser source in OBS</p>
-          </div>
         </section>
 
-        {/* Task board — hero console mirroring the timer: board + live preview
-            beside it, overlay URL strip along the bottom */}
-        <section className="panel-hero min-w-0 lg:col-span-3">
+        {/* Task board (2/3) with the tasks-overlay monitor (1/3) */}
+        <section className="panel-hero min-w-0">
           <TaskManager
             userTwitchId={me.twitchId ?? me.id}
-            // Tasks output — the OBS view of THIS list, top-aligned beside the
-            // add-task block, mirroring the timer console's settings|preview row.
-            preview={
+            monitor={
               <OverlayMonitor
-                label="Tasks preview"
+                label="Tasks overlay"
+                noun="tasks"
+                size="700 × 800"
+                sizeHint="OBS browser source — the list fills it and scrolls when tasks overflow"
+                aspectRatio="7 / 8"
                 src={tasksPath}
-                title="Task list overlay preview"
                 show={showTasksPreview}
                 onToggle={setShowTasksPreview}
+                onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
+                regenerating={regenerateToken.isPending}
               />
             }
           />
-          {/* Tasks overlay URL — full-width strip along the bottom, mirroring
-              the timer console's own overlay-URL strip. */}
-          <div className="space-y-2 border-t border-border/40 px-5 py-4">
-            <ConsoleRule label="Tasks overlay URL" className="flex items-center">
-              <SizeChip
-                size="700 × 800"
-                hint="OBS browser source — the list fills it and scrolls when tasks overflow"
-              />
-            </ConsoleRule>
-            <SecretUrlRow
-              label="Tasks overlay"
-              path={tasksPath}
-              onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
-              regenerating={regenerateToken.isPending}
-              resetDescription={OVERLAY_RESET_DESCRIPTION}
-            />
-            <p className="text-xs text-muted-foreground">Add the URL as a browser source in OBS</p>
-          </div>
         </section>
 
         {/* Bot quick status — slim full-width strip */}
-        <section className="panel lg:col-span-3">
+        <section className="panel">
           <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10">

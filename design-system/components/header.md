@@ -17,7 +17,9 @@ API's `ownerProcedure` authorizes.
 
 - `<header>`: `sticky top-0 z-(--z-header)`, hairline bottom border, `bg-background/60` with
   backdrop blur, padded by the safe-area insets.
-- Inner row: `h-header max-w-content`.
+- Inner row: `h-header max-w-content`, `px-3` with tighter gaps and a `text-base` wordmark
+  below `sm` (`px-4` and `text-lg` from `sm`), so the logo, theme switch, avatar and menu
+  button fit a 320px phone with slack to spare (text renders wider on Linux than macOS).
 - Left: logo link (inline SVG titled "DireWork logo" + wordmark) and, when signed in, the
   desktop `<nav>` (`md:flex`): Dashboard, Theme Center, Bot. Each icon pulses
   (`animate-led-pulse`) while its navigation is pending (`useLinkStatus`).

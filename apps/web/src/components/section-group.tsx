@@ -17,6 +17,7 @@ export function SectionGroup({
   icon,
   trailing,
   menu,
+  summary,
   defaultOpen = true,
   flush = false,
   className,
@@ -33,6 +34,8 @@ export function SectionGroup({
    * button can't hold another one; `trailing` sits inside it and is display-only.
    */
   menu?: ReactNode;
+  /** A one-line digest under the title, shown only while the section is collapsed. */
+  summary?: ReactNode;
   defaultOpen?: boolean;
   /** Content without the default padding, for lists that draw their own rows. */
   flush?: boolean;
@@ -45,11 +48,18 @@ export function SectionGroup({
         <CollapsibleTrigger className="group/section flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
           <span className="flex min-w-0 items-center gap-2">
             {icon}
-            <span
-              id={titleId}
-              className="console-label transition-colors group-hover/section:text-foreground"
-            >
-              {title}
+            <span className="flex min-w-0 flex-col gap-1">
+              <span
+                id={titleId}
+                className="console-label transition-colors group-hover/section:text-foreground"
+              >
+                {title}
+              </span>
+              {summary != null && (
+                <span className="font-mono text-xs text-foreground/80 tabular-nums group-data-[panel-open]/section:hidden">
+                  {summary}
+                </span>
+              )}
             </span>
           </span>
           <span className="flex shrink-0 items-center gap-2">

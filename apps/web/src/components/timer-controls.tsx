@@ -1,12 +1,12 @@
 "use client";
 
 // Dashboard timer console: `TimerProvider` owns the timer.get poll, the transport
-// mutations and the locally edited timer config; `TimerInstrument` (the hero clock and
-// transport) and `TimerSettings` (blur-autosaved durations) read it through context.
+// mutations and the locally edited timer config; `TimerInstrument` (the hero clock),
+// `TimerTransport` (Start / Skip / Stop) and `TimerSettings` (the blur-autosaved durations
+// behind the "Edit session settings" disclosure) read it through context.
 
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, Fragment, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { ConsoleRule } from "@/components/console-rule";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info, Pause, Play, SkipForward, Square } from "lucide-react";
 import { toast } from "sonner";
@@ -15,10 +15,12 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SectionGroup } from "@/components/section-group";
 import { StatusChip } from "@/components/status-chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { DASHBOARD_TIMER_QUERY_OPTS } from "@/lib/poll-intervals";
+import { formatSessionSummary } from "@/lib/session-summary";
 import { type TimerState, formatClock, resolvePhaseDuration } from "@/lib/timer-utils";
 import { useTimerCountdown } from "@/lib/use-timer-countdown";
 import { TIMER_TONES, TIMER_PHASE_COLOR, toTimerStatus } from "@/lib/status-tones";
@@ -42,11 +44,17 @@ function minutesToMs(min: number): number {
 
 /**
  * Hardware-module cycle indicator: filled dots for completed pomos, a ringed
- * dot for the current one, hollow dots ahead. Falls back to a mono counter
- * when the run is too long to read as dots.
+ * dot for the current one, hollow dots ahead. `current` 0 = the idle preview of
+ * the planned run (every dot hollow). Falls back to a mono counter when the run is
+ * too long to read as dots.
  */
 function CycleDots({ current, total }: { current: number; total: number }) {
   if (total > 10) {
+    if (current === 0) {
+      return (
+        <p className="font-mono text-xs tracking-display text-muted-foreground">{total} pomos</p>
+      );
+    }
     return (
       <p className="font-mono text-xs tracking-display text-muted-foreground">
         <span className="font-semibold">{String(Math.min(current, total)).padStart(2, "0")}</span>/
@@ -58,7 +66,11 @@ function CycleDots({ current, total }: { current: number; total: number }) {
     <div
       className="flex items-center gap-2"
       role="img"
-      aria-label={`Pomodoro ${Math.min(current, total)} of ${total}`}
+      aria-label={
+        current === 0
+          ? `${total} ${total === 1 ? "pomodoro" : "pomodoros"} planned`
+          : `Pomodoro ${Math.min(current, total)} of ${total}`
+      }
     >
       {Array.from({ length: total }, (_, index) => index + 1).map((cycleNum) => {
         const isDone = cycleNum < current;
@@ -99,6 +111,8 @@ interface TimerContextValue {
   longBreakInterval: number;
   setLongBreakInterval: (v: number) => void;
   saveConfig: (overrides: Partial<typeof TIMER_CONFIG_DEFAULTS>) => void;
+  /** `FOCUS 25m · BREAK 5m · …` from the SAVED config, for the collapsed settings. */
+  sessionSummary: string;
   status: TimerStatus;
   isIdle: boolean;
   isPaused: boolean;
@@ -272,6 +286,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         longBreakInterval,
         setLongBreakInterval,
         saveConfig,
+        sessionSummary: formatSessionSummary(config.data?.timerConfig),
         status,
         isIdle,
         isPaused,
@@ -291,27 +306,12 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 }
 
 /**
- * The hero timer instrument — reads like a hardware timer: phase LED chip on
- * top, big glowing tabular digits, phase-progress rail, cycle dots, then the
- * transport controls.
+ * The hero timer instrument — reads like a hardware timer: phase LED chip on top, big
+ * tabular digits, phase-progress rail, cycle dots. The transport lives in
+ * `TimerTransport`, beside it in the console's right column.
  */
 export function TimerInstrument() {
-  const {
-    cycles,
-    workMin,
-    breakMin,
-    status,
-    isIdle,
-    isPaused,
-    totalDuration,
-    state,
-    configLabels,
-    start,
-    pause,
-    resume,
-    skip,
-    reset,
-  } = useTimerContext();
+  const { cycles, workMin, isIdle, totalDuration, state, status, configLabels } = useTimerContext();
 
   const remaining = useTimerCountdown(state);
 
@@ -333,46 +333,8 @@ export function TimerInstrument() {
   const phaseColor = TIMER_PHASE_COLOR[timerStatus];
   const phaseLabel = configLabels[timerStatus];
 
-  // One primary transport button for every state (Start / Pause / Resume), so
-  // the same element keeps keyboard focus across state changes.
-  const primary = isIdle
-    ? {
-        label: "Start",
-        Icon: Play,
-        variant: "default" as const,
-        onClick: () => start.mutate({ totalCycles: cycles }),
-        pending: start.isPending,
-      }
-    : isPaused
-      ? {
-          label: "Resume",
-          Icon: Play,
-          variant: "default" as const,
-          onClick: () => resume.mutate(),
-          pending: resume.isPending,
-        }
-      : {
-          label: "Pause",
-          Icon: Pause,
-          variant: "outline" as const,
-          onClick: () => pause.mutate(),
-          pending: pause.isPending,
-        };
-
-  // Stopping (or finishing) unmounts the skip/stop cluster; if that dropped
-  // focus to <body>, hand it to the primary button instead of the page top.
-  const primaryRef = useRef<HTMLButtonElement>(null);
-  const wasIdle = useRef(isIdle);
-  useEffect(() => {
-    const active = document.activeElement;
-    if (isIdle && !wasIdle.current && (!active || active === document.body)) {
-      primaryRef.current?.focus();
-    }
-    wasIdle.current = isIdle;
-  }, [isIdle]);
-
   return (
-    <div className="flex flex-col items-center gap-5">
+    <div className="flex w-full flex-col items-center gap-5">
       {/* Keyed on the status so a phase change remounts the chip and plays its
           one-shot crossfade; the aria-live span below is not keyed. */}
       <StatusChip
@@ -412,78 +374,128 @@ export function TimerInstrument() {
           style={{ width: `${progressPct}%`, background: phaseColor }}
         />
       </div>
+      {/* While idle the dots preview the planned run (all hollow). */}
       {state && !isIdle ? (
         <CycleDots current={state.currentCycle} total={state.totalCycles} />
       ) : (
-        <p className="font-mono text-xs tracking-wide text-muted-foreground">
-          {cycles} {cycles === 1 ? "pomo" : "pomos"} &middot; {workMin}m focus &middot; {breakMin}m
-          break
-        </p>
+        <CycleDots current={0} total={cycles} />
       )}
-      <div className="flex items-center gap-2">
-        <Button
-          ref={primaryRef}
-          variant={primary.variant}
-          size="lg"
-          onClick={primary.onClick}
-          disabled={primary.pending}
-          focusableWhenDisabled
-          className="h-12 gap-2 px-8 text-base"
-        >
-          <primary.Icon className="size-4" />
-          {primary.label}
-        </Button>
-        {!isIdle && (
-          /* Segmented skip/stop cluster */
-          <div className="flex divide-x divide-border/50 overflow-hidden rounded-lg border border-border/50">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => skip.mutate()}
-                    disabled={skip.isPending}
-                    focusableWhenDisabled
-                    aria-label="Skip phase"
-                    className="h-12 w-12 rounded-none border-0"
-                  />
-                }
-              >
-                <SkipForward className="size-4" />
-              </TooltipTrigger>
-              <TooltipContent>Skip to the next phase</TooltipContent>
-            </Tooltip>
-            <ConfirmDialog
-              trigger={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={reset.isPending}
-                  focusableWhenDisabled
-                  aria-label="Stop timer"
-                  className="h-12 w-12 rounded-none border-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <Square className="size-4" />
-                </Button>
-              }
-              title="Stop the timer?"
-              description="This ends the current run and resets the timer. Progress is lost, and the overlay goes back to its idle preview."
-              confirmLabel="Stop timer"
-              onConfirm={() => reset.mutate()}
-            />
-          </div>
-        )}
-      </div>
     </div>
   );
 }
 
 /**
- * Timer duration/cycle fields. Each field autosaves on blur (clamped to its range,
- * no-op blurs skipped by `saveConfig`) and is disabled while a run is in progress.
- * The min/max bounds are the UI's own and tighter than `updateTimerConfigInput`, which
- * stays the authority.
+ * Transport: `[Start] [Skip] | [Stop]`. One primary button for every state
+ * (Start / Pause / Resume) so the same element keeps keyboard focus across state
+ * changes; Skip and Stop exist only while a run is in progress.
+ */
+export function TimerTransport() {
+  const { cycles, isIdle, isPaused, start, pause, resume, skip, reset } = useTimerContext();
+
+  const primary = isIdle
+    ? {
+        label: "Start",
+        Icon: Play,
+        variant: "default" as const,
+        onClick: () => start.mutate({ totalCycles: cycles }),
+        pending: start.isPending,
+      }
+    : isPaused
+      ? {
+          label: "Resume",
+          Icon: Play,
+          variant: "default" as const,
+          onClick: () => resume.mutate(),
+          pending: resume.isPending,
+        }
+      : {
+          label: "Pause",
+          Icon: Pause,
+          variant: "outline" as const,
+          onClick: () => pause.mutate(),
+          pending: pause.isPending,
+        };
+
+  // Stopping (or finishing) unmounts Skip and Stop; if that dropped focus to <body>,
+  // hand it to the primary button instead of the page top.
+  const primaryRef = useRef<HTMLButtonElement>(null);
+  const wasIdle = useRef(isIdle);
+  useEffect(() => {
+    const active = document.activeElement;
+    if (isIdle && !wasIdle.current && (!active || active === document.body)) {
+      primaryRef.current?.focus();
+    }
+    wasIdle.current = isIdle;
+  }, [isIdle]);
+
+  // On a 320px phone the column is ~246px wide: the primary button may shrink (smaller
+  // padding below `sm`, a truncating label) so Skip and Stop always fit beside it.
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        ref={primaryRef}
+        variant={primary.variant}
+        size="lg"
+        onClick={primary.onClick}
+        disabled={primary.pending}
+        focusableWhenDisabled
+        className="h-12 min-w-0 flex-1 gap-2 px-4 text-base sm:px-8"
+      >
+        <primary.Icon className="size-4" />
+        <span className="truncate">{primary.label}</span>
+      </Button>
+      {!isIdle && (
+        <>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => skip.mutate()}
+                  disabled={skip.isPending}
+                  focusableWhenDisabled
+                  aria-label="Skip phase"
+                  className="size-12"
+                />
+              }
+            >
+              <SkipForward className="size-4" />
+            </TooltipTrigger>
+            <TooltipContent>Skip to the next phase</TooltipContent>
+          </Tooltip>
+          {/* Hairline between the reversible Skip and the destructive Stop */}
+          <div aria-hidden className="mx-0.5 h-8 w-px shrink-0 bg-border sm:mx-1" />
+          <ConfirmDialog
+            trigger={
+              <Button
+                variant="outline"
+                size="icon"
+                disabled={reset.isPending}
+                focusableWhenDisabled
+                aria-label="Stop timer"
+                className="size-12 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Square className="size-4" />
+              </Button>
+            }
+            title="Stop the timer?"
+            description="This ends the current run and resets the timer. Progress is lost, and the overlay goes back to its idle preview."
+            confirmLabel="Stop timer"
+            onConfirm={() => reset.mutate()}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Timer duration/cycle fields behind the "Edit session settings" disclosure, whose
+ * collapsed summary reads the SAVED config (`formatSessionSummary`). Each field autosaves
+ * on blur (clamped to its range, no-op blurs skipped by `saveConfig`) and is disabled while
+ * a run is in progress. The min/max bounds are the UI's own and tighter than
+ * `updateTimerConfigInput`, which stays the authority.
  */
 export function TimerSettings() {
   const {
@@ -499,6 +511,7 @@ export function TimerSettings() {
     setCycles,
     saveConfig,
     isIdle,
+    sessionSummary,
   } = useTimerContext();
 
   const fields = [
@@ -560,13 +573,26 @@ export function TimerSettings() {
   ];
 
   return (
-    <div className="flex flex-col gap-3">
-      <ConsoleRule label="Settings" />
-      {!isIdle && (
-        <StatusChip size="sm" tone="idle" label="Locked while running" className="self-start" />
-      )}
+    <SectionGroup
+      title="Edit session settings"
+      // Each "FOCUS 25m" pair stays on one line, so a phone wraps between pairs.
+      summary={sessionSummary.split(" · ").map((part, index) => (
+        <Fragment key={part}>
+          {index > 0 && " · "}
+          <span className="whitespace-nowrap">{part}</span>
+        </Fragment>
+      ))}
+      defaultOpen={false}
+      trailing={!isIdle ? <StatusChip size="sm" tone="idle" label="Locked" /> : undefined}
+    >
+      {!isIdle && <p className="text-xs text-muted-foreground">Stop the timer to change these.</p>}
       {fields.map((field) => (
-        <div key={field.id} className="grid grid-cols-[6.75rem_4.5rem_auto] items-center gap-2">
+        // Below `sm` a flex row: the label takes what is left (a long label wraps) and the
+        // unit slot is fixed so the inputs still line up; a 320px phone leaves ~214px here.
+        <div
+          key={field.id}
+          className="flex items-center gap-2 sm:grid sm:grid-cols-[6.75rem_4.5rem_auto]"
+        >
           {/* Help rides on aria-describedby (screen readers + keyboard get it,
               not just mouse hover); the tooltip stays as the pointer surface. */}
           <Tooltip>
@@ -574,7 +600,7 @@ export function TimerSettings() {
               render={
                 <Label
                   htmlFor={field.id}
-                  className="console-label inline-flex items-center gap-1 whitespace-nowrap"
+                  className="console-label inline-flex min-w-0 flex-1 items-center gap-1 sm:whitespace-nowrap"
                 />
               }
             >
@@ -603,14 +629,18 @@ export function TimerSettings() {
               field.save(clamped);
             }}
             disabled={!isIdle}
-            className="h-8 text-right font-mono tabular-nums"
+            className="h-8 w-18 shrink-0 text-right font-mono tabular-nums"
           />
           <span id={`${field.id}-help`} className="sr-only">
             {field.tooltip}
           </span>
-          {field.unit ? <span className="console-label">{field.unit}</span> : <span aria-hidden />}
+          {field.unit ? (
+            <span className="console-label w-12 shrink-0 sm:w-auto">{field.unit}</span>
+          ) : (
+            <span aria-hidden className="w-12 shrink-0 sm:w-auto" />
+          )}
         </div>
       ))}
-    </div>
+    </SectionGroup>
   );
 }

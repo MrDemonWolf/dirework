@@ -1,18 +1,26 @@
 "use client";
 
 // Dashboard Task Board: the owner's view of every task (theirs and chat's), grouped by
-// author. Polls `task.list` via the authed /rpc proxy; all writes go through owner-only
-// task.* procedures, which share service code with the chat commands.
+// author, in the left two thirds of its panel; the tasks-overlay monitor (URL row + live
+// preview) fills the right third. Polls `task.list` via the authed /rpc proxy; all writes
+// go through owner-only task.* procedures, which share service code with the chat commands.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Focus, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Focus, MoreHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ConsoleRule } from "@/components/console-rule";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { QueryError } from "@/components/query-error";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,18 +38,30 @@ const UNDO_TOAST_MS = 5000;
 interface TaskManagerProps {
   /** The owner's Twitch id; tasks authored under it are the "Host" group, pinned first. */
   userTwitchId: string;
-  /** Overlay preview, rendered beside the add-task + list body (mirrors the timer console). */
-  preview?: ReactNode;
+  /** The tasks-overlay monitor (URL row + live preview), in the board's right third. */
+  monitor?: ReactNode;
 }
 
 /**
- * The Task Board panel — renders the full panel content (header with count
- * cluster, add form, author group cards, footer strip). The parent supplies
- * the `.panel` chrome.
+ * The Task Board panel — renders the full panel content (header with the count cluster
+ * and the board options menu, add form, collapsible author groups, monitor column). The
+ * parent supplies the `.panel-hero` chrome.
  */
-export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
+export function TaskManager({ userTwitchId, monitor }: TaskManagerProps) {
   const queryClient = useQueryClient();
   const [newTask, setNewTask] = useState("");
+  // Which bulk clear is waiting on its confirm (opened from the board options menu).
+  const [confirmClear, setConfirmClear] = useState<"done" | "all" | null>(null);
+  // Author groups the owner folded away. Component state only: a reload opens them all.
+  const [collapsedAuthors, setCollapsedAuthors] = useState<ReadonlySet<string>>(() => new Set());
+  const setAuthorOpen = (authorKey: string, open: boolean) => {
+    setCollapsedAuthors((prev) => {
+      const next = new Set(prev);
+      if (open) next.delete(authorKey);
+      else next.add(authorKey);
+      return next;
+    });
+  };
 
   const tasks = useQuery({
     ...trpc.task.list.queryOptions(),
@@ -198,7 +218,10 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
     ...groups.filter((g) => g.authorKey === userTwitchId),
     ...groups.filter((g) => g.authorKey !== userTwitchId),
   ];
-  const orderedTaskIds = orderedGroups.flatMap((g) => g.tasks.map((t) => t.id));
+  // Rows of a folded group aren't rendered, so they can't take focus after a removal.
+  const orderedTaskIds = orderedGroups
+    .filter((g) => !collapsedAuthors.has(g.authorKey))
+    .flatMap((g) => g.tasks.map((t) => t.id));
 
   /** The row that takes focus after `taskId` is removed: the next one, else the previous. */
   const neighborTaskId = (taskId: string) => {
@@ -218,7 +241,7 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
               Yours and chat&apos;s, grouped by author
             </p>
           </div>
-          <div className="flex gap-5">
+          <div className="flex items-end gap-5">
             <div className="text-right">
               <p className="font-mono text-2xl tabular-nums">{pendingCount}</p>
               <p className="console-label">Open</p>
@@ -227,15 +250,60 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
               <p className="font-mono text-2xl tabular-nums">{doneCount}</p>
               <p className="console-label">Done</p>
             </div>
+            {/* Bulk actions live in a menu, each behind its own confirm. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Task board options"
+                    className="self-center"
+                  />
+                }
+              >
+                <MoreHorizontal className="size-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-48 bg-card" align="end">
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={doneCount === 0 || clearDone.isPending}
+                  onClick={() => setConfirmClear("done")}
+                >
+                  Clear done ({doneCount})
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={totalCount === 0 || clearAll.isPending}
+                  onClick={() => setConfirmClear("all")}
+                >
+                  Clear all ({totalCount})
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <ConfirmDialog
+              open={confirmClear === "done"}
+              onOpenChange={(open) => !open && setConfirmClear(null)}
+              title="Clear done tasks?"
+              description={`This permanently removes ${doneCount} completed ${doneCount === 1 ? "task" : "tasks"} from the list and the overlay.`}
+              confirmLabel="Clear done"
+              onConfirm={() => clearDone.mutate()}
+            />
+            <ConfirmDialog
+              open={confirmClear === "all"}
+              onOpenChange={(open) => !open && setConfirmClear(null)}
+              title="Clear every task?"
+              description={`This permanently removes all ${totalCount} ${totalCount === 1 ? "task" : "tasks"}, including viewer tasks, from the list and the overlay. Viewers will need to add theirs again.`}
+              confirmLabel="Clear all tasks"
+              onConfirm={() => clearAll.mutate()}
+            />
           </div>
         </div>
       </div>
 
-      {/* Board body + overlay preview, side by side and top-aligned — mirrors the
-          timer console (settings | preview) so the preview sits beside the
-          add-task block instead of ballooning down the full list height. */}
-      <div className="flex flex-1 flex-col lg:flex-row lg:items-start">
-        <div className="flex min-w-0 flex-1 flex-col">
+      {/* Board (two thirds) beside the tasks-overlay monitor (one third). */}
+      <div className="grid flex-1 lg:grid-cols-3 lg:items-start">
+        <div className="flex min-w-0 flex-col lg:col-span-2">
           {/* Body: add form + grouped list */}
           <div className="flex-1 space-y-4 px-5 py-5">
             <form onSubmit={handleSubmit} className="flex gap-2">
@@ -313,12 +381,18 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                 orderedGroups.map((group) => {
                   const isHost = group.authorKey === userTwitchId;
                   return (
-                    <div
+                    <Collapsible
                       key={group.authorKey}
+                      open={!collapsedAuthors.has(group.authorKey)}
+                      onOpenChange={(open) => setAuthorOpen(group.authorKey, open)}
                       className="overflow-hidden rounded-xl border border-border/40 bg-muted/20"
                     >
-                      {/* Author header — Twitch color only ever tints the dot */}
-                      <div className="flex items-center gap-2.5 border-b border-border/40 bg-muted/40 px-3 py-2">
+                      {/* Author header (folds the group) — Twitch color only ever tints the dot */}
+                      <CollapsibleTrigger className="group/author flex min-h-11 w-full cursor-pointer items-center gap-2.5 bg-muted/40 px-3 py-2 text-left transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset">
+                        <ChevronDown
+                          aria-hidden
+                          className="size-3.5 shrink-0 -rotate-90 text-muted-foreground transition-transform group-data-[panel-open]/author:rotate-0"
+                        />
                         <span
                           aria-hidden
                           className="size-2 shrink-0 rounded-full"
@@ -334,201 +408,170 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                         {isHost && <StatusChip size="sm" tone="accent" label="Host" />}
                         <span className="console-label ml-auto shrink-0">
                           {group.done}/{group.pending + group.done}
+                          <span className="sr-only"> done</span>
                         </span>
-                      </div>
-                      <ul className="divide-y divide-border/40">
-                        {group.tasks.map((task) => {
-                          const isDone = task.status === "done";
-                          const isActive = task.status === "active";
-                          return (
-                            <li
-                              key={task.id}
-                              data-active={isActive || undefined}
-                              // The active row reads from a soft primary tint plus the
-                              // "Active" chip — no coloured edge bar.
-                              className={cn(
-                                "group flex items-center gap-3 px-3 py-2 transition-colors",
-                                isActive ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/40",
-                                rowEntry.fresh.has(task.id) && "row-enter",
-                              )}
-                            >
-                              {/* Checkbox */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  // aria-disabled doesn't block clicks, so guard here:
-                                  // done rows and an in-flight markDone are no-ops.
-                                  if (!(isActive || task.status === "pending")) return;
-                                  if (markDone.isPending && markDone.variables?.id === task.id)
-                                    return;
-                                  markDone.mutate({ id: task.id });
-                                }}
-                                // aria-disabled (not disabled) so the control keeps
-                                // keyboard focus while pending and once done.
-                                aria-disabled={
-                                  isDone ||
-                                  (markDone.isPending && markDone.variables?.id === task.id)
-                                }
-                                aria-label={
-                                  isDone ? `${task.text} (done)` : `Mark "${task.text}" as done`
-                                }
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <ul className="divide-y divide-border/40 border-t border-border/40">
+                          {group.tasks.map((task) => {
+                            const isDone = task.status === "done";
+                            const isActive = task.status === "active";
+                            return (
+                              <li
+                                key={task.id}
+                                data-active={isActive || undefined}
+                                // The active row reads from a soft primary tint plus the
+                                // "Active" chip — no coloured edge bar.
                                 className={cn(
-                                  // after:-inset-2.5 = 45px effective touch target on a 20px control
-                                  "relative flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors after:absolute after:-inset-2.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                                  isDone
-                                    ? "border-primary bg-primary text-primary-foreground"
-                                    : "border-muted-foreground hover:border-primary aria-disabled:cursor-not-allowed aria-disabled:hover:border-muted-foreground",
+                                  "group flex min-h-11 items-center gap-3 px-3 py-2 transition-colors",
+                                  isActive
+                                    ? "bg-primary/5 hover:bg-primary/10"
+                                    : "hover:bg-muted/40",
+                                  rowEntry.fresh.has(task.id) && "row-enter",
                                 )}
                               >
-                                {isDone && <Check className="size-3" />}
-                              </button>
+                                {/* Checkbox */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    // aria-disabled doesn't block clicks, so guard here:
+                                    // done rows and an in-flight markDone are no-ops.
+                                    if (!(isActive || task.status === "pending")) return;
+                                    if (markDone.isPending && markDone.variables?.id === task.id)
+                                      return;
+                                    markDone.mutate({ id: task.id });
+                                  }}
+                                  // aria-disabled (not disabled) so the control keeps
+                                  // keyboard focus while pending and once done.
+                                  aria-disabled={
+                                    isDone ||
+                                    (markDone.isPending && markDone.variables?.id === task.id)
+                                  }
+                                  aria-label={
+                                    isDone ? `${task.text} (done)` : `Mark "${task.text}" as done`
+                                  }
+                                  className={cn(
+                                    // after:-inset-2.5 = 45px effective touch target on a 20px control
+                                    "relative flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors after:absolute after:-inset-2.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                                    isDone
+                                      ? "border-primary bg-primary text-primary-foreground"
+                                      : "border-muted-foreground hover:border-primary aria-disabled:cursor-not-allowed aria-disabled:hover:border-muted-foreground",
+                                  )}
+                                >
+                                  {isDone && <Check className="size-3" />}
+                                </button>
 
-                              {/* Task text */}
-                              <p
-                                className={cn(
-                                  "min-w-0 flex-1 truncate text-sm",
-                                  isDone && "text-muted-foreground line-through",
+                                {/* Task text */}
+                                <p
+                                  className={cn(
+                                    "min-w-0 flex-1 text-sm break-words line-clamp-2",
+                                    isDone && "text-muted-foreground line-through",
+                                  )}
+                                >
+                                  {task.text}
+                                </p>
+
+                                {isActive && (
+                                  <StatusChip
+                                    size="sm"
+                                    tone="accent"
+                                    label="Active"
+                                    pulse
+                                    className="shrink-0"
+                                  />
                                 )}
-                              >
-                                {task.text}
-                              </p>
 
-                              {isActive && (
-                                <StatusChip
-                                  size="sm"
-                                  tone="accent"
-                                  label="Active"
-                                  pulse
-                                  className="shrink-0"
-                                />
-                              )}
-
-                              {/* Activate button: always shown unless the primary pointer can hover (at any
+                                {/* Activate button: always shown unless the primary pointer can hover (at any
                                   width, so touch tablets keep it); focus reveals it too. */}
-                              {!isDone && !isActive && (
-                                <Tooltip>
-                                  <TooltipTrigger
-                                    render={
-                                      <Button
-                                        variant="ghost"
-                                        size="icon-xs"
-                                        onClick={() => {
-                                          pendingFocus.current = {
-                                            kind: "activate",
-                                            taskId: task.id,
-                                          };
-                                          activateTask.mutate(
-                                            { id: task.id },
-                                            {
-                                              onError: () => {
-                                                pendingFocus.current = null;
+                                {!isDone && !isActive && (
+                                  <Tooltip>
+                                    <TooltipTrigger
+                                      render={
+                                        <Button
+                                          variant="ghost"
+                                          size="icon-xs"
+                                          onClick={() => {
+                                            pendingFocus.current = {
+                                              kind: "activate",
+                                              taskId: task.id,
+                                            };
+                                            activateTask.mutate(
+                                              { id: task.id },
+                                              {
+                                                onError: () => {
+                                                  pendingFocus.current = null;
+                                                },
                                               },
-                                            },
-                                          );
-                                        }}
-                                        disabled={
-                                          activateTask.isPending &&
-                                          activateTask.variables?.id === task.id
-                                        }
-                                        focusableWhenDisabled
-                                        aria-label={`Set "${task.text}" as active`}
-                                        className="relative opacity-100 transition-opacity after:absolute after:-inset-2 focus-visible:opacity-100 can-hover:opacity-0 group-hover:opacity-100"
-                                      />
-                                    }
-                                  >
-                                    <Focus className="size-3" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>Set as active</TooltipContent>
-                                </Tooltip>
-                              )}
+                                            );
+                                          }}
+                                          disabled={
+                                            activateTask.isPending &&
+                                            activateTask.variables?.id === task.id
+                                          }
+                                          focusableWhenDisabled
+                                          aria-label={`Set "${task.text}" as active`}
+                                          className="relative opacity-100 transition-opacity after:absolute after:-inset-2 focus-visible:opacity-100 can-hover:opacity-0 group-hover:opacity-100"
+                                        />
+                                      }
+                                    >
+                                      <Focus className="size-3" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>Set as active</TooltipContent>
+                                  </Tooltip>
+                                )}
 
-                              {/* Remove button: always shown unless the primary pointer can hover (at any
+                                {/* Remove button: always shown unless the primary pointer can hover (at any
                                   width, so touch tablets keep it); focus reveals it too. */}
-                              <Button
-                                variant="ghost"
-                                size="icon-xs"
-                                onClick={() => {
-                                  pendingFocus.current = {
-                                    kind: "remove",
-                                    taskId: task.id,
-                                    nextId: neighborTaskId(task.id),
-                                  };
-                                  removeTask.mutate(
-                                    { id: task.id },
-                                    {
-                                      onError: () => {
-                                        pendingFocus.current = null;
+                                <Button
+                                  variant="ghost"
+                                  size="icon-xs"
+                                  onClick={() => {
+                                    pendingFocus.current = {
+                                      kind: "remove",
+                                      taskId: task.id,
+                                      nextId: neighborTaskId(task.id),
+                                    };
+                                    removeTask.mutate(
+                                      { id: task.id },
+                                      {
+                                        onError: () => {
+                                          pendingFocus.current = null;
+                                        },
                                       },
-                                    },
-                                  );
-                                }}
-                                disabled={
-                                  removeTask.isPending && removeTask.variables?.id === task.id
-                                }
-                                focusableWhenDisabled
-                                data-remove-task={task.id}
-                                aria-label={`Remove "${task.text}"`}
-                                className="relative text-destructive opacity-100 transition-opacity after:absolute after:-inset-2 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 can-hover:opacity-0 group-hover:opacity-100"
-                              >
-                                <Trash2 className="size-3" />
-                              </Button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
+                                    );
+                                  }}
+                                  disabled={
+                                    removeTask.isPending && removeTask.variables?.id === task.id
+                                  }
+                                  focusableWhenDisabled
+                                  data-remove-task={task.id}
+                                  aria-label={`Remove "${task.text}"`}
+                                  className="relative text-destructive opacity-100 transition-opacity after:absolute after:-inset-2 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 can-hover:opacity-0 group-hover:opacity-100"
+                                >
+                                  <Trash2 className="size-3" />
+                                </Button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </CollapsibleContent>
+                    </Collapsible>
                   );
                 })
               )}
             </div>
           </div>
 
-          {/* Footer strip: bulk actions behind confirms */}
+          {/* Footer note: the retention rule behind the Done count */}
           {taskList.length > 0 && (
-            <div className="flex items-center justify-end gap-1 border-t border-border/40 px-3 py-2">
-              <p className="mr-auto text-xs text-muted-foreground">
-                Done tasks clear automatically after 24h
-              </p>
-              {doneCount > 0 && (
-                <ConfirmDialog
-                  trigger={
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      disabled={clearDone.isPending}
-                    >
-                      Clear done
-                    </Button>
-                  }
-                  title="Clear done tasks?"
-                  description={`This permanently removes ${doneCount} completed ${doneCount === 1 ? "task" : "tasks"} from the list and the overlay.`}
-                  confirmLabel="Clear done"
-                  onConfirm={() => clearDone.mutate()}
-                />
-              )}
-              <ConfirmDialog
-                trigger={
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    disabled={clearAll.isPending}
-                  >
-                    Clear all
-                  </Button>
-                }
-                title="Clear every task?"
-                description={`This permanently removes all ${totalCount} ${totalCount === 1 ? "task" : "tasks"}, including viewer tasks, from the list and the overlay. Viewers will need to add theirs again.`}
-                confirmLabel="Clear all tasks"
-                onConfirm={() => clearAll.mutate()}
-              />
-            </div>
+            <p className="border-t border-border/40 px-5 py-2.5 text-xs text-muted-foreground">
+              Done tasks clear automatically after 24h
+            </p>
           )}
         </div>
-        {preview && (
-          <div className="w-full border-t border-border/40 p-5 lg:w-72 lg:shrink-0 lg:border-t-0 lg:border-l lg:border-border/40">
-            {preview}
+        {monitor && (
+          <div className="min-w-0 border-t border-border/40 p-5 lg:self-stretch lg:border-t-0 lg:border-l">
+            {monitor}
           </div>
         )}
       </div>
