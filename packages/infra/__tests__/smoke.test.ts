@@ -171,6 +171,30 @@ describe("runSmokeCheck", () => {
     expect(await check(fetchImpl)).toEqual(["api /ready failed (limits unknown)"]);
   });
 
+  it("treats a ready probe whose body is not JSON as a build that reports no limits", async () => {
+    const { fetchImpl } = fakeFetch({
+      ...healthy(),
+      [READY]: () => new Response("ready", { status: 200 }),
+    });
+
+    const errors = await check(fetchImpl);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatch(/^api \/ready failed \(/);
+  });
+
+  it("fails the home probe when the body cannot be read", async () => {
+    const unreadable = () => {
+      const response = html(landingPage);
+      Object.defineProperty(response, "text", { value: () => Promise.reject(new Error("cut")) });
+      return response;
+    };
+    const { fetchImpl } = fakeFetch({ ...healthy(), [HOME]: unreadable });
+
+    expect(await check(fetchImpl)).toEqual([
+      "web / did not render (no DireWork heading in the body)",
+    ]);
+  });
+
   it("accepts an unclaimed instance redirecting the home page to /setup", async () => {
     const { fetchImpl } = fakeFetch({
       ...healthy(),
