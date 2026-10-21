@@ -30,7 +30,7 @@ export function ModeToggle() {
         <Sun className="h-4 w-4 text-foreground dark:text-muted-foreground" />
         <span
           aria-hidden
-          className="relative inline-flex h-[14px] w-[24px] shrink-0 items-center rounded-full border border-transparent bg-muted-foreground/70 dark:bg-primary"
+          className="relative inline-flex h-3.5 w-6 shrink-0 items-center rounded-full border border-transparent bg-muted-foreground/70 dark:bg-primary"
         >
           <span className="block size-3 translate-x-0 rounded-full bg-background dark:translate-x-[calc(100%-2px)] dark:bg-primary-foreground" />
         </span>

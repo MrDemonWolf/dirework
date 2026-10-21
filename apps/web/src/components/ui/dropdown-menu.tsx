@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
  * the popup's `rounded-2xl` + `p-1.5`.
  */
 export const menuItemRecipe =
-  "data-highlighted:bg-accent data-highlighted:text-accent-foreground data-highlighted:**:[svg]:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset gap-2.5 rounded-[10px] px-2.5 py-2 text-sm/none [&_svg:not([class*='size-'])]:size-4 relative flex cursor-default items-center outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 data-[inset]:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0";
+  "data-highlighted:bg-accent data-highlighted:text-accent-foreground data-highlighted:**:[svg]:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset gap-2.5 rounded-md px-2.5 py-2 text-sm/none [&_svg:not([class*='size-'])]:size-4 relative flex cursor-default items-center outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 data-[inset]:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0";
 
 const destructiveItem =
   "data-[variant=destructive]:text-destructive data-[variant=destructive]:data-highlighted:bg-destructive/10 dark:data-[variant=destructive]:data-highlighted:bg-destructive/20 data-[variant=destructive]:data-highlighted:text-destructive data-[variant=destructive]:*:[svg]:text-destructive data-[variant=destructive]:data-highlighted:**:[svg]:text-destructive";
@@ -50,7 +50,7 @@ function DropdownMenuContent({
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"
           className={cn(
-            "transition-[opacity,scale] duration-150 ease-[var(--motion-ease)] data-starting-style:opacity-0 data-starting-style:scale-[0.98] data-ending-style:opacity-0 data-ending-style:scale-[0.98] origin-(--transform-origin) border border-border/50 bg-popover text-popover-foreground min-w-32 rounded-2xl p-1.5 shadow-lg backdrop-blur-2xl z-50 max-h-(--available-height) w-(--anchor-width) overflow-x-hidden overflow-y-auto outline-none data-closed:overflow-hidden",
+            "transition-[opacity,scale] duration-150 ease-(--motion-ease) data-starting-style:opacity-0 data-starting-style:scale-[0.98] data-ending-style:opacity-0 data-ending-style:scale-[0.98] origin-(--transform-origin) border border-border/50 bg-popover text-popover-foreground min-w-32 rounded-2xl p-1.5 shadow-lg backdrop-blur-2xl z-50 max-h-(--available-height) w-(--anchor-width) overflow-x-hidden overflow-y-auto outline-none data-closed:overflow-hidden",
             className,
           )}
           {...props}
@@ -142,7 +142,7 @@ function DropdownMenuSubContent({
     <DropdownMenuContent
       data-slot="dropdown-menu-sub-content"
       className={cn(
-        "transition-[opacity,scale] duration-150 ease-[var(--motion-ease)] data-starting-style:opacity-0 data-starting-style:scale-[0.98] data-ending-style:opacity-0 data-ending-style:scale-[0.98] origin-(--transform-origin) border border-border/50 bg-popover text-popover-foreground min-w-[96px] rounded-2xl p-1.5 shadow-lg backdrop-blur-2xl w-auto",
+        "transition-[opacity,scale] duration-150 ease-(--motion-ease) data-starting-style:opacity-0 data-starting-style:scale-[0.98] data-ending-style:opacity-0 data-ending-style:scale-[0.98] origin-(--transform-origin) border border-border/50 bg-popover text-popover-foreground min-w-24 rounded-2xl p-1.5 shadow-lg backdrop-blur-2xl w-auto",
         className,
       )}
       align={align}

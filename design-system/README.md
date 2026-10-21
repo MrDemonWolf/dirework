@@ -39,13 +39,14 @@ Shared overlay geometry (squircle path/perimeter, `SQUIRCLE_RADIUS`, MM:SS clock
 |---|---|---|
 | `color.scheme.{light,dark}` | `--<key>` on `:root` / `.dark`, `--color-<key>` in Tailwind | `background`, `primary`, `success`, `border`, `hairline`, `cornflower`, `chart-1…5`, `sidebar-*`. Values are oklch; `"{cornflower}"` aliases another key (`var(--cornflower)`). Both schemes must have the same keys. |
 | `color.phase` | `--phase-{work,break,long-break,paused}` | `work = #34C759`, `paused = #FF9F0A` |
+| `color.console` | `--color-console-<key>` (web only, literal) | Bot console (`/bot/<token>`), always dark: `base`, `line`, `edge`, `muted`, `soft`, `fg`, `bright` (Tailwind zinc 950…100) |
 | `color.partner` | `--twitch`, `--twitch-hover`, `--color-twitch(-hover)` | `twitch = #9146FF`, `twitchHover = #7C3AE6`; `discord`, `obs` are reference only |
 | `color.brand`, `color.brandDark`, `color.semantic` | nothing | Hex palette for places that can't read CSS variables (OG images, docs widgets, design files). Not generated. |
 | `font.family` | nothing | Typeface names (Montserrat, IBM Plex Sans, IBM Plex Mono) |
 | `font.size` (px) | `--text-<step>` for steps Tailwind lacks | `3xs = 10`, `2xs = 11`; `xs…9xl` are Tailwind's defaults, listed for reference (a test checks them against `tailwindcss/theme.css`) |
-| `font.lineHeight` (px) | `--text-<step>--line-height` | `2xs = 16` |
-| `tracking` | `--tracking-<name>` | `chip .08em`, `label .12em`, `display .2em` |
-| `radius` (px) | `--radius` (= `lg`) and `--radius-<step>: calc(var(--radius) ± Npx)` | `sm 8 … 4xl 28`; web only |
+| `font.lineHeight` (px) | `--text-<step>--line-height` | none yet: `2xs`/`3xs` set only the font size and inherit the line height |
+| `tracking` | `--tracking-<name>` | `chip .08em`, `label .12em`, `eyebrow .18em`, `display .2em`, `marquee .3em` |
+| `radius` (px) | `--radius` (= `lg`) and `--radius-<step>: calc(var(--radius) ± Npx)` | `xs 4`, `sm 8 … 4xl 28`; web only |
 | `motion.easing` | `--ease-<name>` | `console = cubic-bezier(0.22, 1, 0.36, 1)` |
 | `motion.animation` | `--animate-<name>` + its `@keyframes` | `console-rise` (450ms), `console-rise-fast` (200ms) |
 | `layout.container` / `layout.spacing` | `--container-<name>` / `--spacing-<name>` | `content 72rem`, `editor 380px`, `header 3.5rem` |

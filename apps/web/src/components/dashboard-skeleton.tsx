@@ -24,7 +24,7 @@ function UrlStripSkeleton() {
 /** Static, data-free skeleton of the dashboard grid. */
 export function DashboardSkeleton() {
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-8">
+    <div className="container mx-auto max-w-content px-4 py-8">
       {/* Header band skeleton */}
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-2">

@@ -48,7 +48,7 @@ function minutesToMs(min: number): number {
 function CycleDots({ current, total }: { current: number; total: number }) {
   if (total > 10) {
     return (
-      <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground">
+      <p className="font-mono text-xs tracking-display text-muted-foreground">
         <span className="font-semibold">{String(Math.min(current, total)).padStart(2, "0")}</span>/
         {String(total).padStart(2, "0")}
       </p>

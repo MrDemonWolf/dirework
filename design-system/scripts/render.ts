@@ -17,6 +17,8 @@ export interface DesignTokens {
     semantic: Record<string, string>;
     phase: Record<string, string>;
     partner: { twitch: string; twitchHover: string } & Record<string, string>;
+    /** Bot console (`/bot/<token>`): a fixed dark terminal that never follows the theme. */
+    console: Record<string, string>;
     scheme: { light: ColorScheme; dark: ColorScheme };
   };
   font: {
@@ -148,6 +150,15 @@ function themeInlineDecls(tokens: DesignTokens, target: CssTarget): string[] {
     ]),
   ];
   if (target === "web") {
+    // The bot console is always dark, so its colors are literals like twitch.
+    lines.push(
+      ...decls(
+        Object.entries(tokens.color.console).map(([k, v]) => [
+          `color-console-${kebab(k)}`,
+          cssValue(v),
+        ]),
+      ),
+    );
     // Offsets from `--radius` (= radius.lg), so the whole scale follows the knob.
     for (const [step, px] of Object.entries(tokens.radius)) {
       const offset = px - tokens.radius.lg;

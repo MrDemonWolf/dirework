@@ -85,7 +85,7 @@ export function ThemeCard({
             />
           </svg>
           <span
-            className="font-heading text-[11px] font-semibold tracking-tight tabular-nums"
+            className="font-heading text-2xs font-semibold tracking-tight tabular-nums"
             style={{ color: text }}
           >
             25:00
@@ -95,7 +95,7 @@ export function ThemeCard({
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <div className="flex items-center gap-1.5">
             <span
-              className="size-3 shrink-0 rounded-[4px] border-[1.5px]"
+              className="size-3 shrink-0 rounded-xs border-[1.5px]"
               style={{ borderColor: accent }}
             />
             <span
@@ -105,7 +105,7 @@ export function ThemeCard({
           </div>
           <div className="flex items-center gap-1.5">
             <span
-              className="grid size-3 shrink-0 place-items-center rounded-[4px]"
+              className="grid size-3 shrink-0 place-items-center rounded-xs"
               style={{ background: accent }}
             >
               <Check className="size-2" style={{ color: bg }} strokeWidth={4} />
@@ -125,7 +125,7 @@ export function ThemeCard({
       {/* Name + description — two lines, no mid-word mystery ellipsis */}
       <div className="border-t border-border/60 px-3 py-2">
         <p className="text-xs font-medium">{theme.name}</p>
-        <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
+        <p className="mt-0.5 line-clamp-2 text-2xs leading-snug text-muted-foreground">
           {theme.description}
         </p>
       </div>

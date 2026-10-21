@@ -24,7 +24,7 @@ export function BotConsoleBodySkeleton() {
 /** Static, data-free skeleton of the Bot settings page. */
 export function BotSettingsSkeleton() {
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-8">
+    <div className="container mx-auto max-w-content px-4 py-8">
       <div className="mb-8 space-y-2">
         <Skeleton className="h-8 w-44" />
         <Skeleton className="h-4 w-72" />

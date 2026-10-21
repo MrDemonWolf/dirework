@@ -217,7 +217,7 @@ export default function BotSettingsPage() {
   if (!config.data || !user.data) {
     const failed = !config.data ? config : user;
     return (
-      <div className="container mx-auto max-w-6xl px-4 py-8">
+      <div className="container mx-auto max-w-content px-4 py-8">
         <QueryError
           title="Couldn't load bot settings"
           onRetry={() => failed.refetch()}
@@ -235,7 +235,7 @@ export default function BotSettingsPage() {
   };
 
   return (
-    <div className={cn("container mx-auto max-w-6xl px-4 py-8", hasUnsaved && "pb-24")}>
+    <div className={cn("container mx-auto max-w-content px-4 py-8", hasUnsaved && "pb-24")}>
       <UnsavedChangesGuard dirty={hasUnsaved} />
 
       <div className="mb-8">

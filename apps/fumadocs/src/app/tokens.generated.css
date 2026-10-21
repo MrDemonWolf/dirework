@@ -177,10 +177,11 @@
 @theme static {
   --text-3xs: 0.625rem;
   --text-2xs: 0.6875rem;
-  --text-2xs--line-height: 1rem;
   --tracking-chip: 0.08em;
   --tracking-label: 0.12em;
+  --tracking-eyebrow: 0.18em;
   --tracking-display: 0.2em;
+  --tracking-marquee: 0.3em;
   --ease-console: cubic-bezier(0.22, 1, 0.36, 1);
   --animate-console-rise: console-rise 0.45s var(--ease-console) both;
   --animate-console-rise-fast: console-rise 0.2s var(--ease-console) both;

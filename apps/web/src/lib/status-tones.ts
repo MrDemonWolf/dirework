@@ -28,7 +28,7 @@ export const TIMER_PHASE_COLOR: Record<TimerStatus, string> = {
   starting: "var(--primary)",
   work: "var(--success)",
   break: "var(--primary)",
-  longBreak: "var(--chart-2)",
+  longBreak: "var(--cornflower)",
   paused: "var(--warning)",
-  finished: "var(--chart-2)",
+  finished: "var(--cornflower)",
 };

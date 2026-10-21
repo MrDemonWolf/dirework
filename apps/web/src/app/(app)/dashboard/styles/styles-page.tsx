@@ -156,7 +156,7 @@ export default function StylesPage() {
   // would overwrite the streamer's real theme.
   if (!config.data) {
     return (
-      <div className="container mx-auto max-w-6xl px-4 py-8">
+      <div className="container mx-auto max-w-content px-4 py-8">
         <QueryError
           title="Couldn't load your styles"
           onRetry={() => config.refetch()}
@@ -167,7 +167,7 @@ export default function StylesPage() {
   }
 
   return (
-    <div className={cn("container mx-auto max-w-6xl px-4 py-8", hasUnsaved && "pb-24")}>
+    <div className={cn("container mx-auto max-w-content px-4 py-8", hasUnsaved && "pb-24")}>
       <UnsavedChangesGuard dirty={hasUnsaved} />
 
       <div className="stagger-reveal">
@@ -192,7 +192,7 @@ export default function StylesPage() {
         {/* Editor + Preview */}
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
           {/* Editor Column */}
-          <div className="w-full min-w-0 lg:w-[380px] lg:shrink-0">
+          <div className="w-full min-w-0 lg:w-editor lg:shrink-0">
             <Tabs defaultValue="timer">
               <TabsList className="h-9 w-full gap-1">
                 <TabsTrigger value="timer">Timer</TabsTrigger>

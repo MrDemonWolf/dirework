@@ -48,7 +48,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="grid min-h-svh grid-rows-[auto_1fr_auto]">
         <a
           href="#main"
-          className="sr-only z-[60] rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+          className="sr-only z-(--z-skip-link) rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
         >
           Skip to content
         </a>

@@ -44,9 +44,9 @@ const LED_CLASS: Record<"green" | "amber" | "red", string> = {
 };
 
 const LINE_CLASS: Record<BotActivityKind, string> = {
-  // zinc-400 = 7.76:1 on zinc-950; zinc-500 was 4.12:1, below AA for 12px text
-  info: "text-zinc-400",
-  chat: "text-zinc-300",
+  // console-muted (zinc-400) = 7.76:1 on console-base (zinc-950); zinc-500 was 4.12:1, below AA
+  info: "text-console-muted",
+  chat: "text-console-soft",
   reply: "text-emerald-300",
   error: "text-red-400",
 };
@@ -79,10 +79,10 @@ function StatCell({
   accent?: boolean;
 }) {
   return (
-    <div className="bg-zinc-950 px-4 py-2">
-      <div className="text-[11px] tracking-[0.2em] text-zinc-400 uppercase">{label}</div>
+    <div className="bg-console-base px-4 py-2">
+      <div className="text-2xs tracking-display text-console-muted uppercase">{label}</div>
       <div
-        className={`truncate text-sm tabular-nums ${accent ? "text-emerald-300" : "text-zinc-200"}`}
+        className={`truncate text-sm tabular-nums ${accent ? "text-emerald-300" : "text-console-fg"}`}
       >
         {value}
       </div>
@@ -172,10 +172,10 @@ export function BotConsole() {
       // header, so without it a screen reader in a pinned tab hears nothing.
       <main
         role="alert"
-        className="flex h-dvh w-full flex-col items-center justify-center gap-4 bg-zinc-950 px-6 text-center font-mono"
+        className="flex h-dvh w-full flex-col items-center justify-center gap-4 bg-console-base px-6 text-center font-mono"
       >
         <span className={`h-4 w-4 rounded-full ${LED_CLASS.red}`} aria-hidden="true" />
-        <h1 className="text-xl font-bold tracking-[0.2em] text-red-400 uppercase">
+        <h1 className="text-xl font-bold tracking-display text-red-400 uppercase">
           {phase === "invalid"
             ? "Invalid bot page URL"
             : phase === "revoked"
@@ -183,17 +183,17 @@ export function BotConsole() {
               : "Bot login expired"}
         </h1>
         {phase === "revoked" ? (
-          <p className="max-w-sm text-sm text-zinc-400">
+          <p className="max-w-sm text-sm text-console-muted">
             This URL was reset. Copy the new one from Dashboard → Bot and paste it into your OBS
             browser source or tab.
           </p>
         ) : phase === "reauth" ? (
-          <p className="max-w-sm text-sm text-zinc-400">
+          <p className="max-w-sm text-sm text-console-muted">
             Twitch no longer accepts the bot account&apos;s login. Reconnect it in Dashboard → Bot,
             then refresh this page (OBS: right-click the source → Refresh).
           </p>
         ) : (
-          <p className="max-w-sm text-sm text-zinc-400">
+          <p className="max-w-sm text-sm text-console-muted">
             This isn&apos;t a valid bot page URL. Copy the current one from Dashboard → Bot.
           </p>
         )}
@@ -236,10 +236,10 @@ export function BotConsole() {
                   : "Starting";
 
   return (
-    <main className="flex h-dvh w-full flex-col bg-zinc-950 font-mono text-zinc-200">
+    <main className="flex h-dvh w-full flex-col bg-console-base font-mono text-console-fg">
       {/* Status header — must read as a tiny OBS source (400x200): big LED +
           state text pinned top-left. */}
-      <header className="flex items-center gap-3 border-b border-zinc-800/80 px-4 py-3">
+      <header className="flex items-center gap-3 border-b border-console-line/80 px-4 py-3">
         <span
           // Not-configured and muted wait on a person, not on the bot — a steady
           // LED, so neither reads as "Connecting".
@@ -248,30 +248,30 @@ export function BotConsole() {
         />
         <span
           role="status"
-          className="truncate text-lg font-bold tracking-[0.2em] text-zinc-100 uppercase"
+          className="truncate text-lg font-bold tracking-display text-console-bright uppercase"
         >
           {statusText}
         </span>
-        <span className="ml-auto hidden shrink-0 text-[10px] tracking-[0.3em] text-zinc-400 uppercase sm:block">
+        <span className="ml-auto hidden shrink-0 text-3xs tracking-marquee text-console-muted uppercase sm:block">
           DireWork Bot Console
         </span>
       </header>
 
       {phase === "not-configured" && (
-        <p className="border-b border-zinc-800/80 px-4 py-2 text-sm text-zinc-400">
+        <p className="border-b border-console-line/80 px-4 py-2 text-sm text-console-muted">
           Connect a bot account in Dashboard → Bot. This page goes live on its own.
         </p>
       )}
 
       {showMuted && (
-        <p className="border-b border-zinc-800/80 px-4 py-2 text-sm text-zinc-400">
+        <p className="border-b border-console-line/80 px-4 py-2 text-sm text-console-muted">
           Muted — ignoring commands and posting nothing. A mod can send !unmute, or flip the Muted
           switch in Dashboard → Bot.
         </p>
       )}
 
       {/* Identity + uptime */}
-      <div className="grid grid-cols-3 gap-px border-b border-zinc-800/80 bg-zinc-800/40">
+      <div className="grid grid-cols-3 gap-px border-b border-console-line/80 bg-console-line/40">
         <StatCell label="Channel" value={channelName ? `#${channelName}` : "—"} />
         <StatCell label="Bot" value={botUsername || "—"} />
         <StatCell
@@ -281,7 +281,7 @@ export function BotConsole() {
       </div>
 
       {/* Counters */}
-      <div className="grid grid-cols-3 gap-px border-b border-zinc-800/80 bg-zinc-800/40">
+      <div className="grid grid-cols-3 gap-px border-b border-console-line/80 bg-console-line/40">
         <StatCell label="Seen" value={String(counters.seen)} />
         <StatCell label="Commands" value={String(counters.commands)} accent />
         <StatCell label="Replies" value={String(counters.replies)} accent />
@@ -298,12 +298,12 @@ export function BotConsole() {
         className="flex-1 overflow-y-auto px-4 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
       >
         {activity.length === 0 ? (
-          <p className="py-2 text-xs text-zinc-400">waiting for chat…</p>
+          <p className="py-2 text-xs text-console-muted">waiting for chat…</p>
         ) : (
           <ul className="space-y-0.5 text-xs leading-5">
             {activity.map((line) => (
               <li key={line.id} className="flex gap-2">
-                <span className="shrink-0 tabular-nums text-zinc-400">{line.time}</span>
+                <span className="shrink-0 tabular-nums text-console-muted">{line.time}</span>
                 <span className={`break-all ${LINE_CLASS[line.kind]}`}>{line.text}</span>
               </li>
             ))}
