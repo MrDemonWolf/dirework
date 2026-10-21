@@ -132,6 +132,7 @@ const observability = {
 // Serves better-auth (/api/auth/*), tRPC (/trpc/*), and bot OAuth routes.
 export const server = await Worker("server", {
   name: "dirework-api",
+  previewSubdomains: false,
   // First deploy against an empty state store re-adopts the live worker
   // instead of trying to create over it.
   adopt: true,
@@ -175,6 +176,7 @@ export const server = await Worker("server", {
 // are same-site, so the api's /trpc JSON-only guard is the CSRF boundary.
 export const web = await Nextjs("web", {
   name: "dirework",
+  previewSubdomains: false,
   adopt: true, // re-adopt live worker on first deploy against an empty state store
   cwd: "../../apps/web",
   compatibilityDate: COMPATIBILITY_DATE,
