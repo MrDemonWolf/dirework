@@ -283,7 +283,9 @@ describe("confirmation success merges one flag", () => {
       path.join(__dirname, "../../components/setup-checklist.tsx"),
       "utf8",
     );
-    expect(source).toContain("withSetupStep(old, step, setup[step])");
+    // A late success response must not write the cache at all: the optimistic patch already
+    // holds the clicked value and newer state (a same-step URL reset) must win.
+    expect(source).not.toContain("onSuccess");
     expect(source).not.toContain("{ ...old, setup }");
   });
 });

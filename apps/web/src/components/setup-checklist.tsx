@@ -300,13 +300,10 @@ export function SetupChecklist({
         queryClient.setQueryData(meKey, (old) => (old ? withSetupStep(old, step, confirmed) : old));
         return { previousConfirmed, refreshInFlight };
       },
-      onSuccess: ({ setup }, { step }) => {
-        // Merge only the flag this click changed: a later overlay URL reset may have landed
-        // a newer `setup` in the meantime, and that must win for every other step.
-        queryClient.setQueryData(meKey, (old) =>
-          old ? withSetupStep(old, step, setup[step]) : old,
-        );
-      },
+      // No cache write on success: the optimistic patch already holds the clicked value, and a
+      // response that arrives late must never overwrite newer state (an overlay URL reset can
+      // clear this very flag and refetch `user.me` while the confirmation is still in flight).
+      // Anything the server decided differently is picked up by the guarded refetch below.
       onError: (err, { step }, context) => {
         const previousConfirmed = context?.previousConfirmed;
         if (previousConfirmed !== undefined) {
