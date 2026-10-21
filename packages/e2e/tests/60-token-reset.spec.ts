@@ -23,9 +23,10 @@ test("resetting the timer overlay URL blanks the old overlay and the new URL wor
   await confirmDialog(page, "Reset URL");
   await expect(page.getByText("New overlay URL ready — paste it into OBS")).toBeVisible();
 
-  // The old token is dead: its next poll (every 3s) answers null and the page renders
-  // nothing, so a stale OBS source goes transparent instead of showing a fake timer.
-  await expect(oldOverlay.getByText(CLOCK_DIGITS)).toHaveCount(0);
+  // The old token is dead: its next poll (every 5s, OVERLAY_POLL_MS) answers null and the
+  // page renders nothing, so a stale OBS source goes transparent instead of showing a fake
+  // timer. Allow a full poll plus margin for a slow CI runner.
+  await expect(oldOverlay.getByText(CLOCK_DIGITS)).toHaveCount(0, { timeout: 15_000 });
   await oldOverlay.close();
 
   // The row stays revealed and swaps to the new URL once the dashboard has refetched it.

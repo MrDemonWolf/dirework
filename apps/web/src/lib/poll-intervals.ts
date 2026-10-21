@@ -9,7 +9,15 @@
  * worker proxies /rpc to the api worker), so a dashboard left open on a second
  * monitor used to cost more than both overlays combined.
  */
-export const OVERLAY_POLL_MS = 3000;
+/**
+ * 5s, not 3s: both OBS overlays poll all stream long, even in the background, so
+ * this is the largest steady request cost (2 sources x 12/min = ~1.4k requests/hour,
+ * down from ~2.4k at 3s; 40% fewer Worker requests and D1 reads). The countdown and
+ * ring animate locally from targetEndTime, so the only cost is that a state change
+ * (start, pause, a new task) can reach the overlay up to 2s later. Never go faster
+ * without a stated request-budget reason.
+ */
+export const OVERLAY_POLL_MS = 5000;
 export const DASHBOARD_TASKS_POLL_MS = 3000;
 export const DASHBOARD_TIMER_POLL_MS = 2000;
 export const DASHBOARD_IDLE_AFTER_MS = 2 * 60_000;

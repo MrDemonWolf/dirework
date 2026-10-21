@@ -110,7 +110,7 @@ const tokenVerifyRateLimit = RateLimit({
 });
 
 const overlayRateLimit = RateLimit({
-  // Overlays poll every 3s → ~20 req/min per source, two sources per streamer.
+  // Overlays poll every 5s → ~12 req/min per source, two sources per streamer.
   // Deliberately separate (and higher) so overlay polling can never be starved
   // by traffic hitting the other buckets.
   namespace_id: rlBase + 4,

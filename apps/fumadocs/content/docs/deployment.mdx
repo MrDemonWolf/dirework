@@ -335,7 +335,7 @@ Cloudflare account and reset at 00:00 UTC. Rough hourly usage:
 
 | Source                                    | Polling                                     | Requests/hour |
 | ----------------------------------------- | ------------------------------------------- | ------------- |
-| Timer + task overlays (open in OBS)       | every 3s each, even in the background       | ~2.4k         |
+| Timer + task overlays (open in OBS)       | every 5s each, even in the background       | ~1.4k         |
 | Dashboard tab (visible, in use)           | timer 2s + tasks 3s, each counted twice     | ~6k           |
 | Dashboard tab (visible, untouched 2+ min) | timer + tasks every 15s, each counted twice | ~1k           |
 
@@ -344,10 +344,10 @@ worker, and both invocations are billed. Dashboard polling slows to every 15 sec
 once nobody has clicked, typed, scrolled, or moved the pointer over it for two minutes,
 and pauses entirely while its tab is hidden or minimized; overlays keep polling.
 
-So a six-hour stream with only the overlays running uses about 15k requests, and with
-the dashboard left open but untouched about 20k. Actively using the dashboard the
-whole time costs about 50k, and a 12-hour day of constant dashboard use reaches the
-daily cap. Once the cap is hit, overlays freeze on their last state and chat commands
+So a six-hour stream with only the overlays running uses about 9k requests, and with
+the dashboard left open but untouched about 14k. Actively using the dashboard the
+whole time costs about 45k, and a 12-hour day of constant dashboard use (about 89k)
+comes close to the daily cap. Once the cap is hit, overlays freeze on their last state and chat commands
 stop until the reset. If you outgrow the request cap, the $5 Workers paid plan raises
 every limit.
 
