@@ -53,6 +53,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (connect the bot account, add the overlays to OBS, viewers join from chat). A failed
   sign-in shows the same notice as the home page, and the header's own Sign in button steps
   aside on this page. The page is server-rendered and makes no API calls.
+- **Theme Center preview.** The preview now shows one overlay at a time (**Timer** or
+  **Tasks**), adds a **Bright** backdrop (a sunny camera feed) to dark, light and checkerboard,
+  draws the task list at the 700 × 800 source size scaled to fit, and uses the same demo session
+  as the landing page and docs. A chip says whether you are **previewing unsaved changes** or
+  the preview **matches the saved theme**, and the save bar says unsaved edits are **not on
+  stream yet** and that saving updates both OBS overlays. On wide screens the preview is a
+  fixed-width column that stays in view while you scroll the editor.
 - Docs: an architecture decision record (`docs/decisions/0001-cloudflare-services.md`)
   weighs KV, Durable Objects, Queues, Cron Triggers and other Cloudflare services against
   the Free-plan limits. Nothing changes today; a server-hosted bot on a Durable Object is
@@ -105,6 +112,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   honours reduced-motion).
 
 ### Fixed
+- The Theme Center preview's **Dark** and **Light** backdrops showed the panel color instead:
+  the class merge dropped them. They now paint the simulated scene.
+- On a phone the Theme Center was wider than the screen (the preset row stretched the page),
+  so it scrolled sideways. It now fits.
 - Small labels on the docs home page were 10–11px; they are now at least 12px. Headings
   there no longer ask for font weights the page never loads.
 - The dashboard, Theme Center and Bot pages no longer throw away their server render when your

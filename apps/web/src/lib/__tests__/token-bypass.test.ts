@@ -49,9 +49,6 @@ const ALLOWED: Record<string, string[]> = {
     "shadow-[0_0_12px_2px_rgba(251,191,36,0.5)]",
     "shadow-[0_0_12px_2px_rgba(52,211,153,0.55)]",
   ],
-  // Theme Center preview canvas: simulated stream backdrops (dark and light),
-  // deliberately outside the app palette so overlays are judged against a stream.
-  "components/theme-center/style-preview-panel.tsx": ["bg-[oklch(0.14_0.035_262)]", "bg-zinc-100"],
   "components/theme-center/theme-card.tsx": ["border-[1.5px]"],
   // shadcn/ui primitives: transition property lists, motion start scale and
   // component-internal geometry, kept as upstream ships them.

@@ -25,4 +25,14 @@ test("the dashboard fits a phone and the menu button reaches the Theme Center", 
   );
   await page.getByRole("link", { name: "Theme Center" }).click();
   await expect(page.getByRole("heading", { name: "Theme Center" })).toBeVisible();
+
+  // The Theme Center fits too: its preset gallery and preview canvas once widened the page.
+  await expect(page.getByRole("button", { name: "Preview timer" })).toBeVisible();
+  const themeWidths = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    client: document.documentElement.clientWidth,
+  }));
+  expect(themeWidths.scroll, "Theme Center wider than the viewport").toBeLessThanOrEqual(
+    themeWidths.client,
+  );
 });

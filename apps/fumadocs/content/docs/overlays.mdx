@@ -70,6 +70,18 @@ The dashboard shows a live preview of each overlay next to its console. Use the 
 
 Both overlays are fully customizable through the **Theme Center** at `/dashboard/styles`. This is a visual editor with a live preview panel.
 
+The preview sits beside the editor (below it on a phone) and shows one overlay at a time:
+pick **Timer** or **Tasks**, then a backdrop — dark, light, bright (a sunny camera feed, the
+hardest case for light text) or a checkerboard that shows what is transparent. The task list
+is drawn at the recommended 700 × 800 source size and scaled down, so its proportions match
+OBS. The sample tasks and countdown are the same demo session the docs and landing page use.
+
+Edits stay in the preview until you save. The chip above the preview reads **Previewing
+unsaved changes** while they differ from what is live, and **Matches the saved theme** once
+they don't; the save bar at the bottom says the change is **not on stream yet**. **Save
+changes** updates both OBS overlays in one step; **Reset** discards every edit since the last
+save.
+
 ### Timer overlay settings
 
 | Category | Options |

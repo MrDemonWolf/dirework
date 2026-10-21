@@ -55,10 +55,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <ThemeColorSync />
         <Header session={session} />
         {/* Safe-area side insets (landscape phones with viewport-fit=cover) add to each
-            page's own gutter; the header, footer and save bar pad themselves the same way. */}
+            page's own gutter; the header, footer and save bar pad themselves the same way.
+            min-w-0: a grid item's default min-width is its min-content width, so one wide
+            child (the Theme Center preset rail) widened the whole page past a phone. */}
         <main
           id="main"
-          className="pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]"
+          className="min-w-0 pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]"
         >
           {children}
         </main>
