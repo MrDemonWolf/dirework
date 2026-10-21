@@ -106,6 +106,9 @@ For production deployments:
 - `BETTER_AUTH_URL` and `CORS_ORIGIN` must point at your web worker
   (`https://dirework.<your-subdomain>.workers.dev`) — set as GitHub repository
   **Variables**, read by the deploy workflow via `${{ vars.* }}`
+- Two more repository **Variables**, `UPTIME_API_URL` and `UPTIME_WEB_URL`, turn on the
+  free uptime probe. Only GitHub Actions reads them — they never reach a worker (see
+  [Monitoring](/docs/deployment#monitoring))
 - Do **not** set `NEXT_PUBLIC_SERVER_URL` for production — Alchemy injects the API
   worker's URL itself (see the warning above)
 - The deploy workflow validates required values, secret lengths, same-origin HTTPS URLs,

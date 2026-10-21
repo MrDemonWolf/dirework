@@ -6,12 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- **Uptime probe workflow** (`.github/workflows/uptime.yml`). Set the repository variables
+  `UPTIME_API_URL` and `UPTIME_WEB_URL` and GitHub Actions requests the API's `/ready` and
+  the web app's `/api/version` every 30 minutes — 96 Worker requests a day, up to 288 while both are down and
+  every probe retries — opening one
+  issue labelled `uptime` while the instance is unreachable and closing it once it
+  recovers. A free fallback when you don't run an external monitor; see the deployment
+  guide's Monitoring section.
+
 ### Changed
 - **One tagline everywhere:** "A focus timer for your Twitch stream." The docs home page,
   the web app's link previews and both share cards now use the same words, and both share
   cards are navy and cerulean with the same example timer (18:24, Cycle 2 / 4).
 - The docs home page mocks (stream scene, task list, timer and chat preview) now show one
   example session, and the chat preview's bot replies are the bot's real default replies.
+- Test coverage floors now sit about five points under the measured coverage in every
+  package (api, server, web, infra, and db, which gained tests for its default replies and
+  the provisioning helper). Untested code now drops the number past the floor and fails
+  CI instead of slipping under a bar set forty points too low.
+- CI no longer re-verifies `main` on push: a push there is a merge, and the deploy
+  workflow runs the same verification itself, so each merge runs the pipeline twice
+  instead of three times.
+- The historical planning documents (migration plan, pre-migration audit, marketing
+  review, logo prompt) moved from the repository root to `docs/history/`.
 - The landing page and dashboard preload their heading font, and only the overlay pages and
   the Theme Center load the overlay font stylesheet, so each page downloads only the type it
   shows. The public pages (`/`, `/setup`) show a loading skeleton the moment you navigate to

@@ -11,15 +11,16 @@ export default defineConfig({
       // so an untested new module lowers the number instead of hiding.
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/**/__tests__/**", "**/*.d.ts"],
-      // Ratchets set just under the measured values so coverage can't silently
+      // Ratchets about five points under the measured values (36% statements,
+      // 32% branches, 21% functions, 35% lines) so coverage can't silently
       // regress. Raise them when real coverage rises; never lower to go green.
       // The global floor is honest (most of the UI is untested); the modules
       // that ARE unit-tested keep a strict per-glob bar.
       thresholds: {
-        statements: 4,
-        branches: 5,
-        functions: 2,
-        lines: 4,
+        statements: 31,
+        branches: 27,
+        functions: 16,
+        lines: 30,
         "src/lib/{rate-limiter,theme-presets}.ts": {
           statements: 90,
           branches: 85,

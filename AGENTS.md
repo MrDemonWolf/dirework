@@ -6,10 +6,12 @@ This file provides guidance for coding agents working on the Dirework codebase.
 
 **ALWAYS update this section** when creating or discovering important docs to prevent context loss.
 
-- Node/Postgres → Cloudflare migration (completed; historical record) → `MIGRATION.md`
-- Pre-migration audit (29 findings, all addressed in the port) → `AUDIT-cloudflare-migration.md`
+- Historical records (completed plans and reviews) live in `docs/history/`:
+  - Node/Postgres → Cloudflare migration (completed) → `docs/history/MIGRATION.md`
+  - Pre-migration audit (29 findings, all addressed in the port) → `docs/history/AUDIT-cloudflare-migration.md`
+  - Marketing website research and UI/UX review → `docs/history/MARKETING-REVIEW.md`
+  - Logo generation prompt → `docs/history/logo.md`
 - Security policy and production operator checklist → `SECURITY.md`
-- Marketing website research and UI/UX review → `MARKETING-REVIEW.md`
 - Database schemas → `packages/db/src/schema/` (index.ts, auth.ts, app.ts)
 - Setup guides → `.env.example`, docs `apps/fumadocs/content/docs/deployment.mdx`
 - Contributor setup + branch/PR workflow → `CONTRIBUTING.md`
@@ -457,7 +459,12 @@ there), the full Twitch OAuth callback with a stubbed token endpoint (first sign
 claims; a second account redirects to `?error=instance_claimed` — the hook's APIError
 must carry `code`, better-auth ≥1.7 reads `body.code`), `DEV_LOGIN` gate, session IP/UA
 and expired-session purge),
-`packages/db/src/migrations/__tests__/` (data migrations run in sql.js).
+`packages/db/src/migrations/__tests__/` (data migrations run in sql.js),
+`packages/db/src/__tests__/` (`defaults.test.ts`: the frozen column defaults, current
+wordings and legacy lists agree key for key, no legacy wording equals a default, every
+timer status has a phase label; `provision.test.ts`: `provisionSingletonRows` over real
+drizzle + sql.js with every migration applied — one batch, one row per singleton table,
+idempotent, tokens never rotate).
 **Browser end-to-end** (`packages/e2e`, `bun run e2e`): Playwright drives the real stack — the
 api worker from source and the web worker from its built bundle (`bun run build:worker` in
 apps/web first), both in local workerd on 127.0.0.1:3000/3001 over a fresh local D1 with every
@@ -544,17 +551,33 @@ icons; brand glyphs are inline SVG components (`apps/web/src/components/icons/`,
   3072 KiB compressed, and that rejection would come after the D1 migrations applied): api
   = gzip of the dry-run `apps/server/dist/index.js`, web = `wrangler deploy --dry-run` over
   the OpenNext output with the smoke config plus Alchemy's `minify: true`. Coverage measures every `src/` file
-  (`coverage.include`), not just imported ones.
+  (`coverage.include`), not just imported ones — except `packages/db`, which measures only
+  its two pure modules (`defaults.ts`, `provision.ts`): the schema files are declarative
+  drizzle tables and `index.ts` needs the D1 binding. Every package's thresholds sit about
+  five points under the measured values (`bun run test:coverage` in the package prints
+  them); raise them when coverage rises, never lower them to go green.
 - `.github/workflows/codeql.yml` — CodeQL JavaScript/TypeScript analysis plus a separate
   GitHub Actions (workflow) analysis job, both with the `security-extended` query suite on
   pushes, PRs, and a weekly schedule.
 - `.github/workflows/audit.yml` — daily + manual: `bun run audit:dependencies` against
   the lockfile, so an advisory published between pushes fails a run and notifies the
   owner.
-- `.github/workflows/ci.yml` — push (dev/main) + PRs: calls `verify.yml`, plus a
+- `.github/workflows/ci.yml` — push to `dev` + PRs (dev/main): calls `verify.yml`, plus a
   `dependency-review` job on PRs (fails on high-severity advisories). GitHub's
   dependency graph reads only literal `package.json` ranges — not `bun.lock` or
   `catalog:` versions — so `bun audit` (in `verify.yml`) is the real lockfile gate.
+  Pushes to `main` are deliberately not a trigger: a push there is a merge, which
+  `deploy.yml` (and the docs deploy) already verify, so verify runs twice per merge
+  instead of three times; `workflow-security.test.ts` pins the trigger.
+- `.github/workflows/uptime.yml` — every 30 minutes + manual, and only when the
+  repository variables `UPTIME_API_URL` and `UPTIME_WEB_URL` are set: curls api `/ready`
+  and web `/api/version` (2 Worker requests per run, 96 a day; up to 6 per run / 288 a day while both keep
+  failing and `--retry 2` fires) and keeps ONE
+  `uptime`-labelled issue — opened when either fails, commented on while the outage
+  lasts, "Recovered" + closed when both answer. `permissions: {}` at the top and only
+  `issues: write` on the job; no checkout, no actions, no secrets (the test pins all of
+  it). The free fallback for instances without an external monitor (deployment.mdx →
+  Monitoring).
 - `.github/workflows/deploy.yml` — push to main (or manual): a `guard` job refuses any ref
   but `refs/heads/main` (`::error title=Deploy refused::`, before verify spends a runner
   half-hour), then `verify.yml` **including the build** (`needs: guard`), then validates
@@ -649,9 +672,11 @@ free, so anything that multiplies requests or rows read is a bug, not a style ni
 - No new polling, and no faster interval for an existing poll. Every cadence lives in
   `apps/web/src/lib/poll-intervals.ts`; a change there needs a stated request-budget
   reason. Dashboard queries must keep stopping when the tab is hidden.
-- No cron triggers, Durable Objects, Queues, or other paid/metered bindings. Prefer
-  doing housekeeping lazily on an existing write path (like `purgeExpiredDoneTasks`)
-  or once per deploy (`packages/infra/post-deploy.ts`).
+- No Workers cron triggers, Durable Objects, Queues, or other paid/metered bindings.
+  Prefer doing housekeeping lazily on an existing write path (like
+  `purgeExpiredDoneTasks`) or once per deploy (`packages/infra/post-deploy.ts`). A
+  GitHub Actions schedule (`uptime.yml`) is not a binding, but it spends Worker requests:
+  state the daily count.
 - No query on a poll path (overlay, dashboard list, bot ingest) that can scan a whole
   table. New predicates need an index, and the EXPLAIN QUERY PLAN tests must cover them.
 - No extra round trips per chat line or per poll (a second D1 query, an extra Worker

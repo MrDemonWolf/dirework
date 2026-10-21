@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [dev, main]
+    # Not main: a push there is a merge, and deploy.yml already runs verify.yml
+    # on it (build and e2e included). The pull_request gate covers main.
+    branches: [dev]
   pull_request:
     branches: [dev, main]
 
