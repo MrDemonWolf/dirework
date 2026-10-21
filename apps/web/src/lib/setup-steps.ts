@@ -89,7 +89,10 @@ export function setupProgress(me: SetupSource): SetupProgress {
   return { done, total: SETUP_STEPS.length, nextStep };
 }
 
-/** `user.me` with one confirmed step patched in — the optimistic cache update. */
+/**
+ * `user.me` with one step's flag patched — the optimistic update and its rollback. Only
+ * `setup[step]` changes, so fields refetched meanwhile (a rotated overlay token) survive.
+ */
 export function withSetupStep<T extends SetupSource>(
   me: T,
   step: SetupStep,

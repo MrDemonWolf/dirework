@@ -282,15 +282,22 @@ export function SetupChecklist({
     trpc.user.confirmSetupStep.mutationOptions({
       onMutate: async ({ step, confirmed }) => {
         await queryClient.cancelQueries({ queryKey: meKey });
-        const previous = queryClient.getQueryData(meKey);
+        // Remember only this step's flag: a rollback must not restore a whole stale `me`
+        // (another mutation may have refetched it meanwhile, e.g. a rotated overlay token).
+        const previousConfirmed = queryClient.getQueryData(meKey)?.setup[step];
         queryClient.setQueryData(meKey, (old) => (old ? withSetupStep(old, step, confirmed) : old));
-        return { previous };
+        return { previousConfirmed };
       },
       onSuccess: ({ setup }) => {
         queryClient.setQueryData(meKey, (old) => (old ? { ...old, setup } : old));
       },
-      onError: (err, _input, context) => {
-        queryClient.setQueryData(meKey, context?.previous);
+      onError: (err, { step }, context) => {
+        const previousConfirmed = context?.previousConfirmed;
+        if (previousConfirmed !== undefined) {
+          queryClient.setQueryData(meKey, (current) =>
+            current ? withSetupStep(current, step, previousConfirmed) : current,
+          );
+        }
         toast.error(`Couldn't save that step: ${describeTrpcError(err)}`);
       },
     }),

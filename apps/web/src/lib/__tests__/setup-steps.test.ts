@@ -83,6 +83,25 @@ describe("SETUP_STEPS copy", () => {
 });
 
 describe("withSetupStep", () => {
+  it("rolls back only the step's flag, keeping fields that changed meanwhile", () => {
+    const snapshot = { ...me(true), overlayTimerToken: "old-token" };
+    const optimistic = withSetupStep(snapshot, "timerOverlay", true);
+    // Meanwhile an overlay-URL reset refetched user.me with a rotated token.
+    const refetched = { ...optimistic, overlayTimerToken: "rotated-token" };
+    const rolledBack = withSetupStep(refetched, "timerOverlay", snapshot.setup.timerOverlay);
+    expect(rolledBack.setup.timerOverlay).toBe(false);
+    expect(rolledBack.overlayTimerToken).toBe("rotated-token");
+  });
+
+  it("the failed-confirm handler patches the flag, never restores the whole snapshot", () => {
+    const src = readFileSync(
+      path.resolve(import.meta.dirname, "../../components/setup-checklist.tsx"),
+      "utf8",
+    );
+    expect(src).toContain("withSetupStep(current, step, previousConfirmed)");
+    expect(src).not.toContain("context?.previous)");
+  });
+
   it("patches one flag and leaves the rest of user.me alone", () => {
     const before = { ...me(true), overlayTimerToken: "t" };
     const after = withSetupStep(before, "timerOverlay", true);
