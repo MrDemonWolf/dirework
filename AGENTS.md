@@ -482,6 +482,18 @@ drawn at the 700×800 source). Backdrops dark / light / bright / checker are CSS
 header chip is the page's dirty indicator ("Previewing unsaved changes" / "Matches the saved
 theme"); `SaveBar` takes `label` and `saveHint` (Theme Center: "Unsaved — not on stream yet",
 "Saving updates both OBS overlays", the Save button's description).
+Editor layout: `ThemeBrowser` is a `grid-cols-2 md:grid-cols-3 xl:grid-cols-6` radiogroup
+("Theme presets") with roving tabindex driven by `lib/grid-navigation.ts` (`nextGridIndex`;
+columns read from the live grid). Tabs "Timer style" / "Task style" / "Phase labels";
+`TabsTrigger` takes `dirty` (amber dot + sr-only "(unsaved changes)"). The two style editors
+are thin wrappers over `theme-center/style-sections-editor.tsx`, which renders
+`TIMER_STYLE_FIELDS` / `TASK_STYLE_FIELDS` from `lib/style-sections.ts`: every style leaf
+path has exactly one field and one section (Colors · Typography · Layout · Opacity; Colors
+opens first) plus a `group` (fieldset legend). `style-sections.test.ts` holds both lists to
+`leafPaths(DEFAULT_*_STYLES)`, so a new style key must get a field. `SectionGroup` takes a
+`menu` (rendered beside, not inside, the toggle button); each section's menu "Reset section"
+→ `resetSection` (to the Default preset's values), and the page's "Theme options" menu →
+"Reset theme to Default"; both confirm and only change the draft.
 
 **Design tokens are generated.** `design-system/tokens.json` → `design-system/scripts/render.ts`
 (pure) + `generate.ts` (I/O) → `apps/web/src/tokens.generated.css` (imported by `index.css`)

@@ -82,19 +82,33 @@ they don't; the save bar at the bottom says the change is **not on stream yet**.
 changes** updates both OBS overlays in one step; **Reset** discards every edit since the last
 save.
 
+The presets sit in a gallery at the top (arrow keys move between them; Enter or Space applies
+one). Below it, the editor has three tabs — **Timer style**, **Task style** and **Phase
+labels** — and a dot on a tab means it holds unsaved edits. Each style tab is split into four
+sections: **Colors** (open first), **Typography**, **Layout** and **Opacity**. Inside a
+section, settings are grouped by the part of the overlay they change (the panel, the progress
+ring, the header, task rows…).
+
+Two resets put values back to the **Default** theme without saving: a section's **⋯** menu →
+**Reset section** resets just that section of that overlay, and the **⋯** menu beside the
+page title → **Reset theme to Default** resets both overlays' styles (phase labels stay).
+Both ask first, and neither reaches your stream until you press **Save changes**.
+
 ### Timer overlay settings
 
-| Category | Options |
+| Section | Options |
 | --- | --- |
-| **Dimensions** | Width, height |
-| **Background** | Color, opacity, border radius |
-| **Progress Ring** | Enabled/disabled, track color, fill color, track/fill opacity, width, gap |
-| **Text** | Color, outline color, outline size, font family |
-| **Font Sizes** | Phase label, countdown time, cycle count |
-| **Labels** | Custom text for each of the seven phases — Idle, Starting, Focus, Break, Long break, Paused, Done. Defaults are wolf-themed: "Resting", "Gathering the Pack", "On the Hunt", "Den Rest", "Pack Slumber", "Paws'd", "Hunt Complete". |
+| **Colors** | Panel background; progress ring fill and track; text color and outline color |
+| **Typography** | Font family, outline size; phase label, countdown and pomo counter sizes |
+| **Layout** | Width, height, corner radius; show ring, ring width, ring gap |
+| **Opacity** | Panel background; ring fill and track |
 
-> The progress ring has no dedicated shape control — its shape follows the **Background**
-> border radius. Set the border radius to `50%` for a circle; any other value (e.g. `22%`)
+The **Phase labels** tab sets the text for each of the seven phases — Idle, Starting, Focus,
+Break, Long break, Paused, Done. Defaults are wolf-themed: "Resting", "Gathering the Pack",
+"On the Hunt", "Den Rest", "Pack Slumber", "Paws'd", "Hunt Complete".
+
+> The progress ring has no dedicated shape control — its shape follows the panel's
+> **Corner radius** (Layout). Set the border radius to `50%` for a circle; any other value (e.g. `22%`)
 > renders a rounded rectangle (squircle).
 
 > The default countdown is 76px, sized for `25:00` in a 300×300 timer. With **Show hours**
@@ -103,17 +117,14 @@ save.
 
 ### Task list overlay settings
 
-| Category | Options |
+| Section | Options |
 | --- | --- |
-| **Display** | Show completed tasks, show count, use checkboxes, strikethrough on done, number of visible lines |
-| **Fonts** | Header font, body font |
-| **Scroll** | Enabled/disabled toggle, pixels per second, gap between scroll loops |
-| **Header** | Height, background color/opacity, border color/width/radius, font size, font color, padding |
-| **Body** | Background color/opacity, border color/width/radius, padding |
-| **Task Items** | Background color/opacity, border, font size, font color, fallback username color (used when a viewer has no Twitch chat color), padding, margin, max width |
-| **Done State** | Background color/opacity, font color |
-| **Checkboxes** | Size, background, border, margin, tick character, tick size, tick color |
-| **Bullets** | Character, size, color, margin |
+| **Colors** | Background, text and border colors for the header, body and task rows; fallback username color (used when a viewer has no Twitch chat color); done-task background and text; checkbox background, border and tick; bullet color |
+| **Typography** | Header and body fonts; header and task font sizes; tick character and size; bullet character and size |
+| **Layout** | Show done tasks, show count, checkboxes, cross out done tasks, lines per task; scroll on/off, speed and loop gap; heights, padding, margins, border widths, corner radii and max width |
+| **Opacity** | Background opacity of the header, body, task rows, done tasks and checkboxes |
+
+Bullet settings appear only while **Checkboxes** is off.
 
 ### Theme presets
 

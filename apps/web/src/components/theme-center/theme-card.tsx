@@ -1,6 +1,6 @@
 "use client";
 
-// One preset tile in the Theme Center's ThemeBrowser carousel.
+// One preset tile in the Theme Center's ThemeBrowser gallery.
 
 import { Check } from "lucide-react";
 
@@ -46,7 +46,7 @@ export function ThemeCard({
       onFocus={onFocus}
       title={`${theme.name} — ${theme.description}`}
       className={cn(
-        "group relative flex w-44 shrink-0 cursor-pointer snap-start flex-col overflow-hidden rounded-xl border text-left transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none",
+        "group relative flex w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-xl border text-left transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none",
         isActive
           ? "border-primary ring-2 ring-primary/30"
           : "border-border hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md",

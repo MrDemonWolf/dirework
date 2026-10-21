@@ -44,7 +44,15 @@ function TabsList({
   );
 }
 
-function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
+function TabsTrigger({
+  className,
+  dirty = false,
+  children,
+  ...props
+}: TabsPrimitive.Tab.Props & {
+  /** Shows an amber dot (and says "(unsaved changes)" to screen readers) for a tab with edits. */
+  dirty?: boolean;
+}) {
   return (
     <TabsPrimitive.Tab
       data-slot="tabs-trigger"
@@ -56,7 +64,19 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
         className,
       )}
       {...props}
-    />
+    >
+      {children}
+      {dirty && (
+        <>
+          <span
+            aria-hidden
+            data-slot="tabs-dirty-dot"
+            className="size-1.5 shrink-0 rounded-full bg-warning"
+          />
+          <span className="sr-only">(unsaved changes)</span>
+        </>
+      )}
+    </TabsPrimitive.Tab>
   );
 }
 

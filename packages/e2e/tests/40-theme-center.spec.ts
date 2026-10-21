@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-import { signIn } from "./helpers";
+import { DEFAULT_TIMER_STYLES } from "@dirework/api/config-defaults";
+
+import { confirmDialog, signIn } from "./helpers";
 
 test("applies a preset, saves it, and finds it selected after a reload", async ({ page }) => {
   await signIn(page);
@@ -57,12 +59,45 @@ test("previews either overlay over a chosen backdrop and says when edits are uns
   // An edit is previewed before it is saved. The label is unique per run, so a retry
   // against the same database still changes something.
   await previewTimer.click();
+  await page.getByRole("tab", { name: "Phase labels" }).click();
   await page.getByLabel("Finished", { exact: true }).fill(`All done ${Date.now() % 100_000}`);
   await expect(page.getByText("Previewing unsaved changes")).toBeVisible();
   // The save bar names it too (its live region repeats the words for screen readers).
   await expect(page.getByText("Unsaved — not on stream yet").first()).toBeVisible();
+  // Only the edited tab carries the unsaved dot.
+  await expect(page.getByRole("tab", { name: "Phase labels (unsaved changes)" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Timer style", exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByText("Styles saved")).toBeVisible();
   await expect(page.getByText("Matches the saved theme")).toBeVisible();
+});
+
+test("resets one section of the draft to the Default theme", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/dashboard/styles");
+
+  // Save a non-default track color first, so resetting Colors has something to change.
+  // A retry finds the previous attempt's color saved, so it picks the other one.
+  const track = page.getByRole("textbox", { name: "Track", exact: true });
+  const custom = (await track.inputValue()) === "#a1b2c3" ? "#c3b2a1" : "#a1b2c3";
+  await track.fill(custom);
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Styles saved")).toBeVisible();
+  await expect(page.getByText("Matches the saved theme")).toBeVisible();
+
+  await page.getByRole("button", { name: "Colors section options" }).click();
+  await page.getByRole("menuitem", { name: "Reset section" }).click();
+  await confirmDialog(page, "Reset section");
+
+  // The reset only changes the draft: the color is back to the default, not yet saved.
+  await expect(track).toHaveValue(DEFAULT_TIMER_STYLES.ring.trackColor);
+  await expect(page.getByText("Previewing unsaved changes")).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Timer style (unsaved changes)" })).toBeVisible();
+
+  // Discard it, so the saved theme is what later specs see.
+  await page.getByRole("button", { name: "Reset", exact: true }).click();
+  await confirmDialog(page, "Discard changes");
+  await expect(page.getByText("Matches the saved theme")).toBeVisible();
+  await expect(track).toHaveValue(custom);
 });
