@@ -249,7 +249,7 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
               </Button>
             </form>
 
-            <div ref={listRef} className="max-h-[400px] space-y-3 overflow-y-auto">
+            <div ref={listRef} className="max-h-100 space-y-3 overflow-y-auto">
               {!tasks.data && tasks.isError ? (
                 // A failed first load must not masquerade as an empty board.
                 <QueryError
@@ -287,7 +287,7 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                       transform="rotate(-90 24 24)"
                     />
                   </svg>
-                  <div className="max-w-[15rem] text-center">
+                  <div className="max-w-60 text-center">
                     <p className="text-sm font-medium">A clean slate</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       Add the first task above, or let chat start with{" "}
@@ -311,7 +311,7 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                           style={{
                             background: isHost
                               ? "var(--primary)"
-                              : (group.authorColor ?? "var(--chart-2)"),
+                              : (group.authorColor ?? "var(--cornflower)"),
                           }}
                         />
                         <span className="truncate text-sm font-medium">

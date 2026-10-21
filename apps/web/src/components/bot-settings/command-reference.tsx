@@ -174,14 +174,12 @@ export function CommandReference({
               <span className="text-xs text-muted-foreground">{cmd.description}</span>
               {cmd.permission === "mods" && <StatusChip tone="alt" size="sm" label="Mods" />}
             </div>
-            <code className="block font-mono text-[11px] text-muted-foreground/80">
-              {cmd.usage}
-            </code>
+            <code className="block font-mono text-2xs text-muted-foreground/80">{cmd.usage}</code>
           </li>
         ))}
       </ul>
       {hasModRows && (
-        <p className="border-t border-border/40 px-3 py-2 text-[11px] text-muted-foreground">
+        <p className="border-t border-border/40 px-3 py-2 text-2xs text-muted-foreground">
           Mods = moderators and the streamer.
         </p>
       )}

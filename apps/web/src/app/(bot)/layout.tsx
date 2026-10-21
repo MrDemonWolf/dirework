@@ -9,5 +9,5 @@
  * downloads a font it won't show.
  */
 export default function BotLayout({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-dvh bg-zinc-950">{children}</div>;
+  return <div className="min-h-dvh bg-console-base">{children}</div>;
 }

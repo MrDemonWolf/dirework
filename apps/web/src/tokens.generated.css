@@ -130,6 +130,14 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-twitch: #9146ff;
   --color-twitch-hover: #7c3ae6;
+  --color-console-base: oklch(14.1% 0.005 285.823);
+  --color-console-line: oklch(27.4% 0.006 286.033);
+  --color-console-edge: oklch(37% 0.013 285.805);
+  --color-console-muted: oklch(70.5% 0.015 286.067);
+  --color-console-soft: oklch(87.1% 0.006 286.286);
+  --color-console-fg: oklch(92% 0.004 286.32);
+  --color-console-bright: oklch(96.7% 0.001 286.375);
+  --radius-xs: calc(var(--radius) - 8px);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -142,10 +150,11 @@
 @theme static {
   --text-3xs: 0.625rem;
   --text-2xs: 0.6875rem;
-  --text-2xs--line-height: 1rem;
   --tracking-chip: 0.08em;
   --tracking-label: 0.12em;
+  --tracking-eyebrow: 0.18em;
   --tracking-display: 0.2em;
+  --tracking-marquee: 0.3em;
   --ease-console: cubic-bezier(0.22, 1, 0.36, 1);
   --animate-console-rise: console-rise 0.45s var(--ease-console) both;
   --animate-console-rise-fast: console-rise 0.2s var(--ease-console) both;

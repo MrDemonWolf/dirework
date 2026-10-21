@@ -60,10 +60,11 @@ Each generated stylesheet declares the palette as plain CSS variables on `:root`
 | --- | --- | --- |
 | `color.scheme.{light,dark}` | `--background`, `--primary`, `--success`, `--border`, `--hairline`, `--cornflower`, `--chart-*`, `--sidebar-*`… | The UI palette, as oklch values. `{name}` aliases another key (`--chart-2: var(--cornflower)`). |
 | `color.phase` | `--phase-{work,break,long-break,paused}` | Timer phase accents |
+| `color.console` | `--color-console-*` (`bg-console-base`…) | The always-dark bot console, app only |
 | `color.partner` | `--twitch`, `--twitch-hover` (`bg-twitch`) | Twitch purple, for Twitch actions only |
-| `radius` | `--radius` + `--radius-{sm…4xl}` | App only, as offsets from `--radius` (12px) |
+| `radius` | `--radius` + `--radius-{xs…4xl}` | App only, as offsets from `--radius` (12px) |
 | `font.size`, `font.lineHeight` | `--text-2xs`, `--text-3xs` | Steps Tailwind doesn't ship; the rest are Tailwind's defaults, listed for reference |
-| `tracking` | `--tracking-{chip,label,display}` | Letter-spacing for chips, labels, display caps |
+| `tracking` | `--tracking-{chip,label,eyebrow,display,marquee}` | Letter-spacing for chips, labels, display caps |
 | `motion` | `--ease-console`, `--animate-console-rise(-fast)` | Plus the `console-rise` keyframes |
 | `layout` | `--container-{content,editor}`, `--spacing-header` | Page widths and the sticky header height |
 | `z` | `--z-{save-bar,header,skip-link}` | Stacking order |

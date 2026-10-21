@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./tokens.generated.css";
+/* Tests are not markup: keep their class-like strings (token-bypass.test.ts's allow-list)
+   out of the stylesheet. */
+@source not "./**/__tests__";
 
 @custom-variant dark (&:is(.dark *));
 /* The primary pointer can hover (mouse, trackpad). Hide hover-revealed controls behind it,
@@ -68,7 +71,7 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
   }
-  /* Keep focused/scrolled-to controls clear of the sticky header (h-14 + border)
+  /* Keep focused/scrolled-to controls clear of the sticky header (h-header + border)
      and, while it is shown, the fixed SaveBar. */
   html {
     scroll-padding-top: calc(var(--spacing-header) + 1rem);

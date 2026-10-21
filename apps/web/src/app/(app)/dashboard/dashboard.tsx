@@ -161,7 +161,7 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
   if (!me) {
     if (user.isPending) return <DashboardSkeleton />;
     return (
-      <div className="container mx-auto max-w-6xl px-4 py-8">
+      <div className="container mx-auto max-w-content px-4 py-8">
         <QueryError
           title="Couldn't load your dashboard"
           onRetry={() => user.refetch()}
@@ -176,7 +176,7 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
   const botAccount = me.botAccount ?? null;
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-8">
+    <div className="container mx-auto max-w-content px-4 py-8">
       {/* Header band: console kicker + greeting + LED status cluster */}
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>

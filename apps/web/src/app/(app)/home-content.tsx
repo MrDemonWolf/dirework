@@ -41,7 +41,7 @@ function TimerModuleMock() {
         <span className="size-2 rounded-full border border-muted-foreground/40" />
         <span className="size-2 rounded-full border border-muted-foreground/40" />
       </div>
-      <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
+      <p className="font-mono text-3xs tracking-eyebrow text-muted-foreground uppercase">
         Pomo 2 of 4
       </p>
     </div>

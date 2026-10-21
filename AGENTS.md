@@ -492,6 +492,10 @@ existing home and reuse it:
 - **Constants** — timer/config defaults come from `@dirework/db/defaults` (re-exported via
   `@dirework/api/config-shared`); never re-type `25*60*1000` etc. The M1/M3/M4 "don't
   duplicate" rules apply to the web component layer too, not only services/config.
+- **Design tokens** — never use arbitrary values for type/tracking/z/widths (or raw
+  `zinc-*`/`slate-*`/`gray-*` classes): use the tokens (`text-2xs`, `tracking-label`,
+  `z-(--z-header)`, `max-w-content`, `w-editor`, `h-header`, `bg-console-base` …) or
+  `apps/web/src/lib/__tests__/token-bypass.test.ts` fails. Its allow-list only shrinks.
 
 Skills to use (they exist globally, not in-repo):
 

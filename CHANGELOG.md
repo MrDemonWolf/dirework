@@ -45,6 +45,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   IBM Plex Sans/Mono from self-hosted files (`packages/fonts`, about 104 KiB) instead of
   fetching them from Google Fonts at build time, so a build can't fail because Google was
   unreachable from the runner. The faces and weights you see are unchanged.
+- **Token sweep (no visual change).** The web app's arbitrary type, tracking, z-index, width
+  and gray-palette classes now use design tokens (new: `tracking-eyebrow`/`marquee`,
+  `rounded-xs`, the `console-*` bot-console colors), and `token-bypass.test.ts` keeps it so.
 - **One tagline everywhere:** "A focus timer for your Twitch stream." The docs home page,
   the web app's link previews and both share cards now use the same words, and both share
   cards are navy and cerulean with the same example timer (18:24, Cycle 2 / 4).

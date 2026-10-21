@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 /** Static, data-free skeleton of the Theme Center. */
 export function StylesSkeleton() {
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-8">
+    <div className="container mx-auto max-w-content px-4 py-8">
       <div className="mb-6 space-y-2">
         <Skeleton className="h-3 w-28" />
         <Skeleton className="h-9 w-52" />
@@ -25,14 +25,14 @@ export function StylesSkeleton() {
       </div>
       {/* Editor + preview column skeleton */}
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <div className="w-full min-w-0 space-y-3 lg:w-[380px] lg:shrink-0">
+        <div className="w-full min-w-0 space-y-3 lg:w-editor lg:shrink-0">
           <Skeleton className="h-9 w-40" />
           {["editor-1", "editor-2", "editor-3", "editor-4"].map((key) => (
             <Skeleton key={key} className="h-24 w-full rounded-xl" />
           ))}
         </div>
         <div className="min-w-0 flex-1">
-          <Skeleton className="h-[560px] w-full rounded-2xl" />
+          <Skeleton className="h-140 w-full rounded-2xl" />
         </div>
       </div>
     </div>

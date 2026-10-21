@@ -64,8 +64,8 @@ export default function Header({ session }: { session: ServerSession | null }) {
   }, [mobileMenuOpen]);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/40 bg-background/60 pt-[env(safe-area-inset-top,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] backdrop-blur-2xl backdrop-saturate-150">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+    <header className="sticky top-0 z-(--z-header) border-b border-border/40 bg-background/60 pt-[env(safe-area-inset-top,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] backdrop-blur-2xl backdrop-saturate-150">
+      <div className="mx-auto flex h-header max-w-content items-center justify-between px-4">
         <div className="flex items-center gap-8">
           <Link
             href="/"
@@ -157,7 +157,7 @@ export default function Header({ session }: { session: ServerSession | null }) {
           aria-label="Mobile"
           className="save-bar-enter border-t border-border/40 bg-background/80 backdrop-blur-2xl md:hidden"
         >
-          <div className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3">
+          <div className="mx-auto flex max-w-content flex-col gap-1 px-4 py-3">
             {navItems.map((item) => {
               const isActive =
                 item.href === "/dashboard"

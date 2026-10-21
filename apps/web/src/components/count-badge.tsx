@@ -5,7 +5,7 @@ export function CountBadge({ count, className }: { count: number; className?: st
   return (
     <span
       className={cn(
-        "rounded-full bg-muted px-1.5 font-mono text-[10px] tabular-nums text-muted-foreground",
+        "rounded-full bg-muted px-1.5 font-mono text-3xs tabular-nums text-muted-foreground",
         className,
       )}
     >

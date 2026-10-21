@@ -68,7 +68,7 @@ export function VersionBadge({ sha }: { sha?: string }) {
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="inline-flex items-center gap-1.5 rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 font-mono text-[11px] font-medium tracking-[0.08em] text-warning uppercase transition-colors hover:bg-warning/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex items-center gap-1.5 rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 font-mono text-2xs font-medium tracking-chip text-warning uppercase transition-colors hover:bg-warning/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span
             aria-hidden
