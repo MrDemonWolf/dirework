@@ -287,3 +287,14 @@ describe("confirmation success merges one flag", () => {
     expect(source).not.toContain("{ ...old, setup }");
   });
 });
+
+// Completing the last step must not unmount the button the keyboard user just pressed.
+describe("steps stay visible after the final confirmation", () => {
+  it("keeps the step list once it was shown during the visit", () => {
+    const source = readFileSync(
+      path.join(__dirname, "../../components/setup-checklist.tsx"),
+      "utf8",
+    );
+    expect(source).toContain("const stepsVisible = !allDone || showSteps || startedIncomplete;");
+  });
+});

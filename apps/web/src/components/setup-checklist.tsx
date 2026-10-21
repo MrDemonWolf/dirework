@@ -331,9 +331,15 @@ export function SetupChecklist({
     }),
   );
 
+  // Steps stay on screen for the rest of the visit once they were shown: hiding the list the
+  // moment the final confirmation lands would remove the focused button from the DOM and drop
+  // keyboard focus on the body (and if that save then failed, the list would pop back).
+  const [startedIncomplete, setStartedIncomplete] = useState(false);
+  if (!allDone && !startedIncomplete) setStartedIncomplete(true);
+
   if (collapsed) return null;
 
-  const stepsVisible = !allDone || showSteps;
+  const stepsVisible = !allDone || showSteps || startedIncomplete;
 
   return (
     <section aria-labelledby={`${baseId}-title`} className="panel mb-6">
