@@ -34,8 +34,18 @@ const STATE_COOKIE_PATH = "/";
  * unused but kept so a future move to Helix sends won't force yet another
  * reconnect. Bot accounts connected before chat:read/chat:edit were added
  * must be reconnected to pick up the new scopes.
+ * user:bot — lets the bot account appear in chat for EventSub/Helix without the
+ * browser page, for a possible future server-side bot. Unused today; requesting
+ * it now means a bot (re)connected from here on is ready. Nothing checks the
+ * stored scope list, so bots connected without it keep working unchanged.
  */
-const BOT_SCOPES = ["chat:read", "chat:edit", "user:read:chat", "user:write:chat"] as const;
+const BOT_SCOPES = [
+  "chat:read",
+  "chat:edit",
+  "user:read:chat",
+  "user:write:chat",
+  "user:bot",
+] as const;
 
 function randomNonce(): string {
   const bytes = new Uint8Array(32);

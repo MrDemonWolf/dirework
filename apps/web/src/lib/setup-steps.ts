@@ -24,6 +24,8 @@ export interface SetupStepDef {
   why: string;
   /** What to do, shown above the handoff. */
   action: string;
+  /** Optional extra lines (where else it can run, caveats), shown under the action. */
+  notes?: readonly string[];
 }
 
 export const SETUP_STEPS = [
@@ -39,7 +41,12 @@ export const SETUP_STEPS = [
     kind: "confirmed",
     title: "Add the bot page to OBS",
     why: "The bot only chats while its page is open, so OBS keeps it running all stream.",
-    action: "Copy the bot page URL into a new OBS browser source, about 400 × 200.",
+    action:
+      "Keep the bot page open while you stream: an OBS browser source (about 400 × 200), an OBS custom browser dock, or a pinned browser tab.",
+    notes: [
+      "Dock: in OBS, open Docks → Custom Browser Docks and paste the dock URL. Tab it behind another dock, don't close it — closing it stops the bot.",
+      "Streaming from a phone? Keep it open on the PC or cloud OBS that receives your feed.",
+    ],
   },
   {
     id: "timerOverlay",

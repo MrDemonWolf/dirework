@@ -107,7 +107,14 @@ and anything but a mod's `!unmute` while muted return silently, so they cost no 
 `bot.ingest` returns `{ replies, muted }` (the post-command mute state, so the page's "Muted"
 status follows `!mute` without a request) and `bot.getSession` carries `muted` from its single
 bot_config read. Bot lives only while that page is open (OBS browser
-source or pinned tab). Chat token comes from `bot.getSession` (server refreshes it; the
+source, OBS custom browser dock, or pinned tab). `?view=dock` (`parseBotView` in
+`lib/bot-view.ts`) swaps the ~400×200 source layout for a narrow control panel
+(`bot-dock.tsx`: LED, mute state, last error, recent commands, Reconnect) over the SAME
+session — no extra request or poll; Reconnect re-creates the session (one `getSession`,
+like a reload). Mute there is display-only: no token-gated mute procedure exists, and
+adding one would be new public surface. A closed OBS dock destroys the page (stops the
+bot); a tabbed one keeps running. The setup checklist's bot step hands out both URLs.
+Chat token comes from `bot.getSession` (server refreshes it; the
 refresh token and client secret never reach the browser). Each PRIVMSG's IRC `id` tag is
 forwarded as `messageId` and, once it resolves to an enabled Dirework command, claimed in
 `processed_chat_message` (pruned after 5 minutes via the `processed_at` index), so a second open bot page is a no-op
@@ -403,8 +410,10 @@ it (e.g. `0017_drop_task_status_idx` contracted 0015's superseded `task_status_i
   extra fetch per sign-in); `create-auth.test.ts` signs test tokens RS256 and stubs it.
 - Bot account connection = separate OAuth flow on Hono: `/api/bot/authorize` →
   `/api/bot/callback/twitch` (state cookie, `BOT_SCOPES` = `chat:read chat:edit
-  user:read:chat user:write:chat` — the browser bot speaks IRC, which needs the
-  `chat:*` pair; the `user:*` Helix pair is unused but kept to avoid a future reconnect;
+  user:read:chat user:write:chat user:bot` — the browser bot speaks IRC, which needs the
+  `chat:*` pair; the `user:*` Helix pair and `user:bot` are unused but requested so a
+  future server-side (EventSub) bot needs no reconnect. Nothing reads the stored `scopes`,
+  so bots connected before `user:bot` was added keep working;
   only Twitch's `access_denied` is a cancel — any other Twitch `error` is
   `authorization_failed`; error reasons surfaced as `?bot=error&reason=…` toasts — the dashboard maps the code to
   fixed copy via `botOAuthErrorMessage` and never renders the raw query param).
@@ -626,6 +635,7 @@ database). Spec files are numbered and run in order: `00-first-run` sees the fre
 `15-landing` (the viewer landing: claimed notice + deploy link, docs links, no `/rpc`),
 `20-dashboard`, `25-setup-checklist` (confirm/revert a step, Finish later), `30-timer` (Pomodoro start/stop and the ticking timer overlay; phase labels
 come from `@dirework/api/config-defaults`), `40-theme-center`, `50-bot-settings`,
+`55-bot-dock` (`/bot/<token>?view=dock` renders the dock; the default view doesn't),
 `60-token-reset` (the old overlay URL blanks), `70-sign-out`, `80-a11y`, `90-mobile`. Every
 spec passes when run twice in a row, because CI retries run immediately against the same
 database. Two projects: `chromium` runs all but `90-mobile`; `mobile` (Pixel 7) runs only
