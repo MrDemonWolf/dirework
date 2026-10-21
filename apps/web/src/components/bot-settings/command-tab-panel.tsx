@@ -4,7 +4,8 @@
 // enable switch, then the command reference beside the reply editor. On small screens the
 // editor comes first and the reference trails it as a legend.
 
-import { CommandReference, type CommandRow } from "@/components/bot-settings/command-reference";
+import { CommandReference } from "@/components/bot-settings/command-reference";
+import type { CommandRow } from "@/lib/command-rows";
 import { MessageEditor, type ReplyPreview } from "@/components/bot-settings/message-editor";
 import { ConsoleRule } from "@/components/console-rule";
 import { Callout } from "@/components/ui/callout";

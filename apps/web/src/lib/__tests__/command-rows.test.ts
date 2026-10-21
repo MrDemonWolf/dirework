@@ -2,11 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { KNOWN_ALIAS_TARGETS, MODERATION_COMMANDS } from "@dirework/api/chat-commands";
 
-import {
-  moderationCommands,
-  taskCommands,
-  timerCommands,
-} from "@/components/bot-settings/command-reference";
+import { moderationCommands, taskCommands, timerCommands } from "@/lib/command-rows";
 
 const commandName = (row: { command: string }) => row.command.split(" ")[0]!.slice(1);
 const allRows = [...taskCommands, ...timerCommands, ...moderationCommands];

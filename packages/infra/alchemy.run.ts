@@ -221,6 +221,9 @@ export const web = await Nextjs("web", {
     // falsy so the footer legal links stay hidden when the operator omits them.
     PRIVACY_POLICY_URL: process.env.PRIVACY_POLICY_URL || "",
     TERMS_OF_SERVICE_URL: process.env.TERMS_OF_SERVICE_URL || "",
+    // The viewer landing page's "Deploy your own" / "Read the docs" links (same value the
+    // api worker's !dwhelp reply uses).
+    DOCS_URL: process.env.DOCS_URL || "https://dirework.mrdemonwolf.dev",
     // Runtime-only (never NEXT_PUBLIC_): signs the browser IP the proxy
     // forwards to the api worker — see packages/api/src/proxy-identity.ts.
     PROXY_SECRET: proxySecret,

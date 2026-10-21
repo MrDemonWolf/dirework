@@ -12,7 +12,8 @@ import { toast } from "sonner";
 import { MAX_BLOCKED_VIEWERS, normalizeTwitchLogin } from "@dirework/api/chat-commands";
 
 import { formatMutationError } from "@/lib/validation-errors";
-import { CommandReference, moderationCommands } from "@/components/bot-settings/command-reference";
+import { CommandReference } from "@/components/bot-settings/command-reference";
+import { moderationCommands } from "@/lib/command-rows";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ConsoleRule } from "@/components/console-rule";
 import { CountBadge } from "@/components/count-badge";

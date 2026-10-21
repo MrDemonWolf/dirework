@@ -352,7 +352,18 @@ it (e.g. `0017_drop_task_status_idx` contracted 0015's superseded `task_status_i
   A later sign-in by anyone else is refused with the `instance_claimed` error code, which
   better-auth appends to the `errorCallbackURL` (`signInWithTwitch` in
   `lib/auth-client.ts` passes the bare page; `lib/sign-in-errors.ts` maps the code to copy,
-  as it does the bot OAuth `/?error=not_authenticated|not_owner` redirects).
+  as it does the bot OAuth `/?error=not_authenticated|not_owner` redirects;
+  `instance_claimed` also carries a `cta` linking to the deploy guide).
+  `/` (`app/(app)/page.tsx`) sends the owner to `/dashboard` and an unclaimed instance to
+  `/setup`, so only non-owners ever see it: it renders `viewer-landing.tsx`, a static
+  server component (no queries, no polling; `viewer-landing.test.ts` pins it and the e2e
+  spec `15-landing` asserts zero `/rpc` requests) built from `BRAND`, `DEMO_SESSION`
+  (`components/stream-scene.tsx`) and the shared command rows (`lib/command-rows.ts`, also
+  the Bot settings reference). The page reads `?error=` from `searchParams` and passes the
+  resolved copy to the `sign-in-notice.tsx` island, which only strips the query via
+  `history.replaceState`; `owner-sign-in.tsx` holds the one "Sign in with Twitch" button
+  (the header's signed-out button hides on `/`). Docs links come from the web worker's
+  `DOCS_URL` binding (`lib/landing-links.ts`).
   "Claimed" = the `user` table has ANY row (`hasOwner`); there is no in-app ownership
   transfer — recovery from a squatted first deploy is the D1 reset documented in
   deployment.mdx ("Recovering an instance someone else claimed").
@@ -566,6 +577,7 @@ migration applied (`src/boot-api.ts`, `src/boot-web.ts`), signed in through the 
 bypass with a fixed test secret. One worker and serial specs (single-owner instance, one
 database). Spec files are numbered and run in order: `00-first-run` sees the fresh database
 (the claim page, then the first dev-login claims the instance), then `10-smoke`,
+`15-landing` (the viewer landing: claimed notice + deploy link, docs links, no `/rpc`),
 `20-dashboard`, `30-timer` (Pomodoro start/stop and the ticking timer overlay; phase labels
 come from `@dirework/api/config-defaults`), `40-theme-center`, `50-bot-settings`,
 `60-token-reset` (the old overlay URL blanks), `70-sign-out`, `80-a11y`, `90-mobile`. Every
@@ -760,7 +772,8 @@ Server worker bindings (typed via `packages/env/env.d.ts` from `alchemy.run.ts`)
 `DEV_LOGIN_SECRET` (the per-run `x-dev-login-secret` that endpoint requires, generated and
 printed by `alchemy.run.ts` in dev, "" otherwise — the dev servers listen on every interface). Web worker:
 `NEXT_PUBLIC_SERVER_URL`, `BETTER_AUTH_URL`, `PROXY_SECRET` (runtime binding read via
-`process.env`, never `NEXT_PUBLIC_`), optional `PRIVACY_POLICY_URL` /
+`process.env`, never `NEXT_PUBLIC_`), `DOCS_URL` (the landing page's docs links; same
+value as the api worker's), optional `PRIVACY_POLICY_URL` /
 `TERMS_OF_SERVICE_URL`, and build-time `NEXT_PUBLIC_DEV_LOGIN` (shows the dev-bypass button).
 Deploy also needs the GitHub secrets `ALCHEMY_STATE_TOKEN` and `PROXY_SECRET` (see CI/CD).
 `NEXT_PUBLIC_SERVER_URL` is **local-only** — Alchemy injects it in production; never set

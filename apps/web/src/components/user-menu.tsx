@@ -64,6 +64,9 @@ export default function UserMenu({ session }: { session: ServerSession | null })
   const pathname = usePathname();
 
   if (session === null) {
+    // The viewer landing (`/`) carries its own, deliberately quiet owner sign-in; a second
+    // purple button in the header would make sign-in look like the page's main action.
+    if (pathname === "/") return null;
     return (
       <Button
         className="bg-twitch text-white hover:bg-twitch-hover"

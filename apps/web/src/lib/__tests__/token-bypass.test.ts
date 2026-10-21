@@ -25,6 +25,16 @@ const SRC = fileURLToPath(new URL("../../", import.meta.url));
 const ALLOWED: Record<string, string[]> = {
   // Layout grids and one-off geometry: track lists and calc() offsets, not scale values.
   "app/(app)/layout.tsx": ["grid-rows-[auto_1fr_auto]"],
+  // Viewer landing: the static demo scene draws the overlay at fixed geometry (the 22%
+  // squircle, 2.6rem demo digits, 13px chat lines) that mirrors the overlay's own values.
+  "app/(app)/viewer-landing.tsx": ["grid-cols-[18rem_1fr]"],
+  "components/stream-scene.tsx": [
+    "grid-cols-[minmax(0,1fr)_20rem]",
+    "rounded-[22%]",
+    "text-[0.8125rem]",
+    "text-[2.6rem]",
+    "tracking-[0.08em]",
+  ],
   "app/(app)/dashboard/styles/styles-page.tsx": ["max-h-[calc(100vh-6rem)]"],
   "components/bot-settings/blocked-viewers-card.tsx": ["grid-cols-[15rem_minmax(0,1fr)]"],
   "components/bot-settings/command-tab-panel.tsx": ["grid-cols-[15rem_minmax(0,1fr)]"],
@@ -34,9 +44,6 @@ const ALLOWED: Record<string, string[]> = {
   "components/mode-toggle.tsx": ["translate-x-[calc(100%-2px)]"],
   "components/user-menu.tsx": ["content-[attr(data-initial)]"],
   // Elevation and LED glows: multi-layer shadows with no shadow token scale.
-  "app/(app)/home-content.tsx": [
-    "shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_16px_40px_-16px_rgba(0,0,0,0.5)]",
-  ],
   "app/(bot)/bot/[token]/bot-console.tsx": [
     "shadow-[0_0_12px_2px_rgba(239,68,68,0.55)]",
     "shadow-[0_0_12px_2px_rgba(251,191,36,0.5)]",

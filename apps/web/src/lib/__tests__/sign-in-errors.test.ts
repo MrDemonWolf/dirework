@@ -28,3 +28,15 @@ describe("resolveSignInError", () => {
     expect(resolveSignInError("")).toBe(SIGN_IN_ERRORS.signin_failed);
   });
 });
+
+describe("sign-in error calls to action", () => {
+  it("send a refused viewer to deploy their own copy, and only for instance_claimed", () => {
+    expect(resolveSignInError("instance_claimed").cta).toBe(
+      "This DireWork belongs to another streamer. Deploy your own →",
+    );
+    const withCta = Object.entries(SIGN_IN_ERRORS)
+      .filter(([, copy]) => "cta" in copy)
+      .map(([code]) => code);
+    expect(withCta).toEqual(["instance_claimed"]);
+  });
+});
