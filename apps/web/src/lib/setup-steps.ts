@@ -101,6 +101,22 @@ export function withSetupStep<T extends SetupSource>(
   return { ...me, setup: { ...me.setup, [step]: confirmed } };
 }
 
+/**
+ * Whether a settled confirmation must refetch `user.me` (once). Normally no: the mutation
+ * returns the checklist and the cache is patched. Yes when a `user.me` fetch was already in
+ * flight at click time (it may land the old flag — and it is never cancelled, since it may
+ * carry a rotated overlay token), or when the write failed (server state unknown).
+ */
+export function shouldRefreshMeAfterConfirm({
+  refreshInFlight,
+  failed,
+}: {
+  refreshInFlight: boolean;
+  failed: boolean;
+}): boolean {
+  return refreshInFlight || failed;
+}
+
 /** localStorage key for "Finish later": "1" = collapsed, "0" = open, absent = default. */
 export const SETUP_COLLAPSED_KEY = "dirework.setup-collapsed";
 

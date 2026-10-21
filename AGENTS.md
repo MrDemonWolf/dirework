@@ -245,8 +245,11 @@ The dashboard renders it as the **"Set up streaming" checklist**
 (`components/setup-checklist.tsx`; steps, copy and progress math in the pure
 `lib/setup-steps.ts`): step 1 (bot account) is the only *detected* step (`me.botAccount`);
 steps 2–4 are the owner's "I added it to OBS" / "Mark as not added" clicks — explicit
-confirmation, never detection. A click patches `user.me` with `setQueryData` (optimistic,
-rolled back on error, no refetch); the checklist never polls, and the bot page URL
+confirmation, never detection. A click patches only `setup` on the current `user.me`
+entry with a functional `setQueryData` (optimistic; rollback restores just that flag, never a
+snapshot), never cancels an in-flight `user.me` fetch (an overlay reset's refetch carries
+the rotated token), and refetches once only if such a fetch overlapped or the write failed
+(`shouldRefreshMeAfterConfirm`); the checklist never polls, and the bot page URL
 (`bot.getIngestInfo`) loads only while step 2 is open. Step handoffs reuse `SecretUrlRow`
 without its Reset action (omit `onRegenerate`). "Finish later" is per-browser localStorage
 (`dirework.setup-collapsed`); the header band's Setup button reopens the card.

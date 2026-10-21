@@ -23,6 +23,7 @@ import {
   isSetupCollapsed,
   readSetupCollapsed,
   setupProgress,
+  shouldRefreshMeAfterConfirm,
   stepState,
   withSetupStep,
   writeSetupCollapsed,
@@ -263,17 +264,20 @@ export function SetupChecklist({
   const baseId = useId();
 
   const meKey = trpc.user.me.queryKey();
-  // Optimistic: the chip and the count move on the click. No refetch afterwards, the
-  // mutation returns the whole checklist.
+  // Optimistic: the chip and the count move on the click, and the mutation returns the whole
+  // checklist, so the common case costs no refetch. Other code writes `user.me` too (an
+  // overlay URL reset invalidates it to pick up the rotated token; bot connect/disconnect
+  // reload or invalidate it), so every write here is a functional patch of `setup` on the
+  // CURRENT entry — never a snapshot restore — and an in-flight refresh is never cancelled.
   const confirmStep = useMutation(
     trpc.user.confirmSetupStep.mutationOptions({
-      onMutate: async ({ step, confirmed }) => {
-        await queryClient.cancelQueries({ queryKey: meKey });
-        // Remember only this step's flag: a rollback must not restore a whole stale `me`
-        // (another mutation may have refetched it meanwhile, e.g. a rotated overlay token).
+      onMutate: ({ step, confirmed }) => {
+        // A `user.me` fetch already running (e.g. after an overlay URL reset) started before
+        // this UPDATE, so it may land with the old flag; remember to refresh once at the end.
+        const refreshInFlight = queryClient.isFetching({ queryKey: meKey }) > 0;
         const previousConfirmed = queryClient.getQueryData(meKey)?.setup[step];
         queryClient.setQueryData(meKey, (old) => (old ? withSetupStep(old, step, confirmed) : old));
-        return { previousConfirmed };
+        return { previousConfirmed, refreshInFlight };
       },
       onSuccess: ({ setup }) => {
         queryClient.setQueryData(meKey, (old) => (old ? { ...old, setup } : old));
@@ -286,6 +290,18 @@ export function SetupChecklist({
           );
         }
         toast.error(`Couldn't save that step: ${describeTrpcError(err)}`);
+      },
+      onSettled: (_data, error, _input, context) => {
+        // One refetch, only when the cache may now be wrong: an overlapping refresh could
+        // have landed stale data, or the write failed and the server state is unknown.
+        if (
+          shouldRefreshMeAfterConfirm({
+            refreshInFlight: context?.refreshInFlight ?? false,
+            failed: error !== null,
+          })
+        ) {
+          void queryClient.invalidateQueries({ queryKey: meKey });
+        }
       },
     }),
   );

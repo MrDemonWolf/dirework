@@ -8,6 +8,7 @@ import {
   STEP_STATE_LABELS,
   captureAllDoneAtLoad,
   isSetupCollapsed,
+  shouldRefreshMeAfterConfirm,
   readSetupCollapsed,
   setupProgress,
   stepState,
@@ -136,7 +137,13 @@ describe("setup checklist source", () => {
   it("confirms through user.confirmSetupStep and patches the cache with setQueryData", () => {
     expect(src).toContain("trpc.user.confirmSetupStep.mutationOptions({");
     expect(src).toContain("queryClient.setQueryData(meKey");
-    expect(src).not.toContain("invalidateQueries");
+    // The only invalidate is the guarded one-off in onSettled; nothing cancels user.me.
+    expect(src.match(/invalidateQueries/g)).toHaveLength(1);
+    expect(src).toMatch(
+      /shouldRefreshMeAfterConfirm\([\s\S]*?\)\s*\)\s*\{\s*void queryClient\.invalidateQueries/,
+    );
+    expect(src).not.toContain("cancelQueries");
+    expect(src).toContain("queryClient.isFetching({ queryKey: meKey })");
   });
 
   it("loads the bot page URL only inside the open step", () => {
@@ -243,5 +250,20 @@ describe("captureAllDoneAtLoad", () => {
     captured = captureAllDoneAtLoad(captured, true);
     expect(captured).toBe(false);
     expect(isSetupCollapsed(null, captured ?? false)).toBe(false);
+  });
+});
+
+describe("shouldRefreshMeAfterConfirm", () => {
+  it("skips the refetch in the common case: the mutation returned the checklist", () => {
+    expect(shouldRefreshMeAfterConfirm({ refreshInFlight: false, failed: false })).toBe(false);
+  });
+
+  it("refreshes once when a user.me fetch was in flight at click time", () => {
+    // e.g. an overlay URL reset's refetch: it is not cancelled, but it may land the old flag.
+    expect(shouldRefreshMeAfterConfirm({ refreshInFlight: true, failed: false })).toBe(true);
+  });
+
+  it("refreshes once when the write failed", () => {
+    expect(shouldRefreshMeAfterConfirm({ refreshInFlight: false, failed: true })).toBe(true);
   });
 });
