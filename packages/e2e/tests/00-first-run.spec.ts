@@ -33,6 +33,16 @@ test("an unclaimed instance sends every visitor to the claim page", async ({ pag
   await expect(page.getByRole("heading", { name: CLAIM_HEADING })).toBeVisible();
   await expect(page.getByRole("button", { name: "Claim with Twitch" })).toBeVisible();
 
+  // A sign-in that bounces back with `?error=` shows its notice, and the query is dropped so
+  // a refresh doesn't show it again. (`instance_claimed` can't land here: once claimed, this
+  // page is gone.)
+  await page.goto("/setup?error=not_owner");
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Only this DireWork's owner can connect" }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(`${WEB_ORIGIN}/setup`);
+  await expect(page.getByRole("button", { name: "Claim with Twitch" })).toBeVisible();
+
   // The dashboard asks for a session, then the home page redirects on to the claim page.
   await page.goto("/dashboard");
   await expect(page).toHaveURL(`${WEB_ORIGIN}/setup`);

@@ -1,5 +1,5 @@
 // A still of a co-working stream for the viewer landing page: the timer overlay, the task
-// list overlay and the chat beside them, all drawn from `DEMO_SESSION` (the example session
+// list overlay and the chat beside them (`compact` drops the chat, for the claim page), all drawn from `DEMO_SESSION` (the example session
 // the docs mocks and share cards render too, so the numbers and bot replies agree
 // everywhere). Server-rendered and static: no polling, no client state, no timers.
 
@@ -197,8 +197,17 @@ function ChatStrip() {
   );
 }
 
-/** A static co-working stream: overlays on the canvas, chat beside it. */
-export function StreamScene({ className }: { className?: string }) {
+/**
+ * A static co-working stream: overlays on the canvas, chat beside it. `compact` shows the two
+ * overlays only (the claim page, where the chat is not the point and the column is narrow).
+ */
+export function StreamScene({
+  className,
+  compact = false,
+}: {
+  className?: string;
+  compact?: boolean;
+}) {
   return (
     <figure className={cn("panel-hero", className)}>
       <div className="flex items-center gap-3 border-b border-border px-4 py-2.5">
@@ -206,18 +215,19 @@ export function StreamScene({ className }: { className?: string }) {
         <span className="text-sm text-muted-foreground">Co-working stream</span>
         <StatusChip tone="idle" size="sm" label="Example" className="ml-auto" />
       </div>
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className={cn("grid", !compact && "lg:grid-cols-[minmax(0,1fr)_20rem]")}>
         <div className="p-3 sm:p-4">
           <div className="panel-inset bg-grain flex flex-col items-center gap-4 p-4 sm:flex-row sm:items-start sm:p-6">
             <TimerOverlay />
             <TaskListOverlay />
           </div>
         </div>
-        <ChatStrip />
+        {!compact && <ChatStrip />}
       </div>
       <figcaption className="sr-only">
-        An example co-working stream: the DireWork timer and task list overlays, and viewers using
-        chat commands that the bot answers.
+        {compact
+          ? "An example co-working stream: the DireWork timer and task list overlays."
+          : "An example co-working stream: the DireWork timer and task list overlays, and viewers using chat commands that the bot answers."}
       </figcaption>
     </figure>
   );

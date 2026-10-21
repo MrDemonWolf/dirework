@@ -37,6 +37,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hover that could never happen.
 
 ### Changed
+- **The claim page leads with the claim.** `/setup` now reads "Claim your DireWork
+  instance", says in two sentences that the first Twitch sign-in becomes the owner and how
+  to recover if someone else gets there first, and shows the Claim with Twitch button, an
+  example of the timer and task overlays, and the three steps that come after the claim
+  (connect the bot account, add the overlays to OBS, viewers join from chat). A failed
+  sign-in shows the same notice as the home page, and the header's own Sign in button steps
+  aside on this page. The page is server-rendered and makes no API calls.
 - Docs: an architecture decision record (`docs/decisions/0001-cloudflare-services.md`)
   weighs KV, Durable Objects, Queues, Cron Triggers and other Cloudflare services against
   the Free-plan limits. Nothing changes today; a server-hosted bot on a Durable Object is

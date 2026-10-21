@@ -123,9 +123,9 @@ describe("viewer landing page", () => {
     expect(source).toMatch(/>\s*<TwitchIcon[^>]*\/>\s*Sign in with Twitch\s*</);
   });
 
-  it("is the only Twitch sign-in on `/` (the header's signed-out button steps aside)", () => {
+  it("is the only Twitch sign-in on `/` and `/setup` (the header's button steps aside)", () => {
     expect(read("components/user-menu.tsx")).toMatch(
-      /if \(session === null\) \{[\s\S]*?if \(pathname === "\/"\) return null;/,
+      /if \(session === null\) \{[\s\S]*?if \(pathname === "\/" \|\| pathname === "\/setup"\) return null;/,
     );
   });
 

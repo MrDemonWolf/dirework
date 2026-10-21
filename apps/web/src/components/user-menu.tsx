@@ -64,15 +64,16 @@ export default function UserMenu({ session }: { session: ServerSession | null })
   const pathname = usePathname();
 
   if (session === null) {
-    // The viewer landing (`/`) carries its own, deliberately quiet owner sign-in; a second
-    // purple button in the header would make sign-in look like the page's main action.
-    if (pathname === "/") return null;
+    // The viewer landing (`/`) carries its own, deliberately quiet owner sign-in, and the
+    // claim page (`/setup`) its own "Claim with Twitch"; a second purple button in the header
+    // would compete with the page's own action.
+    if (pathname === "/" || pathname === "/setup") return null;
     return (
       <Button
         className="bg-twitch text-white hover:bg-twitch-hover"
-        // A failed or refused sign-in returns to a page that renders the error
-        // callout: /setup when starting there, otherwise the home page.
-        onClick={() => signInWithTwitch(pathname === "/setup" ? "/setup" : "/")}
+        // A failed or refused sign-in returns to the home page, which renders the error
+        // callout (the two pages that render their own button hide this one).
+        onClick={() => signInWithTwitch("/")}
       >
         <TwitchIcon className="size-3.5" />
         Sign in
