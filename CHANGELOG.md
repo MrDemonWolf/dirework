@@ -70,6 +70,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - **A tidier account menu.** The avatar dropdown now holds just Sign out. Dashboard, Theme Center and
   Bot stay in the header nav, so the menu no longer repeats them.
+- **One bot status on the dashboard.** The bottom bot strip is gone. The "Bot ready" chip next to the
+  timer status is the only bot status now, and clicking it opens Bot settings.
 - **No more preview URLs.** Both workers deploy with Cloudflare's version and preview URLs turned off.
   The production workers.dev addresses stay on, because OBS, the bot page and the web proxy use them.
 - **Bot settings: shorter command tabs.** Each group of reply messages (Adding, Completing…)

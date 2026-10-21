@@ -1,15 +1,15 @@
 "use client";
 
 // Owner dashboard home (/dashboard): the timer console (instrument | controls, settings and
-// the timer-overlay monitor), the task board (board | tasks-overlay monitor) and a bot status
-// strip — the page's only bot status chip. All data comes from owner-only tRPC
+// the timer-overlay monitor) and the task board (board | tasks-overlay monitor). The header's
+// bot chip is the page's only bot status. All data comes from owner-only tRPC
 // procedures: hydrated from the server prefetch on first load, then polled through the
 // same-origin /rpc proxy.
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Bot, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 import type { authClient } from "@/lib/auth-client";
@@ -222,8 +222,8 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
 
   return (
     <div className="container mx-auto max-w-content px-4 py-8">
-      {/* Header band: console kicker + greeting + status cluster. The bot's status lives
-          once, on the bot strip at the bottom. */}
+      {/* Header band: console kicker + greeting + status cluster. The bot chip is the
+          page's only bot status, and it links to Bot settings. */}
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="console-label mb-2" suppressHydrationWarning>
@@ -248,6 +248,18 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
             />
           )}
           <TimerStatusBadge />
+          <Link
+            href={"/dashboard/bot" as const}
+            aria-label={
+              botAccount ? "Bot ready, open Bot settings" : "Bot not connected, open Bot settings"
+            }
+            className="rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <StatusChip
+              tone={botAccount ? "accent" : "idle"}
+              label={botAccount ? "Bot ready" : "Bot not connected"}
+            />
+          </Link>
         </div>
       </div>
 
@@ -316,45 +328,6 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
               />
             }
           />
-        </section>
-
-        {/* Bot quick status — slim full-width strip */}
-        <section className="panel">
-          <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10">
-                <Bot className="size-4.5 text-primary" />
-              </div>
-              <div className="min-w-0">
-                {botAccount ? (
-                  <>
-                    <p className="truncate text-sm font-medium">{botAccount.displayName}</p>
-                    <StatusChip tone="accent" label="Ready" className="mt-1" />
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm font-medium">No bot account</p>
-                    <StatusChip tone="idle" label="Not connected" className="mt-1" />
-                  </>
-                )}
-              </div>
-            </div>
-            {botAccount && (
-              <p className="font-mono text-xs text-muted-foreground">
-                !task · !done · !timer · !help
-              </p>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="justify-center gap-2 sm:w-auto"
-              nativeButton={false}
-              render={<Link href={"/dashboard/bot" as const} />}
-            >
-              {botAccount ? "Bot settings & console" : "Connect bot account"}
-              <ArrowRight className="size-3.5" />
-            </Button>
-          </div>
         </section>
       </div>
     </div>
