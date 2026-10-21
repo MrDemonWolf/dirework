@@ -12,6 +12,19 @@
  * generated file. The palette rationale (AA notes) lives in design-system/README.md.
  */
 
+:root {
+  /*
+   * Motion tokens — theme-independent, so they live only here. Fast = small
+   * state swaps (chips, popups); base = things entering the layout (rows,
+   * save bar). Standard ease for in-place changes, emphasized (fast start,
+   * long settle) for surfaces arriving on screen.
+   */
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+}
+
 @theme inline {
   /* IBM Plex Sans body · Montserrat display · IBM Plex Mono numerals/labels.
      Kept here: they wrap the next/font variables set in app/layout.tsx. */
@@ -138,6 +151,40 @@
 .stagger-reveal > *:nth-child(4) { animation-delay: 180ms; }
 .stagger-reveal > *:nth-child(5) { animation-delay: 240ms; }
 .stagger-reveal > *:nth-child(6) { animation-delay: 300ms; }
+
+/*
+ * Subtle state motion (dashboard). Declared only when the viewer has not asked
+ * for reduced motion, so these never run at all for them; the global gate
+ * below still neutralises everything else.
+ *  - .row-enter: a task row that just arrived (task-manager.tsx)
+ *  - .chip-swap: a status chip whose state just changed (keyed remount)
+ *  - .save-bar-enter: the unsaved-changes bar and the mobile nav sliding in
+ */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes row-enter {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+  }
+  .row-enter {
+    animation: row-enter var(--motion-base) var(--motion-ease) both;
+  }
+
+  @keyframes chip-swap {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+  .chip-swap {
+    animation: chip-swap var(--motion-fast) var(--motion-ease) both;
+  }
+
+  .save-bar-enter {
+    animation: console-rise var(--motion-base) var(--motion-ease-emphasized) both;
+  }
+}
 
 /* LED pulse for live status dots — killed by the reduced-motion gate below */
 @keyframes led-pulse {

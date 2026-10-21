@@ -188,6 +188,9 @@ function TaskItem({
           WebkitBoxOrient: "vertical",
           overflow: "hidden",
           textDecoration: isDone && config.display.crossOnDone ? "line-through" : "none",
+          // Done → done-colour fades instead of snapping; colour only, so the
+          // stream's layout never moves.
+          transition: "color 200ms ease",
         }}
       >
         {task.text}

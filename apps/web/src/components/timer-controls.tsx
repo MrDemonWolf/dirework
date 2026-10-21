@@ -361,7 +361,15 @@ export function TimerInstrument() {
 
   return (
     <div className="flex flex-col items-center gap-5">
-      <StatusChip tone={tone} label={phaseLabel} pulse={pulse} />
+      {/* Keyed on the status so a phase change remounts the chip and plays its
+          one-shot crossfade; the aria-live span below is not keyed. */}
+      <StatusChip
+        key={timerStatus}
+        className="chip-swap"
+        tone={tone}
+        label={phaseLabel}
+        pulse={pulse}
+      />
       {/* Announces phase changes (start / pause / stop / chat-driven) to screen readers. */}
       <span role="status" aria-live="polite" className="sr-only">
         Timer: {phaseLabel}

@@ -19,6 +19,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Account menu trimmed (no duplicate avatar header); menu items highlight with a fill
   instead of a boxed outline; active task rows lose the coloured edge bar; mobile nav
   closes on Escape and navigation.
+- Subtler, consistent motion across menus, dialogs, task rows and status chips (CSS only,
+  honours reduced-motion).
 
 ### Fixed
 - Small labels on the docs home page were 10–11px; they are now at least 12px. Headings

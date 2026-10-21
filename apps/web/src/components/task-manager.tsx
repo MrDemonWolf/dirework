@@ -122,6 +122,28 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
 
   const taskList = tasks.data?.tasks ?? [];
 
+  // Rows that arrived since the previous list (a chat !task, an add, an Undo)
+  // get a one-shot `row-enter`; the first load does not, so the panel doesn't
+  // flicker on mount. Derived during render from the query's data identity
+  // (React Query's structural sharing keeps it stable across no-op polls)
+  // rather than a ref, so it stays pure under StrictMode and the compiler.
+  // There is no exit animation: React Query drops the node outright, and the
+  // Undo toast already carries the "removed" feedback.
+  const [rowEntry, setRowEntry] = useState<{
+    source: typeof tasks.data;
+    seen: Set<string> | null;
+    fresh: Set<string>;
+  }>({ source: undefined, seen: null, fresh: new Set() });
+  if (tasks.data && tasks.data !== rowEntry.source) {
+    const ids = new Set(tasks.data.tasks.map((task) => task.id));
+    const previous = rowEntry.seen;
+    setRowEntry({
+      source: tasks.data,
+      seen: ids,
+      fresh: previous ? new Set([...ids].filter((id) => !previous.has(id))) : new Set(),
+    });
+  }
+
   // Removing a task unmounts its row, and activating one unmounts its Activate
   // button — either drops keyboard focus to <body>. Once the list reflects the
   // change, move focus somewhere sensible (only if it was actually lost).
@@ -313,6 +335,7 @@ export function TaskManager({ userTwitchId, preview }: TaskManagerProps) {
                               className={cn(
                                 "group flex items-center gap-3 px-3 py-2 transition-colors",
                                 isActive ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/40",
+                                rowEntry.fresh.has(task.id) && "row-enter",
                               )}
                             >
                               {/* Checkbox */}
