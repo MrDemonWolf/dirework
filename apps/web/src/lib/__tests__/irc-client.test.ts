@@ -422,6 +422,22 @@ describe("TwitchIrcClient chat", () => {
     ]);
   });
 
+  it("strips the thread root's @mention from a reply to a reply", () => {
+    const onChat = vi.fn();
+    const { ws } = connected({ onChat });
+    // A viewer replies to someone's reply to the bot: twitch.tv prefixes the
+    // thread root (the bot), not the direct parent (the other viewer).
+    const nested =
+      "reply-parent-display-name=Friend;reply-parent-msg-id=p-2;reply-parent-user-id=8;reply-parent-user-login=friend;reply-thread-parent-display-name=DireBot;reply-thread-parent-msg-id=p-1;reply-thread-parent-user-id=7;reply-thread-parent-user-login=direbot;user-id=42";
+
+    ws.receive(privmsg(nested, "viewer", "@direbot !done"));
+    ws.receive(privmsg(nested, "viewer", "@Friend !done"));
+    // Still only one mention.
+    ws.receive(privmsg(nested, "viewer", "@direbot @friend !done"));
+
+    expect(onChat.mock.calls.map(([c]) => c.message)).toEqual(["!done", "!done", "@friend !done"]);
+  });
+
   it("holds replies until joined, then sends them under the rate limiter", () => {
     const { client, ws } = setup();
     client.say("first");

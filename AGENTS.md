@@ -104,7 +104,8 @@ copied into ours (its own `id`, the source channel's badges) and is dropped in
 `irc-client.ts` (`isFromSharedChatPartner`), so partner viewers can't add tasks, partner
 mods can't moderate, and partner bans can't wipe tasks here. **Replies:** twitch.tv
 prefixes a Reply-button message with `@<parent login> `; when `reply-parent-msg-id` is set,
-`stripReplyMention` drops that one mention so `@bot !done` relays as `!done`. The relayed
+`stripReplyMention` drops that one mention so `@bot !done` relays as `!done` (in a reply to a
+reply the prefix is the thread root's, so `reply-thread-parent-*` is tried first). The relayed
 text is clamped to `MAX_RELAYED_MESSAGE_LENGTH` (600, in `@dirework/api/chat-text`; the
 `bot.ingest` schema's `.max` reads the same constant) with `truncateToLength`, which counts
 UTF-16 units and never splits a surrogate pair. zod's string `.max()` counts code points,

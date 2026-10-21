@@ -105,13 +105,20 @@ export function isFromSharedChatPartner(tags: ReadonlyMap<string, string>): bool
  * (https://dev.twitch.tv/docs/chat/irc-migration/: "the chat on twitch.tv will
  * automatically add @twitchdev to the beginning of the message"), so a viewer
  * replying to the bot with `!done` sends `@direworkbot !done`. When the line is
- * a reply (`reply-parent-msg-id` tag), strip ONE leading mention of the
- * parent's login (`reply-parent-user-login`, or `reply-parent-display-name`),
+ * a reply (`reply-parent-msg-id` tag), strip ONE leading mention,
  * case-insensitively, plus the whitespace after it, so the command comes first.
+ * In a nested reply (a reply to a reply) twitch.tv prefixes the THREAD ROOT's
+ * login, which only `reply-thread-parent-*` names, so those are tried first,
+ * then the direct parent's `reply-parent-user-login` / `-display-name`.
  */
 export function stripReplyMention(text: string, tags: ReadonlyMap<string, string>): string {
   if (!tags.get("reply-parent-msg-id")) return text;
-  for (const name of [tags.get("reply-parent-user-login"), tags.get("reply-parent-display-name")]) {
+  for (const name of [
+    tags.get("reply-thread-parent-user-login"),
+    tags.get("reply-thread-parent-display-name"),
+    tags.get("reply-parent-user-login"),
+    tags.get("reply-parent-display-name"),
+  ]) {
     if (!name) continue;
     const mention = `@${name}`;
     if (text.slice(0, mention.length).toLowerCase() !== mention.toLowerCase()) continue;
