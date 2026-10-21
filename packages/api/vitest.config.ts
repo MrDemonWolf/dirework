@@ -17,13 +17,15 @@ export default defineConfig({
       // so an untested new module lowers the number instead of hiding.
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/**/__tests__/**", "**/*.d.ts"],
-      // Ratchets just under the measured values: an honest global floor plus a
+      // Ratchets about five points under the measured values (96% statements,
+      // 92% branches, 92% functions, 97% lines): an honest global floor plus a
       // stricter bar for the services and shared validation that own mutations.
+      // Raise them when coverage rises; never lower them to go green.
       thresholds: {
-        statements: 55,
-        branches: 65,
-        functions: 59,
-        lines: 55,
+        statements: 90,
+        branches: 87,
+        functions: 86,
+        lines: 91,
         "src/services/**": { statements: 83, branches: 74, functions: 77, lines: 84 },
         "src/config-shared.ts": { statements: 89, branches: 94, functions: 88, lines: 89 },
       },

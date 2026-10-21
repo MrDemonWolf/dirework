@@ -1,0 +1,75 @@
+name: Uptime
+
+# A free uptime probe for an instance with no external monitor. Every 30
+# minutes it requests the api worker's /ready (which pings D1) and the web
+# worker's /api/version, then keeps ONE issue labelled `uptime` in step with
+# the result: opened when either stops answering, commented on while the
+# outage lasts, commented "Recovered" and closed when both answer again.
+#
+# Cost: 2 Worker requests per run, 48 runs a day = 96 requests/day, well under
+# the free tier. Nothing runs until both repository variables exist
+# (Settings → Secrets and variables → Actions → Variables):
+#   UPTIME_API_URL = https://dirework-api.<subdomain>.workers.dev
+#   UPTIME_WEB_URL = https://dirework.<subdomain>.workers.dev
+#
+# No checkout, no third-party actions, no secrets: curl and gh ship with the
+# runner, and the issue is written with the workflow's own token.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    if: vars.UPTIME_API_URL != '' && vars.UPTIME_WEB_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      API_URL: ${{ vars.UPTIME_API_URL }}
+      WEB_URL: ${{ vars.UPTIME_WEB_URL }}
+    steps:
+      # --retry alone repeats only what curl calls transient (timeouts, 5xx);
+      # a reset or refused connection is just as transient for a probe, so
+      # --retry-all-errors widens it. Worst case per URL: 3 tries x 15s plus
+      # two 20s pauses, which keeps both URLs inside the job timeout.
+      - name: Probe both workers
+        id: probe
+        run: |
+          failed=""
+          for url in "${API_URL%/}/ready" "${WEB_URL%/}/api/version"; do
+            if ! curl -fsS --max-time 15 --retry 2 --retry-delay 20 --retry-all-errors -o /dev/null "$url"; then
+              failed="${failed:+$failed, }$url"
+            fi
+          done
+          echo "failed=$failed" >> "$GITHUB_OUTPUT"
+
+      - name: Open, update or close the uptime issue
+        env:
+          FAILED: ${{ steps.probe.outputs.failed }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create uptime --color B60205 --description "Automated uptime probe" --force
+          issue="$(gh issue list --label uptime --state open --limit 1 --json number --jq '.[0].number // empty')"
+          if [ -n "$FAILED" ]; then
+            report="$(printf 'The uptime probe could not reach: %s\n\nRun: %s' "$FAILED" "$RUN_URL")"
+            if [ -n "$issue" ]; then
+              gh issue comment "$issue" --body "$report"
+            else
+              gh issue create --title "Uptime: instance unreachable" --label uptime --body "$(printf '%s\n\nThe probe requests /ready on the api worker (it pings D1) and /api/version on the web worker every 30 minutes. This issue closes on its own once both answer again.' "$report")"
+            fi
+            exit 1
+          fi
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --body "$(printf 'Recovered: both workers answered again.\n\nRun: %s' "$RUN_URL")"
+            gh issue close "$issue"
+          fi

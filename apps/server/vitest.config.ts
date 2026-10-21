@@ -10,13 +10,15 @@ export default defineConfig({
       // so an untested new module lowers the number instead of hiding.
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/**/__tests__/**", "**/*.d.ts"],
-      // Ratchets just under the measured values: an honest global floor plus a
-      // stricter bar for the unit-tested middleware in src/lib.
+      // Ratchets about five points under the measured values (86% statements,
+      // 94% branches, 81% functions, 87% lines): an honest global floor plus a
+      // stricter bar for the unit-tested middleware in src/lib. Raise them when
+      // coverage rises; never lower them to go green.
       thresholds: {
-        statements: 39,
-        branches: 68,
-        functions: 46,
-        lines: 36,
+        statements: 80,
+        branches: 88,
+        functions: 76,
+        lines: 82,
         "src/lib/**": { statements: 85, branches: 92, functions: 84, lines: 87 },
       },
     },

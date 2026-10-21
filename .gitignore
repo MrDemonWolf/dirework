@@ -55,9 +55,6 @@ lerna-debug.log*
 coverage
 .nyc_output
 
-# Deployment (instance-specific)
-coolify.md
-
 # Misc
 *.tgz
 .cache

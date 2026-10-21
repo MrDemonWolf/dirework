@@ -222,6 +222,17 @@ Alchemy step's output. Between deploys nothing watches the instance, so:
   `https://dirework-api.<your-subdomain>.workers.dev/ready`. It returns `503` when D1 is
   unreachable; `/health` only tells you the worker is running. Check every 5 minutes or
   slower, as every check counts toward the daily request limit.
+- No external monitor? Set two repository **Variables** (same page as Step 3):
+  `UPTIME_API_URL` = `https://dirework-api.<your-subdomain>.workers.dev` and
+  `UPTIME_WEB_URL` = `https://dirework.<your-subdomain>.workers.dev`. The **Uptime**
+  workflow (`.github/workflows/uptime.yml`) then requests `/ready` and `/api/version` every
+  30 minutes — 96 Worker requests a day — and keeps one issue labelled `uptime`: it opens
+  the issue when either stops answering, adds a comment while the outage lasts, and
+  comments "Recovered" and closes it once both answer again. Each failed probe is also a
+  failed workflow run, so it shows up with your other Actions failures. Leave the
+  variables unset and the workflow does nothing. GitHub runs schedules only on the default
+  branch, may start one a few minutes late, and pauses them after 60 days without activity
+  in the repository.
 - In the Cloudflare dashboard, go to **Notifications** and add a Workers usage alert so you
   hear about approaching the daily request limit before your overlays go dark mid-stream.
 

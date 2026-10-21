@@ -303,4 +303,60 @@ describe("workflow supply-chain controls", () => {
     expect(release).toContain('gh release create "$TAG" --verify-tag');
     expect(release).toContain("bun packages/infra/release-notes.ts");
   });
+
+  it("verifies a merge to main once, from deploy.yml, instead of again from ci.yml", () => {
+    // A push to main is a merge, and deploy.yml (plus the docs deploy) already runs
+    // verify.yml on it, build and e2e included; a push trigger in ci.yml would be a
+    // third copy of the same run. Pull requests into main stay gated.
+    expect(readWorkflow("ci.yml")).toMatch(
+      /^on:\n {2}push:\n(?: {4}#[^\n]*\n)* {4}branches: \[dev\]\n {2}pull_request:\n {4}branches: \[dev, main\]\n/m,
+    );
+    expect(readWorkflow("deploy.yml")).toMatch(/^on:\n {2}push:\n {4}branches: \[main\]\n/m);
+  });
+});
+
+describe("uptime probe", () => {
+  const uptime = readWorkflow("uptime.yml");
+
+  it("runs every 30 minutes and by hand, on nothing else", () => {
+    expect(uptime).toMatch(
+      /^on:\n {2}schedule:\n {4}- cron: "\*\/30 \* \* \* \*"\n {2}workflow_dispatch:\n/m,
+    );
+  });
+
+  it("holds no permission beyond writing the one uptime issue", () => {
+    expect(uptime).toMatch(/^permissions: \{\}$/m);
+    const grants = [...uptime.matchAll(/^ +permissions:\n((?: {6}[^\n]+\n)+)/gm)].map((match) =>
+      (match[1] ?? "").trim(),
+    );
+    expect(grants).toEqual(["issues: write"]);
+    expect(uptime).not.toContain("secrets.");
+  });
+
+  it("uses no actions at all: nothing to pin, nothing to check out", () => {
+    expect(uptime).not.toMatch(/^\s*-?\s*uses:/m);
+    expect(uptime).not.toContain("actions/checkout");
+  });
+
+  it("stays dormant until both repository variables are set", () => {
+    expect(uptime).toMatch(/^ {4}if: vars\.UPTIME_API_URL != '' && vars\.UPTIME_WEB_URL != ''$/m);
+  });
+
+  it("probes readiness on the api worker and the version route on the web worker, bounded", () => {
+    // Escaped: the shell expands these, so the test wants them verbatim.
+    expect(uptime).toContain(`"\${API_URL%/}/ready"`);
+    expect(uptime).toContain(`"\${WEB_URL%/}/api/version"`);
+    expect(uptime).toMatch(/curl -fsS --max-time \d+ --retry \d+ --retry-delay \d+/);
+  });
+
+  it("keeps one issue per outage: label, create or comment, then close on recovery", () => {
+    expect(uptime).toContain("gh label create uptime");
+    expect(uptime).toContain("gh issue list --label uptime --state open");
+    expect(uptime).toContain(
+      'gh issue create --title "Uptime: instance unreachable" --label uptime',
+    );
+    expect(uptime).toContain("gh issue close");
+    // A failed probe fails the run too, so it shows with the other Actions failures.
+    expect(uptime).toMatch(/\n {12}exit 1\n/);
+  });
 });

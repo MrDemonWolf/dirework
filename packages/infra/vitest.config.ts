@@ -6,7 +6,10 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text-summary", "lcov"],
-      include: ["deploy-config.ts", "smoke.ts"],
+      // The pure modules unit tests drive: deploy constants, the smoke assertions
+      // and the post-cutover D1 housekeeping. alchemy.run.ts and the CLI
+      // entrypoints talk to Cloudflare, so the deploy itself exercises them.
+      include: ["deploy-config.ts", "post-deploy.ts", "smoke.ts"],
       thresholds: { statements: 95, branches: 90, functions: 100, lines: 95 },
     },
   },
