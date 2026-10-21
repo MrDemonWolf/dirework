@@ -16,6 +16,7 @@ This file provides guidance for coding agents working on the Dirework codebase.
 - Setup guides → `.env.example`, docs `apps/fumadocs/content/docs/deployment.mdx`
 - Contributor setup + branch/PR workflow → `CONTRIBUTING.md`
 - Design system (tokens → generated CSS for app + docs, component specs) → `design-system/` (README), docs `apps/fumadocs/content/docs/design-system.mdx`; drift check `bun run tokens && git diff --exit-code`
+- Which Cloudflare services to use beyond Workers + D1 (KV, Durable Objects, Queues, Cron, …) → `docs/decisions/0001-cloudflare-services.md`
 - PR review checklist (Codex + humans; free-tier cost rules) → `## Code Review Rules` below
 - Owner to-dos (secrets move, Codex auto-review) + product backlog → `TODO.md`
 
