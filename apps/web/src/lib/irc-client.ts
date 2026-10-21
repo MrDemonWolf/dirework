@@ -70,6 +70,18 @@ const CHAT_REJECTED_NOTICES: Record<string, string> = {
   msg_verified_email: "the bot account needs a verified email address",
 };
 
+/** Opens every `onError` message for a reply Twitch refused (CHAT_REJECTED_NOTICES). */
+const CHAT_REJECTED_PREFIX = "Twitch didn't post the bot's reply: ";
+
+/**
+ * Whether an `onError` message says Twitch refused to post the bot's reply. Unlike a
+ * connection error, the cause (a ban, a timeout, a chat mode) belongs to the channel, so it
+ * survives a reconnect.
+ */
+export function isChatRejection(message: string): boolean {
+  return message.startsWith(CHAT_REJECTED_PREFIX);
+}
+
 /**
  * Appended to a reply Twitch rejected as a duplicate (identical to one sent in
  * the last 30s). An invisible tag character makes the line distinct without
@@ -476,9 +488,7 @@ export class TwitchIrcClient {
           : undefined;
         if (rejection) {
           const bot = this.creds?.botUsername.toLowerCase() ?? "<bot>";
-          this.callbacks.onError?.(
-            `Twitch didn't post the bot's reply: ${rejection.replace("<bot>", bot)}`,
-          );
+          this.callbacks.onError?.(`${CHAT_REJECTED_PREFIX}${rejection.replace("<bot>", bot)}`);
           break;
         }
         if (isAuthFailureNotice(text)) {

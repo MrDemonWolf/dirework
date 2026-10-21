@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   type ChatErrorState,
   currentChatError,
+  noteChatConnected,
   noteChatError,
   noteChatReply,
   REPLY_CLEAR_GRACE_MS,
 } from "../bot-chat-error";
 
 const BANNED = "Twitch didn't post the bot's reply: the bot account is banned from this channel";
+const WENT_SILENT = "Twitch IRC went silent — reconnecting";
 
 describe("bot page chat error", () => {
   it("shows nothing before any error", () => {
@@ -36,6 +38,26 @@ describe("bot page chat error", () => {
     let state: ChatErrorState | null = noteChatReply(noteChatError(BANNED, 1_000), 2_000);
     state = noteChatReply(state, 9_000);
     expect(currentChatError(state, 2_000 + REPLY_CLEAR_GRACE_MS)).toBeNull();
+  });
+
+  it("keeps a chat rejection across an IRC reconnect until a later reply clears it", () => {
+    // Twitch RECONNECT, the liveness watchdog or a token refresh opens a new socket, but the
+    // ban is still there: the header must not go back to a green Connected.
+    let state = noteChatConnected(noteChatError(BANNED, 1_000));
+    expect(currentChatError(state, 60_000)).toBe(BANNED);
+
+    // Mid-window, a reconnect keeps the reply that started the window.
+    state = noteChatConnected(noteChatReply(state, 70_000));
+    expect(currentChatError(state, 70_000 + REPLY_CLEAR_GRACE_MS - 1)).toBe(BANNED);
+    expect(currentChatError(state, 70_000 + REPLY_CLEAR_GRACE_MS)).toBeNull();
+
+    // Once cleared, a later reconnect doesn't bring the old error back.
+    expect(currentChatError(noteChatConnected(state), 200_000)).toBeNull();
+  });
+
+  it("clears a connection error on a fresh IRC connect", () => {
+    expect(noteChatConnected(noteChatError(WENT_SILENT, 1_000))).toBeNull();
+    expect(noteChatConnected(null)).toBeNull();
   });
 
   it("shows the newest error", () => {

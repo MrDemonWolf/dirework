@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { parseIrcLine, TwitchIrcClient, type IrcClientCallbacks } from "../irc-client";
+import {
+  isChatRejection,
+  parseIrcLine,
+  TwitchIrcClient,
+  type IrcClientCallbacks,
+} from "../irc-client";
 
 /** Minimal stand-in for the browser WebSocket, driven by the test. */
 class FakeWebSocket {
@@ -491,6 +496,19 @@ describe("TwitchIrcClient chat", () => {
     expect(onError).toHaveBeenCalledWith(
       "Twitch didn't post the bot's reply: slow mode is on. Make the bot a mod (/mod direbot) so it can reply",
     );
+  });
+
+  it("marks only a refused reply as a chat rejection", () => {
+    const onError = vi.fn();
+    const { ws } = connected({ onError });
+    ws.receive(
+      "@msg-id=msg_banned :tmi.twitch.tv NOTICE #streamer :You are permanently banned from talking in streamer.",
+      "@msg-id=msg_something :tmi.twitch.tv NOTICE #streamer :Something happened",
+    );
+    vi.advanceTimersByTime(120_000); // the watchdog's PING goes unanswered: a connection error
+
+    const messages: string[] = onError.mock.calls.map(([message]) => message);
+    expect(messages.map(isChatRejection)).toEqual([true, false, false]);
   });
 
   it("surfaces any other NOTICE text as an error", () => {

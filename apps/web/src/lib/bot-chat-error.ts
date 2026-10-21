@@ -2,6 +2,8 @@
 // derive it from the bot session's existing events and the 1s uptime tick: no extra timers,
 // no change to the session state machine.
 
+import { isChatRejection } from "./irc-client";
+
 /**
  * How long a sent reply must go unanswered by a new error before the banner clears. Twitch
  * never acknowledges a delivered PRIVMSG; it only answers a rejected one with a NOTICE
@@ -28,6 +30,16 @@ export function noteChatError(message: string, now: number): ChatErrorState {
 export function noteChatReply(state: ChatErrorState | null, now: number): ChatErrorState | null {
   if (!state || state.replyAt !== null) return state;
   return { ...state, replyAt: now };
+}
+
+/**
+ * The IRC socket (re)connected: Twitch RECONNECT, the liveness watchdog, a token refresh. A
+ * fresh connection supersedes connection errors, but a ban, timeout or chat mode belongs to
+ * the channel and survives the new socket, so a chat rejection stays until a later reply
+ * clears it. Clearing it here would put a green "Connected" over a bot that still can't post.
+ */
+export function noteChatConnected(state: ChatErrorState | null): ChatErrorState | null {
+  return state && isChatRejection(state.message) ? state : null;
 }
 
 /** The message to show at `now`, or null once a later reply has gone through cleanly. */

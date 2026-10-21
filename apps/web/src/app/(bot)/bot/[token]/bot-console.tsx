@@ -24,6 +24,7 @@ import { useParams } from "next/navigation";
 import {
   type ChatErrorState,
   currentChatError,
+  noteChatConnected,
   noteChatError,
   noteChatReply,
 } from "@/lib/bot-chat-error";
@@ -183,9 +184,9 @@ export function BotConsole() {
         // Keep the first connect time: uptime spans IRC reconnects within this page load.
         onConnected: () => {
           setConnectedAt((prev) => prev ?? Date.now());
-          // A fresh connection supersedes connection errors; a ban or chat-mode refusal
-          // comes straight back on the next reply.
-          setChatErrorState(null);
+          // A fresh connection supersedes connection errors; a ban, timeout or chat mode
+          // survives it, so that banner stays until a later reply goes through.
+          setChatErrorState(noteChatConnected);
         },
         onCounter: (counter) => setCounters((c) => ({ ...c, [counter]: c[counter] + 1 })),
         onActivity: pushActivity,
