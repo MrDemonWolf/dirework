@@ -1,6 +1,6 @@
 # Component Catalog
 
-Shared UI primitives for Dirework's marketing + docs surfaces. These are implemented as `dw-*` utility classes in `apps/fumadocs/src/app/global.css`, which read the semantic CSS tokens defined there (`--brand-*`, `--bg-*`, `--txt-*`, `--hairline`, `--phase-*`, `--font-*`, `--dw-radius-control`).
+Shared UI primitives for Dirework's marketing + docs surfaces. These are implemented as `dw-*` utility classes in `apps/fumadocs/src/app/global.css`. The palette, phase and partner colors they read are generated from `design-system/tokens.json` into `apps/fumadocs/src/app/tokens.generated.css`; `global.css` maps them onto the semantic names the classes use (`--brand-*`, `--bg-*`, `--txt-*`, `--hairline`, `--phase-*`, `--font-*`, `--dw-radius-control`).
 
 | Component | Class(es) | Purpose |
 |---|---|---|

@@ -1,72 +1,47 @@
 #!/usr/bin/env bun
 /**
- * Dirework design token generator.
+ * Dirework design token generator (file I/O only; the rendering is in render.ts).
  *
- * Reads `design-system/tokens.json` and emits platform-specific outputs:
- *   - TS → apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts
+ * Reads `design-system/tokens.json` and writes:
+ *   - apps/web/src/tokens.generated.css          (imported by apps/web/src/index.css)
+ *   - apps/fumadocs/src/app/tokens.generated.css (imported by apps/fumadocs/src/app/global.css)
+ *   - apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts (docs theme gallery)
  *
- * The overlay palette in tokens.json is also mirrored by the web app's theme
- * presets (apps/web/src/lib/theme-presets.ts) — a unit test
- * (apps/web/src/lib/__tests__/theme-palette-sync.test.ts) fails CI on drift.
- * The squircle radius constant lives in @dirework/overlay-kit (same test
- * asserts tokens.json matches it).
+ * apps/web/src/lib/__tests__/design-tokens.test.ts fails CI when a committed CSS file
+ * differs from what render.ts produces; theme-palette-sync.test.ts guards the overlay
+ * palette against the web app's theme presets and the squircle radius.
  *
- * Idempotent: re-running produces identical (Biome-formatted) files, so drift
- * shows up with `bun run tokens && git diff --exit-code`.
+ * Idempotent: re-running produces identical files, so drift shows up with
+ * `bun run tokens && git diff --exit-code` (a CI step in verify.yml).
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
-const ROOT = resolve(import.meta.dir, "..", "..");
-const tokens = JSON.parse(readFileSync(resolve(ROOT, "design-system/tokens.json"), "utf8"));
+import { type DesignTokens, renderAll } from "./render";
 
-const BANNER_LINES = [
-  "Dirework Design System — GENERATED FILE. Do not edit by hand.",
-  "Source: design-system/tokens.json",
-  "Run `bun run tokens` to regenerate.",
-];
+const ROOT = resolve(import.meta.dir, "..", "..");
+const tokens = JSON.parse(
+  readFileSync(resolve(ROOT, "design-system/tokens.json"), "utf8"),
+) as DesignTokens;
 
 function write(path: string, content: string) {
   const full = resolve(ROOT, path);
   mkdirSync(dirname(full), { recursive: true });
   writeFileSync(full, content);
-  // JSON.stringify output isn't Biome-formatted; format with the lockfile-pinned
-  // Biome so the output passes `bun run lint` and the drift check stays clean.
-  const format = Bun.spawnSync([process.execPath, "x", "biome", "format", "--write", full], {
-    cwd: ROOT,
-    stdio: ["ignore", "inherit", "inherit"],
-  });
-  if (format.exitCode !== 0) throw new Error(`biome format failed for ${path}`);
+  // JSON.stringify output isn't Biome-formatted; format TS with the lockfile-pinned
+  // Biome so it passes `bun run lint`. Biome does not handle the CSS (biome.json
+  // excludes it), so render.ts emits that already formatted.
+  if (/\.tsx?$/.test(path)) {
+    const format = Bun.spawnSync([process.execPath, "x", "biome", "format", "--write", full], {
+      cwd: ROOT,
+      stdio: ["ignore", "inherit", "inherit"],
+    });
+    if (format.exitCode !== 0) throw new Error(`biome format failed for ${path}`);
+  }
   console.log(`  ✓ ${path}`);
 }
 
-type Dict = Record<string, string>;
-
-// ── Overlay themes TS (docs theme gallery) ─────────────────────────────────
-function generateOverlayThemes(): string {
-  const banner = `/*\n * ${BANNER_LINES.join("\n * ")}\n */`;
-  const themes = tokens.overlay.themes as Record<string, Dict>;
-  return [
-    banner,
-    "",
-    `export const OVERLAY_THEMES = ${JSON.stringify(themes, null, 2)} as const;`,
-    "",
-    "export type OverlayThemeName = keyof typeof OVERLAY_THEMES;",
-    "export type OverlayTheme = (typeof OVERLAY_THEMES)[OverlayThemeName];",
-    "",
-    `export const OVERLAY_THEME_NAMES = ${JSON.stringify(
-      Object.keys(themes),
-    )} as OverlayThemeName[];`,
-    "",
-    `export const DEFAULT_OVERLAY_THEME: OverlayThemeName = ${JSON.stringify(
-      tokens.overlay.defaultTheme ?? Object.keys(themes)[0],
-    )};`,
-    "",
-  ].join("\n");
-}
-
-// ── Emit ──────────────────────────────────────────────────────────────────
 console.log("Generating Dirework design tokens…");
-write("apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts", generateOverlayThemes());
+for (const [path, content] of Object.entries(renderAll(tokens))) write(path, content);
 console.log("Done.");

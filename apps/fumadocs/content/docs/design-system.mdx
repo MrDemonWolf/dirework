@@ -3,14 +3,15 @@ title: Design System
 description: DireWork's design tokens, the dw-* utility layer, and shared UI primitives.
 ---
 
-DireWork ships a small design system so the web app, the docs site, and the OBS overlays all speak the same visual language. `tokens.json` is the source of truth for the overlay theme swatches (generated into the landing-page gallery) and the squircle radius; the live UI colors, fonts, and radii are CSS tokens in the app and docs stylesheets.
+DireWork ships a small design system so the web app, the docs site, and the OBS overlays all speak the same visual language. `design-system/tokens.json` is the source of truth: it generates the color, radius, type, motion, and layout CSS for both the app and the docs site, the landing-page theme gallery, and holds the squircle radius.
 
 ## Source of truth
 
 ```text
 design-system/
-  tokens.json          # overlay swatches + reference tokens — edit this
-  scripts/generate.ts  # bun script that emits per-platform outputs
+  tokens.json          # the tokens — edit this
+  scripts/render.ts    # pure renderers (tokens → CSS / TS strings)
+  scripts/generate.ts  # writes the generated files
   README.md            # full reference
   components/          # markdown catalog (one .md per primitive)
 ```
@@ -21,13 +22,15 @@ Regenerate the outputs from the repo root:
 bun run tokens
 ```
 
-This writes one committed file:
+This writes three committed files:
 
 | Output | Consumed by |
 | --- | --- |
+| `apps/web/src/tokens.generated.css` | The web app, imported by `apps/web/src/index.css` |
+| `apps/fumadocs/src/app/tokens.generated.css` | The docs site, imported by `apps/fumadocs/src/app/global.css` |
 | `apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts` | Landing-page theme gallery |
 
-The generator formats its output with Biome, so a fresh run leaves the committed file unchanged; check for drift with `bun run tokens && git diff --exit-code`. Never edit a generated file by hand.
+Never edit a generated file by hand: change `tokens.json`, run `bun run tokens`, and commit both. CI checks for drift with `bun run tokens && git diff --exit-code`, and a web unit test (`design-tokens.test.ts`) fails if a committed CSS file doesn't match what `tokens.json` renders. A second test (`tokens-contrast.test.ts`) checks the palette's text pairs and status chips against WCAG AA (4.5:1) in both themes.
 
 Shared overlay geometry and clock formatting (`roundedRectPath`, `roundedRectPerimeter`, `formatClock`, `SQUIRCLE_RADIUS`) live in the workspace package `@dirework/overlay-kit` (`packages/overlay-kit`), used by both the real OBS overlays and the docs mocks. A unit test in the web app keeps `tokens.json` in sync with the Theme Center presets and `SQUIRCLE_RADIUS`.
 
@@ -51,23 +54,35 @@ Type:
 
 ## Tokens
 
-The Focus Console color, font, and radius tokens live in
-`apps/fumadocs/src/app/global.css`, mirroring the web app's `apps/web/src/index.css`, and
-are exposed through a thin semantic layer the docs surfaces read from. Spacing and motion
-use Tailwind's scale and plain values in the `dw-*` rules; there is no generated CSS
-variable layer.
+Each generated stylesheet declares the palette as plain CSS variables on `:root` (light) and `.dark` (dark; the docs copy also follows the OS preference before a theme class is set) and registers them with Tailwind, so `bg-background`, `text-muted-foreground`, `bg-twitch`, `rounded-2xl`, `text-2xs`, `tracking-label` and friends all read the same values.
+
+| Group in `tokens.json` | CSS variables | Notes |
+| --- | --- | --- |
+| `color.scheme.{light,dark}` | `--background`, `--primary`, `--success`, `--border`, `--hairline`, `--cornflower`, `--chart-*`, `--sidebar-*`… | The UI palette, as oklch values. `{name}` aliases another key (`--chart-2: var(--cornflower)`). |
+| `color.phase` | `--phase-{work,break,long-break,paused}` | Timer phase accents |
+| `color.partner` | `--twitch`, `--twitch-hover` (`bg-twitch`) | Twitch purple, for Twitch actions only |
+| `radius` | `--radius` + `--radius-{sm…4xl}` | App only, as offsets from `--radius` (12px) |
+| `font.size`, `font.lineHeight` | `--text-2xs`, `--text-3xs` | Steps Tailwind doesn't ship; the rest are Tailwind's defaults, listed for reference |
+| `tracking` | `--tracking-{chip,label,display}` | Letter-spacing for chips, labels, display caps |
+| `motion` | `--ease-console`, `--animate-console-rise(-fast)` | Plus the `console-rise` keyframes |
+| `layout` | `--container-{content,editor}`, `--spacing-header` | Page widths and the sticky header height |
+| `z` | `--z-{save-bar,header,skip-link}` | Stacking order |
+| `color.brand`, `color.semantic`, `color.partner.{discord,obs}` | none | Hex palette for OG images and docs widgets |
+
+The docs stylesheet (`apps/fumadocs/src/app/global.css`) maps the generated palette onto the names the docs surfaces read, and keeps a few docs-only values by hand:
 
 | Namespace | Variable pattern | Example |
 | --- | --- | --- |
+| Fumadocs | `--color-fd-*` | `--color-fd-background: var(--background)` |
 | Brand | `--brand-500` / `--brand-600` / `--brand-50` | `--brand-500: #00ACED` (cerulean) |
 | Phase | `--phase-{work,break,long-break,paused}` | timer ring + status accents |
 | Partner | `--color-twitch`, `--color-live` | Twitch actions / live state |
-| Surface | `--bg-base` / `--bg-surface` / `--bg-elev` | light/dark aware |
-| Text | `--txt-1` / `--txt-2`, `--hairline` | light/dark aware |
+| Surface | `--bg-base` / `--bg-surface` / `--bg-elev` | `var(--background)` / `var(--muted)` / `var(--card)` |
+| Text | `--txt-1` / `--txt-2`, `--hairline` | `var(--foreground)` / `var(--muted-foreground)` |
 | Fonts | `--font-display` / `--font-body` / `--font-mono` | Montserrat / Plex Sans / Plex Mono |
 | Radius | `--dw-radius-control` | `9px` — pills, chips, kickers, buttons |
 
-Dark-mode values are swapped under `.dark` automatically.
+Fonts stay hand-written in both stylesheets because they wrap the `next/font` variables. The docs copy carries no radius scale: fumadocs-ui compiles its own `rounded-*` utilities against the docs theme, so overriding it would restyle every fumadocs component.
 
 ## The `dw-*` utility layer
 
