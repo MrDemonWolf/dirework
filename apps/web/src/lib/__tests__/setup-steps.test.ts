@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   SETUP_STEPS,
   STEP_STATE_LABELS,
+  captureAllDoneAtLoad,
   isSetupCollapsed,
   readSetupCollapsed,
   setupProgress,
@@ -181,5 +182,24 @@ describe("empty task board", () => {
     expect(src).toContain("onClick={focusAddInput}");
     expect(src).not.toContain("focusedEmpty");
     expect(src).not.toContain("(pointer: coarse)");
+  });
+});
+
+describe("captureAllDoneAtLoad", () => {
+  it("waits for user.me when it arrives after the first render", () => {
+    // Failed SSR prefetch: the first render has no data.
+    let captured = captureAllDoneAtLoad(undefined, undefined);
+    expect(captured).toBeUndefined();
+    // The client fetch lands on a fully set-up instance: collapse by default.
+    captured = captureAllDoneAtLoad(captured, true);
+    expect(captured).toBe(true);
+    expect(isSetupCollapsed(null, captured ?? false)).toBe(true);
+  });
+
+  it("keeps the first loaded value when progress changes during the visit", () => {
+    let captured = captureAllDoneAtLoad(undefined, false);
+    captured = captureAllDoneAtLoad(captured, true);
+    expect(captured).toBe(false);
+    expect(isSetupCollapsed(null, captured ?? false)).toBe(false);
   });
 });

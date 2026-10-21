@@ -159,7 +159,9 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
   // Setup checklist: "Finish later" hides the card and the header band's Setup button
   // brings it back. Collapsing hands focus to that button, so it never drops to <body>.
   const [setupCollapsed, setSetupCollapsed] = useSetupCollapsed(
-    user.data ? setupProgress(user.data).nextStep === null : false,
+    // undefined until user.me loads (e.g. after a failed SSR prefetch), so the
+    // collapse default waits for real data.
+    user.data ? setupProgress(user.data).nextStep === null : undefined,
   );
   const setupButtonRef = useRef<HTMLButtonElement>(null);
   const collapsedByClick = useRef(false);

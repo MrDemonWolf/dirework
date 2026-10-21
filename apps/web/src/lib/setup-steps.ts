@@ -128,6 +128,19 @@ export function writeSetupCollapsed(storage: SetupStorage | null, collapsed: boo
 }
 
 /**
+ * The "all done when the dashboard loaded" fact behind the collapse default, captured once:
+ * `undefined` until `user.me` has loaded (a failed SSR prefetch leaves it undefined on the
+ * first render), then the first known value, which later changes never overwrite — so
+ * finishing the last step in this visit keeps the card open.
+ */
+export function captureAllDoneAtLoad(
+  captured: boolean | undefined,
+  allDone: boolean | undefined,
+): boolean | undefined {
+  return captured ?? allDone;
+}
+
+/**
  * Whether the card is collapsed: the owner's stored choice wins; with none, it stays open
  * until every step is done.
  */

@@ -25,6 +25,7 @@ import type { SetupStep } from "@dirework/api/routers/input-schemas";
 import { cn } from "@/lib/utils";
 import { overlayPath } from "@/lib/overlay-view";
 import {
+  captureAllDoneAtLoad,
   SETUP_STEPS,
   STEP_STATE_LABELS,
   isSetupCollapsed,
@@ -76,8 +77,14 @@ const noSubscribe = () => () => {};
  * starts collapsed only if every step was already done when the dashboard loaded —
  * finishing the last step in this visit keeps it open.
  */
-export function useSetupCollapsed(allDone: boolean): [boolean, (collapsed: boolean) => void] {
-  const [allDoneAtLoad] = useState(allDone);
+export function useSetupCollapsed(
+  allDone: boolean | undefined,
+): [boolean, (collapsed: boolean) => void] {
+  // `allDone` is undefined until `user.me` loads; the default is decided from the first
+  // loaded value (adjusted during render, so there is no extra commit).
+  const [capturedAllDone, setCapturedAllDone] = useState(allDone);
+  const allDoneAtLoad = captureAllDoneAtLoad(capturedAllDone, allDone);
+  if (allDoneAtLoad !== capturedAllDone) setCapturedAllDone(allDoneAtLoad);
   const [choice, setChoice] = useState<boolean | null>(null);
   // Read on the client only (null during SSR and hydration); never re-read after a click.
   const stored = useSyncExternalStore(
@@ -89,7 +96,7 @@ export function useSetupCollapsed(allDone: boolean): [boolean, (collapsed: boole
     setChoice(collapsed);
     writeSetupCollapsed(browserStorage(), collapsed);
   }, []);
-  return [choice ?? isSetupCollapsed(stored, allDoneAtLoad), setCollapsed];
+  return [choice ?? isSetupCollapsed(stored, allDoneAtLoad ?? false), setCollapsed];
 }
 
 // ── Rows ────────────────────────────────────────────────────────────────────
