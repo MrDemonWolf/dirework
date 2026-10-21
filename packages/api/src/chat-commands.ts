@@ -27,7 +27,34 @@ export const KNOWN_ALIAS_TARGETS = [
 /** Always-on meta commands. Not alias targets, but their names can't be aliased either. */
 export const META_COMMANDS = ["dwhelp", "dwcommands"] as const;
 
-const BUILTIN_COMMAND_NAMES = new Set<string>([...KNOWN_ALIAS_TARGETS, ...META_COMMANDS]);
+/**
+ * Mod-only bot moderation commands. Built-in names (so the bot page relays them
+ * and no alias can shadow them) but never alias targets: muting or blocking
+ * through a nickname would make the moderation surface harder to audit.
+ */
+export const MODERATION_COMMANDS = ["mute", "unmute", "block", "unblock"] as const;
+
+/** Upper bound on bot_config.blocked_viewers, enforced inside the guarded UPDATE. */
+export const MAX_BLOCKED_VIEWERS = 200;
+
+/** A Twitch login: lowercase letters, digits and underscores, 1–25 characters. */
+export const TWITCH_LOGIN_PATTERN = /^[a-z0-9_]{1,25}$/;
+
+/**
+ * Normalize a typed username ("@Viewer", " viewer ") to the lowercase login the
+ * block list stores, or null when it can't be a Twitch login. One leading "@"
+ * is stripped so `!block @user` and the dashboard field accept the same input.
+ */
+export function normalizeTwitchLogin(raw: string): string | null {
+  const login = raw.trim().replace(/^@/, "").toLowerCase();
+  return TWITCH_LOGIN_PATTERN.test(login) ? login : null;
+}
+
+const BUILTIN_COMMAND_NAMES = new Set<string>([
+  ...KNOWN_ALIAS_TARGETS,
+  ...META_COMMANDS,
+  ...MODERATION_COMMANDS,
+]);
 
 /** True when a canonical token (no "!") is a built-in command name. */
 export function isBuiltinCommandName(token: string): boolean {

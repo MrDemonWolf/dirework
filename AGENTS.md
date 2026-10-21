@@ -82,7 +82,14 @@ alias are relayed (`isDireworkCommandLine` in the zod-free `@dirework/api/chat-c
 which also owns `KNOWN_ALIAS_TARGETS` / `META_COMMANDS` / `normalizeAliasToken` and is
 the parser `handleMessage` uses); `bot.getSession` returns the alias keys, so new aliases
 reach an open page at the hourly revalidation or on reload. Disabled commands are still
-relayed (the server drops them), so an enable toggle applies instantly. Bot lives only while that page is open (OBS browser
+relayed (the server drops them), so an enable toggle applies instantly. `MODERATION_COMMANDS`
+(`mute`/`unmute`/`block`/`unblock`, also in `chat-commands`) are built-in names (relayed, never
+aliasable) but NOT alias targets; they are mod-only. `handleMessage` gates every line on the
+`bot_config` row ingest already loads, BEFORE any claim: a blocked login (unless broadcaster)
+and anything but a mod's `!unmute` while muted return silently, so they cost no write.
+`bot.ingest` returns `{ replies, muted }` (the post-command mute state, so the page's "Muted"
+status follows `!mute` without a request) and `bot.getSession` carries `muted` from its single
+bot_config read. Bot lives only while that page is open (OBS browser
 source or pinned tab). Chat token comes from `bot.getSession` (server refreshes it; the
 refresh token and client secret never reach the browser). Each PRIVMSG's IRC `id` tag is
 forwarded as `messageId` and, once it resolves to an enabled Dirework command, claimed in
@@ -244,7 +251,7 @@ a removed `active` task comes back `pending` if removal promoted another, so the
 single-active index holds. Owner action, so no viewer caps apply.
 
 **Services own mutations** (`packages/api/src/services/`): `task-service`, `timer-service`,
-`overlay-service`, `twitch-auth`, `tokens`, `singleton`, `provision`. Both tRPC routers and
+`overlay-service`, `bot-moderation`, `twitch-auth`, `tokens`, `singleton`, `provision`. Both tRPC routers and
 `bot.ingest` call the same service functions — never duplicate mutation logic in a router
 or command handler (audit M1). Pure logic (timer-logic.ts, config-shared.ts, services)
 must not import `@dirework/env/server` — Vitest runs in Node and cannot resolve
@@ -285,7 +292,13 @@ processedChatMessage), `index.ts` (relations). `instanceConfig` holds the three 
 the cached `channelLogin`, and the dashboard setup checklist flags
 `setupBotSourceConfirmed` / `setupTimerOverlayConfirmed` / `setupTasksOverlayConfirmed`
 (`integer({mode:"boolean"})`, NOT NULL default false; added expand-only by
-`0018_setup_confirmations`), which only `user.confirmSetupStep` writes.
+`0018_setup_confirmations`), which only `user.confirmSetupStep` writes. `botConfig.muted`
+(boolean) and `botConfig.blockedViewers` (JSON array of lowercase logins, ≤
+`MAX_BLOCKED_VIEWERS` = 200; added expand-only by `0019_bot_mute_blocklist`) are written only
+by `services/bot-moderation.ts` (shared by the chat commands and `config.setBotMuted` /
+`blockViewer` / `unblockViewer`) as guarded JSON1 UPDATEs — `json_insert` under `NOT EXISTS
+(… json_each …)` plus the cap, `json_group_array` filter under `EXISTS` — never a
+read-modify-write; blocking deletes the viewer's tasks in the same `db.batch`.
 SQLite idioms: booleans `integer({mode:"boolean"})`, timestamps `integer({mode:"timestamp_ms"})`
 with `unixepoch('subsecond')*1000` defaults, JSON columns `text({mode:"json"}).$type<T>()`
 (commandAliases, scopes), opacities `real`, cuid2 ids. Config rows are singletons

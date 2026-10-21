@@ -12,14 +12,22 @@ import {
   flattenTaskStyles,
   flattenTimerStyles,
   flattenWithFieldMap,
+  MAX_BLOCKED_VIEWERS,
   PHASE_LABEL_FIELDS,
   TASK_MESSAGE_FIELDS,
   TIMER_MESSAGE_FIELDS,
 } from "../config-shared";
 import { ownerProcedure, router } from "../index";
-import { ensureSingletons } from "../services/provision";
+import { blockViewer, setBotMuted, streamerLogin, unblockViewer } from "../services/bot-moderation";
+import { ensureBotConfig, ensureSingletons } from "../services/provision";
 import { definedValues, hasValues, updateSingleton } from "../services/singleton";
-import { updateBotSettingsInput, updateStylesInput, updateTimerConfigInput } from "./input-schemas";
+import {
+  blockedViewerInput,
+  setBotMutedInput,
+  updateBotSettingsInput,
+  updateStylesInput,
+  updateTimerConfigInput,
+} from "./input-schemas";
 
 // Input schemas live in ../config-shared (styles/messages/labels — derived
 // from the same field maps as the build/flatten helpers, so the zod shape,
@@ -112,4 +120,43 @@ export const configRouter = router({
       if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found" });
       return buildBotConfig(updated);
     }),
+
+  // Moderation: the same services the !mute/!block chat commands call (audit M1).
+
+  /** The dashboard's Muted switch. A guarded no-op when already in that state. */
+  setBotMuted: ownerProcedure.input(setBotMutedInput).mutation(async ({ ctx, input }) => {
+    await ensureSingletons(ctx.db);
+    await setBotMuted(ctx.db, input.muted);
+    return { muted: input.muted };
+  }),
+
+  /** Block a viewer's chat commands and remove every task they added. */
+  blockViewer: ownerProcedure.input(blockedViewerInput).mutation(async ({ ctx, input }) => {
+    // The streamer's real login is the one resolveChannelLogin cached for the bot's
+    // IRC channel; the session's name can be a display name that differs from it.
+    const [instance] = await Promise.all([
+      ctx.db.query.instanceConfig.findFirst({ columns: { channelLogin: true } }),
+      ensureBotConfig(ctx.db),
+    ]);
+    if (input.login === streamerLogin(instance?.channelLogin, ctx.session.user.name)) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "You can't block the streamer" });
+    }
+    // The guarded UPDATE decides; a no-op is reported, never shown as a success.
+    const result = await blockViewer(ctx.db, input.login);
+    if (!result.added) {
+      throw result.reason === "already-blocked"
+        ? new TRPCError({ code: "CONFLICT", message: `${input.login} is already blocked` })
+        : new TRPCError({
+            code: "BAD_REQUEST",
+            message: `The block list is full (${MAX_BLOCKED_VIEWERS} names). Unblock someone first`,
+          });
+    }
+    return { login: input.login };
+  }),
+
+  /** Let a blocked viewer use commands again (their removed tasks stay removed). */
+  unblockViewer: ownerProcedure.input(blockedViewerInput).mutation(async ({ ctx, input }) => {
+    await unblockViewer(ctx.db, input.login);
+    return { login: input.login };
+  }),
 });

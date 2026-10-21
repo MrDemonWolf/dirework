@@ -45,7 +45,7 @@ const PROVISIONED = {
   timerConfig: { id: "singleton", workDuration: 1_500_000, defaultCycles: 4 },
   timerStyle: { id: "singleton" },
   taskStyle: { id: "singleton" },
-  botConfig: { id: "singleton", commandAliases: {} },
+  botConfig: { id: "singleton", commandAliases: {}, muted: false, blockedViewers: [] },
 };
 
 /** Records every write so tests can assert real DB effects, not just returns. */
@@ -104,7 +104,11 @@ function makeDb(rows: DbRows = {}) {
         return {
           where: () => ({
             kind: "update",
-            returning: async () => rows.updateReturns ?? [{ id: "row", ...values }],
+            // Still tagged after .returning(), so a batch of guarded UPDATEs is recorded.
+            returning: () =>
+              Object.assign(Promise.resolve(rows.updateReturns ?? [{ id: "row", ...values }]), {
+                kind: "update",
+              }),
           }),
         };
       },
@@ -475,6 +479,34 @@ describe("database effects of owner mutations", () => {
     });
   });
 
+  it("config.setBotMuted writes only the mute flag", async () => {
+    const { caller: owner, updated } = caller(ownerSession);
+
+    await expect(owner.config.setBotMuted({ muted: true })).resolves.toEqual({ muted: true });
+    expect(updated).toEqual([{ muted: true }]);
+  });
+
+  it("config.blockViewer refuses the streamer and writes nothing", async () => {
+    const { caller: owner, batches, updated } = caller(ownerSession);
+
+    await expect(owner.config.blockViewer({ login: "@Streamer" })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+    expect(batches).toHaveLength(0);
+    expect(updated).toHaveLength(0);
+  });
+
+  it.each(["", "bad name", "x".repeat(27), "émoji"])(
+    "config.blockViewer rejects the invalid login %j",
+    async (login) => {
+      const { caller: owner, batches } = caller(ownerSession);
+      await expect(owner.config.blockViewer({ login })).rejects.toMatchObject({
+        code: "BAD_REQUEST",
+      });
+      expect(batches).toHaveLength(0);
+    },
+  );
+
   it.each([
     ["botSource", "setupBotSourceConfirmed"],
     ["timerOverlay", "setupTimerOverlayConfirmed"],
@@ -754,5 +786,95 @@ describe("setup checklist against real SQLite", () => {
 
     // Nothing else on the row moved: tokens and the cached channel are as provisioned.
     expect(await db.query.instanceConfig.findFirst()).toEqual(before);
+  });
+});
+
+describe("config.blockViewer against real SQLite", () => {
+  // The owner's name ("Streamer Name") is not their login; the bot page cached the
+  // real login on instance_config, which is what the block list must refuse.
+  const OWNER = {
+    id: "owner",
+    name: "Streamer Name",
+    email: "owner@example.test",
+    twitchId: "1000",
+    displayName: "Streamer Name",
+    isOwner: true,
+  };
+  const session = { user: { id: OWNER.id, isOwner: true, name: OWNER.name, twitchId: "1000" } };
+  type SqliteDb = Awaited<ReturnType<typeof createSqliteDb>>["db"];
+
+  async function claimedInstance() {
+    const { db } = await createSqliteDb();
+    await provisionSingletonRows(db);
+    await db.insert(schema.user).values(OWNER);
+    await db.update(schema.instanceConfig).set({ channelLogin: "realstreamer" });
+    await db.insert(schema.task).values([
+      {
+        id: "v1",
+        authorTwitchId: "2000",
+        authorUsername: "viewer",
+        authorDisplayName: "Viewer",
+        text: "a",
+        status: "active",
+        order: 1,
+      },
+      {
+        id: "o1",
+        authorTwitchId: "3000",
+        authorUsername: "other",
+        authorDisplayName: "Other",
+        text: "b",
+        status: "active",
+        order: 2,
+      },
+    ]);
+    return { db, owner: appRouter.createCaller({ session, db } as unknown as Context) };
+  }
+
+  const blocked = async (db: SqliteDb) => (await db.query.botConfig.findFirst())?.blockedViewers;
+  const taskIds = async (db: SqliteDb) =>
+    (await db.query.task.findMany({ columns: { id: true } })).map((t) => t.id).sort();
+
+  it("normalizes the login, lists it, and removes only that viewer's tasks", async () => {
+    const { db, owner } = await claimedInstance();
+
+    await expect(owner.config.blockViewer({ login: "@Viewer" })).resolves.toEqual({
+      login: "viewer",
+    });
+    expect(await blocked(db)).toEqual(["viewer"]);
+    expect(await taskIds(db)).toEqual(["o1"]);
+  });
+
+  it("refuses the streamer's cached login even when their name differs", async () => {
+    const { db, owner } = await claimedInstance();
+
+    await expect(owner.config.blockViewer({ login: "@RealStreamer" })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+      message: "You can't block the streamer",
+    });
+    expect(await blocked(db)).toEqual([]);
+  });
+
+  it("reports an already-blocked login as CONFLICT instead of success", async () => {
+    const { db, owner } = await claimedInstance();
+    await db.update(schema.botConfig).set({ blockedViewers: ["viewer"] });
+
+    await expect(owner.config.blockViewer({ login: "viewer" })).rejects.toMatchObject({
+      code: "CONFLICT",
+      message: "viewer is already blocked",
+    });
+    expect(await blocked(db)).toEqual(["viewer"]);
+  });
+
+  it("reports a full list as BAD_REQUEST and keeps the viewer's tasks", async () => {
+    const { db, owner } = await claimedInstance();
+    const full = Array.from({ length: 200 }, (_, i) => `name${i}`);
+    await db.update(schema.botConfig).set({ blockedViewers: full });
+
+    await expect(owner.config.blockViewer({ login: "viewer" })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+    expect(await blocked(db)).toEqual(full);
+    expect(await taskIds(db)).toEqual(["o1", "v1"]);
   });
 });

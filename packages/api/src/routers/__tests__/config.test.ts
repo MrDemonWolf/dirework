@@ -248,6 +248,8 @@ describe("buildBotConfig", () => {
     taskCommandsEnabled: true,
     timerCommandsEnabled: false,
     commandAliases: { "!t": "!task" },
+    muted: false,
+    blockedViewers: [] as string[],
     msgTaskAdded: "a",
     msgNoTaskAdded: "b",
     msgNoTaskContent: "c",
@@ -286,6 +288,19 @@ describe("buildBotConfig", () => {
     expect(result.timer.eta).toBe("w14");
     // Only the 6 timer messages with a real emit site survive the P1 cleanup.
     expect(Object.keys(result.timer)).toHaveLength(6);
+  });
+
+  it("passes the moderation columns through and coerces a malformed block list to []", () => {
+    const result = buildBotConfig({ ...fakeBotConfig, muted: true, blockedViewers: ["viewer"] });
+    expect(result.muted).toBe(true);
+    expect(result.blockedViewers).toEqual(["viewer"]);
+
+    const malformed = buildBotConfig({
+      ...fakeBotConfig,
+      blockedViewers: "viewer" as unknown as string[],
+    });
+    expect(malformed.muted).toBe(false);
+    expect(malformed.blockedViewers).toEqual([]);
   });
 
   it("exposes no timer message without an emit site (P1 dead-config guard)", () => {

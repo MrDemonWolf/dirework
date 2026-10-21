@@ -1,4 +1,4 @@
-import { DrizzleQueryError, and, asc, desc, eq, inArray, lt, ne, sql } from "drizzle-orm";
+import { DrizzleQueryError, type SQL, and, asc, desc, eq, inArray, lt, ne, sql } from "drizzle-orm";
 
 import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
@@ -481,9 +481,20 @@ export async function restoreTask(db: DbClient, snapshot: TaskSnapshot) {
   return row ?? null;
 }
 
+/**
+ * The unexecuted DELETE behind removeTasksByUsername — safe to include in a
+ * db.batch (the viewer block list removes tasks atomically with the list edit).
+ * `onlyIf` adds a guard evaluated in the same statement.
+ */
+export function removeTasksByUsernameStmt(db: DbClient, username: string, onlyIf?: SQL) {
+  return db
+    .delete(schema.task)
+    .where(onlyIf ? and(authorUsernameEquals(username), onlyIf) : authorUsernameEquals(username));
+}
+
 /** Delete every task by username, case-insensitive (L9 — ban/timeout/!clear @user). */
 export async function removeTasksByUsername(db: DbClient, username: string) {
-  return db.delete(schema.task).where(authorUsernameEquals(username));
+  return removeTasksByUsernameStmt(db, username);
 }
 
 export async function clearAllTasks(db: DbClient) {

@@ -262,6 +262,11 @@ export const botConfig = sqliteTable("bot_config", {
     .$type<Record<string, string>>()
     .notNull()
     .default({}),
+  // Moderation state, read by bot.ingest from the row it already loads (no extra
+  // round trip). Logins are stored lowercase; services/bot-moderation.ts edits the
+  // list with guarded JSON1 UPDATEs, never a read-modify-write.
+  muted: integer("muted", { mode: "boolean" }).notNull().default(false),
+  blockedViewers: text("blocked_viewers", { mode: "json" }).$type<string[]>().notNull().default([]),
   msgTaskAdded: text("msg_task_added").notNull().default(TASK_MESSAGE_COLUMN_DEFAULTS.taskAdded),
   msgNoTaskAdded: text("msg_no_task_added")
     .notNull()

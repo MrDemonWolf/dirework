@@ -39,6 +39,7 @@ Owner sign-in requests only Twitch's `openid` scope, not the `user:read:email` s
 
 - Timer settings, overlay styles, phase labels, bot command settings, aliases, and response templates.
 - Tasks submitted through Twitch chat, including the author's Twitch user ID, login name, display name, and chat color; the task text and status; and when each task was created and completed.
+- A block list of Twitch login names whose chat commands the bot ignores, added by the owner or a channel moderator (`!block`), and whether the bot is muted.
 
 ### Bearer Tokens
 
@@ -76,6 +77,7 @@ The instance operator is responsible for account security, least-privilege acces
 - **Sessions** — expire after 30 days; expired session records are deleted at the next sign-in.
 - **Tasks** — open (pending or active) tasks remain until completed, or until cleared by the operator or a permitted chat command. Completed tasks are deleted automatically about 24 hours after they were marked done (the cleanup runs the next time a task is added or completed or the timer is started or reset, so a completed task can outlive 24 hours while the instance is idle), and can be cleared sooner by the operator or `!clear done`.
 - **Configuration and account data** — remain until removed by the operator.
+- **Blocked viewers** — Blocked-viewer entries remain until unblocked (by the operator or a moderator's `!unblock`).
 - **Bot OAuth credentials** — remain until the bot account is disconnected.
 - **Bearer tokens** — remain until the operator regenerates them or removes the instance data.
 - **Operational logs and metrics** — follow the operator's Cloudflare settings and retention period.

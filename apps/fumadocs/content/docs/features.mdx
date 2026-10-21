@@ -47,7 +47,9 @@ Connect a separate Twitch bot account to handle chat commands.
 
 - **Task commands** — `!task`, `!done`, `!edit`, `!remove`, `!focus`, `!check`, `!today`, `!next`, `!help` for all viewers
 - **Timer commands** — `!timer start`, `!timer pause`, `!timer resume`, `!timer skip`, `!timer reset`, `!timer eta` (mods only)
-- **Moderator commands** — `!clear all`, `!clear done`, `!clear @user` (mods only) to clear all tasks, only completed tasks, or one viewer's tasks
+- **Moderator commands** — `!clear all`, `!clear done`, `!clear @user` (mods only) to clear all tasks, only completed tasks, or one viewer's tasks; `!mute` / `!unmute` to pause the bot and `!block @user` / `!unblock @user` to manage the block list
+- **Mute switch** — Pause the bot from **Dashboard → Bot** (or with `!mute`): it ignores every command and posts nothing until it's unmuted
+- **Blocked viewers** — Ignore a viewer's commands and remove their tasks; manage the list from chat or the dashboard's **Moderation** card
 - **Customizable bot messages** — Configure response templates for every command
 - **Command aliases** — Create custom aliases for any command
 - **Separate bot account** — Uses its own Twitch account so messages come from the bot, not you

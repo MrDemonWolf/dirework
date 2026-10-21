@@ -106,6 +106,8 @@ export function BotConsole() {
   const [counters, setCounters] = useState({ seen: 0, commands: 0, replies: 0 });
   const [activity, setActivity] = useState<ActivityLine[]>([]);
   const [connectedAt, setConnectedAt] = useState<number | null>(null);
+  // Mod !mute / !unmute (or the dashboard switch), reported by every ingest and getSession.
+  const [muted, setMuted] = useState(false);
   const [nowTick, setNowTick] = useState(0);
 
   const logRef = useRef<HTMLDivElement | null>(null);
@@ -156,6 +158,7 @@ export function BotConsole() {
         onConnected: () => setConnectedAt((prev) => prev ?? Date.now()),
         onCounter: (counter) => setCounters((c) => ({ ...c, [counter]: c[counter] + 1 })),
         onActivity: pushActivity,
+        onMuted: setMuted,
       },
     });
     // Disposing closes the IRC socket and timers, so a token change or unmount never leaves
@@ -198,11 +201,17 @@ export function BotConsole() {
     );
   }
 
+  const connected = phase !== "boot" && phase !== "not-configured" && ircStatus === "connected";
+  // Muted is a deliberate state, not a fault: a steady amber LED, like not-configured.
+  const showMuted = connected && muted;
+
   const led: "green" | "amber" | "red" =
     phase === "boot" || phase === "not-configured"
       ? "amber"
       : ircStatus === "connected"
-        ? "green"
+        ? showMuted
+          ? "amber"
+          : "green"
         : ircStatus === "closed"
           ? "red"
           : "amber"; // connecting / reconnecting / auth-failed / idle
@@ -213,7 +222,9 @@ export function BotConsole() {
       : phase === "not-configured"
         ? "Bot not connected"
         : ircStatus === "connected"
-          ? "Connected"
+          ? showMuted
+            ? "Muted"
+            : "Connected"
           : ircStatus === "connecting"
             ? "Connecting"
             : ircStatus === "reconnecting"
@@ -230,9 +241,9 @@ export function BotConsole() {
           state text pinned top-left. */}
       <header className="flex items-center gap-3 border-b border-zinc-800/80 px-4 py-3">
         <span
-          // Not-configured waits on the streamer, not on the bot — a steady LED,
-          // so it doesn't read as "Connecting".
-          className={`h-3.5 w-3.5 shrink-0 rounded-full ${LED_CLASS[led]}${phase === "not-configured" ? " animate-none" : ""}`}
+          // Not-configured and muted wait on a person, not on the bot — a steady
+          // LED, so neither reads as "Connecting".
+          className={`h-3.5 w-3.5 shrink-0 rounded-full ${LED_CLASS[led]}${phase === "not-configured" || showMuted ? " animate-none" : ""}`}
           aria-hidden="true"
         />
         <span
@@ -249,6 +260,13 @@ export function BotConsole() {
       {phase === "not-configured" && (
         <p className="border-b border-zinc-800/80 px-4 py-2 text-sm text-zinc-400">
           Connect a bot account in Dashboard → Bot. This page goes live on its own.
+        </p>
+      )}
+
+      {showMuted && (
+        <p className="border-b border-zinc-800/80 px-4 py-2 text-sm text-zinc-400">
+          Muted — ignoring commands and posting nothing. A mod can send !unmute, or flip the Muted
+          switch in Dashboard → Bot.
         </p>
       )}
 

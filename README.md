@@ -64,16 +64,21 @@ account configuration, and OBS setup, see the
 | `!remove <number>`      | Remove the numbered task                   |
 | `!focus <number>`       | Make the numbered task your active task    |
 | `!check [@user]`        | Show your (or another user's) active task  |
+| `!today`                | Show your focus and next numbered tasks    |
 | `!next <text>`          | Complete active task and start a new one   |
 | `!help`                 | Show the command help message              |
 
 ### Mod Commands
 
-| Command          | Description                           |
-| ---------------- | ------------------------------------- |
-| `!clear all`     | Clear all tasks                       |
-| `!clear done`    | Clear completed tasks                 |
-| `!clear @user`   | Remove all tasks from a specific user |
+| Command          | Description                                       |
+| ---------------- | ------------------------------------------------- |
+| `!clear all`     | Clear all tasks                                   |
+| `!clear done`    | Clear completed tasks                             |
+| `!clear @user`   | Remove all tasks from a specific user             |
+| `!mute`          | Pause the bot: ignore every command, post nothing |
+| `!unmute`        | Resume the bot                                    |
+| `!block @user`   | Ignore a viewer's commands and remove their tasks |
+| `!unblock @user` | Let a blocked viewer use commands again           |
 
 ### Timer Commands (mods only)
 
