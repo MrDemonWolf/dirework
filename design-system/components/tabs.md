@@ -14,9 +14,9 @@ groups).
 ## Anatomy
 
 - **Tabs** (root): flex, `gap-2`, column when horizontal.
-- **TabsList**: `rounded-xl` segmented track, `p-0.75`, `h-8` horizontal, `text-muted-foreground`.
+- **TabsList**: `rounded-xl` segmented track, `p-0.75`, `h-8` horizontal (`h-auto` on coarse pointers), `text-muted-foreground`.
 - **TabsTrigger**: `rounded-lg` segment, `px-1.5 py-0.5`, `text-xs font-medium`, `size-4`
-  icons. Active segment fills with `bg-background` (`bg-input/30` with an input border in dark).
+  icons, at least 44px tall on coarse pointers (`pointer-coarse:min-h-11`, pinned by `touch-targets.test.ts`). Active segment fills with `bg-background` (`bg-input/30` with an input border in dark).
   The `line` variant hides the fill and shows a 2px underline (`after:` bar) on the active tab.
 - **TabsContent**: `flex-1`, `text-xs/relaxed`, no outline.
 

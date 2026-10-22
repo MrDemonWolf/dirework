@@ -16,7 +16,8 @@ Center booleans), `CommandTabPanel` (command group enable) and `BotMuteBar`.
   `bg-primary`; unchecked `bg-muted-foreground/70` on light, `bg-input/80` on dark.
 - **Thumb**: `size-4` (`size-3` at `sm`) circle, `bg-background` on light; on dark
   `bg-foreground` unchecked and `bg-primary-foreground` checked. Slides right when checked.
-- An invisible `after:-inset-x-3 after:-inset-y-2` pad widens the hit area.
+- An invisible `after:-inset-x-3 after:-inset-y-2` pad widens the hit area; on coarse pointers it
+  grows to at least 44px tall (`after:-inset-y-3.5`, `-inset-y-4` at `sm`; `touch-targets.test.ts`).
 
 ## Props and variants
 

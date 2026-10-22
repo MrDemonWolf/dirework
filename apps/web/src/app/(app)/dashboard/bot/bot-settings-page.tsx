@@ -22,8 +22,18 @@ import { taskMessageFields, timerMessageFields } from "@/lib/message-fields";
 import { previewVars } from "@/lib/template-preview";
 import { describeTrpcError } from "@/lib/trpc-errors";
 import { cn } from "@/lib/utils";
-import { describeIssues, formatMutationError } from "@/lib/validation-errors";
-import { BlockedViewersCard } from "@/components/bot-settings/blocked-viewers-card";
+import {
+  BOT_MESSAGE_TAB_VALUE,
+  type BotMessageFieldRef,
+  type BotMessageTab,
+  botMessageFieldFor,
+  invalidMessageKeys,
+} from "@/lib/bot-settings-fields";
+import { describeFieldIssues, formatMutationError } from "@/lib/validation-errors";
+import {
+  BlockedViewersCard,
+  MODERATION_CARD_ID,
+} from "@/components/bot-settings/blocked-viewers-card";
 import { BotAccountCard } from "@/components/bot-settings/bot-account-card";
 import { BotConsoleCard } from "@/components/bot-settings/bot-console-card";
 import { BotMuteBar } from "@/components/bot-settings/bot-mute-bar";
@@ -132,6 +142,14 @@ function BotSettingsEditor({ config, user }: { config: ConfigData; user: MeData 
   // Working draft + last-saved snapshot (for reset and the dirty indicators)
   const [draft, setDraft] = useState<BotSettingsDraft>(() => draftFromConfig(config.botConfig));
   const [saved, setSaved] = useState<BotSettingsDraft>(draft);
+  // Controlled, so the Save bar's blocked reason can switch to the tab holding the bad field.
+  const [tab, setTab] = useState("tasks");
+  // Each command tab's reply filter, held here rather than in the editor so the Save bar's
+  // link can clear a filter that hides the field it names.
+  const [messageFilters, setMessageFilters] = useState<Record<BotMessageTab, string>>({
+    task: "",
+    timer: "",
+  });
 
   const disconnectBot = useMutation({
     ...trpc.user.disconnectBot.mutationOptions(),
@@ -179,12 +197,33 @@ function BotSettingsEditor({ config, user }: { config: ConfigData; user: MeData 
     commandAliases: aliasResult.aliases,
   };
   const payloadCheck = updateBotSettingsInput.safeParse(payload);
+  const payloadIssues = payloadCheck.success ? [] : payloadCheck.error.issues;
+  // Reply problems are named by the field's label ("'Task added' is over the 300-byte chat
+  // limit"), and the reason in the Save bar takes the owner to that field.
+  const described =
+    payloadIssues.length > 0 ? describeFieldIssues(payloadIssues, botMessageFieldFor) : null;
   const blockedReason =
     aliasResult.issues.length > 0
       ? "Fix the highlighted aliases before saving."
-      : payloadCheck.success
-        ? null
-        : describeIssues(payloadCheck.error.issues);
+      : (described?.text ?? null);
+  const blockedField: BotMessageFieldRef | null =
+    aliasResult.issues.length > 0 ? null : (described?.field ?? null);
+  const focusBlockedField = () => {
+    if (!blockedField) {
+      if (aliasResult.issues.length > 0) setTab("aliases");
+      return;
+    }
+    setTab(BOT_MESSAGE_TAB_VALUE[blockedField.tab]);
+    // A filter on that tab may be hiding the field (the editor renders only matches).
+    setMessageFilters((filters) => ({ ...filters, [blockedField.tab]: "" }));
+    // After the panel and the field render; the field's group is open (it holds an invalid
+    // field).
+    requestAnimationFrame(() => {
+      const el = document.getElementById(blockedField.fieldId);
+      el?.scrollIntoView({ block: "center" });
+      el?.focus({ preventScroll: true });
+    });
+  };
 
   const handleSave = async () => {
     if (blockedReason) {
@@ -239,7 +278,14 @@ function BotSettingsEditor({ config, user }: { config: ConfigData; user: MeData 
       <div className="mb-8">
         <h1 className="font-heading text-3xl font-bold tracking-tight">Bot settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Connect the bot account and decide what it says in chat
+          Connect the bot account and decide what it says in chat.{" "}
+          {/* The command tabs are long; this skips them. */}
+          <a
+            href={`#${MODERATION_CARD_ID}`}
+            className="font-medium whitespace-nowrap text-primary underline-offset-4 hover:underline focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            Jump to Moderation
+          </a>
         </p>
       </div>
 
@@ -259,7 +305,9 @@ function BotSettingsEditor({ config, user }: { config: ConfigData; user: MeData 
         </div>
 
         {/* Chat commands console, full width. */}
-        <Card className="panel">
+        {/* overflow-visible: the Card primitive clips, which would stop the command
+            reference from sticking beside the reply list. */}
+        <Card className="panel overflow-visible">
           <CardHeader className="border-b border-border/40 px-5">
             <ConsoleRule label="Chat commands" />
             <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
@@ -270,7 +318,7 @@ function BotSettingsEditor({ config, user }: { config: ConfigData; user: MeData 
             </CardDescription>
           </CardHeader>
           <CardContent className="px-5">
-            <Tabs defaultValue="tasks">
+            <Tabs value={tab} onValueChange={(next) => setTab(String(next))}>
               {/* Full-width rail: triggers are flex-1, so the three tabs
                   share the row equally and resize with it. */}
               <TabsList className="h-9 w-full gap-1">
@@ -310,8 +358,12 @@ function BotSettingsEditor({ config, user }: { config: ConfigData; user: MeData 
                   commands={taskCommands}
                   fields={taskMessageFields}
                   messages={draft.task}
+                  savedMessages={saved.task}
+                  invalidKeys={invalidMessageKeys(payloadIssues, "task")}
                   defaults={DEFAULT_TASK_MESSAGES}
                   onMessagesChange={(task) => setDraft((d) => ({ ...d, task }))}
+                  filter={messageFilters.task}
+                  onFilterChange={(task) => setMessageFilters((f) => ({ ...f, task }))}
                   preview={preview}
                 />
               </TabsContent>
@@ -329,8 +381,12 @@ function BotSettingsEditor({ config, user }: { config: ConfigData; user: MeData 
                   commands={timerCommands}
                   fields={timerMessageFields}
                   messages={draft.timer}
+                  savedMessages={saved.timer}
+                  invalidKeys={invalidMessageKeys(payloadIssues, "timer")}
                   defaults={DEFAULT_TIMER_MESSAGES}
                   onMessagesChange={(timer) => setDraft((d) => ({ ...d, timer }))}
+                  filter={messageFilters.timer}
+                  onFilterChange={(timer) => setMessageFilters((f) => ({ ...f, timer }))}
                   preview={preview}
                 />
               </TabsContent>
@@ -360,6 +416,7 @@ function BotSettingsEditor({ config, user }: { config: ConfigData; user: MeData 
         onSave={handleSave}
         onReset={handleReset}
         blockedReason={blockedReason}
+        onBlockedReasonClick={blockedReason ? focusBlockedField : undefined}
       />
     </div>
   );

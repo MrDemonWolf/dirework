@@ -6,7 +6,6 @@
 
 import { useId, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { MAX_BLOCKED_VIEWERS, normalizeTwitchLogin } from "@dirework/api/chat-commands";
@@ -24,12 +23,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/utils/trpc";
 
-/** `blockedViewers` is the live `config.get` list (lowercase logins), not a draft. */
+/** The card's anchor id, for the Bot settings page's "Moderation" jump link. */
+export const MODERATION_CARD_ID = "moderation";
+
+/**
+ * `blockedViewers` is the live `config.get` list (lowercase logins), not a draft. Blocking
+ * confirms first (it deletes the viewer's tasks); Enter in the username field opens the same
+ * dialog. Unblocking is one click: it only restores their commands.
+ */
 export function BlockedViewersCard({ blockedViewers }: { blockedViewers: string[] }) {
   const queryClient = useQueryClient();
   const listId = useId();
   const hintId = useId();
   const [input, setInput] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
 
@@ -67,7 +74,7 @@ export function BlockedViewersCard({ blockedViewers }: { blockedViewers: string[
       : null;
 
   return (
-    <Card className="panel">
+    <Card id={MODERATION_CARD_ID} className="panel">
       <CardHeader className="border-b border-border/40 px-5">
         <ConsoleRule label="Chat safety" />
         <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
@@ -95,20 +102,27 @@ export function BlockedViewersCard({ blockedViewers }: { blockedViewers: string[
                     <code className="truncate font-mono text-sm">{viewer}</code>
                     <Button
                       variant="ghost"
-                      size="icon"
-                      className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      size="sm"
+                      className="shrink-0 text-muted-foreground hover:text-foreground"
                       disabled={unblockViewer.isPending}
                       onClick={() => unblockViewer.mutate({ login: viewer })}
                       aria-label={`Unblock ${viewer}`}
                     >
-                      <Trash2 className="size-4" />
+                      Unblock
                     </Button>
                   </li>
                 ))}
               </ul>
             )}
 
-            <div className="space-y-1.5 border-t border-border/40 pt-3">
+            {/* A form, so Enter in the field opens the confirm like the button does. */}
+            <form
+              className="space-y-1.5 border-t border-border/40 pt-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (login && !full && !blockViewer.isPending) setConfirmOpen(true);
+              }}
+            >
               <Label htmlFor="block-viewer-login">Twitch username</Label>
               <div className="flex flex-wrap gap-2">
                 <Input
@@ -123,12 +137,16 @@ export function BlockedViewersCard({ blockedViewers }: { blockedViewers: string[
                   aria-describedby={hint ? hintId : undefined}
                   className="min-w-0 flex-1"
                 />
+                <Button
+                  type="submit"
+                  variant="outline"
+                  disabled={!login || full || blockViewer.isPending}
+                >
+                  Block viewer
+                </Button>
                 <ConfirmDialog
-                  trigger={
-                    <Button variant="outline" disabled={!login || full || blockViewer.isPending}>
-                      Block viewer
-                    </Button>
-                  }
+                  open={confirmOpen}
+                  onOpenChange={setConfirmOpen}
                   title={`Block ${login ?? ""}?`}
                   description="Their chat commands are ignored and every task they added is removed from the board. Unblocking later restores commands, not tasks."
                   confirmLabel="Block"
@@ -142,7 +160,7 @@ export function BlockedViewersCard({ blockedViewers }: { blockedViewers: string[
                   {hint}
                 </p>
               )}
-            </div>
+            </form>
           </SectionGroup>
         </div>
       </CardContent>

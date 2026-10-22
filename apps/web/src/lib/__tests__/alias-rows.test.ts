@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { updateBotSettingsInput } from "@dirework/api/routers/input-schemas";
 
-import { aliasesToRows, nextAliasRowId, rowsToAliases, type AliasRow } from "../alias-rows";
+import {
+  type AliasRow,
+  aliasesToRows,
+  aliasIssueMessage,
+  nextAliasRowId,
+  rowsToAliases,
+} from "../alias-rows";
 
 const row = (id: string, key: string, value: string): AliasRow => ({ id, key, value });
 
@@ -35,7 +41,7 @@ describe("rowsToAliases", () => {
     expect(issues).toEqual([]);
   });
 
-  it("flags every row the server would reject, by row id", () => {
+  it("flags every row the server would reject, by row id and field", () => {
     const { issues } = rowsToAliases([
       row("a", "t", "task"),
       row("b", "!t", "done"),
@@ -45,11 +51,13 @@ describe("rowsToAliases", () => {
       row("f", "z", "nope"),
     ]);
     expect(issues).toEqual([
-      { rowId: "b", reason: "duplicate" },
-      { rowId: "c", reason: "empty" },
-      { rowId: "d", reason: "empty" },
-      { rowId: "e", reason: "recursive" },
-      { rowId: "f", reason: "unknown-target" },
+      { rowId: "b", field: "key", reason: "duplicate" },
+      { rowId: "c", field: "value", reason: "empty" },
+      { rowId: "d", field: "key", reason: "empty" },
+      // "go" -> "go" is recursive AND "go" is no command: both inputs are wrong.
+      { rowId: "e", field: "key", reason: "recursive" },
+      { rowId: "e", field: "value", reason: "unknown-target" },
+      { rowId: "f", field: "value", reason: "unknown-target" },
     ]);
   });
 
@@ -60,9 +68,43 @@ describe("rowsToAliases", () => {
     ]);
     expect(aliases).toEqual({});
     expect(issues).toEqual([
-      { rowId: "a", reason: "multi-word" },
-      { rowId: "b", reason: "shadows-builtin" },
+      { rowId: "a", field: "value", reason: "multi-word" },
+      { rowId: "b", field: "key", reason: "shadows-builtin" },
     ]);
+  });
+
+  it("reports the alias and the command separately when both are wrong", () => {
+    const { aliases, issues } = rowsToAliases([
+      row("a", "t", "task"),
+      row("b", "!task", "nope"),
+      row("c", "two words", "also two"),
+      row("d", "t", "nope"),
+    ]);
+    expect(aliases).toEqual({ t: "task" });
+    expect(issues).toEqual([
+      { rowId: "b", field: "key", reason: "shadows-builtin" },
+      { rowId: "b", field: "value", reason: "unknown-target" },
+      { rowId: "c", field: "key", reason: "multi-word" },
+      { rowId: "c", field: "value", reason: "multi-word" },
+      { rowId: "d", field: "key", reason: "duplicate" },
+      { rowId: "d", field: "value", reason: "unknown-target" },
+    ]);
+  });
+
+  it("only flags rows the shared validator rejects", () => {
+    // Row b repeats a's alias, but a is rejected (bad target) and never stored, so the
+    // validator accepts b: the per-field pass must not invent a duplicate for it.
+    const { aliases, issues } = rowsToAliases([row("a", "t", "nope"), row("b", "t", "task")]);
+    expect(aliases).toEqual({ t: "task" });
+    expect(issues).toEqual([{ rowId: "a", field: "value", reason: "unknown-target" }]);
+  });
+
+  it("has copy for every field a reason can land on", () => {
+    expect(aliasIssueMessage("key", "duplicate")).toMatch(/Duplicate alias/);
+    expect(aliasIssueMessage("value", "unknown-target")).toMatch(/Unknown command/);
+    expect(aliasIssueMessage("key", "empty")).toMatch(/alias/);
+    expect(aliasIssueMessage("value", "empty")).toMatch(/command/);
+    expect(aliasIssueMessage("value", "multi-word")).toMatch(/arguments/);
   });
 
   it("accepts aliases named after Object.prototype members", () => {

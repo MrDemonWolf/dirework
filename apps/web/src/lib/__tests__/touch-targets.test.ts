@@ -29,6 +29,29 @@ describe("touch targets", () => {
     expect(read("components/ui/input.tsx")).toContain("pointer-coarse:min-h-11");
   });
 
+  it("gives tab triggers a 44px minimum height on coarse pointers", () => {
+    const tabs = read("components/ui/tabs.tsx");
+    expect(tabs).toContain("pointer-coarse:min-h-11");
+    // The horizontal list's fixed h-8 would clip a taller trigger.
+    expect(tabs).toContain("pointer-coarse:group-data-[orientation=horizontal]/tabs:h-auto");
+  });
+
+  it("grows the switch's invisible hit area past 44px tall on coarse pointers", () => {
+    const switchSource = read("components/ui/switch.tsx");
+    // default: 18.4px track + 2 * 14px; sm: 14px track + 2 * 16px.
+    expect(switchSource).toContain("pointer-coarse:after:-inset-y-3.5");
+    expect(switchSource).toContain("pointer-coarse:data-[size=sm]:after:-inset-y-4");
+  });
+
+  it("gives section headers and reply variable chips a 44px minimum on coarse pointers", () => {
+    expect(read("components/section-group.tsx")).toMatch(
+      /<CollapsibleTrigger[^>]*pointer-coarse:min-h-11/,
+    );
+    expect(read("components/bot-settings/message-editor.tsx")).toMatch(
+      /aria-label=\{`Insert \$\{token\}`\}\s+className="[^"]*pointer-coarse:min-h-11 pointer-coarse:min-w-11/,
+    );
+  });
+
   it("only hides task-row actions when the pointer can hover, at any width", () => {
     const taskManager = read("components/task-manager.tsx");
     // `lg:opacity-0` hid Activate/Remove on touch tablets >= 1024px, where group-hover
@@ -46,6 +69,17 @@ describe("touch targets", () => {
     expect(read("components/header.tsx")).toMatch(new RegExp(`<header[^>]*${reEscape(sides)}`));
     expect(read("components/save-bar.tsx")).toMatch(
       new RegExp(`data-save-bar[\\s\\S]*?${reEscape(sides)}`),
+    );
+  });
+
+  it("lifts toasts above a visible Save bar on both breakpoints", async () => {
+    const { TOAST_OFFSET, TOAST_MOBILE_OFFSET } = await import("@/components/providers");
+    for (const offset of [TOAST_OFFSET, TOAST_MOBILE_OFFSET]) {
+      expect(offset.bottom).toContain("var(--save-bar-clearance, 0px)");
+    }
+    // Set only while a SaveBar is mounted, so pages without one keep the plain gutter.
+    expect(read("index.css")).toMatch(
+      /html:has\(\[data-save-bar\]\) \{[^}]*--save-bar-clearance: 3\.5rem;/,
     );
   });
 

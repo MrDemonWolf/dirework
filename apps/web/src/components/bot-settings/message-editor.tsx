@@ -13,8 +13,9 @@ import type { MessageField } from "@/lib/message-fields";
 import { previewVarsFor } from "@/lib/template-preview";
 import { ByteBudget } from "@/components/byte-budget";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { ConsoleRule } from "@/components/console-rule";
 import { CountBadge } from "@/components/count-badge";
+import { SectionGroup } from "@/components/section-group";
+import { StatusChip } from "@/components/status-chip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,8 +32,11 @@ export interface ReplyPreview {
 /**
  * ONE generic chat-message editor rendered for both the task and timer message
  * sets (audit L15 — replaces the two near-identical editors). Fields render in
- * console-rule subgroups; variable chips insert at the input's cursor and explain
- * themselves in a tooltip.
+ * collapsible groups (`SectionGroup`), closed by default so the tab stays short; a group
+ * opens itself while it holds an invalid field (it can't be closed then: Save is blocked on
+ * it), while a search is typed, and — until the owner toggles it — while it holds an
+ * unsaved edit. Variable chips insert at the input's cursor and explain themselves in a
+ * tooltip.
  *
  * Under every input sits the reply as the bot would send it — rendered by the bot's own
  * `interpolate`, so byte fitting and command-lead stripping show up too — filled with
@@ -43,27 +47,38 @@ export interface ReplyPreview {
  *
  * Each field shows its UTF-8 byte budget (`messageBudget`, capped at the server's
  * MAX_MESSAGE_TEMPLATE_BYTES). Typing past the cap is allowed and marked invalid; only chip
- * inserts are refused. The search filter is local UI state and matches label, key, or group.
+ * inserts are refused. The filter matches label, key, or group. Its text is held by the page (one
+ * per tab), so the Save bar's link to a reply can clear a filter that hides that reply.
  */
 export function MessageEditor<T extends object>({
   fields,
   idPrefix,
   values,
   defaults,
+  saved,
+  invalidKeys,
+  filter,
+  onFilterChange,
   onChange,
   preview,
-  disabled,
 }: {
   fields: readonly MessageField<Extract<keyof T, string>>[];
   idPrefix: string;
   values: T;
   /** Stock wording per key; drives the per-field and whole-tab "Reset to default". */
   defaults: T;
+  /** Last-saved values: a group holding a field that differs opens itself. */
+  saved: T;
+  /** Keys the server's input schema rejects as they stand (besides the byte budget). */
+  invalidKeys?: ReadonlySet<string>;
+  /** The filter box's text (the page's state; see the doc comment). */
+  filter: string;
+  onFilterChange: (filter: string) => void;
   onChange: (values: T) => void;
   preview: ReplyPreview;
-  disabled?: boolean;
 }) {
-  const [search, setSearch] = useState("");
+  // Only groups the owner toggled; the rest follow the open rule in the doc comment.
+  const [toggledGroups, setToggledGroups] = useState<Record<string, boolean>>({});
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const handleChange = (key: Extract<keyof T, string>, value: string) => {
@@ -92,7 +107,7 @@ export function MessageEditor<T extends object>({
 
   const anyCustomized = fields.some((field) => values[field.key] !== defaults[field.key]);
 
-  const query = search.toLowerCase();
+  const query = filter.toLowerCase();
   const filteredFields = fields.filter(
     (f) =>
       f.label.toLowerCase().includes(query) ||
@@ -114,10 +129,9 @@ export function MessageEditor<T extends object>({
           <Input
             className="h-9 pl-8 md:h-8"
             placeholder={`Filter ${fields.length} messages…`}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={filter}
+            onChange={(e) => onFilterChange(e.target.value)}
             aria-label="Filter messages"
-            disabled={disabled}
           />
         </div>
         {/* Resets every field in the tab, so it confirms (destructive-action rule) even
@@ -128,7 +142,7 @@ export function MessageEditor<T extends object>({
               variant="ghost"
               size="sm"
               className="shrink-0 text-muted-foreground"
-              disabled={disabled || !anyCustomized}
+              disabled={!anyCustomized}
             >
               <RotateCcw className="size-3.5" />
               Reset all
@@ -143,103 +157,122 @@ export function MessageEditor<T extends object>({
 
       {groups.map((group) => {
         const groupFields = filteredFields.filter((field) => field.group === group);
+        const invalid = groupFields.some(
+          (field) =>
+            messageBudget(values[field.key] as string).over || Boolean(invalidKeys?.has(field.key)),
+        );
+        const unsaved = groupFields.some((field) => values[field.key] !== saved[field.key]);
+        const open = invalid || query !== "" || (toggledGroups[group] ?? unsaved);
         return (
-          <section key={group} aria-label={group} className="space-y-3">
-            <ConsoleRule label={group}>
-              <CountBadge count={groupFields.length} />
-            </ConsoleRule>
-            <div className="space-y-4">
-              {groupFields.map((field) => {
-                const value = values[field.key] as string;
-                const stock = defaults[field.key] as string;
-                const budget = messageBudget(value);
-                const budgetId = `${idPrefix}-${field.key}-bytes`;
-                const previewId = `${idPrefix}-${field.key}-preview`;
-                const describedBy = [previewId, budget.nearLimit ? budgetId : null]
-                  .filter(Boolean)
-                  .join(" ");
-                return (
-                  <div key={field.key} className="space-y-1.5">
-                    <div className="flex min-h-6 items-center justify-between gap-2">
-                      <Label htmlFor={`${idPrefix}-${field.key}`} className="text-xs font-medium">
-                        {field.label}
-                      </Label>
-                      {value !== stock && (
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          className="text-muted-foreground"
-                          disabled={disabled}
-                          onClick={() => handleChange(field.key, stock)}
-                        >
-                          <RotateCcw />
-                          Reset to default
-                        </Button>
+          <section key={group} aria-label={group}>
+            <SectionGroup
+              title={group}
+              open={open}
+              onOpenChange={(next) => setToggledGroups((prev) => ({ ...prev, [group]: next }))}
+              trailing={
+                <>
+                  {invalid ? (
+                    <StatusChip tone="danger" size="sm" label="Fix" />
+                  ) : unsaved ? (
+                    <>
+                      <span aria-hidden className="size-1.5 rounded-full bg-warning" />
+                      <span className="sr-only">(unsaved changes)</span>
+                    </>
+                  ) : null}
+                  <CountBadge count={groupFields.length} />
+                </>
+              }
+            >
+              <div className="space-y-4">
+                {groupFields.map((field) => {
+                  const value = values[field.key] as string;
+                  const stock = defaults[field.key] as string;
+                  const budget = messageBudget(value);
+                  const budgetId = `${idPrefix}-${field.key}-bytes`;
+                  const previewId = `${idPrefix}-${field.key}-preview`;
+                  const describedBy = [previewId, budget.nearLimit ? budgetId : null]
+                    .filter(Boolean)
+                    .join(" ");
+                  return (
+                    <div key={field.key} className="space-y-1.5">
+                      <div className="flex min-h-6 items-center justify-between gap-2">
+                        <Label htmlFor={`${idPrefix}-${field.key}`} className="text-xs font-medium">
+                          {field.label}
+                        </Label>
+                        {value !== stock && (
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            className="text-muted-foreground"
+                            onClick={() => handleChange(field.key, stock)}
+                          >
+                            <RotateCcw />
+                            Reset to default
+                          </Button>
+                        )}
+                      </div>
+                      <Input
+                        id={`${idPrefix}-${field.key}`}
+                        ref={(node) => {
+                          inputRefs.current[field.key] = node;
+                        }}
+                        value={value}
+                        onChange={(e) => handleChange(field.key, e.target.value)}
+                        aria-invalid={budget.over || invalidKeys?.has(field.key) || undefined}
+                        aria-describedby={describedBy}
+                      />
+                      <ByteBudget id={budgetId} budget={budget} />
+                      <p
+                        id={previewId}
+                        className="rounded-lg bg-muted/40 px-2.5 py-1.5 text-xs/relaxed break-words text-muted-foreground"
+                      >
+                        <span className="sr-only">Preview: </span>
+                        <span className="font-medium text-primary">{preview.speaker}</span>
+                        <span aria-hidden>: </span>
+                        {value.trim() ? (
+                          interpolate(value, previewVarsFor(field, preview.vars))
+                        ) : (
+                          <span className="italic">(empty)</span>
+                        )}
+                      </p>
+                      {field.variables.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {field.variables.map((name) => {
+                            const token = `{${name}}`;
+                            return (
+                              <Tooltip key={name}>
+                                <TooltipTrigger
+                                  render={
+                                    <button
+                                      type="button"
+                                      onClick={() => insertVariable(field.key, token)}
+                                      aria-label={`Insert ${token}`}
+                                      className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-muted-foreground transition-colors pointer-coarse:min-h-11 pointer-coarse:min-w-11 pointer-coarse:px-2 hover:bg-primary/10 hover:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+                                    >
+                                      {token}
+                                    </button>
+                                  }
+                                />
+                                <TooltipContent>
+                                  {TEMPLATE_VARIABLES[name].description}
+                                </TooltipContent>
+                              </Tooltip>
+                            );
+                          })}
+                        </div>
                       )}
                     </div>
-                    <Input
-                      id={`${idPrefix}-${field.key}`}
-                      ref={(node) => {
-                        inputRefs.current[field.key] = node;
-                      }}
-                      value={value}
-                      onChange={(e) => handleChange(field.key, e.target.value)}
-                      disabled={disabled}
-                      aria-invalid={budget.over || undefined}
-                      aria-describedby={describedBy}
-                    />
-                    <ByteBudget id={budgetId} budget={budget} />
-                    <p
-                      id={previewId}
-                      className="rounded-lg bg-muted/40 px-2.5 py-1.5 text-xs/relaxed break-words text-muted-foreground"
-                    >
-                      <span className="sr-only">Preview: </span>
-                      <span className="font-medium text-primary">{preview.speaker}</span>
-                      <span aria-hidden>: </span>
-                      {value.trim() ? (
-                        interpolate(value, previewVarsFor(field, preview.vars))
-                      ) : (
-                        <span className="italic">(empty)</span>
-                      )}
-                    </p>
-                    {field.variables.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {field.variables.map((name) => {
-                          const token = `{${name}}`;
-                          return (
-                            <Tooltip key={name}>
-                              <TooltipTrigger
-                                render={
-                                  <button
-                                    type="button"
-                                    onClick={() => insertVariable(field.key, token)}
-                                    disabled={disabled}
-                                    aria-label={`Insert ${token}`}
-                                    className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
-                                  >
-                                    {token}
-                                  </button>
-                                }
-                              />
-                              <TooltipContent>
-                                {TEMPLATE_VARIABLES[name].description}
-                              </TooltipContent>
-                            </Tooltip>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            </SectionGroup>
           </section>
         );
       })}
 
       {filteredFields.length === 0 && (
         <p className="py-2 text-center text-xs text-muted-foreground">
-          No messages match &quot;{search}&quot;.
+          No messages match &quot;{filter}&quot;.
         </p>
       )}
     </div>

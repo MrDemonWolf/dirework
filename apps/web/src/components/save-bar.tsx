@@ -21,6 +21,7 @@ export function SaveBar({
   label = "Unsaved changes",
   saveHint,
   blockedReason,
+  onBlockedReasonClick,
 }: {
   visible: boolean;
   saving: boolean;
@@ -31,6 +32,8 @@ export function SaveBar({
   saveHint?: string;
   /** Why Save is unavailable (a field the server would reject); disables Save while set. */
   blockedReason?: string | null;
+  /** When set, the blocked reason is a button that takes the owner to the field at fault. */
+  onBlockedReasonClick?: () => void;
 }) {
   return (
     <>
@@ -47,6 +50,7 @@ export function SaveBar({
           label={label}
           saveHint={saveHint ?? null}
           blockedReason={blockedReason ?? null}
+          onBlockedReasonClick={onBlockedReasonClick}
         />
       )}
     </>
@@ -61,6 +65,7 @@ function SaveBarPanel({
   label,
   saveHint,
   blockedReason,
+  onBlockedReasonClick,
 }: {
   saving: boolean;
   onSave: () => void;
@@ -68,6 +73,7 @@ function SaveBarPanel({
   label: string;
   saveHint: string | null;
   blockedReason: string | null;
+  onBlockedReasonClick?: () => void;
 }) {
   // The blocked reason wins: it is why Save is disabled. The hint stays in the
   // accessible description even where it is hidden on narrow screens.
@@ -80,11 +86,22 @@ function SaveBarPanel({
       <div className="container mx-auto flex max-w-content items-center justify-between gap-3 px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <StatusChip tone="warn" label={label} />
-          {blockedReason && (
-            <p id="save-bar-blocked" className="truncate text-xs text-destructive">
-              {blockedReason}
-            </p>
-          )}
+          {blockedReason &&
+            (onBlockedReasonClick ? (
+              // Takes the owner to the field at fault (the page switches tab and focuses it).
+              <button
+                id="save-bar-blocked"
+                type="button"
+                onClick={onBlockedReasonClick}
+                className="truncate rounded text-left text-xs text-destructive underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                {blockedReason}
+              </button>
+            ) : (
+              <p id="save-bar-blocked" className="truncate text-xs text-destructive">
+                {blockedReason}
+              </p>
+            ))}
         </div>
         <div className="flex items-center gap-2">
           {saveHint && !blockedReason && (

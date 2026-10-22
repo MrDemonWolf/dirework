@@ -28,6 +28,34 @@ export function describeIssues(issues: readonly IssueLike[]): string {
   return issues.length > 1 ? `${text} (+${issues.length - 1} more)` : text;
 }
 
+/**
+ * A zod message rewritten for a named field: the byte cap as the chat limit it is, the rest
+ * prefixed with the field's label.
+ */
+function describeFieldMessage(label: string, message: string): string {
+  const bytes = /at most (\d+) bytes/.exec(message);
+  if (bytes) return `'${label}' is over the ${bytes[1]}-byte chat limit`;
+  if (/control characters/.test(message)) return `'${label}' contains a control character`;
+  return `'${label}': ${message}`;
+}
+
+/**
+ * Like `describeIssues`, but names the first issue's field by the label the owner sees
+ * (`resolve` maps an issue path to it, or null to fall back to the path in words), and hands
+ * that field back so the caller can focus it.
+ */
+export function describeFieldIssues<F extends { label: string }>(
+  issues: readonly IssueLike[],
+  resolve: (path: readonly PropertyKey[]) => F | null,
+): { text: string; field: F | null } {
+  const [first] = issues;
+  if (!first) return { text: "Invalid input", field: null };
+  const field = resolve(first.path);
+  if (!field) return { text: describeIssues(issues), field: null };
+  const text = describeFieldMessage(field.label, first.message);
+  return { text: issues.length > 1 ? `${text} (+${issues.length - 1} more)` : text, field };
+}
+
 function isIssueList(value: unknown): value is IssueLike[] {
   return (
     Array.isArray(value) &&
