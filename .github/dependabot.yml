@@ -49,6 +49,12 @@ updates:
       trpc:
         patterns:
           - "@trpc/*"
+      # fumadocs-ui pins fumadocs-core to its own exact version and fumadocs-mdx
+      # requires a minimum fumadocs-core, so a lone bump of one of them fails the
+      # docs type check (a skewed or second fumadocs-core copy).
+      fumadocs:
+        patterns:
+          - "fumadocs-*"
       react:
         patterns:
           - "react"
