@@ -28,6 +28,7 @@ import {
   noteChatError,
   noteChatReply,
   noteIngestHealthy,
+  noteSessionRefreshed,
 } from "@/lib/bot-chat-error";
 import { createBotSession, type BotActivityKind, type BotPhase } from "@/lib/bot-session";
 import { TwitchIrcClient, type IrcStatus } from "@/lib/irc-client";
@@ -181,6 +182,7 @@ export function BotConsole() {
         // reply is queued, and the rate limiter can hold it past the clear window.
         onIngestHealthy: () => setChatErrorState(noteIngestHealthy),
         onReplySent: () => setChatErrorState((prev) => noteChatReply(prev, Date.now())),
+        onSessionRefreshed: () => setChatErrorState(noteSessionRefreshed),
         onMuted: setMuted,
       },
     });

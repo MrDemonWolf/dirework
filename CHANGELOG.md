@@ -214,7 +214,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   activity log, which a 400×200 OBS source never shows, while the header kept a green
   **Connected**. The LED now turns amber, the header reads **Chat error** and the reason sits
   under it, until a later reply goes through. DireWork dropping commands shows there too, until
-  commands flow again, and a reconnect never clears either one. The **Seen** counter is now
+  commands flow again, and a reconnect never clears either one. A failed hourly login refresh
+  stays up until a later refresh succeeds, not just until the next reply. The **Seen** counter is now
   **Chat lines**, and "Dashboard → Bot" on the bot page is a link that opens a new tab, so a
   bot running in a pinned tab stays up.
 - **Theme Center and Bot settings open on your saved values.** Both editors used to render

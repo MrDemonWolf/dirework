@@ -2,7 +2,7 @@
 // derive it from the bot session's events and the 1s uptime tick: no extra timers, no
 // change to the session state machine.
 
-import { isIngestError } from "./bot-session";
+import { isIngestError, isLoginRefreshError } from "./bot-session";
 import { isChatRejection } from "./irc-client";
 
 /**
@@ -29,28 +29,33 @@ export interface ChatErrorEntry {
  *   survives a reconnect, and clears once a later reply goes unrefused.
  * - `ingest`: DireWork dropped a command, or the ingest queue backed up. IRC knows nothing
  *   about it; it clears only when the session reports ingest healthy again.
+ * - `login`: the hourly revalidation couldn't refresh the bot's Twitch login. The live socket
+ *   may keep working until the token expires, so neither a reply nor a reconnect clears it;
+ *   only a later getSession that succeeds (`noteSessionRefreshed`).
  * - `connection`: anything else (the socket, the watchdog, a login refresh). A fresh connect
  *   or a reply that goes through clears it, and it never hides a durable error.
  */
 export interface ChatErrorState {
   rejection: ChatErrorEntry | null;
   ingest: ChatErrorEntry | null;
+  login: ChatErrorEntry | null;
   connection: ChatErrorEntry | null;
 }
 
 type Slot = keyof ChatErrorState;
 
-const EMPTY: ChatErrorState = { rejection: null, ingest: null, connection: null };
+const EMPTY: ChatErrorState = { rejection: null, ingest: null, login: null, connection: null };
 
 function slotFor(message: string): Slot {
   if (isChatRejection(message)) return "rejection";
   if (isIngestError(message)) return "ingest";
+  if (isLoginRefreshError(message)) return "login";
   return "connection";
 }
 
 /** The state, or null once every slot is empty, so "no error" stays a plain null. */
 function pack(state: ChatErrorState): ChatErrorState | null {
-  return state.rejection || state.ingest || state.connection ? state : null;
+  return state.rejection || state.ingest || state.login || state.connection ? state : null;
 }
 
 /** A new error replaces the last one of the same cause and restarts its clear window. */
@@ -88,6 +93,12 @@ export function noteChatConnected(state: ChatErrorState | null): ChatErrorState 
   return pack({ ...state, connection: null });
 }
 
+/** A getSession succeeded: the bot's Twitch login refreshes again. */
+export function noteSessionRefreshed(state: ChatErrorState | null): ChatErrorState | null {
+  if (!state?.login) return state;
+  return pack({ ...state, login: null });
+}
+
 /** The ingest queue drained after a command reached DireWork: an ingest error is over. */
 export function noteIngestHealthy(state: ChatErrorState | null): ChatErrorState | null {
   if (!state?.ingest) return state;
@@ -105,7 +116,9 @@ function showing(entry: ChatErrorEntry | null, now: number): entry is ChatErrorE
  */
 export function currentChatError(state: ChatErrorState | null, now: number): string | null {
   if (!state) return null;
-  const durable = [state.rejection, state.ingest].filter((entry) => showing(entry, now));
+  const durable = [state.rejection, state.ingest, state.login].filter((entry) =>
+    showing(entry, now),
+  );
   durable.sort((a, b) => b.at - a.at);
   const shown = durable[0] ?? (showing(state.connection, now) ? state.connection : null);
   return shown?.message ?? null;

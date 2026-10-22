@@ -44,6 +44,18 @@ export function isIngestError(message: string): boolean {
   return message === INGEST_DROPPED_MESSAGE || message === INGEST_BACKLOG_MESSAGE;
 }
 
+/**
+ * Logged when the hourly revalidation finds the bot's Twitch login can no longer be refreshed
+ * while the live socket still works. A reply or a new socket says nothing about the refresh
+ * credentials, so only `onSessionRefreshed` (a later getSession that succeeds) clears it.
+ */
+export const BOT_LOGIN_REFRESH_FAILED_MESSAGE =
+  "couldn't refresh the bot login — reconnect the bot account in Dashboard → Bot";
+
+export function isLoginRefreshError(message: string): boolean {
+  return message === BOT_LOGIN_REFRESH_FAILED_MESSAGE;
+}
+
 export type BotIngestInput =
   | {
       token: string;
@@ -105,6 +117,11 @@ export interface BotSessionEvents {
   onIngestHealthy(): void;
   /** A reply left the IRC send queue for Twitch (not when it was queued: see `onSent`). */
   onReplySent(): void;
+  /**
+   * A getSession call (startup, recovery or the hourly revalidation) succeeded, so the bot's
+   * Twitch login refreshes again and an earlier login-refresh error no longer holds.
+   */
+  onSessionRefreshed(): void;
   /** Fired only when the mute switch changes (a mod's !mute/!unmute, or the dashboard). */
   onMuted(muted: boolean): void;
 }
@@ -368,6 +385,7 @@ export function createBotSession({
         revalidate: !opts.forceRefresh,
       });
       if (inactive()) return;
+      events.onSessionRefreshed();
       retryAttempts = 0;
       notConfigured = false;
       wasLive = true;
@@ -436,6 +454,7 @@ export function createBotSession({
     try {
       const session = await api.getSession({ token, revalidate: true });
       if (inactive()) return;
+      events.onSessionRefreshed();
       // Alias edits on the dashboard reach a running page here (or on reload).
       applyAliases(session);
       applyMuted(session.muted);
@@ -460,10 +479,7 @@ export function createBotSession({
       if (kind === "reauth") {
         // The live socket may still be authenticated, so keep it. If Twitch
         // later rejects it, the auth-failure path ends on the reauth screen.
-        events.onActivity(
-          "error",
-          "couldn't refresh the bot login — reconnect the bot account in Dashboard → Bot",
-        );
+        events.onActivity("error", BOT_LOGIN_REFRESH_FAILED_MESSAGE);
       }
       // Otherwise transient — the next hourly tick retries.
     }

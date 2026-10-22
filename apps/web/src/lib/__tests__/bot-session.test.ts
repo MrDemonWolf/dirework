@@ -64,6 +64,7 @@ function setup(api: Partial<BotSessionApi> = {}) {
     onActivity: vi.fn(),
     onReplySent: vi.fn(),
     onIngestHealthy: vi.fn(),
+    onSessionRefreshed: vi.fn(),
     onMuted: vi.fn(),
   };
   const session = createBotSession({
@@ -337,6 +338,21 @@ describe("createBotSession reauth", () => {
       "error",
       "couldn't refresh the bot login — reconnect the bot account in Dashboard → Bot",
     );
+  });
+
+  it("reports a session refresh only when getSession succeeds", async () => {
+    const { getSession, events } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(events.onSessionRefreshed).toHaveBeenCalledTimes(1);
+
+    getSession.mockRejectedValue(trpcError("PRECONDITION_FAILED", BOT_REAUTH_REQUIRED_MESSAGE));
+    await vi.advanceTimersByTimeAsync(REVALIDATE_INTERVAL_MS);
+    expect(events.onSessionRefreshed).toHaveBeenCalledTimes(1);
+
+    // The owner reconnected the bot account: the next hourly check succeeds.
+    getSession.mockResolvedValue(SESSION);
+    await vi.advanceTimersByTimeAsync(REVALIDATE_INTERVAL_MS);
+    expect(events.onSessionRefreshed).toHaveBeenCalledTimes(2);
   });
 });
 

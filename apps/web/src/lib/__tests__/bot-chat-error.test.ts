@@ -7,9 +7,14 @@ import {
   noteChatError,
   noteChatReply,
   noteIngestHealthy,
+  noteSessionRefreshed,
   REPLY_CLEAR_GRACE_MS,
 } from "../bot-chat-error";
-import { INGEST_BACKLOG_MESSAGE, INGEST_DROPPED_MESSAGE } from "../bot-session";
+import {
+  BOT_LOGIN_REFRESH_FAILED_MESSAGE,
+  INGEST_BACKLOG_MESSAGE,
+  INGEST_DROPPED_MESSAGE,
+} from "../bot-session";
 
 const BANNED = "Twitch didn't post the bot's reply: the bot account is banned from this channel";
 const WENT_SILENT = "Twitch IRC went silent — reconnecting";
@@ -72,6 +77,22 @@ describe("bot page chat error", () => {
     const silent = noteChatError(null, WENT_SILENT, 1_000);
     expect(noteIngestHealthy(silent)).toBe(silent);
     expect(noteIngestHealthy(null)).toBeNull();
+  });
+
+  it("keeps a login-refresh error through replies and reconnects until a session refresh", () => {
+    // The live socket can keep posting after the hourly revalidation finds the refresh
+    // credentials broken, so neither a sent reply nor a Twitch RECONNECT proves them fixed.
+    let state: ChatErrorState | null = noteChatError(null, BOT_LOGIN_REFRESH_FAILED_MESSAGE, 1_000);
+    state = noteChatConnected(noteChatReply(state, 2_000));
+    expect(currentChatError(state, 2_000 + REPLY_CLEAR_GRACE_MS * 10)).toBe(
+      BOT_LOGIN_REFRESH_FAILED_MESSAGE,
+    );
+    expect(noteIngestHealthy(state)).toBe(state);
+
+    expect(noteSessionRefreshed(state)).toBeNull();
+    const banned = noteChatError(null, BANNED, 1_000);
+    expect(noteSessionRefreshed(banned)).toBe(banned);
+    expect(noteSessionRefreshed(null)).toBeNull();
   });
 
   it("clears a connection error on a fresh IRC connect", () => {
