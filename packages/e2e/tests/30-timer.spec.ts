@@ -1,5 +1,5 @@
-import { DEFAULT_PHASE_LABELS } from "@dirework/api/config-defaults";
-import { expect, test } from "@playwright/test";
+import { DEFAULT_PHASE_LABELS, DEFAULT_TIMER_STYLES } from "@dirework/api/config-defaults";
+import { expect, test, type Page } from "@playwright/test";
 
 import { confirmDialog, revealSecretUrl, signIn } from "./helpers";
 
@@ -57,4 +57,79 @@ test("starts a session, shows it ticking on the timer overlay, and stops it", as
   await stop.click();
   await confirmDialog(page, "Stop timer");
   await expect(start).toBeVisible();
+});
+
+/**
+ * Show hours has no dashboard control yet; the owner sets it through the same `/rpc` proxy
+ * the dashboard uses (session cookie, JSON body).
+ */
+async function setShowHours(page: Page, showHours: boolean): Promise<void> {
+  const res = await page.request.post("/rpc/config.updateTimerConfig", {
+    headers: { "content-type": "application/json" },
+    data: { showHours },
+  });
+  expect(res.ok(), `config.updateTimerConfig answered ${res.status()}`).toBe(true);
+}
+
+/** Save the Idle phase label in the Theme Center (a no-op when it already reads `text`). */
+async function setIdleLabel(page: Page, text: string): Promise<void> {
+  await page.goto("/dashboard/styles");
+  await page.getByRole("tab", { name: "Phase labels" }).click();
+  const idle = page.getByLabel("Idle", { exact: true });
+  if ((await idle.inputValue()) === text) return;
+  await idle.fill(text);
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Styles saved")).toBeVisible();
+}
+
+test("keeps the overlay's text inside the progress ring, with and without hours", async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(60_000);
+  await signIn(page);
+  await page.goto("/dashboard");
+  const overlayUrl = await revealSecretUrl(page, "Timer overlay");
+  const overlay = await context.newPage();
+  // Every preset shares the default frame and ring geometry. The timer is idle here (the
+  // test above stops it), so the overlay shows the idle label over the full work length.
+  const { dimensions, ring } = DEFAULT_TIMER_STYLES;
+  const inset = ring.width + ring.gap;
+  // The longest default label ("Gathering the Pack") as the idle one: at its configured
+  // size it is wider than the ring, so it must be shrunk to fit, not wrapped or clipped.
+  const longLabel = DEFAULT_PHASE_LABELS.starting;
+  await setIdleLabel(page, longLabel);
+
+  try {
+    for (const showHours of [false, true]) {
+      await setShowHours(page, showHours);
+      await overlay.goto(overlayUrl);
+      const clock = overlay.getByText(showHours ? /^\d{2}:\d{2}:\d{2}$/ : /^\d{2}:\d{2}$/);
+      await expect(clock).toBeVisible();
+      const ringBox = await overlay.getByRole("img", { name: "Timer progress ring" }).boundingBox();
+      if (!ringBox) throw new Error("the progress ring has no box");
+      // The overlay scales the frame to the window, and the ring's inner edge with it.
+      const scale = ringBox.width / Number.parseFloat(dimensions.width);
+      const inner = {
+        left: ringBox.x + inset * scale,
+        right: ringBox.x + ringBox.width - inset * scale,
+        top: ringBox.y + inset * scale,
+        bottom: ringBox.y + ringBox.height - inset * scale,
+      };
+      const label = overlay.getByText(longLabel, { exact: true });
+      for (const line of [clock, label]) {
+        const box = await line.boundingBox();
+        if (!box) throw new Error("a text line has no box");
+        const where = `"${await line.textContent()}" (hours ${showHours ? "on" : "off"})`;
+        expect(box.x, `${where} left edge`).toBeGreaterThanOrEqual(inner.left);
+        expect(box.x + box.width, `${where} right edge`).toBeLessThanOrEqual(inner.right);
+        expect(box.y, `${where} top edge`).toBeGreaterThanOrEqual(inner.top);
+        expect(box.y + box.height, `${where} bottom edge`).toBeLessThanOrEqual(inner.bottom);
+      }
+    }
+  } finally {
+    await setShowHours(page, false);
+    await overlay.close();
+    await setIdleLabel(page, DEFAULT_PHASE_LABELS.idle);
+  }
 });

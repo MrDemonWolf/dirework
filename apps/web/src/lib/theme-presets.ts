@@ -91,7 +91,7 @@ export const themePresets: ThemePreset[] = [
         outlineSize: "0px",
         fontFamily: "Montserrat",
       },
-      fontSizes: { label: "24px", time: "76px", cycle: "20px" },
+      fontSizes: { label: "20px", time: "64px", cycle: "18px" },
     },
     taskStyles: tasks({
       header: {
@@ -154,7 +154,7 @@ export const themePresets: ThemePreset[] = [
         outlineSize: "0px",
         fontFamily: "Montserrat",
       },
-      fontSizes: { label: "24px", time: "76px", cycle: "20px" },
+      fontSizes: { label: "20px", time: "64px", cycle: "18px" },
     },
     taskStyles: tasks({
       fonts: { header: "Montserrat", body: "Roboto" },
@@ -218,7 +218,7 @@ export const themePresets: ThemePreset[] = [
         outlineSize: "0px",
         fontFamily: "Montserrat",
       },
-      fontSizes: { label: "24px", time: "76px", cycle: "20px" },
+      fontSizes: { label: "20px", time: "64px", cycle: "18px" },
     },
     taskStyles: tasks({
       fonts: { header: "Montserrat", body: "Roboto" },
@@ -282,7 +282,7 @@ export const themePresets: ThemePreset[] = [
         outlineSize: "0px",
         fontFamily: "Montserrat",
       },
-      fontSizes: { label: "24px", time: "76px", cycle: "20px" },
+      fontSizes: { label: "20px", time: "64px", cycle: "18px" },
     },
     taskStyles: tasks({
       header: {
@@ -345,7 +345,7 @@ export const themePresets: ThemePreset[] = [
         outlineSize: "0px",
         fontFamily: "Montserrat",
       },
-      fontSizes: { label: "24px", time: "76px", cycle: "20px" },
+      fontSizes: { label: "20px", time: "64px", cycle: "18px" },
     },
     taskStyles: tasks({
       header: {

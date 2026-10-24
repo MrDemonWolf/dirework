@@ -11,6 +11,7 @@ import {
   phaseTotalMs,
   remainingFromState,
   resolvePhaseDuration,
+  ringFitsFrame,
   roundedRectPath,
 } from "../timer-utils";
 import { TIMER_CONFIG_DEFAULTS } from "../config-types";
@@ -294,11 +295,28 @@ describe("clockFontScale / clockFontSize", () => {
     expect(clockFontSize("76px", "01:25:00")).toBe(`calc(76px * ${scale})`);
   });
 
-  it("at the 76px default, the hour form lands near 49px", () => {
-    expect(76 * clockFontScale("01:25:00")).toBeCloseTo(49, 0);
+  it("at the 64px default, the hour form lands near 41px", () => {
+    expect(64 * clockFontScale("01:25:00")).toBeCloseTo(41, 0);
   });
 
   it("also shrinks minute counts past 99", () => {
     expect(clockFontScale("120:00")).toBeLessThan(1);
+  });
+});
+
+describe("ringFitsFrame", () => {
+  const ring = { width: 14, gap: 10 };
+
+  it("needs more than the stroke's centerline inset on both sides of each axis", () => {
+    // The centerline sits 14 / 2 + 10 = 17px in: 34px leaves no path, 35px leaves 1px.
+    expect(ringFitsFrame(300, 300, ring)).toBe(true);
+    expect(ringFitsFrame(35, 35, ring)).toBe(true);
+    expect(ringFitsFrame(34, 300, ring)).toBe(false);
+    expect(ringFitsFrame(300, 34, ring)).toBe(false);
+  });
+
+  it("grows the room it needs with the stroke and the gap", () => {
+    expect(ringFitsFrame(300, 300, { width: 200, gap: 50 })).toBe(false);
+    expect(ringFitsFrame(300, 300, { width: 100, gap: 99 })).toBe(true);
   });
 });

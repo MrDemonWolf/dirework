@@ -94,8 +94,10 @@ export function formatTime(
 
 /**
  * Approximate advance widths (em) of the countdown glyphs in Montserrat bold with
- * tabular digits: "25:00" ≈ 4 × 0.7 + 0.3 = 3.1em, which at the default 76px is
- * ≈ 236px, inside a 300px timer's ≈ 252px ring interior.
+ * tabular digits: "25:00" ≈ 4 × 0.7 + 0.3 = 3.1em, which at the default 64px is
+ * ≈ 198px, inside a 300px timer's 252px ring interior. This is only the first,
+ * deterministic guess: TimerDisplay then measures the real glyphs and shrinks any
+ * line that still crosses the ring (timer-fit.ts).
  */
 const CLOCK_DIGIT_EM = 0.7;
 const CLOCK_SEPARATOR_EM = 0.3;
@@ -118,6 +120,22 @@ export function clockFontScale(text: string): number {
 export function clockFontSize(configured: string, text: string): string {
   const scale = clockFontScale(text);
   return scale === 1 ? configured : `calc(${configured} * ${scale})`;
+}
+
+/**
+ * Whether a `width`×`height` (px) timer frame has room to draw the progress ring. The
+ * stroke's centerline sits `ring.width / 2 + ring.gap` in from every edge, so a side no
+ * longer than twice that leaves no path: ProgressRing then draws nothing, and the text
+ * fit (`fitShape`) must treat the ring as off rather than fit the text inside a ring
+ * that isn't there.
+ */
+export function ringFitsFrame(
+  width: number,
+  height: number,
+  ring: { width: number; gap: number },
+): boolean {
+  const inset = ring.width / 2 + ring.gap;
+  return width - inset * 2 > 0 && height - inset * 2 > 0;
 }
 
 /** Configured phase lengths (ms) — shape matches the overlay timerConfig payload. */

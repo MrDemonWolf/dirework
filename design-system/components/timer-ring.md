@@ -12,8 +12,10 @@ optional progress ring. `TimerDisplay` renders it for the OBS timer overlay
 (`/overlay/t/[token]`, wrapped in `AutoScale` and `FontGate`) and for the Theme Center
 live preview (`style-preview-panel`), so the preview is the overlay. Pure presentation:
 the overlay page owns polling and hands it the view from `timerOverlayView`
-(`lib/overlay-view.ts`). The docs landing mock (`TimerOverlayWidget`) shares its geometry
-and clock formatting through `@dirework/overlay-kit`.
+(`lib/overlay-view.ts`). The text lines are fitted inside the ring by `useTimerTextFit`
+(`lib/use-timer-text-fit.ts`) with the pure geometry in `lib/timer-fit.ts`. The docs
+landing mock (`TimerOverlayWidget`) shares its geometry and clock formatting through
+`@dirework/overlay-kit`.
 
 It reads the streamer's saved timer style, not the UI tokens; `overlay.squircleRadius`
 in `tokens.json` mirrors the default 22% corner.
@@ -29,8 +31,17 @@ in `tokens.json` mirrors the default 22% corner.
   whose corner follows the first border-radius value. The stroke is inset by
   `ring.width / 2 + ring.gap`, so at the default the ring sits `14 / 2 + 10 = 17px` in:
   a 266px box with a clear interior of about 252px.
-- **Column** (`gap-1`, 4px), centered: label (uppercase, `0.15em` tracking, medium),
-  countdown (bold, `tabular-nums`, line-height 1.1), cycle line `{n}/{total}`.
+- **Column** (`TIMER_LINE_GAP_PX`, 4px), centered: label (uppercase, `0.15em` tracking,
+  medium), countdown (bold, `tabular-nums`, line-height 1.1), cycle line `{n}/{total}`.
+  Lines never wrap.
+- **Fit to the ring**: every line is measured at its configured size and shrunk (never
+  grown) until it sits inside the ring's inner edge less `FIT_PADDING_PX` (6px) a side:
+  the chord at the line's height for a circle, the inner width (narrowing in the corner
+  bands) for a squircle, the panel itself with the ring off or with no room to draw it
+  (`ringFitsFrame`, the rule `ProgressRing` skips by). See `fitShape` / `fitTimerLines`
+  in `lib/timer-fit.ts`. One still too wide at `MIN_FIT_SCALE` (half size) ends in an
+  ellipsis. So a long phase label ("Gathering the Pack" is about 290px at 20px) shrinks
+  instead of spilling over the ring.
 
 ## Props and variants
 
@@ -68,15 +79,15 @@ changed or added default fails until this spec moves with it.
 | `text.outlineColor` | `DEFAULT_TIMER_STYLES` | `#000000` |
 | `text.outlineSize` | `DEFAULT_TIMER_STYLES` | `0px` |
 | `text.fontFamily` | `DEFAULT_TIMER_STYLES` | `Montserrat` |
-| `fontSizes.label` | `DEFAULT_TIMER_STYLES` | `24px` |
-| `fontSizes.time` | `DEFAULT_TIMER_STYLES` | `76px` |
-| `fontSizes.cycle` | `DEFAULT_TIMER_STYLES` | `20px` |
+| `fontSizes.label` | `DEFAULT_TIMER_STYLES` | `20px` |
+| `fontSizes.time` | `DEFAULT_TIMER_STYLES` | `64px` |
+| `fontSizes.cycle` | `DEFAULT_TIMER_STYLES` | `18px` |
 | `TIMER_CYCLE_OPACITY` | `lib/overlay-view.ts` | `0.8` |
 
-At 300px, `25:00` at 76px is about 236px wide and the three lines stack to about 137px,
-so both fit inside the ring. The track at 0.14 is present, but the fill reads first. The
-cycle line is the text color at `TIMER_CYCLE_OPACITY`, contrast-tested over the
-background composited on both black and white (`theme-contrast.test.ts`).
+At 300px, `25:00` at 64px is about 200px wide, leaving about 26px to the ring on each
+side. The track at 0.14 is present, but the fill reads first. The cycle line is the text
+color at `TIMER_CYCLE_OPACITY`, contrast-tested over the background composited on both
+black and white (`theme-contrast.test.ts`).
 
 ## States
 
@@ -87,8 +98,12 @@ background composited on both black and white (`theme-contrast.test.ts`).
   transition.
 - **Paused**: the ring measures against the phase it froze in (`resolvePhaseDuration`).
 - **Hours**: with `showHours` (or past 99 minutes), `clockFontSize` (`lib/timer-utils.ts`)
-  shrinks the digits so `01:25:00` is no wider than `25:00` (about 49px at the default).
+  shrinks the digits so `01:25:00` is no wider than `25:00` (about 41px at the default).
   It never grows text.
+- **Fitted**: a long phase label, a wide font, a big size or a circle ring's narrower
+  chord shrinks just the line that would cross the ring; below `MIN_FIT_SCALE` it ends in
+  "…". It re-fits only when an input changes (the clock's length, not each tick) or a web
+  font finishes loading.
 - **No payload or reset token**: the overlay page renders nothing (`timerOverlayView`
   returns null), never a fake `00:00`.
 - **Relative sizes**: `%` or `vw` dimensions can't be measured, so the ring is skipped
@@ -99,8 +114,9 @@ background composited on both black and white (`theme-contrast.test.ts`).
 - The overlay is a browser-source surface, not an interactive page. The ring SVG carries
   `<title>Timer progress ring</title>`; the label, digits and cycle line are plain text.
 - e2e (`30-timer.spec.ts`) reads the overlay by text: the work label
-  (`DEFAULT_PHASE_LABELS.work`), the fresh digits and `1/4`. Keep them visible text
-  nodes, not images or pseudo-elements.
+  (`DEFAULT_PHASE_LABELS.work`), the fresh digits and `1/4`, and checks that the longest
+  default label and the clock (with and without hours) stay inside the ring's inner edge.
+  Keep them visible text nodes, not images or pseudo-elements.
 - `text.outlineSize` adds a `text-shadow` halo for legibility over busy scenes.
 
 ## Do / Don't
@@ -111,3 +127,7 @@ background composited on both black and white (`theme-contrast.test.ts`).
 - **Don't** add a perpetual animation (pulse, glow): an overlay repaints on every frame
   of the stream.
 - **Don't** compute the countdown from the poll; it ticks locally from `targetEndTime`.
+- **Don't** let a text line wrap or grow past its configured size, and don't measure per
+  tick: `useTimerTextFit` reads each box once per input change. Keep `observeFrameSize`
+  (a ResizeObserver on the frame plus a window `resize` listener): relative dimensions and
+  viewport-relative font sizes change the boxes without changing any input.

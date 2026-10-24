@@ -215,6 +215,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The dashboard, Theme Center and Bot pages no longer throw away their server render when your
   OS colour scheme differs from the app theme. The page was being drawn a second time in the
   browser, briefly showing every control twice.
+- The timer overlay's text no longer runs into the progress ring or past the panel's edge. A
+  long phase label (the default "Gathering the Pack" did) wrapped onto two lines and spilled
+  over the ring, and with a circle ring even "On the Hunt" touched it. Each line (label,
+  countdown, cycle) now shrinks just enough to sit inside the ring, for any font, label,
+  size or ring shape; it never grows past the size you set, and a label too long even at
+  half size ends in "…". The default text is also smaller (label 20px, countdown 64px,
+  cycle 18px, was 24/76/20), so `25:00` keeps a clear margin to the ring. If you never
+  changed the font sizes, you get the new ones automatically; sizes you set yourself stay.
 ### Upgrade notes
 - Database migration `0019_bot_mute_blocklist` applies automatically on the next deploy. It
   only adds two columns to `bot_config` (`muted`, `blocked_viewers`), so rolling the workers

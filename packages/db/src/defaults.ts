@@ -284,7 +284,12 @@ export type StyleColumnValue = string | number | boolean;
  */
 export const LEGACY_TIMER_STYLE_VALUES: Partial<
   Record<keyof typeof TIMER_STYLE_COLUMN_DEFAULTS, readonly StyleColumnValue[]>
-> = {};
+> = {
+  // 24/76/20 (PR #152) ran the countdown to within a few px of the ring at 300×300.
+  fontSizeLabel: ["24px"],
+  fontSizeTime: ["76px"],
+  fontSizeCycle: ["20px"],
+};
 
 /** task_style counterpart of LEGACY_TIMER_STYLE_VALUES. Append, never remove. */
 export const LEGACY_TASK_STYLE_VALUES: Partial<
@@ -310,7 +315,7 @@ export const DEFAULT_TIMER_STYLES = {
     gap: 10,
   },
   text: { color: "#ffffff", outlineColor: "#000000", outlineSize: "0px", fontFamily: "Montserrat" },
-  fontSizes: { label: "24px", time: "76px", cycle: "20px" },
+  fontSizes: { label: "20px", time: "64px", cycle: "18px" },
 };
 
 /** Task overlay counterpart of DEFAULT_TIMER_STYLES (same rules). */
