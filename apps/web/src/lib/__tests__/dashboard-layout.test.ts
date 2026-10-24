@@ -15,13 +15,24 @@ const timerControls = read("components/timer-controls.tsx");
 const skeleton = read("components/dashboard-skeleton.tsx");
 
 describe("dashboard layout", () => {
-  it("shows the bot's status exactly once, on the bot strip", () => {
-    // The header used to carry a second "Bot ready" / "Bot not connected" chip.
-    expect(dashboard).not.toContain("Bot ready");
-    expect(dashboard).not.toContain("Bot not connected");
-    const botChips = dashboard.match(/<StatusChip[^>]*label="(Ready|Not connected)"/g) ?? [];
-    expect(botChips).toHaveLength(2); // one per branch of the strip's ternary
-    expect(dashboard.match(/botAccount \? \(/g)).toHaveLength(1);
+  it("shows the bot's status exactly once, as the header chip that links to Bot settings", () => {
+    // The bottom bot strip repeated the header chip; the owner kept the chip.
+    expect(dashboard).not.toContain("Bot settings & console");
+    expect(
+      dashboard.match(/label=\{botAccount \? "Bot ready" : "Bot not connected"\}/g),
+    ).toHaveLength(1);
+    expect(dashboard).toMatch(/<Link\s+href=\{"\/dashboard\/bot" as const\}[\s\S]*?<StatusChip/);
+  });
+
+  it("gives the bot chip link a 44px touch target", () => {
+    const link = dashboard.match(/<Link\s+href=\{"\/dashboard\/bot" as const\}[\s\S]*?>/)?.[0];
+    expect(link).toContain("pointer-coarse:min-h-11");
+  });
+
+  it("keeps the skeleton to the live page's two panels, with no bot strip", () => {
+    // A third skeleton panel would vanish when data lands and jump the layout.
+    expect(skeleton.match(/className="panel[ "-]/g)).toHaveLength(2);
+    expect(dashboard.match(/<section className="panel/g)).toHaveLength(2);
   });
 
   it("splits the timer console 3/5 | 2/5 and the board 2/3 | 1/3", () => {
