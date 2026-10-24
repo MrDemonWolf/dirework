@@ -7,12 +7,12 @@ tokens: [color.scheme, radius, tracking]
 
 ## Purpose
 
-ONE generic chat reply-template editor for both the task and timer message sets (rendered by `CommandTabPanel`). Field lists live in `lib/message-fields.ts`. Edits only touch the page draft; nothing persists until the Save bar.
+ONE generic chat reply-template editor for both the task and timer message sets, on the Bot settings Replies page (`/dashboard/bot/replies`, a Task / Timer switcher above it). Field lists live in `lib/message-fields.ts`. Edits only touch the page draft; nothing persists until the Save bar.
 
 ## Anatomy
 
 - Toolbar: search input ("Filter N messages…") with a search icon, and a ghost "Reset all" button behind `ConfirmDialog`.
-- One `aria-label`led `<section>` per field group, holding a `SectionGroup` with a `CountBadge` in `trailing`. Groups are closed by default; a group opens itself while it holds an invalid field (and can't be closed then, since Save is blocked on it), while the filter has text, and, until the owner toggles it, while it holds an unsaved edit (differs from `saved`).
+- One `aria-label`led `<section>` per field group, holding a `SectionGroup` whose title names the group and, in mono, the commands that send its replies (`groupCommands`, from `TASK_/TIMER_MESSAGE_GROUP_COMMANDS` in `lib/message-fields.ts`), with a `CountBadge` in `trailing`. Groups are closed by default; a group opens itself while it holds an invalid field (and can't be closed then, since Save is blocked on it), while the filter has text, and, until the owner toggles it, while it holds an unsaved edit (differs from `saved`).
 - Per field: label + "Reset to default" (only when the value differs from `defaults`), input, `ByteBudget`, a preview line (`{speaker}: {reply}`), and variable chips (`{user}`, `{task}`, …) with tooltips.
 - Empty-filter line `No messages match "…"`.
 
@@ -28,6 +28,7 @@ ONE generic chat reply-template editor for both the task and timer message sets 
 | `filter` / `onFilterChange` | `string` / `(filter: string) => void` | Filter text, held by the page (one per tab) so the Save bar's link can clear a filter hiding the field at fault |
 | `onChange` | `(values: T) => void` | Emits the whole object |
 | `preview` | `ReplyPreview` | Exported type: `{ speaker: string; vars: Record<string, string> }` |
+| `groupCommands` | `Readonly<Record<string, string>>` | Optional; the commands each group answers, shown in its header and matched by the filter |
 
 ## States
 
@@ -50,4 +51,4 @@ ONE generic chat reply-template editor for both the task and timer message sets 
 - **Do** bound templates in UTF-8 bytes, never characters.
 - **Don't** build a second editor for another message set; pass new `fields`.
 - **Don't** persist from here; reset and edit are draft-only.
-- **Don't** lock the fields when the group is switched off; the tab dims them instead (see command-tab-panel).
+- **Don't** lock the fields when the group is switched off; the Replies page says so in a callout instead.

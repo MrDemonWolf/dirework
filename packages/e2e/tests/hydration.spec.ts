@@ -46,6 +46,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     "/dashboard/styles",
     "/dashboard/bot",
     "/dashboard/bot/commands",
+    "/dashboard/bot/replies",
     "/dashboard/bot/moderation",
   ]) {
     test(`${path} hydrates its server HTML on a ${colorScheme} OS`, async ({ page }) => {
@@ -103,7 +104,6 @@ test("switching Bot settings sub-pages with unsaved edits asks first", async ({ 
   await page.goto("/dashboard/bot/commands");
   await waitForHydration(page);
 
-  await page.getByRole("tab", { name: "Aliases" }).click();
   await page.getByRole("button", { name: "Add alias" }).click();
   await page.getByLabel("Alias", { exact: true }).last().fill("e2eguard");
   await expect(page.getByRole("button", { name: "Save changes" })).toBeVisible();

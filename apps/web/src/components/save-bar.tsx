@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 
 /**
  * Shared sticky save bar — rises from the bottom edge when a page has
- * unsaved changes. The warn chip carries the LED dirty-state semantics;
- * pages keep their own conditional bottom padding (pb-24) while visible.
+ * unsaved changes. The warn chip carries the LED dirty-state semantics.
+ * On a phone it is two rows (status and reason, then full-width Reset and Save), from `sm`
+ * up one; pages keep their own conditional bottom padding while visible (pb-32 sm:pb-24).
  */
 export function SaveBar({
   visible,
@@ -83,7 +84,7 @@ function SaveBarPanel({
       data-save-bar
       className="fixed inset-x-0 bottom-0 z-(--z-save-bar) save-bar-enter border-t border-border/40 bg-background/80 pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] backdrop-blur-2xl"
     >
-      <div className="container mx-auto flex max-w-content items-center justify-between gap-3 px-4 py-3">
+      <div className="container mx-auto flex max-w-content flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <StatusChip tone="warn" label={label} />
           {blockedReason &&
@@ -93,17 +94,20 @@ function SaveBarPanel({
                 id="save-bar-blocked"
                 type="button"
                 onClick={onBlockedReasonClick}
-                className="truncate rounded text-left text-xs text-destructive underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="line-clamp-2 rounded text-left text-xs text-destructive underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:truncate"
               >
                 {blockedReason}
               </button>
             ) : (
-              <p id="save-bar-blocked" className="truncate text-xs text-destructive">
+              <p
+                id="save-bar-blocked"
+                className="line-clamp-2 text-xs text-destructive sm:truncate"
+              >
                 {blockedReason}
               </p>
             ))}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 *:max-sm:flex-1">
           {saveHint && !blockedReason && (
             <p id="save-bar-hint" className="mr-1 hidden text-xs text-muted-foreground md:block">
               {saveHint}

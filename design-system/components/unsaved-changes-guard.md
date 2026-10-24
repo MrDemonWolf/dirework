@@ -8,7 +8,7 @@ tokens: []
 ## Purpose
 
 Stops an editor with dirty state from silently losing edits (audit M8). Rendered once by the
-Theme Center (`styles-page.tsx`) and Bot settings Commands (`commands-page.tsx`) pages.
+Theme Center (`styles-page.tsx`) and Bot settings Commands and Replies (`commands-page.tsx`, `replies-page.tsx`) pages; it also guards the Bot settings sub-nav links.
 
 ## Anatomy
 

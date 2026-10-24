@@ -96,6 +96,29 @@ export const timerMessageFields = [
   { key: "cycleWrong", label: "Invalid cycle count", variables: [], group: "Errors" },
 ] as const satisfies readonly MessageField<keyof TimerMessagesConfig>[];
 
+/**
+ * The chat commands whose replies each group holds, shown in the group's header on the
+ * Replies page so a reply can be found by the command that sends it.
+ */
+export const TASK_MESSAGE_GROUP_COMMANDS: Record<
+  (typeof taskMessageFields)[number]["group"],
+  string
+> = {
+  "Viewer help": "!help",
+  Adding: "!task",
+  Completing: "!done !next !check",
+  "Editing & removing": "!edit !remove !clear",
+  "Errors & limits": "any task command",
+};
+
+export const TIMER_MESSAGE_GROUP_COMMANDS: Record<
+  (typeof timerMessageFields)[number]["group"],
+  string
+> = {
+  Status: "!timer start, pause, skip, eta…",
+  Errors: "any !timer command",
+};
+
 /** Message keys (from config-shared) that have no editor field above. */
 type UncoveredKeys<K, F extends readonly { key: unknown }[]> = Exclude<K, F[number]["key"]>;
 

@@ -38,7 +38,7 @@ describe("bot settings command tables", () => {
     );
   });
 
-  // `alwaysOn` keeps a row out of the legend its tab's switch dims (command-tab-panel.test.ts),
+  // `alwaysOn` keeps a row out of the legend its tab's switch dims (the Commands page draws them in their own always-on table),
   // so only the meta commands may carry it: a task or timer row marked always on would stay
   // lit while the bot ignores it.
   it("mark exactly the meta commands as always on", () => {

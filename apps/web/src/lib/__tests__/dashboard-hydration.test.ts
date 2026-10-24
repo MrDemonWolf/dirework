@@ -45,6 +45,7 @@ describe("dashboard SSR hydration", () => {
   it.each([
     "app/(app)/dashboard/styles/styles-page.tsx",
     "app/(app)/dashboard/bot/(sections)/commands/commands-page.tsx",
+    "app/(app)/dashboard/bot/(sections)/replies/replies-page.tsx",
   ])(
     "%s seeds its editors from the hydrated config in state, not in a post-mount effect",
     (file) => {

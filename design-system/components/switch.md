@@ -8,7 +8,7 @@ tokens: [color.scheme]
 ## Purpose
 
 Base UI `Switch` for on/off settings. Used by `ModeToggle` (dark mode), `FieldRow` (Theme
-Center booleans), `CommandTabPanel` (command group enable) and `BotLiveControls` (mute and the command-group switches).
+Center booleans), the Commands page (command group enable, saved on flip) and `BotLiveControls` (mute and the command-group switches).
 
 ## Anatomy
 

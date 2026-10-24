@@ -78,6 +78,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   commands switches now save the moment you flip them, like Mute. Leaving a page with unsaved
   edits asks first. Switching pages costs no API requests: the session check and data load run
   once when you enter Bot settings.
+- **Bot settings: Replies get their own page, Commands become a table.** **Replies** holds
+  what the bot says, with a Task / Timer switcher; each reply group names the commands that
+  send it (Adding `!task`, Completing `!done !next !check` …), and the filter finds replies by
+  command too. **Commands** now lists every command per group in a table (command, usage,
+  Everyone or Mods, and its aliases, which update as you type them), each group with its
+  on/off switch, the always-on `!dw` help commands in their own table, and the alias editor.
+  Replies and aliases save separately ("Replies saved", "Aliases saved"). On a phone the Save
+  bar stacks Reset and Save under the status so neither gets squeezed.
 - **Save part of the bot settings.** `config.updateBotSettings` accepts any subset of the two
   command switches, the Task replies, the Timer replies and the aliases (at least one), and
   leaves the rest alone. A full payload still works.

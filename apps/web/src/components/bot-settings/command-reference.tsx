@@ -1,8 +1,8 @@
 "use client";
 
-// Read-only command legend shown beside the reply editor on each command tab of the bot
-// settings page, and in the Moderation card. The rows live in lib/command-rows.ts (shared
-// with the viewer landing page); the bot's real parsing lives in
+// Read-only command legend on the Bot settings Moderation page (the mod chat commands). The
+// rows live in lib/command-rows.ts (shared with the viewer landing page and the Commands
+// page's tables); the bot's real parsing lives in
 // `@dirework/api/chat-commands`, and apps/web/src/lib/__tests__/command-rows.test.ts pins
 // the two together.
 

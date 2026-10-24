@@ -1,7 +1,7 @@
 "use client";
 
-// Chat reply-template editor used by both command tabs of the bot settings page. The field
-// lists it renders live in lib/message-fields.ts.
+// Chat reply-template editor on the Bot settings Replies page (Task and Timer replies). The
+// field lists and the commands each group answers live in lib/message-fields.ts.
 
 import { useRef, useState } from "react";
 import { RotateCcw, Search } from "lucide-react";
@@ -47,8 +47,10 @@ export interface ReplyPreview {
  *
  * Each field shows its UTF-8 byte budget (`messageBudget`, capped at the server's
  * MAX_MESSAGE_TEMPLATE_BYTES). Typing past the cap is allowed and marked invalid; only chip
- * inserts are refused. The filter matches label, key, or group. Its text is held by the page (one
- * per tab), so the Save bar's link to a reply can clear a filter that hides that reply.
+ * inserts are refused. The filter matches label, key, group, or the group's commands (so "!next"
+ * finds the replies `!next` sends). Its text is held by the page (one per reply set), so the
+ * Save bar's link to a reply can clear a filter that hides that reply. Each group header names
+ * the commands that send its replies (`groupCommands`).
  */
 export function MessageEditor<T extends object>({
   fields,
@@ -61,6 +63,7 @@ export function MessageEditor<T extends object>({
   onFilterChange,
   onChange,
   preview,
+  groupCommands,
 }: {
   fields: readonly MessageField<Extract<keyof T, string>>[];
   idPrefix: string;
@@ -76,6 +79,8 @@ export function MessageEditor<T extends object>({
   onFilterChange: (filter: string) => void;
   onChange: (values: T) => void;
   preview: ReplyPreview;
+  /** The chat commands whose replies each group holds, shown beside the group's name. */
+  groupCommands?: Readonly<Record<string, string>>;
 }) {
   // Only groups the owner toggled; the rest follow the open rule in the doc comment.
   const [toggledGroups, setToggledGroups] = useState<Record<string, boolean>>({});
@@ -112,7 +117,8 @@ export function MessageEditor<T extends object>({
     (f) =>
       f.label.toLowerCase().includes(query) ||
       f.key.toLowerCase().includes(query) ||
-      f.group.toLowerCase().includes(query),
+      f.group.toLowerCase().includes(query) ||
+      (groupCommands?.[f.group] ?? "").toLowerCase().includes(query),
   );
 
   // Groups in first-appearance order, so the field arrays control section order.
@@ -149,7 +155,7 @@ export function MessageEditor<T extends object>({
             </Button>
           }
           title="Reset every message to its default?"
-          description={`All ${fields.length} messages in this tab go back to the stock wording. Nothing is saved until you press Save changes.`}
+          description={`All ${fields.length} messages here go back to the stock wording. Nothing is saved until you press Save changes.`}
           confirmLabel="Reset all"
           onConfirm={() => onChange(defaults)}
         />
@@ -166,7 +172,17 @@ export function MessageEditor<T extends object>({
         return (
           <section key={group} aria-label={group}>
             <SectionGroup
-              title={group}
+              title={
+                <>
+                  {group}
+                  {groupCommands?.[group] && (
+                    // The group label is a console label (caps); commands keep their case.
+                    <span className="ml-2 font-mono text-xs font-normal tracking-normal normal-case text-muted-foreground">
+                      {groupCommands[group]}
+                    </span>
+                  )}
+                </>
+              }
               open={open}
               onOpenChange={(next) => setToggledGroups((prev) => ({ ...prev, [group]: next }))}
               trailing={

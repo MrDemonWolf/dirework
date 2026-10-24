@@ -8,8 +8,8 @@ tokens: [color.scheme, radius]
 ## Purpose
 
 Inline banner for an error or a status note inside a page. Used by `QueryError`, the app
-`error.tsx` boundary, `sign-in-notice.tsx`, the setup screen and `CommandTabPanel` (a disabled
-command group).
+`error.tsx` boundary, `sign-in-notice.tsx`, the setup screen and the Bot settings Replies page (a
+switched-off command group).
 
 ## Anatomy
 
