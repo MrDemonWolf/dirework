@@ -55,6 +55,8 @@ test.describe("signed in", () => {
     { path: "/dashboard", heading: /Dev Streamer$/, name: "dashboard" },
     { path: "/dashboard/styles", heading: "Theme Center", name: "theme-center" },
     { path: "/dashboard/bot", heading: "Bot settings", name: "bot-settings" },
+    { path: "/dashboard/bot/commands", heading: "Bot settings", name: "bot-commands" },
+    { path: "/dashboard/bot/moderation", heading: "Bot settings", name: "bot-moderation" },
   ];
 
   for (const { path, heading, name } of pages) {

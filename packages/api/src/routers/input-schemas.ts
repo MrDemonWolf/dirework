@@ -128,8 +128,18 @@ export const updateStylesInput = z.object({
   phaseLabels: phaseLabelsInputSchema,
 });
 
-/** Messages + aliases saved together — the web editor safeParses the same schema before sending. */
-export const updateBotSettingsInput = updateMessagesInput.extend(commandAliasesInput.shape);
+/**
+ * Bot settings save: any subset (at least one) of the two command switches, the Task replies,
+ * the Timer replies and the aliases. Each Bot settings sub-page sends only what it edits, so
+ * saving one page never writes another page's draft; a full payload is still valid. Each
+ * reply group present is written whole. The web editors safeParse the same schema first.
+ */
+export const updateBotSettingsInput = updateMessagesInput
+  .extend(commandAliasesInput.shape)
+  .partial()
+  .refine((input) => Object.values(input).some((value) => value !== undefined), {
+    message: "Nothing to save",
+  });
 
 /** Dashboard mute switch. */
 export const setBotMutedInput = z.object({ muted: z.boolean() }).strict();

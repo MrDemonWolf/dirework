@@ -61,9 +61,11 @@ ever sees the web origin for authenticated traffic (sameSite lax cookies). Publi
 token-authenticated traffic (overlay polling, bot page) goes DIRECT to the api worker via
 `publicTrpc` (no cookies) to avoid double-hop request burn on the free tier.
 
-**SSR prefetch + hydration.** `/dashboard`, `/dashboard/styles` and `/dashboard/bot` render
+**SSR prefetch + hydration.** `/dashboard`, `/dashboard/styles` and `/dashboard/bot/*` render
 with their data: each page runs `requireSession()` first (a signed-out visitor never spends a
-batch), then `prefetchDashboard` / `prefetchStyles` / `prefetchBot` (`lib/server-query.ts`),
+batch) — for Bot settings the shared `bot/(sections)/layout.tsx` does it, ONCE on entering the
+section, since a layout is kept across its own pages' navigations and every procedure those
+pages call is owner-only — then `prefetchDashboard` / `prefetchStyles` / `prefetchBot` (`lib/server-query.ts`),
 which use a per-call `createServerTrpc(queryClient)` (`lib/server-trpc.ts`, no module state)
 to issue every query in one tick — `httpBatchLink` folds them into ONE GET straight to the
 api worker's `/trpc` (cookie + signed client IP, 5s `INTERNAL_FETCH_TIMEOUT_MS`; never via
@@ -152,7 +154,8 @@ and a fresh `crypto.randomUUID()` `messageId` per click for the `processed_chat_
 claim. Replies are shown in the dock, never `client.say`'d. One request per click (a busy
 guard disables every button while one is in flight); while muted only Unmute is enabled; with
 no `broadcasterId` (an older api worker) the buttons stay off. A closed OBS dock destroys the page (stops the
-bot); a tabbed one keeps running. The setup checklist's bot step hands out both URLs.
+bot); a tabbed one keeps running. The setup checklist's bot step and Bot settings' "Run the bot"
+card hand out both URLs.
 Chat token comes from `bot.getSession` (server refreshes it; the
 refresh token and client secret never reach the browser). Each PRIVMSG's IRC `id` tag is
 forwarded as `messageId` and, once it resolves to an enabled Dirework command, claimed in
@@ -551,8 +554,25 @@ The task board (`task-manager.tsx`) takes 2/3 with the tasks-overlay monitor in 
 monitor is the URL row plus a "Live preview" toggle whose iframe only exists while on.
 Rows are `min-h-11` with `line-clamp-2` text, author groups fold (Collapsible, component
 state only), and "Clear done (N)" / "Clear all (N)" live in the "Task board options" menu,
-each opening its confirm. The bot's status chip appears once, on the bot strip.
+each opening its confirm. The bot's status appears once, as the header chip that links to Bot settings.
 `DashboardSkeleton` mirrors these shapes; `dashboard-layout.test.ts` pins them.
+**Bot settings** (`/dashboard/bot/*`): `bot/layout.tsx` is synchronous and data-free — the
+h1 and the sticky `<nav aria-label="Bot settings sections">` (`components/bot-settings/
+bot-section-nav.tsx`, sections from `lib/bot-sections.ts`, `aria-current="page"`, links
+`prefetch={false}`) paint at once. Below `bot/loading.tsx`, the route group's
+`(sections)/layout.tsx` runs `requireSession()` + `prefetchBot()` into a `HydrationBoundary`
+and `BotDataGate` (`(sections)/bot-data.tsx`), which holds `config.get` + `user.me` and hands
+them to pages via `useBotData()`; a header link's prefetch stops at that loading boundary, so
+it never reaches the api, and a sub-page switch is one web-worker RSC request (no api).
+Pages: **Overview** (`(sections)/page.tsx`: `BotLiveControls` — mute, Task/Timer switches via
+`lib/use-command-group-switch.ts`, which saves ONE flag on flip, and "n of 200 blocked ·
+Manage"; `BotConsoleCard` "Run the bot"; `BotAccountCard`, first while no account is
+connected; handles the bot OAuth `?bot=` return), **Commands** (`commands/`: the tabbed
+command/reply/alias editor; its Save bar sends only `{ task, timer, commandAliases }`),
+**Moderation** (`moderation/`: `BlockedViewersCard`, filter past `BLOCKED_FILTER_THRESHOLD`).
+`config.updateBotSettings` takes any non-empty subset (`definedValues`, like `updateStyles`), so
+a page never writes another page's draft. Each page with a draft mounts its own
+`UnsavedChangesGuard`, which also guards the sub-nav links.
 **Theme Center** (`/dashboard/styles`, `styles-page.tsx`): "1 · Start from a preset", then
 "2 · Customize" — the editor column (`lg:flex-1`) beside a sticky `lg:w-96` preview rail (capped
 above the Save bar via `--save-bar-clearance`). The preview is first in the DOM

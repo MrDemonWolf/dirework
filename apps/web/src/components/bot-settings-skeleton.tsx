@@ -1,7 +1,9 @@
-// Loading placeholder for Bot settings. Shown by the route's loading.tsx the moment a
-// navigation starts, and by the page itself until `config.get` and `user.me` resolve. Its
-// blocks mirror the live layout (console and account cards side by side, then the full-width
-// commands card) so nothing jumps when data lands; update it alongside bot-settings-page.tsx.
+// Loading placeholder for a Bot settings sub-page. The heading and sub-nav come from the
+// route's layout and are never skeletons; this fills the page body. Shown by
+// `dashboard/bot/loading.tsx` the moment a navigation into Bot settings starts, by
+// `(sections)/loading.tsx` while a sub-page switch renders, and by the data gate
+// (`(sections)/bot-data.tsx`) until `config.get` and `user.me` resolve. Its blocks follow the
+// Overview layout (two panels side by side, a third under them).
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,64 +23,29 @@ export function BotConsoleBodySkeleton() {
   );
 }
 
-/** Static, data-free skeleton of the Bot settings page. */
+function PanelSkeleton() {
+  return (
+    <Card className="panel">
+      <CardHeader className="border-b border-border/40 px-5">
+        <Skeleton className="h-6 w-36" />
+        <Skeleton className="h-4 w-64" />
+      </CardHeader>
+      <CardContent className="space-y-4 px-5">
+        <BotConsoleBodySkeleton />
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Static, data-free skeleton of a Bot settings page body. */
 export function BotSettingsSkeleton() {
   return (
-    <div className="container mx-auto max-w-content px-4 py-8">
-      <div className="mb-8 space-y-2">
-        <Skeleton className="h-8 w-44" />
-        <Skeleton className="h-4 w-72" />
+    <div className="space-y-6" aria-busy="true">
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <PanelSkeleton />
+        <PanelSkeleton />
       </div>
-      <div className="space-y-6">
-        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-          <Card className="panel-hero">
-            <CardHeader className="border-b border-border/40 px-5">
-              <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-6 w-32" />
-              <Skeleton className="h-4 w-full" />
-            </CardHeader>
-            <CardContent className="space-y-4 px-5">
-              <BotConsoleBodySkeleton />
-            </CardContent>
-          </Card>
-          <Card className="panel">
-            <CardHeader className="border-b border-border/40 px-5">
-              <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-6 w-32" />
-              <Skeleton className="h-4 w-56" />
-            </CardHeader>
-            <CardContent className="space-y-4 px-5">
-              <div className="flex items-center gap-3">
-                <Skeleton className="size-10 rounded-lg" />
-                <div className="flex-1 space-y-1.5">
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-3 w-20" />
-                </div>
-                <Skeleton className="h-7 w-24" />
-              </div>
-              <Skeleton className="h-4 w-full" />
-            </CardContent>
-          </Card>
-        </div>
-        <Card className="panel">
-          <CardHeader className="border-b border-border/40 px-5">
-            <Skeleton className="h-3 w-28" />
-            <Skeleton className="h-6 w-52" />
-            <Skeleton className="h-4 w-80" />
-          </CardHeader>
-          <CardContent className="space-y-5 px-5">
-            <Skeleton className="h-9 w-full" />
-            <div className="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
-              <Skeleton className="h-64 w-full" />
-              <div className="space-y-3">
-                {["bot-field-1", "bot-field-2", "bot-field-3", "bot-field-4"].map((key) => (
-                  <Skeleton key={key} className="h-20 w-full" />
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <PanelSkeleton />
     </div>
   );
 }

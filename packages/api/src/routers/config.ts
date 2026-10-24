@@ -112,20 +112,26 @@ export const configRouter = router({
   }),
 
   /**
-   * Save messages + command aliases together in one write to the bot_config
-   * row, so the two can never be half-persisted.
+   * Save any subset of the command switches, reply groups and aliases in ONE write to the
+   * bot_config row, so what a request sends is never half-persisted. Absent fields are left
+   * alone (`definedValues`, as in `updateStyles`): the Replies page can't overwrite aliases,
+   * and an on/off switch writes one column.
    */
   updateBotSettings: ownerProcedure
     .input(updateBotSettingsInput)
     .mutation(async ({ ctx, input }) => {
       await ensureSingletons(ctx.db);
-      const updated = await updateSingleton(ctx.db, schema.botConfig, {
-        taskCommandsEnabled: input.taskCommandsEnabled,
-        timerCommandsEnabled: input.timerCommandsEnabled,
-        commandAliases: input.commandAliases,
-        ...flattenWithFieldMap(TASK_MESSAGE_FIELDS, input.task),
-        ...flattenWithFieldMap(TIMER_MESSAGE_FIELDS, input.timer),
-      });
+      const updated = await updateSingleton(
+        ctx.db,
+        schema.botConfig,
+        definedValues({
+          taskCommandsEnabled: input.taskCommandsEnabled,
+          timerCommandsEnabled: input.timerCommandsEnabled,
+          commandAliases: input.commandAliases,
+          ...(input.task ? flattenWithFieldMap(TASK_MESSAGE_FIELDS, input.task) : {}),
+          ...(input.timer ? flattenWithFieldMap(TIMER_MESSAGE_FIELDS, input.timer) : {}),
+        }),
+      );
       if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Config row not found" });
       return buildBotConfig(updated);
     }),

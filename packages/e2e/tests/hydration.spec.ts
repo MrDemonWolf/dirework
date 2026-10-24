@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { expectNoHydrationErrors, signIn, watchHydration } from "./helpers";
+import { expectNoHydrationErrors, signIn, waitForHydration, watchHydration } from "./helpers";
 
 // A hard load of /dashboard streams the finished page: the server prefetches the session,
 // timer, tasks and config in one batched call, so the browser makes no /rpc request and no
@@ -41,7 +41,13 @@ test("the dashboard HTML arrives with its data, nav and no skeleton in the page"
 // it, so React silently client-rendered the page beside its own server HTML. Both schemes,
 // every prefetched page.
 for (const colorScheme of ["light", "dark"] as const) {
-  for (const path of ["/dashboard", "/dashboard/styles", "/dashboard/bot"]) {
+  for (const path of [
+    "/dashboard",
+    "/dashboard/styles",
+    "/dashboard/bot",
+    "/dashboard/bot/commands",
+    "/dashboard/bot/moderation",
+  ]) {
     test(`${path} hydrates its server HTML on a ${colorScheme} OS`, async ({ page }) => {
       await page.emulateMedia({ colorScheme });
       watchHydration(page);
@@ -89,4 +95,30 @@ test("a hard load needs no client fetch before the first poll", async ({ page })
   // Polling still runs on its normal cadence once the page is up.
   await expect.poll(() => rpc, { timeout: 10_000 }).toBeGreaterThan(0);
   expect(getSession).toBe(0);
+});
+
+// Each Bot settings sub-page holds its own draft, so leaving one through the sub-nav with
+// unsaved edits must ask first, and "Stay" must keep the edits.
+test("switching Bot settings sub-pages with unsaved edits asks first", async ({ page }) => {
+  await page.goto("/dashboard/bot/commands");
+  await waitForHydration(page);
+
+  await page.getByRole("tab", { name: "Aliases" }).click();
+  await page.getByRole("button", { name: "Add alias" }).click();
+  await page.getByLabel("Alias", { exact: true }).last().fill("e2eguard");
+  await expect(page.getByRole("button", { name: "Save changes" })).toBeVisible();
+
+  const nav = page.getByRole("navigation", { name: "Bot settings sections" });
+  await nav.getByRole("link", { name: "Moderation" }).click();
+  const dialog = page.getByRole("alertdialog", { name: "Discard unsaved changes?" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Stay" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page).toHaveURL(/\/dashboard\/bot\/commands$/);
+  await expect(page.getByLabel("Alias", { exact: true }).last()).toHaveValue("e2eguard");
+
+  await nav.getByRole("link", { name: "Moderation" }).click();
+  await dialog.getByRole("button", { name: "Discard and leave" }).click();
+  await expect(page).toHaveURL(/\/dashboard\/bot\/moderation$/);
+  await expect(page.getByRole("heading", { name: "Blocked viewers" })).toBeVisible();
 });

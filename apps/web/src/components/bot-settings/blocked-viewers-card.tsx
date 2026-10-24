@@ -1,11 +1,12 @@
 "use client";
 
-// Moderation card on the bot settings page: the mod-only chat commands beside the viewer
-// block list. Blocking and unblocking save immediately (no Save bar) through the same
-// services the !block / !unblock chat commands use, so the list here and in chat is one list.
+// The Bot settings Moderation page: block a viewer, the block list, and the mod-only chat
+// commands. Blocking and unblocking save immediately (no Save bar) through the same services
+// the !block / !unblock chat commands use, so the list here and in chat is one list.
 
 import { useId, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { MAX_BLOCKED_VIEWERS, normalizeTwitchLogin } from "@dirework/api/chat-commands";
@@ -14,17 +15,14 @@ import { formatMutationError } from "@/lib/validation-errors";
 import { CommandReference } from "@/components/bot-settings/command-reference";
 import { moderationCommands } from "@/lib/command-rows";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { ConsoleRule } from "@/components/console-rule";
-import { CountBadge } from "@/components/count-badge";
-import { SectionGroup } from "@/components/section-group";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/utils/trpc";
 
-/** The card's anchor id, for the Bot settings page's "Moderation" jump link. */
-export const MODERATION_CARD_ID = "moderation";
+/** Past this many names the list gets a filter field. */
+export const BLOCKED_FILTER_THRESHOLD = 8;
 
 /**
  * `blockedViewers` is the live `config.get` list (lowercase logins), not a draft. Blocking
@@ -36,6 +34,7 @@ export function BlockedViewersCard({ blockedViewers }: { blockedViewers: string[
   const listId = useId();
   const hintId = useId();
   const [input, setInput] = useState("");
+  const [filter, setFilter] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
@@ -68,37 +67,115 @@ export function BlockedViewersCard({ blockedViewers }: { blockedViewers: string[
   const login = normalizeTwitchLogin(input);
   const full = blockedViewers.length >= MAX_BLOCKED_VIEWERS;
   const hint = full
-    ? "Block list is full"
+    ? "Block list is full. Unblock someone first."
     : input.trim() && !login
       ? "Letters, numbers and underscores only"
       : null;
 
-  return (
-    <Card id={MODERATION_CARD_ID} className="panel">
-      <CardHeader className="border-b border-border/40 px-5">
-        <ConsoleRule label="Chat safety" />
-        <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
-          Moderation
-        </CardTitle>
-        <CardDescription>
-          Mods can run these from chat; you can also manage them here
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="px-5">
-        <div className="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
-          <CommandReference commands={moderationCommands} className="order-last lg:order-first" />
+  const showFilter = blockedViewers.length > BLOCKED_FILTER_THRESHOLD;
+  const needle = filter.trim().replace(/^@/, "").toLowerCase();
+  const shown =
+    showFilter && needle ? blockedViewers.filter((v) => v.includes(needle)) : blockedViewers;
 
-          <SectionGroup
-            title="Blocked viewers"
-            titleId={listId}
-            trailing={<CountBadge count={blockedViewers.length} />}
+  return (
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+      <Card className="panel">
+        <CardHeader className="border-b border-border/40 px-5">
+          <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
+            Blocked viewers
+          </CardTitle>
+          <CardDescription>
+            The bot ignores their commands. Blocking also removes every task they added.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5 px-5">
+          {/* A form, so Enter in the field opens the confirm like the button does. */}
+          <form
+            className="space-y-1.5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (login && !full && !blockViewer.isPending) setConfirmOpen(true);
+            }}
           >
+            <Label htmlFor="block-viewer-login">Twitch username</Label>
+            <div className="flex flex-wrap gap-2">
+              <Input
+                id="block-viewer-login"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="@username"
+                maxLength={26}
+                autoComplete="off"
+                spellCheck={false}
+                aria-invalid={(hint !== null && !full) || undefined}
+                aria-describedby={hint ? hintId : undefined}
+                className="min-w-0 flex-1"
+              />
+              <Button
+                type="submit"
+                variant="outline"
+                disabled={!login || full || blockViewer.isPending}
+              >
+                Block viewer
+              </Button>
+              <ConfirmDialog
+                open={confirmOpen}
+                onOpenChange={setConfirmOpen}
+                title={`Block ${login ?? ""}?`}
+                description="Their chat commands are ignored and every task they added is removed from the board. Unblocking later restores commands, not tasks."
+                confirmLabel="Block"
+                onConfirm={() => {
+                  if (login) blockViewer.mutate({ login });
+                }}
+              />
+            </div>
+            {hint && (
+              <p id={hintId} className="text-xs text-muted-foreground">
+                {hint}
+              </p>
+            )}
+          </form>
+
+          <section aria-labelledby={listId} className="space-y-2 border-t border-border/40 pt-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <h3 id={listId} className="text-sm font-medium">
+                Block list
+              </h3>
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {blockedViewers.length} of {MAX_BLOCKED_VIEWERS}
+              </p>
+            </div>
+
+            {showFilter && (
+              <div className="relative">
+                <Search
+                  aria-hidden
+                  className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+                />
+                <Input
+                  type="search"
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  placeholder="Filter blocked viewers"
+                  aria-label="Filter blocked viewers"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="pl-8"
+                />
+              </div>
+            )}
+
             {blockedViewers.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No blocked viewers.</p>
+              <p className="text-sm text-muted-foreground">
+                No blocked viewers. Block someone above, or have a mod send{" "}
+                <code className="font-mono text-foreground">!block @user</code> in chat.
+              </p>
+            ) : shown.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No blocked viewer matches “{filter}”.</p>
             ) : (
               <ul aria-labelledby={listId} className="divide-y divide-border/40">
-                {blockedViewers.map((viewer) => (
-                  <li key={viewer} className="flex items-center justify-between gap-2 py-1.5">
+                {shown.map((viewer) => (
+                  <li key={viewer} className="flex items-center justify-between gap-2 py-1">
                     <code className="truncate font-mono text-sm">{viewer}</code>
                     <Button
                       variant="ghost"
@@ -114,56 +191,11 @@ export function BlockedViewersCard({ blockedViewers }: { blockedViewers: string[
                 ))}
               </ul>
             )}
+          </section>
+        </CardContent>
+      </Card>
 
-            {/* A form, so Enter in the field opens the confirm like the button does. */}
-            <form
-              className="space-y-1.5 border-t border-border/40 pt-3"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (login && !full && !blockViewer.isPending) setConfirmOpen(true);
-              }}
-            >
-              <Label htmlFor="block-viewer-login">Twitch username</Label>
-              <div className="flex flex-wrap gap-2">
-                <Input
-                  id="block-viewer-login"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="@username"
-                  maxLength={26}
-                  autoComplete="off"
-                  spellCheck={false}
-                  aria-invalid={(hint !== null && !full) || undefined}
-                  aria-describedby={hint ? hintId : undefined}
-                  className="min-w-0 flex-1"
-                />
-                <Button
-                  type="submit"
-                  variant="outline"
-                  disabled={!login || full || blockViewer.isPending}
-                >
-                  Block viewer
-                </Button>
-                <ConfirmDialog
-                  open={confirmOpen}
-                  onOpenChange={setConfirmOpen}
-                  title={`Block ${login ?? ""}?`}
-                  description="Their chat commands are ignored and every task they added is removed from the board. Unblocking later restores commands, not tasks."
-                  confirmLabel="Block"
-                  onConfirm={() => {
-                    if (login) blockViewer.mutate({ login });
-                  }}
-                />
-              </div>
-              {hint && (
-                <p id={hintId} className="text-xs text-muted-foreground">
-                  {hint}
-                </p>
-              )}
-            </form>
-          </SectionGroup>
-        </div>
-      </CardContent>
-    </Card>
+      <CommandReference title="Mod commands in chat" commands={moderationCommands} />
+    </div>
   );
 }

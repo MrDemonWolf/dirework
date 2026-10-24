@@ -6,7 +6,6 @@
 import { Unplug } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { ConsoleRule } from "@/components/console-rule";
 import { TwitchIcon } from "@/components/icons/twitch-icon";
 import { StatusChip } from "@/components/status-chip";
 import { Button } from "@/components/ui/button";
@@ -31,7 +30,6 @@ export function BotAccountCard({
   return (
     <Card className="panel">
       <CardHeader className="border-b border-border/40 px-5">
-        <ConsoleRule label="Identity" />
         <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
           Bot account
         </CardTitle>
