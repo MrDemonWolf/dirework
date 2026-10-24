@@ -34,16 +34,21 @@ Never edit a generated file by hand: change `tokens.json`, run `bun run tokens`,
 
 Shared overlay geometry and clock formatting (`roundedRectPath`, `roundedRectPerimeter`, `formatClock`, `SQUIRCLE_RADIUS`) live in the workspace package `@dirework/overlay-kit` (`packages/overlay-kit`), used by both the real OBS overlays and the docs mocks. A unit test in the web app keeps `tokens.json` in sync with the Theme Center presets and `SQUIRCLE_RADIUS`.
 
-## Focus Console
+## Neutral dark
 
-The visual language is **Focus Console** — a dark-first instrument panel. Dark mode
-is the hero: a MrDemonWolf midnight-navy base (the `#091533` family) with cool-white
-text. Light mode is fully supported (cool paper with a navy cast).
+The visual language is a conventional **neutral dark UI**, the kind GitHub, Vercel and
+Linear ship: near-black zinc surfaces with no color cast (background `#0c0c0e`, cards
+`#151518`), off-white text (`#ededef`) and muted gray secondary text (`#a1a1aa`). Light
+mode is fully supported (`#fafafa` page, white cards, the same blue). The console grammar
+stays: panels, mono uppercase labels, LED-style status chips.
 
-- **Brand primary:** Cerulean `#00ACED` — the accent, used sparingly (buttons, links, active rings).
-- **Secondary accent:** Cornflower `#6B8BF5`.
+- **Accent blue, two forms:** `--primary` (`#236fea` dark / `#1866e0` light) is the fill
+  behind white labels (primary buttons, avatar, checked states); `--link` (`#4f99f9` dark /
+  `#155ed0` light) is the text form (links, icons, active nav, focus ring). No single blue
+  clears 4.5:1 both under white text and as text on near-black, so text always uses `text-link`.
+- **Secondary accent:** Cornflower (`--cornflower`).
 - **Twitch:** `#9146FF` is reserved for "Sign in / Connect with Twitch" actions only.
-- **Phase colors:** work = emerald `#34C759`, break = cerulean, long break = cornflower, paused = amber `#FF9F0A`.
+- **Phase colors:** work = emerald `#34C759`, break = blue, long break = cornflower, paused = amber `#FF9F0A`.
 - **State:** emerald = live / connected, amber = paused / warning (LED-style chips).
 
 Type:
@@ -75,7 +80,7 @@ The docs stylesheet (`apps/fumadocs/src/app/global.css`) maps the generated pale
 | Namespace | Variable pattern | Example |
 | --- | --- | --- |
 | Fumadocs | `--color-fd-*` | `--color-fd-background: var(--background)` |
-| Brand | `--brand-500` / `--brand-600` / `--brand-50` | `--brand-500: #00ACED` (cerulean) |
+| Brand | `--brand-500` / `--brand-600` / `--brand-50` | `--brand-500: var(--primary)` (accent fill), `--brand-600: var(--link)` (accent text) |
 | Phase | `--phase-{work,break,long-break,paused}` | timer ring + status accents |
 | Partner | `--color-twitch`, `--color-live` | Twitch actions / live state |
 | Surface | `--bg-base` / `--bg-surface` / `--bg-elev` | `var(--background)` / `var(--muted)` / `var(--card)` |

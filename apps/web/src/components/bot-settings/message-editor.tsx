@@ -227,7 +227,7 @@ export function MessageEditor<T extends object>({
                         className="rounded-lg bg-muted/40 px-2.5 py-1.5 text-xs/relaxed break-words text-muted-foreground"
                       >
                         <span className="sr-only">Preview: </span>
-                        <span className="font-medium text-primary">{preview.speaker}</span>
+                        <span className="font-medium text-link">{preview.speaker}</span>
                         <span aria-hidden>: </span>
                         {value.trim() ? (
                           interpolate(value, previewVarsFor(field, preview.vars))
@@ -247,7 +247,7 @@ export function MessageEditor<T extends object>({
                                       type="button"
                                       onClick={() => insertVariable(field.key, token)}
                                       aria-label={`Insert ${token}`}
-                                      className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-muted-foreground transition-colors pointer-coarse:min-h-11 pointer-coarse:min-w-11 pointer-coarse:px-2 hover:bg-primary/10 hover:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+                                      className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-muted-foreground transition-colors pointer-coarse:min-h-11 pointer-coarse:min-w-11 pointer-coarse:px-2 hover:bg-primary/10 hover:text-link focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
                                     >
                                       {token}
                                     </button>

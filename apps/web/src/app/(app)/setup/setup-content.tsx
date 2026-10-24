@@ -41,7 +41,7 @@ export const AFTER_CLAIM_STEPS = [
 ] as const;
 
 const inlineLink =
-  "font-medium text-foreground underline underline-offset-4 hover:text-primary focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
+  "font-medium text-foreground underline underline-offset-4 hover:text-link focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
 
 export default function SetupContent({
   links,
@@ -96,7 +96,7 @@ export default function SetupContent({
             <li key={step.title} className="panel-inset flex gap-3 p-4">
               <span
                 aria-hidden
-                className="flex size-7 shrink-0 items-center justify-center rounded-full border border-primary/40 font-heading text-sm font-bold text-primary tabular-nums"
+                className="flex size-7 shrink-0 items-center justify-center rounded-full border border-primary/40 font-heading text-sm font-bold text-link tabular-nums"
               >
                 {index + 1}
               </span>

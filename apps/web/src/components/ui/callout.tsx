@@ -17,7 +17,7 @@ const variants = {
   info: {
     box: "border-border/60 bg-muted/40",
     icon: Info,
-    iconClass: "text-primary",
+    iconClass: "text-link",
     role: "status",
   },
 } as const;

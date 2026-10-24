@@ -14,7 +14,7 @@ export type StatusTone = "live" | "warn" | "accent" | "alt" | "idle" | "danger";
 const toneStyles: Record<StatusTone, { chip: string; dot: string }> = {
   live: { chip: "border-success/30 bg-success/10 text-success", dot: "bg-success" },
   warn: { chip: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning" },
-  accent: { chip: "border-primary/30 bg-primary/10 text-primary", dot: "bg-primary" },
+  accent: { chip: "border-primary/30 bg-primary/10 text-link", dot: "bg-primary" },
   alt: { chip: "border-cornflower/30 bg-cornflower/10 text-cornflower", dot: "bg-cornflower" },
   idle: {
     chip: "border-border bg-muted/60 text-muted-foreground",

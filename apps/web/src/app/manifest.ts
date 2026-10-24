@@ -6,10 +6,10 @@
 
 import type { MetadataRoute } from "next";
 
-/** The dark theme's `--background` (oklch(0.185 0.042 262) in index.css) as sRGB hex. */
-export const DARK_BACKGROUND_HEX = "#081225";
-/** The light theme's `--background` (oklch(0.97 0.006 240) in index.css) as sRGB hex. */
-export const LIGHT_BACKGROUND_HEX = "#f2f6f9";
+/** The dark theme's `--background` (oklch(0.155 0.004 286) in tokens.generated.css) as sRGB hex. */
+export const DARK_BACKGROUND_HEX = "#0c0c0e";
+/** The light theme's `--background` (oklch(0.985 0 0) in tokens.generated.css) as sRGB hex. */
+export const LIGHT_BACKGROUND_HEX = "#fafafa";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
