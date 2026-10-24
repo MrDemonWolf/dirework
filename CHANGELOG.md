@@ -29,9 +29,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hands out both URLs and explains the options (browser source, dock, pinned tab; tab the
   dock, don't close it; phone streamers keep it open on the OBS that receives the feed),
   and the Twitch setup docs gained a "Where to keep the bot page" section.
-- **`user:bot` bot scope.** Connecting the bot account now also requests `user:bot`, so a
-  bot connected from here on is ready for a possible server-side bot. Existing bots keep
-  working; nothing needs a reconnect.
 - **Set up streaming checklist.** The dashboard opens with four steps: connect the bot
   account, then add the bot page, the timer overlay and the tasks overlay to OBS. Each OBS
   step hands you its URL (Show / Copy) and an **I added it to OBS** button; DireWork never

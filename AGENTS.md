@@ -438,10 +438,10 @@ it (e.g. `0017_drop_task_status_idx` contracted 0015's superseded `task_status_i
   extra fetch per sign-in); `create-auth.test.ts` signs test tokens RS256 and stubs it.
 - Bot account connection = separate OAuth flow on Hono: `/api/bot/authorize` →
   `/api/bot/callback/twitch` (state cookie, `BOT_SCOPES` = `chat:read chat:edit
-  user:read:chat user:write:chat user:bot` — the browser bot speaks IRC, which needs the
-  `chat:*` pair; the `user:*` Helix pair and `user:bot` are unused but requested so a
-  future server-side (EventSub) bot needs no reconnect. Nothing reads the stored `scopes`,
-  so bots connected before `user:bot` was added keep working;
+  user:read:chat user:write:chat` — the browser bot speaks IRC, which needs the
+  `chat:*` pair; the `user:*` Helix pair is unused but kept to avoid a future reconnect.
+  `user:bot` is deliberately NOT requested until a server-side (EventSub) bot exists:
+  Twitch asks apps to request only the scopes current features use;
   only Twitch's `access_denied` is a cancel — any other Twitch `error` is
   `authorization_failed`; error reasons surfaced as `?bot=error&reason=…` toasts — the dashboard maps the code to
   fixed copy via `botOAuthErrorMessage` and never renders the raw query param).
