@@ -76,6 +76,17 @@ cadence changes. `getServerSession` is wrapped in React `cache()`, so the `(app)
 (which passes the session to `Header`/`UserMenu` as a prop — no client `useSession`) and the
 page share one get-session fetch. A dashboard hard load costs 2 api requests (get-session +
 the batch) and no web-worker `/rpc` hops before the first poll.
+**Shell hold (no skeleton on a hard load).** A route's `loading.tsx` is a Suspense boundary,
+and on a hard load the `(app)` layout's shell is ready one round trip before the page's
+prefetch, so the shell streamed the skeleton and React's SSR reveal throttle then held the
+real page back until ~300ms after first paint (20 of 20 Theme Center loads). `lib/shell-hold.ts`
+fixes it without an extra request: the page calls `holdShellFor(load())` before any other
+await (Next renders a route's layouts and page in parallel, so it registers before the
+layout's own await settles), and the `(app)` layout awaits `shellReleased()` (allSettled, a
+no-op when nothing is held) after its session, so the page is complete when the shell is
+written. A client navigation never runs the `(app)` layout, so its `loading.tsx` skeleton
+still shows instantly. Only `/dashboard/styles` opts in so far; `shell-hold.test.ts` pins
+the wiring and `40-theme-center` asserts no painted frame shows a skeleton.
 
 **Per-request factories, no module singletons** (Workers isolate per request):
 `createDb()` (packages/db), `createAuth()` (packages/auth), `createContext({ context })`
@@ -542,8 +553,12 @@ Rows are `min-h-11` with `line-clamp-2` text, author groups fold (Collapsible, c
 state only), and "Clear done (N)" / "Clear all (N)" live in the "Task board options" menu,
 each opening its confirm. The bot's status chip appears once, on the bot strip.
 `DashboardSkeleton` mirrors these shapes; `dashboard-layout.test.ts` pins them.
-**Theme Center** (`/dashboard/styles`, `styles-page.tsx`): editor column (`lg:flex-1`) beside
-a sticky `lg:w-96` preview (`theme-center/style-preview-panel.tsx`), which renders the REAL
+**Theme Center** (`/dashboard/styles`, `styles-page.tsx`): "1 · Start from a preset", then
+"2 · Customize" — the editor column (`lg:flex-1`) beside a sticky `lg:w-96` preview rail (capped
+above the Save bar via `--save-bar-clearance`). The preview is first in the DOM
+(`lg:flex-row-reverse`): below lg it is a sticky bar under the header with a Show/Hide button
+(collapsed by default, compact `max-w-64` canvas when open). No entrance animation: the page
+arrives finished (shell hold, above). The preview (`theme-center/style-preview-panel.tsx`) renders the REAL
 `TimerDisplay` / `TaskListDisplay` client-side (no polling) over `lib/preview-session.ts` —
 `DEMO_SESSION`'s tasks and countdown, so the preview, landing and docs agree. One overlay at
 a time (`aria-pressed` "Preview timer" / "Preview tasks"), both scaled with `AutoScale` (tasks

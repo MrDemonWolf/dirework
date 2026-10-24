@@ -15,6 +15,13 @@ Theme Center live preview on the Styles page (`styles-page.tsx`): renders the re
 - Timer canvas (`.panel-inset` on the chosen backdrop) with `TimerDisplay` and a `console-label` size readout (`{width} × {height}`).
 - `ConsoleRule` "Task list", then a task canvas at the recommended `700 / 800` aspect (max 360px wide) with `TaskListDisplay` over four mock tasks (several authors, one without a Twitch color, a done row) and a `700 × 800` readout.
 
+- Header row: `ConsoleRule` "Preview" (an `h2`) with the dirty chip ("Previewing unsaved
+  changes" / "Matches the saved theme"; "Unsaved" / "Saved" below lg), and below lg a
+  **Show / Hide** button (`aria-expanded`, `aria-controls` the body).
+- Below lg the page makes the panel a sticky bar under the header, above the editors. It
+  starts collapsed (header row only); expanded, the canvas is capped at `max-w-64` so the
+  editors keep room. At lg it is the always-open `w-96` rail.
+
 ## Props and variants
 
 | Prop | Type | Default | Notes |
@@ -34,6 +41,8 @@ Theme Center live preview on the Styles page (`styles-page.tsx`): renders the re
 
 - Backdrop toggles are a `fieldset` (`aria-label="Preview backdrop"`) of `aria-pressed` buttons named "Dark backdrop" / "Light backdrop" / "Checkerboard backdrop" (not a radiogroup, which would promise arrow keys it lacks).
 - Play/Pause carries `aria-pressed`.
+- On coarse pointers the Timer/Tasks toggles, backdrop swatches, Play and Show/Hide are at
+  least 44px.
 - `TimerDisplay`'s SVG has a `<title>`; `TaskListDisplay` keeps its scroll copy `aria-hidden`.
 
 ## Do / Don't

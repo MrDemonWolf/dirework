@@ -4,6 +4,66 @@ import { DEFAULT_TIMER_STYLES } from "@dirework/api/config-defaults";
 
 import { confirmDialog, signIn, waitForHydration } from "./helpers";
 
+test("a hard load paints the finished page, never the loading skeleton", async ({ page }) => {
+  await signIn(page);
+  // After every frame from the first one on, note whether a skeleton block was on screen inside
+  // <main>. The check runs in a task queued from the frame's rAF, so it sees the DOM as that
+  // frame painted it (React reveals streamed content in a later rAF callback of the same
+  // frame). Streamed segments sit in hidden containers until revealed, so only a rendered
+  // (non-zero box) skeleton counts: that is what the owner would see.
+  await page.addInitScript(() => {
+    const seen: number[] = [];
+    (window as unknown as { __skeletonFrames: number[] }).__skeletonFrames = seen;
+    const afterPaint = () => {
+      const blocks = document.querySelectorAll('main [data-slot="skeleton"]');
+      if ([...blocks].some((block) => block.getClientRects().length > 0)) {
+        seen.push(Math.round(performance.now()));
+      }
+      if (performance.now() < 3000) requestAnimationFrame(() => setTimeout(afterPaint, 0));
+    };
+    requestAnimationFrame(() => setTimeout(afterPaint, 0));
+  });
+  await page.goto("/dashboard/styles");
+  await waitForHydration(page);
+  await expect(page.getByRole("radiogroup", { name: "Theme presets" })).toBeVisible();
+  await page.waitForTimeout(500);
+  const frames = await page.evaluate(
+    () => (window as unknown as { __skeletonFrames: number[] }).__skeletonFrames,
+  );
+  expect(frames, "frames that showed the loading skeleton").toEqual([]);
+});
+
+test("fits a 390px phone, with the preview one tap away above the editors", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page);
+  await page.goto("/dashboard/styles");
+  await waitForHydration(page);
+
+  const widths = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    client: document.documentElement.clientWidth,
+  }));
+  expect(widths.scroll, "Theme Center wider than a 390px viewport").toBeLessThanOrEqual(
+    widths.client,
+  );
+
+  // Collapsed, the preview is a status bar; Show opens a compact canvas that stays pinned
+  // under the header while the editors scroll beneath it.
+  const toggle = page.getByRole("button", { name: "Show preview" });
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("button", { name: "Preview timer" })).toBeHidden();
+  await toggle.click();
+  await expect(page.getByRole("button", { name: "Hide preview" })).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
+  const previewTimer = page.getByRole("button", { name: "Preview timer" });
+  await expect(previewTimer).toBeVisible();
+
+  await page.getByRole("button", { name: "Opacity section options" }).scrollIntoViewIfNeeded();
+  await expect(previewTimer).toBeInViewport();
+});
+
 test("applies a preset, saves it, and finds it selected after a reload", async ({ page }) => {
   await signIn(page);
   await page.goto("/dashboard/styles");

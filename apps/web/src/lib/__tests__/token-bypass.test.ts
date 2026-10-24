@@ -35,7 +35,9 @@ const ALLOWED: Record<string, string[]> = {
     "text-[2.6rem]",
     "tracking-[0.08em]",
   ],
-  "app/(app)/dashboard/styles/styles-page.tsx": ["max-h-[calc(100vh-6rem)]"],
+  "app/(app)/dashboard/styles/styles-page.tsx": [
+    "max-h-[calc(100vh-6rem-var(--save-bar-clearance,0px))]",
+  ],
   "components/bot-settings/blocked-viewers-card.tsx": ["grid-cols-[15rem_minmax(0,1fr)]"],
   "components/bot-settings/command-tab-panel.tsx": ["grid-cols-[15rem_minmax(0,1fr)]"],
   "components/bot-settings-skeleton.tsx": ["grid-cols-[15rem_minmax(0,1fr)]"],
