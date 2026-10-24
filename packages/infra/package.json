@@ -16,7 +16,7 @@
   "devDependencies": {
     "@dirework/config": "workspace:*",
     "alchemy": "catalog:",
-    "brace-expansion": "2.1.7",
+    "brace-expansion": "5.0.12",
     "tsx": "^4.23.15",
     "typescript": "catalog:",
     "vitest": "catalog:"
