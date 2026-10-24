@@ -77,5 +77,8 @@ describe("design tokens", () => {
       /\.dark [^{]*\{[^}]*(?<![-\w])color:\s*var\(--brand-500\)[^}]*\}/g,
     );
     expect(darkTextOnFill).toBeNull();
+    // A selector list cut short (a trailing comma before a blank line) glues itself onto
+    // the next rule.
+    expect(docsCss).not.toMatch(/,[ \t]*\n[ \t]*\n/);
   });
 });

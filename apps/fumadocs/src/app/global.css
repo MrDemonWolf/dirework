@@ -524,7 +524,6 @@ html { scroll-behavior: smooth; }
   /* Long URLs/tokens wrap instead of clipping at phone width. */
   overflow-wrap: anywhere;
 }
-.dark .fd-prose :not(pre) > code,
 
 /* Content links — brand, underlined, offset. Skip anchor permalinks + Cards. */
 [class*="prose"] a:not(.peer):not([data-card]),
@@ -536,7 +535,6 @@ html { scroll-behavior: smooth; }
   text-decoration-thickness: 1px;
   transition: text-decoration-color 0.15s ease, color 0.15s ease;
 }
-.dark [class*="prose"] a:not(.peer):not([data-card]),
 [class*="prose"] a:not(.peer):not([data-card]):hover,
 .fd-prose a:not(.peer):not([data-card]):hover {
   text-decoration-color: var(--brand-500);
@@ -623,7 +621,6 @@ div[data-card]:hover {
   background-color: var(--brand-50) !important;
   color: var(--brand-600) !important;
 }
-.dark [class*="prose"] [role="tab"][data-state="active"],
 
 /* Docs tables — flat hairline grid, centered status cells, emphasized labels. */
 [class*="prose"] table {
