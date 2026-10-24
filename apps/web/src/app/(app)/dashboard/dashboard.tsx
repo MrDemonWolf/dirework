@@ -253,7 +253,8 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
             aria-label={
               botAccount ? "Bot ready, open Bot settings" : "Bot not connected, open Bot settings"
             }
-            className="rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring"
+            // A compact chip, so on touch screens the link itself gets the 44px hit area.
+            className="inline-flex items-center rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11"
           >
             <StatusChip
               tone={botAccount ? "accent" : "idle"}

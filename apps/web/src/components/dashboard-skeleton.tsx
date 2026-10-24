@@ -2,7 +2,7 @@
 // server prefetches its data), so this shows only on client navigation (dashboard/loading.tsx,
 // while the next page's server render round-trips) and as the fallback when the server
 // prefetch failed and `user.me` is fetching in the browser. Its blocks mirror the live layout
-// (timer console 3/5 | 2/5, task board 2/3 | monitor 1/3, bot strip) so the page doesn't
+// (header chips, timer console 3/5 | 2/5, task board 2/3 | monitor 1/3) so the page doesn't
 // jump when data lands; update it alongside dashboard.tsx, timer-controls.tsx and
 // task-manager.tsx.
 
@@ -29,14 +29,17 @@ function MonitorSkeleton() {
 export function DashboardSkeleton() {
   return (
     <div className="container mx-auto max-w-content px-4 py-8">
-      {/* Header band skeleton: greeting + timer status chip */}
+      {/* Header band skeleton: greeting + timer status and bot chips */}
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-2">
           <Skeleton className="h-3 w-32" />
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-4 w-48" />
         </div>
-        <Skeleton className="h-6 w-24 rounded-full" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-6 w-24 rounded-full" />
+          <Skeleton className="h-6 w-24 rounded-full" />
+        </div>
       </div>
 
       <div className="stagger-reveal grid gap-6">
@@ -93,20 +96,6 @@ export function DashboardSkeleton() {
             <div className="border-t border-border/40 p-5 lg:border-t-0 lg:border-l">
               <MonitorSkeleton />
             </div>
-          </div>
-        </div>
-
-        {/* Bot quick status skeleton — slim full-width strip like the live section */}
-        <div className="panel">
-          <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <Skeleton className="size-10 rounded-lg" />
-              <div className="space-y-1.5">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-5 w-20 rounded-full" />
-              </div>
-            </div>
-            <Skeleton className="h-8 w-40" />
           </div>
         </div>
       </div>

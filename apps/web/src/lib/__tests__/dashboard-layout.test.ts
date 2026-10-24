@@ -24,6 +24,17 @@ describe("dashboard layout", () => {
     expect(dashboard).toMatch(/<Link\s+href=\{"\/dashboard\/bot" as const\}[\s\S]*?<StatusChip/);
   });
 
+  it("gives the bot chip link a 44px touch target", () => {
+    const link = dashboard.match(/<Link\s+href=\{"\/dashboard\/bot" as const\}[\s\S]*?>/)?.[0];
+    expect(link).toContain("pointer-coarse:min-h-11");
+  });
+
+  it("keeps the skeleton to the live page's two panels, with no bot strip", () => {
+    // A third skeleton panel would vanish when data lands and jump the layout.
+    expect(skeleton.match(/className="panel[ "-]/g)).toHaveLength(2);
+    expect(dashboard.match(/<section className="panel/g)).toHaveLength(2);
+  });
+
   it("splits the timer console 3/5 | 2/5 and the board 2/3 | 1/3", () => {
     expect(dashboard).toContain('<div className="grid lg:grid-cols-5">');
     expect(dashboard).toMatch(/lg:col-span-3">\s*<TimerInstrument \/>/);
