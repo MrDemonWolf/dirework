@@ -67,4 +67,15 @@ describe("design tokens", () => {
     expect(rendered[OUTPUTS.web]).toContain("--radius-lg: var(--radius);");
     expect(rendered[OUTPUTS.docs]).not.toMatch(/--radius/);
   });
+
+  it("never colours docs text with the dark accent fill", () => {
+    // --brand-500 is the button-fill blue (below 4.5:1 as text on the dark page and muted
+    // surface); --brand-600 is the text blue and already flips with the theme, so a `.dark`
+    // override that sets text to --brand-500 regresses contrast.
+    const docsCss = readFileSync(join(ROOT, "apps/fumadocs/src/app/global.css"), "utf8");
+    const darkTextOnFill = docsCss.match(
+      /\.dark [^{]*\{[^}]*(?<![-\w])color:\s*var\(--brand-500\)[^}]*\}/g,
+    );
+    expect(darkTextOnFill).toBeNull();
+  });
 });

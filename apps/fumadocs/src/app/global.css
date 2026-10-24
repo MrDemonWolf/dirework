@@ -130,7 +130,6 @@
 .dw-text-1     { color: var(--txt-1); }
 .dw-text-2     { color: var(--txt-2); }
 .dw-text-brand { color: var(--brand-600); }
-.dark .dw-text-brand { color: var(--brand-500); }
 
 /* ── Console grammar (ported from the app) ──────────────────────────────── */
 
@@ -228,7 +227,6 @@
 }
 .dw-chip-dot { width: 0.375rem; height: 0.375rem; border-radius: 9999px; flex-shrink: 0; }
 .dw-chip-accent { border-color: color-mix(in srgb, var(--brand-500) 30%, transparent); background-color: var(--brand-50); color: var(--brand-600); }
-.dark .dw-chip-accent { color: var(--brand-500); }
 .dw-chip-accent .dw-chip-dot { background-color: var(--brand-500); }
 .dw-chip-live { border-color: color-mix(in srgb, var(--color-live) 30%, transparent); background-color: color-mix(in srgb, var(--color-live) 12%, transparent); color: var(--chip-live-fg); }
 .dw-chip-live .dw-chip-dot { background-color: var(--color-live); }
@@ -263,7 +261,6 @@
   color: var(--brand-600);
   letter-spacing: 0;
 }
-.dark .dw-kicker-num { color: var(--brand-500); }
 
 /* ── Buttons ────────────────────────────────────────────────────────────── */
 .dw-btn {
@@ -291,7 +288,6 @@
   color: var(--brand-600);
   border: 1px solid color-mix(in srgb, var(--brand-500) 45%, var(--hairline));
 }
-.dark .dw-btn-secondary { color: var(--brand-500); }
 .dw-btn-secondary:hover { border-color: var(--brand-500); }
 .dw-btn-ghost {
   background-color: color-mix(in srgb, var(--bg-surface) 70%, transparent);
@@ -529,7 +525,6 @@ html { scroll-behavior: smooth; }
   overflow-wrap: anywhere;
 }
 .dark .fd-prose :not(pre) > code,
-.dark [class*="prose"] :not(pre) > code { color: var(--brand-500); }
 
 /* Content links — brand, underlined, offset. Skip anchor permalinks + Cards. */
 [class*="prose"] a:not(.peer):not([data-card]),
@@ -542,7 +537,6 @@ html { scroll-behavior: smooth; }
   transition: text-decoration-color 0.15s ease, color 0.15s ease;
 }
 .dark [class*="prose"] a:not(.peer):not([data-card]),
-.dark .fd-prose a:not(.peer):not([data-card]) { color: var(--brand-500) !important; }
 [class*="prose"] a:not(.peer):not([data-card]):hover,
 .fd-prose a:not(.peer):not([data-card]):hover {
   text-decoration-color: var(--brand-500);
@@ -630,7 +624,6 @@ div[data-card]:hover {
   color: var(--brand-600) !important;
 }
 .dark [class*="prose"] [role="tab"][data-state="active"],
-.dark [class*="prose"] [role="tab"][aria-selected="true"] { color: var(--brand-500) !important; }
 
 /* Docs tables — flat hairline grid, centered status cells, emphasized labels. */
 [class*="prose"] table {
