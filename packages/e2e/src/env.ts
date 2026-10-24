@@ -38,3 +38,9 @@ export const PROXY_SECRET = "e2e-proxy-secret-0123456789abcdef0123456789";
 export const BETTER_AUTH_SECRET = "e2e-better-auth-secret-0123456789abcdef";
 /** The per-run secret the DEV_LOGIN bypass demands (`x-dev-login-secret`). */
 export const DEV_LOGIN_SECRET = "e2e-dev-login-secret";
+
+/**
+ * Cookie that slows named tRPC procedures on the e2e api worker (`task.list=1500`), read by
+ * src/api-entry.ts only. The web worker forwards it on its server-side batch like any cookie.
+ */
+export const DELAY_COOKIE = "e2e-delay";

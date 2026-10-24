@@ -11,6 +11,8 @@ vi.mock("next/headers", () => ({
 }));
 
 import { QueryClient } from "@tanstack/react-query";
+import { initTRPC } from "@trpc/server";
+import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 
 import {
   CLIENT_IP_HEADER,
@@ -23,8 +25,15 @@ import { createServerTrpc } from "../server-trpc";
 const SECRET = "s".repeat(40);
 const originalFetch = globalThis.fetch;
 
-function batchResponse(count: number): Response {
-  return Response.json(Array.from({ length: count }, () => ({ result: { data: null } })));
+/** The api's answer, from the real tRPC fetch adapter (JSON lines, since the link streams). */
+const api = initTRPC.create();
+const apiRouter = api.router({
+  user: api.router({ me: api.procedure.query(() => null) }),
+  task: api.router({ list: api.procedure.query(() => null) }),
+  config: api.router({ get: api.procedure.query(() => null) }),
+});
+function batchResponse(url: string, init?: RequestInit): Promise<Response> {
+  return fetchRequestHandler({ endpoint: "/trpc", req: new Request(url, init), router: apiRouter });
 }
 
 describe("createServerTrpc", () => {
@@ -39,7 +48,7 @@ describe("createServerTrpc", () => {
   });
 
   it("batches same-tick prefetches into ONE direct GET to the api worker's /trpc", async () => {
-    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => batchResponse(2));
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => batchResponse(url, init));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const queryClient = new QueryClient();
@@ -55,10 +64,12 @@ describe("createServerTrpc", () => {
     expect((init?.method ?? "GET").toUpperCase()).toBe("GET");
     expect(init?.cache).toBe("no-store");
     expect(init?.signal).toBeInstanceOf(AbortSignal);
+    // Streamed: each procedure resolves as the api writes it (lib/progressive.ts).
+    expect(new Headers(init?.headers).get("trpc-accept")).toBe("application/jsonl");
   });
 
   it("forwards the cookie and the signed browser IP, never a client-supplied IP header", async () => {
-    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => batchResponse(1));
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => batchResponse(url, init));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const queryClient = new QueryClient();
