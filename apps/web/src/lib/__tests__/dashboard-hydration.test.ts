@@ -13,15 +13,15 @@ const read = (file: string) => readFileSync(path.join(src, file), "utf8");
 describe("dashboard SSR hydration", () => {
   it("renders the live dashboard without waiting on a client user.me fetch", () => {
     const dashboard = read("app/(app)/dashboard/dashboard.tsx");
-    expect(dashboard).not.toContain("if (user.isPending) {");
-    // The skeleton survives only inside the `!me` fallback.
-    expect(dashboard).toMatch(
-      /if \(!me\) \{\s*if \(user\.isPending\) return <DashboardSkeleton \/>;/,
-    );
+    // No whole-page skeleton gate: each section has its own boundary and placeholder
+    // (lib/progressive.ts), and a failed `me` keeps the frame in place.
+    expect(dashboard).not.toContain("<DashboardSkeleton");
+    expect(dashboard).not.toMatch(/if \(user\.isPending\) return/);
+    expect(dashboard).toContain("<ProgressiveSection");
   });
 
   it.each([
-    ["app/(app)/dashboard/page.tsx", "prefetchDashboard"],
+    ["app/(app)/dashboard/page.tsx", "streamDashboard"],
     ["app/(app)/dashboard/styles/page.tsx", "prefetchStyles"],
     // Bot settings prefetches once in the layout its sub-pages share.
     ["app/(app)/dashboard/bot/(sections)/layout.tsx", "prefetchBot"],

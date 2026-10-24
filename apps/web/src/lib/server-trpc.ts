@@ -4,7 +4,7 @@
 import type { AppRouter } from "@dirework/api/routers/index";
 import type { QueryClient } from "@tanstack/react-query";
 
-import { createTRPCClient, httpBatchLink } from "@trpc/client";
+import { createTRPCClient, httpBatchStreamLink } from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { headers } from "next/headers";
 
@@ -23,13 +23,16 @@ import { INTERNAL_FETCH_TIMEOUT_MS } from "@/lib/server-session";
  * exactly like `getServerSession`. Query keys are built from path + input only, so they
  * match the browser `trpc` proxy's and the dehydrated cache hydrates in place.
  *
- * `httpBatchLink` folds every query issued in the same tick into ONE GET request; queries
- * are GETs, so the api's JSON-only POST guard does not apply.
+ * `httpBatchStreamLink` folds every query issued in the same tick into ONE GET request
+ * (queries are GETs, so the api's JSON-only POST guard does not apply) and reads the answer as
+ * a stream (`trpc-accept: application/jsonl`): each procedure's result resolves the moment the
+ * api writes it, not when the slowest one finishes. That is what lets a page fill its sections
+ * in independently (lib/progressive.ts) without a second request.
  */
 export function createServerTrpc(queryClient: QueryClient) {
   const client = createTRPCClient<AppRouter>({
     links: [
-      httpBatchLink({
+      httpBatchStreamLink({
         url: `${apiOrigin()}/trpc`,
         maxItems: TRPC_MAX_BATCH_SIZE,
         async headers() {

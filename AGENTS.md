@@ -65,13 +65,16 @@ token-authenticated traffic (overlay polling, bot page) goes DIRECT to the api w
 with their data: each page runs `requireSession()` first (a signed-out visitor never spends a
 batch) — for Bot settings the shared `bot/(sections)/layout.tsx` does it, ONCE on entering the
 section, since a layout is kept across its own pages' navigations and every procedure those
-pages call is owner-only — then `prefetchDashboard` / `prefetchStyles` / `prefetchBot` (`lib/server-query.ts`),
+pages call is owner-only — then `streamDashboard` / `prefetchStyles` / `prefetchBot` (`lib/server-query.ts`),
 which use a per-call `createServerTrpc(queryClient)` (`lib/server-trpc.ts`, no module state)
-to issue every query in one tick — `httpBatchLink` folds them into ONE GET straight to the
-api worker's `/trpc` (cookie + signed client IP, 5s `INTERNAL_FETCH_TIMEOUT_MS`; never via
-`/rpc`). The dehydrated cache goes into a `<HydrationBoundary>`; query keys are path + input
-only, so they match the browser `trpc` proxy's. `prefetchQuery` never throws and `dehydrate`
-keeps only successes, so a failed prefetch falls back to the client fetch (and its skeleton).
+to issue every query in one tick — `httpBatchStreamLink` folds them into ONE GET straight to
+the api worker's `/trpc` (cookie + signed client IP, 5s `INTERNAL_FETCH_TIMEOUT_MS`; never via
+`/rpc`) and reads the answer as JSON lines (`trpc-accept: application/jsonl`, which the api's
+`@hono/trpc-server` fetch adapter streams natively), so each procedure resolves as soon as the
+api writes it. The dehydrated cache goes into a `<HydrationBoundary>`; query keys are path +
+input only, so they match the browser `trpc` proxy's. `prefetchQuery` never throws and
+`dehydrate` keeps only successes, so a failed prefetch falls back to the client fetch (and its
+skeleton).
 The client `QueryClient` defaults `staleTime` to `QUERY_FRESH_MS` (30s, `poll-intervals.ts`)
 so hydrated data isn't refetched on mount; polls and invalidations ignore staleness, so no
 cadence changes. `getServerSession` is wrapped in React `cache()`, so the `(app)` layout
@@ -87,8 +90,32 @@ await (Next renders a route's layouts and page in parallel, so it registers befo
 layout's own await settles), and the `(app)` layout awaits `shellReleased()` (allSettled, a
 no-op when nothing is held) after its session, so the page is complete when the shell is
 written. A client navigation never runs the `(app)` layout, so its `loading.tsx` skeleton
-still shows instantly. Only `/dashboard/styles` opts in so far; `shell-hold.test.ts` pins
-the wiring and `40-theme-center` asserts no painted frame shows a skeleton.
+still shows instantly. `/dashboard/styles` (on its whole prefetch) and `/dashboard` (on
+`loadDashboard`, which waits at most `SECTIONS_READY_MS`) opt in; `shell-hold.test.ts` and
+`progressive.test.ts` pin the wiring, and `40-theme-center` / `22-progressive` assert no
+painted frame shows a skeleton on a fast load.
+**Progressive sections** (`/dashboard`; any page can opt in). `streamQueries(start)` starts the
+page's batch and waits for it only until every query settles or `SECTIONS_READY_MS` (150ms,
+`lib/progressive.ts`) passes, then dehydrates successes as data and the queries still in
+flight as pending promises, which stream to the browser inside the RSC payload. The page holds
+the `(app)` shell for exactly that (`holdShellFor(load())`, above), so a fast load paints
+complete in one go and never renders a placeholder. Each data-backed part of the page is a
+`<ProgressiveSection queryKeys fallback>` (`components/progressive-section.tsx`): a Suspense
+boundary whose gate (`sectionWait`) suspends only on its own still-streaming queries, so a
+query slower than the deadline shows just its section's placeholder (`SectionPlaceholder`,
+`data-placeholder="<name>"`, shaped exactly like the live section) and fills in on its own,
+from the same request. Static chrome (headings, the greeting) lives outside the boundaries or
+is repeated in the fallback. Why a server deadline and not a CSS-delayed placeholder: React
+reveals streamed boundaries in batches, the first at once and each later one ≥300ms after the
+previous, so a frame painted first and filled a moment later still flashed its placeholders
+(2 hard loads in 8 in testing). Keep state two places share inside one section (the
+dashboard's checklist and its header Setup button, both gated on `user.me`) so it is never
+decided from a pending query; no entrance animation on sections (a fade would replay per
+reveal). Known exception: the setup checklist has no placeholder (its presence depends on
+`user.me` and a per-browser choice), so a `user.me` slower than 150ms mid-setup pushes the
+page down once. To opt a page in: replace its awaited `prefetch*` with `streamQueries`, hold
+the shell on the loader, and wrap each data section. e2e `22-progressive` slows one procedure
+through the e2e api worker's `e2e-delay` cookie (`packages/e2e/src/api-entry.ts`).
 
 **Per-request factories, no module singletons** (Workers isolate per request):
 `createDb()` (packages/db), `createAuth()` (packages/auth), `createContext({ context })`
@@ -255,7 +282,7 @@ bundle zod); types still come from `config-shared`.
 
 - **Next.js 16** (App Router) with React 19, React Compiler, typed routes, OpenNext on Workers
 - **Hono** API worker with `@hono/trpc-server`
-- **tRPC v11** — `httpBatchLink` to same-origin `/rpc` (authed) + `publicTrpc` direct to the api worker (public)
+- **tRPC v11** — `httpBatchLink` to same-origin `/rpc` (authed) + `publicTrpc` direct to the api worker (public); server renders prefetch with `httpBatchStreamLink` (`lib/server-trpc.ts`)
 - **TanStack React Query** (polling via `refetchInterval`)
 - **Better Auth** with Twitch social provider (30-day sessions, sqlite adapter)
 - **Drizzle ORM** on **Cloudflare D1** (`drizzle-orm/d1`, drizzle-kit `d1-http`)
@@ -555,7 +582,9 @@ monitor is the URL row plus a "Live preview" toggle whose iframe only exists whi
 Rows are `min-h-11` with `line-clamp-2` text, author groups fold (Collapsible, component
 state only), and "Clear done (N)" / "Clear all (N)" live in the "Task board options" menu,
 each opening its confirm. The bot's status appears once, as the header chip that links to Bot settings.
-`DashboardSkeleton` mirrors these shapes; `dashboard-layout.test.ts` pins them.
+The per-section placeholders in `dashboard-skeleton.tsx` (and the client-navigation
+`DashboardSkeleton` built from them) repeat these shapes box for box; `dashboard-layout.test.ts`
+pins them.
 **Bot settings** (`/dashboard/bot/*`): `bot/layout.tsx` is synchronous and data-free — the
 h1 and the sticky `<nav aria-label="Bot settings sections">` (`components/bot-settings/
 bot-section-nav.tsx`, sections from `lib/bot-sections.ts`, `aria-current="page"`, links
@@ -731,12 +760,15 @@ idempotent, tokens never rotate).
 **Browser end-to-end** (`packages/e2e`, `bun run e2e`): Playwright drives the real stack — the
 api worker from source and the web worker from its built bundle (`bun run build:worker` in
 apps/web first), both in local workerd on 127.0.0.1:3000/3001 over a fresh local D1 with every
-migration applied (`src/boot-api.ts`, `src/boot-web.ts`), signed in through the `DEV_LOGIN`
+migration applied (`src/boot-api.ts`, `src/boot-web.ts`; the api runs behind `src/api-entry.ts`, the
+real app plus two test-only knobs production never has: the `e2e-delay` cookie that slows named
+procedures and a `/__e2e/requests` tally), signed in through the `DEV_LOGIN`
 bypass with a fixed test secret. One worker and serial specs (single-owner instance, one
 database). Spec files are numbered and run in order: `00-first-run` sees the fresh database
 (the claim page, then the first dev-login claims the instance), then `10-smoke`,
 `15-landing` (the viewer landing: claimed notice + deploy link, docs links, no `/rpc`),
-`20-dashboard`, `25-setup-checklist` (confirm/revert a step, Finish later), `30-timer` (Pomodoro start/stop and the ticking timer overlay; phase labels
+`20-dashboard`, `22-progressive` (a fast hard load paints no placeholder; a slowed
+procedure shows only its section's, from the same one batch), `25-setup-checklist` (confirm/revert a step, Finish later), `30-timer` (Pomodoro start/stop and the ticking timer overlay; phase labels
 come from `@dirework/api/config-defaults`), `40-theme-center`, `50-bot-settings`,
 `55-bot-dock` (`/bot/<token>?view=dock` renders the dock; the default view doesn't; a
 button click sends one `bot.ingest` as the broadcaster, with getSession/ingest stubbed and the

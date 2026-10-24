@@ -2,9 +2,14 @@
 
 // Owner dashboard home (/dashboard): the timer console (instrument | controls, settings and
 // the timer-overlay monitor) and the task board (board | tasks-overlay monitor). The header's
-// bot chip is the page's only bot status. All data comes from owner-only tRPC
-// procedures: hydrated from the server prefetch on first load, then polled through the
-// same-origin /rpc proxy.
+// bot chip is the page's only bot status. All data comes from owner-only tRPC procedures:
+// streamed from the server's one batched call on first load (page.tsx), then polled through
+// the same-origin /rpc proxy.
+//
+// Progressive: the frame (greeting, panels, headings) is static and each data-backed section
+// is a ProgressiveSection (components/progressive-section.tsx, lib/progressive.ts). The first
+// paint carries every section whose data arrived within SECTIONS_READY_MS; a slower one shows
+// its placeholder (same shape) and fills in on its own.
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -15,7 +20,12 @@ import { toast } from "sonner";
 import type { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { ConsoleRule } from "@/components/console-rule";
-import { DashboardSkeleton } from "@/components/dashboard-skeleton";
+import {
+  StatusClusterPlaceholder,
+  TaskBoardPlaceholder,
+  TimerConsoleBodyPlaceholder,
+} from "@/components/dashboard-skeleton";
+import { ProgressiveSection, SectionPlaceholder } from "@/components/progressive-section";
 import { QueryError } from "@/components/query-error";
 import { SecretUrlRow } from "@/components/secret-url-row";
 import { SetupChecklist, SetupReopenButton, useSetupCollapsed } from "@/components/setup-checklist";
@@ -155,15 +165,10 @@ function SizeChip({ size, hint }: { size: string; hint: string }) {
   );
 }
 
-/**
- * Dashboard home. `session` comes from the server page; `user.me` supplies the overlay tokens
- * and bot account. Shows <QueryError> instead of a half-rendered console if `me` fails.
- */
-export default function Dashboard({ session }: { session: typeof authClient.$Infer.Session }) {
+/** Resetting an overlay URL: one mutation per monitor, with the shared toasts. */
+function useRegenerateOverlayToken() {
   const queryClient = useQueryClient();
-  const user = useQuery(trpc.user.me.queryOptions());
-
-  const regenerateToken = useMutation({
+  return useMutation({
     ...trpc.user.regenerateOverlayToken.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trpc.user.me.queryKey() });
@@ -173,20 +178,51 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
       toast.error(`Couldn't reset the URL: ${describeTrpcError(err)}`);
     },
   });
+}
 
-  // Previews start hidden: each one is a live overlay iframe that polls the api on the
-  // overlay cadence for as long as it is shown.
-  const [showTimerPreview, setShowTimerPreview] = useState(false);
-  const [showTasksPreview, setShowTasksPreview] = useState(false);
+type SessionUser = (typeof authClient.$Infer.Session)["user"];
+
+/**
+ * Header band: console kicker + greeting (session only, so it is part of the frame) and the
+ * status cluster, which the caller fills (placeholder or live chips). The cluster's bot chip
+ * is the page's only bot status, and it links to Bot settings.
+ */
+function HeaderBand({ user, status }: { user: SessionUser; status: React.ReactNode }) {
+  return (
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p className="console-label mb-2" suppressHydrationWarning>
+          Console — {getDateStr()}
+        </p>
+        <h1 className="font-heading text-3xl font-bold tracking-tight" suppressHydrationWarning>
+          {getGreeting()}, {user.name}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground" suppressHydrationWarning>
+          {getSubGreeting()}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">{status}</div>
+    </div>
+  );
+}
+
+/**
+ * Header section (needs `user.me` + `timer.get`): the band's live status cluster (Setup
+ * button, timer status, bot chip) and the "Set up streaming" checklist under it, which share
+ * the checklist's collapsed state. Both render together so that state is decided from loaded
+ * data, never from a pending `me`.
+ */
+function HeaderSection({ user }: { user: SessionUser }) {
+  const me = useQuery(trpc.user.me.queryOptions());
 
   // Setup checklist: "Finish later" hides the card and the header band's Setup button
   // brings it back. Focus follows only those clicks: collapsing hands it to the button,
   // reopening to the card's heading. A transition driven by hydration or the stored choice
   // (no click) never moves focus.
   const [setupCollapsed, setSetupCollapsed] = useSetupCollapsed(
-    // undefined until user.me loads (e.g. after a failed SSR prefetch), so the
-    // collapse default waits for real data.
-    user.data ? setupProgress(user.data).nextStep === null : undefined,
+    // undefined until user.me loads (e.g. after a failed prefetch), so the collapse default
+    // waits for real data.
+    me.data ? setupProgress(me.data).nextStep === null : undefined,
   );
   const setupButtonRef = useRef<HTMLButtonElement>(null);
   const setupHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -199,73 +235,61 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
     reopenRequested.current = false;
   }, [setupCollapsed]);
 
-  // `user.me` normally arrives hydrated from the server prefetch (page.tsx), so the live
-  // tree renders on the first pass. The skeleton is only the fallback for a failed prefetch
-  // while the client fetch is in flight.
-  const me = user.data;
-  if (!me) {
-    if (user.isPending) return <DashboardSkeleton />;
+  if (!me.data) {
+    // The streamed `me` failed (or never streamed): the client refetches it on mount. Keep
+    // the band's shape while it runs, then offer a retry if it fails too.
     return (
-      <div className="container mx-auto max-w-content px-4 py-8">
-        <QueryError
-          title="Couldn't load your dashboard"
-          onRetry={() => user.refetch()}
-          retrying={user.isFetching}
-        />
-      </div>
+      <>
+        <HeaderBand user={user} status={<StatusClusterPlaceholder />} />
+        {!me.isFetching && (
+          <QueryError
+            title="Couldn't load your dashboard"
+            onRetry={() => me.refetch()}
+            retrying={me.isFetching}
+            className="mb-8"
+          />
+        )}
+      </>
     );
   }
 
-  const timerPath = overlayPath("timer", me.overlayTimerToken);
-  const tasksPath = overlayPath("tasks", me.overlayTasksToken);
-  const botAccount = me.botAccount ?? null;
+  const botAccount = me.data.botAccount ?? null;
 
   return (
-    <div className="container mx-auto max-w-content px-4 py-8">
-      {/* Header band: console kicker + greeting + status cluster. The bot chip is the
-          page's only bot status, and it links to Bot settings. */}
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="console-label mb-2" suppressHydrationWarning>
-            Console — {getDateStr()}
-          </p>
-          <h1 className="font-heading text-3xl font-bold tracking-tight" suppressHydrationWarning>
-            {getGreeting()}, {session.user.name}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground" suppressHydrationWarning>
-            {getSubGreeting()}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {setupCollapsed && (
-            <SetupReopenButton
-              me={me}
-              buttonRef={setupButtonRef}
-              onOpen={() => {
-                reopenRequested.current = true;
-                setSetupCollapsed(false);
-              }}
-            />
-          )}
-          <TimerStatusBadge />
-          <Link
-            href={"/dashboard/bot" as const}
-            aria-label={
-              botAccount ? "Bot ready, open Bot settings" : "Bot not connected, open Bot settings"
-            }
-            // A compact chip, so on touch screens the link itself gets the 44px hit area.
-            className="inline-flex items-center rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11"
-          >
-            <StatusChip
-              tone={botAccount ? "accent" : "idle"}
-              label={botAccount ? "Bot ready" : "Bot not connected"}
-            />
-          </Link>
-        </div>
-      </div>
-
+    <>
+      <HeaderBand
+        user={user}
+        status={
+          <>
+            {setupCollapsed && (
+              <SetupReopenButton
+                me={me.data}
+                buttonRef={setupButtonRef}
+                onOpen={() => {
+                  reopenRequested.current = true;
+                  setSetupCollapsed(false);
+                }}
+              />
+            )}
+            <TimerStatusBadge />
+            <Link
+              href={"/dashboard/bot" as const}
+              aria-label={
+                botAccount ? "Bot ready, open Bot settings" : "Bot not connected, open Bot settings"
+              }
+              // A compact chip, so on touch screens the link itself gets the 44px hit area.
+              className="inline-flex items-center rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11"
+            >
+              <StatusChip
+                tone={botAccount ? "accent" : "idle"}
+                label={botAccount ? "Bot ready" : "Bot not connected"}
+              />
+            </Link>
+          </>
+        }
+      />
       <SetupChecklist
-        me={me}
+        me={me.data}
         collapsed={setupCollapsed}
         headingRef={setupHeadingRef}
         onCollapse={() => {
@@ -273,10 +297,104 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
           setSetupCollapsed(true);
         }}
       />
+    </>
+  );
+}
 
-      <div className="stagger-reveal grid gap-6">
-        {/* Hero instrument: the timer console. Instrument (3/5) | controls, session
-            settings and the timer-overlay monitor (2/5). */}
+/**
+ * Timer console body (needs `timer.get` + `config.get`): instrument (3/5) | transport,
+ * session settings and the timer-overlay monitor (2/5). The monitor's URL comes from
+ * `user.me`; until that lands the row stays masked and disabled at the same size.
+ */
+function TimerConsoleBody() {
+  const me = useQuery(trpc.user.me.queryOptions());
+  const regenerateToken = useRegenerateOverlayToken();
+  // Previews start hidden: each one is a live overlay iframe that polls the api on the
+  // overlay cadence for as long as it is shown.
+  const [showPreview, setShowPreview] = useState(false);
+
+  return (
+    <TimerProvider>
+      <div className="grid lg:grid-cols-5">
+        <div className="flex items-center justify-center px-5 py-8 lg:col-span-3">
+          <TimerInstrument />
+        </div>
+        <div className="flex min-w-0 flex-col gap-5 border-t border-border/40 px-5 py-5 lg:col-span-2 lg:border-t-0 lg:border-l">
+          <TimerTransport />
+          <TimerSettings />
+          <OverlayMonitor
+            label="Timer overlay"
+            noun="timer"
+            size="300 × 300"
+            sizeHint="Square OBS browser source — the timer scales to fill it"
+            aspectRatio="1 / 1"
+            src={overlayPath("timer", me.data?.overlayTimerToken)}
+            show={showPreview}
+            onToggle={setShowPreview}
+            onRegenerate={() => regenerateToken.mutate({ type: "timer" })}
+            regenerating={regenerateToken.isPending}
+          />
+        </div>
+      </div>
+    </TimerProvider>
+  );
+}
+
+/** Task board (needs `task.list` + `user.me`, which pins the streamer's own group first). */
+function TaskBoard() {
+  const me = useQuery(trpc.user.me.queryOptions());
+  const regenerateToken = useRegenerateOverlayToken();
+  const [showPreview, setShowPreview] = useState(false);
+
+  return (
+    <TaskManager
+      userTwitchId={me.data?.twitchId ?? me.data?.id ?? ""}
+      monitor={
+        <OverlayMonitor
+          label="Tasks overlay"
+          noun="tasks"
+          size="700 × 800"
+          sizeHint="OBS browser source — the list fills it and scrolls when tasks overflow"
+          aspectRatio="7 / 8"
+          src={overlayPath("tasks", me.data?.overlayTasksToken)}
+          show={showPreview}
+          onToggle={setShowPreview}
+          onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
+          regenerating={regenerateToken.isPending}
+        />
+      }
+    />
+  );
+}
+
+/**
+ * Dashboard home: the frame plus one `ProgressiveSection` per data-backed section. `session`
+ * comes from the server page; the sections read the streamed queries.
+ */
+export default function Dashboard({ session }: { session: typeof authClient.$Infer.Session }) {
+  const meKey = trpc.user.me.queryKey();
+  const timerKey = trpc.timer.get.queryKey();
+
+  return (
+    <div className="container mx-auto max-w-content px-4 py-8">
+      <ProgressiveSection
+        queryKeys={[meKey, timerKey]}
+        fallback={
+          <HeaderBand
+            user={session.user}
+            status={
+              <SectionPlaceholder name="status">
+                <StatusClusterPlaceholder />
+              </SectionPlaceholder>
+            }
+          />
+        }
+      >
+        <HeaderSection user={session.user} />
+      </ProgressiveSection>
+
+      <div className="grid gap-6">
+        {/* Hero instrument: the timer console. Its heading is static, so it is frame. */}
         <section className="panel-hero">
           <div className="border-b border-border/40 px-5 pt-4 pb-3">
             <ConsoleRule label="Timer Console" />
@@ -285,50 +403,30 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
               Run the focus session your viewers see in OBS
             </p>
           </div>
-          <TimerProvider>
-            <div className="grid lg:grid-cols-5">
-              <div className="flex items-center justify-center px-5 py-8 lg:col-span-3">
-                <TimerInstrument />
-              </div>
-              <div className="flex min-w-0 flex-col gap-5 border-t border-border/40 px-5 py-5 lg:col-span-2 lg:border-t-0 lg:border-l">
-                <TimerTransport />
-                <TimerSettings />
-                <OverlayMonitor
-                  label="Timer overlay"
-                  noun="timer"
-                  size="300 × 300"
-                  sizeHint="Square OBS browser source — the timer scales to fill it"
-                  aspectRatio="1 / 1"
-                  src={timerPath}
-                  show={showTimerPreview}
-                  onToggle={setShowTimerPreview}
-                  onRegenerate={() => regenerateToken.mutate({ type: "timer" })}
-                  regenerating={regenerateToken.isPending}
-                />
-              </div>
-            </div>
-          </TimerProvider>
+          <ProgressiveSection
+            queryKeys={[timerKey, trpc.config.get.queryKey()]}
+            fallback={
+              <SectionPlaceholder name="timer">
+                <TimerConsoleBodyPlaceholder />
+              </SectionPlaceholder>
+            }
+          >
+            <TimerConsoleBody />
+          </ProgressiveSection>
         </section>
 
         {/* Task board (2/3) with the tasks-overlay monitor (1/3) */}
         <section className="panel-hero min-w-0">
-          <TaskManager
-            userTwitchId={me.twitchId ?? me.id}
-            monitor={
-              <OverlayMonitor
-                label="Tasks overlay"
-                noun="tasks"
-                size="700 × 800"
-                sizeHint="OBS browser source — the list fills it and scrolls when tasks overflow"
-                aspectRatio="7 / 8"
-                src={tasksPath}
-                show={showTasksPreview}
-                onToggle={setShowTasksPreview}
-                onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
-                regenerating={regenerateToken.isPending}
-              />
+          <ProgressiveSection
+            queryKeys={[trpc.task.list.queryKey(), meKey]}
+            fallback={
+              <SectionPlaceholder name="tasks">
+                <TaskBoardPlaceholder />
+              </SectionPlaceholder>
             }
-          />
+          >
+            <TaskBoard />
+          </ProgressiveSection>
         </section>
       </div>
     </div>

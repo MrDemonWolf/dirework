@@ -68,6 +68,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hover that could never happen.
 
 ### Changed
+- **The dashboard loads in one go, and a slow part no longer holds up the rest.** A normal
+  load now paints the finished dashboard about 100ms in, instead of a full-page skeleton that
+  swapped to the real page around 350ms. If one part's data is slow (the task list, the
+  timer, your account), the rest of the page shows right away and only that part keeps a
+  placeholder the exact size of the finished section, filling in on its own when its data
+  arrives. Before, one slow part kept the whole page a skeleton until the slowest finished.
+  It is still one request to the API per load, with no new polling.
 - **Bot settings in sections.** `/dashboard/bot` is now three pages under one heading with a
   sticky link bar: **Overview** (live controls: mute with its status, Task and Timer commands
   on/off, how many viewers are blocked with a **Manage** link; how to run the bot, with its

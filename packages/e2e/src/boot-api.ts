@@ -23,7 +23,8 @@ const stateDir = mkdtempSync(path.join(tmpdir(), "dirework-e2e-api-"));
  */
 const config = {
   name: "dirework-api-e2e",
-  main: path.join(serverDir, "src/index.ts"),
+  // The real app behind a test-only per-procedure delay knob (src/api-entry.ts).
+  main: path.join(repoRoot, "packages/e2e/src/api-entry.ts"),
   compatibility_date: compatibilityDate(),
   compatibility_flags: ["nodejs_compat"],
   d1_databases: [
