@@ -193,6 +193,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The command reference's usage lines on Bot settings were below the AA contrast minimum
   (4.37:1); they now use the regular muted text colour, and the accessibility check no longer
   skips colour contrast on that page.
+- **Shared Chat partners no longer control your bot.** During a Twitch Shared Chat session,
+  a partner channel's viewers could add tasks to your list with `!task`, both bots answered
+  every command, and a ban in the partner channel removed that viewer's tasks from yours.
+  The bot page now ignores chat and bans that come from a partner channel.
+- **Commands sent with Twitch's Reply button work.** Replying to the bot with `!done` sends
+  `@yourbot !done`, which the bot used to ignore. It now drops that leading mention.
 - **Theme Center and Bot settings open on your saved values.** Both editors used to render
   the stock defaults first and swap in the saved theme or messages a moment after the page
   loaded (the server HTML carried the defaults too). They now start from the saved values,

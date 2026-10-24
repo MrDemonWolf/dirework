@@ -11,6 +11,7 @@
  */
 
 import { isDireworkCommandLine } from "@dirework/api/chat-commands";
+import { MAX_RELAYED_MESSAGE_LENGTH, truncateToLength } from "@dirework/api/chat-text";
 
 import { classifyBotError } from "./bot-session-errors";
 import type { IrcChatMessage, IrcClientCallbacks, IrcCredentials, IrcStatus } from "./irc-client";
@@ -232,6 +233,11 @@ export function createBotSession({
     // would each cost a free-tier Worker request for nothing. The server still
     // decides what actually runs (disabled commands, permissions).
     if (!isDireworkCommandLine(text, aliasKeys)) return;
+    // Clamp to bot.ingest's own cap so the relay always passes its schema (a
+    // rejected line would drop the command with no reply). truncateToLength
+    // counts UTF-16 units and never splits an emoji; zod counts code points,
+    // never more than units, so the clamped line always fits.
+    const message = truncateToLength(text, MAX_RELAYED_MESSAGE_LENGTH);
     events.onCounter("commands");
     events.onActivity("chat", `${chat.displayName ?? chat.username}: ${text}`);
     void (async () => {
@@ -241,7 +247,7 @@ export function createBotSession({
         username: chat.username,
         displayName: chat.displayName,
         twitchId: chat.twitchId,
-        message: text,
+        message,
         color: chat.color,
         isMod: chat.isMod,
         messageId: chat.messageId,

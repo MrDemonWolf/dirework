@@ -82,6 +82,54 @@ const DUPLICATE_SUFFIX_BYTES = utf8ByteLength(DUPLICATE_SUFFIX);
 const ACTION_MARKER = String.fromCharCode(1);
 const ACTION_PREFIX = `${ACTION_MARKER}ACTION `;
 
+/**
+ * Twitch Shared Chat: while channels share chat, Twitch copies each partner
+ * channel's PRIVMSGs (and USERNOTICEs) into this channel's IRC too, each copy
+ * with its own `id` (so the server's message-id dedupe can't catch it) and a
+ * `source-room-id` tag naming "the chat room (channel) the message was sent
+ * from", while `room-id` stays the receiving channel. The copied `badges` are
+ * the sender's badges in the SOURCE channel, so a partner's mod would look
+ * like a mod here. See https://dev.twitch.tv/docs/chat/irc/ (Shared Chat tags).
+ * A line whose `source-room-id` differs from `room-id` came from a partner
+ * channel and must never run a command, add a task, or wipe tasks here.
+ * Twitch documents the tags on PRIVMSG/USERNOTICE only; CLEARCHAT is checked
+ * the same way defensively, so a partner channel's ban can't clear tasks here.
+ */
+export function isFromSharedChatPartner(tags: ReadonlyMap<string, string>): boolean {
+  const source = tags.get("source-room-id");
+  return Boolean(source) && source !== tags.get("room-id");
+}
+
+/**
+ * twitch.tv's Reply button prefixes the reply text with `@<parent login> `
+ * (https://dev.twitch.tv/docs/chat/irc-migration/: "the chat on twitch.tv will
+ * automatically add @twitchdev to the beginning of the message"), so a viewer
+ * replying to the bot with `!done` sends `@direworkbot !done`. When the line is
+ * a reply (`reply-parent-msg-id` tag), strip ONE leading mention,
+ * case-insensitively, plus the whitespace after it, so the command comes first.
+ * In a nested reply (a reply to a reply) twitch.tv prefixes the THREAD ROOT's
+ * login, which only `reply-thread-parent-*` names, so those are tried first,
+ * then the direct parent's `reply-parent-user-login` / `-display-name`.
+ */
+export function stripReplyMention(text: string, tags: ReadonlyMap<string, string>): string {
+  if (!tags.get("reply-parent-msg-id")) return text;
+  for (const name of [
+    tags.get("reply-thread-parent-user-login"),
+    tags.get("reply-thread-parent-display-name"),
+    tags.get("reply-parent-user-login"),
+    tags.get("reply-parent-display-name"),
+  ]) {
+    if (!name) continue;
+    const mention = `@${name}`;
+    if (text.slice(0, mention.length).toLowerCase() !== mention.toLowerCase()) continue;
+    const rest = text.slice(mention.length);
+    // The mention must end at whitespace (or the line's end), so a longer
+    // login that merely starts with the parent's is left alone.
+    if (rest === "" || /^\s/.test(rest)) return rest.trimStart();
+  }
+  return text;
+}
+
 export type IrcStatus =
   | "idle"
   | "connecting"
@@ -408,7 +456,9 @@ export class TwitchIrcClient {
 
       case "CLEARCHAT": {
         // Trailing = target user (timeout/ban). No trailing = full chat
-        // clear, which has no per-user meaning for us — ignored.
+        // clear, which has no per-user meaning for us — ignored. A Shared
+        // Chat partner channel's moderation is not ours to act on.
+        if (isFromSharedChatPartner(msg.tags)) break;
         const target = msg.trailing?.trim();
         if (target) this.callbacks.onClearChat?.(target.toLowerCase());
         break;
@@ -457,6 +507,9 @@ export class TwitchIrcClient {
   }
 
   private handlePrivmsg(msg: ParsedIrcLine): void {
+    // A Shared Chat partner channel's line copied into ours — not our chat.
+    if (isFromSharedChatPartner(msg.tags)) return;
+
     const username = msg.prefix.split("!")[0]?.toLowerCase() ?? "";
     let text = msg.trailing ?? "";
 
@@ -464,6 +517,7 @@ export class TwitchIrcClient {
     if (text.startsWith(ACTION_PREFIX) && text.endsWith(ACTION_MARKER)) {
       text = text.slice(ACTION_PREFIX.length, -1);
     }
+    text = stripReplyMention(text, msg.tags);
 
     const twitchId = msg.tags.get("user-id");
     if (!username || !twitchId || !text) return;

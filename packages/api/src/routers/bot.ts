@@ -11,6 +11,7 @@ import {
   buildBotConfig,
   hasControlCharacters,
   isBuiltinCommandName,
+  MAX_RELAYED_MESSAGE_LENGTH,
   normalizeAliasToken,
   twitchAuthorColorSchema,
   TWITCH_LOGIN_PATTERN,
@@ -44,7 +45,7 @@ const safeChatTextInput = z
   .string()
   .trim()
   .min(1)
-  .max(600)
+  .max(MAX_RELAYED_MESSAGE_LENGTH)
   .refine((value) => !hasControlCharacters(value), "Control characters are not allowed");
 
 export const botIngestInputSchema = z.object({
