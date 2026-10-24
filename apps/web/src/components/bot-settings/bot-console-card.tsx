@@ -134,7 +134,7 @@ export function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
 
             <SectionGroup
               title="How to run it in OBS"
-              icon={<MonitorPlay className="size-4 text-primary" aria-hidden />}
+              icon={<MonitorPlay className="size-4 text-link" aria-hidden />}
               defaultOpen={false}
               flush
             >

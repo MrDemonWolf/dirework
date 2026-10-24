@@ -515,11 +515,18 @@ the only thing that talks to Google Fonts, run by hand; `packages/fonts`' test f
 
 ### Theme Center & Frontend
 
-Design language: **"Focus Console"** — dark-first instrument panel. Montserrat (display,
-tabular-nums timer digits), IBM Plex Sans (body), IBM Plex Mono (labels/tokens/status).
-Midnight navy base, cerulean accent (`#00ACED`, cornflower secondary) used sparingly
-(Twitch purple reserved for the Twitch sign-in/connect buttons), amber = paused, emerald =
-live/connected (LED-style chips). All animation respects `prefers-reduced-motion`;
+Design language: a conventional **neutral dark UI** (GitHub/Vercel/Linear style), dark-first
+with a coherent light mode; the console grammar (panels, mono labels, LED chips) stays.
+Montserrat (display, tabular-nums timer digits), IBM Plex Sans (body), IBM Plex Mono
+(labels/tokens/status). Near-black zinc surfaces with no color cast (background
+`#0c0c0e`, cards `#151518`, muted text `#a1a1aa`), one standard blue accent:
+`--primary` (`#236fea` dark / `#1866e0` light) is the FILL behind white labels, and
+`--link` (`#4f99f9` dark / `#155ed0` light) is the TEXT form (links, icons, active nav,
+focus ring). Use `text-link`, never `text-primary`: no blue passes 4.5:1 both under
+white text and as text on near-black. Cornflower is the secondary; Twitch purple is
+reserved for the Twitch sign-in/connect buttons; amber = paused, emerald = live/connected
+(LED-style chips). Palette lives in `design-system/tokens.json`; OBS overlay presets are
+separate and keep their own colors. All animation respects `prefers-reduced-motion`;
 inputs ≥16px on touch (iOS zoom). Destructive actions (token regenerate, disconnect,
 clear, stop) always confirm via the AlertDialog primitive. Editors with dirty state use
 the unsaved-changes guard hook. 6 theme presets in `lib/theme-presets.ts`.

@@ -12,7 +12,7 @@
 @custom-variant can-hover (@media (hover: hover));
 
 /*
- * ── Focus Console palette ────────────────────────────────────────────────────
+ * ── Neutral dark palette ────────────────────────────────────────────────────
  * The palette (light + .dark), radius, type, tracking, motion, layout and z-index
  * tokens are generated from design-system/tokens.json into tokens.generated.css
  * (imported above). Edit tokens.json and run `bun run tokens`; never edit the

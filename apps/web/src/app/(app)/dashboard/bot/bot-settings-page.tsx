@@ -282,7 +282,7 @@ function BotSettingsEditor({ config, user }: { config: ConfigData; user: MeData 
           {/* The command tabs are long; this skips them. */}
           <a
             href={`#${MODERATION_CARD_ID}`}
-            className="font-medium whitespace-nowrap text-primary underline-offset-4 hover:underline focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="font-medium whitespace-nowrap text-link underline-offset-4 hover:underline focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             Jump to Moderation
           </a>

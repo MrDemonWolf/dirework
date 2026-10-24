@@ -357,7 +357,7 @@ export function TaskManager({ userTwitchId, monitor }: TaskManagerProps) {
                       cy="24"
                       r="20"
                       fill="none"
-                      className="stroke-primary/60"
+                      className="stroke-link/60"
                       strokeWidth="4"
                       strokeLinecap="round"
                       strokeDasharray="30 96"
