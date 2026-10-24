@@ -110,7 +110,7 @@ function StepMarker({ index, done, open }: { index: number; done: boolean; open:
         done
           ? "border-success/40 bg-success/10 text-success"
           : open
-            ? "border-primary/60 text-primary"
+            ? "border-primary/60 text-link"
             : "border-border text-muted-foreground",
       )}
     >

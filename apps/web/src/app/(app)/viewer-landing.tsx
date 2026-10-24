@@ -119,7 +119,7 @@ export function ViewerLanding({
           {JOIN_COMMANDS.map((cmd) => (
             <div key={cmd.command} className="panel-inset flex flex-col gap-1.5 p-4">
               <dt>
-                <code className="font-mono text-lg font-semibold text-primary">{cmd.command}</code>
+                <code className="font-mono text-lg font-semibold text-link">{cmd.command}</code>
               </dt>
               <dd className="text-sm">{cmd.description}</dd>
               {cmd.usage !== cmd.command && (
@@ -140,7 +140,7 @@ export function ViewerLanding({
         <ul className="grid gap-4 md:grid-cols-3">
           {PRODUCT.map((item) => (
             <li key={item.title} className="panel flex flex-col gap-3 p-5">
-              <item.icon className="size-5 text-primary" aria-hidden />
+              <item.icon className="size-5 text-link" aria-hidden />
               <h3 className="font-heading text-lg font-bold">{item.title}</h3>
               <p className="text-sm text-muted-foreground">{item.body}</p>
             </li>

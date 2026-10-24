@@ -40,7 +40,7 @@ test("the browser bar follows the app's theme, not the OS's", async ({ page }) =
   await page.reload();
   const metas = page.locator('meta[name="theme-color"]');
   await expect(metas).toHaveCount(2);
-  for (const meta of await metas.all()) await expect(meta).toHaveAttribute("content", "#081225");
+  for (const meta of await metas.all()) await expect(meta).toHaveAttribute("content", "#0c0c0e");
 });
 
 test("task-row actions are shown on touch without a hover", async ({ page }) => {

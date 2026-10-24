@@ -323,7 +323,7 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
           <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10">
-                <Bot className="size-4.5 text-primary" />
+                <Bot className="size-4.5 text-link" />
               </div>
               <div className="min-w-0">
                 {botAccount ? (

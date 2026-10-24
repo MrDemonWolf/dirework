@@ -56,6 +56,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hover that could never happen.
 
 ### Changed
+- **A standard dark mode with blue accents.** The dashboard, Theme Center, bot settings, setup
+  page and docs site drop the midnight-navy look for neutral near-black surfaces (no color
+  cast), gray secondary text and one standard blue accent: blue buttons with white labels, a
+  lighter blue for links, icons, active tabs and the focus ring. Light mode uses the same blue
+  on a clean white/gray base. Amber (paused), emerald (live) and red (destructive) are retuned
+  for the new base, and every text color clears WCAG AA (4.5:1) on the surfaces it sits on.
+  Your OBS overlays and their theme presets are unchanged.
 - **A tidier account menu.** The avatar dropdown now holds just Sign out. Dashboard, Theme Center and
   Bot stay in the header nav, so the menu no longer repeats them.
 - **No more preview URLs.** Both workers deploy with Cloudflare's version and preview URLs turned off.

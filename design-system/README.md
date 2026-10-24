@@ -37,7 +37,7 @@ Shared overlay geometry (squircle path/perimeter, `SQUIRCLE_RADIUS`, MM:SS clock
 
 | Namespace | Emits | Examples |
 |---|---|---|
-| `color.scheme.{light,dark}` | `--<key>` on `:root` / `.dark`, `--color-<key>` in Tailwind | `background`, `primary`, `success`, `border`, `hairline`, `cornflower`, `chart-1…5`, `sidebar-*`. Values are oklch; `"{cornflower}"` aliases another key (`var(--cornflower)`). Both schemes must have the same keys. |
+| `color.scheme.{light,dark}` | `--<key>` on `:root` / `.dark`, `--color-<key>` in Tailwind | `background`, `primary`, `link`, `success`, `border`, `hairline`, `cornflower`, `chart-1…5`, `sidebar-*`. Values are oklch; `"{cornflower}"` aliases another key (`var(--cornflower)`). Both schemes must have the same keys. |
 | `color.phase` | `--phase-{work,break,long-break,paused}` | `work = #34C759`, `paused = #FF9F0A` |
 | `color.console` | `--color-console-<key>` (web only, literal) | Bot console (`/bot/<token>`), always dark: `base`, `line`, `edge`, `muted`, `soft`, `fg`, `bright` (Tailwind zinc 950…100) |
 | `color.partner` | `--twitch`, `--twitch-hover`, `--color-twitch(-hover)` | `twitch = #9146FF`, `twitchHover = #7C3AE6`; `discord`, `obs` are reference only |
@@ -55,13 +55,26 @@ Shared overlay geometry (squircle path/perimeter, `SQUIRCLE_RADIUS`, MM:SS clock
 
 ## Palette rationale
 
-Focus Console is dark-first: a MrDemonWolf midnight navy base (the `#091533` family), cool-white text, Cerulean `#00ACED` as the brand primary and Cornflower `#6B8BF5` as the secondary accent. Twitch purple (`#9146FF`) is reserved for Twitch sign-in/connect actions. Amber = paused/warning, emerald = live/connected. Light mode is a cool paper scheme with a navy cast and stays fully supported. Montserrat for display, IBM Plex Sans for body, IBM Plex Mono for labels and numerals.
+A conventional neutral dark UI (GitHub / Vercel / Linear style), dark-first with a coherent light mode. Surfaces are Tailwind-zinc neutrals with no color cast: dark background `oklch(0.155 0.004 286)` (`#0c0c0e`), card `#151518`, popover `#19191d`, off-white text `#ededef`, muted text `#a1a1aa`; light is a `#fafafa` page with white cards and `#18181b` text. One standard blue accent, Cornflower as the secondary. Twitch purple (`#9146FF`) is reserved for Twitch sign-in/connect actions. Amber = paused/warning, emerald = live/connected, red = destructive. Montserrat for display, IBM Plex Sans for body, IBM Plex Mono for labels and numerals.
 
-- **Primary on light** is Cerulean darkened to `oklch(0.49 0.105 230)` so it holds AA as text and under `/10` tints; on dark it is the bright cerulean with a dark navy `primary-foreground`.
-- **`--success` on light sits at L 0.49** so the 11px StatusChip live text clears 4.5:1 on its own tinted fill. `--warning` gets the same treatment.
-- **Borders have weight.** Functional borders need to read against the paper background (WCAG 1.4.11-adjacent): `--border` is 28% / 14% (light / dark) and `--input` heavier at 38% / 22%. `--hairline` (18% / 10%) is the decorative rule the docs use for `--color-fd-border` and `--sidebar-border`.
+| Role | Dark | Light |
+|---|---|---|
+| `--background` | `#0c0c0e` | `#fafafa` |
+| `--card` | `#151518` | `#ffffff` |
+| `--foreground` | `#ededef` | `#18181b` |
+| `--muted-foreground` | `#a1a1aa` | `#5f5f68` |
+| `--primary` (fill, white label) | `#236fea` | `#1866e0` |
+| `--link` (accent as text, `--ring`) | `#4f99f9` | `#155ed0` |
+| `--success` | `#41ce90` | `#007948` |
+| `--warning` | `#f7b83d` | `#9a5b00` |
+| `--destructive` | `#f75d59` | `#ce222c` |
+| `--border` / `--input` / `--hairline` | text at 12% / 20% / 8% | text at 14% / 24% / 10% |
 
-`apps/web/src/lib/__tests__/tokens-contrast.test.ts` recomputes these from the oklch values: foreground and muted-foreground on background, primary-foreground on primary, and success/warning chip text on its `/10` tint over `--card` must all be at least 4.5:1 in both schemes.
+- **Two blues, on purpose.** No single blue clears 4.5:1 both under a white label and as text on near-black, so `--primary` is the fill (buttons, avatar, checked states; white `primary-foreground`) and `--link` is the lighter text form (links, icons, active nav, chips, focus ring). Write `text-link`, never `text-primary`.
+- **`--success` / `--warning` on light sit near L 0.5** so the 11px StatusChip text clears 4.5:1 on its own tinted fill.
+- **Borders are translucent text color**, so they read on every surface: `--input` is heavier than `--border`; `--hairline` is the decorative rule the docs use for `--color-fd-border` and `--sidebar-border`.
+
+`apps/web/src/lib/__tests__/tokens-contrast.test.ts` recomputes these from the oklch values in both schemes: every text token on each surface it sits on (foreground/muted-foreground on background, card and muted; link, destructive, success and warning on background/card; each `*-foreground` on its fill) and the chip text on its `/10` tint must be at least 4.5:1, and `--ring` / `--primary` must stand 3:1 off the background and card (WCAG 1.4.11).
 
 ## Overlay themes
 

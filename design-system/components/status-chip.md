@@ -32,7 +32,7 @@ markers and similar states. Used by the dashboard, `timer-controls`, `timer-stat
 |---|---|---|
 | `live` | `--success` (emerald) | Connected, running, focus phase |
 | `warn` | `--warning` (amber) | Paused, unsaved |
-| `accent` | `--primary` (cerulean) | Starting, break, Host, Active |
+| `accent` | `--link` (blue) | Starting, break, Host, Active |
 | `alt` | `--cornflower` | Long break, finished |
 | `idle` | `--muted-foreground` on `--muted` | Neutral, ready, locked |
 | `danger` | `--destructive` | Errors, revoked |
