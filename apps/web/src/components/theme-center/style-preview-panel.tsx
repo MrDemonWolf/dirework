@@ -5,8 +5,8 @@
 // (DEMO_SESSION, via lib/preview-session). Entirely client-side — the preview never
 // polls or calls the API.
 
-import { useEffect, useState } from "react";
-import { Pause, Play } from "lucide-react";
+import { useEffect, useId, useState } from "react";
+import { ChevronDown, Pause, Play } from "lucide-react";
 
 import type { TimerStylesConfig, TaskStylesConfig, PhaseLabelsConfig } from "@/lib/config-types";
 import {
@@ -74,7 +74,7 @@ function TargetToggle({
           aria-label={t.name}
           onClick={() => onChange(t.id)}
           className={cn(
-            "cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none pointer-coarse:min-h-10",
+            "cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none pointer-coarse:min-h-11 pointer-coarse:px-4",
             value === t.id
               ? "bg-background text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground",
@@ -92,7 +92,7 @@ function BackdropToggle({ value, onChange }: { value: Backdrop; onChange: (v: Ba
   // arrow-key navigation it never implemented (worse than no semantics).
   return (
     <fieldset
-      className="flex min-w-0 items-center gap-1.5 border-0 p-0"
+      className="flex min-w-0 items-center gap-1.5 border-0 p-0 pointer-coarse:gap-2"
       aria-label="Preview backdrop"
     >
       {backdrops.map((b) => (
@@ -104,7 +104,7 @@ function BackdropToggle({ value, onChange }: { value: Backdrop; onChange: (v: Ba
           title={b.label}
           onClick={() => onChange(b.id)}
           className={cn(
-            "size-6 cursor-pointer overflow-hidden rounded-md border transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none pointer-coarse:size-9",
+            "size-6 cursor-pointer overflow-hidden rounded-md border transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none pointer-coarse:size-11",
             b.swatch,
             value === b.id
               ? "border-primary ring-2 ring-ring"
@@ -141,6 +141,9 @@ export function StylePreviewPanel({
   const [pausedRemaining, setPausedRemaining] = useState(PREVIEW_REMAINING_MS);
   const [backdrop, setBackdrop] = useState<Backdrop>("dark");
   const [target, setTarget] = useState<PreviewTarget>("timer");
+  // Below lg only (see the Show/Hide button); starts collapsed, so the editors lead.
+  const [expanded, setExpanded] = useState(false);
+  const bodyId = useId();
 
   // Loop the mock: once the countdown reaches 0, start a fresh focus phase. This is
   // a 1s check only — TimerDisplay's own countdown drives the digits and ring.
@@ -174,64 +177,101 @@ export function StylePreviewPanel({
 
   return (
     <section aria-labelledby="style-preview-title" className="panel-hero">
-      <div className="flex flex-col gap-4 p-5">
-        <ConsoleRule as="h2" id="style-preview-title" label="Preview" className="min-w-0">
-          {/* Every edit lands here before it reaches OBS; the chip says which one you see. */}
-          {dirty ? (
-            <StatusChip tone="warn" size="sm" label="Previewing unsaved changes" />
-          ) : (
-            <StatusChip tone="live" size="sm" label="Matches the saved theme" />
-          )}
-        </ConsoleRule>
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <TargetToggle value={target} onChange={setTarget} />
-          <BackdropToggle value={backdrop} onChange={setBackdrop} />
+      <div className="flex flex-col gap-3 p-3 lg:gap-4 lg:p-5">
+        <div className="flex items-center gap-2">
+          <ConsoleRule as="h2" id="style-preview-title" label="Preview" className="min-w-0 flex-1">
+            {/* Every edit lands here before it reaches OBS; the chip says which one you see.
+                Below lg the bar also holds Show/Hide, so the chip says it in one word there
+                (the other chip is display: none, so a screen reader hears one). */}
+            <StatusChip
+              tone={dirty ? "warn" : "live"}
+              size="sm"
+              label={dirty ? "Previewing unsaved changes" : "Matches the saved theme"}
+              className="max-lg:hidden"
+            />
+            <StatusChip
+              tone={dirty ? "warn" : "live"}
+              size="sm"
+              label={dirty ? "Unsaved" : "Saved"}
+              className="lg:hidden"
+            />
+          </ConsoleRule>
+          {/* Below lg the panel is a sticky bar above the editors: collapsed it keeps the
+              status in view without covering the fields, expanded it shows a compact canvas
+              that stays put while the owner scrolls and edits. The rail is always open. */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 gap-1 pointer-coarse:min-h-11 lg:hidden"
+            aria-expanded={expanded}
+            aria-controls={bodyId}
+            onClick={() => setExpanded((open) => !open)}
+          >
+            {expanded ? "Hide" : "Show"}
+            <span className="sr-only"> preview</span>
+            <ChevronDown
+              aria-hidden
+              className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
+            />
+          </Button>
         </div>
 
-        {target === "timer" ? (
-          <div className={cn(CANVAS, "aspect-square p-6", canvasClass)}>
-            {/* Fit the fixed-size timer to the canvas, as AutoScale does in OBS. */}
-            <AutoScale margin={0.92}>
-              <TimerDisplay
-                config={timerPreviewConfig(timerStyles, phaseLabels, showHours)}
-                state={timerState}
-                totalDuration={PREVIEW_PHASE_MS}
-              />
-            </AutoScale>
-            <span className="console-label absolute right-2 bottom-1.5 rounded-sm bg-background/80 px-1">
-              {timerStyles.dimensions.width} × {timerStyles.dimensions.height}
-            </span>
-            <Button
-              variant="secondary"
-              size="xs"
-              className="absolute bottom-1.5 left-2 gap-1"
-              aria-pressed={!!targetEndTime}
-              onClick={togglePlay}
-            >
-              {targetEndTime ? <Pause className="size-3" /> : <Play className="size-3" />}
-              {targetEndTime ? "Pause" : "Play"}
-            </Button>
+        <div
+          id={bodyId}
+          className={cn("flex-col gap-3 lg:flex lg:gap-4", expanded ? "flex" : "hidden")}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <TargetToggle value={target} onChange={setTarget} />
+            <BackdropToggle value={backdrop} onChange={setBackdrop} />
           </div>
-        ) : (
-          <div className={cn(CANVAS, "p-3", canvasClass)}>
-            {/* Drawn at the recommended 700 × 800 OBS source size and scaled to fit, so
+
+          {/* Capped below lg so the expanded sticky bar leaves the editors room. */}
+          <div className="mx-auto w-full max-w-64 lg:max-w-none">
+            {target === "timer" ? (
+              <div className={cn(CANVAS, "aspect-square p-6", canvasClass)}>
+                {/* Fit the fixed-size timer to the canvas, as AutoScale does in OBS. */}
+                <AutoScale margin={0.92}>
+                  <TimerDisplay
+                    config={timerPreviewConfig(timerStyles, phaseLabels, showHours)}
+                    state={timerState}
+                    totalDuration={PREVIEW_PHASE_MS}
+                  />
+                </AutoScale>
+                <span className="console-label absolute right-2 bottom-1.5 rounded-sm bg-background/80 px-1">
+                  {timerStyles.dimensions.width} × {timerStyles.dimensions.height}
+                </span>
+                <Button
+                  variant="secondary"
+                  size="xs"
+                  className="absolute bottom-1.5 left-2 gap-1 pointer-coarse:min-h-11"
+                  aria-pressed={!!targetEndTime}
+                  onClick={togglePlay}
+                >
+                  {targetEndTime ? <Pause className="size-3" /> : <Play className="size-3" />}
+                  {targetEndTime ? "Pause" : "Play"}
+                </Button>
+              </div>
+            ) : (
+              <div className={cn(CANVAS, "p-3", canvasClass)}>
+                {/* Drawn at the recommended 700 × 800 OBS source size and scaled to fit, so
                 type, padding and row heights keep the proportions the stream shows. */}
-            <div
-              className="w-full"
-              style={{ aspectRatio: `${TASKS_SOURCE.width} / ${TASKS_SOURCE.height}` }}
-            >
-              <AutoScale margin={1}>
-                <div style={{ width: TASKS_SOURCE.width, height: TASKS_SOURCE.height }}>
-                  <TaskListDisplay config={taskStyles} tasks={PREVIEW_TASKS} />
+                <div
+                  className="w-full"
+                  style={{ aspectRatio: `${TASKS_SOURCE.width} / ${TASKS_SOURCE.height}` }}
+                >
+                  <AutoScale margin={1}>
+                    <div style={{ width: TASKS_SOURCE.width, height: TASKS_SOURCE.height }}>
+                      <TaskListDisplay config={taskStyles} tasks={PREVIEW_TASKS} />
+                    </div>
+                  </AutoScale>
                 </div>
-              </AutoScale>
-            </div>
-            <span className="console-label absolute right-2 bottom-1.5 rounded-sm bg-background/80 px-1">
-              700 × 800
-            </span>
+                <span className="console-label absolute right-2 bottom-1.5 rounded-sm bg-background/80 px-1">
+                  700 × 800
+                </span>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </section>
   );
