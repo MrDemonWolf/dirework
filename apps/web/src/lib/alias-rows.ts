@@ -123,3 +123,15 @@ export function rowsToAliases(rows: AliasRow[]): {
   }
   return { aliases, issues: rowIssues };
 }
+
+/**
+ * Canonical aliases grouped by the command they point at, each list sorted: the Commands
+ * table shows them beside their command, straight from the alias editor's draft.
+ */
+export function aliasesByTarget(aliases: Record<string, string>): Map<string, string[]> {
+  const byTarget = new Map<string, string[]>();
+  for (const [alias, target] of Object.entries(aliases)) {
+    byTarget.set(target, [...(byTarget.get(target) ?? []), alias].sort());
+  }
+  return byTarget;
+}

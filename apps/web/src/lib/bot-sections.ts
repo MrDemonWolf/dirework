@@ -11,6 +11,7 @@ export interface BotSection {
 export const BOT_SECTIONS: readonly BotSection[] = [
   { href: "/dashboard/bot", label: "Overview" },
   { href: "/dashboard/bot/commands", label: "Commands" },
+  { href: "/dashboard/bot/replies", label: "Replies" },
   { href: "/dashboard/bot/moderation", label: "Moderation" },
 ];
 

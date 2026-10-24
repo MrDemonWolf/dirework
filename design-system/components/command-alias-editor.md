@@ -7,7 +7,7 @@ tokens: [color.scheme, radius, tracking]
 
 ## Purpose
 
-The Aliases tab of `/dashboard/bot/commands` (`(sections)/commands/commands-page.tsx`): an editable list of alias to command rows. Rows hold raw input (`AliasRow` from `lib/alias-rows.ts`); the page converts them to the canonical, `!`-less map on save via `rowsToAliases`, which also drops fully blank rows.
+The Aliases card on `/dashboard/bot/commands` (`(sections)/commands/commands-page.tsx`, with the page's own Save bar, which sends the aliases alone): an editable list of alias to command rows. Rows hold raw input (`AliasRow` from `lib/alias-rows.ts`); the page converts them to the canonical, `!`-less map on save via `rowsToAliases`, which also drops fully blank rows.
 
 ## Anatomy
 

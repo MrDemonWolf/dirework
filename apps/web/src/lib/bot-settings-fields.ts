@@ -5,14 +5,11 @@
 import { type MessageField, taskMessageFields, timerMessageFields } from "@/lib/message-fields";
 import type { IssueLike } from "@/lib/validation-errors";
 
-/** The command tabs that hold reply fields; the input ids are `${tab}-${key}`. */
+/**
+ * The Replies page's reply sets (also its switcher's tab values); the input ids are
+ * `${tab}-${key}`.
+ */
 export type BotMessageTab = "task" | "timer";
-
-/** The page's Tabs values for each message set. */
-export const BOT_MESSAGE_TAB_VALUE: Record<BotMessageTab, string> = {
-  task: "tasks",
-  timer: "timer",
-};
 
 export interface BotMessageFieldRef {
   label: string;

@@ -105,7 +105,8 @@ test("every Bot settings page fits a phone and the sub-nav reaches each one", as
   const nav = page.getByRole("navigation", { name: "Bot settings sections" });
   for (const [link, landmark] of [
     ["Overview", page.getByRole("heading", { name: "Live controls" })],
-    ["Commands", page.getByRole("tab", { name: "Aliases" })],
+    ["Commands", page.getByRole("heading", { name: "Aliases" })],
+    ["Replies", page.getByRole("tab", { name: "Timer replies" })],
     ["Moderation", page.getByRole("heading", { name: "Blocked viewers" })],
   ] as const) {
     await nav.getByRole("link", { name: link }).click();
@@ -117,4 +118,33 @@ test("every Bot settings page fits a phone and the sub-nav reaches each one", as
     }));
     expect(widths.scroll, `${link} wider than the viewport`).toBeLessThanOrEqual(widths.client);
   }
+});
+
+test("on a phone the Save bar stacks its buttons under the status", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/dashboard/bot/replies");
+  await expect(page.getByRole("tab", { name: "Task replies" })).toBeVisible();
+
+  await page.getByRole("button", { name: /^Adding/ }).click();
+  const field = page.getByLabel("Task added", { exact: true });
+  const original = await field.inputValue();
+  await field.fill(`${original} (phone)`);
+
+  const status = page.getByText("Unsaved replies", { exact: true }).last();
+  const save = page.getByRole("button", { name: "Save changes" });
+  const reset = page.getByRole("button", { name: "Reset", exact: true });
+  await expect(save).toBeVisible();
+  const [statusBox, saveBox, resetBox] = await Promise.all([
+    status.boundingBox(),
+    save.boundingBox(),
+    reset.boundingBox(),
+  ]);
+  const width = await page.evaluate(() => document.documentElement.clientWidth);
+  // Second row, side by side, inside the viewport.
+  expect(saveBox!.y).toBeGreaterThan(statusBox!.y + statusBox!.height - 1);
+  expect(Math.abs(saveBox!.y - resetBox!.y)).toBeLessThan(2);
+  expect(saveBox!.x + saveBox!.width).toBeLessThanOrEqual(width);
+  // Nothing was saved: leave without keeping the edit.
+  await field.fill(original);
+  await expect(save).toHaveCount(0);
 });

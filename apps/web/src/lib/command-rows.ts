@@ -1,6 +1,6 @@
-// The chat command legend rows. The Bot settings command reference
-// (components/bot-settings/command-reference.tsx) and the viewer landing page both render
-// them. Plain data with no "use client", so a server component can read the rows itself.
+// The chat command rows. The Bot settings Commands tables (components/bot-settings/
+// command-table.tsx), the Moderation page's reference (command-reference.tsx) and the viewer
+// landing page all render them. Plain data with no "use client", so a server component can read the rows itself.
 // Display-only: the bot's real parsing lives in `@dirework/api/chat-commands`, so the rows
 // are kept in step by hand and pinned by apps/web/src/lib/__tests__/command-rows.test.ts.
 
@@ -181,3 +181,17 @@ export const moderationCommands: CommandRow[] = [
     permission: "mods",
   },
 ];
+
+/**
+ * The command name a row's aliases point at: its first word without the "!" ("!timer start"
+ * → "timer"). An alias replaces only that first word, so `!pomo start` runs `!timer start`.
+ */
+export function commandName(row: CommandRow): string {
+  return row.command.replace(/^!/, "").split(/\s+/)[0] ?? "";
+}
+
+/** A row's command with its first word swapped for an alias: `!pomo start`. */
+export function aliasedCommand(row: CommandRow, alias: string): string {
+  const [, ...rest] = row.command.split(/\s+/);
+  return [`!${alias}`, ...rest].join(" ");
+}

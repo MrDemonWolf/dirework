@@ -4,7 +4,7 @@ import { signIn, waitForHydration } from "./helpers";
 
 test("edits a reply, previews it as chat would show it, saves, and resets it", async ({ page }) => {
   await signIn(page);
-  await page.goto("/dashboard/bot/commands");
+  await page.goto("/dashboard/bot/replies");
   await waitForHydration(page);
 
   // A per-attempt stamp keeps this idempotent under CI retries: a previous attempt may have
@@ -23,7 +23,7 @@ test("edits a reply, previews it as chat would show it, saves, and resets it", a
   ).toBeVisible();
 
   await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(page.getByText("Bot settings saved")).toBeVisible();
+  await expect(page.getByText("Replies saved")).toBeVisible();
 
   await page.reload();
   await waitForHydration(page);
@@ -35,12 +35,12 @@ test("edits a reply, previews it as chat would show it, saves, and resets it", a
   await expect(page.getByLabel("Task added", { exact: true })).not.toHaveValue(custom);
   await expect(page.getByRole("button", { name: "Reset to default" })).toHaveCount(0);
   await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(page.getByText("Bot settings saved")).toBeVisible();
+  await expect(page.getByText("Replies saved")).toBeVisible();
 });
 
 test("the Save bar's reason clears a filter hiding the reply it names", async ({ page }) => {
   await signIn(page);
-  await page.goto("/dashboard/bot/commands");
+  await page.goto("/dashboard/bot/replies");
   await waitForHydration(page);
 
   await page.getByRole("button", { name: /^Adding/ }).click();
@@ -111,7 +111,11 @@ test("the sub-nav reaches every section and marks the current one", async ({ pag
   await expect(page).toHaveURL(/\/dashboard\/bot\/commands$/);
   await expect(nav.getByRole("link", { name: "Commands" })).toHaveAttribute("aria-current", "page");
   await expect(nav.getByRole("link", { name: "Overview" })).not.toHaveAttribute("aria-current");
-  await expect(page.getByRole("tab", { name: "Aliases" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Aliases" })).toBeVisible();
+
+  await nav.getByRole("link", { name: "Replies" }).click();
+  await expect(page).toHaveURL(/\/dashboard\/bot\/replies$/);
+  await expect(page.getByRole("tab", { name: "Timer replies" })).toBeVisible();
 
   await nav.getByRole("link", { name: "Moderation" }).click();
   await expect(page.getByRole("heading", { name: "Blocked viewers" })).toBeVisible();
@@ -138,4 +142,48 @@ test("a command group switch saves the moment it flips", async ({ page }) => {
   await timer.click();
   await expect(timer).toBeChecked({ checked: before });
   await expect(timer).toBeEnabled();
+});
+
+test("Replies group headers name their commands, and the filter finds a reply by command", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto("/dashboard/bot/replies");
+  await waitForHydration(page);
+
+  await expect(page.getByRole("button", { name: /^Adding\s*!task/ })).toBeVisible();
+  await page.getByLabel("Filter messages").fill("!next");
+  await expect(page.getByLabel("Next task started", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Task added", { exact: true })).toHaveCount(0);
+
+  await page.getByRole("tab", { name: "Timer replies" }).click();
+  await expect(page.getByRole("button", { name: /^Status\s*!timer/ })).toBeVisible();
+});
+
+test("an alias shows in the command table as it is typed, and saves on its own", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto("/dashboard/bot/commands");
+  await waitForHydration(page);
+
+  const table = page.getByRole("table", { name: "Timer commands" });
+  await expect(table.getByText("!pomo start")).toHaveCount(0);
+  await page.getByRole("button", { name: "Add alias" }).click();
+  await page.getByLabel("Alias", { exact: true }).last().fill("!pomo");
+  await page.getByLabel("Command", { exact: true }).last().fill("timer");
+  // Live from the draft, before any save.
+  await expect(table.getByText("!pomo start")).toBeVisible();
+
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Aliases saved")).toBeVisible();
+  await page.reload();
+  await waitForHydration(page);
+  await expect(table.getByText("!pomo start")).toBeVisible();
+
+  // Remove it again, so the database ends where it started.
+  await page.getByRole("button", { name: "Remove alias pomo" }).click();
+  await expect(table.getByText("!pomo start")).toHaveCount(0);
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Aliases saved")).toBeVisible();
 });

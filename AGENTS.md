@@ -567,9 +567,16 @@ it never reaches the api, and a sub-page switch is one web-worker RSC request (n
 Pages: **Overview** (`(sections)/page.tsx`: `BotLiveControls` — mute, Task/Timer switches via
 `lib/use-command-group-switch.ts`, which saves ONE flag on flip, and "n of 200 blocked ·
 Manage"; `BotConsoleCard` "Run the bot"; `BotAccountCard`, first while no account is
-connected; handles the bot OAuth `?bot=` return), **Commands** (`commands/`: the tabbed
-command/reply/alias editor; its Save bar sends only `{ task, timer, commandAliases }`),
-**Moderation** (`moderation/`: `BlockedViewersCard`, filter past `BLOCKED_FILTER_THRESHOLD`).
+connected; handles the bot OAuth `?bot=` return), **Commands** (`commands/`: per group a card
+with its instant switch over a `CommandTable` — command, usage, Everyone/Mods, aliases live
+from the alias draft via `aliasesByTarget`; an "Always on" table for the meta commands; the
+alias editor, whose Save bar sends only `{ commandAliases }` → "Aliases saved"), **Replies**
+(`replies/`: a Task / Timer replies switcher over `MessageEditor`, whose group headers name
+their commands (`TASK_/TIMER_MESSAGE_GROUP_COMMANDS` in `lib/message-fields.ts`, also matched
+by the filter); its Save bar sends only `{ task, timer }` → "Replies saved"), **Moderation**
+(`moderation/`: `BlockedViewersCard`, filter past `BLOCKED_FILTER_THRESHOLD`). Below `sm` the
+`SaveBar` is two rows (status, then full-width Reset / Save); `index.css` raises
+`--save-bar-clearance` to match and pages pad `pb-32 sm:pb-24`.
 `config.updateBotSettings` takes any non-empty subset (`definedValues`, like `updateStyles`), so
 a page never writes another page's draft. Each page with a draft mounts its own
 `UnsavedChangesGuard`, which also guards the sub-nav links.

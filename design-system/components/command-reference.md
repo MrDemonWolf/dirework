@@ -7,7 +7,7 @@ tokens: [color.scheme, font.size, radius, tracking]
 
 ## Purpose
 
-Read-only command legend beside the reply editor on each command tab (`CommandTabPanel`) and in the Moderation card (`BlockedViewersCard`). Rows come from `lib/command-rows.ts` (shared with the viewer landing page); `command-rows.test.ts` pins them to the bot's real parser in `@dirework/api/chat-commands`.
+Read-only command legend on the Bot settings Moderation page (`BlockedViewersCard`: "Mod commands in chat"). The Commands page uses `CommandTable` instead. Rows come from `lib/command-rows.ts` (shared with the viewer landing page); `command-rows.test.ts` pins them to the bot's real parser in `@dirework/api/chat-commands`.
 
 ## Anatomy
 

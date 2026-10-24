@@ -7,7 +7,7 @@ tokens: [color.scheme, layout, z]
 
 ## Purpose
 
-The sticky link bar under the Bot settings heading (`dashboard/bot/layout.tsx`): one link per sub-page from `lib/bot-sections.ts` (Overview, Commands, Moderation). Each section is its own URL, so Back, refresh and bookmarks land where the owner was.
+The sticky link bar under the Bot settings heading (`dashboard/bot/layout.tsx`): one link per sub-page from `lib/bot-sections.ts` (Overview, Commands, Replies, Moderation). Each section is its own URL, so Back, refresh and bookmarks land where the owner was.
 
 ## Anatomy
 

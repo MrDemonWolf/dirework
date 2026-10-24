@@ -88,6 +88,18 @@
       --save-bar-clearance: 4.25rem;
     }
   }
+  /* Below `sm` the SaveBar is two rows (status, then the buttons): about 2.5rem taller. */
+  @media (width < 40rem) {
+    html:has([data-save-bar]) {
+      --save-bar-clearance: 6rem;
+      scroll-padding-bottom: calc(7.5rem + env(safe-area-inset-bottom, 0px));
+    }
+  }
+  @media (width < 40rem) and (pointer: coarse) {
+    html:has([data-save-bar]) {
+      --save-bar-clearance: 6.75rem;
+    }
+  }
 }
 
 @layer utilities {

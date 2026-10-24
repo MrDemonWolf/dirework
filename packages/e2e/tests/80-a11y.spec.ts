@@ -56,6 +56,7 @@ test.describe("signed in", () => {
     { path: "/dashboard/styles", heading: "Theme Center", name: "theme-center" },
     { path: "/dashboard/bot", heading: "Bot settings", name: "bot-settings" },
     { path: "/dashboard/bot/commands", heading: "Bot settings", name: "bot-commands" },
+    { path: "/dashboard/bot/replies", heading: "Bot settings", name: "bot-replies" },
     { path: "/dashboard/bot/moderation", heading: "Bot settings", name: "bot-moderation" },
   ];
 

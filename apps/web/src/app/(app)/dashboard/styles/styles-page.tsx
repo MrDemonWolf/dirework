@@ -186,7 +186,9 @@ function StylesEditor({ config }: { config: ConfigData }) {
   }, [blockedReason, timerStyles, taskStyles, phaseLabels, saveStylesMutation]);
 
   return (
-    <div className={cn("container mx-auto max-w-content px-4 py-8", hasUnsaved && "pb-24")}>
+    <div
+      className={cn("container mx-auto max-w-content px-4 py-8", hasUnsaved && "pb-32 sm:pb-24")}
+    >
       <UnsavedChangesGuard dirty={hasUnsaved} />
 
       {/* No entrance animation: the page arrives finished (the route holds the shell for its
