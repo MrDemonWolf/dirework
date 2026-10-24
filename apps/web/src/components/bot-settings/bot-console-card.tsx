@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, MonitorPlay } from "lucide-react";
 import { toast } from "sonner";
 
+import { botConsoleStatus } from "@/lib/bot-status";
 import { describeTrpcError } from "@/lib/trpc-errors";
 import { useOrigin } from "@/lib/use-origin";
 import { BotConsoleBodySkeleton } from "@/components/bot-settings-skeleton";
@@ -71,7 +72,7 @@ export function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
   const botPath = botToken ? `/bot/${botToken}` : null;
   // `origin` is "" during SSR/hydration (useOrigin), so the Open button starts disabled.
   const botUrl = origin && botPath ? `${origin}${botPath}` : "";
-  const ready = hasBotAccount && Boolean(botToken);
+  const status = botConsoleStatus({ hasBotAccount, hasBotUrl: Boolean(botToken) });
 
   return (
     <Card className="panel-hero">
@@ -81,11 +82,14 @@ export function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
           Bot console
         </CardTitle>
         <CardAction>
-          <StatusChip tone={ready ? "accent" : "idle"} label={ready ? "Ready" : "Not set up"} />
+          <StatusChip tone={status.tone} label={status.label} />
         </CardAction>
         <CardDescription>
-          The bot runs inside a browser page and chats while that page stays open. Its URL is a
-          secret: treat it like a stream key.
+          The bot runs inside a browser page. Its URL is a secret: treat it like a stream key.
+          {/* "URL ready" can't tell whether that page is open anywhere (no polling for it). */}
+          <span className="mt-1 block font-medium text-foreground">
+            Runs only while the bot page is open in OBS or a browser tab.
+          </span>
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 px-5">

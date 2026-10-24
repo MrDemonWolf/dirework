@@ -75,3 +75,17 @@ test("Enter in the block field opens the block confirm", async ({ page }) => {
   await expect(dialog).toHaveCount(0);
   await expect(login).toHaveValue("@E2E_Enter_Check");
 });
+
+test("a fresh instance's mute bar does not claim the bot is live", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/dashboard/bot");
+  await waitForHydration(page);
+
+  // No bot account is connected in e2e, so nothing can answer chat: the bar says so.
+  await expect(page.getByText("Connect a bot account first.", { exact: false })).toBeVisible();
+  await expect(page.getByText("Live", { exact: true })).toHaveCount(0);
+  // The switch still works there (pre-mute), under its own label.
+  await expect(page.getByRole("switch", { name: "Mute bot" })).toBeEnabled();
+  // The console card only promises a URL, never a running bot.
+  await expect(page.getByText("Ready", { exact: true })).toHaveCount(0);
+});
