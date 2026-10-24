@@ -60,10 +60,10 @@ test("the header toggle switches the theme and the browser bar follows", async (
   await toggle.click();
   await expect(toggle).not.toBeChecked();
   await expect(html).toHaveClass(/\blight\b/);
-  for (const meta of await metas.all()) await expect(meta).toHaveAttribute("content", "#f2f6f9");
+  for (const meta of await metas.all()) await expect(meta).toHaveAttribute("content", "#fafafa");
 
   await toggle.click();
   await expect(toggle).toBeChecked();
   await expect(html).toHaveClass(/\bdark\b/);
-  for (const meta of await metas.all()) await expect(meta).toHaveAttribute("content", "#081225");
+  for (const meta of await metas.all()) await expect(meta).toHaveAttribute("content", "#0c0c0e");
 });

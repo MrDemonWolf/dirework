@@ -79,7 +79,7 @@ menu, the Task Board options). [loader](./loader.md) is currently unused by any 
   Tailwind names `tokens.json` generates (`token-bypass.test.ts` enforces it in the app).
 - **Two themes, always.** Every component must read in light and dark. Test both.
 - **Reduced motion.** All animated primitives honor `prefers-reduced-motion: reduce`.
-- **On brand.** Cerulean brand (#00ACED), Montserrat display, IBM Plex Sans body. Twitch purple is a *partner* color, used only where Twitch is referenced.
+- **On brand.** Neutral dark surfaces with the blue accent (`--primary` fill, `--link` text), Montserrat display, IBM Plex Sans body. Twitch purple is a *partner* color, used only where Twitch is referenced.
 
 ## Focus
 

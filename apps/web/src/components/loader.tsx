@@ -17,7 +17,7 @@ export default function Loader() {
           cy="24"
           r="20"
           fill="none"
-          className="stroke-primary"
+          className="stroke-link"
           strokeWidth="5"
           strokeLinecap="round"
           strokeDasharray="40 126"

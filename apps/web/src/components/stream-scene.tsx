@@ -112,11 +112,11 @@ function TimerOverlay() {
           strokeLinecap="round"
           strokeDasharray={RING_LENGTH}
           strokeDashoffset={RING_LENGTH * (1 - ELAPSED)}
-          className="stroke-primary"
+          className="stroke-link"
         />
       </svg>
       <div className="relative text-center">
-        <p className="font-heading text-sm font-bold tracking-[0.08em] text-primary uppercase">
+        <p className="font-heading text-sm font-bold tracking-[0.08em] text-link uppercase">
           {DEMO_SESSION.phaseLabel}
         </p>
         <p className="font-heading text-4xl leading-tight font-bold tabular-nums sm:text-[2.6rem]">
@@ -187,7 +187,7 @@ function ChatStrip() {
             </li>
           ) : (
             <li key={`bot:${line.text}`} className="break-words">
-              <span className="font-semibold text-primary">{BRAND.name}</span>
+              <span className="font-semibold text-link">{BRAND.name}</span>
               <span className="text-muted-foreground">: {line.text}</span>
             </li>
           ),

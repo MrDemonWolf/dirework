@@ -25,7 +25,7 @@ export function SignInNotice({ error, deployUrl }: { error: SignInError; deployU
       {error.cta && (
         <a
           href={deployUrl}
-          className="mt-1.5 block font-medium text-foreground underline underline-offset-4 hover:text-primary focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="mt-1.5 block font-medium text-foreground underline underline-offset-4 hover:text-link focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           {error.cta}
         </a>

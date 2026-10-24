@@ -5,12 +5,13 @@
 @import "./tokens.generated.css";
 
 /* ──────────────────────────────────────────────────────────────────────────
-   Dirework docs — "Focus Console" design language, shared with the app
-   (apps/web/src/index.css). Dark is the hero: MrDemonWolf midnight navy base
-   (#091533 family), cool-white text, Cerulean (#00ACED) as the brand accent,
-   Cornflower as the secondary. Twitch purple is reserved for Twitch actions,
-   amber = paused, emerald = live/work phase. IBM Plex Sans body · Montserrat
-   display · IBM Plex Mono labels & numerals.
+   Dirework docs — the same design language as the app (apps/web/src/index.css):
+   a conventional neutral dark UI. Near-black zinc surfaces with no color cast,
+   off-white text, one standard blue accent (--primary as the fill behind white
+   labels, the lighter --link as text), Cornflower as the secondary. Twitch
+   purple is reserved for Twitch actions, amber = paused, emerald = live/work
+   phase. IBM Plex Sans body · Montserrat display · IBM Plex Mono labels &
+   numerals.
 
    The palette, phase and partner colors come from tokens.generated.css
    (generated from design-system/tokens.json — run `bun run tokens`, never edit
@@ -30,8 +31,10 @@
   --color-fd-card-foreground: var(--card-foreground);
   --color-fd-popover: var(--popover);
   --color-fd-popover-foreground: var(--popover-foreground);
-  --color-fd-primary: var(--primary);
-  --color-fd-primary-foreground: var(--primary-foreground);
+  /* fumadocs mostly paints its primary as TEXT (active sidebar/TOC links), so it
+     takes the text form of the accent; a fill of it carries a background label. */
+  --color-fd-primary: var(--link);
+  --color-fd-primary-foreground: var(--background);
   --color-fd-secondary: var(--secondary);
   --color-fd-secondary-foreground: var(--secondary-foreground);
   --color-fd-muted: var(--muted);
@@ -44,27 +47,28 @@
 }
 
 :root {
-  --color-fd-overlay: oklch(0.23 0.04 260 / 30%);
+  --color-fd-overlay: oklch(0.21 0.006 286 / 30%);
 
-  --shiki-light: #14233f;
-  --shiki-light-bg: #eef1f6;
+  --shiki-light: #18181b;
+  --shiki-light-bg: #f4f4f5;
 
   /* macOS-style control radius for pills / chips / kickers / buttons. */
   --dw-radius-control: 9px;
 
-  /* Semantic brand aliases */
-  --brand-500: #00ACED;            /* Cerulean — brand primary (fills, accents) */
-  --brand-600: #0369A1;            /* darker cerulean — AA-safe as TEXT on light */
-  --brand-600-fg: #fff;            /* label on a --brand-600 fill */
-  --brand-50:  oklch(0.49 0.105 230 / 0.10);
-  --accent-cornflower: #6B8BF5;    /* secondary accent */
+  /* Semantic brand aliases. They point at the generated palette, so they flip with the
+     theme class (and with the OS preference before it is set) on their own. */
+  --brand-500: var(--primary);     /* accent fill (buttons), carries a white label */
+  --brand-600: var(--link);        /* accent as TEXT: links, kickers, active states */
+  --brand-600-fg: var(--background); /* label on a --brand-600 fill */
+  --brand-50:  color-mix(in oklab, var(--primary) 10%, transparent);
+  --accent-cornflower: var(--cornflower); /* secondary accent */
 
   /* Status-chip + chat-username text colors, flipped per theme so they clear
      WCAG AA on both the near-white (light) and near-black (dark) chip fills. */
   --chip-live-fg: #1F7A38;
   --chip-warn-fg: #9A5B00;
   --chat-user-1: #1F7A38;          /* green  — chat preview, 1st speaker */
-  --chat-user-2: #0369A1;          /* blue   — chat preview, 2nd speaker */
+  --chat-user-2: var(--link);      /* blue   — chat preview, 2nd speaker */
   --chat-user-3: #9A5B00;          /* amber  — chat preview, 3rd speaker */
 
   --bg-base:    var(--background);
@@ -87,34 +91,24 @@
 }
 
 .dark {
-  --color-fd-overlay: oklch(0.12 0.03 262 / 60%);
+  --color-fd-overlay: oklch(0.1 0.003 286 / 60%);
 
-  --shiki-dark: #dbe4f0;
-  --shiki-dark-bg: #121c33;
-
-  --brand-500: #29B6F0;            /* brighter cerulean on midnight */
-  --brand-600: #6FCBF6;
-  --brand-600-fg: #04141f;         /* white on the light cerulean fails AA */
-  --brand-50:  oklch(0.69 0.13 222 / 0.14);
-  --accent-cornflower: #8AA4F7;
+  --shiki-dark: #e4e4e7;
+  --shiki-dark-bg: #151518;
 
   /* On the near-black chip fills the bright saturated hues read fine. */
   --chip-live-fg: #34C759;
   --chip-warn-fg: #FF9F0A;
   --chat-user-1: #34C759;
-  --chat-user-2: #29B6F0;
   --chat-user-3: #FF9F0A;
 }
 
 /* No class yet (before next-themes hydrates): follow the OS preference. The
-   palette itself flips in tokens.generated.css. */
+   palette itself (and the --brand-* aliases that read it) flips in
+   tokens.generated.css. */
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
     color-scheme: dark;
-    --brand-500: #29B6F0;
-    --brand-600: #6FCBF6;
-    --brand-600-fg: #04141f;
-    --brand-50:  oklch(0.69 0.13 222 / 0.14);
   }
 }
 
@@ -136,7 +130,6 @@
 .dw-text-1     { color: var(--txt-1); }
 .dw-text-2     { color: var(--txt-2); }
 .dw-text-brand { color: var(--brand-600); }
-.dark .dw-text-brand { color: var(--brand-500); }
 
 /* ── Console grammar (ported from the app) ──────────────────────────────── */
 
@@ -234,7 +227,6 @@
 }
 .dw-chip-dot { width: 0.375rem; height: 0.375rem; border-radius: 9999px; flex-shrink: 0; }
 .dw-chip-accent { border-color: color-mix(in srgb, var(--brand-500) 30%, transparent); background-color: var(--brand-50); color: var(--brand-600); }
-.dark .dw-chip-accent { color: var(--brand-500); }
 .dw-chip-accent .dw-chip-dot { background-color: var(--brand-500); }
 .dw-chip-live { border-color: color-mix(in srgb, var(--color-live) 30%, transparent); background-color: color-mix(in srgb, var(--color-live) 12%, transparent); color: var(--chip-live-fg); }
 .dw-chip-live .dw-chip-dot { background-color: var(--color-live); }
@@ -269,7 +261,6 @@
   color: var(--brand-600);
   letter-spacing: 0;
 }
-.dark .dw-kicker-num { color: var(--brand-500); }
 
 /* ── Buttons ────────────────────────────────────────────────────────────── */
 .dw-btn {
@@ -287,11 +278,9 @@
     border-color 0.15s ease;
 }
 .dw-btn:active { transform: scale(0.98); }
-.dw-btn-primary { background-color: var(--brand-500); color: #04141f; }
-/* Keep the hover bright enough that the near-black label stays AA-legible
-   (a darker --brand-600 would drop dark-text contrast on hover). */
+/* Blue fill, white label (AA in both themes); the hover only darkens, so it stays AA. */
+.dw-btn-primary { background-color: var(--brand-500); color: var(--primary-foreground); }
 .dw-btn-primary:hover { background-color: color-mix(in srgb, var(--brand-500) 85%, #000); }
-.dark .dw-btn-primary { color: #04141f; }
 .dw-btn-twitch { background-color: var(--color-twitch); color: #fff; }
 .dw-btn-twitch:hover { background-color: var(--color-twitch-hover); }
 .dw-btn-secondary {
@@ -299,7 +288,6 @@
   color: var(--brand-600);
   border: 1px solid color-mix(in srgb, var(--brand-500) 45%, var(--hairline));
 }
-.dark .dw-btn-secondary { color: var(--brand-500); }
 .dw-btn-secondary:hover { border-color: var(--brand-500); }
 .dw-btn-ghost {
   background-color: color-mix(in srgb, var(--bg-surface) 70%, transparent);
@@ -536,8 +524,6 @@ html { scroll-behavior: smooth; }
   /* Long URLs/tokens wrap instead of clipping at phone width. */
   overflow-wrap: anywhere;
 }
-.dark .fd-prose :not(pre) > code,
-.dark [class*="prose"] :not(pre) > code { color: var(--brand-500); }
 
 /* Content links — brand, underlined, offset. Skip anchor permalinks + Cards. */
 [class*="prose"] a:not(.peer):not([data-card]),
@@ -549,8 +535,6 @@ html { scroll-behavior: smooth; }
   text-decoration-thickness: 1px;
   transition: text-decoration-color 0.15s ease, color 0.15s ease;
 }
-.dark [class*="prose"] a:not(.peer):not([data-card]),
-.dark .fd-prose a:not(.peer):not([data-card]) { color: var(--brand-500) !important; }
 [class*="prose"] a:not(.peer):not([data-card]):hover,
 .fd-prose a:not(.peer):not([data-card]):hover {
   text-decoration-color: var(--brand-500);
@@ -637,8 +621,6 @@ div[data-card]:hover {
   background-color: var(--brand-50) !important;
   color: var(--brand-600) !important;
 }
-.dark [class*="prose"] [role="tab"][data-state="active"],
-.dark [class*="prose"] [role="tab"][aria-selected="true"] { color: var(--brand-500) !important; }
 
 /* Docs tables — flat hairline grid, centered status cells, emphasized labels. */
 [class*="prose"] table {

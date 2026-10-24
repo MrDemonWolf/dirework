@@ -32,8 +32,8 @@ describe("web app manifest", () => {
   });
 
   it("uses the dark theme background as hex", () => {
-    expect(DARK_BACKGROUND_HEX).toBe("#081225");
-    expect(LIGHT_BACKGROUND_HEX).toBe("#f2f6f9");
+    expect(DARK_BACKGROUND_HEX).toBe("#0c0c0e");
+    expect(LIGHT_BACKGROUND_HEX).toBe("#fafafa");
     expect(m.background_color).toBe(DARK_BACKGROUND_HEX);
     expect(m.theme_color).toBe(DARK_BACKGROUND_HEX);
   });

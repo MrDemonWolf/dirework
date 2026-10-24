@@ -25,9 +25,9 @@ export function toTimerStatus(status: string): TimerStatus {
 /** phase → CSS color var for ambient ring/rail/glow (tokens only). */
 export const TIMER_PHASE_COLOR: Record<TimerStatus, string> = {
   idle: "var(--muted-foreground)",
-  starting: "var(--primary)",
+  starting: "var(--link)",
   work: "var(--success)",
-  break: "var(--primary)",
+  break: "var(--link)",
   longBreak: "var(--cornflower)",
   paused: "var(--warning)",
   finished: "var(--cornflower)",

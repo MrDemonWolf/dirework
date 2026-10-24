@@ -67,14 +67,49 @@ describe.each(["light", "dark"] as const)("%s scheme contrast", (name) => {
 
   it.each([
     ["foreground", "background"],
+    ["foreground", "card"],
+    ["popover-foreground", "popover"],
+    ["secondary-foreground", "secondary"],
+    ["accent-foreground", "accent"],
+    ["sidebar-foreground", "sidebar"],
     ["muted-foreground", "background"],
+    ["muted-foreground", "card"],
+    ["muted-foreground", "muted"],
     ["primary-foreground", "primary"],
+    ["sidebar-primary-foreground", "sidebar-primary"],
+    // `--link` is the text form of the accent (links, icons, active nav); `--primary` is
+    // the fill, which carries white labels.
+    ["link", "background"],
+    ["link", "card"],
+    ["link", "popover"],
+    ["destructive", "background"],
+    ["destructive", "card"],
+    ["success", "card"],
+    ["warning", "card"],
   ])("%s on %s ≥ 4.5:1", (fg, bg) => {
     expect(contrast(color(fg), color(bg))).toBeGreaterThanOrEqual(4.5);
   });
 
-  it.each(["success", "warning"])("%s chip text on its /10 tint over --card ≥ 4.5:1", (tone) => {
-    const fill = composite(color(tone), 0.1, color("card"));
-    expect(contrast(color(tone), fill)).toBeGreaterThanOrEqual(4.5);
+  // WCAG 1.4.11: the focus ring and filled controls must stand off the surfaces they sit on.
+  it.each([
+    ["ring", "background"],
+    ["ring", "card"],
+    ["primary", "background"],
+    ["primary", "card"],
+  ])("%s against %s ≥ 3:1 (non-text)", (fg, bg) => {
+    expect(contrast(color(fg), color(bg))).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(["success", "warning", "link", "destructive"])(
+    "%s chip text on its /10 tint over --card ≥ 4.5:1",
+    (tone) => {
+      const fill = composite(color(tone), 0.1, color("card"));
+      expect(contrast(color(tone), fill)).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
+  it("link text on the active-nav --primary/10 tint over --background ≥ 4.5:1", () => {
+    const fill = composite(color("primary"), 0.1, color("background"));
+    expect(contrast(color("link"), fill)).toBeGreaterThanOrEqual(4.5);
   });
 });
