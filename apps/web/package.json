@@ -16,7 +16,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@base-ui/react": "^1.0.0",
+    "@base-ui/react": "^1.9.0",
     "@dirework/api": "workspace:*",
     "@dirework/env": "workspace:*",
     "@dirework/fonts": "workspace:*",
