@@ -622,6 +622,17 @@ describe("createBotSession mute state", () => {
     expect(events.onActivity).toHaveBeenCalledWith("info", "bot unmuted");
   });
 
+  it("reports an unmuted bot at startup, once and without logging it", async () => {
+    // The dock's Reconnect builds a new session while the page still shows the old one's
+    // "Muted"; the fresh session must report the fetched state so the display catches up.
+    const { events } = setup({ getSession: async () => ({ ...SESSION, muted: false }) });
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(REVALIDATE_INTERVAL_MS);
+
+    expect(events.onMuted.mock.calls).toEqual([[false]]);
+    expect(events.onActivity).not.toHaveBeenCalledWith("info", "bot unmuted");
+  });
+
   it("never fires for an api worker that omits the field", async () => {
     const { events, callbacks } = setup();
     await vi.advanceTimersByTimeAsync(0);

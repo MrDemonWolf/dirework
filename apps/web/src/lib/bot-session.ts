@@ -203,6 +203,10 @@ export function createBotSession({
   let aliasKeys: ReadonlySet<string> = new Set();
   // Starts unmuted (the console's default), so a normal startup logs nothing.
   let muted = false;
+  // Whether this session has reported a mute state yet. The first known state is always
+  // reported, even "unmuted": the dock's Reconnect replaces the session without remounting
+  // the page, and the page may still show the old session's "Muted".
+  let mutedReported = false;
   let authRecoveryAttempts = 0;
   let retryAttempts = 0;
   let revalidateTimer: ReturnType<typeof setInterval> | null = null;
@@ -377,10 +381,17 @@ export function createBotSession({
 
   function applyMuted(next: boolean | undefined) {
     // Missing (clearchat, or an api worker from before the field) → unknown, keep the last state.
-    if (typeof next !== "boolean" || next === muted) return;
+    if (typeof next !== "boolean" || (next === muted && mutedReported)) return;
+    const changed = next !== muted;
     muted = next;
+    mutedReported = true;
     events.onMuted(next);
-    events.onActivity("info", next ? "bot muted — ignoring commands until !unmute" : "bot unmuted");
+    if (changed) {
+      events.onActivity(
+        "info",
+        next ? "bot muted — ignoring commands until !unmute" : "bot unmuted",
+      );
+    }
   }
 
   function connectWith(session: BotSessionInfo) {
