@@ -261,7 +261,7 @@ bundle zod); types still come from `config-shared`.
 - **Drizzle ORM** on **Cloudflare D1** (`drizzle-orm/d1`, drizzle-kit `d1-http`)
 - **Tailwind CSS v4** + shadcn/ui (base-lyra) + Lucide icons
 - **Alchemy** infrastructure-as-code; **GitHub Actions** CI/CD
-- **Fumadocs** with Orama search
+- **Fumadocs** with its built-in static search (ZBSearch, fumadocs-core's successor to Orama)
 - **TypeScript 7** (native `tsc`) strict everywhere; **Vitest** for tests
 
 ## Code Patterns
@@ -798,15 +798,18 @@ safe override exists: Bun 1.3.x (the CI pin) ignores nested `overrides`, and a t
 an upstream release stops pulling `glob@10.3.3`, or once CI's Bun honours nested
 overrides (`"@node-minify/core": { "glob": "10.5.0" }` works on Bun 1.4).
 
-`lucide-react` has two pins: the default catalog (`^1.x`, apps/web) and the named
-`catalogs.fumadocs` entry (apps/fumadocs, `catalog:fumadocs`), which must stay on the
-range fumadocs-ui 16.5.1 depends on (`^0.563.0`). fumadocs-core takes lucide-react as an
-optional peer, so if the docs app's lucide differs from fumadocs-ui's, Bun installs two
-fumadocs-core copies and `source` no longer type-checks against fumadocs-ui's
-`LoaderOutput` (`docs/[[...slug]]/page.tsx`). Move the docs pin together with a fumadocs
-bump (fumadocs-ui moved to lucide 1.x in its later 16.x releases). lucide 1.x dropped brand
-icons; brand glyphs are inline SVG components (`apps/web/src/components/icons/`,
-`apps/fumadocs/src/components/icons/`).
+`lucide-react` has one pin, the default catalog (`^1.x`), shared by apps/web and
+apps/fumadocs; fumadocs-ui 16.17 depends on `^1.50.0`, so all three resolve one copy.
+fumadocs-core takes lucide-react as an optional peer, so if the docs app's lucide ever
+resolves differently from fumadocs-ui's, Bun installs two fumadocs-core copies and
+`source` no longer type-checks against fumadocs-ui's `LoaderOutput`
+(`docs/[[...slug]]/page.tsx`). Until 16.17 the docs needed a named `catalog:fumadocs` pin
+on fumadocs-ui 16.5's `^0.563.0`; if the default catalog and fumadocs-ui's lucide range
+part again (say the web app moves to a lucide major first), give the docs that pin back.
+The fumadocs packages move together too: fumadocs-ui pins fumadocs-core exactly and
+fumadocs-mdx requires a minimum fumadocs-core, so they are grouped as `fumadocs` in
+`.github/dependabot.yml`. lucide 1.x dropped brand icons; brand glyphs are inline SVG
+components (`apps/web/src/components/icons/`, `apps/fumadocs/src/components/icons/`).
 
 - `.github/workflows/verify.yml` — **the single verification pipeline**
   (install → dependency audit → design-token drift check → lint → check-types →
