@@ -109,7 +109,9 @@ export function dockResultText(result: DockCommandResult): string {
   if (!result.ok) {
     return result.reason === "not-ready"
       ? "The bot isn't connected yet. Try again in a moment."
-      : "Couldn't reach DireWork. Nothing changed; try again.";
+      : // A lost response or a timeout can follow a command that did run, and each click
+        // gets a fresh message id, so a blind retry could skip a second phase.
+        "No answer from DireWork, so it may or may not have run. Check the timer and tasks before trying again.";
   }
   if (result.replies.length === 0) {
     // The server runs dock lines exactly like chat: a disabled command answers nothing.

@@ -75,6 +75,9 @@ describe("dockResultText", () => {
   it("explains an empty reply (a command turned off) and each failure", () => {
     expect(dockResultText({ ok: true, replies: [] })).toMatch(/turned off in Dashboard → Bot/);
     expect(dockResultText({ ok: false, reason: "not-ready" })).toMatch(/isn't connected/);
-    expect(dockResultText({ ok: false, reason: "failed" })).toMatch(/Couldn't reach DireWork/);
+    // A failed request may still have run (lost response, timeout): never claim nothing changed.
+    const failed = dockResultText({ ok: false, reason: "failed" });
+    expect(failed).toMatch(/may or may not have run/);
+    expect(failed).not.toMatch(/Nothing changed/);
   });
 });
