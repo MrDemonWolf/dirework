@@ -7,7 +7,7 @@ tokens: [color.scheme, radius, tracking]
 
 ## Purpose
 
-ONE body shared by the Task and Timer command tabs of `/dashboard/bot` (`bot-settings-page.tsx`): a header with the group's enable switch, then the command reference beside the reply editor. Fully controlled: the switch and message edits only update the page draft, which the page's `SaveBar` persists.
+ONE body shared by the Task and Timer command tabs of `/dashboard/bot/commands` (`(sections)/commands/commands-page.tsx`): a header with the group's enable switch, then the command reference beside the reply editor. Fully controlled: message edits only update the page draft, which the page's `SaveBar` persists; the switch is a live control the page saves on flip (`useCommandGroupSwitch`).
 
 ## Anatomy
 
@@ -21,7 +21,8 @@ ONE body shared by the Task and Timer command tabs of `/dashboard/bot` (`bot-set
 |---|---|---|
 | `title` / `subtitle` | `string` | Tab heading copy |
 | `idPrefix` | `string` | Prefix for the switch and field ids |
-| `enabled` / `onEnabledChange` | `boolean` / `(checked: boolean) => void` | Group switch |
+| `enabled` / `onEnabledChange` | `boolean` / `(checked: boolean) => void` | Group switch (saved on flip by the page) |
+| `enabledPending` | `boolean` | Optional; disables the switch while its save is in flight |
 | `commands` | `CommandRow[]` | Legend rows |
 | `fields` | `readonly MessageField<...>[]` | From `lib/message-fields.ts` |
 | `messages` / `defaults` | `T` | Draft and stock wording |

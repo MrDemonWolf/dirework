@@ -1,18 +1,18 @@
 "use client";
 
-// Bot console card on the bot settings page: the browser page that IS the bot. Shows who
-// chats where, the secret `/bot/<token>` URL with Show / Copy / Reset, the Open button, and
-// the OBS steps.
+// "Run the bot" card on the Bot settings Overview: the browser page that IS the bot. Shows
+// who chats where, the secret `/bot/<token>` URL with Show / Copy / Reset, the same page's
+// OBS dock URL (`?view=dock`), the Open button, and where to keep the page open.
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, MonitorPlay } from "lucide-react";
 import { toast } from "sonner";
 
 import { botConsoleStatus } from "@/lib/bot-status";
+import { botPagePath } from "@/lib/bot-view";
 import { describeTrpcError } from "@/lib/trpc-errors";
 import { useOrigin } from "@/lib/use-origin";
 import { BotConsoleBodySkeleton } from "@/components/bot-settings-skeleton";
-import { ConsoleRule } from "@/components/console-rule";
 import { QueryError } from "@/components/query-error";
 import { SecretUrlRow } from "@/components/secret-url-row";
 import { SectionGroup } from "@/components/section-group";
@@ -69,17 +69,16 @@ export function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
   });
 
   const botToken = ingestInfo.data?.botToken;
-  const botPath = botToken ? `/bot/${botToken}` : null;
+  const botPath = botToken ? botPagePath(botToken) : null;
   // `origin` is "" during SSR/hydration (useOrigin), so the Open button starts disabled.
   const botUrl = origin && botPath ? `${origin}${botPath}` : "";
   const status = botConsoleStatus({ hasBotAccount, hasBotUrl: Boolean(botToken) });
 
   return (
-    <Card className="panel-hero">
+    <Card className="panel">
       <CardHeader className="border-b border-border/40 px-5">
-        <ConsoleRule label="Console" />
         <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
-          Bot console
+          Run the bot
         </CardTitle>
         <CardAction>
           <StatusChip tone={status.tone} label={status.label} />
@@ -95,7 +94,7 @@ export function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
       <CardContent className="space-y-4 px-5">
         {!hasBotAccount ? (
           <p className="text-sm text-muted-foreground">
-            Connect a bot account to activate the console.
+            The bot page URL appears here once a bot account is connected.
           </p>
         ) : ingestInfo.isPending ? (
           <BotConsoleBodySkeleton />
@@ -120,6 +119,8 @@ export function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
               regenerating={regenerateBotToken.isPending}
               resetDescription="The current bot page URL and the Twitch chat login it was given stop working immediately. Any OBS browser source or pinned tab running the bot goes offline until you open the new URL."
             />
+            {/* Same token, dock layout; Reset above rotates both. */}
+            <SecretUrlRow label="Bot dock" path={botToken ? botPagePath(botToken, "dock") : null} />
 
             <div>
               <Button
@@ -133,7 +134,7 @@ export function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
             </div>
 
             <SectionGroup
-              title="How to run it in OBS"
+              title="Where to keep it"
               icon={<MonitorPlay className="size-4 text-link" aria-hidden />}
               defaultOpen={false}
               flush
@@ -147,6 +148,11 @@ export function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
                 <li>
                   Leave &quot;Shutdown source when not visible&quot; unchecked, so the bot keeps
                   running when you switch scenes.
+                </li>
+                <li>
+                  Or add the bot dock URL as an OBS custom browser dock (Docks → Custom Browser
+                  Docks) to get its controls beside your scenes. Keep the dock tabbed, not closed:
+                  closing it stops the bot.
                 </li>
                 <li>
                   No OBS? Keep the page open in a pinned browser tab instead. The bot only runs

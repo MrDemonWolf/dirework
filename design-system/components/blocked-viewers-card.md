@@ -7,14 +7,13 @@ tokens: [color.scheme, radius, tracking]
 
 ## Purpose
 
-The Moderation card on `/dashboard/bot` (`bot-settings-page.tsx`): the mod-only chat commands beside the viewer block list. Blocking and unblocking save immediately through `config.blockViewer` / `config.unblockViewer`, the same services `!block` / `!unblock` use, so the dashboard list and chat share one list. It never joins the page's Save bar draft.
+The body of the Bot settings Moderation page (`/dashboard/bot/moderation`): the block form and list, beside the mod-only chat commands. Blocking and unblocking save immediately through `config.blockViewer` / `config.unblockViewer`, the same services `!block` / `!unblock` use, so the dashboard list and chat share one list. It never joins the page's Save bar draft.
 
 ## Anatomy
 
-- `Card.panel` header: `ConsoleRule` "Chat safety", `CardTitle` (h2) "Moderation", description.
-- Two-column grid at `lg` (`15rem` legend + body): `CommandReference` of `moderationCommands` (ordered last on small screens), then a `SectionGroup` "Blocked viewers" with a trailing `CountBadge`.
-- Body: a hairline-divided list of logins (mono) with a ghost destructive trash icon button each, then a "Twitch username" field and an outline "Block viewer" button wrapped in `ConfirmDialog`.
-- Hint line under the field ("Block list is full" / "Letters, numbers and underscores only").
+- Two-column grid at `lg` (card + `18rem` legend): a `Card.panel` "Blocked viewers", then `CommandReference` "Mod commands in chat" of `moderationCommands` (under the card on small screens).
+- Card body: the "Twitch username" field and an outline "Block viewer" button wrapped in `ConfirmDialog`, with a hint line under the field ("Block list is full. Unblock someone first." / "Letters, numbers and underscores only").
+- Then the "Block list" section: an `h3`, the count as "n of 200", a "Filter blocked viewers" search field once the list holds more than `BLOCKED_FILTER_THRESHOLD` (8) names, and a hairline-divided list of logins (mono), each with a ghost "Unblock" button.
 
 ## Props and variants
 
@@ -26,15 +25,16 @@ No variants. Input runs through `normalizeTwitchLogin` (shared with the server s
 
 ## States
 
-- **Empty**: "No blocked viewers."
+- **Empty**: "No blocked viewers." plus how a mod blocks from chat.
+- **Filtered to nothing**: "No blocked viewer matches “…”."
 - **Invalid input**: button disabled, hint shown, `aria-invalid` on the input.
-- **Full**: button disabled, "Block list is full" hint (not marked invalid).
+- **Full**: button disabled, "Block list is full. Unblock someone first." hint (not marked invalid).
 - **Pending**: block button disabled while blocking; every unblock button disabled while unblocking.
 - **Result**: success / error toasts ("Blocked {login}", "Couldn't block that viewer: …").
 
 ## Accessibility
 
-- The list is `aria-labelledby` the section title id; each remove button is named `Unblock {login}`.
+- The list section and list are `aria-labelledby` the "Block list" heading; each remove button is named `Unblock {login}`; the filter is labelled "Filter blocked viewers".
 - Input labelled "Twitch username" (`#block-viewer-login`), described by the hint when one shows.
 - Blocking confirms in an `alertdialog` titled `Block {login}?` (confirm label "Block"), because it also deletes that viewer's tasks.
 

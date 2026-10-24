@@ -7,12 +7,12 @@ tokens: [color.scheme, radius, tracking]
 
 ## Purpose
 
-The hero card on `/dashboard/bot` (`bot-settings-page.tsx`) for the browser page that IS the bot: who chats where, the secret `/bot/<token>` URL with Show / Copy / Reset, an Open button, and OBS steps.
+The "Run the bot" card on the Bot settings Overview (`/dashboard/bot`, `(sections)/overview-page.tsx`) for the browser page that IS the bot: who chats where, the secret `/bot/<token>` URL with Show / Copy / Reset, an Open button, and where to keep the page open.
 
 ## Anatomy
 
-- `Card.panel-hero` header: `ConsoleRule` "Console", `CardTitle` (h2) "Bot console", `CardAction` `StatusChip`, description warning that the URL is a secret.
-- Body (account connected, data loaded): `{botUsername} chats in #{channelName}` (mono), `SecretUrlRow` labelled "Bot page", an "Open bot page" button (`<a target="_blank">`), and a collapsed flush `SectionGroup` "How to run it in OBS" with a numbered list.
+- `Card.panel` header: `CardTitle` (h2) "Run the bot", `CardAction` `StatusChip`, description warning that the URL is a secret.
+- Body (account connected, data loaded): `{botUsername} chats in #{channelName}` (mono), `SecretUrlRow` labelled "Bot page" (with Reset), a second one labelled "Bot dock" (`?view=dock`, no Reset of its own — the same token), an "Open bot page" button (`<a target="_blank">`), and a collapsed flush `SectionGroup` "Where to keep it" with a numbered list.
 
 ## Props and variants
 
@@ -24,10 +24,10 @@ Reset calls `bot.regenerateBotToken`; the returned `chatToken` (`revoked` / `unc
 
 ## States
 
-- **No bot account**: "Connect a bot account to activate the console."; chip `idle` "Not set up".
+- **No bot account**: "The bot page URL appears here once a bot account is connected."; chip `idle` "Not set up".
 - **Loading**: `BotConsoleBodySkeleton`.
 - **Load failed**: `QueryError` "Couldn't load the bot page URL" with Retry.
-- **Ready**: chip `accent` "Ready".
+- **URL ready**: chip `accent` "URL ready" (never "live": whether the page is open is unknowable without polling).
 - **Open disabled** until `useOrigin` resolves (it is empty during SSR and hydration).
 
 ## Accessibility

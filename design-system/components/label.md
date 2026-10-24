@@ -9,7 +9,7 @@ tokens: []
 
 Form label primitive. Used by `FieldRow` and `PhaseLabelsEditor` (Theme Center),
 `TimerControls`, and the bot settings forms (`MessageEditor`, `CommandAliasEditor`,
-`CommandTabPanel`, `BotMuteBar`, `BlockedViewersCard`).
+`CommandTabPanel`, `BotLiveControls`, `BlockedViewersCard`).
 
 ## Anatomy
 

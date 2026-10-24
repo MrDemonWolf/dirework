@@ -7,25 +7,26 @@ tokens: [color.scheme, radius, layout]
 
 ## Purpose
 
-Loading placeholder for the Bot settings page. Shown by `dashboard/bot/loading.tsx` the
-moment a navigation starts, and by `bot-settings-page.tsx` until `config.get` and `user.me`
-resolve. `BotConsoleBodySkeleton` is also used inside the live `BotConsoleCard` while its URL
+Loading placeholder for a Bot settings page body (the heading and sub-nav come from
+`dashboard/bot/layout.tsx` and are never skeletons). Shown by `dashboard/bot/loading.tsx` the
+moment a navigation into Bot settings starts, by `(sections)/loading.tsx` while a sub-page
+switch renders, and by the data gate (`(sections)/bot-data.tsx`) until `config.get` and
+`user.me` resolve. `BotConsoleBodySkeleton` is also used inside the live `BotConsoleCard` while its URL
 query is pending, so the page skeleton and the in-card placeholder can't drift.
 
 ## Anatomy
 
-- Page container: `container max-w-content px-4 py-8`, then a title and subtitle bar.
-- Row one (`lg:grid-cols-2`): the console card (`panel-hero`) and the bot account card
-  (`panel`), each a `Card` with a hairline-bordered header (eyebrow, title, description).
-- Row two: the full-width commands card: a tab-strip bar, then a `15rem` rail beside four
-  field blocks.
+- `aria-busy` wrapper. Row one (`lg:grid-cols-2`): two `Card.panel` blocks, each a
+  hairline-bordered header (title, description) over four body bars — the Overview's Live
+  controls and Run the bot cards.
+- Row two: one more full-width panel.
 - Every block is the `Skeleton` primitive.
 
 ## Props and variants
 
 | Export | Props | Notes |
 |---|---|---|
-| `BotSettingsSkeleton` | none | The full page |
+| `BotSettingsSkeleton` | none | A page body |
 | `BotConsoleBodySkeleton` | none | The console card body only (four bars) |
 
 ## States
@@ -39,7 +40,7 @@ content.
 
 ## Do / Don't
 
-- **Do** update it alongside `bot-settings-page.tsx` so the layout doesn't jump when data
+- **Do** update it alongside the Overview (`(sections)/overview-page.tsx`) so the layout doesn't jump when data
   lands (same grid, same card order, roughly the same heights).
 - **Do** reuse `BotConsoleBodySkeleton` for any pending state inside the console card.
 - **Don't** fetch data or accept props.

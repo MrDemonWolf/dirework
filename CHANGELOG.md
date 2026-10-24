@@ -68,6 +68,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hover that could never happen.
 
 ### Changed
+- **Bot settings in sections.** `/dashboard/bot` is now three pages under one heading with a
+  sticky link bar: **Overview** (live controls: mute with its status, Task and Timer commands
+  on/off, how many viewers are blocked with a **Manage** link; how to run the bot, with its
+  secret page URL; the bot account, first while none is connected), **Commands** (the command
+  groups, replies and aliases) and **Moderation** (block a viewer, the block list with
+  "n of 200" and a filter once it passes 8 names, and the mod chat commands). Each is its own
+  URL, so Back and bookmarks work; the "Jump to Moderation" link is gone. The Task and Timer
+  commands switches now save the moment you flip them, like Mute. Leaving a page with unsaved
+  edits asks first. Switching pages costs no API requests: the session check and data load run
+  once when you enter Bot settings.
+- **Save part of the bot settings.** `config.updateBotSettings` accepts any subset of the two
+  command switches, the Task replies, the Timer replies and the aliases (at least one), and
+  leaves the rest alone. A full payload still works.
 - **A standard dark mode with blue accents.** The dashboard, Theme Center, bot settings, setup
   page and docs site drop the midnight-navy look for neutral near-black surfaces (no color
   cast), gray secondary text and one standard blue accent: blue buttons with white labels, a

@@ -8,7 +8,7 @@ tokens: [color.scheme, radius]
 ## Purpose
 
 Base UI `Tabs` for switching panels in place. Used by the Theme Center (`styles-page.tsx`:
-Timer / Tasks / labels editors) and the bot settings page (`bot-settings-page.tsx`: command
+Timer / Tasks / labels editors) and the Bot settings Commands page (`commands-page.tsx`: command
 groups).
 
 ## Anatomy

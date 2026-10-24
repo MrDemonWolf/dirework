@@ -23,7 +23,8 @@ describe("dashboard SSR hydration", () => {
   it.each([
     ["app/(app)/dashboard/page.tsx", "prefetchDashboard"],
     ["app/(app)/dashboard/styles/page.tsx", "prefetchStyles"],
-    ["app/(app)/dashboard/bot/page.tsx", "prefetchBot"],
+    // Bot settings prefetches once in the layout its sub-pages share.
+    ["app/(app)/dashboard/bot/(sections)/layout.tsx", "prefetchBot"],
   ])("%s wraps its tree in a HydrationBoundary fed by %s", (file, prefetch) => {
     const page = read(file);
     expect(page).toContain("<HydrationBoundary state={state}>");
@@ -43,7 +44,7 @@ describe("dashboard SSR hydration", () => {
 
   it.each([
     "app/(app)/dashboard/styles/styles-page.tsx",
-    "app/(app)/dashboard/bot/bot-settings-page.tsx",
+    "app/(app)/dashboard/bot/(sections)/commands/commands-page.tsx",
   ])(
     "%s seeds its editors from the hydrated config in state, not in a post-mount effect",
     (file) => {
@@ -52,9 +53,21 @@ describe("dashboard SSR hydration", () => {
       // saved values after hydration — an edit landing during the swap was appended to them.
       expect(page).not.toContain("initializedRef");
       expect(page).not.toMatch(/useEffect\(\(\) => \{\s*if \(!config\.data\) return;/);
-      expect(page).toMatch(/return <\w+Editor config=\{config\.data\}/);
+      expect(page).toMatch(/return <\w+Editor config=\{config(\.data)?\}/);
     },
   );
+
+  it("keeps the Bot settings shell data-free, so a link prefetch never reaches the api", () => {
+    // The heading + sub-nav layout sits above bot/loading.tsx; the session check and the
+    // prefetch sit below it, in (sections)/layout.tsx, where a prefetch stops short.
+    const shell = read("app/(app)/dashboard/bot/layout.tsx");
+    expect(shell).not.toMatch(/requireSession|prefetchBot|getServerSession|async function/);
+    expect(read("app/(app)/dashboard/bot/(sections)/layout.tsx")).toMatch(
+      /await requireSession\(\);\s*const state = await prefetchBot\(\);/,
+    );
+    // Sub-nav links never prefetch.
+    expect(read("components/bot-settings/bot-section-nav.tsx")).toContain("prefetch={false}");
+  });
 
   it("keeps hydrated data fresh on mount via the client default staleTime", () => {
     expect(read("utils/trpc.ts")).toContain("staleTime: QUERY_FRESH_MS");

@@ -7,11 +7,11 @@ tokens: [color.scheme, color.partner, radius, tracking]
 
 ## Purpose
 
-Identity card on `/dashboard/bot` (`bot-settings-page.tsx`): which Twitch account the bot speaks as, with Connect (a plain link into the bot OAuth flow) or Disconnect.
+Identity card on the Bot settings Overview (`/dashboard/bot`, `(sections)/overview-page.tsx`; first on the page while no account is connected, under Live controls once one is): which Twitch account the bot speaks as, with Connect (a plain link into the bot OAuth flow) or Disconnect.
 
 ## Anatomy
 
-- `Card.panel` header: `ConsoleRule` "Identity", `CardTitle` (h2) "Bot account", `CardAction` with a `StatusChip`, description "The Twitch account that talks in your chat".
+- `Card.panel` header: `CardTitle` (h2) "Bot account", `CardAction` with a `StatusChip`, description "The Twitch account that talks in your chat".
 - Connected: Twitch-purple tile (`bg-twitch/15` + `TwitchIcon`, `aria-hidden`), display name and mono `@username`, a destructive small "Disconnect" button inside `ConfirmDialog`, then a tip to `/mod` the bot.
 - Not connected: explanation copy and a Twitch-purple "Connect bot account" button rendered as `<a href="/api/bot/authorize">`.
 

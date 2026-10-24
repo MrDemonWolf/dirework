@@ -96,3 +96,25 @@ test.describe("on a 320px phone", () => {
     await expect(start).toBeVisible();
   });
 });
+
+test("every Bot settings page fits a phone and the sub-nav reaches each one", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/dashboard/bot");
+  await expect(page.getByRole("heading", { level: 1, name: "Bot settings" })).toBeVisible();
+
+  const nav = page.getByRole("navigation", { name: "Bot settings sections" });
+  for (const [link, landmark] of [
+    ["Overview", page.getByRole("heading", { name: "Live controls" })],
+    ["Commands", page.getByRole("tab", { name: "Aliases" })],
+    ["Moderation", page.getByRole("heading", { name: "Blocked viewers" })],
+  ] as const) {
+    await nav.getByRole("link", { name: link }).click();
+    await expect(landmark).toBeVisible();
+    await expect(nav.getByRole("link", { name: link })).toHaveAttribute("aria-current", "page");
+    const widths = await page.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      client: document.documentElement.clientWidth,
+    }));
+    expect(widths.scroll, `${link} wider than the viewport`).toBeLessThanOrEqual(widths.client);
+  }
+});

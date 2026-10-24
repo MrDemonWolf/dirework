@@ -914,3 +914,72 @@ describe("config.updateStyles against real SQLite (style default upgrade)", () =
     expect(read.timerStyles.fontSizes.time).toBe("64px");
   });
 });
+
+describe("config.updateBotSettings partial saves against real SQLite", () => {
+  const session = {
+    user: { id: "owner", isOwner: true, name: "streamer", twitchId: "1000", displayName: "S" },
+  };
+
+  /** A customised instance, so "left alone" is distinguishable from "reset to default". */
+  async function customised() {
+    const { db } = await createSqliteDb();
+    await provisionSingletonRows(db);
+    const owner = appRouter.createCaller({ session, db } as unknown as Context);
+    await owner.config.updateBotSettings({
+      taskCommandsEnabled: true,
+      timerCommandsEnabled: true,
+      task: { ...DEFAULT_TASK_MESSAGES, notMod: "mods only, {user}" },
+      timer: { ...DEFAULT_TIMER_MESSAGES, eta: "Done at {time}" },
+      commandAliases: { t: "task" },
+    });
+    return { db, owner };
+  }
+
+  it("a replies-only save leaves the aliases and both switches alone", async () => {
+    const { db, owner } = await customised();
+    await owner.config.updateBotSettings({ timerCommandsEnabled: false });
+
+    await owner.config.updateBotSettings({
+      task: { ...DEFAULT_TASK_MESSAGES, notMod: "nope" },
+      timer: DEFAULT_TIMER_MESSAGES,
+    });
+
+    const row = await db.query.botConfig.findFirst();
+    expect(row).toMatchObject({
+      msgNotMod: "nope",
+      commandAliases: { t: "task" },
+      taskCommandsEnabled: true,
+      timerCommandsEnabled: false,
+    });
+    const read = await owner.config.get();
+    expect(read.botConfig.timer.eta).toBe(DEFAULT_TIMER_MESSAGES.eta);
+  });
+
+  it("an aliases-only save leaves every reply alone", async () => {
+    const { owner } = await customised();
+
+    await owner.config.updateBotSettings({ commandAliases: { "!d": "!done" } });
+
+    const read = await owner.config.get();
+    expect(read.botConfig.commandAliases).toEqual({ d: "done" });
+    expect(read.botConfig.task.notMod).toBe("mods only, {user}");
+    expect(read.botConfig.timer.eta).toBe("Done at {time}");
+  });
+
+  it("one switch writes only that switch", async () => {
+    const { owner } = await customised();
+
+    const saved = await owner.config.updateBotSettings({ taskCommandsEnabled: false });
+
+    expect(saved).toMatchObject({ taskCommandsEnabled: false, timerCommandsEnabled: true });
+    expect(saved.commandAliases).toEqual({ t: "task" });
+    expect(saved.task.notMod).toBe("mods only, {user}");
+  });
+
+  it("rejects a save with nothing in it", async () => {
+    const { owner } = await customised();
+    await expect(owner.config.updateBotSettings({})).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+  });
+});

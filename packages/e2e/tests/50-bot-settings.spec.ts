@@ -4,7 +4,7 @@ import { signIn, waitForHydration } from "./helpers";
 
 test("edits a reply, previews it as chat would show it, saves, and resets it", async ({ page }) => {
   await signIn(page);
-  await page.goto("/dashboard/bot");
+  await page.goto("/dashboard/bot/commands");
   await waitForHydration(page);
 
   // A per-attempt stamp keeps this idempotent under CI retries: a previous attempt may have
@@ -40,7 +40,7 @@ test("edits a reply, previews it as chat would show it, saves, and resets it", a
 
 test("the Save bar's reason clears a filter hiding the reply it names", async ({ page }) => {
   await signIn(page);
-  await page.goto("/dashboard/bot");
+  await page.goto("/dashboard/bot/commands");
   await waitForHydration(page);
 
   await page.getByRole("button", { name: /^Adding/ }).click();
@@ -64,7 +64,15 @@ test("Enter in the block field opens the block confirm", async ({ page }) => {
   await page.goto("/dashboard/bot");
   await waitForHydration(page);
 
-  await page.getByRole("link", { name: "Jump to Moderation" }).click();
+  // Overview → Moderation through the Live controls' link.
+  await page.getByRole("link", { name: "Manage" }).click();
+  await expect(page).toHaveURL(/\/dashboard\/bot\/moderation$/);
+  await expect(
+    page
+      .getByRole("navigation", { name: "Bot settings sections" })
+      .getByRole("link", { name: "Moderation" }),
+  ).toHaveAttribute("aria-current", "page");
+  await expect(page.getByText(/^\d+ of 200$/)).toBeVisible();
   const login = page.getByLabel("Twitch username");
   await login.fill("@E2E_Enter_Check");
   await login.press("Enter");
@@ -88,4 +96,46 @@ test("a fresh instance's mute bar does not claim the bot is live", async ({ page
   await expect(page.getByRole("switch", { name: "Mute bot" })).toBeEnabled();
   // The console card only promises a URL, never a running bot.
   await expect(page.getByText("Ready", { exact: true })).toHaveCount(0);
+});
+
+test("the sub-nav reaches every section and marks the current one", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/dashboard/bot");
+  await waitForHydration(page);
+
+  const nav = page.getByRole("navigation", { name: "Bot settings sections" });
+  await expect(nav.getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("heading", { name: "Live controls" })).toBeVisible();
+
+  await nav.getByRole("link", { name: "Commands" }).click();
+  await expect(page).toHaveURL(/\/dashboard\/bot\/commands$/);
+  await expect(nav.getByRole("link", { name: "Commands" })).toHaveAttribute("aria-current", "page");
+  await expect(nav.getByRole("link", { name: "Overview" })).not.toHaveAttribute("aria-current");
+  await expect(page.getByRole("tab", { name: "Aliases" })).toBeVisible();
+
+  await nav.getByRole("link", { name: "Moderation" }).click();
+  await expect(page.getByRole("heading", { name: "Blocked viewers" })).toBeVisible();
+  // The old in-page jump link is gone: Moderation is its own page now.
+  await expect(page.getByRole("link", { name: "Jump to Moderation" })).toHaveCount(0);
+});
+
+test("a command group switch saves the moment it flips", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/dashboard/bot");
+  await waitForHydration(page);
+
+  const timer = page.getByRole("switch", { name: "Timer commands" });
+  // Put it back afterwards, so a retry starts from the same state.
+  const before = await timer.isChecked();
+  await timer.click();
+  await expect(page.getByText(`Timer commands ${before ? "off" : "on"}`)).toBeVisible();
+  // No Save bar: the switch is not a draft.
+  await expect(page.getByRole("button", { name: "Save changes" })).toHaveCount(0);
+
+  await page.reload();
+  await waitForHydration(page);
+  await expect(timer).toBeChecked({ checked: !before });
+  await timer.click();
+  await expect(timer).toBeChecked({ checked: before });
+  await expect(timer).toBeEnabled();
 });

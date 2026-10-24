@@ -19,8 +19,9 @@ import { cn } from "@/lib/utils";
 /**
  * ONE tab body shared by the Task and Timer command tabs (spec §5.4).
  *
- * Fully controlled: the switch and message edits only update the page's draft, which the
- * page's SaveBar persists. When `enabled` is off the replies stay editable but dimmed, a note
+ * Fully controlled. Message edits only update the page's draft, which the page's SaveBar
+ * persists; the switch is a live control the page saves on flip (`enabledPending` disables
+ * it while that save is in flight). When `enabled` is off the replies stay editable but dimmed, a note
  * says the group is off, and the reference legend shows it as off. The "Always on" legend
  * never does: those commands still answer in chat.
  */
@@ -29,6 +30,7 @@ export function CommandTabPanel<T extends object>({
   subtitle,
   idPrefix,
   enabled,
+  enabledPending = false,
   onEnabledChange,
   commands,
   fields,
@@ -45,6 +47,7 @@ export function CommandTabPanel<T extends object>({
   subtitle: string;
   idPrefix: string;
   enabled: boolean;
+  enabledPending?: boolean;
   onEnabledChange: (checked: boolean) => void;
   commands: CommandRow[];
   fields: readonly MessageField<Extract<keyof T, string>>[];
@@ -79,6 +82,7 @@ export function CommandTabPanel<T extends object>({
           <Switch
             id={`${idPrefix}-commands-toggle`}
             checked={enabled}
+            disabled={enabledPending}
             onCheckedChange={onEnabledChange}
           />
         </div>
