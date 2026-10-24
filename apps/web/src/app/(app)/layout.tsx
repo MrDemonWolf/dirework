@@ -9,6 +9,7 @@ import { ThemeColorSync } from "@/components/theme-color-sync";
 import { VersionBadge } from "@/components/version-badge";
 import { headingFontBodyCss } from "@/lib/heading-font";
 import { getServerSession } from "@/lib/server-session";
+import { shellReleased } from "@/lib/shell-hold";
 
 // The install manifest (app/manifest.ts) and the iOS home-screen tags live here, not in the
 // root layout, so an OBS overlay or the bot console never fetches the manifest.
@@ -28,6 +29,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // unreachable api renders a signed-out header; the page's own check still throws into
   // the error boundary with its retry.
   const session = await getServerSession().catch(() => null);
+  // A page that registered its prefetch (lib/shell-hold.ts) is written into this shell
+  // finished, instead of streaming its loading.tsx skeleton first. A no-op for the others.
+  await shellReleased();
   // Plain worker vars surfaced through process.env by OpenNext — the web
   // worker has no @dirework/env/server (that module is cloudflare:workers +
   // D1 bindings owned by the api worker).

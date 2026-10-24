@@ -189,7 +189,9 @@ function StylesEditor({ config }: { config: ConfigData }) {
     <div className={cn("container mx-auto max-w-content px-4 py-8", hasUnsaved && "pb-24")}>
       <UnsavedChangesGuard dirty={hasUnsaved} />
 
-      <div className="stagger-reveal">
+      {/* No entrance animation: the page arrives finished (the route holds the shell for its
+          data, lib/shell-hold.ts), and a rise-in replayed after load read as a second load. */}
+      <div>
         {/* Header band */}
         <div className="mb-6">
           <ConsoleRule label="Theme Center" />
@@ -197,7 +199,8 @@ function StylesEditor({ config }: { config: ConfigData }) {
             <div className="min-w-0">
               <h1 className="font-heading text-3xl font-bold tracking-tight">Theme Center</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Browse preset themes or customize your overlay styles
+                Start from a preset, fine-tune it, and check the preview. Nothing reaches OBS until
+                you save.
               </p>
             </div>
             <DropdownMenu>
@@ -221,14 +224,29 @@ function StylesEditor({ config }: { config: ConfigData }) {
 
         {/* Preset gallery */}
         <div className="mb-6">
-          <ConsoleRule label="Presets" className="mb-3" />
+          <ConsoleRule as="h2" label="1 · Start from a preset" className="mb-3" />
           <ThemeBrowser activeThemeId={activeThemeId} onApply={handleApplyTheme} />
         </div>
 
-        {/* Editor + Preview */}
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        {/* Preview + editor. The preview comes first in the DOM: below lg it is a sticky bar
+            over the editors (StylePreviewPanel's Show/Hide), at lg a rail on the right. */}
+        <div className="flex flex-col gap-4 lg:flex-row-reverse lg:items-start lg:gap-6">
+          {/* Preview Column — a fixed-width sticky rail, so live feedback stays in view
+              while the editor scrolls; capped to the viewport so a short laptop can
+              still scroll the canvas into view. Below lg it sticks under the header. */}
+          <div className="sticky top-[calc(var(--spacing-header)+env(safe-area-inset-top,0px))] z-10 w-full min-w-0 lg:top-20 lg:z-auto lg:max-h-[calc(100vh-6rem-var(--save-bar-clearance,0px))] lg:w-96 lg:shrink-0 lg:self-start lg:overflow-y-auto">
+            <StylePreviewPanel
+              timerStyles={timerStyles}
+              taskStyles={taskStyles}
+              phaseLabels={phaseLabels}
+              showHours={config.timerConfig?.showHours ?? false}
+              dirty={hasUnsaved}
+            />
+          </div>
+
           {/* Editor Column */}
           <div className="w-full min-w-0 lg:flex-1">
+            <ConsoleRule as="h2" label="2 · Customize" className="mb-3" />
             <Tabs defaultValue="timer">
               {/* A dot marks each tab holding unsaved edits, so none hide behind another tab. */}
               <TabsList className="h-9 w-full gap-1">
@@ -252,19 +270,6 @@ function StylesEditor({ config }: { config: ConfigData }) {
                 <PhaseLabelsEditor labels={phaseLabels} onChange={setPhaseLabels} />
               </TabsContent>
             </Tabs>
-          </div>
-
-          {/* Preview Column — a fixed-width sticky rail, so live feedback stays in view
-              while the editor scrolls; capped to the viewport so a short laptop can
-              still scroll the canvas into view */}
-          <div className="w-full min-w-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:w-96 lg:shrink-0 lg:self-start lg:overflow-y-auto">
-            <StylePreviewPanel
-              timerStyles={timerStyles}
-              taskStyles={taskStyles}
-              phaseLabels={phaseLabels}
-              showHours={config.timerConfig?.showHours ?? false}
-              dirty={hasUnsaved}
-            />
           </div>
         </div>
       </div>

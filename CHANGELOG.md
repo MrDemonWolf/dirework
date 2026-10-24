@@ -56,6 +56,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hover that could never happen.
 
 ### Changed
+- **A clearer Theme Center, with the preview always in reach.** The page reads as two steps,
+  **1 · Start from a preset** and **2 · Customize**, and the subtitle says nothing reaches OBS
+  until you save. On a phone or tablet the preview now sits above the editors as a bar that
+  stays pinned under the header: it shows whether you have unsaved changes, and **Show** opens
+  a compact live canvas that stays in view while you scroll and edit. On a desktop the
+  preview rail no longer slides under the Save bar. The preview's Timer/Tasks, backdrop and
+  Play buttons are 44px tall on touch screens.
 - **A tidier account menu.** The avatar dropdown now holds just Sign out. Dashboard, Theme Center and
   Bot stay in the header nav, so the menu no longer repeats them.
 - **No more preview URLs.** Both workers deploy with Cloudflare's version and preview URLs turned off.
@@ -162,6 +169,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   honours reduced-motion).
 
 ### Fixed
+- **The Theme Center opens finished.** Opening or reloading the page painted a loading
+  skeleton first and swapped in the real page about 300ms later, even though the data was
+  already there; the page then faded in on top of that. It now arrives complete in the first
+  paint, with no fade. Clicking over from the dashboard still shows a placeholder at once,
+  and that placeholder now has the page's real shape, so nothing jumps when it fills in.
 - **`!done #2` finishes task #2.** `!today` shows task numbers as `#2`, but typing them back
   that way made `!done` complete your current task instead, with a cheerful reply.
   `!done`, `!edit`, `!remove` and `!focus` now accept `#2` as well as `2`, and `!done`

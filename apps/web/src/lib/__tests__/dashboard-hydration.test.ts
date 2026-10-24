@@ -27,7 +27,9 @@ describe("dashboard SSR hydration", () => {
   ])("%s wraps its tree in a HydrationBoundary fed by %s", (file, prefetch) => {
     const page = read(file);
     expect(page).toContain("<HydrationBoundary state={state}>");
-    expect(page).toContain(`await ${prefetch}()`);
+    // Awaited directly, or (the Theme Center) inside the loader the page holds the shell
+    // for, `await holdShellFor(loadStyles())`; shell-hold.test.ts pins that wiring.
+    expect(page).toMatch(new RegExp(`(await|return) ${prefetch}\\(\\)`));
   });
 
   it.each(["components/header.tsx", "components/user-menu.tsx"])(
