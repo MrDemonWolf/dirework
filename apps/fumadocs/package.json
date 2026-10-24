@@ -19,7 +19,7 @@
     "fumadocs-mdx": "14.2.6",
     "fumadocs-ui": "16.5.1",
     "lucide-react": "catalog:fumadocs",
-    "next": "16.4.0",
+    "next": "16.4.2",
     "react": "catalog:",
     "react-dom": "catalog:"
   },
