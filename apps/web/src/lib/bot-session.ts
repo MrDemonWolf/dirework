@@ -13,6 +13,7 @@
 import { isDireworkCommandLine } from "@dirework/api/chat-commands";
 import { MAX_RELAYED_MESSAGE_LENGTH, truncateToLength } from "@dirework/api/chat-text";
 
+import type { DockCommandResult } from "./bot-dock-commands";
 import { classifyBotError } from "./bot-session-errors";
 import type { IrcChatMessage, IrcClientCallbacks, IrcCredentials, IrcStatus } from "./irc-client";
 import { createSerialQueue } from "./serial-queue";
@@ -82,6 +83,12 @@ export interface BotSessionInfo {
   aliases?: string[];
   /** The bot's mute switch. Optional for the same reason as `aliases`. */
   muted?: boolean;
+  /**
+   * The channel owner's Twitch user id, which `bot.ingest` matches to grant broadcaster
+   * privileges. The dock's command buttons send their lines as this user. Optional (and
+   * null when the owner's id is unknown): without it the buttons stay off.
+   */
+  broadcasterId?: string | null;
 }
 
 export interface BotSessionApi {
@@ -105,7 +112,8 @@ export interface BotIrcClient {
 export interface BotSessionEvents {
   onPhase(phase: BotPhase): void;
   onIrcStatus(status: IrcStatus): void;
-  onIdentity(identity: { channelName: string; botUsername: string }): void;
+  /** `commandsReady`: the session knows the broadcaster, so the dock's buttons can run. */
+  onIdentity(identity: { channelName: string; botUsername: string; commandsReady: boolean }): void;
   /** Fired on every clean IRC connect. */
   onConnected(): void;
   onCounter(counter: BotCounter): void;
@@ -133,10 +141,18 @@ export interface BotSessionOptions {
   events: BotSessionEvents;
   /** Jitter source, injectable for tests. */
   random?: () => number;
+  /** Synthetic message ids for dock commands, injectable for tests. */
+  newMessageId?: () => string;
 }
 
 export interface BotSession {
   dispose(): void;
+  /**
+   * Run one command line from the dock's buttons as the channel broadcaster, through the
+   * same serialized `bot.ingest` path chat uses. The replies come back to the caller and
+   * are NOT posted to Twitch chat. One request per call; never retried.
+   */
+  runCommand(line: string): Promise<DockCommandResult>;
 }
 
 /**
@@ -173,6 +189,7 @@ export function createBotSession({
   createClient,
   events,
   random = Math.random,
+  newMessageId = () => crypto.randomUUID(),
 }: BotSessionOptions): BotSession {
   let disposed = false;
   let revoked = false;
@@ -180,10 +197,16 @@ export function createBotSession({
   let notConfigured = false;
   let currentChatToken: string | null = null;
   let currentChannelName: string | null = null;
+  // The owner's Twitch id from the latest getSession: the dock's buttons speak as them.
+  let broadcasterId: string | null = null;
   // Alias keys from the latest getSession; refreshed on every revalidation.
   let aliasKeys: ReadonlySet<string> = new Set();
   // Starts unmuted (the console's default), so a normal startup logs nothing.
   let muted = false;
+  // Whether this session has reported a mute state yet. The first known state is always
+  // reported, even "unmuted": the dock's Reconnect replaces the session without remounting
+  // the page, and the page may still show the old session's "Muted".
+  let mutedReported = false;
   let authRecoveryAttempts = 0;
   let retryAttempts = 0;
   let revalidateTimer: ReturnType<typeof setInterval> | null = null;
@@ -358,16 +381,28 @@ export function createBotSession({
 
   function applyMuted(next: boolean | undefined) {
     // Missing (clearchat, or an api worker from before the field) → unknown, keep the last state.
-    if (typeof next !== "boolean" || next === muted) return;
+    if (typeof next !== "boolean" || (next === muted && mutedReported)) return;
+    const changed = next !== muted;
     muted = next;
+    mutedReported = true;
     events.onMuted(next);
-    events.onActivity("info", next ? "bot muted — ignoring commands until !unmute" : "bot unmuted");
+    if (changed) {
+      events.onActivity(
+        "info",
+        next ? "bot muted — ignoring commands until !unmute" : "bot unmuted",
+      );
+    }
   }
 
   function connectWith(session: BotSessionInfo) {
     currentChatToken = session.chatToken;
     currentChannelName = session.channelName;
-    events.onIdentity({ channelName: session.channelName, botUsername: session.botUsername });
+    broadcasterId = session.broadcasterId ?? null;
+    events.onIdentity({
+      channelName: session.channelName,
+      botUsername: session.botUsername,
+      commandsReady: broadcasterId !== null,
+    });
     client.connect({
       botUsername: session.botUsername,
       channelName: session.channelName,
@@ -488,7 +523,46 @@ export function createBotSession({
   events.onActivity("info", "bot console starting");
   void bootstrap();
 
+  async function runCommand(line: string): Promise<DockCommandResult> {
+    if (inactive() || !wasLive || notConfigured || !broadcasterId || !currentChannelName) {
+      return { ok: false, reason: "not-ready" };
+    }
+    const input: BotIngestInput = {
+      token,
+      kind: "message",
+      // The streamer's own login and id: the server derives broadcaster (and so mod)
+      // privileges from the id, exactly as for a line they typed in chat.
+      username: currentChannelName,
+      twitchId: broadcasterId,
+      message: line,
+      // Not claimed: the server grants mod rights because the id is the broadcaster's.
+      isMod: false,
+      // Unique per click, so the server's processed_chat_message claim runs it once.
+      messageId: newMessageId(),
+    };
+    events.onActivity("chat", `dock: ${line}`);
+    // Same queue as chat, so a click and a chat command never interleave.
+    return runSerially(async (): Promise<DockCommandResult> => {
+      if (inactive()) return { ok: false, reason: "not-ready" };
+      try {
+        const result = await api.ingest(input);
+        applyMuted(result.muted);
+        // Shown in the dock only. Posting them would announce the streamer's own clicks.
+        for (const reply of result.replies) events.onActivity("reply", `→ (dock) ${reply}`);
+        return { ok: true, replies: result.replies };
+      } catch (err) {
+        if (classifyBotError(err) === "revoked") {
+          enterRevoked();
+          return { ok: false, reason: "not-ready" };
+        }
+        events.onActivity("error", `couldn't send ${line} to DireWork`);
+        return { ok: false, reason: "failed" };
+      }
+    });
+  }
+
   return {
+    runCommand,
     dispose() {
       disposed = true;
       for (const timer of pendingTimers) clearTimeout(timer);

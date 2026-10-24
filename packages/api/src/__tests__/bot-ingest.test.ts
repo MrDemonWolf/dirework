@@ -566,6 +566,7 @@ describe("bot.getSession", () => {
       chatToken: "chat-access-token",
       aliases: [],
       muted: false,
+      broadcasterId: OWNER_TWITCH_ID,
     });
     expect(JSON.stringify(session)).not.toContain("secret-refresh-token");
   });
@@ -1156,5 +1157,46 @@ describe("bot.ingest !dw help", () => {
     expect(await claims()).toHaveLength(1);
     expect(await tasks()).toEqual([]);
     expect(await config()).toEqual(before);
+  });
+});
+
+describe("bot dock buttons (getSession identity → ingest as the broadcaster)", () => {
+  // The dock sends each button as a chat line from the identity getSession returned, with no
+  // mod claim and a fresh message id per click. These pin that the server grants that line
+  // broadcaster rights — so no new procedure is needed — and that mute still lets it unmute.
+  async function dockIdentity() {
+    await db.insert(schema.botAccount).values({
+      twitchId: "4000",
+      username: "direbot",
+      displayName: "DireBot",
+      accessToken: "chat-access-token",
+      refreshToken: "secret-refresh-token",
+      expiresAt: new Date(Date.now() + 60 * 60_000),
+    });
+    const session = await api().bot.getSession({ token: BOT_TOKEN });
+    if (!session.broadcasterId) throw new Error("getSession returned no broadcasterId");
+    return { username: session.channelName, twitchId: session.broadcasterId, isMod: false };
+  }
+  let clicks = 0;
+  const clickId = () => `00000000-0000-4000-8000-${String(++clicks).padStart(12, "0")}`;
+
+  it("runs mod-only timer and clear commands", async () => {
+    const dock = await dockIdentity();
+    await seedTasks();
+
+    await say("!timer start", { ...dock, messageId: clickId() });
+    expect((await timerRow())?.status).toBe("starting");
+
+    await say("!clear done", { ...dock, messageId: clickId() });
+    expect((await tasks()).map((t) => t.text)).toEqual(["viewer one"]);
+  });
+
+  it("mutes, and unmutes while muted", async () => {
+    const dock = await dockIdentity();
+
+    expect(await say("!mute", { ...dock, messageId: clickId() })).toMatchObject({ muted: true });
+    expect(await say("!unmute", { ...dock, messageId: clickId() })).toMatchObject({
+      muted: false,
+    });
   });
 });

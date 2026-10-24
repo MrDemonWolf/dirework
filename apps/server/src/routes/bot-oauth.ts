@@ -34,6 +34,9 @@ const STATE_COOKIE_PATH = "/";
  * unused but kept so a future move to Helix sends won't force yet another
  * reconnect. Bot accounts connected before chat:read/chat:edit were added
  * must be reconnected to pick up the new scopes.
+ * user:bot is deliberately not requested: only a server-side (EventSub) bot would
+ * use it, and Twitch asks apps to request just the scopes current features need.
+ * Add it together with that bot.
  */
 const BOT_SCOPES = ["chat:read", "chat:edit", "user:read:chat", "user:write:chat"] as const;
 

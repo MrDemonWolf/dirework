@@ -36,6 +36,7 @@ import { describeTrpcError } from "@/lib/trpc-errors";
 import { ConsoleRule } from "@/components/console-rule";
 import { QueryError } from "@/components/query-error";
 import { SecretUrlRow } from "@/components/secret-url-row";
+import { botPagePath } from "@/lib/bot-view";
 import { StatusChip, type StatusTone } from "@/components/status-chip";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -174,7 +175,13 @@ function BotPageHandoff() {
       />
     );
   }
-  return <SecretUrlRow label="Bot page" path={`/bot/${ingestInfo.data.botToken}`} />;
+  // Same token, two layouts: the browser source / pinned tab, and the OBS dock panel.
+  return (
+    <div className="space-y-2">
+      <SecretUrlRow label="Bot page" path={botPagePath(ingestInfo.data.botToken)} />
+      <SecretUrlRow label="Bot dock" path={botPagePath(ingestInfo.data.botToken, "dock")} />
+    </div>
+  );
 }
 
 function StepHandoff({
@@ -411,6 +418,12 @@ export function SetupChecklist({
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">{step.why}</p>
                       <p className="text-sm">{step.action}</p>
+                      {"notes" in step &&
+                        step.notes.map((note) => (
+                          <p key={note} className="text-sm text-muted-foreground">
+                            {note}
+                          </p>
+                        ))}
                     </div>
                     <StepHandoff
                       id={step.id}

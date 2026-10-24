@@ -17,7 +17,9 @@ explicit confirmation, never detection. It also exports the header's reopen butt
   four-cell progress bar and an "N of 4" `CountBadge`.
 - One row per step: number, title, state `StatusChip` (`Done` / `Added (you confirmed)` /
   `Not yet`), and the handoff — a link to Bot settings for step 1, a `SecretUrlRow` (no
-  Reset) plus "I added it to OBS" / "Mark as not added" for steps 2–4.
+  Reset) plus "I added it to OBS" / "Mark as not added" for steps 2–4. Step 2 shows two
+  rows, "Bot page" and "Bot dock" (`?view=dock`, for an OBS custom browser dock), and the
+  step's `notes` lines (dock caveat, phone streams) under its action.
 - A completion row once every step is done; "Finish later" / "Close" collapses the card
   (component state first, `localStorage` best-effort); `SetupReopenButton` ("Setup N/4")
   reopens it from the header band and focuses the heading only on that click.

@@ -167,10 +167,55 @@ The bot will have `chat:read` and `chat:edit` permissions (plus the Helix chat s
 
 <Callout>
   **One more thing before the bot talks:** the bot runs in a token-gated browser page,
-  not on a server. Copy the bot page URL from **Dashboard → Bot** and add it to OBS as a
-  browser source (or keep it in a pinned tab). The bot listens to chat only while that
-  page is open. See [Chat commands](/docs/chat-commands) for the full command list.
+  not on a server. Copy the bot page URL from **Dashboard → Bot** and keep it open in OBS
+  (a browser source or a custom browser dock) or in a pinned tab. The bot listens to chat
+  only while that page is open. See [Chat commands](/docs/chat-commands) for the full
+  command list.
 </Callout>
+
+### Where to keep the bot page
+
+Pick one. The dashboard's **Set up streaming** card hands you both URLs (**Bot page** and
+**Bot dock**); they carry the same secret token, so treat both like a stream key.
+
+| Option | URL | Notes |
+| --- | --- | --- |
+| **OBS browser source** | Bot page | About 400 × 200. Runs in every scene as long as **Shutdown source when not visible** stays off. |
+| **OBS custom browser dock** | Bot dock (`…/bot/<token>?view=dock`) | A narrow control panel you see while streaming, styled like OBS's dark theme: status light, muted state, timer and bot buttons, last error, recent commands and a **Reconnect** button. |
+| **Pinned browser tab** | Bot page | Any browser on the streaming PC. Keep the tab open. |
+
+**Add the dock (OBS 27 or newer on Windows, macOS and Linux X11):**
+
+1. In OBS, open **Docks → Custom Browser Docks** (older versions: **View → Docks → Custom Browser Docks**).
+2. Give it a name such as `DireWork Bot`, paste the **Bot dock** URL, and click **Apply**.
+3. Drag the dock where you want it. If it's in the way, **tab it** behind another dock.
+
+<Callout type="warn">
+  **Don't close the dock.** Closing it (the X, or unticking it in the Docks menu) unloads
+  the page and stops the bot until you open the dock again. A dock tabbed behind another
+  one keeps running.
+</Callout>
+
+**Dock buttons.** Each button sends a chat command as you (the broadcaster), exactly as if
+you'd typed it, but the bot's reply shows in the dock instead of chat:
+
+| Button | Sends |
+| --- | --- |
+| **Start**, **Pause**, **Resume**, **Skip**, **Reset** | `!timer start`, `!timer pause`, `!timer resume`, `!timer skip`, `!timer reset` |
+| **Mute bot** / **Unmute bot** | `!mute` / `!unmute` |
+| **Clear done** | `!clear done` |
+
+- **Reset** and **Clear done** ask before they run.
+- The dock doesn't watch the timer, so all five timer buttons always show. A button that
+  doesn't apply right now gets the same answer a mod would in chat (for example, "not running").
+- While muted, only **Unmute bot** works: a muted bot ignores every other command.
+- The buttons turn on once the bot is connected. If a timer or task command is turned off in
+  **Dashboard → Bot**, its button sends but the bot has no reply.
+
+**Streaming from a phone?** The bot page has to stay open on a computer. If your phone sends
+its feed to a PC or cloud OBS (SRT, RTMP) that goes live to Twitch, keep the bot page or dock
+open on that OBS. Apps that stream straight from the phone to Twitch can't keep the bot
+running.
 
 ### OAuth scopes
 

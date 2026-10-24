@@ -178,6 +178,9 @@ export const botRouter = router({
         chatToken,
         aliases: aliasKeys(botConfigRow?.commandAliases),
         muted: botConfigRow?.muted === true,
+        // The id `ingest` matches for broadcaster privileges (already loaded above, and a
+        // public Twitch user id). The dock's buttons send their lines as this user.
+        broadcasterId: owner.twitchId ?? null,
       };
     }),
 
