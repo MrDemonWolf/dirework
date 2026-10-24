@@ -70,6 +70,18 @@ const CHAT_REJECTED_NOTICES: Record<string, string> = {
   msg_verified_email: "the bot account needs a verified email address",
 };
 
+/** Opens every `onError` message for a reply Twitch refused (CHAT_REJECTED_NOTICES). */
+const CHAT_REJECTED_PREFIX = "Twitch didn't post the bot's reply: ";
+
+/**
+ * Whether an `onError` message says Twitch refused to post the bot's reply. Unlike a
+ * connection error, the cause (a ban, a timeout, a chat mode) belongs to the channel, so it
+ * survives a reconnect.
+ */
+export function isChatRejection(message: string): boolean {
+  return message.startsWith(CHAT_REJECTED_PREFIX);
+}
+
 /**
  * Appended to a reply Twitch rejected as a duplicate (identical to one sent in
  * the last 30s). An invisible tag character makes the line distinct without
@@ -168,6 +180,12 @@ export interface IrcClientCallbacks {
   /** CLEARCHAT with a target user (timeout/ban). Full chat clears are ignored. */
   onClearChat?: (targetUsername: string) => void;
   onError?: (message: string) => void;
+  /**
+   * A queued reply was actually written to the socket as a PRIVMSG. `say()` only queues: the
+   * rate limiter can hold a reply for many seconds under a burst, and the queue pauses while
+   * disconnected, so anything timed from "the reply went out" must start here.
+   */
+  onSent?: () => void;
   /**
    * Twitch rejected the login ("Login authentication failed" NOTICE). The
    * client stops auto-reconnecting; the owner should fetch a fresh chat token
@@ -476,9 +494,7 @@ export class TwitchIrcClient {
           : undefined;
         if (rejection) {
           const bot = this.creds?.botUsername.toLowerCase() ?? "<bot>";
-          this.callbacks.onError?.(
-            `Twitch didn't post the bot's reply: ${rejection.replace("<bot>", bot)}`,
-          );
+          this.callbacks.onError?.(`${CHAT_REJECTED_PREFIX}${rejection.replace("<bot>", bot)}`);
           break;
         }
         if (isAuthFailureNotice(text)) {
@@ -569,6 +585,7 @@ export class TwitchIrcClient {
     this.sendRaw(`PRIVMSG #${this.creds.channelName.toLowerCase()} :${text}`);
     this.lastSentText = text;
     this.limiter.record(Date.now());
+    this.callbacks.onSent?.();
     if (this.sendQueue.length > 0) this.scheduleSend();
   }
 

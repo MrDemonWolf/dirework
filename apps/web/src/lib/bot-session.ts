@@ -30,6 +30,32 @@ export type BotActivityKind = "info" | "chat" | "reply" | "error";
 
 export type BotCounter = "seen" | "commands" | "replies";
 
+/** Logged when DireWork's API refused or failed one relayed command. */
+export const INGEST_DROPPED_MESSAGE = "could not send that command to DireWork — message dropped";
+/** Logged once per backlog episode when the ingest queue is full. */
+export const INGEST_BACKLOG_MESSAGE =
+  "DireWork is falling behind — dropping new chat commands until it catches up";
+
+/**
+ * Whether an error came from relaying commands to DireWork rather than from the IRC socket. A
+ * new IRC connection says nothing about the API, so only `onIngestHealthy` clears one.
+ */
+export function isIngestError(message: string): boolean {
+  return message === INGEST_DROPPED_MESSAGE || message === INGEST_BACKLOG_MESSAGE;
+}
+
+/**
+ * Logged when the hourly revalidation finds the bot's Twitch login can no longer be refreshed
+ * while the live socket still works. A reply or a new socket says nothing about the refresh
+ * credentials, so only `onSessionRefreshed` (a later getSession that succeeds) clears it.
+ */
+export const BOT_LOGIN_REFRESH_FAILED_MESSAGE =
+  "couldn't refresh the bot login — reconnect the bot account in Dashboard → Bot";
+
+export function isLoginRefreshError(message: string): boolean {
+  return message === BOT_LOGIN_REFRESH_FAILED_MESSAGE;
+}
+
 export type BotIngestInput =
   | {
       token: string;
@@ -84,6 +110,18 @@ export interface BotSessionEvents {
   onConnected(): void;
   onCounter(counter: BotCounter): void;
   onActivity(kind: BotActivityKind, text: string): void;
+  /**
+   * The ingest queue drained and its last command reached DireWork: commands are flowing again,
+   * so an earlier ingest error no longer holds.
+   */
+  onIngestHealthy(): void;
+  /** A reply left the IRC send queue for Twitch (not when it was queued: see `onSent`). */
+  onReplySent(): void;
+  /**
+   * A getSession call (startup, recovery or the hourly revalidation) succeeded, so the bot's
+   * Twitch login refreshes again and an earlier login-refresh error no longer holds.
+   */
+  onSessionRefreshed(): void;
   /** Fired only when the mute switch changes (a mod's !mute/!unmute, or the dashboard). */
   onMuted(muted: boolean): void;
 }
@@ -176,19 +214,23 @@ export function createBotSession({
    * retried: if D1 commits but the response is lost, an automatic retry would
    * apply commands such as !done, !next, or !timer skip twice.
    */
+  // Whether the most recent ingest (they run one at a time) reached DireWork.
+  let lastIngestOk = false;
   const ingestOnce = async (input: BotIngestInput): Promise<string[]> => {
     // Queued before a revoke or dispose: the request would only 401 (or act
     // for a page that is gone) and burn a free-tier Worker request.
     if (inactive()) return [];
     try {
       const result = await api.ingest(input);
+      lastIngestOk = true;
       // Every relayed line reports the mute state, so a mod's !mute shows here
       // without another request.
       applyMuted(result.muted);
       return result.replies;
     } catch (err) {
+      lastIngestOk = false;
       if (classifyBotError(err) === "revoked") enterRevoked();
-      else events.onActivity("error", "could not send that command to DireWork — message dropped");
+      else events.onActivity("error", INGEST_DROPPED_MESSAGE);
       return [];
     }
   };
@@ -209,10 +251,7 @@ export function createBotSession({
     if (pendingIngests >= MAX_PENDING_INGESTS) {
       if (!overflowLogged) {
         overflowLogged = true;
-        events.onActivity(
-          "error",
-          "DireWork is falling behind — dropping new chat commands until it catches up",
-        );
+        events.onActivity("error", INGEST_BACKLOG_MESSAGE);
       }
       return [];
     }
@@ -221,7 +260,10 @@ export function createBotSession({
       return await runSerially(() => ingestOnce(input));
     } finally {
       pendingIngests -= 1;
-      if (pendingIngests === 0) overflowLogged = false;
+      if (pendingIngests === 0) {
+        overflowLogged = false;
+        if (lastIngestOk && !inactive()) events.onIngestHealthy();
+      }
     }
   };
 
@@ -285,6 +327,10 @@ export function createBotSession({
       if (inactive()) return;
       events.onActivity("error", message);
     },
+    onSent: () => {
+      if (inactive()) return;
+      events.onReplySent();
+    },
     onAuthFailure: () => {
       if (inactive()) return;
       // Twitch rejected the stored token, so its DB expiry can't be trusted —
@@ -339,6 +385,7 @@ export function createBotSession({
         revalidate: !opts.forceRefresh,
       });
       if (inactive()) return;
+      events.onSessionRefreshed();
       retryAttempts = 0;
       notConfigured = false;
       wasLive = true;
@@ -407,6 +454,7 @@ export function createBotSession({
     try {
       const session = await api.getSession({ token, revalidate: true });
       if (inactive()) return;
+      events.onSessionRefreshed();
       // Alias edits on the dashboard reach a running page here (or on reload).
       applyAliases(session);
       applyMuted(session.muted);
@@ -431,10 +479,7 @@ export function createBotSession({
       if (kind === "reauth") {
         // The live socket may still be authenticated, so keep it. If Twitch
         // later rejects it, the auth-failure path ends on the reauth screen.
-        events.onActivity(
-          "error",
-          "couldn't refresh the bot login — reconnect the bot account in Dashboard → Bot",
-        );
+        events.onActivity("error", BOT_LOGIN_REFRESH_FAILED_MESSAGE);
       }
       // Otherwise transient — the next hourly tick retries.
     }

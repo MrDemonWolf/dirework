@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { parseIrcLine, TwitchIrcClient, type IrcClientCallbacks } from "../irc-client";
+import {
+  isChatRejection,
+  parseIrcLine,
+  TwitchIrcClient,
+  type IrcClientCallbacks,
+} from "../irc-client";
 
 /** Minimal stand-in for the browser WebSocket, driven by the test. */
 class FakeWebSocket {
@@ -455,6 +460,26 @@ describe("TwitchIrcClient chat", () => {
     expect(ws.sent.at(-1)).toBe("PRIVMSG #streamer :second JOIN #evil");
   });
 
+  it("reports a reply as sent only when the PRIVMSG is written, not when it is queued", () => {
+    const onSent = vi.fn();
+    const { client, ws } = setup({ onSent });
+    client.say("first");
+    client.say("second");
+    ws.open();
+    vi.advanceTimersByTime(5000);
+    // Queued while not yet joined: nothing reached Twitch.
+    expect(onSent).not.toHaveBeenCalled();
+
+    ws.receive(":tmi.twitch.tv 001 direbot :Welcome");
+    vi.advanceTimersByTime(0);
+    expect(onSent).toHaveBeenCalledTimes(1);
+    // The second reply waits out the rate limiter's 1s gap before it counts as sent.
+    vi.advanceTimersByTime(999);
+    expect(onSent).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1);
+    expect(onSent).toHaveBeenCalledTimes(2);
+  });
+
   it("drops the oldest queued reply when the queue is full", () => {
     const onError = vi.fn();
     const { client } = setup({ onError });
@@ -491,6 +516,19 @@ describe("TwitchIrcClient chat", () => {
     expect(onError).toHaveBeenCalledWith(
       "Twitch didn't post the bot's reply: slow mode is on. Make the bot a mod (/mod direbot) so it can reply",
     );
+  });
+
+  it("marks only a refused reply as a chat rejection", () => {
+    const onError = vi.fn();
+    const { ws } = connected({ onError });
+    ws.receive(
+      "@msg-id=msg_banned :tmi.twitch.tv NOTICE #streamer :You are permanently banned from talking in streamer.",
+      "@msg-id=msg_something :tmi.twitch.tv NOTICE #streamer :Something happened",
+    );
+    vi.advanceTimersByTime(120_000); // the watchdog's PING goes unanswered: a connection error
+
+    const messages: string[] = onError.mock.calls.map(([message]) => message);
+    expect(messages.map(isChatRejection)).toEqual([true, false, false]);
   });
 
   it("surfaces any other NOTICE text as an error", () => {

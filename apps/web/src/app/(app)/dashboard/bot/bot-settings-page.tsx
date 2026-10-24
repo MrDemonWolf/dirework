@@ -292,7 +292,7 @@ function BotSettingsEditor({ config, user }: { config: ConfigData; user: MeData 
       <div className="stagger-reveal space-y-6">
         {/* Mute switch and the Moderation card save on their own (not through the Save bar),
             so both read the live query data, never the draft. */}
-        <BotMuteBar muted={config.botConfig.muted} />
+        <BotMuteBar muted={config.botConfig.muted} hasBotAccount={botAccount !== null} />
 
         {/* Runtime + identity, side by side on wide screens. */}
         <div className="grid gap-6 lg:grid-cols-2 lg:items-start">

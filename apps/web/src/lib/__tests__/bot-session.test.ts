@@ -12,6 +12,7 @@ import {
   RETRY_MAX_MS,
   REVALIDATE_INTERVAL_MS,
   createBotSession,
+  INGEST_DROPPED_MESSAGE,
   retryDelayMs,
   type BotIngestInput,
   type BotIrcClient,
@@ -61,6 +62,9 @@ function setup(api: Partial<BotSessionApi> = {}) {
     onConnected: vi.fn(),
     onCounter: vi.fn(),
     onActivity: vi.fn(),
+    onReplySent: vi.fn(),
+    onIngestHealthy: vi.fn(),
+    onSessionRefreshed: vi.fn(),
     onMuted: vi.fn(),
   };
   const session = createBotSession({
@@ -147,6 +151,20 @@ describe("createBotSession bootstrap", () => {
     expect(phases(events)).toEqual(["invalid"]);
     expect(client.dispose).toHaveBeenCalled();
     expect(getSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a reply sent only when the IRC client writes it, not when it is queued", async () => {
+    const { ingest, client, events, callbacks } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+    ingest.mockResolvedValueOnce({ replies: ["Task added!"] });
+
+    callbacks().onChat?.(chat("!task a"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(client.say).toHaveBeenCalledWith("Task added!");
+    expect(events.onReplySent).not.toHaveBeenCalled();
+
+    callbacks().onSent?.();
+    expect(events.onReplySent).toHaveBeenCalledTimes(1);
   });
 
   it("drops a BAD_REQUEST ingest without stopping the bot", async () => {
@@ -320,6 +338,21 @@ describe("createBotSession reauth", () => {
       "error",
       "couldn't refresh the bot login — reconnect the bot account in Dashboard → Bot",
     );
+  });
+
+  it("reports a session refresh only when getSession succeeds", async () => {
+    const { getSession, events } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(events.onSessionRefreshed).toHaveBeenCalledTimes(1);
+
+    getSession.mockRejectedValue(trpcError("PRECONDITION_FAILED", BOT_REAUTH_REQUIRED_MESSAGE));
+    await vi.advanceTimersByTimeAsync(REVALIDATE_INTERVAL_MS);
+    expect(events.onSessionRefreshed).toHaveBeenCalledTimes(1);
+
+    // The owner reconnected the bot account: the next hourly check succeeds.
+    getSession.mockResolvedValue(SESSION);
+    await vi.advanceTimersByTimeAsync(REVALIDATE_INTERVAL_MS);
+    expect(events.onSessionRefreshed).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -793,5 +826,41 @@ describe("createBotSession ingest backlog", () => {
     expect(overflowNotices(events)).toHaveLength(2);
     gate.release?.();
     await vi.advanceTimersByTimeAsync(0);
+  });
+
+  it("reports ingest healthy only once the backlog drains after a successful command", async () => {
+    const gate: { release?: () => void } = {};
+    const { ingest, events, callbacks } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+
+    ingest.mockImplementationOnce(
+      () => new Promise((r) => (gate.release = () => r({ replies: [] }))),
+    );
+    for (let i = 0; i < MAX_PENDING_INGESTS + 1; i++) {
+      callbacks().onChat?.(chat(`!task ${i}`));
+    }
+    await vi.advanceTimersByTimeAsync(0);
+    expect(overflowNotices(events)).toHaveLength(1);
+    // Still backed up: nothing is healthy yet.
+    expect(events.onIngestHealthy).not.toHaveBeenCalled();
+
+    gate.release?.();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(events.onIngestHealthy).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not report ingest healthy when the last command failed", async () => {
+    const { ingest, events, callbacks } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+    ingest.mockRejectedValueOnce(trpcError("INTERNAL_SERVER_ERROR"));
+
+    callbacks().onChat?.(chat("!task a"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(events.onActivity).toHaveBeenCalledWith("error", INGEST_DROPPED_MESSAGE);
+    expect(events.onIngestHealthy).not.toHaveBeenCalled();
+
+    callbacks().onChat?.(chat("!task b"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(events.onIngestHealthy).toHaveBeenCalledTimes(1);
   });
 });
