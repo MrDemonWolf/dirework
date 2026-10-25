@@ -55,6 +55,9 @@ lerna-debug.log*
 coverage
 .nyc_output
 
+# Legacy instance-specific hosting notes
+coolify.md
+
 # Misc
 *.tgz
 .cache

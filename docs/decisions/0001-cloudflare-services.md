@@ -1,6 +1,7 @@
 # ADR 0001: Which Cloudflare services Dirework uses beyond Workers and D1
 
-- Status: Accepted (no code change now; one experiment proposed). Date: 2026-10-20.
+- Status: Accepted (Workers + D1; additional services deferred). Date: 2026-10-20.
+- Updated: 2026-10-25. The owner prefers keeping the browser bot.
 - Limits below were read on developers.cloudflare.com on 2026-10-20 (sources at the end).
 
 ## Context
@@ -188,34 +189,18 @@ latency for command replies.
 1. **Adopt nothing in code today.** D1 stays the single store. KV, Queues, Cron Triggers,
    Analytics Engine, Smart Placement, read replication, R2, Workers AI, Browser Rendering,
    Images, Hyperdrive, Vectorize and Workflows are not used.
-2. **Prototype next: a DO-hosted Twitch bot (option 2a)** in the api worker, behind an
-   off-by-default flag, with the browser bot page kept as the default until the experiment
-   answers:
-   - Does the outbound IRC socket survive past 15 minutes with chat traffic and no inbound
-     requests, or does the alarm have to reconnect it?
-   - Actual GB-s per day, live-only vs. always on (Cloudflare dashboard metrics).
-   - Time to reconnect after a deploy.
-
-   Run it live-only (Start/Stop from the dashboard), never 24/7, so the bot can't use 85%
-   of the daily duration cap.
-3. **When the experiment ships**, change these AGENTS.md lines in the same PR:
-   - Project Overview: "Runs entirely on **Cloudflare Workers + D1** (free plan — no
-     Durable Objects)." → "Runs on **Cloudflare Workers + D1**, plus one SQLite-backed
-     Durable Object for the server-hosted bot (Workers Free plan; see
-     `docs/decisions/0001-cloudflare-services.md`)."
-   - Architecture, the "**Twitch bot = browser page.**" paragraph → describe the DO as the
-     primary host and the `/bot/<token>` page as the fallback.
-   - Code Review Rules: "No Workers cron triggers, Durable Objects, Queues, or other
-     paid/metered bindings." → "No new bindings (cron triggers, Durable Objects, Queues,
-     KV, …) without an ADR in `docs/decisions/` that states the daily request, row and
-     GB-s cost against the Free limits. The bot DO must stay under half the 13,000
-     GB-s/day cap."
+2. **Keep the browser bot as the supported default.** The owner is comfortable running
+   it in OBS, a dock or a pinned tab. A DO-hosted bot is deferred until there is a concrete
+   need to run without a browser; the feasibility notes above are research, not scheduled work.
+3. **Keep free-tier support mandatory.** A future service proposal must state its daily
+   request, row, storage and duration budget, preserve the default free-tier path, and
+   update this decision and the project instructions before implementation.
 
 ## Consequences
 
 - No change to cost, behaviour or deploys from this ADR.
-- The review rule now rests on budget arithmetic, not a price list: a future PR can add a
-  binding by showing its numbers the way this ADR does.
+- This decision authorizes no additional binding. Future proposals require a separate
+  budget and policy review.
 - If 2a ships, each deploy briefly drops the bot, and the daily DO duration cap becomes a
   third limit to watch next to Workers requests and D1 rows.
 
