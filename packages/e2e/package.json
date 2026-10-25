@@ -6,6 +6,7 @@
     "e2e": "playwright test",
     "e2e:install": "playwright install --with-deps chromium",
     "e2e:install-deps": "playwright install-deps chromium",
+    "recovery:check": "bun src/recovery-check.ts",
     "check-types": "tsc --noEmit"
   },
   "devDependencies": {
