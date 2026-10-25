@@ -65,7 +65,7 @@ token-authenticated traffic (overlay polling, bot page) goes DIRECT to the api w
 with their data: each page runs `requireSession()` first (a signed-out visitor never spends a
 batch) — for Bot settings the shared `bot/(sections)/layout.tsx` does it, ONCE on entering the
 section, since a layout is kept across its own pages' navigations and every procedure those
-pages call is owner-only — then `streamDashboard` / `prefetchStyles` / `prefetchBot` (`lib/server-query.ts`),
+pages call is owner-only — then `streamDashboard` / `prefetchStyles` / `streamBot` (`lib/server-query.ts`),
 which use a per-call `createServerTrpc(queryClient)` (`lib/server-trpc.ts`, no module state)
 to issue every query in one tick — `httpBatchStreamLink` folds them into ONE GET straight to
 the api worker's `/trpc` (cookie + signed client IP, 5s `INTERNAL_FETCH_TIMEOUT_MS`; never via
@@ -90,11 +90,13 @@ await (Next renders a route's layouts and page in parallel, so it registers befo
 layout's own await settles), and the `(app)` layout awaits `shellReleased()` (allSettled, a
 no-op when nothing is held) after its session, so the page is complete when the shell is
 written. A client navigation never runs the `(app)` layout, so its `loading.tsx` skeleton
-still shows instantly. `/dashboard/styles` (on its whole prefetch) and `/dashboard` (on
-`loadDashboard`, which waits at most `SECTIONS_READY_MS`) opt in; `shell-hold.test.ts` and
+still shows instantly. `/dashboard/styles` (on its whole prefetch), `/dashboard` (on
+`loadDashboard`, which waits at most `SECTIONS_READY_MS`) and Bot settings (the `(sections)`
+layout, on `loadBot`: a layout renders in parallel with the `(app)` layout just like a page)
+opt in; `shell-hold.test.ts` and
 `progressive.test.ts` pin the wiring, and `40-theme-center` / `22-progressive` assert no
 painted frame shows a skeleton on a fast load.
-**Progressive sections** (`/dashboard`; any page can opt in). `streamQueries(start)` starts the
+**Progressive sections** (`/dashboard`, Bot settings; any page can opt in). `streamQueries(start)` starts the
 page's batch and waits for it only until every query settles or `SECTIONS_READY_MS` (150ms,
 `lib/progressive.ts`) passes, then dehydrates successes as data and the queries still in
 flight as pending promises, which stream to the browser inside the RSC payload. The page holds
@@ -114,8 +116,13 @@ decided from a pending query; no entrance animation on sections (a fade would re
 reveal). Known exception: the setup checklist has no placeholder (its presence depends on
 `user.me` and a per-browser choice), so a `user.me` slower than 150ms mid-setup pushes the
 page down once. To opt a page in: replace its awaited `prefetch*` with `streamQueries`, hold
-the shell on the loader, and wrap each data section. e2e `22-progressive` slows one procedure
-through the e2e api worker's `e2e-delay` cookie (`packages/e2e/src/api-entry.ts`).
+the shell on the loader, and wrap each data section. Bot settings wraps each card in
+`BotSection needs={["config" | "user"]}` (`(sections)/bot-data.tsx`): a `ProgressiveSection`
+over just the queries that card reads, plus the failed-load retry (`botSectionStatus`,
+`lib/bot-section.ts`), with placeholders from `bot-settings-skeleton.tsx`; second known
+exception: the Overview's card order depends on `user.me`, so its placeholder takes the
+connected arrangement. e2e `22-progressive` slows one procedure through the e2e api worker's
+`e2e-delay` cookie (`packages/e2e/src/api-entry.ts`).
 
 **Per-request factories, no module singletons** (Workers isolate per request):
 `createDb()` (packages/db), `createAuth()` (packages/auth), `createContext({ context })`
@@ -588,11 +595,19 @@ pins them.
 **Bot settings** (`/dashboard/bot/*`): `bot/layout.tsx` is synchronous and data-free — the
 h1 and the sticky `<nav aria-label="Bot settings sections">` (`components/bot-settings/
 bot-section-nav.tsx`, sections from `lib/bot-sections.ts`, `aria-current="page"`, links
-`prefetch={false}`) paint at once. Below `bot/loading.tsx`, the route group's
-`(sections)/layout.tsx` runs `requireSession()` + `prefetchBot()` into a `HydrationBoundary`
-and `BotDataGate` (`(sections)/bot-data.tsx`), which holds `config.get` + `user.me` and hands
-them to pages via `useBotData()`; a header link's prefetch stops at that loading boundary, so
-it never reaches the api, and a sub-page switch is one web-worker RSC request (no api).
+`prefetch={false}`) paint with the page. Below `bot/loading.tsx`, the route group's
+`(sections)/layout.tsx` holds the shell on `loadBot` (`requireSession()` + `streamBot()`, ONE
+streamed `config.get,user.me` batch, waited on for at most `SECTIONS_READY_MS`) into a
+`HydrationBoundary` (Progressive sections, above). Each card of a page is a `BotSection`
+(`(sections)/bot-data.tsx`) that names the queries it reads and gets them through
+`useBotConfig()` / `useBotUser()`: Overview = `user` (the arrangement, account and console
+cards) with the live controls a nested `config` section; Commands and Moderation's Blocked
+viewers = `config` only (Moderation's static mod-command legend sits outside the boundary);
+Replies = both. Their observers set `refetchOnMount: false` (a sub-page switch mounts them
+afresh; past `QUERY_FRESH_MS` a mount would refetch), and a query that failed shows
+`QueryError` in its card, never editors over defaults. A header link's prefetch stops at
+the loading boundary, so it never reaches the api, and a sub-page switch is one web-worker
+RSC request (no api).
 Pages: **Overview** (`(sections)/page.tsx`: `BotLiveControls` — mute, Task/Timer switches via
 `lib/use-command-group-switch.ts`, which saves ONE flag on flip, and "n of 200 blocked ·
 Manage"; `BotConsoleCard` "Run the bot"; `BotAccountCard`, first while no account is
@@ -767,8 +782,10 @@ bypass with a fixed test secret. One worker and serial specs (single-owner insta
 database). Spec files are numbered and run in order: `00-first-run` sees the fresh database
 (the claim page, then the first dev-login claims the instance), then `10-smoke`,
 `15-landing` (the viewer landing: claimed notice + deploy link, docs links, no `/rpc`),
-`20-dashboard`, `22-progressive` (a fast hard load paints no placeholder; a slowed
-procedure shows only its section's, from the same one batch), `25-setup-checklist` (confirm/revert a step, Finish later), `30-timer` (Pomodoro start/stop and the ticking timer overlay; phase labels
+`20-dashboard`, `22-progressive` (a fast hard load of `/dashboard` or `/dashboard/bot`
+paints no placeholder at the same request cost; a slowed procedure shows only the placeholders
+of the sections or cards that read it, from the same one batch; a Bot settings sub-page switch
+costs no api request), `25-setup-checklist` (confirm/revert a step, Finish later), `30-timer` (Pomodoro start/stop and the ticking timer overlay; phase labels
 come from `@dirework/api/config-defaults`), `40-theme-center`, `50-bot-settings`,
 `55-bot-dock` (`/bot/<token>?view=dock` renders the dock; the default view doesn't; a
 button click sends one `bot.ingest` as the broadcaster, with getSession/ingest stubbed and the

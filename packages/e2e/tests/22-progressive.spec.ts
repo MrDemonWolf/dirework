@@ -103,3 +103,105 @@ test("a slow procedure holds back only its own section", async ({ page, context 
 
   await context.clearCookies({ name: DELAY_COOKIE });
 });
+
+// Bot settings opts into the same progressive loading: the (sections) layout streams
+// `config.get` + `user.me` as one batch, and each card waits only for what it reads.
+
+/** The one batched call every Bot settings server render makes. */
+const BOT_BATCH = "/trpc/config.get,user.me";
+
+test("Bot settings: a fast hard load paints every card at once, at the same request cost", async ({
+  page,
+}) => {
+  await page.goto("/dashboard/bot");
+  await recordPlaceholderFrames(page);
+  watchHydration(page);
+  await apiRequests(page);
+
+  await page.goto("/dashboard/bot");
+  await expectNoHydrationErrors(page);
+  await expect(page.getByRole("switch", { name: "Mute bot" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Bot account" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Run the bot" })).toBeVisible();
+  await page.waitForTimeout(500);
+
+  expect(await placeholderFrames(page), "frames that showed a card placeholder").toEqual([]);
+  // One session check and one batch, exactly as before streaming (no bot account here, so
+  // the console card's URL query never runs).
+  expect(await apiRequests(page)).toEqual({ "/api/auth/get-session": 1, [BOT_BATCH]: 1 });
+
+  // A sub-page switch is a web-worker render only: the layout's data is already in hand.
+  await page.getByRole("link", { name: "Commands", exact: true }).click();
+  await expect(page.getByRole("switch", { name: "Task commands" })).toBeVisible();
+  await page.waitForTimeout(300);
+  expect(await apiRequests(page)).toEqual({});
+});
+
+test("Bot settings: a slow config.get holds back only the live controls", async ({
+  page,
+  context,
+}) => {
+  await context.addCookies([{ name: DELAY_COOKIE, value: "config.get=2500", url: WEB_ORIGIN }]);
+  await recordPlaceholderFrames(page);
+  watchHydration(page);
+  await apiRequests(page);
+
+  await page.goto("/dashboard/bot", { waitUntil: "commit" });
+
+  // The account and console cards (user.me) are on screen; the live controls are not yet.
+  await expect(page.getByRole("heading", { level: 1, name: "Bot settings" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect bot account" })).toBeVisible();
+  await expect(page.locator('main [data-placeholder="live-controls"]')).toBeVisible();
+  await expect(page.locator("main [data-placeholder]:visible")).toHaveCount(1);
+  await expect(page.getByRole("switch", { name: "Mute bot" })).toHaveCount(0);
+
+  // Then the card fills in by itself, from the same request.
+  await expect(page.getByRole("switch", { name: "Mute bot" })).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator("main [data-placeholder]")).toHaveCount(0);
+  await expectNoHydrationErrors(page);
+
+  const frames = await placeholderFrames(page);
+  expect(frames.length, "the live controls' placeholder was painted").toBeGreaterThan(0);
+  expect([...new Set(frames.flat())], "no other card ever showed one").toEqual(["live-controls"]);
+  // The slow result rode the batch: no second config.get from the browser.
+  expect(await apiRequests(page)).toEqual({ "/api/auth/get-session": 1, [BOT_BATCH]: 1 });
+
+  await context.clearCookies({ name: DELAY_COOKIE });
+});
+
+test("Bot settings: a slow user.me holds back only the cards that read it", async ({
+  page,
+  context,
+}) => {
+  await context.addCookies([{ name: DELAY_COOKIE, value: "user.me=2500", url: WEB_ORIGIN }]);
+  await recordPlaceholderFrames(page);
+  watchHydration(page);
+  await apiRequests(page);
+
+  // Commands reads config.get only, so it never waits for the user.
+  await page.goto("/dashboard/bot/commands", { waitUntil: "commit" });
+  await expect(page.getByRole("switch", { name: "Task commands" })).toBeVisible();
+  await expect(page.locator("main [data-placeholder]")).toHaveCount(0);
+  await expectNoHydrationErrors(page);
+  expect(await placeholderFrames(page), "Commands never showed a placeholder").toEqual([]);
+  expect(await apiRequests(page)).toEqual({ "/api/auth/get-session": 1, [BOT_BATCH]: 1 });
+
+  // The Overview's arrangement depends on the bot account, so all three of its cards wait,
+  // then fill in from the same request.
+  await page.goto("/dashboard/bot", { waitUntil: "commit" });
+  await expect(page.locator('main [data-placeholder="bot-account"]')).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect bot account" })).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.getByRole("switch", { name: "Mute bot" })).toBeVisible();
+  await expect(page.locator("main [data-placeholder]")).toHaveCount(0);
+  await expectNoHydrationErrors(page);
+  expect([...new Set((await placeholderFrames(page)).flat())].sort()).toEqual([
+    "bot-account",
+    "bot-console",
+    "live-controls",
+  ]);
+  expect(await apiRequests(page)).toEqual({ "/api/auth/get-session": 1, [BOT_BATCH]: 1 });
+
+  await context.clearCookies({ name: DELAY_COOKIE });
+});

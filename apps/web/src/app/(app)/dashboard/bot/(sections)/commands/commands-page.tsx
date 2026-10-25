@@ -35,11 +35,20 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import { trpc } from "@/utils/trpc";
-import { type BotConfigData, useBotData } from "../bot-data";
+import { CommandsPlaceholder } from "@/components/bot-settings-skeleton";
+import { type BotConfigData, BotSection, useBotConfig } from "../bot-data";
 
+/** Every card reads `config.get`: the group switches, and the aliases the tables show. */
 export default function CommandsPage() {
-  const { config } = useBotData();
-  return <CommandsEditor config={config} />;
+  return (
+    <BotSection needs={["config"]} fallback={<CommandsPlaceholder />}>
+      <Commands />
+    </BotSection>
+  );
+}
+
+function Commands() {
+  return <CommandsEditor config={useBotConfig()} />;
 }
 
 const GROUP_COPY: Record<CommandGroup, { description: string; off: string }> = {
@@ -102,8 +111,9 @@ function CommandGroupCard({
 }
 
 /**
- * Alias rows are seeded in STATE from the config this mounts with (prefetched on the server,
- * so it is in the cache on first render): the saved aliases land in the server HTML. A
+ * Alias rows are seeded in STATE from the config this mounts with (streamed by the (sections)
+ * layout; `BotSection` mounts this only once it has data): the saved aliases land in the
+ * server HTML. A
  * refetch (after Save, or a switch flip) re-renders with new props but touches no state, so
  * alias edits in progress survive it.
  */

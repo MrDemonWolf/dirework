@@ -38,7 +38,9 @@ const ALLOWED: Record<string, string[]> = {
   "app/(app)/dashboard/styles/styles-page.tsx": [
     "max-h-[calc(100vh-6rem-var(--save-bar-clearance,0px))]",
   ],
-  "components/bot-settings/blocked-viewers-card.tsx": ["grid-cols-[minmax(0,1fr)_18rem]"],
+  "app/(app)/dashboard/bot/(sections)/moderation/moderation-page.tsx": [
+    "grid-cols-[minmax(0,1fr)_18rem]",
+  ],
   "components/theme-center/field-row.tsx": ["grid-cols-[5rem_1fr]", "grid-cols-[6.5rem_1fr]"],
   "components/timer-controls.tsx": ["grid-cols-[6.75rem_4.5rem_auto]", "transition-[width]"],
   "components/mode-toggle.tsx": ["translate-x-[calc(100%-2px)]"],

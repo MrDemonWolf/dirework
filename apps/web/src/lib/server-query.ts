@@ -2,13 +2,13 @@
 // the client components mount with their data instead of fetching it.
 //
 // Two shapes:
-//  - `prefetch*` (Theme Center, Bot settings) await the whole batch and dehydrate only
-//    successes. A failed prefetch degrades to the client fetch (skeleton first).
-//  - `streamQueries` (the dashboard; any page built from progressive sections) waits for the
-//    batch only up to `SECTIONS_READY_MS` (lib/progressive.ts). What arrived by then is
-//    dehydrated as data; what is still in flight is dehydrated as a promise, which streams to
-//    the browser through the RSC payload, so that section fills in on its own when its result
-//    lands. Still ONE request.
+//  - `prefetchStyles` (Theme Center) awaits the whole batch and dehydrates only successes. A
+//    failed prefetch degrades to the client fetch (skeleton first).
+//  - `streamQueries` (the dashboard, Bot settings; any page built from progressive sections)
+//    waits for the batch only up to `SECTIONS_READY_MS` (lib/progressive.ts). What arrived by
+//    then is dehydrated as data; what is still in flight is dehydrated as a promise, which
+//    streams to the browser through the RSC payload, so that section fills in on its own when
+//    its result lands. Still ONE request.
 
 import {
   defaultShouldDehydrateQuery,
@@ -63,13 +63,13 @@ export async function prefetchStyles(): Promise<DehydratedState> {
   return dehydrate(queryClient);
 }
 
-/** Bot settings: the config (commands, messages) and the user (bot account). */
-export async function prefetchBot(): Promise<DehydratedState> {
-  const queryClient = getQueryClient();
-  const t = createServerTrpc(queryClient);
-  await Promise.all([
+/**
+ * Bot settings: the config (commands, replies, live switches) and the user (bot account), as
+ * ONE streamed batch for the (sections) layout, so each card fills in on its own.
+ */
+export function streamBot(): Promise<DehydratedState> {
+  return streamQueries((t, queryClient) => [
     queryClient.prefetchQuery(t.config.get.queryOptions()),
     queryClient.prefetchQuery(t.user.me.queryOptions()),
   ]);
-  return dehydrate(queryClient);
 }

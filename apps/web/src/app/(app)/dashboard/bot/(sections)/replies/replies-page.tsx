@@ -36,7 +36,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import { trpc } from "@/utils/trpc";
-import { type BotConfigData, type BotUserData, useBotData } from "../bot-data";
+import { RepliesPlaceholder } from "@/components/bot-settings-skeleton";
+import {
+  type BotConfigData,
+  BotSection,
+  type BotUserData,
+  useBotConfig,
+  useBotUser,
+} from "../bot-data";
 
 /** What the Save bar persists, held as one object so draft and saved can't drift. */
 interface RepliesDraft {
@@ -51,16 +58,25 @@ function sameReplies<T extends object>(a: T, b: T): boolean {
   return keys.every((key) => a[key] === b[key]);
 }
 
+/** The editor reads `config.get` (the replies) and `user.me` (previews speak as the bot). */
 export default function RepliesPage() {
-  const { config, user } = useBotData();
-  return <RepliesEditor config={config} user={user} />;
+  return (
+    <BotSection needs={["config", "user"]} fallback={<RepliesPlaceholder />}>
+      <Replies />
+    </BotSection>
+  );
+}
+
+function Replies() {
+  return <RepliesEditor config={useBotConfig()} user={useBotUser()} />;
 }
 
 const SET_LABEL: Record<BotMessageTab, string> = { task: "Task replies", timer: "Timer replies" };
 
 /**
- * Draft and saved are seeded in STATE from the config this mounts with (prefetched on the
- * server, so it is in the cache on first render): the saved values land in the server HTML
+ * Draft and saved are seeded in STATE from the config this mounts with (streamed by the
+ * (sections) layout; `BotSection` mounts this only once it has data): the saved values land
+ * in the server HTML
  * and no frame of defaults is painted first. A refetch re-renders with new props but touches
  * no state, so edits in progress survive it.
  */

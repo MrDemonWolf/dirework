@@ -86,4 +86,12 @@ describe("shell hold wiring", () => {
     // in parallel, and only work registered before the layout's own await settles is held.
     expect(body.match(/await [^;]+/)?.[0]).toBe("await holdShellFor(loadStyles())");
   });
+
+  it("the Bot settings (sections) layout registers its streamed batch before awaiting", () => {
+    // A layout renders in parallel with the (app) layout just like a page does, so it can
+    // hold the shell too; its loader waits at most SECTIONS_READY_MS (lib/progressive.ts).
+    const layout = read("app/(app)/dashboard/bot/(sections)/layout.tsx");
+    const body = layout.slice(layout.indexOf("export default async function"));
+    expect(body.match(/await [^;]+/)?.[0]).toBe("await holdShellFor(loadBot())");
+  });
 });
