@@ -31,8 +31,7 @@ requests; this file holds what only the instance owner can do, plus ideas not ye
 
 ## Backlog (not yet a PR)
 
-- Durable Objects are on the Workers free plan now: evaluate hosting the Twitch bot in a Durable
-  Object so it runs without a browser page (see the Cloudflare services research note once it
-  lands in `docs/`).
+- Keep the browser bot as the supported default. A browserless Durable Object bot is
+  deferred unless the owner later needs it; see `docs/decisions/0001-cloudflare-services.md`.
 - Theme Center: preview toggle, backdrops, grouped sections and per-section resets.
 - Viewer landing page and an owner-first `/setup`.

@@ -12,6 +12,9 @@ This file provides guidance for coding agents working on the Dirework codebase.
   - Marketing website research and UI/UX review → `docs/history/MARKETING-REVIEW.md`
   - Logo generation prompt → `docs/history/logo.md`
 - Security policy and production operator checklist → `SECURITY.md`
+- Documentation map → `docs/README.md`
+- Local synthetic D1 export/restore drill → `packages/e2e/src/recovery-check.ts` (`bun run recovery:check`)
+- Production readiness evidence and remaining operator steps → `docs/production-readiness.md`
 - Database schemas → `packages/db/src/schema/` (index.ts, auth.ts, app.ts)
 - Setup guides → `.env.example`, docs `apps/fumadocs/content/docs/deployment.mdx`
 - Contributor setup + branch/PR workflow → `CONTRIBUTING.md`
@@ -753,6 +756,9 @@ else esbuild's `__name` helper leaks into next-themes' `fn.toString()` inline sc
 
 Vitest across `packages/api`, `packages/auth`, `packages/db`, `packages/infra`,
 `packages/overlay-kit`, `apps/web`, `apps/server` — run `bun run test`.
+The shared CI gate also runs `bun run recovery:check`: local-only schema/data
+export and restore with synthetic records, exact comparisons and foreign-key checks.
+Coverage packages run serially to avoid concurrent cleanup of Vitest's shared cache.
 Key suites: `packages/api/src/services/__tests__/` (tokens, timer-service, task-service,
 twitch-auth), `packages/api/src/routers/__tests__/` (timer-logic, config build/flatten/
 round-trip, aliases), `apps/web/src/lib/__tests__/` (timer-utils, task-utils, theme-presets,
@@ -976,9 +982,8 @@ Pinned in `packages/infra` (change deliberately, never via a dependency bump):
   linkden production 1000s, linkden non-prod 2000s, **dirework 3001–3004**.
 - **Observability** — logs (`invocationLogs: false` — Cloudflare's per-request invocation
   logs persist full URLs, and bot/overlay tokens live in URL paths; the app's own redacted
-  console JSON still flows) plus Workers Traces at 5% head sampling on both workers.
-  Traces record `url.full` on the root span, so a sampled trace can still carry a
-  `/bot/<token>` or `/overlay/*/<token>` path; keep trace access as tight as log access.
+  console JSON still flows). Automatic traces are disabled on both workers because root
+  spans retain full URLs, including bot/overlay bearer tokens and OAuth callback codes.
 - **Caching** — OpenNext uses the read-only static-assets incremental cache (prerendered
   routes such as `/opengraph-image` render once at build); `apps/web/public/_headers`
   marks hashed `/_next/static/*` immutable.
@@ -1013,6 +1018,11 @@ points at the section above that explains why. Flag a violation as P1 unless not
 
 **Free-tier cost budget (Cloudflare Workers free plan + D1).** This deploy must stay
 free, so anything that multiplies requests or rows read is a bug, not a style nit:
+
+Free-tier deployment remains supported; no required feature may depend on a paid plan.
+Included account-wide quotas still bound usage, so support is not an unlimited-uptime
+promise. Infrastructure resource additions require a budget review; the infra tests pin
+the default app to two workers, one D1 database and the existing rate-limit bindings.
 
 - No new polling, and no faster interval for an existing poll. Every cadence lives in
   `apps/web/src/lib/poll-intervals.ts`; a change there needs a stated request-budget

@@ -2,6 +2,10 @@
 
 Thank you for your interest in contributing to DireWork. This guide covers the setup and workflow for contributing.
 
+See the [documentation map](docs/README.md) for current architecture decisions,
+deployment guidance and historical reviews. Follow the shared [design system](design-system/README.md)
+when changing UI; regenerate its outputs with `bun run tokens` after editing tokens.
+
 ## Prerequisites
 
 - [Bun](https://bun.sh/) v1.3+
@@ -74,7 +78,7 @@ workerd. Once per machine: `bun run e2e:install` (downloads Chromium). Then buil
 bundle and run the suite:
 
 ```bash
-cd apps/web && SKIP_ENV_VALIDATION=true bun run build:worker && cd ../..
+NEXT_PUBLIC_SERVER_URL=http://localhost:3000 SKIP_ENV_VALIDATION=true bun run --cwd apps/web build:worker
 bun run e2e
 ```
 
@@ -82,8 +86,17 @@ The suite boots the api worker on port 3000 and the web worker on 3001, so stop 
 first. Add specs under `packages/e2e/tests`; select elements by role and label.
 Spec files are numbered (`00-first-run` … `90-mobile`) and run in that order against one
 database: give a new spec the number of its place in the flow, and make it pass when run twice
-in a row.
+in a row. Filter a focused check with `bun run e2e --grep '<test name>'`.
 
+The recovery check is separate from browser tests and uses only synthetic local data:
+
+```bash
+bun run recovery:check
+```
+
+It does not access production or prove Cloudflare Time Travel. See the deployment guide's
+[recovery checks](apps/fumadocs/content/docs/deployment.mdx#recovery-checks) before operating
+on a real database.
 
 Run the dependency audit and lint gate:
 
