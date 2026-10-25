@@ -125,11 +125,11 @@ function StreamScene() {
 const questions = [
   {
     q: "Is this a hosted service?",
-    a: "No. DireWork is always self-hosted. We do not offer hosted instances or a managed hosting service. You deploy your own copy on Cloudflare Workers and D1 using your own Cloudflare account and Twitch application. The deployment guide walks through the setup.",
+    a: "You deploy your own copy on Cloudflare Workers and D1. Each instance belongs to one streamer, using their own Cloudflare account and Twitch application. The deployment guide walks you through it.",
   },
   {
     q: "What does it cost?",
-    a: "DireWork is free and open source, with no paid feature tier. It is designed for Cloudflare's free Workers and D1 plans. Your usage is still subject to Cloudflare's limits and pricing.",
+    a: "DireWork is free and open source, with no paid feature tier. Cloudflare's free Workers and D1 plans are the supported baseline. They have daily usage limits shared with your other projects, so a busy instance may need a paid Cloudflare plan.",
   },
   {
     q: "Do viewers need an account?",
@@ -157,7 +157,6 @@ export default function HomePage() {
             <span className="marketing-eyebrow">
               <span className="marketing-led" /> BUILT FOR CO-WORKING STREAMS
             </span>
-            <span className="marketing-edition">YOUR STREAM. YOUR SPACE.</span>
           </div>
           <div className="marketing-hero-grid">
             <div className="marketing-hero-copy">
@@ -165,13 +164,15 @@ export default function HomePage() {
               <p>{BRAND.description}</p>
               <div className="marketing-actions">
                 <Link href="/docs/getting-started" className="dw-btn dw-btn-primary">
-                  Deploy your own instance <ArrowRight size={17} aria-hidden />
+                  Set up DireWork <ArrowRight size={17} aria-hidden />
                 </Link>
                 <a href="#overlays" className="marketing-text-link">
                   Explore the overlays <ArrowDown size={16} aria-hidden />
                 </a>
               </div>
-              <p className="marketing-hero-fine">Free and open source.</p>
+              <p className="marketing-hero-fine">
+                Free &amp; open source · One streamer per instance · Cloudflare free tier supported
+              </p>
             </div>
             <div className="marketing-scene-wrap">
               <StreamScene />
@@ -191,9 +192,9 @@ export default function HomePage() {
               href={GITHUB}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Yours to make your own: browse the source on GitHub (opens in a new tab)"
+              aria-label="Browse the source on GitHub (opens in a new tab)"
             >
-              <GithubIcon size={18} /> Yours to make your own <ArrowRight size={14} aria-hidden />
+              <GithubIcon size={18} /> Open source <ArrowRight size={14} aria-hidden />
             </a>
           </div>
         </div>
@@ -204,49 +205,34 @@ export default function HomePage() {
         aria-labelledby="features-title"
       >
         <div className="marketing-section-head">
-          <span className="marketing-eyebrow">01 / A LITTLE STRUCTURE. A LOT OF COMPANY.</span>
-          <h2 id="features-title">
-            Different to-do lists.
-            <br />
-            The same moment to start.
-          </h2>
-          <p>
-            Coding, studying, drawing, or finally getting through the inbox. Everyone brings their
-            own task. You give the room a rhythm.
-          </p>
+          <span className="marketing-eyebrow">HOW IT WORKS</span>
+          <h2 id="features-title">A shared focus session.</h2>
+          <p>You set the timer. Viewers bring their tasks. Everyone makes progress together.</p>
         </div>
         <div className="marketing-benefits">
           {[
             {
-              number: "01",
               icon: Timer,
               title: "Set the pace",
               text: "Run focus blocks, short breaks, and long breaks. Adjust the durations to the way your community works.",
-              detail: "YOUR TIMER, YOUR RHYTHM",
             },
             {
-              number: "02",
               icon: MessageSquare,
               title: "Let chat join in",
               text: "Viewers add their own tasks, choose a focus, and mark things done without leaving Twitch chat.",
-              detail: "!task · !today · !done",
             },
             {
-              number: "03",
               icon: Monitor,
               title: "Put progress on screen",
               text: "Bring the timer and task list into OBS as browser sources. Everyone can see what they're working toward.",
-              detail: "TWO OVERLAYS. ONE ROOM.",
             },
-          ].map(({ number, icon: Icon, title, text, detail }) => (
+          ].map(({ icon: Icon, title, text }) => (
             <article key={title} className="marketing-benefit">
               <div className="marketing-benefit-top">
                 <Icon size={26} aria-hidden />
-                <span>{number}</span>
               </div>
               <h3>{title}</h3>
               <p>{text}</p>
-              <span className="marketing-label">{detail}</span>
             </article>
           ))}
         </div>
@@ -258,12 +244,8 @@ export default function HomePage() {
       >
         <div className="marketing-wrap marketing-overlay-grid">
           <div className="marketing-section-head">
-            <span className="marketing-eyebrow">02 / LOOKS LIKE YOUR STREAM</span>
-            <h2 id="overlays-title">
-              Your scene.
-              <br />
-              <span className="dw-text-brand">Your signature.</span>
-            </h2>
+            <span className="marketing-eyebrow">OBS OVERLAYS</span>
+            <h2 id="overlays-title">Make it fit your stream.</h2>
             <p>
               Start with one of six themes, then make it yours. Colors, fonts, spacing, and timer
               shapes are all adjustable in the Theme Center.
@@ -275,7 +257,7 @@ export default function HomePage() {
             <Link href="/docs/overlays" className="marketing-text-link">
               How to add overlays to OBS <ArrowRight size={16} aria-hidden />
             </Link>
-            <span className="marketing-preview-hint">TRY A THEME →</span>
+            <span className="marketing-preview-hint">CHOOSE A THEME TO PREVIEW</span>
           </div>
           <OverlayThemePreview />
         </div>
@@ -292,12 +274,8 @@ export default function HomePage() {
           </p>
         </div>
         <div className="marketing-section-head">
-          <span className="marketing-eyebrow">03 / SMALL COMMANDS. SHARED PROGRESS.</span>
-          <h2 id="chat-title">
-            “Done” feels better
-            <br />
-            with company.
-          </h2>
+          <span className="marketing-eyebrow">TWITCH CHAT COMMANDS</span>
+          <h2 id="chat-title">Let chat join in.</h2>
           <p>
             No extra account for your viewers. They add a task with <code>!task</code>, pick what to
             work on with <code>!focus</code>, and celebrate a finish with <code>!done</code>.
@@ -319,16 +297,12 @@ export default function HomePage() {
         <div className="marketing-wrap">
           <div className="marketing-setup-head marketing-section-head">
             <div>
-              <span className="marketing-eyebrow">04 / A SPACE OF YOUR OWN</span>
-              <h2 id="setup-title">
-                Set up once.
-                <br />
-                Make it part of your stream.
-              </h2>
+              <span className="marketing-eyebrow">YOUR OWN INSTANCE</span>
+              <h2 id="setup-title">Ready for your first session?</h2>
             </div>
             <p>
-              One DireWork instance per streamer. Your own deployment, your own data, and a
-              dashboard that belongs to you.
+              You'll need a Cloudflare account, a Twitch application, and OBS. Keep the bot's
+              private browser page open in OBS or a pinned tab while streaming.
             </p>
           </div>
           <ol className="marketing-steps">
@@ -371,11 +345,7 @@ export default function HomePage() {
       >
         <div className="marketing-section-head">
           <span className="marketing-eyebrow">BEFORE YOU START</span>
-          <h2 id="faq-title">
-            Good questions.
-            <br />
-            Straight answers.
-          </h2>
+          <h2 id="faq-title">A few things to know.</h2>
           <p>
             Need a hand?{" "}
             <a
@@ -405,15 +375,10 @@ export default function HomePage() {
       </section>
       <section className="marketing-finale" aria-labelledby="finale-title">
         <div className="marketing-wrap">
-          <span className="marketing-eyebrow">BRING YOUR NEXT LITTLE GOAL.</span>
-          <h2 id="finale-title">
-            Let's get something
-            <br />
-            <span>done. Together.</span>
-          </h2>
+          <h2 id="finale-title">Start your next focus session.</h2>
           <div className="marketing-actions">
             <Link href="/docs/getting-started" className="dw-btn dw-btn-primary">
-              Deploy your own instance <ArrowRight size={17} aria-hidden />
+              Set up DireWork <ArrowRight size={17} aria-hidden />
             </Link>
             <a
               href={GITHUB}
@@ -425,7 +390,6 @@ export default function HomePage() {
               <GithubIcon size={17} /> Explore the source
             </a>
           </div>
-          <p>Open source. Self-hosted. Built for the company you keep.</p>
         </div>
       </section>
     </div>

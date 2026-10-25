@@ -5,7 +5,16 @@ description: Everything you need to set up and use DireWork
 
 DireWork is a self-hosted Pomodoro timer and task list for Twitch co-working and body-doubling streams. Streamers sign in with Twitch, connect a bot account, configure OBS overlays, and their viewers interact via chat commands.
 
-This documentation covers everything from initial setup to production deployment.
+Each instance has one streamer account and one channel. Viewers use chat commands;
+they do not need dashboard accounts. Keep one bot console open in OBS or a browser
+tab while using chat commands.
+
+The core app supports Cloudflare's free tier, within account quotas. Free-tier
+support is a project commitment; no paid Cloudflare service is required.
+
+**Start here:** [deploy your instance](/docs/deployment), claim it with Twitch,
+connect your bot, then add the OBS sources. To try it on your computer first,
+use [Getting started](/docs/getting-started).
 
 DireWork is always self-hosted: you deploy and operate your own instance. MrDemonWolf, Inc. does not offer hosted instances or a managed hosting service.
 
@@ -24,7 +33,7 @@ DireWork is always self-hosted: you deploy and operate your own instance. MrDemo
 <Cards>
   <Card
     title="Getting started"
-    description="Clone, install, configure, and run DireWork locally in minutes."
+    description="Try DireWork locally before deploying."
     href="/docs/getting-started"
   />
   <Card
@@ -59,7 +68,7 @@ DireWork is always self-hosted: you deploy and operate your own instance. MrDemo
 <Cards>
   <Card
     title="Deployment"
-    description="Put DireWork online on Cloudflare Workers — free plan, no servers."
+    description="Deploy on Cloudflare's free tier, verify your stream setup, and plan recovery."
     href="/docs/deployment"
   />
   <Card

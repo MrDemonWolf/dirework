@@ -5,9 +5,10 @@ co-working and body-doubling streams. It combines a
 Pomodoro timer, viewer task list, and Twitch chat bot into
 a single self-hosted tool with customizable OBS overlays.
 
-It is open source and runs entirely on Cloudflare's free
-plan. If you want the same setup for your own channel, fork
-it and deploy your own instance. One streamer per instance.
+It is open source and supports Cloudflare's free plan for the core app,
+within the account's usage limits. Free-tier support is a project commitment;
+no paid Cloudflare service is required. Fork it and deploy your own instance:
+one streamer, one owner, one channel.
 
 DireWork is always self-hosted. MrDemonWolf, Inc. does not offer hosted instances
 or a managed hosting service.
@@ -22,7 +23,7 @@ or a managed hosting service.
   like `!task`, `!done`, `!timer start`, and `!timer eta`. Reply
   templates are editable (a few usage hints are fixed), and the task
   and timer command groups can be turned off. The bot runs in a token-gated browser page (OBS
-  source or pinned tab), so no always-on server is needed.
+  source, custom browser dock, or pinned tab), so no always-on server is needed.
 - **Theme Center** - 6 built-in themes, including Liquid
   Glass Dark, Ocean Depths, Cozy Cottage, and Twitch Purple,
   plus editable colors, fonts, layout, and phase labels.
@@ -33,7 +34,7 @@ or a managed hosting service.
 - **Bot Settings** - Bot account management, message
   customization, command aliases, and the bot console link.
 - **Serverless** - Two Cloudflare Workers plus a D1 database.
-  Free plan, no servers, no Docker, single user per instance.
+  Free-tier compatible, no servers, no Docker, single owner per instance.
 
 ## Getting Started
 
@@ -41,16 +42,13 @@ For full setup instructions including Twitch OAuth, bot
 account configuration, and OBS setup, see the
 **[Documentation](https://dirework.mrdemonwolf.dev)**.
 
-1. Clone the repository
-2. Install dependencies with `bun install`
-3. Copy `.env.example` to `packages/infra/.env` and fill in
-   `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, and a generated
-   `BETTER_AUTH_SECRET`
-4. Start everything with `bun run dev` (API worker on port 3000,
-   web on port 3001, local D1 database included)
-5. Open `http://localhost:3001` — on first run you'll be
-   redirected to `/setup` to claim the instance with your Twitch
-   account
+1. [Deploy your own instance](https://dirework.mrdemonwolf.dev/docs/deployment)
+   on Cloudflare, then claim it immediately with your streamer account.
+2. Connect your bot account in Dashboard → Bot.
+3. Keep one bot console open in an OBS source, OBS dock, or browser tab; chat commands require it.
+4. Add the timer and task overlays to OBS and try a task command and timer cycle.
+
+To try it locally first, follow [Development](#development).
 
 ## Usage
 
@@ -102,7 +100,7 @@ Go to `/dashboard/bot` to manage your bot account, edit the
 response messages, enable or disable the task and timer command
 groups, set up command aliases, and copy your bot console link.
 The bot listens to chat while a bot console page is open, so add
-it to OBS as a browser source or keep the tab pinned. Keep to one
+it to OBS as a browser source or custom browser dock, or keep the tab pinned. Keep to one
 copy: a second console is harmless (DireWork runs each chat
 message once, by its Twitch message id), but it doubles the
 Worker requests every command costs.
@@ -184,6 +182,7 @@ link can use it until you regenerate the corresponding token.
 - `bun run check-types` - Run TypeScript type checking
 - `bun run test` - Run unit tests across all packages
 - `bun run test:coverage` - Run tests with coverage thresholds enforced
+- `bun run recovery:check` - Check a synthetic local database export/import; does not access production
 - `bun run clean` - Remove generated build and type artifacts
 - `bun run db:generate` - Generate a new Drizzle migration from schema changes
 - `bun run deploy` - Deploy both workers and the database to Cloudflare
@@ -231,6 +230,14 @@ new forks), then run **Actions → Deploy → Run workflow**. To
 pick up new releases later, follow
 [Updating your instance](https://dirework.mrdemonwolf.dev/docs/deployment#updating-your-instance).
 
+Before relying on an instance for a stream, complete the guide's post-deploy
+checklist, monitoring, and recovery checks. Free-tier quotas are shared across
+your Cloudflare account; leaving OBS sources open continues to use requests.
+See [Free plan limits](https://dirework.mrdemonwolf.dev/docs/deployment#free-plan-limits).
+
+For repository documentation, start with the [documentation map](docs/README.md).
+It separates current guides and architecture decisions from dated historical reviews.
+
 ## Project Structure
 
 ```text
@@ -245,7 +252,9 @@ dirework/
 │   ├── db/            # Drizzle schema + D1 client + migrations
 │   ├── env/           # Environment bindings + validation
 │   ├── infra/         # Alchemy infrastructure (workers + D1)
+│   ├── fonts/         # Self-hosted UI fonts shared by app and docs
 │   ├── overlay-kit/   # Shared overlay geometry + clock formatting (web + docs)
+│   ├── e2e/           # Local Worker browser tests and synthetic recovery drill
 │   └── config/        # Shared TypeScript configuration
 ```
 

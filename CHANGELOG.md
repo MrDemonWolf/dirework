@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Local recovery drill.** `bun run recovery:check` exports and restores a synthetic
+  database, verifies schema and application data, and runs in the shared CI gate.
+  No production database or additional Cloudflare service is needed.
+- **Simpler bot source console.** Clear connection status, responsive identity and
+  activity panels, and recovery links; existing OBS dock controls stay available.
+  Landing and setup docs now state the single-owner and free-tier requirements directly.
 - **Viewer help that shows what to type.** `!help` now replies with a 3-step starter guide
   (add a task with `!task`, work along, finish with `!done`) instead of a list of command
   names. If you never edited your Help reply, it switches over on its own; your own wording

@@ -66,6 +66,8 @@ jobs:
         run: bun run check-types
       - name: Test with coverage thresholds
         run: bun run test:coverage
+      - name: Local database recovery drill
+        run: bun run recovery:check
       - uses: actions/configure-pages@1f0c5cde4bc74cd7e1254d0cb4de8d49e9068c7d # v4
         if: ${{ inputs.upload-docs }}
         id: pages
