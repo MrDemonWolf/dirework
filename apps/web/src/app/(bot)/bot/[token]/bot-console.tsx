@@ -3,7 +3,7 @@
 /**
  * Dirework Bot Console — the browser-held Twitch chat bot.
  *
- * Cloudflare Workers can't hold sockets, so this token-gated page IS the bot:
+ * This token-gated page IS the bot:
  * the streamer keeps it open (OBS browser source or pinned tab), it holds the
  * IRC WebSocket, and relays command lines to the stateless API which runs the
  * logic against D1 and returns replies to send back to chat.
@@ -20,7 +20,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
+import { Activity, Radio } from "lucide-react";
 
+import { StatusChip, type StatusTone } from "@/components/status-chip";
 import {
   type ChatErrorState,
   currentChatError,
@@ -54,7 +56,6 @@ const MAX_ACTIVITY = 20;
 
 type ActivityLine = BotActivityLine;
 
-/** Status LED colours; amber pulses unless the viewer prefers reduced motion. */
 const LED_CLASS: Record<"green" | "amber" | "red", string> = {
   green: "bg-emerald-400 shadow-[0_0_12px_2px_rgba(52,211,153,0.55)]",
   amber:
@@ -63,11 +64,10 @@ const LED_CLASS: Record<"green" | "amber" | "red", string> = {
 };
 
 const LINE_CLASS: Record<BotActivityKind, string> = {
-  // console-muted (zinc-400) = 7.76:1 on console-base (zinc-950); zinc-500 was 4.12:1, below AA
-  info: "text-console-muted",
-  chat: "text-console-soft",
-  reply: "text-emerald-300",
-  error: "text-red-400",
+  info: "text-muted-foreground",
+  chat: "text-foreground",
+  reply: "text-success",
+  error: "text-destructive",
 };
 
 function pad2(n: number): string {
@@ -98,13 +98,11 @@ function StatCell({
   accent?: boolean;
 }) {
   return (
-    <div className="bg-console-base px-4 py-2">
-      <div className="text-2xs tracking-display text-console-muted uppercase">{label}</div>
-      <div
-        className={`truncate text-sm tabular-nums ${accent ? "text-emerald-300" : "text-console-fg"}`}
-      >
+    <div className="bot-stat">
+      <dt>{label}</dt>
+      <dd className={accent ? "text-link" : undefined} title={value}>
         {value}
-      </div>
+      </dd>
     </div>
   );
 }
@@ -244,12 +242,9 @@ export function BotConsole({ view = "source" }: { view?: BotView }) {
     return (
       // role="alert": a live page that drops here unmounts the role="status"
       // header, so without it a screen reader in a pinned tab hears nothing.
-      <main
-        role="alert"
-        className="flex h-dvh w-full flex-col items-center justify-center gap-4 bg-console-base px-6 text-center font-mono"
-      >
-        <span className={`h-4 w-4 rounded-full ${LED_CLASS.red}`} aria-hidden="true" />
-        <h1 className="text-xl font-bold tracking-display text-red-400 uppercase">
+      <main role="alert" className="bot-notice">
+        <StatusChip tone="danger" label="Action needed" />
+        <h1 className="font-mono text-xl font-semibold">
           {phase === "invalid"
             ? "Invalid bot page URL"
             : phase === "revoked"
@@ -282,16 +277,16 @@ export function BotConsole({ view = "source" }: { view?: BotView }) {
   // tick) re-evaluates the clear window every second without a timer of its own.
   const chatError = connected && !showMuted ? currentChatError(chatErrorState, nowTick) : null;
 
-  const led: "green" | "amber" | "red" =
+  const tone: StatusTone =
     phase === "boot" || phase === "not-configured"
-      ? "amber"
+      ? "warn"
       : ircStatus === "connected"
         ? showMuted || chatError
-          ? "amber"
-          : "green"
+          ? "warn"
+          : "live"
         : ircStatus === "closed"
-          ? "red"
-          : "amber"; // connecting / reconnecting / auth-failed / idle
+          ? "danger"
+          : "warn";
 
   const statusText =
     phase === "boot"
@@ -316,6 +311,7 @@ export function BotConsole({ view = "source" }: { view?: BotView }) {
 
   // Not-configured, muted and a chat error wait on a person, not on the bot — a steady LED,
   // so none of them reads as "Connecting".
+  const led = tone === "live" ? "green" : tone === "danger" ? "red" : "amber";
   const ledClass = `${LED_CLASS[led]}${phase === "not-configured" || showMuted || chatError ? " animate-none" : ""}`;
 
   if (view === "dock") {
@@ -355,87 +351,106 @@ export function BotConsole({ view = "source" }: { view?: BotView }) {
   }
 
   return (
-    <main className="flex h-dvh w-full flex-col bg-console-base font-mono text-console-fg">
+    <main className="bot-console font-mono">
       {/* Status header — must read as a tiny OBS source (400x200): big LED +
           state text pinned top-left. */}
-      <header className="flex shrink-0 items-center gap-3 border-b border-console-line/80 px-4 py-3">
-        <span className={`h-3.5 w-3.5 shrink-0 rounded-full ${ledClass}`} aria-hidden="true" />
-        <span
-          role="status"
-          className="truncate text-lg font-bold tracking-display text-console-bright uppercase"
-        >
-          {statusText}
+      <header className="bot-console-header">
+        <span role="status">
+          <StatusChip
+            tone={tone}
+            label={statusText}
+            pulse={tone === "warn" && phase !== "not-configured" && !showMuted && !chatError}
+            className="bot-connection-status"
+          />
         </span>
-        <span className="ml-auto hidden shrink-0 text-3xs tracking-marquee text-console-muted uppercase sm:block">
-          DireWork Bot Console
+        <div className="bot-console-brand">
+          <Radio size={18} aria-hidden />
+          <h1>
+            DireWork <span>Bot Console</span>
+          </h1>
+        </div>
+        <span className="bot-header-settings">
+          <DashboardBotLink />
         </span>
       </header>
 
-      {phase === "not-configured" && (
-        <p className="shrink-0 border-b border-console-line/80 px-4 py-2 text-sm text-console-muted">
-          Connect a bot account in <DashboardBotLink />. This page goes live on its own.
+      <div className="bot-console-body">
+        <p className="bot-console-instruction font-sans">
+          Keep this page open in OBS or a pinned tab. This page runs your Twitch bot.
         </p>
-      )}
 
-      {showMuted && (
-        <p className="shrink-0 border-b border-console-line/80 px-4 py-2 text-sm text-console-muted">
-          Muted — ignoring commands and posting nothing. A mod can send !unmute, or flip the Mute
-          bot switch in <DashboardBotLink />.
-        </p>
-      )}
-
-      {chatError && (
-        // Same slot as the muted banner. Clamped to two lines so the counters stay in a
-        // 400x200 source; the full text is in the activity log and the title. The header,
-        // banners and counters never shrink: the activity log gives up the space instead.
-        <p
-          title={chatError}
-          className="line-clamp-2 shrink-0 border-b border-console-line/80 px-4 py-2 text-xs leading-5 text-amber-300"
-        >
-          {chatError}
-        </p>
-      )}
-
-      {/* Identity + uptime */}
-      <div className="grid shrink-0 grid-cols-3 gap-px border-b border-console-line/80 bg-console-line/40">
-        <StatCell label="Channel" value={channelName ? `#${channelName}` : "—"} />
-        <StatCell label="Bot" value={botUsername || "—"} />
-        <StatCell
-          label="Uptime"
-          value={connectedAt && nowTick ? formatUptime(nowTick - connectedAt) : "—"}
-        />
-      </div>
-
-      {/* Counters */}
-      <div className="grid shrink-0 grid-cols-3 gap-px border-b border-console-line/80 bg-console-line/40">
-        {/* Every chat line the bot saw; Commands = the ones relayed to DireWork. */}
-        <StatCell label="Chat lines" value={String(counters.seen)} />
-        <StatCell label="Commands" value={String(counters.commands)} accent />
-        <StatCell label="Replies" value={String(counters.replies)} accent />
-      </div>
-
-      {/* Activity feed — newest at the bottom, auto-pinned */}
-      <div
-        ref={logRef}
-        role="log"
-        aria-label="Activity log"
-        // Scrollable region: focusable so keyboard users can scroll it.
-        // biome-ignore lint/a11y/noNoninteractiveTabindex: scroll container
-        tabIndex={0}
-        className="min-h-0 flex-1 overflow-y-auto px-4 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
-      >
-        {activity.length === 0 ? (
-          <p className="py-2 text-xs text-console-muted">waiting for chat…</p>
-        ) : (
-          <ul className="space-y-0.5 text-xs leading-5">
-            {activity.map((line) => (
-              <li key={line.id} className="flex gap-2">
-                <span className="shrink-0 tabular-nums text-console-muted">{line.time}</span>
-                <span className={`break-all ${LINE_CLASS[line.kind]}`}>{line.text}</span>
-              </li>
-            ))}
-          </ul>
+        {phase === "not-configured" && (
+          <p className="bot-setup-notice">
+            Connect a bot account in <DashboardBotLink />. This page goes live on its own.
+          </p>
         )}
+
+        {showMuted && (
+          <p className="bot-setup-notice">
+            Muted — ignoring commands and posting nothing. A mod can send !unmute, or flip the Mute
+            bot switch in <DashboardBotLink />.
+          </p>
+        )}
+        {chatError && (
+          <p title={chatError} className="bot-setup-notice line-clamp-2">
+            {chatError}
+          </p>
+        )}
+
+        {/* Identity + uptime */}
+        <dl className="bot-stats bot-identity">
+          <StatCell label="Channel" value={channelName ? `#${channelName}` : "—"} />
+          <StatCell label="Bot" value={botUsername || "—"} />
+          <StatCell
+            label="Uptime"
+            value={connectedAt && nowTick ? formatUptime(nowTick - connectedAt) : "—"}
+          />
+        </dl>
+
+        {/* Counters */}
+        <dl className="bot-stats bot-counters">
+          <StatCell label="Chat lines" value={String(counters.seen)} />
+          <StatCell label="Commands" value={String(counters.commands)} accent />
+          <StatCell label="Replies" value={String(counters.replies)} accent />
+        </dl>
+
+        <section className="bot-activity" aria-labelledby="bot-activity-title">
+          <div className="bot-activity-heading">
+            <h2 id="bot-activity-title">
+              <Activity size={15} aria-hidden /> Activity
+            </h2>
+            <span>Latest {MAX_ACTIVITY} events</span>
+          </div>
+
+          {/* Activity feed — newest at the bottom, auto-pinned */}
+          <div
+            ref={logRef}
+            role="log"
+            aria-label="Activity log"
+            // Scrollable region: focusable so keyboard users can scroll it.
+            // biome-ignore lint/a11y/noNoninteractiveTabindex: scroll container
+            tabIndex={0}
+            className="bot-activity-log"
+          >
+            {activity.length === 0 ? (
+              <p className="bot-activity-empty">
+                Waiting for chat… Commands and bot replies appear here.
+              </p>
+            ) : (
+              <ul className="bot-activity-lines">
+                {activity.map((line) => (
+                  <li key={line.id}>
+                    <span className="bot-activity-time">{line.time}</span>
+                    <span className={`bot-activity-kind ${LINE_CLASS[line.kind]}`}>
+                      {line.kind}
+                    </span>
+                    <span className={`break-all ${LINE_CLASS[line.kind]}`}>{line.text}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
       </div>
     </main>
   );
