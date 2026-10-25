@@ -8,6 +8,8 @@
  * face (`--font-heading` in index.css) — so an OBS or pinned-tab startup never
  * downloads a font it won't show.
  */
+import "./bot-console.css";
+
 export default function BotLayout({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-dvh bg-console-base">{children}</div>;
+  return <div className="dark min-h-dvh bg-background text-foreground">{children}</div>;
 }
