@@ -190,6 +190,24 @@ describe("workflow supply-chain controls", () => {
     expect(program.match(/^\s+observability,$/gm)).toHaveLength(2);
   });
 
+  it("disables automatic traces that retain token-bearing URLs and OAuth codes", () => {
+    const program = readFileSync(`${repoRoot}/packages/infra/alchemy.run.ts`, "utf8");
+    expect(program).toContain("traces: { enabled: false }");
+    expect(program).not.toMatch(/traces:\s*\{\s*enabled: true/);
+  });
+
+  it("keeps the default app infrastructure limited to the free-tier architecture", () => {
+    const program = readFileSync(`${repoRoot}/packages/infra/alchemy.run.ts`, "utf8");
+    const imports = [...program.matchAll(/import\s*\{([^}]+)\}\s*from "alchemy\/cloudflare"/g)]
+      .flatMap((match) => match[1]!.split(",").map((name) => name.trim()))
+      .sort();
+    // New resource types require an explicit budget and policy review.
+    expect(imports).toEqual(["D1Database", "Nextjs", "RateLimit", "Worker", "createCloudflareApi"]);
+    expect(program.match(/await D1Database\(/g)).toHaveLength(1);
+    expect(program.match(/await (?:Worker|Nextjs)\(/g)).toHaveLength(2);
+    expect(program).not.toMatch(/\b(?:crons|scheduled|queues|durableObjects)\s*:/);
+  });
+
   it("smoke-checks the live deployment after Alchemy finishes", () => {
     const deploy = readWorkflow("deploy.yml");
     expect(deploy.indexOf("smoke-check.ts")).toBeGreaterThan(deploy.indexOf("alchemy.run.ts"));

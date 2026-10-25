@@ -117,15 +117,12 @@ const overlayRateLimit = RateLimit({
   simple: { limit: 120, period: 60 },
 });
 
-// Workers Traces at a low head-sampling rate (free-plan observability quota);
-// logs stay at Cloudflare's default full sampling. Invocation logs are OFF:
-// they persist each request's full URL, and bot/overlay bearer tokens live in
-// URL paths (/bot/<token>, /overlay/t/<token>). The app's own redacted console
-// JSON (logger.ts, telemetry.ts) is still collected via `logs.enabled`.
+// Invocation logs and traces persist full URLs containing bearer tokens or
+// OAuth codes. Collect only the app's redacted console JSON on both workers.
 const observability = {
   enabled: true,
   logs: { enabled: true, invocationLogs: false },
-  traces: { enabled: true, headSamplingRate: 0.05 },
+  traces: { enabled: false },
 };
 
 // API worker: dirework-api.<account>.workers.dev
