@@ -21,13 +21,15 @@ Read-only table of chat commands on the Bot settings Commands page (`/dashboard/
 |---|---|---|
 | `caption` | `string` | Screen-reader name of the table |
 | `commands` | `readonly CommandRow[]` | From `lib/command-rows.ts` |
-| `aliases` | `ReadonlyMap<string, string[]>` | Canonical aliases by target (`aliasesByTarget`) |
+| `aliases` | `ReadonlyMap<string, string[]> \| null` | Canonical aliases by target (`aliasesByTarget`); `null` while the config streams (the Commands placeholder), each alias cell then a `Skeleton` |
 | `disabled` | `boolean` | Optional; dims the rows (`opacity-60`) when the group is switched off |
 
 ## States
 
 - **Group off**: dimmed, still readable; the card's description says what off means.
 - **No aliases**: a dash, read as "None".
+- **Config still streaming** (`aliases={null}`, the Commands page placeholder only): each alias
+  cell is a dash-sized `Skeleton`; the static rows render as usual.
 - **Invalid alias in the draft**: not shown (only what the server would accept appears).
 
 ## Accessibility

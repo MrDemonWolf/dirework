@@ -68,6 +68,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hover that could never happen.
 
 ### Changed
+- **Bot settings loads in one go too, and a slow part no longer holds up the rest.** A
+  normal load of any Bot settings page now paints finished about 100ms in, instead of a
+  skeleton that swapped to the real page around 370ms. If your settings or your account are
+  slow to arrive, only the cards that need them keep a placeholder the size of the finished
+  card (on Overview, the live controls wait only for your settings; Commands and Moderation
+  never wait for your account), and each fills in on its own. Still one request to the API
+  per load, switching between Overview, Commands, Replies and Moderation still costs none,
+  and no new polling.
 - **The dashboard loads in one go, and a slow part no longer holds up the rest.** A normal
   load now paints the finished dashboard about 100ms in, instead of a full-page skeleton that
   swapped to the real page around 350ms. If one part's data is slow (the task list, the

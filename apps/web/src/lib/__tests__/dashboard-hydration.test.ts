@@ -23,13 +23,13 @@ describe("dashboard SSR hydration", () => {
   it.each([
     ["app/(app)/dashboard/page.tsx", "streamDashboard"],
     ["app/(app)/dashboard/styles/page.tsx", "prefetchStyles"],
-    // Bot settings prefetches once in the layout its sub-pages share.
-    ["app/(app)/dashboard/bot/(sections)/layout.tsx", "prefetchBot"],
+    // Bot settings streams once, in the layout its sub-pages share.
+    ["app/(app)/dashboard/bot/(sections)/layout.tsx", "streamBot"],
   ])("%s wraps its tree in a HydrationBoundary fed by %s", (file, prefetch) => {
     const page = read(file);
     expect(page).toContain("<HydrationBoundary state={state}>");
-    // Awaited directly, or (the Theme Center) inside the loader the page holds the shell
-    // for, `await holdShellFor(loadStyles())`; shell-hold.test.ts pins that wiring.
+    // Awaited directly, or inside the loader the page holds the shell for
+    // (`await holdShellFor(loadStyles())`); shell-hold.test.ts pins that wiring.
     expect(page).toMatch(new RegExp(`(await|return) ${prefetch}\\(\\)`));
   });
 
@@ -54,18 +54,19 @@ describe("dashboard SSR hydration", () => {
       // saved values after hydration — an edit landing during the swap was appended to them.
       expect(page).not.toContain("initializedRef");
       expect(page).not.toMatch(/useEffect\(\(\) => \{\s*if \(!config\.data\) return;/);
-      expect(page).toMatch(/return <\w+Editor config=\{config(\.data)?\}/);
+      // Bot settings reads it through its card gate (`BotSection` + `useBotConfig`).
+      expect(page).toMatch(/return <\w+Editor config=\{(config(\.data)?|useBotConfig\(\))\}/);
     },
   );
 
   it("keeps the Bot settings shell data-free, so a link prefetch never reaches the api", () => {
     // The heading + sub-nav layout sits above bot/loading.tsx; the session check and the
-    // prefetch sit below it, in (sections)/layout.tsx, where a prefetch stops short.
+    // streamed batch sit below it, in (sections)/layout.tsx, where a prefetch stops short.
     const shell = read("app/(app)/dashboard/bot/layout.tsx");
-    expect(shell).not.toMatch(/requireSession|prefetchBot|getServerSession|async function/);
-    expect(read("app/(app)/dashboard/bot/(sections)/layout.tsx")).toMatch(
-      /await requireSession\(\);\s*const state = await prefetchBot\(\);/,
-    );
+    expect(shell).not.toMatch(/requireSession|streamBot|getServerSession|async function/);
+    const sections = read("app/(app)/dashboard/bot/(sections)/layout.tsx");
+    // Session first, so a signed-out visitor never spends the batch.
+    expect(sections).toMatch(/await requireSession\(\);\s*return streamBot\(\);/);
     // Sub-nav links never prefetch.
     expect(read("components/bot-settings/bot-section-nav.tsx")).toContain("prefetch={false}");
   });

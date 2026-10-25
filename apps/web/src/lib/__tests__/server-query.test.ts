@@ -10,7 +10,7 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { SECTIONS_READY_MS } from "@/lib/progressive";
 import { trpc } from "@/utils/trpc";
 
-import { prefetchBot, prefetchStyles, streamDashboard } from "../server-query";
+import { prefetchStyles, streamBot, streamDashboard } from "../server-query";
 
 const originalFetch = globalThis.fetch;
 
@@ -147,18 +147,12 @@ describe("awaited prefetches", () => {
     vi.unstubAllEnvs();
   });
 
-  it("prefetches config for the Theme Center and config + user for Bot settings", async () => {
+  it("prefetches config for the Theme Center", async () => {
     const fetchMock = serveApi();
     const styles = await prefetchStyles();
     expect(styles.queries.map((q) => q.queryKey)).toEqual([trpc.config.get.queryKey()]);
     expect(styles.queries[0]?.state.data).toEqual({ path: "config.get" });
-
-    const bot = await prefetchBot();
-    expect(bot.queries.map((q) => q.queryKey)).toEqual(
-      expect.arrayContaining([trpc.config.get.queryKey(), trpc.user.me.queryKey()]),
-    );
-    expect(bot.queries).toHaveLength(2);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("degrades to an empty cache (client fetch) when the api is unreachable", async () => {
@@ -166,7 +160,60 @@ describe("awaited prefetches", () => {
       throw new TypeError("fetch failed");
     }) as unknown as typeof fetch;
 
-    const state = await prefetchBot();
+    const state = await prefetchStyles();
+    expect(state.queries).toEqual([]);
+  });
+});
+
+describe("streamBot", () => {
+  beforeEach(() => {
+    vi.stubEnv("PROXY_SECRET", "s".repeat(40));
+    vi.stubEnv("NEXT_PUBLIC_SERVER_URL", "http://api.test");
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.unstubAllEnvs();
+  });
+
+  const find = (state: Awaited<ReturnType<typeof streamBot>>, queryKey: unknown) =>
+    state.queries.find((query) => keyOf(query) === keyOf({ queryKey }));
+
+  it("fast api: config + user as data, in the same ONE streamed GET as before", async () => {
+    const fetchMock = serveApi();
+    const state = await streamBot();
+
+    expect(state.queries.map(keyOf).sort()).toEqual(
+      [trpc.config.get.queryKey(), trpc.user.me.queryKey()]
+        .map((queryKey) => keyOf({ queryKey }))
+        .sort(),
+    );
+    for (const query of state.queries) expect(query.state.status).toBe("success");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toContain("/trpc/config.get,user.me?batch=1");
+    expect(new Headers(init?.headers).get("trpc-accept")).toBe("application/jsonl");
+  });
+
+  it("slow user.me: returns at the deadline with config as data and user still streaming", async () => {
+    const fetchMock = serveApi({ delays: { "user.me": 600 } });
+    const started = Date.now();
+    const state = await streamBot();
+
+    expect(Date.now() - started).toBeLessThan(500);
+    expect(find(state, trpc.config.get.queryKey())?.state.status).toBe("success");
+    const user = find(state, trpc.user.me.queryKey());
+    expect(user?.state.status).toBe("pending");
+    await expect(user?.promise).resolves.toEqual({ path: "user.me" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("never throws when the api is unreachable: an empty cache (client fetch)", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      throw new TypeError("fetch failed");
+    }) as unknown as typeof fetch;
+
+    const state = await streamBot();
     expect(state.queries).toEqual([]);
   });
 });

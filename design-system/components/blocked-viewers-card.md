@@ -7,11 +7,11 @@ tokens: [color.scheme, radius, tracking]
 
 ## Purpose
 
-The body of the Bot settings Moderation page (`/dashboard/bot/moderation`): the block form and list, beside the mod-only chat commands. Blocking and unblocking save immediately through `config.blockViewer` / `config.unblockViewer`, the same services `!block` / `!unblock` use, so the dashboard list and chat share one list. It never joins the page's Save bar draft.
+The main card of the Bot settings Moderation page (`/dashboard/bot/moderation`): the block form and list. The page sets it beside the mod-only chat commands and wraps it in a `BotSection` that needs `config.get` only, so it shows `BlockedViewersPlaceholder` while that streams and the static legend never waits. Blocking and unblocking save immediately through `config.blockViewer` / `config.unblockViewer`, the same services `!block` / `!unblock` use, so the dashboard list and chat share one list. It never joins the page's Save bar draft.
 
 ## Anatomy
 
-- Two-column grid at `lg` (card + `18rem` legend): a `Card.panel` "Blocked viewers", then `CommandReference` "Mod commands in chat" of `moderationCommands` (under the card on small screens).
+- A `Card.panel` "Blocked viewers". The page (`moderation-page.tsx`) owns the two-column grid at `lg` (card + `18rem` legend) and the `CommandReference` "Mod commands in chat" of `moderationCommands` (under the card on small screens).
 - Card body: the "Twitch username" field and an outline "Block viewer" button wrapped in `ConfirmDialog`, with a hint line under the field ("Block list is full. Unblock someone first." / "Letters, numbers and underscores only").
 - Then the "Block list" section: an `h3`, the count as "n of 200", a "Filter blocked viewers" search field once the list holds more than `BLOCKED_FILTER_THRESHOLD` (8) names, and a hairline-divided list of logins (mono), each with a ghost "Unblock" button.
 
