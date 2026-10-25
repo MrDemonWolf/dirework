@@ -1,14 +1,14 @@
 ---
 title: Getting started
-description: Run DireWork on your own computer in a few minutes
+description: Try DireWork locally before deploying your own instance
 ---
 
 This guide gets DireWork running on your own machine so you can try it before you
 deploy it anywhere. Going to production instead? Jump to [Deployment](/docs/deployment).
 
 <Callout>
-  **No deep tech knowledge needed.** You copy a few commands and paste two Twitch keys.
-  Each step below says exactly what to do.
+  This is the local development setup. For a stream-ready deployment on your own
+  Cloudflare account, follow [Deployment](/docs/deployment).
 </Callout>
 
 ## What you need first
@@ -56,7 +56,7 @@ openssl rand -base64 32
 ```
 
 Don't have the Twitch keys yet? The [Twitch integration setup](/docs/twitch-oauth) page walks
-you through getting them — it takes about two minutes. For local use, add **both** of
+you through getting them. For local use, add **both** of
 these redirect URLs to your Twitch app:
 
 ```
@@ -126,7 +126,7 @@ stops other devices on your network from using the bypass.
 
 ## Where to go next
 
-- [Connect your bot account](/docs/twitch-oauth#step-5-connect-the-bot-account) so chat commands work
+- [Connect your bot account](/docs/twitch-oauth#step-5-connect-the-bot-account), then keep one bot console open in OBS or a browser tab so chat commands work
 - [Add the overlays to OBS](/docs/overlays) — the timer and task list
 - [Learn the chat commands](/docs/chat-commands) your viewers will use
 - [Make it your own](/docs/features) in the Theme Center

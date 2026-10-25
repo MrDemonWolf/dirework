@@ -4,8 +4,9 @@ description: Put DireWork online on Cloudflare Workers
 ---
 
 DireWork runs on **Cloudflare Workers** with a **D1** (SQLite) database — two small
-workers and a database, all on Cloudflare's free plan. No servers, no Docker, no
-database to babysit.
+workers and a database. The core app supports Cloudflare's free plan within its
+account quotas. Free-tier support is a project commitment; no paid Cloudflare
+service is required. No servers or Docker to maintain.
 
 You deploy these resources to your own Cloudflare account and operate your own instance. DireWork is always self-hosted; MrDemonWolf, Inc. does not provide a hosted or managed service.
 
@@ -198,6 +199,7 @@ To tear everything down again: `bun run destroy` (with the same values exported)
 - [ ] The **bot page** is added to OBS as a browser source (or pinned in a tab) — the
   bot only listens to chat while that page is open. See [Chat commands](/docs/chat-commands).
 - [ ] The timer and task list overlays show up in OBS
+- [ ] A real chat command adds a task, and a timer cycle advances in OBS
 - [ ] One bot page is open. A second copy won't run commands twice (DireWork dedupes each
   chat message by its Twitch message id), but every command then costs two Worker requests
 - [ ] Bot and overlay URLs are kept private and regenerated after any suspected disclosure
@@ -205,6 +207,7 @@ To tear everything down again: `bun run destroy` (with the same values exported)
 - [ ] Deploy secrets live in the `production` environment, with no leftover repository-level copies
 - [ ] GitHub secret scanning and push protection are enabled
 - [ ] GitHub and Cloudflare accounts use MFA and least-privilege access
+- [ ] Monitoring and the recovery checks below are complete
 
 ## Monitoring
 
@@ -230,7 +233,7 @@ Alchemy step's output.
   page must reach them without an Access login.
 </Callout>
 
-Between deploys nothing watches the instance, so:
+For monitoring between deploys, choose one of these options:
 
 - Point a free uptime monitor (UptimeRobot, Better Stack, etc.) at
   `https://dirework-api.<your-subdomain>.workers.dev/ready`. It returns `503` when D1 is
@@ -248,8 +251,48 @@ Between deploys nothing watches the instance, so:
   variables unset and the workflow does nothing. GitHub runs schedules only on the default
   branch, may start one a few minutes late, and pauses them after 60 days without activity
   in the repository.
-- In the Cloudflare dashboard, go to **Notifications** and add a Workers usage alert so you
-  hear about approaching the daily request limit before your overlays go dark mid-stream.
+
+Also review usage:
+
+- Review account-wide Workers requests and D1 usage in the Cloudflare dashboard before
+  long streams and after a representative session. Notification types depend on your
+  plan: enable a relevant usage alert if your account offers one, but do not rely on
+  a paid alerting feature for the free-tier setup. See
+  [Cloudflare's available notifications](https://developers.cloudflare.com/notifications/notification-available/).
+
+## Recovery checks
+
+Before your first production stream, run the local recovery drill from the repository:
+
+```bash
+bun run recovery:check
+```
+
+This exports and restores schema first, then data, for a **synthetic local database**
+with the project's migrations. It compares all application rows and schema/indexes
+and checks foreign keys. It does not read or change production, and it does not test Cloudflare
+Time Travel. A passing drill confirms the local recovery path, not a recovered
+production instance.
+
+For your own deployment:
+
+- Export the production database before a recovery operation, using
+  `bunx wrangler d1 export dirework-db --remote --output=dirework-backup.sql`.
+  Store that file privately: it contains session data, bot credentials, and private URLs.
+- Practice importing an export into a separate test database. Check tasks and settings
+  there before considering the backup usable. Never restore over production as a test.
+  Create all tables before importing rows that reference them; export schema and data
+  separately with Wrangler's `--no-data` and `--no-schema` flags if a combined import
+  fails on a missing parent table. Data imports may need `PRAGMA defer_foreign_keys = ON;`
+  at the start; do not disable constraints permanently.
+- D1 Time Travel is always enabled: the recovery window is **7 days on Free** and
+  **30 days on Paid**. See [Cloudflare's D1 limits](https://developers.cloudflare.com/d1/platform/limits/).
+- After a real restore, review sessions and private URLs and reconnect the bot if needed.
+  A database restore also restores older authorization state; it does not undo Twitch's
+  token changes or roll back Worker code. Follow [Rolling back](#rolling-back).
+
+Private backup storage and a restore drill are sufficient to start; an R2 bucket or
+another paid service is not required.
 
 ## Recovering an instance someone else claimed
 
@@ -361,9 +404,11 @@ and pauses entirely while its tab is hidden or minimized; overlays keep polling.
 So a six-hour stream with only the overlays running uses about 9k requests, and with
 the dashboard left open but untouched about 14k. Actively using the dashboard the
 whole time costs about 45k, and a 12-hour day of constant dashboard use (about 89k)
-comes close to the daily cap. Once the cap is hit, overlays freeze on their last state and chat commands
-stop until the reset. If you outgrow the request cap, the $5 Workers paid plan raises
-every limit.
+comes close to the daily cap. Once the cap is hit, overlays can no longer fetch updates and chat commands
+stop until the reset. Close unused OBS sources and dashboard tabs to reduce usage.
+Workers Paid is optional if your account outgrows the free quotas; it does not remove
+all platform limits. Check [Cloudflare's current pricing](https://developers.cloudflare.com/workers/platform/pricing/)
+before upgrading. The free-tier path remains supported.
 
 ### D1 rows read
 
