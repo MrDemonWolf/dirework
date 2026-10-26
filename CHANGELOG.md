@@ -237,6 +237,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   lucide-react 1.x pin, and Dependabot now bumps the fumadocs packages together.
 
 ### Fixed
+- **The dashboard arrives complete.** Opening the dashboard (or Bot settings) no longer
+  paints grey placeholders that fill in a moment later on a normal load. The page now waits
+  up to 0.8s for its data and arrives finished in one step; placeholders only show when the
+  server is genuinely slow. No extra requests.
 - **The Theme Center opens finished.** Opening or reloading the page painted a loading
   skeleton first and swapped in the real page about 300ms later, even though the data was
   already there; the page then faded in on top of that. It now arrives complete in the first

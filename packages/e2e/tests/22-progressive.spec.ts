@@ -4,7 +4,7 @@ import { API_ORIGIN, DELAY_COOKIE, WEB_ORIGIN } from "../src/env";
 import { expectNoHydrationErrors, signIn, watchHydration } from "./helpers";
 
 // The dashboard loads progressively (apps/web/src/lib/progressive.ts): its data streams from
-// ONE server batch, the first paint waits for it at most SECTIONS_READY_MS (150ms), and a
+// ONE server batch, the first paint waits for it at most SECTIONS_READY_MS (800ms), and a
 // section whose data is slower shows its placeholder and fills in on its own. The e2e api
 // worker can slow named procedures (the `e2e-delay` cookie, src/api-entry.ts) and counts the
 // requests it serves (`/__e2e/requests`), so both halves are checked against the real stack.
@@ -65,6 +65,36 @@ test("a fast hard load paints every section at once, never a placeholder", async
   const served = await apiRequests(page);
   expect(served["/api/auth/get-session"]).toBe(1);
   expect(served[DASHBOARD_BATCH]).toBe(1);
+});
+
+test("a production-speed batch (every procedure ~300ms) still paints complete", async ({
+  page,
+  context,
+}) => {
+  // What production looks like: session read plus D1 round trips put the batch well past the
+  // old 150ms deadline, which painted all three placeholders and filled them 300ms later.
+  await context.addCookies([
+    {
+      name: DELAY_COOKIE,
+      value: "user.me=300,timer.get=300,config.get=300,task.list=300",
+      url: WEB_ORIGIN,
+    },
+  ]);
+  await recordPlaceholderFrames(page);
+  watchHydration(page);
+  await apiRequests(page);
+
+  await page.goto("/dashboard");
+  await expectNoHydrationErrors(page);
+  await expect(page.getByRole("textbox", { name: "New task text" })).toBeVisible();
+  await page.waitForTimeout(500);
+
+  expect(await placeholderFrames(page), "frames that showed a section placeholder").toEqual([]);
+  const served = await apiRequests(page);
+  expect(served["/api/auth/get-session"]).toBe(1);
+  expect(served[DASHBOARD_BATCH]).toBe(1);
+
+  await context.clearCookies({ name: DELAY_COOKIE });
 });
 
 test("a slow procedure holds back only its own section", async ({ page, context }) => {

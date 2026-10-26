@@ -71,5 +71,5 @@ no headings or text a screen reader would announce as content.
 
 Whether a bot account is connected decides the Overview's arrangement (the account card goes
 first while none is). While `user.me` streams that is unknown, so `BotOverviewPlaceholder` takes
-the connected arrangement; on an instance with no bot account a `user.me` slower than 150ms
+the connected arrangement; on an instance with no bot account a `user.me` slower than `SECTIONS_READY_MS`
 moves the cards once when it lands.

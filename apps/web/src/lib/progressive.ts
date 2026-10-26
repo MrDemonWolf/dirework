@@ -13,13 +13,24 @@
 //  - fast load: one paint, complete. No placeholder is ever rendered.
 //  - slow load: the paint at the deadline carries every section that made it plus a
 //    placeholder for each one still in flight, and each of those fills in on its own.
-// That is a delayed fallback (a placeholder only for data slower than ~150ms) that React's
-// reveal throttle cannot defeat.
+// That is a delayed fallback (a placeholder only for data slower than the deadline) that
+// React's reveal throttle cannot defeat.
+//
+// Why 800ms and not less: a partial first paint never finishes the page sooner. Its
+// placeholders stay up for at least the 300ms throttle, so a batch that lands just after the
+// deadline still completes ~300ms after the partial frame, later than holding would have. And
+// a production batch is slower than it looks locally: the api answers it after the session
+// read plus each procedure's D1 reads, ~45ms a round trip from the edge (`/ready` minus
+// `/health`), more on a cold isolate. At the old 150ms most real loads missed the deadline
+// and painted every section as a placeholder (measured with every procedure slowed 160ms:
+// 3 of 3 hard loads partial, complete at ~510ms). 800ms keeps first paint, session check
+// included, inside the ~1s that still reads as one uninterrupted step, and only an api
+// that slow shows placeholders, the honest signal that it is slow.
 
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
 
 /** First-paint deadline: sections whose data is slower show a placeholder and stream in. */
-export const SECTIONS_READY_MS = 150;
+export const SECTIONS_READY_MS = 800;
 
 /**
  * Resolves when every promise in `work` has settled (resolved or rejected) or after `ms`,
