@@ -137,8 +137,7 @@ function useTimerContext() {
 }
 
 /**
- * Wraps the dashboard timer console. Polls `timer.get` (shared query key with
- * `TimerStatusBadge`) and reads `config.get` once to seed the editable fields; it does
+ * Wraps the dashboard timer console. Polls `timer.get` and reads `config.get` once to seed the editable fields; it does
  * not hold the per-second countdown, so ticks never re-render its consumers.
  */
 export function TimerProvider({ children }: { children: ReactNode }) {

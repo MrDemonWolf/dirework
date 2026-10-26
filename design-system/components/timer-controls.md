@@ -16,8 +16,7 @@ cached `task.list`, rendered by the dashboard), `TimerSettings` and `ObsSources`
 
 ## Anatomy
 
-- `TimerProvider` owns the `timer.get` poll (`DASHBOARD_TIMER_QUERY_OPTS`, the same key as
-  `TimerStatusBadge`), seeds the editable fields once from `config.get`, holds the
+- `TimerProvider` owns the `timer.get` poll (`DASHBOARD_TIMER_QUERY_OPTS`), seeds the editable fields once from `config.get`, holds the
   start / pause / resume / skip / reset mutations, and formats the settings summary from the
   SAVED config (`formatSessionSummary` in `lib/session-summary.ts`, `TIMER_CONFIG_DEFAULTS`
   for anything missing).

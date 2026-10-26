@@ -115,6 +115,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hover that could never happen.
 
 ### Changed
+- **The dashboard header no longer repeats the timer's status.** The "Ready" / "Focusing"
+  chip beside the bot chip duplicated the phase chip on the Timer card's heading, so the
+  header now holds only the Setup button (once the checklist is folded away) and the bot
+  chip. No change to requests: the Timer card's poll was the one both chips read.
 - **One place for your OBS sources.** The timer and tasks overlay URLs now sit together under
   the timer controls in **OBS sources**, with a **Timer** and a **Tasks** tab. Each tab keeps
   Show / Copy / Reset, the recommended source size (300 × 300, 700 × 800) and the Live

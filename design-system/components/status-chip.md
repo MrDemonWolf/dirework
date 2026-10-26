@@ -9,7 +9,7 @@ tokens: [color.scheme, font.size, tracking, radius]
 
 The LED-style status indicator of the Focus Console language: a small dot plus a mono
 uppercase label. Shows timer phase, bot connection, unsaved changes, "Host"/"Active" task
-markers and similar states. Used by the dashboard, `timer-controls`, `timer-status-badge`,
+markers and similar states. Used by the dashboard, `timer-controls`,
 `task-manager`, `save-bar`, `stream-scene`, the bot-settings cards and the Theme Center page.
 
 ## Anatomy
