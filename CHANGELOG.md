@@ -16,7 +16,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   when none has checked in for 5 minutes. Cost: each open bot page checks in every 2 minutes
   (one Worker request and one D1 write: 30 an hour, at most 720 a day per page left open
   around the clock); a stale page's relays are refused from the token read the api already
-  does, and the chip reads `user.me` (no new request or poll). New migration
+  does, and the chip reads `user.me`; while a bot runs and the dashboard is visible, it
+  re-checks `user.me` once when the lease would have run out (about one refetch per 5
+  minutes, nothing while no bot runs or the tab is hidden). Resetting the bot URL frees the
+  slot at once, so the new URL's page goes live right away. New migration
   `0021_bot_page_lease` (add-only).
 - **Dashboard stats.** A strip under the greeting shows focus time, pomodoros and tasks done
   today (and how many of those came from chat), plus the days you streamed this week and your

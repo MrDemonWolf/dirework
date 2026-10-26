@@ -2,47 +2,22 @@ import { describe, expect, it } from "vitest";
 
 import { BOT_LEASE_TTL_MS } from "@dirework/api/bot-lease";
 
-import {
-  botConsoleStatus,
-  botMuteStatus,
-  dashboardBotChip,
-  msUntilBotOffline,
-} from "../bot-status";
+import { botConsoleStatus, botMuteStatus, dashboardBotChip } from "../bot-status";
 
 describe("dashboardBotChip", () => {
-  const fetchedAt = 1_000_000;
-
   it("keeps the no-account state", () => {
-    expect(dashboardBotChip(false, { seenMsAgo: 0, fetchedAt, now: fetchedAt })).toEqual({
-      tone: "idle",
-      label: "Bot not connected",
-    });
+    expect(dashboardBotChip(false, 0)).toEqual({ tone: "idle", label: "Bot not connected" });
   });
 
-  it("says connected while the last check-in is inside the lease", () => {
-    expect(dashboardBotChip(true, { seenMsAgo: 60_000, fetchedAt, now: fetchedAt })).toEqual({
-      tone: "live",
-      label: "Bot connected",
-    });
+  it("says connected when the last answer had a bot page inside the lease", () => {
+    expect(dashboardBotChip(true, 60_000)).toEqual({ tone: "live", label: "Bot connected" });
+    expect(dashboardBotChip(true, BOT_LEASE_TTL_MS - 1).label).toBe("Bot connected");
   });
 
-  it("says offline with no check-in, or one older than the lease", () => {
+  it("says offline only when an answer says so: no check-in, or one older than the lease", () => {
     const offline = { tone: "idle", label: "Bot offline" };
-    expect(dashboardBotChip(true, { seenMsAgo: null, fetchedAt, now: fetchedAt })).toEqual(offline);
-    expect(
-      dashboardBotChip(true, { seenMsAgo: BOT_LEASE_TTL_MS, fetchedAt, now: fetchedAt }),
-    ).toEqual(offline);
-  });
-
-  it("ages the answer on the browser's own clock, so it goes offline without a refetch", () => {
-    const presence = { seenMsAgo: 60_000, fetchedAt };
-    expect(msUntilBotOffline({ ...presence, now: fetchedAt })).toBe(BOT_LEASE_TTL_MS - 60_000);
-    expect(msUntilBotOffline({ ...presence, now: fetchedAt + 30_000 })).toBe(
-      BOT_LEASE_TTL_MS - 90_000,
-    );
-    const later = { ...presence, now: fetchedAt + BOT_LEASE_TTL_MS - 60_000 };
-    expect(msUntilBotOffline(later)).toBe(0);
-    expect(dashboardBotChip(true, later).label).toBe("Bot offline");
+    expect(dashboardBotChip(true, null)).toEqual(offline);
+    expect(dashboardBotChip(true, BOT_LEASE_TTL_MS)).toEqual(offline);
   });
 });
 

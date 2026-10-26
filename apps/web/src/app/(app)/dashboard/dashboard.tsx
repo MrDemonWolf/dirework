@@ -48,7 +48,8 @@ import {
 } from "@/components/timer-controls";
 import { TimerStatusBadge } from "@/components/timer-status-badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { dashboardBotChip, msUntilBotOffline } from "@/lib/bot-status";
+import { scheduleBotPresenceCheck } from "@/lib/bot-presence";
+import { dashboardBotChip } from "@/lib/bot-status";
 import { formatGreeting, pickGreeting } from "@/lib/greetings";
 import { setupProgress } from "@/lib/setup-steps";
 import { describeTrpcError } from "@/lib/trpc-errors";
@@ -202,21 +203,31 @@ function HeaderBand({ user, status }: { user: SessionUser; status: React.ReactNo
 }
 
 /**
- * The clock the bot chip reads. `user.me` carries the bot page's last check-in as an age; the
- * chip must flip to "Bot offline" when that age passes the lease, which no refetch announces,
- * so ONE timer re-renders at exactly that moment. No request, no poll: a page coming online
- * shows on the next `user.me` fetch (load, focus, an action that refreshes it).
+ * Keeps the bot chip honest without a poll: when the lease in the last `user.me` answer
+ * would have run out, refetch `user.me` once (visible tab only, at most once per lease
+ * window) and let the fresh answer decide (lib/bot-presence.ts). While the last answer
+ * said no bot page runs, nothing is scheduled: a page coming online shows on the next
+ * `user.me` fetch (load, focus, an action that refreshes it).
  */
-function useBotPresenceClock(seenMsAgo: number | null | undefined, fetchedAt: number): number {
-  const [now, setNow] = useState(() => fetchedAt);
-  useEffect(() => {
-    setNow(Date.now());
-    const wait = msUntilBotOffline({ seenMsAgo, fetchedAt, now: Date.now() });
-    if (wait <= 0) return;
-    const timer = setTimeout(() => setNow(Date.now()), wait + 50);
-    return () => clearTimeout(timer);
-  }, [seenMsAgo, fetchedAt]);
-  return now;
+function useBotPresenceCheck(
+  seenMsAgo: number | null | undefined,
+  fetchedAt: number,
+  refetch: () => unknown,
+): void {
+  const lastCheck = useRef(Number.NEGATIVE_INFINITY);
+  const [wake, setWake] = useState(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `wake` re-arms the check after a failed refetch or when the tab becomes visible.
+  useEffect(
+    () =>
+      scheduleBotPresenceCheck({
+        seenMsAgo,
+        fetchedAt,
+        lastCheck,
+        refetch,
+        rerun: () => setWake((n) => n + 1),
+      }),
+    [seenMsAgo, fetchedAt, refetch, wake],
+  );
 }
 
 /**
@@ -250,7 +261,7 @@ function HeaderSection({ user }: { user: SessionUser }) {
     reopenRequested.current = false;
   }, [setupCollapsed]);
 
-  const presenceNow = useBotPresenceClock(me.data?.botPageSeenMsAgo, me.dataUpdatedAt);
+  useBotPresenceCheck(me.data?.botPageSeenMsAgo, me.dataUpdatedAt, me.refetch);
 
   if (!me.data) {
     // The streamed `me` failed (or never streamed): the client refetches it on mount. Keep
@@ -270,11 +281,7 @@ function HeaderSection({ user }: { user: SessionUser }) {
     );
   }
 
-  const botChip = dashboardBotChip(me.data.botAccount != null, {
-    seenMsAgo: me.data.botPageSeenMsAgo,
-    fetchedAt: me.dataUpdatedAt,
-    now: presenceNow,
-  });
+  const botChip = dashboardBotChip(me.data.botAccount != null, me.data.botPageSeenMsAgo);
 
   return (
     <>

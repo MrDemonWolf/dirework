@@ -6,6 +6,7 @@ import { provisionSingletonRows } from "@dirework/db/provision";
 import { BOT_LEASE_TTL_MS, isBotLeaseLive, isLeaseHeldByOther } from "../../bot-lease";
 import { createSqliteDb } from "../../__tests__/helpers/sqlite-db";
 import { claimBotLease, claimBotLeaseStmt, releaseBotLease } from "../bot-lease";
+import { rotateInstanceToken } from "../tokens";
 
 /**
  * The one-bot-page lease is a guarded UPDATE: who wins lives in its WHERE clause, so it runs
@@ -111,6 +112,26 @@ describe("claimBotLease", () => {
       expect(details.filter((d) => /^SCAN/.test(d))).toEqual([]);
     },
   );
+});
+
+describe("rotateInstanceToken and the lease", () => {
+  it("a bot URL reset frees the lease, so the new URL's page goes live at once", async () => {
+    await claimBotLease(db, { instanceId: PAGE_A });
+
+    await rotateInstanceToken(db, "botToken");
+
+    expect(await lease()).toEqual({ instanceId: null, seenAt: null });
+    expect(await claimBotLease(db, { instanceId: PAGE_B })).toBe(true);
+  });
+
+  it("an overlay URL reset leaves the running bot page alone", async () => {
+    await claimBotLease(db, { instanceId: PAGE_A, now: T0 });
+
+    await rotateInstanceToken(db, "overlayTimerToken");
+    await rotateInstanceToken(db, "overlayTasksToken");
+
+    expect(await lease()).toEqual({ instanceId: PAGE_A, seenAt: new Date(T0) });
+  });
 });
 
 describe("releaseBotLease", () => {
