@@ -392,6 +392,18 @@ export async function markTaskDone(
   return null;
 }
 
+/** The fields startTask / pauseTask decide from: a caller that already holds the row passes it. */
+export interface TaskStatusRow {
+  id: string;
+  status: string;
+  authorTwitchId: string;
+}
+
+/** The row as given, or read by id (the dashboard path, which has only the id). */
+async function taskStatusRow(db: DbClient, task: string | TaskStatusRow) {
+  return typeof task === "string" ? readTaskStatus(db, task) : task;
+}
+
 function readTaskStatus(db: DbClient, id: string) {
   return db.query.task.findFirst({
     where: eq(schema.task.id, id),
@@ -590,12 +602,17 @@ export type StartTaskResult =
  * guarded UPDATEs in ONE batch and each evaluates its condition (no focus /
  * started count under the cap) inside the statement, so concurrent starts can
  * never exceed the cap or create a second focus. Anything but a pending task
- * (gone, done, already started or the focus) is `not_startable`.
+ * (gone, done, already started or the focus) is `not_startable`. A caller that
+ * already loaded the row (chat) passes it instead of the id: no re-read, and the
+ * guards above still decide, so a stale row can only lose.
  */
-export async function startTask(db: DbClient, id: string): Promise<StartTaskResult> {
-  const existing = await readTaskStatus(db, id);
+export async function startTask(
+  db: DbClient,
+  task: string | TaskStatusRow,
+): Promise<StartTaskResult> {
+  const existing = await taskStatusRow(db, task);
   if (existing?.status !== "pending") return { outcome: "not_startable", task: null };
-  const author = existing.authorTwitchId;
+  const { id, authorTwitchId: author } = existing;
   const stillPending = () =>
     and(
       eq(schema.task.id, id),
@@ -603,7 +620,7 @@ export async function startTask(db: DbClient, id: string): Promise<StartTaskResu
       eq(schema.task.status, "pending"),
     );
 
-  const [focusedRows, startedRows] = await db.batch([
+  const [focusedRows, startedRows, afterRows] = await db.batch([
     db
       .update(schema.task)
       .set({ status: "active" })
@@ -615,13 +632,14 @@ export async function startTask(db: DbClient, id: string): Promise<StartTaskResu
       .set({ status: "started" })
       .where(and(stillPending(), sql`${startedCountSql(author)} < ${MAX_STARTED_PER_AUTHOR}`))
       .returning(),
+    // Read in the same round trip: tells a full cap from a task that changed under us.
+    db.select({ status: schema.task.status }).from(schema.task).where(eq(schema.task.id, id)),
   ]);
   if (focusedRows[0]) return { outcome: "focused", task: focusedRows[0] };
   if (startedRows[0]) return { outcome: "started", task: startedRows[0] };
 
   // Neither matched: the cap was full, unless the task changed under us.
-  const after = await readTaskStatus(db, id);
-  return after?.status === "pending"
+  return afterRows[0]?.status === "pending"
     ? { outcome: "cap_reached", task: null }
     : { outcome: "not_startable", task: null };
 }
@@ -632,9 +650,12 @@ export async function startTask(db: DbClient, id: string): Promise<StartTaskResu
  * never the one just paused) is promoted in the same atomic batch, so the
  * author is never left without a focus while other work is queued. Guarded on
  * the status that was read; null when it is not started/active or went stale.
+ * A caller that already loaded the row (chat) passes it, so no re-read; the
+ * status guard in each UPDATE still decides.
  */
-export async function pauseTask(db: DbClient, id: string) {
-  const existing = await readTaskStatus(db, id);
+export async function pauseTask(db: DbClient, task: string | TaskStatusRow) {
+  const existing = await taskStatusRow(db, task);
+  const id = existing?.id ?? "";
   if (existing?.status === "started") {
     const [paused] = await db
       .update(schema.task)

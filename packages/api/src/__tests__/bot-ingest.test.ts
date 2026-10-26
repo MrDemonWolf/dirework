@@ -1155,6 +1155,36 @@ describe("bot.ingest !start / !pause / !check with started tasks", () => {
     expect(await statuses()).toEqual(["active", "started", "pending", "started"]);
   });
 
+  it("!start and !pause reuse the row they loaded: one task read per line, no re-read", async () => {
+    await seed(3);
+
+    /** The task-table reads and batches a chat line makes (D1 round trips). */
+    async function taskRoundTrips(line: string) {
+      const findFirst = vi.spyOn(db.query.task, "findFirst");
+      const findMany = vi.spyOn(db.query.task, "findMany");
+      const batch = vi.spyOn(db, "batch");
+      try {
+        await say(line);
+        return {
+          reads: findFirst.mock.calls.length + findMany.mock.calls.length,
+          batches: batch.mock.calls.length,
+        };
+      } finally {
+        findFirst.mockRestore();
+        findMany.mockRestore();
+        batch.mockRestore();
+      }
+    }
+
+    // The open-list read, then startTask's one batch (its status check rides inside it).
+    expect(await taskRoundTrips("!start 2")).toEqual({ reads: 1, batches: 1 });
+    // The open-list read, then pauseTask's guarded UPDATE.
+    expect(await taskRoundTrips("!pause 2")).toEqual({ reads: 1, batches: 0 });
+    // Bare !pause: the focus read, then one batch (pause + promote).
+    expect(await taskRoundTrips("!pause")).toEqual({ reads: 1, batches: 1 });
+    expect(await statuses()).toEqual(["pending", "active", "pending"]);
+  });
+
   it("!start on the focus, a started task or past the end is not startable", async () => {
     await seed(2);
     await say("!start 2");
