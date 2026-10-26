@@ -3,6 +3,9 @@ import { DrizzleQueryError, type SQL, and, asc, desc, eq, inArray, lt, ne, sql }
 import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 
+import { localDay } from "../stats-days";
+import { countTaskDoneStmt, readStatsTimeZone } from "./stats-service";
+
 // Single implementation of every task mutation (audit M1) — called by both
 // the tRPC task router and the bot ingest path.
 
@@ -255,13 +258,18 @@ export function isUniqueViolation(err: unknown): boolean {
  * completes a task that was promoted to active since the caller read it —
  * that one needs the promote batch in `markTaskDone`. Null when nothing matched.
  */
-export async function completeTask(db: DbClient, id: string) {
-  const [updated] = await db
-    .update(schema.task)
-    .set({ status: "done", completedAt: new Date() })
-    .where(and(eq(schema.task.id, id), eq(schema.task.status, "pending")))
-    .returning();
-  return updated ?? null;
+export async function completeTask(db: DbClient, id: string, timeZone?: string | null) {
+  const zone = timeZone === undefined ? await readStatsTimeZone(db) : timeZone;
+  const completedAt = new Date();
+  const [updatedRows] = await db.batch([
+    db
+      .update(schema.task)
+      .set({ status: "done", completedAt })
+      .where(and(eq(schema.task.id, id), eq(schema.task.status, "pending")))
+      .returning(),
+    countTaskDoneStmt(db, { id, completedAt }, localDay(completedAt.getTime(), zone)),
+  ]);
+  return updatedRows[0] ?? null;
 }
 
 /**
@@ -277,14 +285,18 @@ export async function completeTask(db: DbClient, id: string) {
  * An already-done task is a no-op (null), not a rewrite.
  */
 export async function markTaskDone(db: DbClient, id: string) {
-  const [first] = await Promise.all([readTaskStatus(db, id), purgeExpiredDoneTasks(db)]);
+  const [first, , timeZone] = await Promise.all([
+    readTaskStatus(db, id),
+    purgeExpiredDoneTasks(db),
+    readStatsTimeZone(db),
+  ]);
   let existing = first;
 
   for (let attempt = 0; existing && existing.status !== "done" && attempt < 2; attempt++) {
     const done =
       existing.status === "active"
-        ? await completeActiveTask(db, existing)
-        : await completeTask(db, existing.id);
+        ? await completeActiveTask(db, existing, timeZone)
+        : await completeTask(db, existing.id, timeZone);
     if (done) return done;
     existing = await readTaskStatus(db, id);
   }
@@ -298,15 +310,22 @@ function readTaskStatus(db: DbClient, id: string) {
   });
 }
 
-async function completeActiveTask(db: DbClient, task: { id: string; authorTwitchId: string }) {
+async function completeActiveTask(
+  db: DbClient,
+  task: { id: string; authorTwitchId: string },
+  timeZone: string | null,
+) {
+  const completedAt = new Date();
   const [completedRows] = await db.batch([
     db
       .update(schema.task)
-      .set({ status: "done", completedAt: new Date() })
+      .set({ status: "done", completedAt })
       // Guarded: if another request already completed it, we don't double-apply
       // and the paired promote is a no-op via its own not-exists guard.
       .where(and(eq(schema.task.id, task.id), eq(schema.task.status, "active")))
       .returning(),
+    // Counts only if the UPDATE above won (see countTaskDoneStmt).
+    countTaskDoneStmt(db, { id: task.id, completedAt }, localDay(completedAt.getTime(), timeZone)),
     promoteNextPendingStmt(db, task.authorTwitchId),
   ]);
   return completedRows[0] ?? null;
@@ -323,12 +342,14 @@ export async function replaceActiveTask(
   text: string,
   opts?: TaskPlacementOpts,
 ) {
-  const [placement] = await Promise.all([
+  const [placement, , timeZone] = await Promise.all([
     resolveTaskPlacement(db, author.twitchId, opts?.isBroadcaster),
     purgeExpiredDoneTasks(db),
+    readStatsTimeZone(db),
   ]);
   const replacementId = crypto.randomUUID();
-  const [, completedRows, createdRows] = await db.batch([
+  const completedAt = new Date();
+  const [, completedRows, , createdRows] = await db.batch([
     db.insert(schema.task).select(sql`
       select
         ${replacementId},
@@ -349,7 +370,7 @@ export async function replaceActiveTask(
     `),
     db
       .update(schema.task)
-      .set({ status: "done", completedAt: new Date() })
+      .set({ status: "done", completedAt })
       .where(
         and(
           eq(schema.task.id, activeTask.id),
@@ -358,6 +379,11 @@ export async function replaceActiveTask(
         ),
       )
       .returning(),
+    countTaskDoneStmt(
+      db,
+      { id: activeTask.id, completedAt },
+      localDay(completedAt.getTime(), timeZone),
+    ),
     db
       .update(schema.task)
       .set({ status: "active" })

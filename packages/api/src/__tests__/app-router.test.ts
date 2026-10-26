@@ -983,3 +983,62 @@ describe("config.updateBotSettings partial saves against real SQLite", () => {
     });
   });
 });
+
+describe("dashboard stats against real SQLite", () => {
+  const OWNER = {
+    id: "owner",
+    name: "streamer",
+    email: "owner@example.test",
+    twitchId: "1000",
+    displayName: "Streamer",
+    isOwner: true,
+  };
+  const session = { user: { ...OWNER } };
+
+  async function claimedInstance() {
+    const { db } = await createSqliteDb();
+    await provisionSingletonRows(db);
+    await db.insert(schema.user).values(OWNER);
+    return { db, owner: appRouter.createCaller({ session, db } as unknown as Context) };
+  }
+
+  it("stats.summary starts empty, then counts a task the owner marks done", async () => {
+    const { owner } = await claimedInstance();
+
+    const empty = await owner.stats.summary();
+    expect(empty.today).toMatchObject({ focusMs: 0, pomodoros: 0, tasksDone: 0 });
+    expect(empty.days).toHaveLength(14);
+    expect(empty.timeZone).toBe("UTC");
+
+    const task = await owner.task.create({ text: "ship stats" });
+    await owner.task.markDone({ id: task?.id ?? "" });
+
+    const after = await owner.stats.summary();
+    expect(after.today).toMatchObject({ tasksDone: 1, tasksDoneChat: 0 });
+    expect(after.week.tasksDone).toBe(1);
+  });
+
+  it("user.setTimeZone stores a valid zone once and me reports it", async () => {
+    const { owner } = await claimedInstance();
+    expect((await owner.user.me())?.timeZone).toBeNull();
+
+    await expect(owner.user.setTimeZone({ timeZone: "America/Chicago" })).resolves.toEqual({
+      timeZone: "America/Chicago",
+      changed: true,
+    });
+    await expect(owner.user.setTimeZone({ timeZone: "America/Chicago" })).resolves.toEqual({
+      timeZone: "America/Chicago",
+      changed: false,
+    });
+    expect((await owner.user.me())?.timeZone).toBe("America/Chicago");
+    expect((await owner.stats.summary()).timeZone).toBe("America/Chicago");
+  });
+
+  it.each(["Mars/Olympus", "", "x".repeat(65)])("user.setTimeZone rejects %j", async (timeZone) => {
+    const { owner } = await claimedInstance();
+    await expect(owner.user.setTimeZone({ timeZone })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+    expect((await owner.user.me())?.timeZone).toBeNull();
+  });
+});

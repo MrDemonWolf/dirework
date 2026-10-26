@@ -290,11 +290,11 @@ describe("bot.ingest !next", () => {
   it("does not announce a replacement when the active task went stale", async () => {
     await say("!task first");
     // A concurrent dashboard/mod completion lands between the command's read of
-    // the active task and replaceActiveTask's guarded insert/complete/activate
-    // batch (the only three-statement batch on this path).
+    // the active task and replaceActiveTask's guarded insert/complete/count/
+    // activate batch (the only four-statement batch on this path).
     const batch = db.batch.bind(db);
     db.batch = (async (statements: Parameters<typeof batch>[0]) => {
-      if (statements.length === 3) await db.update(schema.task).set({ status: "done" });
+      if (statements.length === 4) await db.update(schema.task).set({ status: "done" });
       return batch(statements);
     }) as unknown as typeof db.batch;
 

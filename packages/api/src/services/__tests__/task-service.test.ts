@@ -250,6 +250,8 @@ function makeBatchDb(opts: { taskFindFirst?: Record<string, unknown>; batchResul
   const db = {
     query: { task: { findFirst: async () => opts.taskFindFirst } },
     update: stmt,
+    // The stats count statement (countTaskDoneStmt) rides in the completion batches.
+    insert: () => ({ select: () => ({ onConflictDoUpdate: () => ({ kind: "count-done" }) }) }),
     batch: async (statements: unknown[]) => {
       batchSpy(statements);
       return opts.batchResults;
@@ -280,13 +282,15 @@ describe("markTaskDone atomicity", () => {
   it("completes and promotes in ONE batch when the task was active", async () => {
     const { db, batchSpy, setSpy } = makeBatchDb({
       taskFindFirst: { id: "t1", status: "active", authorTwitchId: "456" },
-      batchResults: [[{ id: "t1", status: "done" }], [{ id: "t2", status: "active" }]],
+      batchResults: [[{ id: "t1", status: "done" }], [], [{ id: "t2", status: "active" }]],
     });
 
     const done = await markTaskDone(db, "t1");
 
     expect(batchSpy).toHaveBeenCalledOnce();
-    expect(batchSpy.mock.calls[0]?.[0]).toHaveLength(2);
+    // complete, count (stats), promote
+    expect(batchSpy.mock.calls[0]?.[0]).toHaveLength(3);
+    expect(batchSpy.mock.calls[0]?.[0]?.[1]).toEqual({ kind: "count-done" });
     expect(setSpy.mock.calls[0]?.[0]).toMatchObject({ status: "done" });
     expect(setSpy.mock.calls[1]?.[0]).toMatchObject({ status: "active" });
     expect(done).toMatchObject({ id: "t1", status: "done" });
@@ -295,14 +299,17 @@ describe("markTaskDone atomicity", () => {
   it("does not batch a promote when the task was merely pending", async () => {
     // Completing a pending task frees no active slot, so promoting would
     // wrongly activate a second task.
-    const { db, batchSpy } = makeBatchDb({
+    const { db, batchSpy, setSpy } = makeBatchDb({
       taskFindFirst: { id: "t3", status: "pending", authorTwitchId: "456" },
-      batchResults: [],
+      batchResults: [[{ id: "t3", status: "done" }], []],
     });
 
     await markTaskDone(db, "t3");
 
-    expect(batchSpy).not.toHaveBeenCalled();
+    // complete + count (stats) only: no promote statement.
+    expect(batchSpy).toHaveBeenCalledOnce();
+    expect(batchSpy.mock.calls[0]?.[0]).toHaveLength(2);
+    expect(setSpy.mock.calls.map(([values]) => values.status)).toEqual(["done"]);
   });
 
   it("returns null for a task that does not exist", async () => {
@@ -318,6 +325,7 @@ describe("replaceActiveTask atomicity", () => {
     const batchSpy = vi.fn(async (_statements: unknown[]) => [
       { success: true },
       [{ id: "old", status: "done" }],
+      { success: true },
       [{ id: "new", status: "active", text: "next task" }],
     ]);
     const db = {
@@ -331,7 +339,12 @@ describe("replaceActiveTask atomicity", () => {
           return { where: () => ({ returning: () => ({ kind: "complete" }) }) };
         },
       }),
-      insert: () => ({ select: () => ({ kind: "conditional-insert" }) }),
+      insert: () => ({
+        select: () => ({
+          kind: "conditional-insert",
+          onConflictDoUpdate: () => ({ kind: "count" }),
+        }),
+      }),
       batch: batchSpy,
     } as unknown as DbClient;
 
@@ -348,7 +361,8 @@ describe("replaceActiveTask atomicity", () => {
     );
 
     expect(batchSpy).toHaveBeenCalledOnce();
-    expect(batchSpy.mock.calls[0]?.[0]).toHaveLength(3);
+    // insert replacement, complete, count (stats), activate
+    expect(batchSpy.mock.calls[0]?.[0]).toHaveLength(4);
     expect(setSpy.mock.calls).toEqual([
       [{ status: "done", completedAt: expect.any(Date) }],
       [{ status: "active" }],
@@ -357,7 +371,12 @@ describe("replaceActiveTask atomicity", () => {
   });
 
   it("returns no replacement when the old task is stale", async () => {
-    const batchSpy = vi.fn(async (_statements: unknown[]) => [{ success: true }, [], []]);
+    const batchSpy = vi.fn(async (_statements: unknown[]) => [
+      { success: true },
+      [],
+      { success: true },
+      [],
+    ]);
     const db = {
       query: {
         user: { findFirst: async () => ({ twitchId: "owner" }) },
@@ -366,7 +385,12 @@ describe("replaceActiveTask atomicity", () => {
       update: () => ({
         set: () => ({ where: () => ({ returning: () => ({ kind: "update" }) }) }),
       }),
-      insert: () => ({ select: () => ({ kind: "conditional-insert" }) }),
+      insert: () => ({
+        select: () => ({
+          kind: "conditional-insert",
+          onConflictDoUpdate: () => ({ kind: "count" }),
+        }),
+      }),
       batch: batchSpy,
     } as unknown as DbClient;
 
