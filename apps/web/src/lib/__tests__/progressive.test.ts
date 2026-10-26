@@ -143,10 +143,10 @@ describe("dashboard wiring", () => {
   });
 
   it("gives every data-backed section its own boundary and placeholder", () => {
-    for (const name of ["status", "timer", "tasks"]) {
-      expect(dashboard).toContain(`<SectionPlaceholder name="${name}">`);
+    for (const name of ["status", "stats", "timer", "focus-chart", "tasks"]) {
+      expect(dashboard).toMatch(new RegExp(`<SectionPlaceholder name="${name}"[ >]`));
     }
-    expect(dashboard.match(/<ProgressiveSection\b/g)).toHaveLength(3);
+    expect(dashboard.match(/<ProgressiveSection\b/g)).toHaveLength(5);
     // No entrance animation on the grid: sections appear in place, they do not rise in.
     expect(dashboard).not.toContain("stagger-reveal");
   });

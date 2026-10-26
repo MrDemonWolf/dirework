@@ -21,10 +21,18 @@ import type { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { ConsoleRule } from "@/components/console-rule";
 import {
+  FocusChartPlaceholder,
+  StatTilesPlaceholder,
   StatusClusterPlaceholder,
   TaskBoardPlaceholder,
   TimerConsoleBodyPlaceholder,
 } from "@/components/dashboard-skeleton";
+import {
+  FocusChart,
+  StatTiles,
+  useStatsRefresh,
+  useTimeZoneSync,
+} from "@/components/dashboard-stats";
 import { ProgressiveSection, SectionPlaceholder } from "@/components/progressive-section";
 import { QueryError } from "@/components/query-error";
 import { SecretUrlRow } from "@/components/secret-url-row";
@@ -200,6 +208,8 @@ function HeaderBand({ user, status }: { user: SessionUser; status: React.ReactNo
  */
 function HeaderSection({ user }: { user: SessionUser }) {
   const me = useQuery(trpc.user.me.queryOptions());
+  // Stats bucket by the owner's local day: report this browser's zone if it differs.
+  useTimeZoneSync(me.data ? me.data.timeZone : undefined);
 
   // Setup checklist: "Finish later" hides the card and the header band's Setup button
   // brings it back. Focus follows only those clicks: collapsing hands it to the button,
@@ -302,8 +312,18 @@ function TimerConsoleBody() {
   return (
     <TimerProvider>
       <div className="grid lg:grid-cols-5">
-        <div className="flex items-center justify-center px-5 py-8 lg:col-span-3">
+        <div className="flex flex-col items-center justify-center gap-8 px-5 py-8 lg:col-span-3">
           <TimerInstrument />
+          <ProgressiveSection
+            queryKeys={[trpc.stats.summary.queryKey()]}
+            fallback={
+              <SectionPlaceholder name="focus-chart" className="w-full max-w-sm">
+                <FocusChartPlaceholder />
+              </SectionPlaceholder>
+            }
+          >
+            <FocusChart />
+          </ProgressiveSection>
         </div>
         <div className="flex min-w-0 flex-col gap-5 border-t border-border/40 px-5 py-5 lg:col-span-2 lg:border-t-0 lg:border-l">
           <TimerTransport />
@@ -360,6 +380,8 @@ function TaskBoard() {
 export default function Dashboard({ session }: { session: typeof authClient.$Infer.Session }) {
   const meKey = trpc.user.me.queryKey();
   const timerKey = trpc.timer.get.queryKey();
+  // Stats are never polled: they refetch when the timer/task polls see a change.
+  useStatsRefresh();
 
   return (
     <div className="container mx-auto max-w-content px-4 py-8">
@@ -377,6 +399,17 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
         }
       >
         <HeaderSection user={session.user} />
+      </ProgressiveSection>
+
+      <ProgressiveSection
+        queryKeys={[trpc.stats.summary.queryKey()]}
+        fallback={
+          <SectionPlaceholder name="stats">
+            <StatTilesPlaceholder />
+          </SectionPlaceholder>
+        }
+      >
+        <StatTiles />
       </ProgressiveSection>
 
       <div className="grid gap-6">

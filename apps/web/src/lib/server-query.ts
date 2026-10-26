@@ -45,13 +45,17 @@ export async function streamQueries(
   });
 }
 
-/** Dashboard home: session-scoped user (overlay tokens, bot, setup), timer, config, tasks. */
+/**
+ * Dashboard home: session-scoped user (overlay tokens, bot, setup), timer, config, tasks and
+ * the stats summary — still ONE batch, so the stats cost no extra request.
+ */
 export function streamDashboard(): Promise<DehydratedState> {
   return streamQueries((t, queryClient) => [
     queryClient.prefetchQuery(t.user.me.queryOptions()),
     queryClient.prefetchQuery(t.timer.get.queryOptions()),
     queryClient.prefetchQuery(t.config.get.queryOptions()),
     queryClient.prefetchQuery(t.task.list.queryOptions()),
+    queryClient.prefetchQuery(t.stats.summary.queryOptions()),
   ]);
 }
 

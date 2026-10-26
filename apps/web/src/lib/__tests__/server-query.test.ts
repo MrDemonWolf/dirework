@@ -38,6 +38,7 @@ function serveApi({
     timer: t.router({ get: proc("timer.get") }),
     config: t.router({ get: proc("config.get") }),
     task: t.router({ list: proc("task.list") }),
+    stats: t.router({ summary: proc("stats.summary") }),
   });
   const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) =>
     fetchRequestHandler({ endpoint: "/trpc", req: new Request(url, init), router }),
@@ -65,13 +66,14 @@ describe("streamDashboard", () => {
       trpc.timer.get.queryKey(),
       trpc.config.get.queryKey(),
       trpc.task.list.queryKey(),
+      trpc.stats.summary.queryKey(),
     ]
       .map((queryKey) => keyOf({ queryKey }))
       .sort();
   const find = (state: Awaited<ReturnType<typeof streamDashboard>>, queryKey: unknown) =>
     state.queries.find((query) => keyOf(query) === keyOf({ queryKey }));
 
-  it("fast api: dehydrates all four as data, under the browser proxy's keys, in ONE streamed GET", async () => {
+  it("fast api: dehydrates all five as data, under the browser proxy's keys, in ONE streamed GET", async () => {
     const fetchMock = serveApi();
     const state = await streamDashboard();
 
@@ -84,7 +86,9 @@ describe("streamDashboard", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] ?? [];
-    expect(String(url)).toContain("/trpc/user.me,timer.get,config.get,task.list?batch=1");
+    expect(String(url)).toContain(
+      "/trpc/user.me,timer.get,config.get,task.list,stats.summary?batch=1",
+    );
     expect(new Headers(init?.headers).get("trpc-accept")).toBe("application/jsonl");
   });
 
@@ -121,7 +125,7 @@ describe("streamDashboard", () => {
     serveApi({ failing: ["timer.get"] });
     const state = await streamDashboard();
     expect(find(state, trpc.timer.get.queryKey())).toBeUndefined();
-    expect(state.queries).toHaveLength(3);
+    expect(state.queries).toHaveLength(4);
   });
 
   it("never throws when the api is unreachable: an empty cache, at once", async () => {
