@@ -127,7 +127,8 @@ const TOKEN_SETUP_COLUMN = {
  * Rotate one instance token (invalidates any previously copied URL). Provisions
  * the row first and fails loudly if the write did not land, so a caller is never
  * handed a token that was not saved. The same UPDATE un-confirms the setup step
- * for that URL: the copy in OBS stops working, so "added to OBS" no longer holds.
+ * for that URL: the copy in OBS stops working, so "added to OBS" no longer holds. Rotating
+ * the bot token also frees the bot page lease (same UPDATE).
  */
 export async function rotateInstanceToken(
   db: DbClient,
@@ -138,6 +139,10 @@ export async function rotateInstanceToken(
   const updated = await updateSingleton(db, schema.instanceConfig, {
     [field]: token,
     [TOKEN_SETUP_COLUMN[field]]: false,
+    // A bot URL reset also frees the chat lease the old page held, in this same UPDATE: that
+    // page can't renew it any more (its token is dead), so the new URL's page goes live at
+    // once and the dashboard reads "Bot offline" instead of waiting out the TTL.
+    ...(field === "botToken" ? { botLeaseInstanceId: null, botLeaseSeenAt: null } : {}),
   });
   if (updated?.[field] !== token) {
     throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to rotate token" });

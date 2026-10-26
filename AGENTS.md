@@ -228,9 +228,15 @@ keep the only page off chat). On `pagehide` the holder sends `bot.release` as a 
 `keepalive` fetch (`lib/bot-lease-release.ts`; sendBeacon can't send JSON), so a reload or
 the next page takes the chat at once. `user.me` returns `botPageSeenMsAgo` (an age, not a
 timestamp) from the instance row it already reads; the dashboard's header chip
-(`dashboardBotChip`, `lib/bot-status.ts`) says "Bot connected" while it is under the TTL
-(one local timer flips it to "Bot offline", no request), "Bot not connected" without an
-account. e2e: `/__e2e/bot-lease` DELETE frees the lease (`clearBotLease`).
+(`dashboardBotChip`, `lib/bot-status.ts`) says "Bot connected" when the last answer had it
+under the TTL, "Bot offline" when not, "Bot not connected" without an account — never from
+the local clock (a running page renews without telling the dashboard). When the lease in
+the last answer would run out, `scheduleBotPresenceCheck` (`lib/bot-presence.ts`, fake-timer
+tested) refetches `user.me` ONCE (visible tab only; at most once per lease window) and
+re-arms from the fresh answer: ~1 `user.me` refetch (2 Worker requests via `/rpc`) per
+5 min while a bot runs and the dashboard is visible, nothing while none runs or the tab is
+hidden. Resetting the bot URL (`rotateInstanceToken("botToken")`) clears the lease in the
+same UPDATE. e2e: `/__e2e/bot-lease` DELETE frees the lease (`clearBotLease`).
 Chat token comes from `bot.getSession` (server refreshes it; the
 refresh token and client secret never reach the browser). Each PRIVMSG's IRC `id` tag is
 forwarded as `messageId` and, once it resolves to an enabled Dirework command, claimed in

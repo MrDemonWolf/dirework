@@ -556,7 +556,13 @@ describe("database effects of owner mutations", () => {
 
     expect(updated).toEqual([
       { overlayTasksToken: token, setupTasksOverlayConfirmed: false },
-      { botToken, setupBotSourceConfirmed: false },
+      // The same UPDATE frees the bot page lease the old URL's page held.
+      {
+        botToken,
+        setupBotSourceConfirmed: false,
+        botLeaseInstanceId: null,
+        botLeaseSeenAt: null,
+      },
     ]);
     // No bot account connected: only the URL rotates, nothing to revoke.
     expect(chatToken).toBe("no-account");

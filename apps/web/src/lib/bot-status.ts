@@ -5,35 +5,25 @@ import { BOT_LEASE_TTL_MS } from "@dirework/api/bot-lease";
 
 import type { StatusTone } from "@/components/status-chip";
 
-export interface BotPresence {
-  /** `user.me`'s `botPageSeenMsAgo`: the lease's age when the api answered, or null. */
-  seenMsAgo: number | null | undefined;
-  /** When that answer arrived (React Query's `dataUpdatedAt`), on this browser's clock. */
-  fetchedAt: number;
-  now: number;
+/** Whether `user.me`'s answer had a bot page holding the chat lease when the api sent it. */
+export function botPageLiveAtFetch(seenMsAgo: number | null | undefined): boolean {
+  return seenMsAgo != null && seenMsAgo < BOT_LEASE_TTL_MS;
 }
 
 /**
- * Milliseconds until the bot page's last check-in is older than the lease, so the chip turns
- * "Bot offline" without a request; 0 once it already is (or no page ever checked in). Ages,
- * not timestamps: the api and the browser clocks never meet.
- */
-export function msUntilBotOffline({ seenMsAgo, fetchedAt, now }: BotPresence): number {
-  if (seenMsAgo == null) return 0;
-  return Math.max(0, BOT_LEASE_TTL_MS - (seenMsAgo + Math.max(0, now - fetchedAt)));
-}
-
-/**
- * The dashboard header's bot chip. "Bot connected" while a bot page (widget or dock) holds
- * the chat lease, read from `user.me` (no request of its own); "Bot offline" when the
- * account is connected but no page has checked in for BOT_LEASE_TTL_MS.
+ * The dashboard header's bot chip, from `user.me` alone (no request of its own): "Bot
+ * connected" while the last answer had a bot page (widget or dock) holding the chat lease,
+ * "Bot offline" when it had none. Never decided by the local clock: a running bot renews
+ * its lease without telling the dashboard, so "offline" waits for a fresh answer that says
+ * so (`scheduleBotPresenceCheck` in lib/bot-presence.ts fetches one when the lease would
+ * have run out).
  */
 export function dashboardBotChip(
   hasBotAccount: boolean,
-  presence: BotPresence,
+  seenMsAgo: number | null | undefined,
 ): { tone: StatusTone; label: string } {
   if (!hasBotAccount) return { tone: "idle", label: "Bot not connected" };
-  return msUntilBotOffline(presence) > 0
+  return botPageLiveAtFetch(seenMsAgo)
     ? { tone: "live", label: "Bot connected" }
     : { tone: "idle", label: "Bot offline" };
 }

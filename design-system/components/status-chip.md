@@ -39,8 +39,10 @@ markers and similar states. Used by the dashboard, `timer-controls`, `timer-stat
 
 Timer phases map to tones in `lib/status-tones.ts` (`TIMER_TONES`). The dashboard header's
 bot chip comes from `dashboardBotChip` (`lib/bot-status.ts`): `live` "Bot connected" while a
-bot page holds the chat lease (checked in within 5 minutes, read from `user.me`), `idle`
-"Bot offline" when none has, `idle` "Bot not connected" without a bot account.
+bot page holds the chat lease (checked in within 5 minutes, per the last `user.me` answer),
+`idle` "Bot offline" when none has, `idle` "Bot not connected" without a bot account. It
+never goes offline on the local clock; `lib/bot-presence.ts` re-checks `user.me` when the
+lease would run out.
 
 ## States
 
