@@ -1,5 +1,5 @@
 /* The compact layout keeps connection and identity visible in a 400×200 OBS source.
-   Type sizes and tracking come from the design tokens (Tailwind scale + tokens.json). */
+   Type sizes, tracking and container widths come from the design tokens (Tailwind scale + tokens.json). */
 .bot-console { height: 100dvh; display: flex; flex-direction: column; color: var(--foreground); background: var(--background); }
 .bot-console-header { display: flex; align-items: center; gap: 16px; min-height: 50px; padding: 9px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .bot-connection-status { font-size: var(--text-sm, 0.875rem); letter-spacing: var(--tracking-chip, 0.08em); }
@@ -27,10 +27,10 @@
 .bot-activity-time { flex-shrink: 0; font-variant-numeric: tabular-nums; color: var(--muted-foreground); }
 .bot-activity-kind { display: none; }
 .bot-notice { min-height: 100dvh; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; padding: 20px; background: var(--background); color: var(--foreground); }
-.bot-notice p { max-width: 480px; color: var(--muted-foreground); font-size: var(--text-sm, 0.875rem); line-height: 1.7; }
+.bot-notice p { max-width: var(--container-md, 28rem); color: var(--muted-foreground); font-size: var(--text-sm, 0.875rem); line-height: 1.7; }
 @media (min-height: 480px) {
   .bot-console-header { min-height: 72px; padding: 16px 24px; }
-  .bot-console-body { width: min(100%, 1120px); align-self: center; padding: 24px; gap: 20px; }
+  .bot-console-body { width: min(100%, var(--container-content, 72rem)); align-self: center; padding: 24px; gap: 20px; }
   .bot-console-instruction { display: block; color: var(--muted-foreground); font-size: var(--text-sm, 0.875rem); line-height: 1.6; }
   .bot-stats { border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
   .bot-stat { padding: 16px; }
@@ -41,7 +41,7 @@
   .bot-activity-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: var(--text-2xs, 0.6875rem); color: var(--muted-foreground); }
   .bot-activity-heading h2 { display: flex; align-items: center; gap: 8px; color: var(--foreground); font-family: inherit; font-size: var(--text-xs, 0.75rem); font-weight: 500; }
   .bot-activity-log { padding: 14px 16px; }
-  .bot-notice { padding: 40px max(24px, calc((100% - 720px) / 2)); }
+  .bot-notice { padding: 40px max(24px, calc((100% - var(--container-2xl, 42rem)) / 2)); }
 }
 @media (min-width: 640px) {
   .bot-console-brand { margin-left: 0; }

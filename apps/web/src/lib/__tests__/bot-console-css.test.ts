@@ -11,4 +11,12 @@ describe("bot console stylesheet", () => {
     expect(declarations.length).toBeGreaterThan(0);
     expect(declarations.filter((decl) => !/:\s*var\(--(?:text|tracking)-/.test(decl))).toEqual([]);
   });
+
+  // Container widths too: a shared layout-token change must reach this surface. Media
+  // query breakpoints are the only place a 3-digit pixel length may appear.
+  it("takes container widths from a design token", () => {
+    const rules = css.replace(/@media[^{]+\{/g, "");
+    expect(rules.match(/\b\d{3,}px\b/g) ?? []).toEqual([]);
+    expect(rules).toContain("var(--container-content");
+  });
 });
