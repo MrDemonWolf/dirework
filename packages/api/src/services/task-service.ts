@@ -261,15 +261,40 @@ export function isUniqueViolation(err: unknown): boolean {
 export async function completeTask(db: DbClient, id: string, timeZone?: KnownTimeZone) {
   const zone = await resolveStatsTimeZone(db, timeZone);
   const completedAt = new Date();
-  const [updatedRows] = await db.batch([
+  const complete = () =>
     db
       .update(schema.task)
       .set({ status: "done", completedAt })
       .where(and(eq(schema.task.id, id), eq(schema.task.status, "pending")))
-      .returning(),
-    countTaskDoneStmt(db, { id, completedAt }, localDay(completedAt.getTime(), zone)),
-  ]);
+      .returning();
+  const updatedRows = await withStatsFallback(
+    async () =>
+      (
+        await db.batch([
+          complete(),
+          countTaskDoneStmt(db, { id, completedAt }, localDay(completedAt.getTime(), zone)),
+        ])
+      )[0],
+    () => complete(),
+  );
   return updatedRows[0] ?? null;
+}
+
+/**
+ * Dashboard stats never fail a task mutation: run `withStats` (the mutation's batch with its
+ * stats statement), and if that throws, `withoutStats` (the same guarded mutation alone). A D1
+ * batch is atomic, so a batch that threw applied nothing, and every retried statement keeps
+ * its status guard, so the mutation can never apply twice. The stats for it are skipped.
+ */
+async function withStatsFallback<T>(
+  withStats: () => Promise<T>,
+  withoutStats: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await withStats();
+  } catch {
+    return withoutStats();
+  }
 }
 
 /**
@@ -321,18 +346,30 @@ async function completeActiveTask(
   timeZone: string | null,
 ) {
   const completedAt = new Date();
-  const [completedRows] = await db.batch([
+  const complete = () =>
     db
       .update(schema.task)
       .set({ status: "done", completedAt })
       // Guarded: if another request already completed it, we don't double-apply
       // and the paired promote is a no-op via its own not-exists guard.
       .where(and(eq(schema.task.id, task.id), eq(schema.task.status, "active")))
-      .returning(),
-    // Counts only if the UPDATE above won (see countTaskDoneStmt).
-    countTaskDoneStmt(db, { id: task.id, completedAt }, localDay(completedAt.getTime(), timeZone)),
-    promoteNextPendingStmt(db, task.authorTwitchId),
-  ]);
+      .returning();
+  const completedRows = await withStatsFallback(
+    async () =>
+      (
+        await db.batch([
+          complete(),
+          // Counts only if the UPDATE above won (see countTaskDoneStmt).
+          countTaskDoneStmt(
+            db,
+            { id: task.id, completedAt },
+            localDay(completedAt.getTime(), timeZone),
+          ),
+          promoteNextPendingStmt(db, task.authorTwitchId),
+        ])
+      )[0],
+    async () => (await db.batch([complete(), promoteNextPendingStmt(db, task.authorTwitchId)]))[0],
+  );
   return completedRows[0] ?? null;
 }
 
@@ -356,7 +393,7 @@ export async function replaceActiveTask(
   ]);
   const replacementId = crypto.randomUUID();
   const completedAt = new Date();
-  const [, completedRows, , createdRows] = await db.batch([
+  const insertReplacement = () =>
     db.insert(schema.task).select(sql`
       select
         ${replacementId},
@@ -374,7 +411,8 @@ export async function replaceActiveTask(
       where ${schema.task.id} = ${activeTask.id}
         and ${schema.task.authorTwitchId} = ${author.twitchId}
         and ${schema.task.status} = 'active'
-    `),
+    `);
+  const completeOld = () =>
     db
       .update(schema.task)
       .set({ status: "done", completedAt })
@@ -385,18 +423,37 @@ export async function replaceActiveTask(
           eq(schema.task.status, "active"),
         ),
       )
-      .returning(),
-    countTaskDoneStmt(
-      db,
-      { id: activeTask.id, completedAt },
-      localDay(completedAt.getTime(), timeZone),
-    ),
+      .returning();
+  const activateReplacement = () =>
     db
       .update(schema.task)
       .set({ status: "active" })
       .where(and(eq(schema.task.id, replacementId), eq(schema.task.status, "pending")))
-      .returning(),
-  ]);
+      .returning();
+
+  const [completedRows, createdRows] = await withStatsFallback(
+    async () => {
+      const [, completed, , created] = await db.batch([
+        insertReplacement(),
+        completeOld(),
+        countTaskDoneStmt(
+          db,
+          { id: activeTask.id, completedAt },
+          localDay(completedAt.getTime(), timeZone),
+        ),
+        activateReplacement(),
+      ]);
+      return [completed, created] as const;
+    },
+    async () => {
+      const [, completed, created] = await db.batch([
+        insertReplacement(),
+        completeOld(),
+        activateReplacement(),
+      ]);
+      return [completed, created] as const;
+    },
+  );
 
   return { completed: completedRows[0] ?? null, created: createdRows[0] ?? null };
 }

@@ -293,6 +293,78 @@ describe("task done → daily_stat", () => {
   });
 });
 
+describe("a stats failure never fails the write that earned it", () => {
+  /** Make every daily_stat write fail (insert, and the upsert's update), like a broken table. */
+  function breakStats() {
+    sqlite.exec(`
+      CREATE TRIGGER stats_down_insert BEFORE INSERT ON daily_stat
+        BEGIN SELECT RAISE(ABORT, 'stats down'); END;
+      CREATE TRIGGER stats_down_update BEFORE UPDATE ON daily_stat
+        BEGIN SELECT RAISE(ABORT, 'stats down'); END;
+      CREATE TRIGGER stats_down_delete BEFORE DELETE ON daily_stat
+        BEGIN SELECT RAISE(ABORT, 'stats down'); END;
+    `);
+  }
+
+  async function seedTask(id: string, status: "active" | "pending", order = 1) {
+    await db.insert(schema.task).values({
+      id,
+      authorTwitchId: "2002",
+      authorUsername: "u2002",
+      authorDisplayName: "U2002",
+      text: `task ${id}`,
+      status,
+      order,
+    });
+  }
+
+  const statusOf = async (id: string) =>
+    (await db.query.task.findFirst({ where: (t, { eq }) => eq(t.id, id) }))?.status;
+
+  it("markTaskDone still completes an active task (and promotes the next) and a pending one", async () => {
+    await seedTask("a", "active", 1);
+    await seedTask("b", "pending", 2);
+    await seedTask("c", "pending", 3);
+    breakStats();
+
+    await expect(markTaskDone(db, "a")).resolves.toMatchObject({ id: "a", status: "done" });
+    expect(await statusOf("b")).toBe("active");
+    await expect(markTaskDone(db, "c")).resolves.toMatchObject({ id: "c", status: "done" });
+    // A repeat stays a no-op: the retry is as guarded as the batch.
+    await expect(markTaskDone(db, "a")).resolves.toBeNull();
+    expect(rawStats()).toEqual([]);
+  });
+
+  it("replaceActiveTask (!next) still completes the old task and activates the new one", async () => {
+    await seedTask("old", "active");
+    breakStats();
+    const result = await replaceActiveTask(
+      db,
+      { id: "old" },
+      { twitchId: "2002", username: "u2002", displayName: "U2002" },
+      "next one",
+    );
+    expect(result.completed).toMatchObject({ id: "old", status: "done" });
+    expect(result.created).toMatchObject({ text: "next one", status: "active" });
+    expect(await db.query.task.findMany()).toHaveLength(2);
+    expect(rawStats()).toEqual([]);
+  });
+
+  it("the timer still advances, skips, resets and starts", async () => {
+    const workEnd = await startWork();
+    breakStats();
+
+    vi.setSystemTime(workEnd + 1);
+    await expect(maybeAdvanceOverdueTimer(db)).resolves.toMatchObject({ status: "break" });
+    await expect(skipTimer(db)).resolves.toMatchObject({ status: "work" });
+    vi.setSystemTime(Date.now() + 60_000);
+    await expect(skipTimer(db)).resolves.toMatchObject({ status: "break" });
+    await expect(resetTimer(db)).resolves.toMatchObject({ status: "idle" });
+    await expect(startTimer(db)).resolves.toMatchObject({ status: "starting" }); // prune fails
+    expect(rawStats()).toEqual([]);
+  });
+});
+
 describe("retention, time zone and the summary read", () => {
   it("prunes rows past retention and keeps the rest (and runs on timer start)", async () => {
     const today = "2026-10-26";
