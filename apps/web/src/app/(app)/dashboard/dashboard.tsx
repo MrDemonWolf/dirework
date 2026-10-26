@@ -40,28 +40,13 @@ import {
 } from "@/components/timer-controls";
 import { TimerStatusBadge } from "@/components/timer-status-badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatGreeting, pickGreeting } from "@/lib/greetings";
 import { setupProgress } from "@/lib/setup-steps";
 import { describeTrpcError } from "@/lib/trpc-errors";
 import { trpc } from "@/utils/trpc";
 
-// Greeting, sub-greeting and date use the browser's local clock, which can differ from the
-// server render, so their elements carry suppressHydrationWarning.
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return "Good morning";
-  if (hour >= 12 && hour < 17) return "Good afternoon";
-  if (hour >= 17 && hour < 21) return "Good evening";
-  return "Working late";
-}
-
-function getSubGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return "What's first on the list?";
-  if (hour >= 12 && hour < 17) return "Keep it going.";
-  if (hour >= 17 && hour < 21) return "Wrapping up the day's work?";
-  return "Burning the midnight oil?";
-}
-
+// Greeting (lib/greetings.ts) and date use the browser's local clock, which can differ from
+// the server render, so their elements carry suppressHydrationWarning.
 function getDateStr(): string {
   return new Date()
     .toLocaleDateString("en-US", { weekday: "short", month: "short", day: "2-digit" })
@@ -188,6 +173,7 @@ type SessionUser = (typeof authClient.$Infer.Session)["user"];
  * is the page's only bot status, and it links to Bot settings.
  */
 function HeaderBand({ user, status }: { user: SessionUser; status: React.ReactNode }) {
+  const greeting = formatGreeting(pickGreeting(new Date()), user.name);
   return (
     <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div>
@@ -195,10 +181,10 @@ function HeaderBand({ user, status }: { user: SessionUser; status: React.ReactNo
           Console — {getDateStr()}
         </p>
         <h1 className="font-heading text-3xl font-bold tracking-tight" suppressHydrationWarning>
-          {getGreeting()}, {user.name}
+          {greeting.title}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground" suppressHydrationWarning>
-          {getSubGreeting()}
+          {greeting.subline}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">{status}</div>
