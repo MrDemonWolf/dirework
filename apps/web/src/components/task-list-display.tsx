@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { limitCombiningMarks } from "@dirework/api/chat-text";
+import { sanitizeDisplayText } from "@dirework/api/chat-text";
 import { clampTaskLines } from "@dirework/api/config-defaults";
 
 import { countDoneByAuthor, groupTasksByAuthor } from "@/lib/task-utils";
@@ -321,7 +321,7 @@ function TaskItem({
           transition: "color 200ms ease",
         }}
       >
-        {limitCombiningMarks(task.text)}
+        {sanitizeDisplayText(task.text)}
       </span>
 
       {isActive && (
@@ -389,7 +389,7 @@ function AuthorGroup({ group, config }: { group: TaskGroup; config: TaskStylesCo
             fontSize: config.task.fontSize,
           }}
         >
-          {limitCombiningMarks(group.authorDisplayName)}
+          {sanitizeDisplayText(group.authorDisplayName)}
         </span>
         <span
           style={{

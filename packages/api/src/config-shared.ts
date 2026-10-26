@@ -23,6 +23,7 @@ import {
   limitPlaceholderRepeats,
   MAX_PLACEHOLDER_REPEATS,
   mostRepeatedPlaceholder,
+  sanitizeDisplayText,
   utf8ByteLength,
 } from "./chat-text";
 import {
@@ -51,7 +52,9 @@ export {
   limitCombiningMarks,
   limitPlaceholderRepeats,
   MAX_CHAT_BYTES,
+  MAX_DISPLAY_NAME_LENGTH,
   MAX_PLACEHOLDER_REPEATS,
+  sanitizeDisplayText,
   MAX_RELAYED_MESSAGE_LENGTH,
   replaceControlCharacters,
   truncateToBytes,
@@ -64,6 +67,7 @@ export {
   DEFAULT_TASK_STYLES,
   DEFAULT_TIMER_MESSAGES,
   DEFAULT_TIMER_STYLES,
+  MAX_OPEN_TASKS,
   MAX_STARTED_PER_AUTHOR,
   MAX_TASK_LEN,
   TASK_LINES_MAX,
@@ -257,11 +261,27 @@ export { TIMER_STATUSES, type TimerStatus } from "@dirework/db/defaults";
 // comments can survive them, which closes CSS injection through a saved config.
 // They are deliberately permissive enough to accept every shipped default.
 
-/** #rgb / #rgba / #rrggbb / #rrggbbaa, rgb()/rgba()/hsl()/hsla(), or a safe keyword. */
+/**
+ * #rgb / #rgba / #rrggbb / #rrggbbaa, rgb()/rgba()/hsl()/hsla(), or a safe keyword.
+ * The function body is ONE character class (it already holds whitespace): a
+ * leading `\s*` beside it gave the engine two ways to match every space, so a
+ * long "rgb(   …" with no ")" backtracked quadratically.
+ */
 const CSS_COLOR_RE =
-  /^(#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|(?:rgb|hsl)a?\(\s*[0-9.,%\s/deg]+\)|transparent|currentcolor|inherit|none|[a-z]{3,20})$/i;
+  /^(#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|(?:rgb|hsl)a?\([0-9.,%\s/deg]+\)|transparent|currentcolor|inherit|none|[a-z]{3,20})$/i;
 
-export const cssColorSchema = z.string().trim().max(64).regex(CSS_COLOR_RE, "Invalid CSS color");
+/**
+ * The CSS allowlists' length caps abort: validation stops at the cap, so the
+ * pattern never runs on an oversized string (zod otherwise runs every check and
+ * would hand the regex the whole input).
+ */
+const ABORT = { abort: true } as const;
+
+export const cssColorSchema = z
+  .string()
+  .trim()
+  .max(64, ABORT)
+  .regex(CSS_COLOR_RE, "Invalid CSS color");
 
 /**
  * A Twitch chat author color as stored on a task (IRC `color` tag: #rrggbb).
@@ -278,13 +298,17 @@ export const twitchAuthorColorSchema = z.string().regex(/^#[0-9a-f]{6}$/i, "Inva
 const CSS_LENGTH_TOKEN = String.raw`(?:auto|0|[+-]?\d{1,5}(?:\.\d{1,4})?(?:px|%|r?em|v[hw]|ch|pt))`;
 const CSS_LENGTH_RE = new RegExp(`^${CSS_LENGTH_TOKEN}(?: ${CSS_LENGTH_TOKEN}){0,3}$`, "i");
 
-export const cssLengthSchema = z.string().trim().max(64).regex(CSS_LENGTH_RE, "Invalid CSS length");
+export const cssLengthSchema = z
+  .string()
+  .trim()
+  .max(64, ABORT)
+  .regex(CSS_LENGTH_RE, "Invalid CSS length");
 
 /** Font family name(s). No quotes/semicolons — the overlay wraps it itself. */
 export const fontFamilySchema = z
   .string()
   .trim()
-  .max(120)
+  .max(120, ABORT)
   .regex(/^[a-z0-9 ,'-]+$/i, "Invalid font family");
 
 /** A bullet or checkbox-tick icon id (OVERLAY_ICONS in ./style-limits). */
@@ -353,7 +377,9 @@ export const phaseLabelSchema = z
   })
   .refine((v) => phaseLabelIssue(v) !== "bytes", {
     message: `Label must be at most ${PHASE_LABEL_MAX_BYTES} bytes`,
-  });
+  })
+  // Shown on the stream: no bidi overrides, invisible characters or Zalgo stacks.
+  .transform(sanitizeDisplayText);
 
 // ── Field maps: nested config keys ↔ flat DB columns (single source) ─────────
 // Build and flatten are both generated from these maps, so they cannot drift.

@@ -399,6 +399,18 @@ list order in JS, and return `{ tasks, counts: { open, done, doneByAuthor } }` �
 `counts.doneByAuthor` are index COUNTs of ALL done rows (overall and per author), so
 `{done}/{total}` headers, including each author group's, must use `counts`, never the
 array length. The overlay skips done rows entirely (count only) when `showDone` is off.
+The open slice is capped too: **`MAX_OPEN_TASKS` (200, `@dirework/api/config-defaults`)**
+open (pending/started/active) tasks for the whole instance. Every task-creating path
+checks it INSIDE its guarded INSERT … SELECT (`hasRoomForOpenTaskSql`, an index COUNT on
+`task_status_completed_idx`), so concurrent creates can't pass it: `createTask` (dashboard
+`task.create` → PRECONDITION_FAILED `TASK_LIST_FULL_MESSAGE`; chat `!task` / `!next` → the
+`noTaskAdded` reply, nothing written), `replaceActiveTask` (allowed AT the cap since the swap
+never grows the list; its complete-old UPDATE requires the replacement row, so a refused
+`!next` leaves the focus active and returns `full: true` — `isTaskListFull` is read only on
+that failure path) and `restoreTask` (open snapshots only; `task.restore` tells a full list
+from a double-clicked undo with one read on the null path). `listTasks` /
+`listOverlayTasks` read the open slice with `LIMIT MAX_OPEN_TASKS`. The per-viewer chat cap
+`CHAT_OPEN_TASK_CAP` (20) still applies underneath.
 `purgeExpiredDoneTasks` (indexed DELETE of done rows with `completed_at` older than
 `DONE_TASK_RETENTION_MS` = 24h, best-effort, never throws) runs on writes only:
 `createTask`, `markTaskDone`, `replaceActiveTask`, `startTimer`, `resetTimer` — never on a
@@ -484,7 +496,7 @@ order. List ordering tiebreaks on `id` so concurrent creates sort deterministica
 Dashboard removal is one click with an Undo toast: `task.restore` → `restoreTask`
 re-inserts the removed row (same id, author, placement, timestamps) in ONE INSERT … SELECT;
 a removed `active` task comes back `pending` if removal promoted another, so the
-single-active index holds. Owner action, so no viewer caps apply.
+single-active index holds. Owner action, so no per-viewer caps apply (`MAX_OPEN_TASKS` does).
 
 **Services own mutations** (`packages/api/src/services/`): `task-service`, `timer-service`,
 `overlay-service`, `bot-moderation`, `stats-service`, `twitch-auth`, `tokens`, `singleton`, `provision`. Both tRPC routers and
@@ -523,7 +535,23 @@ overlay polling) applied in `apps/server/src/lib/rate-limit.ts`. The limiter key
 HMAC signature verifies offline under `BETTER_AUTH_SECRET` (`lib/session-cookie.ts` —
 the limiter runs before better-auth, so an unverified cookie must never mint its own
 bucket); `ip:<forwarded>` when the web proxy's `PROXY_SECRET` signature verifies; else
-`ip:<CF-Connecting-IP>` (X-Forwarded-For is never trusted). A global
+`ip:<CF-Connecting-IP>` (X-Forwarded-For is never trusted). `selectBucket` charges a
+batched `/trpc/a,b` request to the STRICTEST bucket among its procedures (auth 20 < token
+60 < overlay 120 < bot 300 per minute), matched on procedure-name prefixes after
+percent-decoding, never a substring of the path. The bot page throttles each viewer
+before relaying (`lib/viewer-throttle.ts`: > `VIEWER_COMMAND_LIMIT` = 6 commands per
+30s rolling window are dropped with no request, logged once per burst; never the
+broadcaster or mods; ≤ 500 viewers tracked). Viewer text is sanitized by the zod-free
+`sanitizeDisplayText` (`@dirework/api/chat-text`: bidi overrides/isolates and zero-width
+characters dropped — ZWJ kept inside emoji sequences and ZWJ/ZWNJ between letters —
+control characters to spaces, then `limitCombiningMarks`) on every write of task text
+(`taskTextInput`, `chatTaskText`, task-service), phase labels (`phaseLabelSchema`) and
+display names (`chatDisplayName`: sanitized, ≤ `MAX_DISPLAY_NAME_LENGTH` = 25, login
+fallback), and again by the overlay at render. `taskRestoreInput` holds authors to chat's
+limits (id `[A-Za-z0-9]` ≤ 32, login ≤ 25, display name ≤ 25) and `task.restore` accepts a
+non-Twitch id or login only when it is the owner's own (`isRestorableAuthor`). The CSS
+allowlists cap length with `{ abort: true }`, so the pattern never sees an oversized
+string. A global
 `bodyLimit`; streamed (not buffered) proxy bodies with a 413 pre-check in
 `auth-proxy.ts`; and `AbortSignal.timeout` on every outbound Twitch fetch. The
 limiter **fails open** if a binding is absent — it's a brake, not a dependency.
@@ -612,7 +640,10 @@ it (e.g. `0017_drop_task_status_idx` contracted 0015's superseded `task_status_i
   `<twitch sub>@users.twitch.invalid` placeholder (`twitchPlaceholderEmail`). Account
   linking is disabled (sign-in matches on the Twitch account row). The owner's own
   Twitch OAuth tokens are never stored (account create/update hooks null them) and
-  sessions keep no IP or user agent; expired sessions are purged at sign-in. Migration
+  sessions keep no IP or user agent; expired sessions, and expired `verification` rows
+  (abandoned OAuth state; `purgeExpiredVerifications`, best-effort, a range on
+  `verification_expires_at_idx` from `0024_verification_expires_idx`), are purged at
+  sign-in. Migration
   `0014_scrub_owner_pii` scrubs rows written by earlier builds, but migrations apply before cutover, so a sign-in served
   by the old worker could write tokens back. The token scrub is therefore re-run after
   cutover on every deploy (`packages/infra/post-deploy.ts`, called from `alchemy.run.ts`)

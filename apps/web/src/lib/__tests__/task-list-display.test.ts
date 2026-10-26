@@ -27,9 +27,9 @@ describe("task overlay text", () => {
     expect(source.match(/dir="auto"/g)).toHaveLength(2);
   });
 
-  it("trims Zalgo stacks at render for rows stored before ingest trimmed them", () => {
-    expect(source).toContain("{limitCombiningMarks(task.text)}");
-    expect(source).toContain("{limitCombiningMarks(group.authorDisplayName)}");
+  it("sanitizes text and names at render (bidi, invisible chars, Zalgo) for rows stored before ingest did", () => {
+    expect(source).toContain("{sanitizeDisplayText(task.text)}");
+    expect(source).toContain("{sanitizeDisplayText(group.authorDisplayName)}");
   });
 
   it("never draws the Active label under 14px at the source size", () => {

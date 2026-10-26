@@ -1,6 +1,6 @@
 import type { DbClient } from "@dirework/db";
 
-import { interpolate, limitCombiningMarks } from "../chat-text";
+import { interpolate, sanitizeDisplayText } from "../chat-text";
 import type { BotConfigData } from "../config-shared";
 import {
   CHAT_OPEN_TASK_CAP,
@@ -128,12 +128,13 @@ export function parsePositionArg(arg: string | undefined): number | null {
 }
 
 /**
- * Task text from a command's words: Zalgo stacks trimmed (`limitCombiningMarks`,
- * so a reply echoes what is stored) and capped at the same MAX_TASK_LEN as the
- * tRPC schema (audit L1).
+ * Task text from a command's words: bidi overrides, invisible characters and
+ * Zalgo stacks removed (`sanitizeDisplayText`, so a reply echoes what is stored
+ * and text that was only invisible characters counts as missing) and capped at
+ * the same MAX_TASK_LEN as the tRPC schema (audit L1).
  */
 function chatTaskText(words: string[]): string {
-  return truncateToLength(limitCombiningMarks(words.join(" ").trim()), MAX_TASK_LEN);
+  return truncateToLength(sanitizeDisplayText(words.join(" ")).trim(), MAX_TASK_LEN);
 }
 
 /** `!edit <position> <new text>`, or null when either part is missing. */
@@ -519,11 +520,12 @@ async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void>
 
   // isBroadcaster was derived from the owner row bot.ingest already read, so
   // createTask doesn't read it again for this chat line.
-  await createTask(db, userInfo, text, {
+  const created = await createTask(db, userInfo, text, {
     openTaskCount: openTasks.length,
     isBroadcaster: userInfo.isBroadcaster,
   });
-  say(interpolate(config.task.taskAdded, vars));
+  // Null: the whole list is at MAX_OPEN_TASKS, so the same "not added" reply.
+  say(interpolate(created ? config.task.taskAdded : config.task.noTaskAdded, vars));
 }
 
 async function handleTaskDone(args: string[], ctx: MessageContext): Promise<void> {
@@ -766,11 +768,16 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
   // No active task means there is no {oldTask} to announce — fall back to the
   // plain taskAdded template instead of interpolating empty quotes.
   if (!activeTask) {
-    await createTask(db, userInfo, newText, {
+    const created = await createTask(db, userInfo, newText, {
       activate: true,
       isBroadcaster: userInfo.isBroadcaster,
     });
-    say(interpolate(config.task.taskAdded, { ...vars, task: newText }));
+    say(
+      interpolate(created ? config.task.taskAdded : config.task.noTaskAdded, {
+        ...vars,
+        task: newText,
+      }),
+    );
     return;
   }
 
@@ -778,6 +785,11 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
     isBroadcaster: userInfo.isBroadcaster,
     timeZone: ctx.timeZone,
   });
+  if (result.full) {
+    // The list is at MAX_OPEN_TASKS: nothing changed, the old task is still active.
+    say(interpolate(config.task.noTaskAdded, { ...vars, task: newText }));
+    return;
+  }
   if (!result.created) {
     // The active task was completed or removed after we read it, so the guarded
     // batch created nothing — don't announce a replacement that never happened.

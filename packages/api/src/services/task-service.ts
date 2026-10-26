@@ -15,8 +15,8 @@ import {
 import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 
-import { limitCombiningMarks } from "../chat-text";
-import { MAX_STARTED_PER_AUTHOR } from "../config-defaults";
+import { chatDisplayName, sanitizeDisplayText } from "../chat-text";
+import { MAX_OPEN_TASKS, MAX_STARTED_PER_AUTHOR } from "../config-defaults";
 import { localDay } from "../stats-days";
 import { countTaskDoneStmt, type KnownTimeZone, resolveStatsTimeZone } from "./stats-service";
 
@@ -92,6 +92,25 @@ function hasActiveSql(twitchId: string) {
   return sql`exists (select 1 from ${schema.task}
     where ${schema.task.authorTwitchId} = ${twitchId}
       and ${schema.task.status} = 'active')`;
+}
+
+/**
+ * SQL: how many open tasks the whole instance holds. A COUNT over the
+ * `task_status_completed_idx` range for the three open statuses (covering, no
+ * table rows read), at most MAX_OPEN_TASKS rows since every create checks it.
+ */
+function openTaskCountSql() {
+  return sql`(select count(*) from ${schema.task}
+    where ${schema.task.status} in ('pending', 'started', 'active'))`;
+}
+
+/**
+ * SQL: whether the instance has room for one more open task. Every task-creating
+ * INSERT carries it in its own WHERE, so the check and the insert are one
+ * statement and concurrent creates can never push the list past MAX_OPEN_TASKS.
+ */
+function hasRoomForOpenTaskSql() {
+  return sql`${openTaskCountSql()} < ${MAX_OPEN_TASKS}`;
 }
 
 /** Case-insensitive author-username predicate (Twitch logins are case-insensitive). */
@@ -248,7 +267,10 @@ export async function promoteNextPending(db: DbClient, twitchId: string) {
 
 /**
  * Create a task. Auto-activates when the author has no open tasks;
- * `activate: true` forces active (used by !next).
+ * `activate: true` forces active (used by !next). Null when the instance already
+ * holds MAX_OPEN_TASKS open tasks (checked inside the INSERT, see
+ * hasRoomForOpenTaskSql) — the caller reports "list full", nothing was written.
+ * Text and display name go through sanitizeDisplayText on the way in.
  *
  * `openTaskCount` lets a caller that already read the author's open tasks (the
  * chat cap check) pass the count instead of paying for the same query twice
@@ -268,24 +290,32 @@ export async function createTask(
     purgeExpiredDoneTasks(db),
   ]);
 
-  const values = {
-    authorTwitchId: author.twitchId,
-    authorUsername: author.username,
-    authorDisplayName: limitCombiningMarks(author.displayName),
-    authorColor: author.color ?? null,
-    text: limitCombiningMarks(text),
-    priority: placement.priority,
-    order: placement.nextOrder,
+  const id = crypto.randomUUID();
+  // Guarded on MAX_OPEN_TASKS inside the INSERT: null when the list is full.
+  const insert = async (status: "pending" | "active") => {
+    const [row] = await db
+      .insert(schema.task)
+      .select(sql`
+        select
+          ${id},
+          ${author.twitchId},
+          ${author.username},
+          ${chatDisplayName(author.displayName, author.username)},
+          ${author.color ?? null},
+          ${sanitizeDisplayText(text)},
+          ${status},
+          ${placement.priority},
+          ${placement.nextOrder},
+          cast(unixepoch('subsecond') * 1000 as integer),
+          null
+        where ${hasRoomForOpenTaskSql()}
+      `)
+      .returning();
+    return row ?? null;
   };
   const wantsActive = opts?.activate || openTaskCount === 0;
 
-  if (!wantsActive) {
-    const [row] = await db
-      .insert(schema.task)
-      .values({ ...values, status: "pending" })
-      .returning();
-    return row ?? null;
-  }
+  if (!wantsActive) return insert("pending");
 
   // The read above is a check-then-act: a concurrent !task from the same viewer
   // can also observe "no open tasks" and try to insert an active row. The
@@ -293,18 +323,10 @@ export async function createTask(
   // active task, so fall back to pending — the task is still created, it just
   // queues behind the one that won.
   try {
-    const [row] = await db
-      .insert(schema.task)
-      .values({ ...values, status: "active" })
-      .returning();
-    return row ?? null;
+    return await insert("active");
   } catch (err) {
     if (!isUniqueViolation(err)) throw err;
-    const [row] = await db
-      .insert(schema.task)
-      .values({ ...values, status: "pending" })
-      .returning();
-    return row ?? null;
+    return insert("pending");
   }
 }
 
@@ -466,7 +488,9 @@ async function completeActiveTask(
 
 /**
  * Replace the current active task atomically. The pending insert is guarded by
- * the old task still being active, so a stale !next cannot create a new task.
+ * the old task still being active, so a stale !next cannot create a new task,
+ * and by MAX_OPEN_TASKS (`full: true` when that refused it; the old focus then
+ * stays as it was).
  * `timeZone` (the owner's, when the caller already read it) saves the stats
  * zone read on the chat path.
  */
@@ -484,15 +508,17 @@ export async function replaceActiveTask(
   ]);
   const replacementId = crypto.randomUUID();
   const completedAt = new Date();
+  // The cap check allows the count to be AT MAX_OPEN_TASKS: the old focus is
+  // still counted and goes done in the same batch, so the swap never grows the list.
   const insertReplacement = () =>
     db.insert(schema.task).select(sql`
       select
         ${replacementId},
         ${author.twitchId},
         ${author.username},
-        ${limitCombiningMarks(author.displayName)},
+        ${chatDisplayName(author.displayName, author.username)},
         ${author.color ?? null},
-        ${limitCombiningMarks(text)},
+        ${sanitizeDisplayText(text)},
         'pending',
         ${placement.priority},
         ${placement.nextOrder},
@@ -502,6 +528,7 @@ export async function replaceActiveTask(
       where ${schema.task.id} = ${activeTask.id}
         and ${schema.task.authorTwitchId} = ${author.twitchId}
         and ${schema.task.status} = 'active'
+        and ${openTaskCountSql()} <= ${MAX_OPEN_TASKS}
     `);
   const completeOld = () =>
     db
@@ -512,6 +539,9 @@ export async function replaceActiveTask(
           eq(schema.task.id, activeTask.id),
           eq(schema.task.authorTwitchId, author.twitchId),
           eq(schema.task.status, "active"),
+          // Only when the replacement went in: a full list must not finish the
+          // old focus and leave the viewer with nothing in its place.
+          sql`exists (select 1 from ${schema.task} where ${schema.task.id} = ${replacementId})`,
         ),
       )
       .returning();
@@ -546,14 +576,27 @@ export async function replaceActiveTask(
     },
   );
 
-  return { completed: completedRows[0] ?? null, created: createdRows[0] ?? null };
+  const created = createdRows[0] ?? null;
+  // Nothing created: the old focus went stale, or the list is full. Told apart
+  // only on this (rare) failure path, so a successful !next reads nothing more.
+  const full = created ? false : await isTaskListFull(db);
+  return { completed: completedRows[0] ?? null, created, full };
+}
+
+/** Whether the instance holds MAX_OPEN_TASKS open tasks or more (one index COUNT). */
+export async function isTaskListFull(db: DbClient): Promise<boolean> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(schema.task)
+    .where(openTasksWhere());
+  return Number(row?.n ?? 0) >= MAX_OPEN_TASKS;
 }
 
 /** Update a task's text. */
 export async function editTask(db: DbClient, id: string, text: string) {
   const [updated] = await db
     .update(schema.task)
-    .set({ text: limitCombiningMarks(text) })
+    .set({ text: sanitizeDisplayText(text) })
     .where(eq(schema.task.id, id))
     .returning();
   return updated ?? null;
@@ -742,9 +785,9 @@ export interface TaskSnapshot {
  * back `started` only while the author has room under MAX_STARTED_PER_AUTHOR
  * (else `pending`), or as the focus when the author has none.
  *
- * Owner-only action, so it deliberately has no viewer caps (chat has none
- * either — task text is bounded by the input schema). An id that already exists
- * (a double-clicked undo) is a no-op that returns null.
+ * Owner-only action, so it deliberately has no per-viewer caps; the instance-wide
+ * MAX_OPEN_TASKS still applies to an open snapshot. Null when nothing was
+ * inserted: an id that already exists (a double-clicked undo) or a full list.
  */
 export async function restoreTask(db: DbClient, snapshot: TaskSnapshot) {
   const author = snapshot.authorTwitchId;
@@ -764,23 +807,25 @@ export async function restoreTask(db: DbClient, snapshot: TaskSnapshot) {
   const completedAt =
     snapshot.status === "done" ? (snapshot.completedAt ?? new Date()).getTime() : null;
 
+  // A WHERE keeps SQLite from parsing ON CONFLICT as part of the SELECT; for an
+  // open task it is also the MAX_OPEN_TASKS guard (a done row adds nothing open).
+  const room = snapshot.status === "done" ? sql`true` : hasRoomForOpenTaskSql();
   const [row] = await db
     .insert(schema.task)
-    // `where true` keeps SQLite from parsing ON CONFLICT as part of the SELECT.
     .select(sql`
       select
         ${snapshot.id},
         ${snapshot.authorTwitchId},
         ${snapshot.authorUsername},
-        ${snapshot.authorDisplayName},
+        ${chatDisplayName(snapshot.authorDisplayName, snapshot.authorUsername)},
         ${snapshot.authorColor},
-        ${snapshot.text},
+        ${sanitizeDisplayText(snapshot.text)},
         ${status},
         ${snapshot.priority},
         ${snapshot.order},
         ${snapshot.createdAt.getTime()},
         ${completedAt}
-      where true
+      where ${room}
     `)
     // Targeted at the primary key only: a single-active violation must still throw.
     .onConflictDoNothing({ target: schema.task.id })
@@ -909,7 +954,9 @@ export function sortTasksForList<TRow extends ListRow>(rows: readonly TRow[]): T
 
 /**
  * The bounded list read behind the dashboard and the task overlay. Open tasks
- * come from an index range on status; done tasks are the newest `doneLimit`
+ * come from an index range on status, capped at MAX_OPEN_TASKS rows (every
+ * create enforces that cap, so the LIMIT only bites on a list filled before it
+ * existed, and then `counts.open` is the capped length); done tasks are the newest `doneLimit`
  * by completed_at (index range + LIMIT); the done counters are a per-author
  * COUNT over the same index range. Nothing scans the table, and retention bounds the done range.
  * The two slices are merged back into list order (`sortTasksForList`).
@@ -953,7 +1000,7 @@ const doneNewestFirst = () => [desc(schema.task.completedAt), desc(schema.task.i
 export async function listTasks(db: DbClient, opts?: { doneLimit?: number }) {
   return readBoundedTasks(
     db,
-    () => db.query.task.findMany({ where: openTasksWhere() }),
+    () => db.query.task.findMany({ where: openTasksWhere(), limit: MAX_OPEN_TASKS }),
     (limit) =>
       db.query.task.findMany({ where: doneTasksWhere(), orderBy: doneNewestFirst(), limit }),
     opts?.doneLimit ?? DONE_TASK_LIST_LIMIT,
@@ -981,7 +1028,12 @@ const OVERLAY_TASK_COLUMNS = {
 export async function listOverlayTasks(db: DbClient, opts?: { doneLimit?: number }) {
   const { tasks, counts } = await readBoundedTasks(
     db,
-    () => db.query.task.findMany({ columns: OVERLAY_TASK_COLUMNS, where: openTasksWhere() }),
+    () =>
+      db.query.task.findMany({
+        columns: OVERLAY_TASK_COLUMNS,
+        where: openTasksWhere(),
+        limit: MAX_OPEN_TASKS,
+      }),
     (limit) =>
       db.query.task.findMany({
         columns: OVERLAY_TASK_COLUMNS,

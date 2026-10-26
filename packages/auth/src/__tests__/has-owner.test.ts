@@ -2,7 +2,13 @@ import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { claimInstance, hasOwner, purgeExpiredSessions, scrubOwnerTokens } from "../index";
+import {
+  claimInstance,
+  hasOwner,
+  purgeExpiredSessions,
+  purgeExpiredVerifications,
+  scrubOwnerTokens,
+} from "../index";
 import { createTestDb } from "./stubs/test-db";
 
 let db: DbClient;
@@ -57,6 +63,35 @@ describe("purgeExpiredSessions", () => {
 
     const remaining = await db.select({ id: schema.session.id }).from(schema.session);
     expect(remaining.map((row) => row.id)).toEqual(["live"]);
+  });
+});
+
+describe("purgeExpiredVerifications", () => {
+  it("deletes only verification rows that have already expired", async () => {
+    const now = new Date("2026-06-01T00:00:00Z");
+    await db.insert(schema.verification).values([
+      { id: "old", identifier: "state-old", value: "v", expiresAt: new Date(now.getTime() - 1) },
+      {
+        id: "live",
+        identifier: "state-live",
+        value: "v",
+        expiresAt: new Date(now.getTime() + 60_000),
+      },
+    ]);
+
+    await purgeExpiredVerifications(db, now);
+
+    const remaining = await db.select({ id: schema.verification.id }).from(schema.verification);
+    expect(remaining.map((row) => row.id)).toEqual(["live"]);
+  });
+
+  it("never throws — a failed purge must not fail the sign-in", async () => {
+    const broken = {
+      delete: () => {
+        throw new Error("D1 unavailable");
+      },
+    } as unknown as DbClient;
+    await expect(purgeExpiredVerifications(broken)).resolves.toBeUndefined();
   });
 });
 

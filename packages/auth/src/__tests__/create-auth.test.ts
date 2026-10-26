@@ -424,7 +424,7 @@ describe("createAuth: dev-login gate", () => {
 });
 
 describe("createAuth: session rows", () => {
-  it("stores no IP or user agent and purges expired sessions at sign-in", async () => {
+  it("stores no IP or user agent and purges expired sessions and verifications at sign-in", async () => {
     mutableEnv.DEV_LOGIN = "true";
     await post("/dev-login", undefined, { [DEV_LOGIN_SECRET_HEADER]: DEV_SECRET });
     const [user] = await db.select().from(schema.user);
@@ -432,6 +432,12 @@ describe("createAuth: session rows", () => {
       id: "expired",
       token: "expired-token",
       userId: user!.id,
+      expiresAt: new Date(Date.now() - 1000),
+    });
+    await db.insert(schema.verification).values({
+      id: "abandoned",
+      identifier: "abandoned-state",
+      value: "v",
       expiresAt: new Date(Date.now() - 1000),
     });
 
@@ -443,6 +449,8 @@ describe("createAuth: session rows", () => {
 
     const sessions = await db.select().from(schema.session);
     expect(sessions.map((s) => s.id)).not.toContain("expired");
+    const verifications = await db.select().from(schema.verification);
+    expect(verifications.map((v) => v.id)).not.toContain("abandoned");
     expect(sessions).toHaveLength(2);
     for (const s of sessions) {
       expect(s.ipAddress).toBeNull();

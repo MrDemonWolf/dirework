@@ -45,6 +45,24 @@ export async function purgeExpiredSessions(db: DbClient, now: Date = new Date())
 }
 
 /**
+ * Delete expired better-auth verification rows (OAuth state from sign-ins that
+ * were started and never finished). better-auth removes a row when its flow
+ * completes, so only abandoned ones pile up. An index range DELETE on
+ * `verification_expires_at_idx`, run beside the session purge at sign-in: no
+ * cron, no extra request. Best-effort — housekeeping never fails a sign-in.
+ */
+export async function purgeExpiredVerifications(
+  db: DbClient,
+  now: Date = new Date(),
+): Promise<void> {
+  try {
+    await db.delete(schema.verification).where(lt(schema.verification.expiresAt, now));
+  } catch {
+    // Left for the next sign-in.
+  }
+}
+
+/**
  * Null any owner Twitch OAuth tokens still stored on account rows. The account
  * hooks stop new writes, and migration 0014 scrubbed old rows once, but that
  * migration applies before the new workers go live: a sign-in served by the
@@ -242,6 +260,7 @@ export function createAuth() {
             // API's lazy provisioning, so the two paths cannot drift).
             await provisionSingletonRows(db);
             await purgeExpiredSessions(db);
+            await purgeExpiredVerifications(db);
             await scrubOwnerTokens(db);
           },
         },

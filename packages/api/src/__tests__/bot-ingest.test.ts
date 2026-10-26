@@ -20,6 +20,7 @@ import {
   buildBotConfig,
   CHAT_OPEN_TASK_CAP,
   DEFAULT_TASK_MESSAGES,
+  MAX_OPEN_TASKS,
   DEFAULT_TIMER_MESSAGES,
   MAX_CHAT_BYTES,
   utf8ByteLength,
@@ -990,6 +991,64 @@ describe("bot.ingest task commands end to end", () => {
     expect(replies).toEqual([reply(T.taskNext, { oldTask: "t0", newTask: "swap" })]);
     const open = (await viewerTasks()).filter((t) => t.status !== "done");
     expect(open).toHaveLength(CHAT_OPEN_TASK_CAP);
+  });
+
+  /** Fill the whole instance to MAX_OPEN_TASKS with other viewers' open tasks. */
+  async function fillInstance(n = MAX_OPEN_TASKS) {
+    await db.insert(schema.task).values(
+      Array.from({ length: n }, (_, i) => ({
+        id: `fill-${i}`,
+        authorTwitchId: String(50_000 + i),
+        authorUsername: `filler${i}`,
+        authorDisplayName: `Filler${i}`,
+        text: `filler ${i}`,
+        status: "pending",
+        priority: 1,
+        order: i + 1,
+      })),
+    );
+  }
+
+  it("!task with the whole list at MAX_OPEN_TASKS replies noTaskAdded and writes nothing", async () => {
+    await fillInstance();
+
+    const { replies } = await say("!task one too many");
+
+    expect(replies).toEqual([reply(T.noTaskAdded, { task: "one too many" })]);
+    expect(await viewerTasks()).toHaveLength(0);
+  });
+
+  it("!next with no focus and a full list replies noTaskAdded", async () => {
+    await fillInstance();
+
+    expect((await say("!next over")).replies).toEqual([reply(T.noTaskAdded, { task: "over" })]);
+    expect(await viewerTasks()).toHaveLength(0);
+  });
+
+  it("!next over a full list keeps the focus and replies noTaskAdded", async () => {
+    await say("!task focus");
+    await fillInstance(MAX_OPEN_TASKS);
+
+    const { replies } = await say("!next never");
+
+    expect(replies).toEqual([reply(T.noTaskAdded, { task: "never" })]);
+    expect(await viewerTasks()).toEqual([
+      { text: "focus", status: "active", authorTwitchId: "2000" },
+    ]);
+  });
+
+  it("strips bidi overrides and invisible characters from chat task text", async () => {
+    const { replies } = await say("!task \u202Eabc\u200B def\u2066");
+
+    expect(replies).toEqual([reply(T.taskAdded, { task: "abc def" })]);
+    expect((await viewerTasks())[0]?.text).toBe("abc def");
+  });
+
+  it("!task with only invisible characters is missing text", async () => {
+    const { replies } = await say("!task \u200B\u202E");
+
+    expect(replies).toEqual([reply(T.noTaskContent, { task: "" })]);
+    expect(await viewerTasks()).toHaveLength(0);
   });
 
   it("!help replies with the configured help template", async () => {

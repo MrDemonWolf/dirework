@@ -155,73 +155,23 @@ describe("promoteNextPending (audit M5, single statement)", () => {
 });
 
 describe("createTask", () => {
-  const author = {
-    twitchId: "456",
-    username: "viewer",
-    displayName: "Viewer",
-    color: "#ff0000",
-  };
-
-  it("auto-activates when the author has no open tasks", async () => {
-    const { db, insertSpy } = makeDb({ ownerTwitchId: "123", openTasks: [] });
-    const task = await createTask(db, author, "write docs");
-    expect(task).toMatchObject({ text: "write docs", status: "active", priority: 1 });
-    expect(insertSpy.mock.calls[0]?.[0]).toMatchObject({ status: "active" });
-  });
-
-  it("creates pending when the author already has open tasks", async () => {
-    const { db, insertSpy } = makeDb({
-      ownerTwitchId: "123",
-      openTasks: [{ id: "existing" }],
-      taskFindFirst: { order: 1 },
-    });
-    await createTask(db, author, "second task");
-    expect(insertSpy.mock.calls[0]?.[0]).toMatchObject({ status: "pending", order: 2 });
-  });
-
-  it("activate option forces active even with open tasks (!next)", async () => {
-    const { db, insertSpy } = makeDb({
-      ownerTwitchId: "123",
-      openTasks: [{ id: "existing" }],
-      taskFindFirst: { order: 1 },
-    });
-    await createTask(db, author, "next task", { activate: true });
-    expect(insertSpy.mock.calls[0]?.[0]).toMatchObject({ status: "active" });
-  });
-
-  // ── Concurrency ───────────────────────────────────────────────────────────
-  it("falls back to pending when a concurrent create wins the active slot", async () => {
-    // Two !task commands from the same viewer both read "no open tasks" and
-    // both try to insert an active row. The partial unique index rejects the
-    // loser; it must still create the task, just queued as pending — never
-    // drop the message and never end up with two active tasks.
-    const { db, insertSpy } = makeDb({
-      ownerTwitchId: "123",
-      openTasks: [],
-      failFirstInsertUnique: true,
-    });
-
-    const task = await createTask(db, author, "racing task");
-
-    expect(insertSpy).toHaveBeenCalledTimes(2);
-    expect(insertSpy.mock.calls[0]?.[0]).toMatchObject({ status: "active" });
-    expect(insertSpy.mock.calls[1]?.[0]).toMatchObject({ status: "pending" });
-    expect(task).toMatchObject({ text: "racing task", status: "pending" });
-  });
-
+  // Status choice, placement, the unique-index fallback and the open-task cap are
+  // SQL (a guarded INSERT … SELECT): task-service.sqlite.test.ts covers them.
   it("rethrows a non-unique insert failure instead of silently retrying", async () => {
+    const author = { twitchId: "456", username: "viewer", displayName: "Viewer" };
     const db = {
       query: {
         user: { findFirst: async () => ({ twitchId: "123" }) },
         task: { findFirst: async () => undefined, findMany: async () => [] },
       },
       insert: () => ({
-        values: () => ({
+        select: () => ({
           returning: async () => {
             throw new Error("D1_ERROR: database is locked");
           },
         }),
       }),
+      delete: () => ({ where: () => ({ returning: async () => [] }) }),
     } as unknown as DbClient;
 
     await expect(createTask(db, author, "boom")).rejects.toThrow(/database is locked/);
@@ -393,6 +343,8 @@ describe("replaceActiveTask atomicity", () => {
         }),
       }),
       batch: batchSpy,
+      // Nothing created: the open-task count tells "stale" from "list full".
+      select: () => ({ from: () => ({ where: async () => [{ n: 3 }] }) }),
     } as unknown as DbClient;
 
     const result = await replaceActiveTask(
@@ -402,6 +354,6 @@ describe("replaceActiveTask atomicity", () => {
       "must not appear",
     );
 
-    expect(result).toEqual({ completed: null, created: null });
+    expect(result).toEqual({ completed: null, created: null, full: false });
   });
 });
