@@ -105,6 +105,14 @@ describe("dashboard layout", () => {
     expect(obsSources).toMatch(/\{preview && !side && src && <PreviewStage /);
     expect(obsSources.match(/<iframe/g)).toHaveLength(1);
     expect(obsSources).toContain('aria-label="Close live preview"');
+    // The column mounts on demand, so it must not observe user.me itself: a new observer
+    // refetches stale data on mount (an extra /rpc request per open). The one observer
+    // lives in useObsPreview, which mounts with the console.
+    const column = obsSources.slice(obsSources.indexOf("export function ObsPreviewColumn("));
+    expect(column).not.toMatch(/useQuery|useOverlayPaths|trpc\./);
+    expect(column).toContain("const { paths } = state;");
+    expect(obsSources.match(/useOverlayPaths\(\)/g)).toHaveLength(2); // definition + one call
+    expect(obsSources).toMatch(/useObsPreview\(\)[\s\S]*?const paths = useOverlayPaths\(\);/);
     expect(obsSources).toContain('aria-label="Live preview"');
   });
 
