@@ -391,7 +391,10 @@ chat line adds no instance_config read (`bot-ingest.test.ts` pins it). Task comp
 right after the guarded done UPDATE; it counts only if `changes() > 0` and the row carries
 that UPDATE's exact `completed_at`, so a repeat "done" or `task.restore` never counts twice.
 `tasks_done_chat` = author is not the owner, decided in SQL (owner twitch_id, Twitch account
-id or user id). Recording is best-effort (never fails a poll or chat command).
+id or user id). Recording is best-effort and never fails the write it rides on: if a combined
+batch throws (D1 batches are atomic, so nothing applied), `casTimerWithCredits` and the task
+paths (`withStatsFallback`) retry the same guarded mutation alone; the zone read and the prune
+swallow their errors (`stats-service.sqlite.test.ts` breaks `daily_stat` with triggers to pin it).
 `pruneDailyStats` (PK range DELETE, > `STATS_RETENTION_DAYS` = 400) runs in `startTimer`.
 `stats.summary` (ownerProcedure) reads ≤35 rows by PK range (this week + 4 before it) and
 returns today, this week (`focusDays`), a week streak (`capped` when it reaches the window
