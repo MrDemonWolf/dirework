@@ -668,14 +668,14 @@ inputs ≥16px on touch (iOS zoom). Destructive actions (token regenerate, disco
 clear, stop) always confirm via the AlertDialog primitive. Editors with dirty state use
 the unsaved-changes guard hook. 6 theme presets in `lib/theme-presets.ts`.
 **Dashboard** (`/dashboard`, `dashboard.tsx`): the timer console is a `lg:grid-cols-5`
-panel — `TimerInstrument` (status chip, digits, phase rail, cycle dots; hollow dots preview
-the planned run while idle) in 3/5, and in 2/5 `TimerTransport` (`[Start] [Skip] | [Stop]`;
-Skip/Stop exist only mid-run), `TimerSettings` behind the "Edit session settings"
-`SectionGroup` (its collapsed summary is `formatSessionSummary` in `lib/session-summary.ts`,
-from the SAVED config with `TIMER_CONFIG_DEFAULTS` fallbacks) and the timer-overlay monitor.
-The task board (`task-manager.tsx`) takes 2/3 with the tasks-overlay monitor in 1/3; a
-monitor is the URL row plus a "Live preview" toggle whose iframe only exists while on.
-Rows are `min-h-11` with `line-clamp-2` text, author groups fold (Collapsible, component
+panel — `TimerInstrument` (status chip, digits, phase rail, cycle dots; hollow dots preview the planned run while idle) in 3/5, and in 2/5
+`TimerTransport` (`[Start] [Skip] | [Stop]`; Skip/Stop exist only mid-run), `TimerSettings` behind the "Edit session settings" `SectionGroup`
+(its collapsed summary is `formatSessionSummary` in `lib/session-summary.ts`, from the SAVED
+config with `TIMER_CONFIG_DEFAULTS` fallbacks) and `ObsSources` (`components/obs-sources.tsx`):
+both overlay URLs in one block, a "Timer" / "Tasks" tab each (URL row with Show/Copy/Reset,
+the 300×300 / 700×800 size chip, a "Live preview" toggle whose iframe only exists while on;
+only the selected tab is mounted). The task board (`task-manager.tsx`) takes the full width.
+The setup checklist's URL handoffs stay separate (Show/Copy only). Rows are `min-h-11` with `line-clamp-2` text, author groups fold (Collapsible, component
 state only), and "Clear done (N)" / "Clear all (N)" live in the "Task board options" menu,
 each opening its confirm. The bot's status appears once, as the header chip that links to Bot settings.
 The per-section placeholders in `dashboard-skeleton.tsx` (and the client-navigation

@@ -10,7 +10,7 @@ tokens: [color.scheme, color.phase, radius, tracking, font.size]
 The dashboard timer console (`dashboard/dashboard.tsx`): the hero clock, its transport and the
 session settings. Four exports share one context so the per-second countdown re-renders only
 the instrument. On `lg` the console is a `grid-cols-5` panel: `TimerInstrument` in 3/5, and
-in 2/5 `TimerTransport`, `TimerSettings` and the timer-overlay monitor.
+in 2/5 `TimerTransport`, `TimerSettings` and `ObsSources` (both overlay URLs).
 
 ## Anatomy
 

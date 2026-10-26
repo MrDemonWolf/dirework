@@ -13,6 +13,7 @@ const dashboard = read("app/(app)/dashboard/dashboard.tsx");
 const taskManager = read("components/task-manager.tsx");
 const timerControls = read("components/timer-controls.tsx");
 const skeleton = read("components/dashboard-skeleton.tsx");
+const obsSources = read("components/obs-sources.tsx");
 const stats = read("components/dashboard-stats.tsx");
 const refresh = read("lib/stats-refresh.ts");
 
@@ -57,15 +58,34 @@ describe("dashboard layout", () => {
     expect(skeleton).toContain("className={statCellClass(i)}");
   });
 
-  it("splits the timer console 3/5 | 2/5 and the board 2/3 | 1/3", () => {
+  it("splits the timer console 3/5 | 2/5 and gives the task board the full width", () => {
     expect(dashboard).toContain('<div className="grid lg:grid-cols-5">');
     expect(dashboard).toMatch(/lg:col-span-3">\s*<TimerInstrument \/>/);
-    expect(dashboard).toMatch(/<TimerTransport \/>\s*<TimerSettings \/>\s*<OverlayMonitor/);
-    expect(taskManager).toContain("lg:grid-cols-3");
-    expect(taskManager).toContain("lg:col-span-2");
+    // Right column: transport, settings, then both overlay URLs.
+    expect(dashboard).toMatch(/<TimerTransport \/>\s*<TimerSettings \/>\s*<ObsSources \/>/);
+    expect(taskManager).not.toMatch(/lg:grid-cols-3|lg:col-span-2|monitor/);
     // The skeleton keeps the same shapes, so the hand-off doesn't jump.
     expect(skeleton).toContain("lg:grid-cols-5");
-    expect(skeleton).toContain("lg:grid-cols-3");
+    expect(skeleton).not.toContain("lg:grid-cols-3");
+    expect(skeleton).toMatch(/lg:h-15" \/>\s*<ObsSourcesSkeleton \/>/);
+  });
+
+  it("merges both overlay URLs into one OBS sources block with Timer / Tasks tabs", () => {
+    // One SecretUrlRow, rendered per tab, and no per-panel monitor left behind.
+    expect(dashboard).not.toContain("OverlayMonitor");
+    expect(dashboard).not.toContain("SecretUrlRow");
+    expect(dashboard.match(/<ObsSources \/>/g)).toHaveLength(1);
+    expect(obsSources).toContain('label="OBS sources"');
+    // Row labels "Timer overlay" / "Tasks overlay" (the e2e suite drives them), sized from the
+    // same constants as the Theme Center preview.
+    expect(obsSources).toContain('tab: "Timer",');
+    expect(obsSources).toContain('tab: "Tasks",');
+    expect(obsSources).toContain("const label = `$" + "{tab} overlay`;");
+    expect(obsSources).toContain("source: TIMER_SOURCE_FALLBACK");
+    expect(obsSources).toContain("source: TASKS_SOURCE");
+    expect(obsSources.match(/<SecretUrlRow/g)).toHaveLength(1);
+    // The preview iframe only exists while its toggle is on (and its tab is mounted).
+    expect(obsSources).toMatch(/\{show && src && \(/);
   });
 
   it("keeps the bulk clears in the board options menu, behind their confirms", () => {
