@@ -97,6 +97,18 @@ test.describe("on a 320px phone", () => {
       expect((await tab.boundingBox())!.height, "tab shorter than 44px").toBeGreaterThanOrEqual(44);
     }
 
+    // Below lg the live preview stays inline under the URL row: no side column.
+    const preview = page.getByRole("button", { name: "Live preview of the timer overlay" });
+    await preview.click();
+    const stage = page.locator('iframe[title="Timer overlay preview"]');
+    await expect(stage).toBeVisible();
+    await expect(page.getByRole("complementary", { name: "Live preview" })).toHaveCount(0);
+    expect((await stage.boundingBox())!.y).toBeGreaterThan((await preview.boundingBox())!.y);
+    const withPreview = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(withPreview, "inline preview widened the page").toBeLessThanOrEqual(layout.client);
+    await preview.click();
+    await expect(stage).toHaveCount(0);
+
     // Leave the timer idle for the specs that run after this one.
     await stop.click();
     await confirmDialog(page, "Stop timer");

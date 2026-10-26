@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Live preview beside the timer.** On a wide screen, turning on an overlay's **Live
+  preview** opens it as a column on the right of the Timer card, and the timer and its
+  controls slide over to make room. The column names the overlay (it follows the Timer /
+  Tasks tab) and has a close button. On narrower screens the preview stays under the URL as
+  before. Still one preview at a time, and no new requests.
 - **One bot page at a time, and "Bot connected" on the dashboard.** Only one open bot page
   (widget or dock) joins Twitch chat now. Any other copy stands by: its tab title says
   `DireWork bot · Standby`, and the dock says **The bot is running somewhere else** with a

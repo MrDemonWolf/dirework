@@ -680,7 +680,11 @@ when the owner has none), `TimerSettings` behind the "Edit session settings" `Se
 config with `TIMER_CONFIG_DEFAULTS` fallbacks) and `ObsSources` (`components/obs-sources.tsx`):
 both overlay URLs in one block, a "Timer" / "Tasks" tab each (URL row with Show/Copy/Reset,
 the 300×300 / 700×800 size chip, a "Live preview" toggle whose iframe only exists while on;
-only the selected tab is mounted). The task board (`task-manager.tsx`) takes the full width.
+only the selected tab is mounted). The tab and the preview switch live in the console
+(`useObsPreview`): below `lg` the preview is inline under the URL row; from `lg` it opens as
+the console's third column (`ObsPreviewColumn`: overlay name + "Close live preview") and
+`.timer-console-grid` (index.css) slides instrument | controls from 3/5 · 2/5 over to make
+room. One iframe at most either way. The task board (`task-manager.tsx`) takes the full width.
 The setup checklist's URL handoffs stay separate (Show/Copy only). Rows are `min-h-11` with `line-clamp-2` text, author groups fold (Collapsible, component
 state only), and "Clear done (N)" / "Clear all (N)" live in the "Task board options" menu,
 each opening its confirm. The bot's status appears once, as the header chip that links to Bot settings.
