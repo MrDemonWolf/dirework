@@ -31,6 +31,7 @@ export {
   DEFAULT_TASK_STYLES,
   DEFAULT_TIMER_MESSAGES,
   DEFAULT_TIMER_STYLES,
+  MAX_STARTED_PER_AUTHOR,
   MAX_TASK_LEN,
   TASK_LINES_MAX,
   TASK_LINES_MIN,
@@ -61,7 +62,7 @@ import {
 /** Singleton-row primary key used by every one-row config table (single source: packages/db schema). */
 export { SINGLETON_ID } from "@dirework/db/schema";
 
-/** Per-user open (pending+active) task cap enforced on the chat ingest path. */
+/** Per-user open (pending+started+active) task cap enforced on the chat ingest path. */
 export const CHAT_OPEN_TASK_CAP = 20;
 
 /**

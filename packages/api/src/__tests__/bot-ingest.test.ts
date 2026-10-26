@@ -790,14 +790,14 @@ describe("bot.ingest task commands end to end", () => {
     expect((await viewerTasks()).map((t) => t.text)).toEqual(["first thing", "second thing"]);
   });
 
-  it("!focus 2 makes the second task the sole active one", async () => {
+  it("!focus 2 makes the second task the focus and parks the old one as started", async () => {
     await seedTwo();
 
     const { replies } = await say("!focus 2");
 
     expect(replies).toEqual([reply(T.taskCheck, { task: "second thing" })]);
     expect(await viewerTasks()).toMatchObject([
-      { text: "first thing", status: "pending" },
+      { text: "first thing", status: "started" },
       { text: "second thing", status: "active" },
     ]);
   });
@@ -856,7 +856,7 @@ describe("bot.ingest task commands end to end", () => {
     ]);
     expect((await say("!focus #2")).replies).toEqual([reply(T.taskCheck, { task: "renamed" })]);
     expect(await viewerTasks()).toMatchObject([
-      { text: "first thing", status: "pending" },
+      { text: "first thing", status: "started" },
       { text: "renamed", status: "active" },
     ]);
 

@@ -274,6 +274,7 @@ describe("toRestoreInput", () => {
 
   it("passes every field of the removed row through for a known status", () => {
     expect(toRestoreInput(removed)).toEqual(removed);
+    expect(toRestoreInput({ ...removed, status: "started" })?.status).toBe("started");
   });
 
   it("offers no undo when nothing was removed or the status is unknown", () => {

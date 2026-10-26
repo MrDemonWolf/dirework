@@ -448,7 +448,21 @@ multi-step work in ONE `db.batch` (atomic on D1), `promoteNextPending` is a
 single guarded UPDATE with a subquery, and a **partial unique index**
 (`task_one_active_per_author_idx`) makes "≤1 active task per Twitch user" a DB
 invariant. `createTask` catches the resulting UNIQUE violation and falls back to
-`pending` rather than dropping the chat message. Bot ingest is serialized
+`pending` rather than dropping the chat message.
+**Focus + started.** Per author: ≤1 focus (`status='active'`, the index above) plus ≤
+`MAX_STARTED_PER_AUTHOR` (2, `@dirework/api/config-defaults`) parked `started` tasks;
+`status` is plain text, so `started` needed no migration. `OPEN_STATUSES` includes it (open
+counts, `CHAT_OPEN_TASK_CAP`, list reads). Every cap check runs INSIDE the guarded UPDATE
+(`startedCountSql` subquery), never read-then-write: `startTask` (pending → focus when the
+author has none, else `started` under the cap, else `cap_reached`), `pauseTask` (started →
+pending; focus → pending + promote, never the paused row), `activateTask` (old focus →
+`started` if room, not counting the target, else `pending`), `restoreTask` (a `started`
+snapshot → focus if none, `started` under the cap, else `pending`). Promotion
+(`promoteNextPendingStmt`, used by done/remove/pause) takes the oldest started task by
+(order, id), then the first pending. List order (`sortTasksForList`): (priority, order, id),
+then each author's rows re-ranked focus → started → rest within the slots that author
+already holds, so author groups keep their order. `task.start` / `task.pause` exist with no
+UI yet. Chat positions (`getViewerOpenTasks`, `!done 2`, `!today`) still number by (order, id). Bot ingest is serialized
 client-side (a serial queue in `createBotSession`, `apps/web/src/lib/bot-session.ts`) so chat commands apply in
 order. List ordering tiebreaks on `id` so concurrent creates sort deterministically.
 Dashboard removal is one click with an Undo toast: `task.restore` → `restoreTask`

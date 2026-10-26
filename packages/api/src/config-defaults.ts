@@ -22,6 +22,13 @@ import type {
 /** Maximum task text length — enforced by tRPC input schemas AND the chat path. */
 export const MAX_TASK_LEN = 500;
 
+/**
+ * How many tasks one author may hold `started` (in progress but parked) beside
+ * their single focus (`active`). Enforced inside the guarded UPDATEs in
+ * task-service, so concurrent starts can't exceed it.
+ */
+export const MAX_STARTED_PER_AUTHOR = 2;
+
 // Default values live in @dirework/db/defaults (the same objects back the
 // schema column defaults); the typed re-exports below guarantee they stay in
 // shape-lockstep with the field maps.

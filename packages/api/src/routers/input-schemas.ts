@@ -49,7 +49,7 @@ export const taskRestoreInput = z
     authorDisplayName: z.string().min(1).max(64),
     authorColor: twitchAuthorColorSchema.nullable(),
     text: taskTextInput,
-    status: z.enum(["pending", "active", "done"]),
+    status: z.enum(["pending", "started", "active", "done"]),
     priority: z.number().int().min(0).max(1),
     order: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
     createdAt: isoTimestampInput,

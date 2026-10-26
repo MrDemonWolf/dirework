@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Started tasks (api groundwork for multiple active tasks).** Besides the one task you
+  focus on, each person can now keep up to 2 tasks **started**: in progress but parked.
+  Switching focus (`!focus`, or the dashboard's activate) parks the old focus as started
+  when there is room, instead of sending it back to the queue. When a focus is finished,
+  removed or paused, the oldest started task takes over before any waiting task. The api
+  gains `task.start` and `task.pause` (no dashboard buttons yet), and lists show each
+  person's tasks as focus, then started, then waiting. Started tasks count toward the chat
+  limit of 20 open tasks. No migration and no new requests or reads on any poll.
 - **Live preview beside the timer.** On a wide screen, turning on an overlay's **Live
   preview** opens it as a column on the right of the Timer card, and the timer and its
   controls slide over to make room. The column names the overlay (it follows the Timer /
