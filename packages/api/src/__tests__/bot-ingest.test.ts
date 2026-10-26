@@ -36,9 +36,10 @@ const BOT_TOKEN = "bot-token-0123456789abcdef";
 const OWNER_TWITCH_ID = "1000";
 
 let db: DbClient;
+let sqlite: Awaited<ReturnType<typeof createSqliteDb>>["sqlite"];
 
 beforeEach(async () => {
-  ({ db } = await createSqliteDb());
+  ({ db, sqlite } = await createSqliteDb());
   await provisionSingletonRows(db);
   await db.update(schema.instanceConfig).set({ botToken: BOT_TOKEN, channelLogin: "streamer" });
   await db.insert(schema.user).values({
@@ -315,6 +316,49 @@ describe("bot.ingest !next", () => {
       { text: "first", status: "done" },
       { text: "second", status: "active" },
     ]);
+  });
+});
+
+describe("bot.ingest stats cost no extra instance_config read", () => {
+  /** Run `line` and return its instance_config reads other than the token gate. */
+  async function instanceReads(line: string, chatter?: Chatter) {
+    const reads: string[] = [];
+    const prepare = sqlite.prepare.bind(sqlite);
+    const spy = vi.spyOn(sqlite, "prepare").mockImplementation((query, params) => {
+      if (/^select[\s\S]*from "instance_config"/i.test(query)) reads.push(query);
+      return prepare(query, params);
+    });
+    try {
+      await say(line, chatter);
+    } finally {
+      spy.mockRestore();
+    }
+    // The token gate (which selects the zone too) is the only instance_config read allowed.
+    return reads.filter((query) => !query.includes('"bot_token"'));
+  }
+
+  const broadcaster = { username: "streamer", twitchId: OWNER_TWITCH_ID };
+
+  it("!done, !next and the timer commands read it only through the token gate, which carries the zone", async () => {
+    await db.update(schema.instanceConfig).set({ timeZone: "America/Chicago" });
+    await say("!task one");
+    expect(await instanceReads("!done")).toEqual([]);
+
+    await say("!task two");
+    expect(await instanceReads("!next three")).toEqual([]);
+
+    expect(await instanceReads("!timer start", broadcaster)).toEqual([]);
+    // Overdue: the advance's credit path must not read the zone again either.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(Date.now() + 60 * 60_000);
+      expect(await instanceReads("!timer skip", broadcaster)).toEqual([]);
+      expect(await instanceReads("!timer reset", broadcaster)).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+    const stats = await db.query.dailyStat.findMany();
+    expect(stats.reduce((sum, row) => sum + row.tasksDone, 0)).toBe(2);
   });
 });
 

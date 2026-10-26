@@ -376,12 +376,17 @@ poll. A test asserts via EXPLAIN QUERY PLAN that none of these queries full-scan
 `daily_stat` holds one row per owner-local day (`"YYYY-MM-DD"` in
 `instance_config.time_zone`, UTC when null). It is written ONLY as a side effect of writes
 that already happen, as `INSERT … ON CONFLICT(day) DO UPDATE SET x = x + excluded.x`:
-`maybeAdvanceOverdueTimer` records the work phases `catchUpOverdue` walked past (full length +
-1 pomodoro each, on the day each phase ENDED) only when its guarded CAS returned a row, so two
-pollers can't double count and a poll with nothing overdue reads/writes nothing extra (the zone
-is read beside `timer_config`, only once a timer is overdue); `skipTimerWithResult` /
-`resetTimer` (now a guarded CAS after a catch-up) credit `workedMs` (length minus remaining,
-so paused time never counts; never a pomodoro). Task completions (`completeTask`,
+`maybeAdvanceOverdueTimer` credits the work phases `catchUpOverdue` walked past (full length +
+1 pomodoro each, on the day each phase ENDED), and `skipTimerWithResult` / `resetTimer` (now a
+guarded CAS after a catch-up) credit `workedMs` (length minus remaining, so paused time never
+counts; never a pomodoro). All three go through `casTimerWithCredits`: the guarded CAS and
+`focusCreditStmts` (INSERT … SELECT … `WHERE changes() > 0`) in ONE batch, so credits land only
+when the CAS wins (two pollers can't double count) and atomically with it (a reader that sees
+the advanced timer sees them); a poll with nothing overdue reads/writes nothing extra (the zone
+is read beside `timer_config`, only once a timer is overdue). **Chat paths pass the zone**:
+`requireBotInstance` selects `time_zone` with the token gate and `MessageContext.timeZone`
+flows into `markTaskDone` / `replaceActiveTask` / the timer actions (`TimerStatsOpts`), so a
+chat line adds no instance_config read (`bot-ingest.test.ts` pins it). Task completions (`completeTask`,
 `completeActiveTask`, `replaceActiveTask`) put `countTaskDoneStmt` in the SAME `db.batch`
 right after the guarded done UPDATE; it counts only if `changes() > 0` and the row carries
 that UPDATE's exact `completed_at`, so a repeat "done" or `task.restore` never counts twice.
@@ -390,10 +395,13 @@ id or user id). Recording is best-effort (never fails a poll or chat command).
 `pruneDailyStats` (PK range DELETE, > `STATS_RETENTION_DAYS` = 400) runs in `startTimer`.
 `stats.summary` (ownerProcedure) reads ≤35 rows by PK range (this week + 4 before it) and
 returns today, this week (`focusDays`), a week streak (`capped` when it reaches the window
-start, shown "5+") and 14 daily buckets; it rides `streamDashboard`'s one batch and is never
-polled — the dashboard's `useStatsRefresh` (a QueryCache subscription, not an observer)
-invalidates it when the timer poll sees a status change or `task.list`'s `counts.done`
-rises. `user.setTimeZone` (guarded UPDATE, `is not`) is sent once by `useTimeZoneSync` when
+start, shown "5+") and 14 daily buckets, after advancing an overdue timer first (so a
+dashboard opened after an unattended session counts it, though `timer.get` races in the same
+batch); it rides `streamDashboard`'s one batch and is never polled — the dashboard's
+`useStatsRefresh` (a QueryCache subscription, not an observer) invalidates it when the timer
+poll sees a status change or `task.list` shows a newer completion (`latestCompletion`: the
+newest `completedAt`, monotonic, unlike `counts.done`, which the purge can hold level), plus
+once just after each local midnight (`scheduleDayRollover`, one timer a day). `user.setTimeZone` (guarded UPDATE, `is not`) is sent once by `useTimeZoneSync` when
 `me.timeZone` differs from the browser's zone. UI: `components/dashboard-stats.tsx`
 (`StatTiles` strip under the greeting, `FocusChart` inline SVG under the timer digits).
 

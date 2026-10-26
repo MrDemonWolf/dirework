@@ -11,10 +11,17 @@ import {
   type StatsSummary,
 } from "../stats-days";
 
-// Dashboard stats (`daily_stat`, one row per local day). Every write here rides on a write
-// the app already makes — a timer phase the guarded UPDATE moved past, a task the guarded
-// UPDATE marked done — so a poll that changes nothing never records anything, and two
-// pollers racing on the same phase can't count it twice (only the UPDATE's winner records).
+// Dashboard stats (`daily_stat`, one row per local day). Every write here rides IN THE SAME
+// db.batch as a write the app already makes — a timer phase the guarded UPDATE moved past, a
+// task the guarded UPDATE marked done — and is itself guarded on `changes() > 0`, so it lands
+// atomically with that UPDATE and only when the UPDATE matched: a poll that changes nothing
+// never records anything, and two pollers racing on the same phase count it once.
+
+/**
+ * The owner's zone as a caller already knows it: a string or null (UTC) when it was read
+ * with a row the caller loaded anyway (bot ingest's token gate), undefined when unknown.
+ */
+export type KnownTimeZone = string | null | undefined;
 
 /** Focus time a timer transition earned, landing on the day of `at`. */
 export interface FocusCredit {
@@ -38,16 +45,24 @@ export async function readStatsTimeZone(db: DbClient): Promise<string | null> {
   }
 }
 
+/** The known zone, or one primary-key read of it when the caller doesn't have it. */
+export function resolveStatsTimeZone(db: DbClient, known: KnownTimeZone) {
+  return known === undefined ? readStatsTimeZone(db) : Promise.resolve(known);
+}
+
 /**
- * Add focus credits as one upsert per local day (`ON CONFLICT(day) DO UPDATE SET x = x + …`),
- * all in one batch. Best-effort: the timer transition that earned them has already been
- * written, and a stats failure must never fail an overlay poll or a chat command.
+ * Focus credits as one upsert per local day (`ON CONFLICT(day) DO UPDATE SET x = x + …`), for
+ * the SAME db.batch as the guarded timer UPDATE that earned them, placed right after it. Each
+ * is an INSERT … SELECT guarded on `changes() > 0` (the previous statement's row count: the
+ * UPDATE's for the first, the previous upsert's for the next), so nothing lands unless the
+ * UPDATE matched, and whoever reads after the UPDATE also sees the credits. Empty when there is
+ * nothing to credit.
  */
-export async function recordFocusCredits(
+export function focusCreditStmts(
   db: DbClient,
   credits: readonly FocusCredit[],
   timeZone: string | null,
-): Promise<void> {
+) {
   const byDay = new Map<string, { focusMs: number; pomodoros: number }>();
   for (const credit of credits) {
     if (credit.focusMs <= 0 && credit.pomodoros <= 0) continue;
@@ -57,24 +72,18 @@ export async function recordFocusCredits(
     total.pomodoros += credit.pomodoros;
     byDay.set(day, total);
   }
-  if (byDay.size === 0) return;
-  try {
-    const [first, ...rest] = [...byDay].map(([day, total]) =>
-      db
-        .insert(schema.dailyStat)
-        .values({ day, ...total })
-        .onConflictDoUpdate({
-          target: schema.dailyStat.day,
-          set: {
-            focusMs: sql`${schema.dailyStat.focusMs} + excluded.focus_ms`,
-            pomodoros: sql`${schema.dailyStat.pomodoros} + excluded.pomodoros`,
-          },
-        }),
-    );
-    if (first) await db.batch([first, ...rest]);
-  } catch {
-    // Best-effort (see above).
-  }
+  return [...byDay].map(([day, total]) =>
+    db
+      .insert(schema.dailyStat)
+      .select(sql`select ${day}, ${total.focusMs}, ${total.pomodoros}, 0, 0 where changes() > 0`)
+      .onConflictDoUpdate({
+        target: schema.dailyStat.day,
+        set: {
+          focusMs: sql`${schema.dailyStat.focusMs} + excluded.focus_ms`,
+          pomodoros: sql`${schema.dailyStat.pomodoros} + excluded.pomodoros`,
+        },
+      }),
+  );
 }
 
 /**
@@ -155,13 +164,16 @@ export async function pruneDailyStats(db: DbClient, now: number = Date.now()): P
 
 /**
  * The dashboard's stats: today, this week, the week streak and 14 daily buckets, from one
- * primary-key range read of at most 35 rows (this week plus the four before it).
+ * primary-key range read of at most 35 rows (this week plus the four before it). The
+ * `stats.summary` procedure advances an overdue timer first (timer-service), so phases that
+ * ended while nobody watched are counted before this reads.
  */
 export async function getStatsSummary(
   db: DbClient,
-  now: number = Date.now(),
+  opts: { now?: number; timeZone?: KnownTimeZone } = {},
 ): Promise<StatsSummary> {
-  const timeZone = await readStatsTimeZone(db);
+  const now = opts.now ?? Date.now();
+  const timeZone = await resolveStatsTimeZone(db, opts.timeZone);
   const today = localDay(now, timeZone);
   const rows = await db
     .select()

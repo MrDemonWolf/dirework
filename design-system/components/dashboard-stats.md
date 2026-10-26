@@ -11,7 +11,8 @@ How the owner's streams are going, at a glance, on `/dashboard`: a readout strip
 greeting (`StatTiles`) and a 14-day focus chart under the timer digits (`FocusChart`). Both
 read `stats.summary`, which rides the dashboard's one SSR batch and is never polled.
 `useStatsRefresh` refetches it when the timer or task polls the page already runs see a
-phase change or a rising done count; `useTimeZoneSync` reports the browser's zone once when
+phase change or a newer task completion (the newest `completedAt`, never the purge-prone done
+count), and once just after each local midnight (one timer a day, no polling); `useTimeZoneSync` reports the browser's zone once when
 the stored one differs. Copy, bar geometry and the refresh rule live in `lib/stats-view.ts`.
 
 ## Anatomy

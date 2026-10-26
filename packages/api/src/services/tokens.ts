@@ -80,14 +80,16 @@ export async function requireBotToken(db: DbClient, token: string): Promise<void
 export async function requireBotInstance(
   db: DbClient,
   token: string,
-): Promise<{ channelLogin: string | null }> {
+): Promise<{ channelLogin: string | null; timeZone: string | null }> {
+  // The owner's stats zone rides on this same read, so chat commands that record
+  // stats (!done, !next, !timer) add no instance_config round trip.
   const instance = await db.query.instanceConfig.findFirst({
-    columns: { botToken: true, channelLogin: true },
+    columns: { botToken: true, channelLogin: true, timeZone: true },
   });
   if (!instance || !constantTimeEqual(instance.botToken, token)) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid bot token" });
   }
-  return { channelLogin: instance.channelLogin ?? null };
+  return { channelLogin: instance.channelLogin ?? null, timeZone: instance.timeZone ?? null };
 }
 
 /** instanceConfig columns that hold a rotatable bearer token. */

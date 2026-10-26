@@ -41,6 +41,10 @@ describe("dashboard layout", () => {
     expect(dashboard).toMatch(/<HeaderSection [\s\S]*?<StatTiles \/>[\s\S]*?Timer Console/);
     expect(dashboard).toMatch(/<TimerInstrument \/>\s*<ProgressiveSection[\s\S]*?<FocusChart \/>/);
     expect(skeleton).toMatch(/<StatusClusterPlaceholder \/>\s*<\/div>\s*<StatTilesPlaceholder \/>/);
+    // Refresh signals: a newer completion (never the purge-prone done count) and local midnight.
+    expect(stats).toContain("latestDoneAt: tasks ? latestCompletion(tasks) : undefined");
+    expect(stats).not.toContain("counts.done");
+    expect(stats).toContain("scheduleDayRollover(refresh)");
     // Tiles and their placeholder share one cell layout, box for box.
     expect(stats).toContain("className={statCellClass(i)}");
     expect(skeleton).toContain("className={statCellClass(i)}");

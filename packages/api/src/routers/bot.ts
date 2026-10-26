@@ -196,7 +196,7 @@ export const botRouter = router({
       // The token check's own instance_config read also yields the cached channel
       // login (written by getSession's resolveChannelLogin), so !block can refuse
       // the streamer's real login without another D1 read.
-      const { channelLogin } = await requireBotInstance(ctx.db, input.token);
+      const { channelLogin, timeZone } = await requireBotInstance(ctx.db, input.token);
 
       // Moderation piggyback (L9): CLEARCHAT (ban/timeout) → drop the user's tasks.
       if (input.kind === "clearchat") {
@@ -226,6 +226,7 @@ export const botRouter = router({
         db: ctx.db,
         channelName: owner?.name ?? "",
         channelLogin,
+        timeZone,
         config: buildBotConfig(botConfigRow),
         message: input.message.trim(),
         userInfo: {

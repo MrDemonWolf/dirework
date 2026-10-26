@@ -7,12 +7,7 @@ import * as schema from "@dirework/db/schema";
 
 import { createSqliteDb } from "../../__tests__/helpers/sqlite-db";
 import { STATS_RETENTION_DAYS, addDays } from "../../stats-days";
-import {
-  getStatsSummary,
-  pruneDailyStats,
-  recordFocusCredits,
-  setStatsTimeZone,
-} from "../stats-service";
+import { getStatsSummary, pruneDailyStats, setStatsTimeZone } from "../stats-service";
 import { markTaskDone, removeTask, replaceActiveTask, restoreTask } from "../task-service";
 import {
   maybeAdvanceOverdueTimer,
@@ -110,10 +105,50 @@ describe("timer phases → daily_stat", () => {
     const workEnd = await startWork();
     vi.setSystemTime(workEnd + 1);
 
-    const [a, b] = await Promise.all([maybeAdvanceOverdueTimer(db), maybeAdvanceOverdueTimer(db)]);
+    await maybeAdvanceOverdueTimer(db);
+    await maybeAdvanceOverdueTimer(db);
 
-    expect(a?.status).toBe("break");
-    expect(b?.status).toBe("break");
+    expect(rawStats()).toMatchObject([{ focus_ms: WORK, pomodoros: 1 }]);
+  });
+
+  it("a poller whose guarded advance loses the race records nothing", async () => {
+    const workEnd = await startWork();
+    vi.setSystemTime(workEnd + 1);
+    // Another poller advances the timer between this one's read and its write (the winner's
+    // own credits are not part of this check).
+    const prepare = sqlite.prepare.bind(sqlite);
+    let fired = false;
+    vi.spyOn(sqlite, "prepare").mockImplementation((query, params) => {
+      if (!fired && /^update "timer_state"/i.test(query)) {
+        fired = true;
+        sqlite.exec(
+          `UPDATE timer_state SET status = 'break', target_end_time = ${workEnd + 10 * 60_000}`,
+        );
+      }
+      return prepare(query, params);
+    });
+
+    const row = await maybeAdvanceOverdueTimer(db);
+
+    expect(fired).toBe(true);
+    expect(row?.status).toBe("break");
+    expect(rawStats()).toEqual([]);
+  });
+
+  it("credits ride in the advance's own batch, so they are atomic with it", async () => {
+    const workEnd = await startWork();
+    vi.setSystemTime(workEnd + 1);
+    const batch = db.batch.bind(db);
+    const batches: number[] = [];
+    db.batch = (async (statements: Parameters<typeof batch>[0]) => {
+      batches.push(statements.length);
+      return batch(statements);
+    }) as unknown as typeof db.batch;
+
+    await maybeAdvanceOverdueTimer(db);
+
+    // The guarded UPDATE plus one upsert per local day, in one batch.
+    expect(batches).toEqual([2]);
     expect(rawStats()).toMatchObject([{ focus_ms: WORK, pomodoros: 1 }]);
   });
 
@@ -275,17 +310,15 @@ describe("retention, time zone and the summary read", () => {
     expect(await pruneDailyStats(db)).toBe(0);
   });
 
-  it("sums repeated credits for the same day with one upsert each", async () => {
-    await recordFocusCredits(db, [{ at: T0, focusMs: 1000, pomodoros: 1 }], null);
-    await recordFocusCredits(
-      db,
-      [
-        { at: T0, focusMs: 500, pomodoros: 0 },
-        { at: T0 + 1, focusMs: 250, pomodoros: 1 },
-      ],
-      null,
-    );
-    expect(rawStats()).toMatchObject([{ focus_ms: 1750, pomodoros: 2 }]);
+  it("sums repeated credits for the same day into one row", async () => {
+    const workEnd = await startWork();
+    vi.setSystemTime(workEnd + 1);
+    await maybeAdvanceOverdueTimer(db); // one full work phase
+    await skipTimer(db); // break → work 2
+    vi.setSystemTime(Date.now() + 4 * 60_000);
+    await skipTimer(db); // 4 minutes of work 2
+
+    expect(rawStats()).toMatchObject([{ focus_ms: WORK + 4 * 60_000, pomodoros: 1 }]);
   });
 
   it("stores the zone only when it changes", async () => {

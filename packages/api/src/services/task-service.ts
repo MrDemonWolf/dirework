@@ -4,7 +4,7 @@ import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 
 import { localDay } from "../stats-days";
-import { countTaskDoneStmt, readStatsTimeZone } from "./stats-service";
+import { countTaskDoneStmt, type KnownTimeZone, resolveStatsTimeZone } from "./stats-service";
 
 // Single implementation of every task mutation (audit M1) — called by both
 // the tRPC task router and the bot ingest path.
@@ -258,8 +258,8 @@ export function isUniqueViolation(err: unknown): boolean {
  * completes a task that was promoted to active since the caller read it —
  * that one needs the promote batch in `markTaskDone`. Null when nothing matched.
  */
-export async function completeTask(db: DbClient, id: string, timeZone?: string | null) {
-  const zone = timeZone === undefined ? await readStatsTimeZone(db) : timeZone;
+export async function completeTask(db: DbClient, id: string, timeZone?: KnownTimeZone) {
+  const zone = await resolveStatsTimeZone(db, timeZone);
   const completedAt = new Date();
   const [updatedRows] = await db.batch([
     db
@@ -282,13 +282,18 @@ export async function completeTask(db: DbClient, id: string, timeZone?: string |
  * Both writes are guarded on the status that was read. If a concurrent request
  * changed it in between (typically: removing the active task promoted this
  * pending one), the status is re-read once and the matching path retried.
- * An already-done task is a no-op (null), not a rewrite.
+ * An already-done task is a no-op (null), not a rewrite. `timeZone` (the owner's,
+ * when the caller already read it) saves the stats zone read on the chat path.
  */
-export async function markTaskDone(db: DbClient, id: string) {
+export async function markTaskDone(
+  db: DbClient,
+  id: string,
+  opts: { timeZone?: KnownTimeZone } = {},
+) {
   const [first, , timeZone] = await Promise.all([
     readTaskStatus(db, id),
     purgeExpiredDoneTasks(db),
-    readStatsTimeZone(db),
+    resolveStatsTimeZone(db, opts.timeZone),
   ]);
   let existing = first;
 
@@ -334,18 +339,20 @@ async function completeActiveTask(
 /**
  * Replace the current active task atomically. The pending insert is guarded by
  * the old task still being active, so a stale !next cannot create a new task.
+ * `timeZone` (the owner's, when the caller already read it) saves the stats
+ * zone read on the chat path.
  */
 export async function replaceActiveTask(
   db: DbClient,
   activeTask: { id: string },
   author: TaskAuthor,
   text: string,
-  opts?: TaskPlacementOpts,
+  opts?: TaskPlacementOpts & { timeZone?: KnownTimeZone },
 ) {
   const [placement, , timeZone] = await Promise.all([
     resolveTaskPlacement(db, author.twitchId, opts?.isBroadcaster),
     purgeExpiredDoneTasks(db),
-    readStatsTimeZone(db),
+    resolveStatsTimeZone(db, opts?.timeZone),
   ]);
   const replacementId = crypto.randomUUID();
   const completedAt = new Date();
