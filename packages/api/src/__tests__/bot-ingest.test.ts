@@ -154,6 +154,43 @@ describe("bot.ingest task text", () => {
     expect(texts).toHaveLength(2);
     for (const text of texts) expect(text).toBe(`a${"🐺".repeat(249)}`);
   });
+
+  // "Z" with five combining marks, "o" with four: kept to two each.
+  const ZALGO = "Z̷̢̛̖̗o̶̧̿̀";
+  const TRIMMED = "Z̷̢o̶̧";
+
+  it("trims Zalgo stacks on !task, !edit and !next, and in the reply", async () => {
+    await db.update(schema.botConfig).set({ msgTaskAdded: "added {task}" });
+    const added = await say(`!task ${ZALGO} one`);
+    expect(added.replies).toEqual([`added ${TRIMMED} one`]);
+    expect((await tasks())[0]?.text).toBe(`${TRIMMED} one`);
+
+    await say(`!edit 1 ${ZALGO} two`);
+    expect((await tasks())[0]?.text).toBe(`${TRIMMED} two`);
+
+    await say(`!next ${ZALGO} three`);
+    expect((await tasks()).map((t) => t.text)).toContain(`${TRIMMED} three`);
+  });
+
+  it("trims Zalgo stacks off the display name the overlay shows", async () => {
+    await api().bot.ingest({
+      token: BOT_TOKEN,
+      kind: "message",
+      username: "zalgo",
+      displayName: ZALGO,
+      twitchId: "2001",
+      message: "!task hi",
+      isMod: false,
+    });
+    const row = await db.query.task.findFirst({ columns: { authorDisplayName: true } });
+    expect(row?.authorDisplayName).toBe(TRIMMED);
+  });
+
+  it("keeps two-mark letters (Vietnamese, Hindi) as typed", async () => {
+    const text = "việt hòa क्षि";
+    await say(`!task ${text}`);
+    expect((await tasks())[0]?.text).toBe(text);
+  });
 });
 
 describe("bot.ingest !today", () => {

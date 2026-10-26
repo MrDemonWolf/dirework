@@ -46,7 +46,7 @@ describe("task styles round-trip", () => {
         showCount: true,
         useCheckboxes: true,
         crossOnDone: true,
-        numberOfLines: 2,
+        numberOfLines: 3,
       },
       fonts: { header: "Montserrat", body: "Roboto" },
       scroll: { enabled: true, pixelsPerSecond: 70, gapBetweenLoops: 100 },

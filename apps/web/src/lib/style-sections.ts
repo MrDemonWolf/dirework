@@ -4,6 +4,7 @@
 // both maps to the full set of style keys, so a new style key can't go missing from the
 // editor or from a reset.
 
+import { TASK_LINES_MAX, TASK_LINES_MIN } from "@dirework/api/config-defaults";
 import { glyphSchema } from "@dirework/api/config-shared";
 
 import type { TaskStylesConfig, TimerStylesConfig } from "@/lib/config-types";
@@ -409,8 +410,8 @@ export const TASK_STYLE_FIELDS: readonly TaskField[] = [
     label: "Lines per task",
     section: "layout",
     kind: "slider",
-    min: 1,
-    max: 5,
+    min: TASK_LINES_MIN,
+    max: TASK_LINES_MAX,
   },
   {
     path: "scroll.enabled",

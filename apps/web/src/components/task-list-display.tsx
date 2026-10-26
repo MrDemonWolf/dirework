@@ -5,16 +5,21 @@
 // so the preview matches the overlay. Style values are interpolated into inline CSS here;
 // saved values have passed the allowlist schemas in config-shared (cssColorSchema etc.).
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+
+import { limitCombiningMarks } from "@dirework/api/chat-text";
+import { clampTaskLines } from "@dirework/api/config-defaults";
 
 import { countDoneByAuthor, groupTasksByAuthor } from "@/lib/task-utils";
 import {
+  ACTIVE_LABEL_MIN_PX,
   ACTIVE_ROW_TINT_PERCENT,
   AUTHOR_COUNT_OPACITY,
   AUTHOR_HEADER_TINT_PERCENT,
   HEADER_COUNT_OPACITY,
-  countHiddenRows,
+  fitStaticList,
   MORE_FOOTER_OPACITY,
+  type StaticListFit,
   TASK_ROW_GAP_PX,
 } from "@/lib/overlay-view";
 import { colorWithOpacity, quoteFontFamily } from "@/lib/timer-utils";
@@ -107,13 +112,38 @@ function InfiniteScroll({
 }
 
 /**
- * The list when scrolling is off: rows that don't fit are cut off, and a "+N more"
- * footer says how many (`countHiddenRows`). The footer is overlaid on the bottom
- * of the list area (always laid out, hidden while nothing is cut off) instead of
- * taking layout space, so the area every row is measured against never changes
- * size with it: when the list shrinks back to fit, `hidden` returns to 0. While
- * the footer shows, the rows are clipped above it. Re-measured whenever the area,
- * the rows or the footer resize (same ResizeObserver pattern as InfiniteScroll).
+ * Hide what `fitStaticList` says doesn't fit, straight on the DOM. Only
+ * `visibility` and `clip-path` change, and neither affects layout, so the next
+ * measurement sees the same boxes (no resize loop) and React's own inline styles
+ * are untouched. A group cut after some rows is clipped to end at its last shown
+ * row, keeping the card's rounded corners.
+ */
+function applyStaticListFit(
+  groupEls: readonly HTMLElement[],
+  rowEls: readonly HTMLElement[][],
+  fit: StaticListFit,
+  radius: string,
+) {
+  groupEls.forEach((groupEl, g) => {
+    const { visibleRows, clipBottom } = fit.groups[g] ?? { visibleRows: 0, clipBottom: 0 };
+    groupEl.style.visibility = visibleRows === 0 ? "hidden" : "";
+    groupEl.style.clipPath = clipBottom > 0 ? `inset(0 0 ${clipBottom}px 0 round ${radius})` : "";
+    rowEls[g]?.forEach((rowEl, r) => {
+      rowEl.style.visibility = r < visibleRows ? "" : "hidden";
+    });
+  });
+}
+
+/**
+ * The list when scrolling is off. Only whole rows show: a row that doesn't fit is
+ * hidden rather than cut in half, an author header never shows without at least
+ * one of its rows, and a "+N more" footer says how many rows are hidden
+ * (`fitStaticList`). The footer is overlaid on the bottom of the list area
+ * (always laid out, hidden while nothing is cut off) instead of taking layout
+ * space, so the area every row is measured against never changes size with it:
+ * when the list shrinks back to fit, `hidden` returns to 0. Measured after each
+ * render (a render means the poll brought new data) and whenever the area, the
+ * rows or the footer resize — never per frame.
  */
 function StaticList({ children, config }: { children: React.ReactNode; config: TaskStylesConfig }) {
   const areaRef = useRef<HTMLDivElement>(null);
@@ -121,31 +151,47 @@ function StaticList({ children, config }: { children: React.ReactNode; config: T
   const footerRef = useRef<HTMLDivElement>(null);
   const [hidden, setHidden] = useState(0);
   const [footerHeight, setFooterHeight] = useState(0);
+  const radius = config.task.border.radius;
+
+  const measure = useCallback(() => {
+    const area = areaRef.current;
+    const content = contentRef.current;
+    const footer = footerRef.current;
+    if (!area || !content || !footer) return;
+    // The clip box sits at the area's top edge and is the offsetParent of the
+    // groups and their rows, so every edge is measured from the top of the area.
+    const groupEls = Array.from(content.querySelectorAll<HTMLElement>("[data-task-group]"));
+    const rowEls = groupEls.map((groupEl) =>
+      Array.from(groupEl.querySelectorAll<HTMLElement>("[data-task-row]")),
+    );
+    const fit = fitStaticList(
+      groupEls.map((groupEl, g) => ({
+        bottom: groupEl.offsetTop + groupEl.offsetHeight,
+        rowBottoms: (rowEls[g] ?? []).map((row) => row.offsetTop + row.offsetHeight),
+      })),
+      area.clientHeight,
+      footer.offsetHeight,
+    );
+    applyStaticListFit(groupEls, rowEls, fit, radius);
+    setFooterHeight(footer.offsetHeight);
+    setHidden(fit.hidden);
+  }, [radius]);
+
+  // New rows arrive as a re-render; a swapped row can leave every size unchanged,
+  // so the ResizeObserver alone would miss it. setState bails out on equal values.
+  useLayoutEffect(measure);
 
   useEffect(() => {
     const area = areaRef.current;
     const content = contentRef.current;
     const footer = footerRef.current;
     if (!area || !content || !footer) return;
-
-    const measure = () => {
-      // The clip box sits at the area's top edge and is the rows' offsetParent,
-      // so each bottom is measured from the top of the list area.
-      const bottoms = Array.from(
-        content.querySelectorAll<HTMLElement>("[data-task-row]"),
-        (row) => row.offsetTop + row.offsetHeight,
-      );
-      setFooterHeight(footer.offsetHeight);
-      setHidden(countHiddenRows(bottoms, area.clientHeight, footer.offsetHeight));
-    };
-
-    measure();
     const observer = new ResizeObserver(measure);
     observer.observe(area);
     observer.observe(content);
     observer.observe(footer);
     return () => observer.disconnect();
-  }, []);
+  }, [measure]);
 
   return (
     <div ref={areaRef} className="relative min-h-0 flex-1 overflow-hidden">
@@ -258,22 +304,28 @@ function TaskItem({
         </span>
       )}
 
-      {/* Task text */}
+      {/* Task text: wraps (anywhere, so a URL or a no-space string breaks instead
+          of running off the row), ends in an ellipsis after `numberOfLines`, and
+          lays out right-to-left on its own when it starts in Arabic or Hebrew. */}
       <span
+        data-task-text
+        dir="auto"
         style={{
           color: isDone ? config.taskDone.fontColor : config.task.fontColor,
           fontSize: config.task.fontSize,
           display: "-webkit-box",
-          WebkitLineClamp: config.display.numberOfLines,
+          WebkitLineClamp: clampTaskLines(config.display.numberOfLines),
           WebkitBoxOrient: "vertical",
           overflow: "hidden",
+          overflowWrap: "anywhere",
+          minWidth: 0,
           textDecoration: isDone && config.display.crossOnDone ? "line-through" : "none",
           // Done → done-colour fades instead of snapping; colour only, so the
           // stream's layout never moves.
           transition: "color 200ms ease",
         }}
       >
-        {task.text}
+        {limitCombiningMarks(task.text)}
       </span>
 
       {isActive && (
@@ -283,7 +335,7 @@ function TaskItem({
           className="ml-auto shrink-0 self-center font-bold uppercase"
           style={{
             color: config.task.usernameColor,
-            fontSize: `calc(${config.task.fontSize} * 0.55)`,
+            fontSize: `max(${ACTIVE_LABEL_MIN_PX}px, calc(${config.task.fontSize} * 0.55))`,
             letterSpacing: "0.1em",
             // Padding, not margin: an inline margin-left would override `ml-auto`,
             // which pushes the label to the end of the row.
@@ -309,6 +361,7 @@ function AuthorGroup({ group, config }: { group: TaskGroup; config: TaskStylesCo
 
   return (
     <div
+      data-task-group
       style={{
         backgroundColor: colorWithOpacity(
           config.task.background.color,
@@ -334,12 +387,13 @@ function AuthorGroup({ group, config }: { group: TaskGroup; config: TaskStylesCo
       >
         <span
           className="truncate font-bold"
+          dir="auto"
           style={{
             color: authorColor,
             fontSize: config.task.fontSize,
           }}
         >
-          {group.authorDisplayName}
+          {limitCombiningMarks(group.authorDisplayName)}
         </span>
         <span
           style={{

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { DEFAULT_PHASE_LABELS } from "../config-types";
-import { countHiddenRows, overlayPath, taskOverlayView, timerOverlayView } from "../overlay-view";
+import { fitStaticList, overlayPath, taskOverlayView, timerOverlayView } from "../overlay-view";
 import { defaultTaskStyles, defaultTimerStyles } from "../theme-presets";
 
 const timerConfig = {
@@ -80,27 +80,60 @@ describe("overlayPath", () => {
   });
 });
 
-describe("countHiddenRows", () => {
+describe("fitStaticList", () => {
+  // One author group: its card's bottom edge and each row's bottom edge.
+  const group = (rowBottoms: number[], bottom = (rowBottoms.at(-1) ?? 40) + 4) => ({
+    bottom,
+    rowBottoms,
+  });
+  const hidden = (...args: Parameters<typeof fitStaticList>) => fitStaticList(...args).hidden;
+
   it("hides nothing when every row fits the whole area", () => {
-    expect(countHiddenRows([50, 100, 150], 200, 30)).toBe(0);
+    expect(fitStaticList([group([50, 100, 150])], 200, 30)).toEqual({
+      hidden: 0,
+      groups: [{ visibleRows: 3, clipBottom: 0 }],
+    });
   });
 
-  it("returns to 0 once rows fit, even though they would not fit above the footer", () => {
+  it("returns to all shown once rows fit, even though they would not fit above the footer", () => {
     // 190 > 200 - 30, but the footer only exists while something overflows:
     // after a row is removed everything fits the full area and the footer goes.
-    expect(countHiddenRows([50, 100, 190, 250], 200, 30)).toBe(2);
-    expect(countHiddenRows([50, 100, 190], 200, 30)).toBe(0);
+    expect(hidden([group([50, 100, 190, 250])], 200, 30)).toBe(2);
+    expect(hidden([group([50, 100, 190])], 200, 30)).toBe(0);
   });
 
-  it("counts rows below the space left above the footer when something overflows", () => {
-    expect(countHiddenRows([50, 100, 160, 180, 260], 200, 30)).toBe(2);
+  it("hides a partly cut-off row whole instead of drawing half of it", () => {
+    expect(fitStaticList([group([100, 201], 205)], 200, 0)).toEqual({
+      hidden: 1,
+      groups: [{ visibleRows: 1, clipBottom: 105 }],
+    });
   });
 
-  it("counts a partly cut-off row as hidden", () => {
-    expect(countHiddenRows([100, 201], 200, 0)).toBe(1);
+  it("clips a cut group to end at its last shown row", () => {
+    const fit = fitStaticList([group([60, 110, 175, 210], 214)], 200, 30);
+    expect(fit.hidden).toBe(2);
+    // Rows must end above the footer (170): the card is clipped up from 214 to 110.
+    expect(fit.groups[0]).toEqual({ visibleRows: 2, clipBottom: 104 });
+  });
+
+  it("hides a later group whole, header included, when none of its rows fits", () => {
+    // Group 2's header starts at 128 and fits, but its first row ends at 190 > 170.
+    const fit = fitStaticList([group([60, 120]), group([190, 240])], 200, 30);
+    expect(fit.groups).toEqual([
+      { visibleRows: 2, clipBottom: 0 },
+      { visibleRows: 0, clipBottom: 0 },
+    ]);
+    expect(fit.hidden).toBe(2);
+  });
+
+  it("never shows a row after a hidden one", () => {
+    // Defensive: even if a later row measured shorter, the list stops at the first miss.
+    const fit = fitStaticList([group([40]), group([180]), group([165]), group([230])], 200, 30);
+    expect(fit.groups.map((g) => g.visibleRows)).toEqual([1, 0, 0, 0]);
+    expect(fit.hidden).toBe(3);
   });
 
   it("handles an empty list", () => {
-    expect(countHiddenRows([], 200, 30)).toBe(0);
+    expect(fitStaticList([], 200, 30)).toEqual({ hidden: 0, groups: [] });
   });
 });

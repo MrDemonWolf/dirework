@@ -3,6 +3,7 @@ import { DrizzleQueryError, type SQL, and, asc, desc, eq, inArray, lt, ne, sql }
 import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 
+import { limitCombiningMarks } from "../chat-text";
 import { localDay } from "../stats-days";
 import { countTaskDoneStmt, type KnownTimeZone, resolveStatsTimeZone } from "./stats-service";
 
@@ -193,9 +194,9 @@ export async function createTask(
   const values = {
     authorTwitchId: author.twitchId,
     authorUsername: author.username,
-    authorDisplayName: author.displayName,
+    authorDisplayName: limitCombiningMarks(author.displayName),
     authorColor: author.color ?? null,
-    text,
+    text: limitCombiningMarks(text),
     priority: placement.priority,
     order: placement.nextOrder,
   };
@@ -399,9 +400,9 @@ export async function replaceActiveTask(
         ${replacementId},
         ${author.twitchId},
         ${author.username},
-        ${author.displayName},
+        ${limitCombiningMarks(author.displayName)},
         ${author.color ?? null},
-        ${text},
+        ${limitCombiningMarks(text)},
         'pending',
         ${placement.priority},
         ${placement.nextOrder},
@@ -462,7 +463,7 @@ export async function replaceActiveTask(
 export async function editTask(db: DbClient, id: string, text: string) {
   const [updated] = await db
     .update(schema.task)
-    .set({ text })
+    .set({ text: limitCombiningMarks(text) })
     .where(eq(schema.task.id, id))
     .returning();
   return updated ?? null;

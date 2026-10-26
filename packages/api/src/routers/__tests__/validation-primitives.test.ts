@@ -8,12 +8,17 @@ import {
   buildTaskStylesConfig,
   buildTimerStylesConfig,
   chatMessageSchema,
+  clampTaskLines,
   cssColorSchema,
   cssLengthSchema,
+  DEFAULT_TASK_STYLES,
   fontFamilySchema,
+  limitCombiningMarks,
   MAX_CHAT_BYTES,
   MAX_MESSAGE_TEMPLATE_BYTES,
   opacitySchema,
+  TASK_LINES_MAX,
+  TASK_LINES_MIN,
   taskStylesInputSchema,
   timerStylesInputSchema,
   truncateToBytes,
@@ -142,6 +147,51 @@ describe("numeric style bounds", () => {
 
   it("rejects a negative line count", () => {
     expect(taskStylesInputSchema.safeParse({ display: { numberOfLines: -1 } }).success).toBe(false);
+  });
+
+  it("takes lines per task only in TASK_LINES_MIN..TASK_LINES_MAX (1–6)", () => {
+    const lines = (numberOfLines: number) =>
+      taskStylesInputSchema.safeParse({ display: { numberOfLines } }).success;
+    expect([TASK_LINES_MIN, TASK_LINES_MAX]).toEqual([1, 6]);
+    expect(lines(0)).toBe(false);
+    expect(lines(1)).toBe(true);
+    expect(lines(6)).toBe(true);
+    expect(lines(7)).toBe(false);
+    expect(lines(100)).toBe(false);
+  });
+});
+
+describe("clampTaskLines", () => {
+  it("holds a stored line count from the old 1–100 range inside 1–6", () => {
+    expect(clampTaskLines(100)).toBe(6);
+    expect(clampTaskLines(7)).toBe(6);
+    expect(clampTaskLines(3)).toBe(3);
+    expect(clampTaskLines(0)).toBe(1);
+    expect(clampTaskLines(Number.NaN)).toBe(DEFAULT_TASK_STYLES.display.numberOfLines);
+  });
+});
+
+describe("limitCombiningMarks", () => {
+  it("keeps at most two combining marks on each base character", () => {
+    const zalgo = "Z̷̢̛̖̗a̴̡̛͉͎";
+    expect(limitCombiningMarks(zalgo)).toBe("Z̷̢a̴̡");
+  });
+
+  it("leaves real scripts and emoji as typed", () => {
+    for (const text of [
+      "plain text",
+      "việt", // Vietnamese, decomposed: two marks on one letter
+      "क्षि", // Hindi conjunct
+      "שָׁלוֹם", // Hebrew with points
+      "1️⃣ 👩‍💻 🏳️‍🌈",
+      "مراجعة الكود",
+    ]) {
+      expect(limitCombiningMarks(text)).toBe(text);
+    }
+  });
+
+  it("never empties a string of marks alone", () => {
+    expect(limitCombiningMarks("́́́́")).toBe("́́");
   });
 });
 

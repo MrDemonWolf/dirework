@@ -622,6 +622,24 @@ Before the first payload lands, and whenever the server answers null (invalid or
 token), both overlays render nothing (`lib/overlay-view.ts`), so a stale OBS URL goes
 blank instead of showing a fake 00:00 timer or empty list.
 Recommended OBS source sizes (the dashboard's size chips): 300×300 timer, 700×800 tasks.
+**Task overlay text** has no length cap beyond `MAX_TASK_LEN`: it wraps
+(`overflow-wrap: anywhere`, so URLs and no-space strings break instead of being cut
+mid-letter), `dir="auto"` on the text and author name, and ends in an ellipsis after
+`display.numberOfLines` (default 4, range `TASK_LINES_MIN`–`TASK_LINES_MAX` = 1–6 in
+`@dirework/api/config-defaults`; the save schema takes only that range, and
+`clampTaskLines` holds rows saved under the old 1–100 range to 6 on read in
+`nestTaskStyleRow` and again at render). Zalgo: `limitCombiningMarks`
+(`@dirework/api/chat-text`, zod-free) keeps ≤ `MAX_COMBINING_MARKS` (2) combining marks
+per base character; task-service (`createTask`, `replaceActiveTask`, `editTask`, text and
+display name), the chat commands (`chatTaskText`, so replies echo what is stored) and
+`bot.ingest`'s display name apply it on the way in, and `TaskListDisplay` again at render
+for older rows. With scrolling off, `StaticList` shows whole rows only (`fitStaticList` in
+`lib/overlay-view.ts`): a row that doesn't fit and every row after it are hidden, a group
+with no row showing is hidden header and all, and a group cut part way is clipped at its
+last shown row; it hides with `visibility` / `clip-path` written straight to the DOM (no
+layout change, so no ResizeObserver loop) and measures after each render (a poll that
+brought new data) and on resize, never per tick. The "Active" label is
+`max(ACTIVE_LABEL_MIN_PX = 14px, 0.55 × task font)`.
 
 **Style defaults upgrade on read** (same idea as the bot replies): the timer_style/task_style
 column defaults are frozen (`TIMER_STYLE_COLUMN_DEFAULTS` / `TASK_STYLE_COLUMN_DEFAULTS` in

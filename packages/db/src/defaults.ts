@@ -325,7 +325,7 @@ export const DEFAULT_TASK_STYLES = {
     showCount: true,
     useCheckboxes: true,
     crossOnDone: true,
-    numberOfLines: 2,
+    numberOfLines: 4,
   },
   fonts: { header: "Montserrat", body: "Roboto" },
   scroll: { enabled: true, pixelsPerSecond: 40, gapBetweenLoops: 100 },

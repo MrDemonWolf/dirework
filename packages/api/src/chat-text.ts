@@ -80,6 +80,29 @@ export function replaceControlCharacters(value: string): string {
   return output;
 }
 
+/**
+ * Most combining marks (Unicode category M) kept on one base character. Two
+ * covers real scripts (Vietnamese stacks two diacritics, Indic and Thai a vowel
+ * sign plus a tone or virama, an emoji keycap a variation selector plus U+20E3);
+ * "Zalgo" text piles dozens on each letter, which draws far above and below the
+ * line and over the neighbouring overlay rows.
+ */
+export const MAX_COMBINING_MARKS = 2;
+
+/** A run of MAX_COMBINING_MARKS marks (captured) followed by any more. */
+const EXCESS_COMBINING_MARKS = new RegExp(`(\\p{M}{${MAX_COMBINING_MARKS}})\\p{M}+`, "gu");
+
+/**
+ * Drop every combining mark past MAX_COMBINING_MARKS in each run, so Zalgo text
+ * keeps its letters but loses the stack. Applied where task text and display
+ * names enter (task-service, the chat commands, bot ingest) and again by the
+ * task overlay at render, for rows stored before this existed. Never empties
+ * a non-empty string: the base characters all survive.
+ */
+export function limitCombiningMarks(value: string): string {
+  return value.replace(EXCESS_COMBINING_MARKS, "$1");
+}
+
 // ── Reply templates ──────────────────────────────────────────────────────────
 
 const VARIABLES = {

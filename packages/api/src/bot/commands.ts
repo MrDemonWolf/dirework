@@ -1,6 +1,6 @@
 import type { DbClient } from "@dirework/db";
 
-import { interpolate } from "../chat-text";
+import { interpolate, limitCombiningMarks } from "../chat-text";
 import type { BotConfigData } from "../config-shared";
 import {
   CHAT_OPEN_TASK_CAP,
@@ -122,11 +122,20 @@ export function parsePositionArg(arg: string | undefined): number | null {
   return match?.[1] ? parseInt(match[1], 10) : null;
 }
 
+/**
+ * Task text from a command's words: Zalgo stacks trimmed (`limitCombiningMarks`,
+ * so a reply echoes what is stored) and capped at the same MAX_TASK_LEN as the
+ * tRPC schema (audit L1).
+ */
+function chatTaskText(words: string[]): string {
+  return truncateToLength(limitCombiningMarks(words.join(" ").trim()), MAX_TASK_LEN);
+}
+
 /** `!edit <position> <new text>`, or null when either part is missing. */
 export function parseTaskEditArgs(args: string[]): { position: number; text: string } | null {
   const position = parsePositionArg(args[0]);
   if (args.length < 2 || position === null) return null;
-  const text = truncateToLength(args.slice(1).join(" ").trim(), MAX_TASK_LEN);
+  const text = chatTaskText(args.slice(1));
   return text ? { position, text } : null;
 }
 
@@ -444,8 +453,7 @@ async function handleTaskToday(ctx: MessageContext): Promise<void> {
 
 async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void> {
   const { config, userInfo, say, db } = ctx;
-  // L1: the chat path enforces the same MAX_TASK_LEN as the tRPC schema.
-  const text = truncateToLength(args.join(" ").trim(), MAX_TASK_LEN);
+  const text = chatTaskText(args);
   const vars = { user: userInfo.displayName, channel: ctx.channelName, task: text };
 
   if (!text) {
@@ -597,7 +605,7 @@ async function handleTaskCheck(args: string[], ctx: MessageContext): Promise<voi
 
 async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void> {
   const { config, userInfo, say, db } = ctx;
-  const newText = truncateToLength(args.join(" ").trim(), MAX_TASK_LEN);
+  const newText = chatTaskText(args);
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   if (!newText) {
