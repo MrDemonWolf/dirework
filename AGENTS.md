@@ -667,8 +667,11 @@ separate and keep their own colors. All animation respects `prefers-reduced-moti
 inputs ≥16px on touch (iOS zoom). Destructive actions (token regenerate, disconnect,
 clear, stop) always confirm via the AlertDialog primitive. Editors with dirty state use
 the unsaved-changes guard hook. 6 theme presets in `lib/theme-presets.ts`.
-**Dashboard** (`/dashboard`, `dashboard.tsx`): the timer console is a `lg:grid-cols-5`
-panel — `TimerInstrument` (status chip, digits, phase rail, cycle dots; hollow dots preview the planned run while idle) in 3/5, and in 2/5
+**Dashboard** (`/dashboard`, `dashboard.tsx`): both panels open with a one-line header
+(`PANEL_HEADER_CLASS` in `lib/panel-header.ts`: the `h2` and its live state, no eyebrow or
+subtitle) — "Timer" with `TimerPhaseChip`, "Tasks" with "N open / N done" and the options
+menu. The timer console is then a `lg:grid-cols-5` panel — `TimerInstrument` (digits, phase
+rail, cycle dots; hollow dots preview the planned run while idle) in 3/5, and in 2/5
 `TimerTransport` (`[Start] [Skip] | [Stop]`; Skip/Stop exist only mid-run), `TimerSettings` behind the "Edit session settings" `SectionGroup`
 (its collapsed summary is `formatSessionSummary` in `lib/session-summary.ts`, from the SAVED
 config with `TIMER_CONFIG_DEFAULTS` fallbacks) and `ObsSources` (`components/obs-sources.tsx`):

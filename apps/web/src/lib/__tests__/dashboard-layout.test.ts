@@ -42,7 +42,7 @@ describe("dashboard layout", () => {
   });
 
   it("puts the stats strip under the greeting and the focus chart under the timer digits", () => {
-    expect(dashboard).toMatch(/<HeaderSection [\s\S]*?<StatTiles \/>[\s\S]*?Timer Console/);
+    expect(dashboard).toMatch(/<HeaderSection [\s\S]*?<StatTiles \/>[\s\S]*?<TimerConsoleBody \/>/);
     expect(dashboard).toMatch(/<TimerInstrument \/>\s*<ProgressiveSection[\s\S]*?<FocusChart \/>/);
     expect(skeleton).toMatch(/<StatusClusterPlaceholder \/>\s*<\/div>\s*<StatTilesPlaceholder \/>/);
     // The refresh trigger lives in lib/stats-refresh.ts (tested against a real QueryClient):
@@ -86,6 +86,23 @@ describe("dashboard layout", () => {
     expect(obsSources.match(/<SecretUrlRow/g)).toHaveLength(1);
     // The preview iframe only exists while its toggle is on (and its tab is mounted).
     expect(obsSources).toMatch(/\{show && src && \(/);
+  });
+
+  it("gives both panels a one-line header: the h2 plus its live state, no eyebrow", () => {
+    expect(dashboard).toMatch(
+      /<div className=\{PANEL_HEADER_CLASS\}>\s*<h2 className=\{PANEL_TITLE_CLASS\}>Timer<\/h2>\s*<TimerPhaseChip \/>/,
+    );
+    expect(taskManager).toMatch(
+      /<div className=\{PANEL_HEADER_CLASS\}>\s*<h2 className=\{PANEL_TITLE_CLASS\}>Tasks<\/h2>/,
+    );
+    for (const source of [dashboard, taskManager]) {
+      expect(source).not.toMatch(/ConsoleRule label="(Timer Console|Task Board)"/);
+    }
+    // The placeholders take the same header row.
+    expect(skeleton.match(/<PanelHeaderSkeleton>/g)).toHaveLength(2);
+    expect(skeleton).toContain("className={PANEL_HEADER_CLASS}");
+    // The instrument no longer carries its own chip; the heading does.
+    expect(timerControls).toMatch(/export function TimerPhaseChip\(\)[\s\S]*?<StatusChip/);
   });
 
   it("keeps the bulk clears in the board options menu, behind their confirms", () => {

@@ -22,16 +22,17 @@ session is known.
   (label, value, detail bars) laid out by the same `statCellClass` as `StatTiles`.
 - `FocusChartPlaceholder`: the 14-day focus chart's caption row, a 5:1 plot block and the
   date row (`max-w-sm`).
-- `TimerConsoleBodyPlaceholder`: the timer console below its heading, `lg:grid-cols-5`: the
-  instrument (chip, digits, rail, dots) above the focus chart placeholder in 3/5, and in 2/5 the transport bar, the folded settings bar and the OBS
+- `TimerConsoleBodyPlaceholder`: the whole timer console: its one-line header (title bar and
+  phase chip), then `lg:grid-cols-5`: the instrument (digits, rail, dots) above the focus
+  chart placeholder in 3/5, and in 2/5 the transport bar, the folded settings bar and the OBS
   sources block.
-- `TaskBoardPlaceholder`: the task board's header with two count blocks and the options
-  button, then the form and two task groups across the full width.
+- `TaskBoardPlaceholder`: the task board's one-line header (title bar, counts bar, options
+  button), then the form and two task groups across the full width.
 - `DashboardSkeleton`: header band bars plus the status placeholder, the stats strip, then a
-  plain grid of the timer hero (`panel-hero`, heading bars + body placeholder) and the task
-  hero. No
+  plain grid of the timer hero (`panel-hero` + its placeholder) and the task hero. No
   entrance animation.
-- Internal: `ObsSourcesSkeleton` (rule, tab list, URL row, hint with size chip, Live preview
+- Internal: `PanelHeaderSkeleton` (the shared `PANEL_HEADER_CLASS` row with a 28px title bar)
+  and `ObsSourcesSkeleton` (rule, tab list, URL row, hint with size chip, Live preview
   toggle; the tab list, URL row and toggle take their touch heights on coarse pointers).
 
 ## Props and variants

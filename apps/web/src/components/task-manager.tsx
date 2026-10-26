@@ -24,7 +24,7 @@ import { QueryError } from "@/components/query-error";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MAX_TASK_LEN } from "@/lib/config-types";
-import { ConsoleRule } from "@/components/console-rule";
+import { PANEL_HEADER_CLASS, PANEL_TITLE_CLASS } from "@/lib/panel-header";
 import { DASHBOARD_TASKS_POLL_MS, dashboardPollInterval } from "@/lib/poll-intervals";
 import { groupTasksByAuthor, toRestoreInput } from "@/lib/task-utils";
 import { StatusChip } from "@/components/status-chip";
@@ -41,7 +41,7 @@ interface TaskManagerProps {
 }
 
 /**
- * The Task Board panel — renders the full panel content (header with the count cluster
+ * The Task Board panel — renders the full panel content (one-line header with the counts
  * and the board options menu, add form, collapsible author groups). The parent supplies the
  * `.panel-hero` chrome.
  */
@@ -229,73 +229,64 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Panel header: kicker rule + title + count cluster */}
-      <div className="border-b border-border/40 px-5 pt-4 pb-3">
-        <ConsoleRule label="Task Board" />
-        <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="font-heading text-lg font-semibold tracking-tight">Tasks</h2>
-            <p className="text-sm text-muted-foreground">
-              Yours and chat&apos;s, grouped by author
-            </p>
-          </div>
-          <div className="flex items-end gap-5">
-            <div className="text-right">
-              <p className="font-mono text-2xl tabular-nums">{pendingCount}</p>
-              <p className="console-label">Open</p>
-            </div>
-            <div className="text-right">
-              <p className="font-mono text-2xl tabular-nums">{doneCount}</p>
-              <p className="console-label">Done</p>
-            </div>
-            {/* Bulk actions live in a menu, each behind its own confirm. */}
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Task board options"
-                    className="self-center"
-                  />
-                }
+      {/* Panel header: the title, then the counts and the board options menu */}
+      <div className={PANEL_HEADER_CLASS}>
+        <h2 className={PANEL_TITLE_CLASS}>Tasks</h2>
+        <div className="flex items-center gap-4">
+          <p className="flex items-baseline gap-4 text-sm text-muted-foreground">
+            <span>
+              <span className="font-mono font-semibold text-foreground tabular-nums">
+                {pendingCount}
+              </span>{" "}
+              open
+            </span>
+            <span>
+              <span className="font-mono font-semibold text-foreground tabular-nums">
+                {doneCount}
+              </span>{" "}
+              done
+            </span>
+          </p>
+          {/* Bulk actions live in a menu, each behind its own confirm. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<Button variant="ghost" size="icon-sm" aria-label="Task board options" />}
+            >
+              <MoreHorizontal className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48 bg-card" align="end">
+              <DropdownMenuItem
+                variant="destructive"
+                disabled={doneCount === 0 || clearDone.isPending}
+                onClick={() => setConfirmClear("done")}
               >
-                <MoreHorizontal className="size-4" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-48 bg-card" align="end">
-                <DropdownMenuItem
-                  variant="destructive"
-                  disabled={doneCount === 0 || clearDone.isPending}
-                  onClick={() => setConfirmClear("done")}
-                >
-                  Clear done ({doneCount})
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  variant="destructive"
-                  disabled={totalCount === 0 || clearAll.isPending}
-                  onClick={() => setConfirmClear("all")}
-                >
-                  Clear all ({totalCount})
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <ConfirmDialog
-              open={confirmClear === "done"}
-              onOpenChange={(open) => !open && setConfirmClear(null)}
-              title="Clear done tasks?"
-              description={`This permanently removes ${doneCount} completed ${doneCount === 1 ? "task" : "tasks"} from the list and the overlay.`}
-              confirmLabel="Clear done"
-              onConfirm={() => clearDone.mutate()}
-            />
-            <ConfirmDialog
-              open={confirmClear === "all"}
-              onOpenChange={(open) => !open && setConfirmClear(null)}
-              title="Clear every task?"
-              description={`This permanently removes all ${totalCount} ${totalCount === 1 ? "task" : "tasks"}, including viewer tasks, from the list and the overlay. Viewers will need to add theirs again.`}
-              confirmLabel="Clear all tasks"
-              onConfirm={() => clearAll.mutate()}
-            />
-          </div>
+                Clear done ({doneCount})
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                variant="destructive"
+                disabled={totalCount === 0 || clearAll.isPending}
+                onClick={() => setConfirmClear("all")}
+              >
+                Clear all ({totalCount})
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <ConfirmDialog
+            open={confirmClear === "done"}
+            onOpenChange={(open) => !open && setConfirmClear(null)}
+            title="Clear done tasks?"
+            description={`This permanently removes ${doneCount} completed ${doneCount === 1 ? "task" : "tasks"} from the list and the overlay.`}
+            confirmLabel="Clear done"
+            onConfirm={() => clearDone.mutate()}
+          />
+          <ConfirmDialog
+            open={confirmClear === "all"}
+            onOpenChange={(open) => !open && setConfirmClear(null)}
+            title="Clear every task?"
+            description={`This permanently removes all ${totalCount} ${totalCount === 1 ? "task" : "tasks"}, including viewer tasks, from the list and the overlay. Viewers will need to add theirs again.`}
+            confirmLabel="Clear all tasks"
+            onConfirm={() => clearAll.mutate()}
+          />
         </div>
       </div>
 

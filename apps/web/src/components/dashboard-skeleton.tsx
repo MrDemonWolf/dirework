@@ -2,7 +2,7 @@
 // `DashboardSkeleton` built from them. Each repeats its live section's own layout classes and
 // box sizes (measured at 1280px and 412px wide), so a section filling in does not move the
 // page; update them alongside dashboard.tsx, timer-controls.tsx, task-manager.tsx and
-// obs-sources.tsx.
+// obs-sources.tsx. The panel headers share PANEL_HEADER_CLASS (lib/panel-header.ts).
 //
 // Where they show:
 //  - A section's placeholder, inside the live frame, only when that section's data missed the
@@ -12,12 +12,25 @@
 //
 // The task list's height follows the number of tasks, so its placeholder is a typical board.
 
+import type { ReactNode } from "react";
+
 import { Skeleton } from "@/components/ui/skeleton";
+import { PANEL_HEADER_CLASS } from "@/lib/panel-header";
 import { statCellClass } from "@/lib/stats-view";
 
 /** A status chip (`StatusChip`: 27px tall). */
 function ChipSkeleton({ className }: { className: string }) {
   return <Skeleton className={`h-6.75 rounded-full ${className}`} />;
+}
+
+/** A panel's one-line header: the `h2` (28px line) and, on the right, its live state. */
+function PanelHeaderSkeleton({ children }: { children: ReactNode }) {
+  return (
+    <div className={PANEL_HEADER_CLASS}>
+      <Skeleton className="h-7 w-16" />
+      {children}
+    </div>
+  );
 }
 
 /**
@@ -96,14 +109,19 @@ export function FocusChartPlaceholder() {
   );
 }
 
-/** The timer console below its heading: instrument (3/5) | transport, settings, OBS sources (2/5). */
+/**
+ * The timer console: its header (title + phase chip), then instrument (3/5) | transport,
+ * settings and OBS sources (2/5).
+ */
 export function TimerConsoleBodyPlaceholder() {
   return (
     <>
+      <PanelHeaderSkeleton>
+        <ChipSkeleton className="w-21.5" />
+      </PanelHeaderSkeleton>
       <div className="grid lg:grid-cols-5">
         <div className="flex flex-col items-center justify-center gap-8 px-5 py-8 lg:col-span-3">
           <div className="flex w-full flex-col items-center gap-5">
-            <ChipSkeleton className="w-21.5" />
             <Skeleton className="h-18 w-52.5 lg:h-24 lg:w-70" />
             <Skeleton className="h-1.5 w-full max-w-xs rounded-full" />
             <Skeleton className="h-2 w-14" />
@@ -121,24 +139,16 @@ export function TimerConsoleBodyPlaceholder() {
   );
 }
 
-/** The task board, full width: header band; form + groups. */
+/** The task board, full width: header (title, counts, options button); form + groups. */
 export function TaskBoardPlaceholder() {
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-border/40 px-5 pt-4 pb-3">
-        <Skeleton className="h-4.5 w-22" />
-        <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
-          <div className="w-56.25 space-y-1">
-            <Skeleton className="h-7 w-16" />
-            <Skeleton className="h-4 w-full" />
-          </div>
-          <div className="flex items-end gap-5">
-            <Skeleton className="h-12.5 w-10" />
-            <Skeleton className="h-12.5 w-10" />
-            <Skeleton className="size-8 self-center" />
-          </div>
+      <PanelHeaderSkeleton>
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-5 w-28" />
+          <Skeleton className="size-7 pointer-coarse:size-10" />
         </div>
-      </div>
+      </PanelHeaderSkeleton>
       <div className="min-w-0 space-y-4 px-5 py-5">
         <div className="flex gap-2">
           <Skeleton className="h-10 flex-1" />
@@ -172,11 +182,6 @@ export function DashboardSkeleton() {
 
       <div className="grid gap-6">
         <div className="panel-hero">
-          <div className="space-y-2 border-b border-border/40 px-5 pt-4 pb-3">
-            <Skeleton className="h-3 w-28" />
-            <Skeleton className="h-5 w-24" />
-            <Skeleton className="h-4 w-56" />
-          </div>
           <TimerConsoleBodyPlaceholder />
         </div>
 
