@@ -16,14 +16,10 @@ import {
   formatDay,
   formatFocus,
   formatFocusLong,
-  latestCompletion,
-  scheduleDayRollover,
-  shouldRefreshStats,
   statCellClass,
   statTiles,
-  timerPhaseKey,
-  type StatsWatch,
 } from "@/lib/stats-view";
+import { subscribeStatsRefresh } from "@/lib/stats-refresh";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/utils/trpc";
 
@@ -142,36 +138,15 @@ export function FocusChart() {
 export function useStatsRefresh() {
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const timerKey = trpc.timer.get.queryKey();
-    const tasksKey = trpc.task.list.queryKey();
-    const statsKey = trpc.stats.summary.queryKey();
-    const refresh = () => void queryClient.invalidateQueries({ queryKey: statsKey });
-    const read = (): StatsWatch => {
-      const tasks = queryClient.getQueryData(tasksKey)?.tasks;
-      return {
-        timerPhase: timerPhaseKey(queryClient.getQueryData(timerKey)),
-        latestDoneAt: tasks ? latestCompletion(tasks) : undefined,
-      };
-    };
-    let seen = read();
-    const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
-      if (event.type !== "updated") return;
-      const next = read();
-      // Keep the last known value of either while the other updates.
-      const merged: StatsWatch = {
-        timerPhase: next.timerPhase ?? seen.timerPhase,
-        latestDoneAt: next.latestDoneAt !== undefined ? next.latestDoneAt : seen.latestDoneAt,
-      };
-      if (shouldRefreshStats(seen, merged)) refresh();
-      seen = merged;
-    });
-    const cancelRollover = scheduleDayRollover(refresh);
-    return () => {
-      unsubscribe();
-      cancelRollover();
-    };
-  }, [queryClient]);
+  useEffect(
+    () =>
+      subscribeStatsRefresh(queryClient, {
+        timerKey: trpc.timer.get.queryKey(),
+        tasksKey: trpc.task.list.queryKey(),
+        statsKey: trpc.stats.summary.queryKey(),
+      }),
+    [queryClient],
+  );
 }
 
 /**

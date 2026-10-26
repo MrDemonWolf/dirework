@@ -62,10 +62,18 @@ test("the stats strip and focus chart render, and a finished task counts at once
   const text = `Count me ${Date.now()}`;
   await page.getByRole("textbox", { name: "New task text" }).fill(text);
   await page.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(page.getByLabel(`Mark "${text}" as done`)).toBeVisible();
+
+  const summaryFetches: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("stats.summary")) summaryFetches.push(request.url());
+  });
   await page.getByLabel(`Mark "${text}" as done`).click();
 
-  // No reload: the task poll's done count rose, so the summary refetched.
+  // No reload: the task poll saw a newer completion, so the summary refetched — once.
   await expect(tasksDone).toHaveText(String(before + 1));
+  await page.waitForTimeout(1500);
+  expect(summaryFetches).toHaveLength(1);
 });
 
 test("removing a task offers Undo, and Undo puts it back", async ({ page }) => {
