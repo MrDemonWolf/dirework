@@ -110,11 +110,14 @@ function TextLines({
 function ControlRowSkeleton({
   chip = false,
   link = false,
+  select = false,
   lines = 1,
   narrow = lines,
 }: {
   chip?: boolean;
   link?: boolean;
+  /** "Who can add tasks": a w-36 picker instead of a switch. */
+  select?: boolean;
   lines?: number;
   narrow?: number;
 }) {
@@ -127,7 +130,9 @@ function ControlRowSkeleton({
         </div>
         <TextLines lines={lines} narrow={narrow} />
       </div>
-      {link ? (
+      {select ? (
+        <Skeleton className="h-9 w-36 shrink-0 md:h-8" />
+      ) : link ? (
         <Skeleton className="h-11 w-14 shrink-0" />
       ) : (
         <Skeleton className="h-4.6 w-8 shrink-0 rounded-full" />
@@ -145,12 +150,13 @@ export function LiveControlsPlaceholder({ hasBotAccount = true }: { hasBotAccoun
     <SectionPlaceholder name="live-controls">
       <PlaceholderCard
         title="Live controls"
-        description="Each switch takes effect as soon as you flip it."
+        description="Each control takes effect as soon as you change it."
         contentClassName=""
       >
         <ul className="divide-y divide-border/40">
           <ControlRowSkeleton chip lines={hasBotAccount ? 2 : 1} narrow={hasBotAccount ? 3 : 2} />
           <ControlRowSkeleton />
+          <ControlRowSkeleton select lines={2} />
           <ControlRowSkeleton narrow={2} />
           <ControlRowSkeleton link />
         </ul>

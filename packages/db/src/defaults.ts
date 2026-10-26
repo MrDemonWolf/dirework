@@ -22,6 +22,18 @@ export const TIMER_STATUSES = [
 
 export type TimerStatus = (typeof TIMER_STATUSES)[number];
 
+/**
+ * Who may add tasks from chat (bot_config.task_access), lowest bar first. Each level also
+ * lets in everyone above it: Followers admits subscribers and VIPs without a follow lookup.
+ * The broadcaster and mods are always allowed.
+ */
+export const TASK_ACCESS_LEVELS = ["everyone", "followers", "subscribers", "vips"] as const;
+
+export type TaskAccessLevel = (typeof TASK_ACCESS_LEVELS)[number];
+
+/** The column default: no change from before the setting existed. */
+export const DEFAULT_TASK_ACCESS: TaskAccessLevel = "everyone";
+
 /** Timer duration/cycle defaults (timer_config columns + timer-logic fallbacks). */
 export const TIMER_CONFIG_DEFAULTS = {
   workDuration: 1500000,
@@ -111,6 +123,11 @@ export const DEFAULT_TASK_MESSAGES = {
   noTaskToStart: "Nothing to start there, {user}. Pick a waiting task from !today, like !start 2.",
   taskPaused: 'Paused "{task}", {user}. It waits in line until you !start it again.',
   noTaskToPause: "Nothing to pause, {user}. !today shows what you have going.",
+  // "Who can add tasks" refusals (bot_config.task_access).
+  notFollower: "Only followers can add tasks here, {user}. Follow the channel, then try again.",
+  notSubscriber: "Only subscribers can add tasks here, {user}.",
+  notVip: "Only VIPs and mods can add tasks here, {user}.",
+  followCheckFailed: "I couldn't check your follow just now, {user}. Try again in a minute.",
   // The viewer starter guide. Its three steps match STARTER_STEPS in
   // packages/api/src/bot/viewer-help.ts (the built-in `!dw help` guide); a test pins it.
   help: "{user}, here's how it works: 1) Type !task and what you're working on, like !task read 10 pages. 2) Work along with the stream. 3) Type !done when you finish. Need more? Type !dw help",
@@ -170,6 +187,11 @@ export const TASK_MESSAGE_COLUMN_DEFAULTS = {
   noTaskToStart: "Nothing to start there, {user}. Pick a waiting task from !today, like !start 2.",
   taskPaused: 'Paused "{task}", {user}. It waits in line until you !start it again.',
   noTaskToPause: "Nothing to pause, {user}. !today shows what you have going.",
+  // Added by migration 0025_task_access with the wording of that release.
+  notFollower: "Only followers can add tasks here, {user}. Follow the channel, then try again.",
+  notSubscriber: "Only subscribers can add tasks here, {user}.",
+  notVip: "Only VIPs and mods can add tasks here, {user}.",
+  followCheckFailed: "I couldn't check your follow just now, {user}. Try again in a minute.",
 } satisfies Record<keyof typeof DEFAULT_TASK_MESSAGES, string>;
 
 export const TIMER_MESSAGE_COLUMN_DEFAULTS = {
@@ -220,6 +242,10 @@ export const LEGACY_TASK_MESSAGES: Record<keyof typeof DEFAULT_TASK_MESSAGES, re
   noTaskToStart: [],
   taskPaused: [],
   noTaskToPause: [],
+  notFollower: [],
+  notSubscriber: [],
+  notVip: [],
+  followCheckFailed: [],
 };
 
 export const LEGACY_TIMER_MESSAGES: Record<keyof typeof DEFAULT_TIMER_MESSAGES, readonly string[]> =

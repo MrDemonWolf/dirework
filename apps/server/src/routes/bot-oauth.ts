@@ -1,3 +1,4 @@
+import { BOT_SCOPES } from "@dirework/api/bot-permissions";
 import type { BotOAuthErrorCode } from "@dirework/api/config-shared";
 import { TWITCH_FETCH_TIMEOUT_MS } from "@dirework/api/services/twitch-auth";
 import { recordError, recordMetric } from "../lib/telemetry";
@@ -27,18 +28,8 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 const secureCookie = env.BETTER_AUTH_URL.startsWith("https");
 const STATE_COOKIE = secureCookie ? "__Host-dirework_bot_oauth_nonce" : "bot_oauth_nonce";
 const STATE_COOKIE_PATH = "/";
-/**
- * chat:read / chat:edit — required by the IRC connection the browser bot page
- * actually uses (wss://irc-ws.chat.twitch.tv; replies go out as PRIVMSG).
- * user:read:chat / user:write:chat — Helix/EventSub chat scopes, currently
- * unused but kept so a future move to Helix sends won't force yet another
- * reconnect. Bot accounts connected before chat:read/chat:edit were added
- * must be reconnected to pick up the new scopes.
- * user:bot is deliberately not requested: only a server-side (EventSub) bot would
- * use it, and Twitch asks apps to request just the scopes current features need.
- * Add it together with that bot.
- */
-const BOT_SCOPES = ["chat:read", "chat:edit", "user:read:chat", "user:write:chat"] as const;
+// The scopes (and why each is there) live with the code that uses them:
+// BOT_SCOPES in packages/api/src/bot-permissions.ts.
 
 function randomNonce(): string {
   const bytes = new Uint8Array(32);

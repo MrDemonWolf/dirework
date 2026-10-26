@@ -33,7 +33,10 @@ or a managed hosting service.
 - **Dashboard** - Control the timer, manage tasks, and preview
   overlays from one page.
 - **Bot Settings** - Bot account management, message
-  customization, command aliases, and the bot console link.
+  customization, command aliases, who can add tasks (everyone,
+  followers, subscribers, or VIPs and mods), and the bot console link.
+- **Ban Cleanup** - A banned viewer's tasks leave the list 5 minutes
+  later (unless they're unbanned first); timeouts keep them.
 - **Serverless** - Two Cloudflare Workers plus a D1 database.
   Free-tier compatible, no servers, no Docker, single owner per instance.
 

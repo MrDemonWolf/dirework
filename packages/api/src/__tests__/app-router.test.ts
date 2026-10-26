@@ -1114,6 +1114,80 @@ describe("config.updateBotSettings partial saves against real SQLite", () => {
       code: "BAD_REQUEST",
     });
   });
+
+  it("saves who can add tasks on its own and reads it back", async () => {
+    const { db, owner } = await customised();
+    expect((await owner.config.get()).botConfig.taskAccess).toBe("everyone");
+
+    const saved = await owner.config.updateBotSettings({ taskAccess: "subscribers" });
+
+    expect(saved.taskAccess).toBe("subscribers");
+    expect(saved.task.notMod).toBe("mods only, {user}");
+    expect((await db.query.botConfig.findFirst())?.taskAccess).toBe("subscribers");
+  });
+
+  it("rejects an unknown task access level, writing nothing", async () => {
+    const { db, owner } = await customised();
+    await expect(
+      // @ts-expect-error — not a level
+      owner.config.updateBotSettings({ taskAccess: "friends" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect((await db.query.botConfig.findFirst())?.taskAccess).toBe("everyone");
+  });
+});
+
+describe("user.me bot account permissions against real SQLite", () => {
+  const session = {
+    user: { id: "owner", isOwner: true, name: "streamer", twitchId: "1000", displayName: "S" },
+  };
+
+  async function withBot(account: { twitchId: string; scopes?: string[] }) {
+    const { db } = await createSqliteDb();
+    await provisionSingletonRows(db);
+    await db.insert(schema.user).values({
+      id: "owner",
+      name: "streamer",
+      email: "owner@example.test",
+      twitchId: "1000",
+      displayName: "Streamer",
+      isOwner: true,
+    });
+    await db.insert(schema.botAccount).values({
+      username: "direbot",
+      displayName: "DireBot",
+      accessToken: "secret-access-token",
+      refreshToken: "secret-refresh-token",
+      expiresAt: new Date(Date.now() + 3_600_000),
+      ...account,
+    });
+    return appRouter.createCaller({ session, db } as unknown as Context);
+  }
+
+  it("names the new scopes an older connection lacks, never the tokens or scopes", async () => {
+    const owner = await withBot({ twitchId: "4000" });
+
+    const me = await owner.user.me();
+
+    expect(me?.botAccount).toMatchObject({
+      username: "direbot",
+      missingScopes: ["moderator:read:followers", "moderation:read"],
+      isChannelAccount: false,
+    });
+    expect(me?.botAccount).not.toHaveProperty("scopes");
+    expect(JSON.stringify(me)).not.toMatch(/secret-(access|refresh)-token/);
+  });
+
+  it("reports nothing missing after a reconnect, and a bot that is the channel's account", async () => {
+    const owner = await withBot({
+      twitchId: "1000",
+      scopes: ["chat:read", "chat:edit", "moderator:read:followers", "moderation:read"],
+    });
+
+    expect((await owner.user.me())?.botAccount).toMatchObject({
+      missingScopes: [],
+      isChannelAccount: true,
+    });
+  });
 });
 
 describe("dashboard stats against real SQLite", () => {

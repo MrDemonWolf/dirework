@@ -10,6 +10,7 @@ import { hasOwner } from "@dirework/auth";
 import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
 
+import { missingBotScopes } from "../bot-permissions";
 import { ownerProcedure, publicProcedure, router } from "../index";
 import { updateSingleton } from "../services/singleton";
 import { setStatsTimeZone } from "../services/stats-service";
@@ -55,6 +56,29 @@ export function botPageSeenMsAgo(seenAt: Date | null | undefined, now: number): 
   return seenAt ? Math.max(0, now - seenAt.getTime()) : null;
 }
 
+/**
+ * The bot account as the dashboard sees it: public fields, the follower/ban-check scopes an
+ * older connection still lacks (Bot settings asks for a reconnect), and whether the bot IS
+ * the channel's account (Twitch answers ban lookups only for that one). Never the tokens.
+ */
+export function publicBotAccount(
+  account: {
+    username: string;
+    displayName: string;
+    twitchId: string;
+    expiresAt: Date;
+    scopes: string[] | null;
+  },
+  ownerTwitchId: string | null,
+) {
+  const { scopes, ...rest } = account;
+  return {
+    ...rest,
+    missingScopes: missingBotScopes(scopes),
+    isChannelAccount: ownerTwitchId !== null && account.twitchId === ownerTwitchId,
+  };
+}
+
 export const userRouter = router({
   /**
    * Public setup gate: does this single-tenant instance have an owner yet?
@@ -86,10 +110,17 @@ export const userRouter = router({
           botLeaseSeenAt: true,
         },
       }),
-      // H1 fix: never select accessToken/refreshToken/scopes — chat-scoped
-      // Twitch credentials must not be serialized to the dashboard.
+      // H1 fix: never select accessToken/refreshToken — chat-scoped Twitch
+      // credentials must not be serialized to the dashboard. `scopes` is read only to
+      // derive `missingScopes` below and is not returned itself.
       ctx.db.query.botAccount.findFirst({
-        columns: { username: true, displayName: true, twitchId: true, expiresAt: true },
+        columns: {
+          username: true,
+          displayName: true,
+          twitchId: true,
+          expiresAt: true,
+          scopes: true,
+        },
       }),
       // Fallback Twitch ID from the provider account, for owner rows whose
       // twitchId column is empty (same lookup as resolveOwnerTwitchId).
@@ -104,11 +135,12 @@ export const userRouter = router({
       }),
     ]);
     if (!user) return null;
+    const ownerTwitchId = user.twitchId || twitchAccount?.accountId || null;
     // Flatten into same shape as before so frontend needs no changes
     return {
       ...user,
-      twitchId: user.twitchId || twitchAccount?.accountId || null,
-      botAccount: botAccount ?? null,
+      twitchId: ownerTwitchId,
+      botAccount: botAccount ? publicBotAccount(botAccount, ownerTwitchId) : null,
       overlayTimerToken: instance?.overlayTimerToken ?? null,
       overlayTasksToken: instance?.overlayTasksToken ?? null,
       setup: setupState(instance),

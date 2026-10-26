@@ -16,6 +16,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   target) holds every action: Start, Make focus, Pause, Mark done and Remove. The timer's
   "Now" line adds your started tasks: "Now: <focus> · also: <started…>". No new requests or
   polling: each click is one request, then the usual task list refresh.
+- **Who can add tasks.** A new picker in **Bot settings → Live controls** limits `!task` and
+  `!next` to Everyone (the default, no change), Followers, Subscribers, or VIPs and mods; the
+  streamer and mods always can, and each level also admits the ones above it. Subscriber and
+  VIP standing comes from the chat badges the bot page already reads. Followers asks Twitch
+  once per viewer as the bot (`moderator:read:followers`; the bot must be a mod), remembers a
+  follow for 7 days and a "not following" for 10 minutes in a new `follower_check` table, and
+  refuses the task when Twitch can't answer. Four new editable replies in a "Who can add
+  tasks" group. A follower lookup happens only for a task-creating command from a viewer the
+  level doesn't already admit with no fresh cache row: no new reads or calls for any other
+  line. New migration `0025_task_access` (add-only: one table, one index, five defaulted
+  `bot_config` columns).
 - **`!start` and `!pause` in chat.** Viewers can now keep up to 3 tasks going: `!start 2`
   starts task #2 beside their focus (or makes it the focus when nothing is going), `!pause`
   pauses the focus (the next started task takes over) and `!pause 2` puts a started task
@@ -158,6 +169,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hover that could never happen.
 
 ### Changed
+- **Bans wait 5 minutes; timeouts keep tasks.** A timeout no longer removes the viewer's
+  tasks. A ban removes them 5 minutes later from the open bot page, unless the viewer chats
+  again first (they were unbanned); repeat bans of one viewer send one removal, and closing
+  the bot page inside the window skips it. When the bot account is the streamer's own account,
+  the api also confirms the ban with Twitch (`moderation:read`) before removing.
+- **Bot account scopes.** The bot OAuth flow now also asks for `moderator:read:followers` and
+  `moderation:read`. Existing bots keep working; Followers-only tasks (and ban confirmation)
+  need one reconnect, which Bot settings prompts for.
 - **Every Theme Center size has a range.** Font sizes, the timer size, ring width and gap,
   paddings, margins, borders, radii, checkbox and bullet sizes, and the scroll speed and gap
   each accept a sensible range, and negative values are refused. The field says the range

@@ -117,7 +117,7 @@ describe("GET /authorize", () => {
     expect(setCookie).toMatch(/Secure/i);
   });
 
-  it("asks for the IRC pair and the Helix chat pair, never the unused user:bot", async () => {
+  it("asks for the IRC pair, the Helix chat pair and the follower/ban checks, never user:bot", async () => {
     mocks.getSession.mockResolvedValue(owner);
     const res = await botOAuth.request("/authorize");
     const location = new URL(res.headers.get("location") ?? "");
@@ -126,6 +126,8 @@ describe("GET /authorize", () => {
       "chat:edit",
       "user:read:chat",
       "user:write:chat",
+      "moderator:read:followers",
+      "moderation:read",
     ]);
     expect(location.searchParams.get("scope")).not.toContain("user:bot");
   });

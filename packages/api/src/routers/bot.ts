@@ -20,9 +20,10 @@ import {
 } from "../config-shared";
 import { ownerProcedure, publicProcedure, router } from "../index";
 import { claimBotLease, releaseBotLease } from "../services/bot-lease";
+import { cleanUpBannedViewer, type BanCleanupResult } from "../services/ban-cleanup";
 import { claimChatMessage } from "../services/chat-dedupe";
 import { ensureBotConfig, ensureInstanceConfig } from "../services/provision";
-import { removeTasksByUsername, resolveOwnerTwitchId } from "../services/task-service";
+import { resolveOwnerTwitchId } from "../services/task-service";
 import {
   requireBotInstance,
   requireBotToken,
@@ -35,6 +36,7 @@ import {
   resolveChannelLogin,
   revokePreviousChatToken,
 } from "../services/twitch-auth";
+import { lookupBan, lookupFollow } from "../services/twitch-helix";
 
 // The browser bot page (/bot/<token>) holds the Twitch IRC-over-WebSocket
 // connection and relays every chat line here. These procedures are stateless —
@@ -74,7 +76,16 @@ export const botIngestInputSchema = z.object({
   message: safeChatTextInput.optional(),
   color: twitchAuthorColorSchema.optional(),
   isMod: z.boolean().default(false),
+  // IRC badges for "Who can add tasks", trusted like isMod: the bot token is the gate, and a
+  // holder of it could already run any command as the broadcaster.
+  isVip: z.boolean().default(false),
+  isSubscriber: z.boolean().default(false),
   targetUsername: twitchLoginInput.optional(),
+  // clearchat only: the banned viewer's id (CLEARCHAT `target-user-id`) and whether to ask
+  // Twitch if the ban still stands before removing their tasks (the bot page's delayed ban
+  // cleanup). An older page sends neither and removes at once, as before.
+  targetUserId: twitchIdInput.optional(),
+  verifyBan: z.boolean().optional(),
   // PRIVMSG `id` tag, used to dedupe relays from multiple open bot pages.
   // Lenient on purpose: an id that doesn't match the expected shape is dropped
   // (the command runs without dedupe) rather than rejected, so a Twitch format
@@ -209,67 +220,98 @@ export const botRouter = router({
    */
   ingest: publicProcedure
     .input(botIngestInputSchema)
-    .mutation(async ({ ctx, input }): Promise<{ replies: string[]; muted?: boolean }> => {
-      // The token check's own instance_config read also yields the cached channel
-      // login (written by getSession's resolveChannelLogin), so !block can refuse
-      // the streamer's real login without another D1 read.
-      const { channelLogin, timeZone, lease } = await requireBotInstance(ctx.db, input.token);
+    .mutation(
+      async ({
+        ctx,
+        input,
+      }): Promise<{ replies: string[]; muted?: boolean; banCleanup?: BanCleanupResult }> => {
+        // The token check's own instance_config read also yields the cached channel
+        // login (written by getSession's resolveChannelLogin), so !block can refuse
+        // the streamer's real login without another D1 read.
+        const { channelLogin, timeZone, lease } = await requireBotInstance(ctx.db, input.token);
 
-      // The lease rides on the token read above: a page another one took over from is
-      // refused before anything runs, with no extra D1 query and no write.
-      if (input.instanceId && isLeaseHeldByOther(lease, input.instanceId, Date.now())) {
-        throw new TRPCError({ code: "CONFLICT", message: BOT_STANDBY_MESSAGE });
-      }
+        // The lease rides on the token read above: a page another one took over from is
+        // refused before anything runs, with no extra D1 query and no write.
+        if (input.instanceId && isLeaseHeldByOther(lease, input.instanceId, Date.now())) {
+          throw new TRPCError({ code: "CONFLICT", message: BOT_STANDBY_MESSAGE });
+        }
 
-      // Moderation piggyback (L9): CLEARCHAT (ban/timeout) → drop the user's tasks.
-      if (input.kind === "clearchat") {
-        if (!input.targetUsername) {
+        // Moderation piggyback (L9): a ban → drop the viewer's tasks. The bot page sends it
+        // BAN_CLEANUP_DELAY_MS after a permanent ban, with verifyBan (timeouts never come here).
+        if (input.kind === "clearchat") {
+          if (!input.targetUsername) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: 'targetUsername is required for kind "clearchat"',
+            });
+          }
+          const creds = { clientId: env.TWITCH_CLIENT_ID, clientSecret: env.TWITCH_CLIENT_SECRET };
+          const banCleanup = await cleanUpBannedViewer(ctx.db, {
+            targetUsername: input.targetUsername,
+            targetUserId: input.targetUserId,
+            verify: input.verifyBan === true,
+            lookupBan: async (userId) => {
+              const owner = await loadOwner(ctx.db);
+              if (!owner?.twitchId) return "unavailable";
+              return lookupBan(ctx.db, creds, { broadcasterId: owner.twitchId, userId });
+            },
+          });
+          return { replies: [], banCleanup };
+        }
+
+        if (!input.username || !input.twitchId || !input.message) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: 'targetUsername is required for kind "clearchat"',
+            message: 'username, twitchId and message are required for kind "message"',
           });
         }
-        await removeTasksByUsername(ctx.db, input.targetUsername);
-        return { replies: [] };
-      }
 
-      if (!input.username || !input.twitchId || !input.message) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: 'username, twitchId and message are required for kind "message"',
+        const [botConfigRow, owner] = await Promise.all([
+          ensureBotConfig(ctx.db),
+          loadOwner(ctx.db),
+        ]);
+
+        const { messageId, twitchId: chatterId } = input;
+        const privileges = deriveChatPrivileges(owner?.twitchId, input.twitchId, input.isMod);
+        const replies: string[] = [];
+        const { muted } = await handleMessage({
+          db: ctx.db,
+          channelName: owner?.name ?? "",
+          channelLogin,
+          timeZone,
+          config: buildBotConfig(botConfigRow),
+          message: input.message.trim(),
+          userInfo: {
+            twitchId: input.twitchId,
+            username: input.username,
+            // Sanitized like task text (bidi, invisible chars, Zalgo) and capped at 25:
+            // it lands on the overlay and in replies.
+            displayName: chatDisplayName(input.displayName, input.username),
+            color: input.color ?? null,
+            ...privileges,
+            isVip: input.isVip,
+            isSubscriber: input.isSubscriber,
+          },
+          docsUrl: env.DOCS_URL,
+          say: (text) => replies.push(text),
+          // Another open bot page may already have relayed this exact message —
+          // running it again would double-apply the command and its replies.
+          claim: messageId ? () => claimChatMessage(ctx.db, messageId) : undefined,
+          // Only reached for a task-creating command at the "followers" level, from a viewer
+          // with no fresh follower_check row: one Helix call as the bot.
+          lookupFollow: async () => {
+            if (!owner?.twitchId) return "unavailable";
+            return lookupFollow(
+              ctx.db,
+              { clientId: env.TWITCH_CLIENT_ID, clientSecret: env.TWITCH_CLIENT_SECRET },
+              { broadcasterId: owner.twitchId, userId: chatterId },
+            );
+          },
         });
-      }
 
-      const [botConfigRow, owner] = await Promise.all([ensureBotConfig(ctx.db), loadOwner(ctx.db)]);
-
-      const { messageId } = input;
-      const privileges = deriveChatPrivileges(owner?.twitchId, input.twitchId, input.isMod);
-      const replies: string[] = [];
-      const { muted } = await handleMessage({
-        db: ctx.db,
-        channelName: owner?.name ?? "",
-        channelLogin,
-        timeZone,
-        config: buildBotConfig(botConfigRow),
-        message: input.message.trim(),
-        userInfo: {
-          twitchId: input.twitchId,
-          username: input.username,
-          // Sanitized like task text (bidi, invisible chars, Zalgo) and capped at 25:
-          // it lands on the overlay and in replies.
-          displayName: chatDisplayName(input.displayName, input.username),
-          color: input.color ?? null,
-          ...privileges,
-        },
-        docsUrl: env.DOCS_URL,
-        say: (text) => replies.push(text),
-        // Another open bot page may already have relayed this exact message —
-        // running it again would double-apply the command and its replies.
-        claim: messageId ? () => claimChatMessage(ctx.db, messageId) : undefined,
-      });
-
-      return { replies, muted };
-    }),
+        return { replies, muted };
+      },
+    ),
 
   /**
    * Bot page lease check-in: only one open bot page holds the Twitch chat connection. A page

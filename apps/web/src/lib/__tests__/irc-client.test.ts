@@ -341,7 +341,26 @@ describe("TwitchIrcClient chat", () => {
       color: "#00FF00",
       isMod: false,
       isBroadcaster: true,
+      isVip: false,
+      isSubscriber: false,
     });
+  });
+
+  it("reads VIP and subscriber standing from the tags and badges", () => {
+    const onChat = vi.fn();
+    const { ws } = connected({ onChat });
+
+    ws.receive(privmsg("badges=vip/1;user-id=1;vip=1", "v", "!task a"));
+    ws.receive(privmsg("badges=subscriber/12;subscriber=1;user-id=2", "s", "!task b"));
+    ws.receive(privmsg("badges=founder/0;subscriber=0;user-id=3", "f", "!task c"));
+    ws.receive(privmsg("badges=;subscriber=0;user-id=4", "p", "!task d"));
+
+    expect(onChat.mock.calls.map(([m]) => [m.isVip, m.isSubscriber])).toEqual([
+      [true, false],
+      [false, true],
+      [false, true],
+      [false, false],
+    ]);
   });
 
   it("forwards the IRC message id the server dedupes on", () => {
@@ -368,7 +387,23 @@ describe("TwitchIrcClient chat", () => {
     const { ws } = connected({ onClearChat });
     ws.receive(":tmi.twitch.tv CLEARCHAT #streamer :BadViewer");
     ws.receive(":tmi.twitch.tv CLEARCHAT #streamer");
-    expect(onClearChat).toHaveBeenCalledExactlyOnceWith("badviewer");
+    expect(onClearChat).toHaveBeenCalledExactlyOnceWith({
+      targetUsername: "badviewer",
+      permanent: true,
+    });
+  });
+
+  it("tells a timeout from a ban by its ban-duration tag", () => {
+    const onClearChat = vi.fn();
+    const { ws } = connected({ onClearChat });
+    ws.receive(
+      "@ban-duration=600;room-id=100;target-user-id=42 :tmi.twitch.tv CLEARCHAT #streamer :napper",
+    );
+    ws.receive("@room-id=100;target-user-id=43 :tmi.twitch.tv CLEARCHAT #streamer :troll");
+    expect(onClearChat.mock.calls).toEqual([
+      [{ targetUsername: "napper", targetUserId: "42", permanent: false }],
+      [{ targetUsername: "troll", targetUserId: "43", permanent: true }],
+    ]);
   });
 
   it("ignores Shared Chat lines and bans copied in from a partner channel", () => {
@@ -403,7 +438,11 @@ describe("TwitchIrcClient chat", () => {
     );
     expect(onChat).toHaveBeenCalledOnce();
     expect(onChat.mock.calls[0]?.[0]).toMatchObject({ message: "!done", messageId: "own-1" });
-    expect(onClearChat).toHaveBeenCalledExactlyOnceWith("viewer");
+    expect(onClearChat).toHaveBeenCalledExactlyOnceWith({
+      targetUsername: "viewer",
+      targetUserId: "42",
+      permanent: true,
+    });
   });
 
   it("strips the Reply button's @mention of the parent so the command comes first", () => {
