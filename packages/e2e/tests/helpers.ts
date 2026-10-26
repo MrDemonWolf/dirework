@@ -1,5 +1,5 @@
 import { AxeBuilder } from "@axe-core/playwright";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { API_ORIGIN, DEV_LOGIN_SECRET } from "../src/env";
 
@@ -143,4 +143,12 @@ export async function expectNoHydrationErrors(page: Page): Promise<void> {
 /** Press the named button in the open confirm dialog (ConfirmDialog renders an alertdialog). */
 export async function confirmDialog(page: Page, label: string): Promise<void> {
   await page.getByRole("alertdialog").getByRole("button", { name: label, exact: true }).click();
+}
+
+/**
+ * A task board row by its text. The text alone is ambiguous: the timer console's "Now" line
+ * repeats the owner's active task.
+ */
+export function taskRow(page: Page, text: string): Locator {
+  return page.getByRole("listitem").filter({ hasText: text });
 }

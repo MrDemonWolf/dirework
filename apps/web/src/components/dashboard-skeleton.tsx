@@ -111,7 +111,8 @@ export function FocusChartPlaceholder() {
 
 /**
  * The timer console: its header (title + phase chip), then instrument (3/5) | transport,
- * settings and OBS sources (2/5).
+ * settings and OBS sources (2/5). The "Now" line shows only with an active task, so the
+ * placeholder leaves it out.
  */
 export function TimerConsoleBodyPlaceholder() {
   return (

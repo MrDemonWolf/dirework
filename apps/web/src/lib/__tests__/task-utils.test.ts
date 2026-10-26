@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { countDoneByAuthor, groupTasksByAuthor, toRestoreInput } from "../task-utils";
+import {
+  countDoneByAuthor,
+  groupTasksByAuthor,
+  ownerActiveTask,
+  toRestoreInput,
+} from "../task-utils";
 import type { Task } from "../task-utils";
 
 describe("groupTasksByAuthor", () => {
@@ -275,5 +280,38 @@ describe("toRestoreInput", () => {
     expect(toRestoreInput(null)).toBeNull();
     expect(toRestoreInput(undefined)).toBeNull();
     expect(toRestoreInput({ ...removed, status: "archived" })).toBeNull();
+  });
+});
+
+describe("ownerActiveTask", () => {
+  const task = (id: string, author: string | undefined, name: string, status: string): Task => ({
+    id,
+    authorTwitchId: author,
+    authorDisplayName: name,
+    authorColor: null,
+    text: `Task ${id}`,
+    status,
+  });
+
+  it("returns the owner's active task, never a viewer's", () => {
+    const tasks = [
+      task("1", "viewer", "Viewer", "active"),
+      task("2", "owner", "Owner", "pending"),
+      task("3", "owner", "Owner", "active"),
+    ];
+    expect(ownerActiveTask(tasks, "owner")?.id).toBe("3");
+  });
+
+  it("returns null when only viewers have an active task", () => {
+    const tasks = [task("1", "viewer", "Viewer", "active"), task("2", "owner", "Owner", "done")];
+    expect(ownerActiveTask(tasks, "owner")).toBeNull();
+  });
+
+  it("matches nothing for an empty owner key (user.me not loaded yet)", () => {
+    expect(ownerActiveTask([task("1", undefined, "", "active")], "")).toBeNull();
+  });
+
+  it("keys a task without a Twitch id by display name, like the board's groups", () => {
+    expect(ownerActiveTask([task("1", undefined, "Host", "active")], "Host")?.id).toBe("1");
   });
 });

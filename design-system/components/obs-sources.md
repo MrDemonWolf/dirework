@@ -8,7 +8,7 @@ tokens: [color.scheme, radius, font.family]
 ## Purpose
 
 Both overlay URLs in one place on the dashboard: the last block of the timer console's right
-column (`dashboard/dashboard.tsx`, under the transport and the session settings), so the
+column (`dashboard/dashboard.tsx`, under Transport, "Now" and the session settings), so the
 task board below can take the full width. One tab per overlay, so the page shows one masked
 URL row at a time instead of two look-alike rows in two panels.
 

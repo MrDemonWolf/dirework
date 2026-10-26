@@ -1,7 +1,8 @@
 "use client";
 
-// Owner dashboard home (/dashboard): the timer console (instrument | controls, settings and
-// the OBS sources with both overlay URLs) and the full-width task board. The header's
+// Owner dashboard home (/dashboard): the timer console (instrument | controls, the owner's
+// active task, settings and the OBS sources with both overlay URLs) and the full-width task
+// board. The header's
 // bot chip is the page's only bot status. All data comes from owner-only tRPC procedures:
 // streamed from the server's one batched call on first load (page.tsx), then polled through
 // the same-origin /rpc proxy.
@@ -48,6 +49,7 @@ import { dashboardBotChip } from "@/lib/bot-status";
 import { formatGreeting, pickGreeting } from "@/lib/greetings";
 import { PANEL_HEADER_CLASS, PANEL_TITLE_CLASS } from "@/lib/panel-header";
 import { setupProgress } from "@/lib/setup-steps";
+import { ownerActiveTask, ownerAuthorKey } from "@/lib/task-utils";
 import { trpc } from "@/utils/trpc";
 
 // Greeting (lib/greetings.ts) and date use the browser's local clock, which can differ from
@@ -209,9 +211,9 @@ function HeaderSection({ user }: { user: SessionUser }) {
 
 /**
  * Timer console (needs `timer.get` + `config.get`): the one-line heading with the phase chip,
- * then instrument (3/5) | transport, session settings and the OBS sources (2/5). The overlay
- * URLs read `user.me` from the cache the page's one batch filled; until it lands each row
- * stays masked and disabled at the same size.
+ * then instrument (3/5) | transport, the owner's active task, session settings and the OBS
+ * sources (2/5). "Now" and the overlay URLs read `task.list` / `user.me` from the cache the
+ * page's one batch filled; they never fetch on their own and fill in when that lands.
  */
 function TimerConsoleBody() {
   return (
@@ -235,7 +237,10 @@ function TimerConsoleBody() {
           </ProgressiveSection>
         </div>
         <div className="flex min-w-0 flex-col gap-5 border-t border-border/40 px-5 py-5 lg:col-span-2 lg:border-t-0 lg:border-l">
-          <TimerTransport />
+          <div className="space-y-2.5">
+            <TimerTransport />
+            <NowTask />
+          </div>
           <TimerSettings />
           <ObsSources />
         </div>
@@ -244,10 +249,34 @@ function TimerConsoleBody() {
   );
 }
 
+/**
+ * "Now: <task>" under the transport: the owner's own active task, or nothing. Reads `task.list`
+ * and `user.me` from the cache the page's batch filled; the observer has no refetchInterval
+ * (the board owns the poll), and `select` re-renders only this line, only when the text changes.
+ */
+function NowTask() {
+  const me = useQuery(trpc.user.me.queryOptions());
+  const ownerKey = ownerAuthorKey(me.data);
+  const { data: text } = useQuery({
+    ...trpc.task.list.queryOptions(),
+    select: (list) => ownerActiveTask(list.tasks, ownerKey)?.text ?? null,
+  });
+  if (!text) return null;
+  return (
+    <p className="flex min-w-0 items-baseline gap-2 text-sm">
+      <span className="console-label shrink-0">Now</span>
+      <span className="sr-only">:</span>
+      <span className="min-w-0 truncate" title={text}>
+        {text}
+      </span>
+    </p>
+  );
+}
+
 /** Task board (needs `task.list` + `user.me`, which pins the streamer's own group first). */
 function TaskBoard() {
   const me = useQuery(trpc.user.me.queryOptions());
-  return <TaskManager userTwitchId={me.data?.twitchId ?? me.data?.id ?? ""} />;
+  return <TaskManager userTwitchId={ownerAuthorKey(me.data)} />;
 }
 
 /**
