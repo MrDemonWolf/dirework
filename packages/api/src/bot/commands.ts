@@ -685,7 +685,8 @@ async function handleTaskStart(args: string[], ctx: MessageContext): Promise<voi
     return;
   }
 
-  const result = await startTask(db, task.id);
+  // The row from the list read: startTask doesn't read it again.
+  const result = await startTask(db, task);
   const taskVars = { ...vars, task: task.text };
   switch (result.outcome) {
     case "focused":
@@ -731,7 +732,7 @@ async function handleTaskPause(args: string[], ctx: MessageContext): Promise<voi
 
   const paused =
     task && (task.status === "active" || task.status === "started")
-      ? await pauseTask(db, task.id)
+      ? await pauseTask(db, task)
       : null;
   if (!paused) {
     say(interpolate(config.task.noTaskToPause, vars));
