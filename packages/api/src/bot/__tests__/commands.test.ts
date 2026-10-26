@@ -162,6 +162,16 @@ describe("formatTodayPlan", () => {
     expect(message).toBe("Viewer's plan: Now: #3 third · Next: #1 first · Then: #2 second");
   });
 
+  it("lists started tasks as Next ahead of earlier pending ones, as promotion resumes them", () => {
+    const message = formatTodayPlan("Viewer", [
+      { text: "p1", status: "pending" },
+      { text: "p2", status: "pending" },
+      { text: "focus", status: "active" },
+      { text: "parked", status: "started" },
+    ]);
+    expect(message).toBe("Viewer's plan: Now: #3 focus · Next: #4 parked · Then: #1 p1 · +1 more");
+  });
+
   it("fits long task text within Twitch's byte limit and preserves whole characters", () => {
     const message = formatTodayPlan("Viewer", [
       { text: "🐺".repeat(500), status: "active" },
