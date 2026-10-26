@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Wolf-pun greetings.** The dashboard greeting still follows the time of day, now from
+  a pool of lines per part of the day ("Howl's it going, {name}?", "Werewolf hours",
+  "Paws for a break?") mixed with plain ones. The line changes from day to day but holds
+  steady on reload, and costs no requests.
 - **Local recovery drill.** `bun run recovery:check` exports and restores a synthetic
   database, verifies schema and application data, and runs in the shared CI gate.
   No production database or additional Cloudflare service is needed.
