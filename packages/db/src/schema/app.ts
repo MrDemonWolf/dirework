@@ -119,6 +119,16 @@ export const task = sqliteTable(
     uniqueIndex("task_one_active_per_author_idx")
       .on(table.authorTwitchId)
       .where(sql`${table.status} = 'active'`),
+    // A viewer's in-progress tasks (the focus plus at most MAX_STARTED_PER_AUTHOR
+    // started ones), for !check and !check @user: partial, so the read touches only
+    // those rows, never the viewer's queue or done history. The query must spell the
+    // same literal `status in ('active', 'started')` for SQLite to pick it.
+    index("task_in_progress_author_idx")
+      .on(table.authorTwitchId, table.status)
+      .where(sql`${table.status} in ('active', 'started')`),
+    index("task_in_progress_username_lower_idx")
+      .on(sql`lower(${table.authorUsername})`)
+      .where(sql`${table.status} in ('active', 'started')`),
   ],
 );
 

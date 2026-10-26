@@ -27,6 +27,7 @@ import {
   editTask,
   findInProgressTasksByUsername,
   getActiveTask,
+  getViewerInProgressTasks,
   getViewerOpenTasks,
   inProgressFirst,
   markTaskDone,
@@ -642,8 +643,8 @@ async function handleTaskCheck(args: string[], ctx: MessageContext): Promise<voi
     return;
   }
 
-  // One read, as before: the open list holds the focus and the started tasks.
-  const [activeTask, ...more] = inProgressFirst(await getViewerOpenTasks(db, userInfo.twitchId));
+  // One read of only the focus and started rows (partial index), never the queue.
+  const [activeTask, ...more] = await getViewerInProgressTasks(db, userInfo.twitchId);
 
   if (!activeTask) {
     say(interpolate(config.task.noTask, vars));

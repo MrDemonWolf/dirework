@@ -16,9 +16,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   new `{count}` and `{max}` placeholders. Both commands follow the Task command switch, can
   be aliased, and have `!dw help start` / `!dw help pause` lines. The cap is checked inside
   the guarded UPDATE, so racing messages can't pass it; a full hand is refused from the list
-  already read, with no write. `!check @user` reads the focus and started tasks in the one
-  query it already made. New migration `0022_start_pause_replies` (add-only: six defaulted
-  `bot_config` columns). An alias named `start` or `pause` saved earlier is now shadowed by
+  already read, with no write, and `!start` / `!pause` reuse the task row they loaded (no
+  second read). `!check` and `!check @user` read only the viewer's focus and started rows
+  (at most 3) through two new partial indexes, never their queue or done history. New
+  migrations `0022_start_pause_replies` (add-only: six defaulted `bot_config` columns) and
+  `0023_in_progress_task_idx` (add-only: two partial indexes on `task`). An alias named `start` or `pause` saved earlier is now shadowed by
   the built-in command, and the alias editor flags it.
 - **Started tasks (api groundwork for multiple active tasks).** Besides the one task you
   focus on, each person can now keep up to 2 tasks **started**: in progress but parked.

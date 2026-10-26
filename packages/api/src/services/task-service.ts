@@ -120,14 +120,34 @@ export async function getActiveTask(db: DbClient, twitchId: string) {
 }
 
 /**
- * Case-insensitive lookup of another user's in-progress tasks (for !check @user):
- * the focus (`active`) first, then their `started` tasks in list order. One read
- * through the lower(author_username) index; at most 1 + MAX_STARTED_PER_AUTHOR rows
- * per author.
+ * `status in ('active', 'started')` as a LITERAL: the partial in-progress indexes
+ * (task_in_progress_author_idx, task_in_progress_username_lower_idx) are only
+ * usable when the query repeats their WHERE with constants, not bound parameters.
+ */
+const IN_PROGRESS_STATUS = sql`${schema.task.status} in ('active', 'started')`;
+
+/**
+ * A viewer's in-progress tasks (for !check): the focus first, then their
+ * `started` tasks in list order. Reads only those rows (at most
+ * 1 + MAX_STARTED_PER_AUTHOR) through task_in_progress_author_idx, never the
+ * viewer's queue or done history.
+ */
+export async function getViewerInProgressTasks(db: DbClient, twitchId: string) {
+  const rows = await db.query.task.findMany({
+    where: and(eq(schema.task.authorTwitchId, twitchId), IN_PROGRESS_STATUS),
+    orderBy: [asc(schema.task.order), asc(schema.task.id)],
+  });
+  return inProgressFirst(rows);
+}
+
+/**
+ * Case-insensitive lookup of another user's in-progress tasks (for !check @user),
+ * ordered like getViewerInProgressTasks. Reads only in-progress rows through the
+ * partial task_in_progress_username_lower_idx.
  */
 export async function findInProgressTasksByUsername(db: DbClient, username: string) {
   const rows = await db.query.task.findMany({
-    where: and(authorUsernameEquals(username), inArray(schema.task.status, ["active", "started"])),
+    where: and(authorUsernameEquals(username), IN_PROGRESS_STATUS),
     orderBy: [asc(schema.task.order), asc(schema.task.id)],
   });
   return inProgressFirst(rows);

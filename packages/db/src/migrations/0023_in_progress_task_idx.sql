@@ -1,0 +1,2 @@
+CREATE INDEX `task_in_progress_author_idx` ON `task` (`author_twitch_id`,`status`) WHERE "task"."status" in ('active', 'started');--> statement-breakpoint
+CREATE INDEX `task_in_progress_username_lower_idx` ON `task` (lower("author_username")) WHERE "task"."status" in ('active', 'started');

@@ -467,7 +467,14 @@ UI yet. **Chat:** `!start N` (own task only, like `!done N`; pending → focus o
 open list already read, no write), bare `!pause` = the focus (like bare `!done`), `!pause N`
 = that focus/started task (`pauseTask`), and `!check` / `!check @user` append the built-in
 `(+n more started)` via `withCheckSuffix` (template filled to fit beside it;
-`findInProgressTasksByUsername` replaced `findActiveTaskByUsername`, one indexed read).
+`getViewerInProgressTasks` / `findInProgressTasksByUsername`, which replaced
+`getActiveTask` / `findActiveTaskByUsername` there: one read of only the ≤3 in-progress rows
+through the partial indexes `task_in_progress_author_idx` (author_twitch_id, status) and
+`task_in_progress_username_lower_idx` (lower(author_username)), both `WHERE status in
+('active', 'started')` from `0023_in_progress_task_idx`; the query repeats that WHERE as a
+literal (`IN_PROGRESS_STATUS`), since SQLite won't match a partial index against bound params).
+`!start` / `!pause` hand the row they already loaded to `startTask` / `pauseTask` (no
+re-read; the cap-vs-stale check is a SELECT inside `startTask`'s batch).
 Replies `taskStarted` / `taskStartedFocus` / `startCapReached` / `noTaskToStart` /
 `taskPaused` / `noTaskToPause` are `bot_config` columns from `0022_start_pause_replies`
 whose frozen column default IS the current wording (`NEW_COLUMN_WORDING` in config.test.ts),

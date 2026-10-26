@@ -13,6 +13,7 @@ import {
   createTask,
   editTask,
   findInProgressTasksByUsername,
+  getViewerInProgressTasks,
   isUniqueViolation,
   listOverlayTasks,
   listTasks,
@@ -60,6 +61,26 @@ async function statusById() {
 }
 
 const viewer = { twitchId: "100", username: "viewer", displayName: "Viewer" };
+
+/** EXPLAIN QUERY PLAN (detail column, joined) of every task SELECT `run` prepares. */
+async function queryPlans(run: () => Promise<unknown>): Promise<string[]> {
+  const prepared: string[] = [];
+  const prepare = sqlite.prepare.bind(sqlite);
+  const spy = vi.spyOn(sqlite, "prepare").mockImplementation((query, params) => {
+    if (/^select[\s\S]*from "task"/i.test(query)) prepared.push(query);
+    return prepare(query, params);
+  });
+  try {
+    await run();
+  } finally {
+    spy.mockRestore();
+  }
+  return prepared.map((query) => {
+    const placeholders = (query.match(/\?/g) ?? []).length;
+    const [plan] = sqlite.exec(`EXPLAIN QUERY PLAN ${query}`, Array(placeholders).fill("x"));
+    return (plan?.values ?? []).map((row) => String(row[3])).join(" | ");
+  });
+}
 
 describe("removeTasksByUsername (ban / timeout / !clear @user)", () => {
   it("deletes only that author's tasks, case-insensitively", async () => {
@@ -550,19 +571,26 @@ describe("findInProgressTasksByUsername", () => {
     expect(await ids("nobody")).toEqual([]);
   });
 
-  it("reads through the lower(author_username) expression index", async () => {
-    const prepared: string[] = [];
-    const prepare = sqlite.prepare.bind(sqlite);
-    const spy = vi.spyOn(sqlite, "prepare").mockImplementation((query, params) => {
-      prepared.push(query);
-      return prepare(query, params);
-    });
-    await findInProgressTasksByUsername(db, "Viewer");
-    spy.mockRestore();
+  it("reads only in-progress rows, through the partial in-progress indexes", async () => {
+    const byUsername = await queryPlans(() => findInProgressTasksByUsername(db, "Viewer"));
+    const byViewer = await queryPlans(() => getViewerInProgressTasks(db, "1"));
+    expect(byUsername.length).toBeGreaterThan(0);
+    expect(byViewer.length).toBeGreaterThan(0);
+    for (const plan of byUsername) expect(plan).toContain("task_in_progress_username_lower_idx");
+    for (const plan of byViewer) expect(plan).toContain("task_in_progress_author_idx");
+  });
+});
 
-    const [query] = prepared.filter((q) => /from "task"/i.test(q));
-    expect(query).toBeDefined();
-    const plan = sqlite.exec(`EXPLAIN QUERY PLAN ${query}`, ["Viewer", "active", "started"]);
-    expect(JSON.stringify(plan)).toContain("task_author_username_lower_idx");
+describe("getViewerInProgressTasks", () => {
+  it("returns only the viewer's focus and started tasks, focus first", async () => {
+    await seed(
+      { id: "s1", authorTwitchId: "1", status: "started", order: 0 },
+      { id: "p", authorTwitchId: "1", status: "pending", order: 1 },
+      { id: "a", authorTwitchId: "1", status: "active", order: 2 },
+      { id: "d", authorTwitchId: "1", status: "done", order: 3 },
+      { id: "o", authorTwitchId: "2", status: "active" },
+    );
+    expect((await getViewerInProgressTasks(db, "1")).map((t) => t.id)).toEqual(["a", "s1"]);
+    expect(await getViewerInProgressTasks(db, "3")).toEqual([]);
   });
 });
