@@ -399,7 +399,8 @@ start, shown "5+") and 14 daily buckets, after advancing an overdue timer first 
 dashboard opened after an unattended session counts it, though `timer.get` races in the same
 batch); it rides `streamDashboard`'s one batch and is never polled — the dashboard's
 `useStatsRefresh` (a QueryCache subscription, not an observer) invalidates it when the timer
-poll sees a status change or `task.list` shows a newer completion (`latestCompletion`: the
+poll sees another phase (`timerPhaseKey`: status, cycle, total and phase end, so work → work of
+the next cycle counts) or `task.list` shows a newer completion (`latestCompletion`: the
 newest `completedAt`, monotonic, unlike `counts.done`, which the purge can hold level), plus
 once just after each local midnight (`scheduleDayRollover`, one timer a day). `user.setTimeZone` (guarded UPDATE, `is not`) is sent once by `useTimeZoneSync` when
 `me.timeZone` differs from the browser's zone. UI: `components/dashboard-stats.tsx`

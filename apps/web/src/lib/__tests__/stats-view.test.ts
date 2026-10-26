@@ -12,6 +12,7 @@ import {
   latestCompletion,
   msUntilNextLocalDay,
   scheduleDayRollover,
+  timerPhaseKey,
   shouldRefreshStats,
   statCellClass,
   statTiles,
@@ -115,12 +116,43 @@ describe("chartBars", () => {
   });
 });
 
+describe("timer phase identity", () => {
+  const work = (cycle: number, end: string) => ({
+    status: "work",
+    currentCycle: cycle,
+    totalCycles: 4,
+    targetEndTime: end,
+  });
+
+  it("refetches when two polls both see `work` but a whole break passed between them", () => {
+    const before = timerPhaseKey(work(1, "2026-10-26T10:25:00Z"));
+    const after = timerPhaseKey(work(2, "2026-10-26T10:55:00Z"));
+    expect(shouldRefreshStats({ timerPhase: before }, { timerPhase: after })).toBe(true);
+  });
+
+  it("refetches when a session was restarted into the same phase and cycle", () => {
+    const before = timerPhaseKey(work(1, "2026-10-26T10:25:00Z"));
+    const after = timerPhaseKey(work(1, "2026-10-26T12:25:00Z"));
+    expect(shouldRefreshStats({ timerPhase: before }, { timerPhase: after })).toBe(true);
+  });
+
+  it("is stable while the same phase keeps running, and unknown before timer.get loads", () => {
+    const phase = work(1, "2026-10-26T10:25:00Z");
+    expect(timerPhaseKey(phase)).toBe(timerPhaseKey({ ...phase }));
+    expect(timerPhaseKey(null)).toBeUndefined();
+    expect(timerPhaseKey(undefined)).toBeUndefined();
+    expect(timerPhaseKey({ status: "idle", targetEndTime: null })).toBe("idle|||");
+  });
+});
+
 describe("shouldRefreshStats", () => {
   const done = (id: string, at: string) => ({ id, status: "done", completedAt: at });
   const open = { id: "o", status: "pending", completedAt: null };
 
   it("refetches on a timer status change or a newer completion", () => {
-    expect(shouldRefreshStats({ timerStatus: "work" }, { timerStatus: "break" })).toBe(true);
+    expect(shouldRefreshStats({ timerPhase: "work|1|4|1" }, { timerPhase: "break|1|4|2" })).toBe(
+      true,
+    );
     expect(shouldRefreshStats({ latestDoneAt: 1000 }, { latestDoneAt: 2000 })).toBe(true);
     // The first completion after a clear (or on a fresh day).
     expect(shouldRefreshStats({ latestDoneAt: null }, { latestDoneAt: 2000 })).toBe(true);
@@ -140,8 +172,10 @@ describe("shouldRefreshStats", () => {
   });
 
   it("ignores first sightings, unchanged values, a purge, a clear and an undo of a removal", () => {
-    expect(shouldRefreshStats({}, { timerStatus: "work", latestDoneAt: 3 })).toBe(false);
-    expect(shouldRefreshStats({ timerStatus: "work" }, { timerStatus: "work" })).toBe(false);
+    expect(shouldRefreshStats({}, { timerPhase: "work|1|4|1", latestDoneAt: 3 })).toBe(false);
+    expect(shouldRefreshStats({ timerPhase: "work|1|4|1" }, { timerPhase: "work|1|4|1" })).toBe(
+      false,
+    );
     expect(shouldRefreshStats({ latestDoneAt: 3000 }, { latestDoneAt: 3000 })).toBe(false);
     expect(shouldRefreshStats({ latestDoneAt: 3000 }, { latestDoneAt: null })).toBe(false);
     // A restored done task keeps its old completedAt, so the newest doesn't move forward.
