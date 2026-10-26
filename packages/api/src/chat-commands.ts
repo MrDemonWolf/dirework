@@ -64,6 +64,13 @@ export function isBuiltinCommandName(token: string): boolean {
   return BUILTIN_COMMAND_NAMES.has(token);
 }
 
+/**
+ * Longest alias name or command target, in characters, without the leading "!" (Twitch
+ * logins cap at 25 too). `normalizeAliases` rejects longer ones; the alias editor's inputs
+ * allow one more character for a typed "!".
+ */
+export const ALIAS_MAX_LENGTH = 25;
+
 /** Strip any leading "!", trim, lowercase, take the first token → canonical alias/target. */
 export function normalizeAliasToken(raw: string): string {
   return raw.trim().replace(/^!+/, "").trim().toLowerCase().split(/\s+/)[0] ?? "";

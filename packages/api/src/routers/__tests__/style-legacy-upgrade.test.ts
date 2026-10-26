@@ -138,6 +138,8 @@ describe("read-time upgrade of never-customized style rows", () => {
         "bodyBorderWidth",
         "bodyPaddingHorizontal",
         "bodyPaddingVertical",
+        "bulletChar",
+        "checkboxTickChar",
         "displayNumberOfLines",
         "headerBorderRadius",
         "headerBorderWidth",

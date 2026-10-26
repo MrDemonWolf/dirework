@@ -13,6 +13,12 @@ import {
   TIMER_STYLE_FIELDS,
 } from "@/lib/style-sections";
 import { themePresets } from "@/lib/theme-presets";
+import {
+  TASK_LENGTH_LIMITS,
+  TASK_NUMBER_LIMITS,
+  TIMER_LENGTH_LIMITS,
+  TIMER_NUMBER_LIMITS,
+} from "@dirework/api/style-limits";
 
 const editors = [
   {
@@ -29,7 +35,7 @@ const editors = [
   },
 ] as const;
 
-describe.each(editors)("$name style sections", ({ fields, defaults, presetKey }) => {
+describe.each(editors)("$name style sections", ({ name, fields, defaults, presetKey }) => {
   const keys = leafPaths(defaults);
   const paths = fields.map((field) => field.path as string);
 
@@ -42,6 +48,28 @@ describe.each(editors)("$name style sections", ({ fields, defaults, presetKey })
     const ids = STYLE_SECTIONS.map((s) => s.id);
     for (const field of fields) expect(ids).toContain(field.section);
     for (const id of ids) expect(fields.some((f) => f.section === id)).toBe(true);
+  });
+
+  it("gives every length field exactly its save-schema limit, and every slider its range", () => {
+    const lengths: Record<string, unknown> =
+      name === "timer" ? TIMER_LENGTH_LIMITS : TASK_LENGTH_LIMITS;
+    const numbers: Record<string, readonly [number, number]> =
+      name === "timer" ? TIMER_NUMBER_LIMITS : TASK_NUMBER_LIMITS;
+    const lengthPaths = fields.filter((f) => f.kind === "length").map((f) => f.path as string);
+    expect(lengthPaths.sort()).toEqual(Object.keys(lengths).sort());
+    for (const field of fields) {
+      if (field.kind === "length") expect(field.limit, field.path).toBe(lengths[field.path]);
+      if (field.kind === "slider" && field.path in numbers) {
+        expect([field.min, field.max], field.path).toEqual(numbers[field.path]);
+      }
+    }
+    const sliderPaths = fields.filter((f) => f.kind === "slider").map((f) => f.path as string);
+    for (const path of Object.keys(numbers)) expect(sliderPaths).toContain(path);
+  });
+
+  it("edits the bullet and tick with the icon picker", () => {
+    const icons = fields.filter((f) => f.kind === "icon").map((f) => f.path as string);
+    expect(icons).toEqual(name === "task" ? ["checkbox.tickIcon", "bullet.icon"] : []);
   });
 
   it("files colors under Colors and opacities under Opacity", () => {

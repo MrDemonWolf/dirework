@@ -33,7 +33,7 @@ ONE generic chat reply-template editor for both the task and timer message sets,
 ## States
 
 - **Customized**: per-field reset shown; "Reset all" enabled.
-- **Near limit / over**: `ByteBudget` shows the UTF-8 budget (`messageBudget`, capped at `MAX_MESSAGE_TEMPLATE_BYTES`); typing past the cap is allowed and marked `aria-invalid`; a chip insert that would overflow is refused.
+- **Near limit / over**: `ByteBudget` shows the UTF-8 budget (`messageBudget`, capped at `MAX_MESSAGE_TEMPLATE_BYTES`); typing past the cap is allowed and marked `aria-invalid`; a chip insert that would overflow is refused. A placeholder used more than `MAX_PLACEHOLDER_REPEATS` (4) times is flagged under the field (`{id}-repeats`, linked by `aria-describedby`), and its chip disables at 4.
 - **Empty value**: preview shows "(empty)".
 - **Collapsed / expanded**: per the open rule under Anatomy.
 

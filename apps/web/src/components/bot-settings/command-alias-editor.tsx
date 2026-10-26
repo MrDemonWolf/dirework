@@ -7,13 +7,16 @@
 import { Plus, Trash2 } from "lucide-react";
 
 import {
+  ALIAS_INPUT_MAX_LENGTH,
   type AliasRow,
   type AliasRowIssue,
+  aliasBudget,
   aliasIssueMessage,
   nextAliasRowId,
   rowsToAliases,
 } from "@/lib/alias-rows";
 import { cn } from "@/lib/utils";
+import { ByteBudget } from "@/components/byte-budget";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,8 +25,9 @@ import { Label } from "@/components/ui/label";
  * Controlled editor for the command-alias rows. Validates on every render with the same shared
  * validator the server runs and flags each rejected row inline, against the field at fault —
  * both fields, each with its own message, when the alias and the command are both wrong.
- * `maxRows` (default 50) and the inputs' `maxLength` (50 / 100) mirror the caps in the server's
- * `commandAliasesInput` schema. Either form ("!t" or "t") is accepted; the "!" is stripped
+ * `maxRows` (default 50) mirrors the cap in the server's `commandAliasesInput` schema, and both
+ * inputs stop at ALIAS_MAX_LENGTH characters plus a typed "!" (`ALIAS_INPUT_MAX_LENGTH`), with a
+ * character counter from 80% of it. Either form ("!t" or "t") is accepted; the "!" is stripped
  * when the rows are normalized.
  */
 export function CommandAliasEditor({
@@ -78,6 +82,12 @@ export function CommandAliasEditor({
           const cmdErrorId = `${row.id}-cmd-error`;
           const keyInvalid = keyIssue !== undefined;
           const cmdInvalid = cmdIssue !== undefined;
+          const keyBudget = aliasBudget(row.key);
+          const cmdBudget = aliasBudget(row.value);
+          const keyCountId = `${row.id}-key-count`;
+          const cmdCountId = `${row.id}-cmd-count`;
+          const describedBy = (...ids: (string | false)[]) =>
+            ids.filter(Boolean).join(" ") || undefined;
           return (
             <div key={row.id} className="space-y-1">
               <div className="flex items-end gap-2">
@@ -90,9 +100,12 @@ export function CommandAliasEditor({
                     value={row.key}
                     onChange={(e) => handleRowChange(row.id, { key: e.target.value })}
                     placeholder="!t"
-                    maxLength={50}
+                    maxLength={ALIAS_INPUT_MAX_LENGTH}
                     aria-invalid={keyInvalid || undefined}
-                    aria-describedby={keyIssue ? keyErrorId : undefined}
+                    aria-describedby={describedBy(
+                      keyIssue !== undefined && keyErrorId,
+                      keyBudget.nearLimit && keyCountId,
+                    )}
                     className={cn("font-mono", keyInvalid && "border-destructive")}
                   />
                 </div>
@@ -105,9 +118,12 @@ export function CommandAliasEditor({
                     value={row.value}
                     onChange={(e) => handleRowChange(row.id, { value: e.target.value })}
                     placeholder="!task"
-                    maxLength={100}
+                    maxLength={ALIAS_INPUT_MAX_LENGTH}
                     aria-invalid={cmdInvalid || undefined}
-                    aria-describedby={cmdIssue ? cmdErrorId : undefined}
+                    aria-describedby={describedBy(
+                      cmdIssue !== undefined && cmdErrorId,
+                      cmdBudget.nearLimit && cmdCountId,
+                    )}
                     className={cn("font-mono", cmdInvalid && "border-destructive")}
                   />
                 </div>
@@ -121,6 +137,17 @@ export function CommandAliasEditor({
                   <Trash2 className="size-4" />
                 </Button>
               </div>
+              {(keyBudget.nearLimit || cmdBudget.nearLimit) && (
+                // Under each input, clear of the remove button (size-9 + gap-2).
+                <div className="flex gap-2 pr-11">
+                  <div className="flex-1">
+                    <ByteBudget id={keyCountId} budget={keyBudget} />
+                  </div>
+                  <div className="flex-1">
+                    <ByteBudget id={cmdCountId} budget={cmdBudget} />
+                  </div>
+                </div>
+              )}
               {keyIssue && (
                 <p id={keyErrorId} className="text-xs text-destructive">
                   <span className="font-medium">Alias:</span>{" "}

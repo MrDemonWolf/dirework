@@ -9,6 +9,8 @@
 import { useState } from "react";
 import { MoreHorizontal, RotateCcw } from "lucide-react";
 
+import type { OverlayIcon as OverlayIconId } from "@dirework/api/style-limits";
+
 import {
   getAtPath,
   resetSection,
@@ -30,6 +32,7 @@ import {
 import { ColorInput } from "./color-input";
 import { SliderRow, SwitchRow, TextFieldRow } from "./field-row";
 import { FontSelect } from "./font-select";
+import { IconPickerRow } from "./icon-picker";
 import { OpacitySliderRow } from "./style-field-groups";
 
 function FieldControl<T>({
@@ -80,19 +83,18 @@ function FieldControl<T>({
           unit={field.unit}
           placeholder={field.placeholder}
           hint={hint}
+          limit={field.limit}
           steppable
         />
       );
-    case "text":
+    case "icon":
       return (
-        <TextFieldRow
+        <IconPickerRow
           label={field.label}
           id={id}
-          value={value as string}
+          value={value as OverlayIconId}
           onChange={set}
           hint={hint}
-          schema={field.schema}
-          invalidHint={field.invalidHint}
         />
       );
     case "slider":

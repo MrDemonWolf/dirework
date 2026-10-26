@@ -2,8 +2,10 @@
 
 // Theme Center editor for the timer overlay's per-phase label text.
 
+import { PHASE_LABEL_MAX_GRAPHEMES } from "@dirework/api/style-limits";
+
 import type { PhaseLabelsConfig } from "@/lib/config-types";
-import { messageBudget } from "@/lib/message-budget";
+import { phaseLabelBudget } from "@/lib/message-budget";
 import { ByteBudget } from "@/components/byte-budget";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,9 +31,11 @@ const labelFields: {
 ];
 
 /**
- * Controlled editor for all seven phase labels. Each label is validated server-side
- * by `chatMessageSchema` (a UTF-8 byte cap, not characters), so the field shows the
- * same byte budget as the chat-message editors and flags `aria-invalid` when over.
+ * Controlled editor for all seven phase labels. Each label is validated server-side by
+ * `phaseLabelSchema`: at most PHASE_LABEL_MAX_GRAPHEMES characters (as a person counts
+ * them, so an emoji is one) and PHASE_LABEL_MAX_BYTES UTF-8 bytes, so the line fits the
+ * timer ring. From 80% of either cap the field shows a counter (`phaseLabelBudget`, the
+ * tighter of the two) and flags `aria-invalid` when over; Save is blocked meanwhile.
  */
 export function PhaseLabelsEditor({
   labels,
@@ -47,11 +51,12 @@ export function PhaseLabelsEditor({
   return (
     <SectionGroup title="Phase labels">
       <p className="text-xs text-muted-foreground">
-        Customize the text shown on the timer overlay for each phase.
+        Customize the text shown on the timer overlay for each phase, up to{" "}
+        {PHASE_LABEL_MAX_GRAPHEMES} characters each.
       </p>
       {labelFields.map((field) => {
         const id = `label-${field.key}`;
-        const budget = messageBudget(labels[field.key]);
+        const budget = phaseLabelBudget(labels[field.key]);
         return (
           <div key={field.key} className="space-y-1.5">
             <Label htmlFor={id} className="text-xs font-medium">

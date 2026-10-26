@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 
 import {
-  DEFAULT_PHASE_LABELS,
+  PHASE_LABEL_COLUMN_DEFAULTS,
   TASK_MESSAGE_COLUMN_DEFAULTS,
   TASK_STYLE_COLUMN_DEFAULTS,
   TIMER_CONFIG_DEFAULTS,
@@ -181,13 +181,13 @@ export const timerConfig = sqliteTable("timer_config", {
   noLastBreak: integer("no_last_break", { mode: "boolean" })
     .notNull()
     .default(TIMER_CONFIG_DEFAULTS.noLastBreak),
-  labelIdle: text("label_idle").notNull().default(DEFAULT_PHASE_LABELS.idle),
-  labelStarting: text("label_starting").notNull().default(DEFAULT_PHASE_LABELS.starting),
-  labelWork: text("label_work").notNull().default(DEFAULT_PHASE_LABELS.work),
-  labelBreak: text("label_break").notNull().default(DEFAULT_PHASE_LABELS.break),
-  labelLongBreak: text("label_long_break").notNull().default(DEFAULT_PHASE_LABELS.longBreak),
-  labelPaused: text("label_paused").notNull().default(DEFAULT_PHASE_LABELS.paused),
-  labelFinished: text("label_finished").notNull().default(DEFAULT_PHASE_LABELS.finished),
+  labelIdle: text("label_idle").notNull().default(PHASE_LABEL_COLUMN_DEFAULTS.idle),
+  labelStarting: text("label_starting").notNull().default(PHASE_LABEL_COLUMN_DEFAULTS.starting),
+  labelWork: text("label_work").notNull().default(PHASE_LABEL_COLUMN_DEFAULTS.work),
+  labelBreak: text("label_break").notNull().default(PHASE_LABEL_COLUMN_DEFAULTS.break),
+  labelLongBreak: text("label_long_break").notNull().default(PHASE_LABEL_COLUMN_DEFAULTS.longBreak),
+  labelPaused: text("label_paused").notNull().default(PHASE_LABEL_COLUMN_DEFAULTS.paused),
+  labelFinished: text("label_finished").notNull().default(PHASE_LABEL_COLUMN_DEFAULTS.finished),
 });
 
 export const timerStyle = sqliteTable("timer_style", {

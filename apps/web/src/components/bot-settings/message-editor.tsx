@@ -6,7 +6,12 @@
 import { useRef, useState } from "react";
 import { RotateCcw, Search } from "lucide-react";
 
-import { interpolate, TEMPLATE_VARIABLES } from "@dirework/api/chat-text";
+import {
+  interpolate,
+  MAX_PLACEHOLDER_REPEATS,
+  mostRepeatedPlaceholder,
+  TEMPLATE_VARIABLES,
+} from "@dirework/api/chat-text";
 
 import { messageBudget } from "@/lib/message-budget";
 import type { MessageField } from "@/lib/message-fields";
@@ -20,6 +25,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
+/** True when a template uses one placeholder more often than the server accepts. */
+function repeatsOver(template: string): boolean {
+  return (mostRepeatedPlaceholder(template)?.count ?? 0) > MAX_PLACEHOLDER_REPEATS;
+}
 
 /** What the preview line shows: who speaks, and the sample values filled into each template. */
 export interface ReplyPreview {
@@ -47,7 +57,8 @@ export interface ReplyPreview {
  *
  * Each field shows its UTF-8 byte budget (`messageBudget`, capped at the server's
  * MAX_MESSAGE_TEMPLATE_BYTES). Typing past the cap is allowed and marked invalid; only chip
- * inserts are refused. The filter matches label, key, group, or the group's commands (so "!next"
+ * inserts are refused. A placeholder used more than MAX_PLACEHOLDER_REPEATS times is flagged
+ * under the field (and its chip disables at the cap). The filter matches label, key, group, or the group's commands (so "!next"
  * finds the replies `!next` sends). Its text is held by the page (one per reply set), so the
  * Save bar's link to a reply can clear a filter that hides that reply. Each group header names
  * the commands that send its replies (`groupCommands`).
@@ -96,9 +107,9 @@ export function MessageEditor<T extends object>({
     const start = el?.selectionStart ?? current.length;
     const end = el?.selectionEnd ?? current.length;
     const next = current.slice(0, start) + token + current.slice(end);
-    // Refuse an insert that would push the template past the byte cap — the
-    // counter already explains why nothing happened.
-    if (messageBudget(next).over) return;
+    // Refuse an insert that would push the template past the byte cap or the
+    // placeholder repeat cap — the counter or the chip's disabled state explains why.
+    if (messageBudget(next).over || repeatsOver(next)) return;
     handleChange(key, next);
     // Refocus after the controlled re-render and park the cursor past the insert
     requestAnimationFrame(() => {
@@ -165,7 +176,9 @@ export function MessageEditor<T extends object>({
         const groupFields = filteredFields.filter((field) => field.group === group);
         const invalid = groupFields.some(
           (field) =>
-            messageBudget(values[field.key] as string).over || Boolean(invalidKeys?.has(field.key)),
+            messageBudget(values[field.key] as string).over ||
+            repeatsOver(values[field.key] as string) ||
+            Boolean(invalidKeys?.has(field.key)),
         );
         const unsaved = groupFields.some((field) => values[field.key] !== saved[field.key]);
         const open = invalid || query !== "" || (toggledGroups[group] ?? unsaved);
@@ -206,7 +219,14 @@ export function MessageEditor<T extends object>({
                   const budget = messageBudget(value);
                   const budgetId = `${idPrefix}-${field.key}-bytes`;
                   const previewId = `${idPrefix}-${field.key}-preview`;
-                  const describedBy = [previewId, budget.nearLimit ? budgetId : null]
+                  const repeatId = `${idPrefix}-${field.key}-repeats`;
+                  const repeated = mostRepeatedPlaceholder(value);
+                  const tooManyRepeats = (repeated?.count ?? 0) > MAX_PLACEHOLDER_REPEATS;
+                  const describedBy = [
+                    previewId,
+                    budget.nearLimit ? budgetId : null,
+                    tooManyRepeats ? repeatId : null,
+                  ]
                     .filter(Boolean)
                     .join(" ");
                   return (
@@ -234,10 +254,18 @@ export function MessageEditor<T extends object>({
                         }}
                         value={value}
                         onChange={(e) => handleChange(field.key, e.target.value)}
-                        aria-invalid={budget.over || invalidKeys?.has(field.key) || undefined}
+                        aria-invalid={
+                          budget.over || tooManyRepeats || invalidKeys?.has(field.key) || undefined
+                        }
                         aria-describedby={describedBy}
                       />
                       <ByteBudget id={budgetId} budget={budget} />
+                      {tooManyRepeats && repeated && (
+                        <p id={repeatId} aria-live="polite" className="text-xs text-destructive">
+                          {`{${repeated.name}}`} appears {repeated.count} times. Use each
+                          placeholder at most {MAX_PLACEHOLDER_REPEATS} times.
+                        </p>
+                      )}
                       <p
                         id={previewId}
                         className="rounded-lg bg-muted/40 px-2.5 py-1.5 text-xs/relaxed break-words text-muted-foreground"
@@ -255,6 +283,7 @@ export function MessageEditor<T extends object>({
                         <div className="flex flex-wrap gap-1">
                           {field.variables.map((name) => {
                             const token = `{${name}}`;
+                            const atCap = value.split(token).length - 1 >= MAX_PLACEHOLDER_REPEATS;
                             return (
                               <Tooltip key={name}>
                                 <TooltipTrigger
@@ -262,6 +291,7 @@ export function MessageEditor<T extends object>({
                                     <button
                                       type="button"
                                       onClick={() => insertVariable(field.key, token)}
+                                      disabled={atCap}
                                       aria-label={`Insert ${token}`}
                                       className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-muted-foreground transition-colors pointer-coarse:min-h-11 pointer-coarse:min-w-11 pointer-coarse:px-2 hover:bg-primary/10 hover:text-link focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
                                     >

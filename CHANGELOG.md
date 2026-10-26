@@ -15,6 +15,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   gains `task.start` and `task.pause` (no dashboard buttons yet), and lists show each
   person's tasks as focus, then started, then waiting. Started tasks count toward the chat
   limit of 20 open tasks. No migration and no new requests or reads on any poll.
+- **Icon picker for the task bullet and tick.** The Theme Center's free-text "character"
+  fields are now a row of icons (dot, circle, check, check in a circle or square, star,
+  sparkles, arrow, chevron, paw print, heart, flame, lightning, none), drawn as crisp SVG in
+  the bullet or tick color at the size you set. The choice is stored in the same column, so
+  there is no migration; a glyph saved before reads back as its icon (✔ → check, • → dot), or
+  as the default.
 - **Live preview beside the timer.** On a wide screen, turning on an overlay's **Live
   preview** opens it as a column on the right of the Timer card, and the timer and its
   controls slide over to make room. The column names the overlay (it follows the Timer /
@@ -128,6 +134,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hover that could never happen.
 
 ### Changed
+- **Every Theme Center size has a range.** Font sizes, the timer size, ring width and gap,
+  paddings, margins, borders, radii, checkbox and bullet sizes, and the scroll speed and gap
+  each accept a sensible range, and negative values are refused. The field says the range
+  when a value is outside it, the arrow keys stop at its ends, and Save stays off until it
+  is fixed. The server checks the same ranges. A value saved before is never rewritten; it
+  reads back at the nearest end of its range (or as the default when its unit is no longer
+  accepted), so saving a loaded theme always works.
+- **Phase labels hold up to 16 characters** (and 48 bytes), so a label always fits inside
+  the ring; the field counts from 13. The "Starting" default is now **Pack Gathering**
+  ("Gathering the Pack" was 18 characters; instances that never changed it switch over on
+  their own). Longer labels saved before show cut to 16 characters.
+- **Command aliases** and the commands they point at are capped at 25 characters (a leading
+  `!` doesn't count), with a counter near the end. A longer alias saved before is ignored.
+- **Bot replies** may use each placeholder (`{user}`, `{task}`, …) at most 4 times. The field
+  says so, and the placeholder's chip stops inserting at 4. Extra uses saved before are
+  dropped when the reply is read.
 - **The dashboard header no longer repeats the timer's status.** The "Ready" / "Focusing"
   chip beside the bot chip duplicated the phase chip on the Timer card's heading, so the
   header now holds only the Setup button (once the checklist is folded away) and the bot

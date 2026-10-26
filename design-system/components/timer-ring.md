@@ -40,8 +40,8 @@ in `tokens.json` mirrors the default 22% corner.
   bands) for a squircle, the panel itself with the ring off or with no room to draw it
   (`ringFitsFrame`, the rule `ProgressRing` skips by). See `fitShape` / `fitTimerLines`
   in `lib/timer-fit.ts`. One still too wide at `MIN_FIT_SCALE` (half size) ends in an
-  ellipsis. So a long phase label ("Gathering the Pack" is about 290px at 20px) shrinks
-  instead of spilling over the ring.
+  ellipsis. So a long phase label (16 characters, the cap, is up to about 290px at 20px)
+  shrinks instead of spilling over the ring.
 
 ## Props and variants
 

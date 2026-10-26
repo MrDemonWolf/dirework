@@ -4,8 +4,10 @@ import {
   DEFAULT_PHASE_LABELS,
   DEFAULT_TASK_MESSAGES,
   DEFAULT_TIMER_MESSAGES,
+  LEGACY_PHASE_LABELS,
   LEGACY_TASK_MESSAGES,
   LEGACY_TIMER_MESSAGES,
+  PHASE_LABEL_COLUMN_DEFAULTS,
   TASK_MESSAGE_COLUMN_DEFAULTS,
   TIMER_MESSAGE_COLUMN_DEFAULTS,
   TIMER_STATUSES,
@@ -64,6 +66,16 @@ describe("phase labels", () => {
     expect(sortedKeys(DEFAULT_PHASE_LABELS)).toEqual([...TIMER_STATUSES].sort());
     for (const [status, label] of Object.entries(DEFAULT_PHASE_LABELS)) {
       expect(label.trim(), status).not.toBe("");
+    }
+  });
+
+  it("the frozen column defaults and legacy lists cover the same phases, never the current label", () => {
+    expect(sortedKeys(PHASE_LABEL_COLUMN_DEFAULTS)).toEqual(sortedKeys(DEFAULT_PHASE_LABELS));
+    expect(sortedKeys(LEGACY_PHASE_LABELS)).toEqual(sortedKeys(DEFAULT_PHASE_LABELS));
+    for (const [status, labels] of Object.entries(LEGACY_PHASE_LABELS)) {
+      expect(labels, status).not.toContain(
+        DEFAULT_PHASE_LABELS[status as keyof typeof DEFAULT_PHASE_LABELS],
+      );
     }
   });
 });
