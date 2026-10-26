@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canMarkTaskDone,
   countDoneByAuthor,
   groupTasksByAuthor,
   ownerActiveTask,
@@ -259,6 +260,19 @@ describe("groupTasksByAuthor with server done counts", () => {
 
   it("counts done rows per author for an unbounded list", () => {
     expect(countDoneByAuthor(rows)).toEqual({ a: 1 });
+  });
+});
+
+describe("canMarkTaskDone (the board's checkbox)", () => {
+  it("completes every open status, including a parked started task", () => {
+    expect(canMarkTaskDone("active")).toBe(true);
+    expect(canMarkTaskDone("started")).toBe(true);
+    expect(canMarkTaskDone("pending")).toBe(true);
+  });
+
+  it("is a no-op for done and unknown statuses", () => {
+    expect(canMarkTaskDone("done")).toBe(false);
+    expect(canMarkTaskDone("archived")).toBe(false);
   });
 });
 

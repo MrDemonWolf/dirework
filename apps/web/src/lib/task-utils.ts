@@ -79,6 +79,15 @@ export function groupTasksByAuthor(
 }
 
 /**
+ * Whether the board's checkbox may mark a task done: every open status — the focus
+ * (`active`), a parked `started` task and a `pending` one (`markTaskDone` accepts all
+ * three). Done rows and unknown statuses are no-ops.
+ */
+export function canMarkTaskDone(status: string): boolean {
+  return status === "active" || status === "started" || status === "pending";
+}
+
+/**
  * The owner's own active task, or null: what the timer console shows as "Now". `ownerKey` is
  * the same author key the board groups by (the owner's Twitch id); chat's active tasks never
  * count, and an empty key matches nothing.
