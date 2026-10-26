@@ -1,25 +1,32 @@
 // Which layout the bot page renders. Pure (no React) so the parsing and the feed filters are
-// unit-tested. The default view is the ~400×200 OBS browser source; `?view=dock` is a narrow,
-// tall control panel for an OBS custom browser dock (View → Docks → Custom Browser Docks).
-// Both views run the same bot session: the layout changes, the requests do not.
+// unit-tested. The default view is the widget: a blank, transparent page that runs the bot
+// and paints nothing, so it can sit on any OBS or Moblin scene (it only says its state in
+// the tab title and to screen readers). `?view=dock` is the visible control panel, for an OBS
+// custom browser dock (Docks → Custom Browser Docks) or a pinned browser tab. Both views run
+// the same bot session: the layout changes, the requests do not.
 
 import type { BotActivityKind } from "@/lib/bot-session";
 
-export type BotView = "source" | "dock";
+export type BotView = "widget" | "dock";
 
 /** The query value that selects the dock layout. */
 export const BOT_DOCK_VIEW = "dock";
 
-/** `?view=dock` (case-insensitive, first value wins) selects the dock; anything else, the source. */
+/** `?view=dock` (case-insensitive, first value wins) selects the dock; anything else, the widget. */
 export function parseBotView(value: string | string[] | undefined): BotView {
   const first = Array.isArray(value) ? value[0] : value;
-  return first?.trim().toLowerCase() === BOT_DOCK_VIEW ? "dock" : "source";
+  return first?.trim().toLowerCase() === BOT_DOCK_VIEW ? "dock" : "widget";
 }
 
-/** Path of the bot page, in the default (browser source) layout or the dock layout. */
-export function botPagePath(token: string, view: BotView = "source"): string {
+/** Path of the bot page, in the default (blank widget) layout or the dock layout. */
+export function botPagePath(token: string, view: BotView = "widget"): string {
   const path = `/bot/${token}`;
   return view === "dock" ? `${path}?view=${BOT_DOCK_VIEW}` : path;
+}
+
+/** The tab title: the page's only visible state when it is the blank widget. */
+export function botPageTitle(status: string): string {
+  return `DireWork bot · ${status}`;
 }
 
 export interface BotActivityLine {

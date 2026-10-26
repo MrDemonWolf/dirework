@@ -17,6 +17,6 @@ describe("bot console stylesheet", () => {
   it("takes container widths from a design token", () => {
     const rules = css.replace(/@media[^{]+\{/g, "");
     expect(rules.match(/\b\d{3,}px\b/g) ?? []).toEqual([]);
-    expect(rules).toContain("var(--container-content");
+    expect(rules).toContain("var(--container-md");
   });
 });

@@ -19,8 +19,9 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
           "hover:bg-muted hover:text-foreground dark:hover:bg-muted/50 aria-expanded:bg-muted aria-expanded:text-foreground",
+        // Dark rest tint /15: at /20 the label measured 4.44:1 (axe, Bot account Disconnect).
         destructive:
-          "bg-destructive/10 hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/20 text-destructive focus-visible:border-destructive/40 dark:hover:bg-destructive/30",
+          "bg-destructive/10 hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/15 text-destructive focus-visible:border-destructive/40 dark:hover:bg-destructive/30",
         link: "text-link underline-offset-4 hover:underline",
       },
       // Touch-first pointers (pointer-coarse) get bigger minimum hit areas: 44px for the

@@ -30,16 +30,15 @@ import {
   type SetupSource,
   type SetupStepId,
   type SetupStepState,
-  type SetupStorage,
 } from "@/lib/setup-steps";
+import { browserStorage, noSubscribe } from "@/lib/browser-storage";
 import { describeTrpcError } from "@/lib/trpc-errors";
 import { ConsoleRule } from "@/components/console-rule";
+import { BotPageHandoff, BotPageHandoffSkeleton } from "@/components/bot-page-handoff";
 import { QueryError } from "@/components/query-error";
 import { SecretUrlRow } from "@/components/secret-url-row";
-import { botPagePath } from "@/lib/bot-view";
 import { StatusChip, type StatusTone } from "@/components/status-chip";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/utils/trpc";
 
 /** The `user.me` fields the checklist reads (overlay tokens build the URLs it hands off). */
@@ -53,17 +52,6 @@ export interface SetupMe extends SetupSource {
 // Component state is the source of truth for this page; localStorage only carries the
 // choice to the next load (read on mount, written best-effort). The server render (no
 // storage) uses the default, so hydration always matches.
-
-/** `window.localStorage`, or null where even touching it throws (blocked site data). */
-function browserStorage(): SetupStorage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
-const noSubscribe = () => () => {};
 
 /**
  * Collapsed state of the checklist, shared by the card and the header's "Setup" button.
@@ -162,10 +150,13 @@ function ConfirmControls({
   );
 }
 
-/** Step 2's URL. Mounted only while the step is open, so the query never runs collapsed. */
-function BotPageHandoff() {
+/**
+ * Step 2's handoff: the widget / dock choice and the chosen URL. Mounted only while the step
+ * is open, so the query never runs collapsed.
+ */
+function BotSourceHandoff() {
   const ingestInfo = useQuery(trpc.bot.getIngestInfo.queryOptions());
-  if (ingestInfo.isPending) return <Skeleton className="h-9 w-full" />;
+  if (ingestInfo.isPending) return <BotPageHandoffSkeleton />;
   if (!ingestInfo.data) {
     return (
       <QueryError
@@ -175,13 +166,7 @@ function BotPageHandoff() {
       />
     );
   }
-  // Same token, two layouts: the browser source / pinned tab, and the OBS dock panel.
-  return (
-    <div className="space-y-2">
-      <SecretUrlRow label="Bot page" path={botPagePath(ingestInfo.data.botToken)} />
-      <SecretUrlRow label="Bot dock" path={botPagePath(ingestInfo.data.botToken, "dock")} />
-    </div>
-  );
+  return <BotPageHandoff botToken={ingestInfo.data.botToken} />;
 }
 
 function StepHandoff({
@@ -245,7 +230,7 @@ function StepHandoff({
   return (
     <>
       {id === "botSource" ? (
-        <BotPageHandoff />
+        <BotSourceHandoff />
       ) : (
         <SecretUrlRow
           label={id === "timerOverlay" ? "OBS timer overlay" : "OBS tasks overlay"}
@@ -418,12 +403,6 @@ export function SetupChecklist({
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">{step.why}</p>
                       <p className="text-sm">{step.action}</p>
-                      {"notes" in step &&
-                        step.notes.map((note) => (
-                          <p key={note} className="text-sm text-muted-foreground">
-                            {note}
-                          </p>
-                        ))}
                     </div>
                     <StepHandoff
                       id={step.id}

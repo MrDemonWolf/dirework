@@ -1,5 +1,6 @@
-// The api worker's e2e entry: the real app (apps/server/src/index.ts), unchanged, plus one
-// test-only knob that production never has — an artificial delay on named tRPC procedures.
+// The api worker's e2e entry: the real app (apps/server/src/index.ts), unchanged, plus
+// test-only knobs that production never has: an artificial delay on named tRPC procedures, a
+// request tally, and a fake connected bot account (`/__e2e/bot-account`, below).
 //
 // A spec sets the `e2e-delay` cookie on the web origin (`task.list=1500,timer.get=800`). The
 // web worker's server render forwards the browser's cookie on its batched call straight to
@@ -56,6 +57,32 @@ for (const [path, procedure] of Object.entries(procedures)) {
  */
 let served: Record<string, number> = {};
 
+interface E2eEnv {
+  DB: {
+    prepare(sql: string): { run(): Promise<unknown> };
+  };
+}
+
+/**
+ * `POST /__e2e/bot-account` gives the instance a (fake) connected bot account, `DELETE`
+ * removes it, so a spec can render the screens that only exist once a bot is connected (the
+ * bot page handoff). The tokens are never used: nothing in those specs talks to Twitch. A
+ * spec that seeds it removes it again, since later specs expect no bot account.
+ */
+async function seedBotAccount(request: Request, env: E2eEnv): Promise<Response> {
+  if (request.method === "POST") {
+    await env.DB.prepare(
+      `INSERT OR REPLACE INTO bot_account (id, twitch_id, username, display_name, access_token, refresh_token, expires_at)
+       VALUES ('singleton', '2000', 'direbot', 'DireBot', 'e2e-access', 'e2e-refresh', ${Date.now() + 3_600_000})`,
+    ).run();
+  } else if (request.method === "DELETE") {
+    await env.DB.prepare("DELETE FROM bot_account").run();
+  } else {
+    return new Response(null, { status: 405 });
+  }
+  return new Response(null, { status: 204 });
+}
+
 export default {
   fetch(request: Request, env: unknown, ctx: unknown) {
     const { pathname } = new URL(request.url);
@@ -64,6 +91,7 @@ export default {
       served = {};
       return new Response(body, { headers: { "content-type": "application/json" } });
     }
+    if (pathname === "/__e2e/bot-account") return seedBotAccount(request, env as E2eEnv);
     const key = pathname;
     served[key] = (served[key] ?? 0) + 1;
     return requestDelays.run(parseDelays(request.headers.get("cookie")), () =>

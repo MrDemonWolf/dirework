@@ -1,6 +1,49 @@
-import { expect, type Page } from "@playwright/test";
+import { AxeBuilder } from "@axe-core/playwright";
+import { expect, type Page, test } from "@playwright/test";
 
-import { DEV_LOGIN_SECRET } from "../src/env";
+import { API_ORIGIN, DEV_LOGIN_SECRET } from "../src/env";
+
+/** WCAG 2.0 and 2.1, levels A and AA — the rule tags axe maps to those success criteria. */
+const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
+
+/**
+ * Scan the current page and fail on any serious or critical violation. The full axe result
+ * (every violation, pass, and incomplete check) is attached to the test report, so a failure
+ * can be read in CI without rerunning the scan. Used by 80-a11y and the specs whose screens
+ * need seeded state (27-bot-page-handoff).
+ */
+export async function expectNoSeriousViolations(page: Page, name: string): Promise<void> {
+  // The theme class is applied by a script after the HTML streams in; until then the page
+  // shows the light palette, and a scan during that window measures the wrong colors.
+  await page.waitForFunction(() => document.documentElement.classList.contains("dark"));
+  const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
+  await test.info().attach(`axe-${name}.json`, {
+    body: JSON.stringify(results, null, 2),
+    contentType: "application/json",
+  });
+
+  const blocking = results.violations
+    .filter((violation) => violation.impact === "serious" || violation.impact === "critical")
+    .map(
+      (violation) =>
+        `${violation.id} (${violation.impact}): ${violation.help} — ${violation.nodes
+          .map((node) => node.target.join(" "))
+          .join(", ")}`,
+    );
+  expect(blocking, `axe violations on ${name}`).toEqual([]);
+}
+
+/**
+ * Give the instance a fake connected bot account (`seed: true`) or remove it, through the e2e
+ * api worker's test-only `/__e2e/bot-account` knob (src/api-entry.ts). Specs that seed one
+ * remove it afterwards: the others expect no bot account.
+ */
+export async function setBotAccount(page: Page, seed: boolean): Promise<void> {
+  const res = await page.request.fetch(`${API_ORIGIN}/__e2e/bot-account`, {
+    method: seed ? "POST" : "DELETE",
+  });
+  expect(res.status(), "seed the bot account").toBe(204);
+}
 
 /**
  * Mint an owner session through the DEV_LOGIN bypass. The request goes through the web

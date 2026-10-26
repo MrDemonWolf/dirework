@@ -5,6 +5,8 @@
 
 import type { SetupStep } from "@dirework/api/routers/input-schemas";
 
+import { readPref, writePref, type PrefStorage } from "@/lib/browser-storage";
+
 /** The slice of `user.me` the checklist reads. */
 export interface SetupSource {
   botAccount: unknown;
@@ -24,8 +26,6 @@ export interface SetupStepDef {
   why: string;
   /** What to do, shown above the handoff. */
   action: string;
-  /** Optional extra lines (where else it can run, caveats), shown under the action. */
-  notes?: readonly string[];
 }
 
 export const SETUP_STEPS = [
@@ -39,14 +39,9 @@ export const SETUP_STEPS = [
   {
     id: "botSource",
     kind: "confirmed",
-    title: "Add the bot page to OBS",
-    why: "The bot only chats while its page is open, so OBS keeps it running all stream.",
-    action:
-      "Keep the bot page open while you stream: an OBS browser source (about 400 × 200), an OBS custom browser dock, or a pinned browser tab.",
-    notes: [
-      "Dock: in OBS, open Docks → Custom Browser Docks and paste the dock URL. Tab it behind another dock, don't close it — closing it stops the bot.",
-      "Streaming from a phone? Keep it open on the PC or cloud OBS that receives your feed.",
-    ],
+    title: "Add the bot to OBS or Moblin",
+    why: "The bot only chats while its page is open, so keep it running all stream.",
+    action: "Pick how you'll run it, then follow that option's steps.",
   },
   {
     id: "timerOverlay",
@@ -140,30 +135,17 @@ export function shouldRefreshMeAfterConfirm({
 /** localStorage key for "Finish later": "1" = collapsed, "0" = open, absent = default. */
 export const SETUP_COLLAPSED_KEY = "dirework.setup-collapsed";
 
-/** The slice of Storage the helpers use, so tests can pass a throwing fake. */
-export type SetupStorage = Pick<Storage, "getItem" | "setItem">;
-
 /** The stored "Finish later" choice, or null when absent or storage is unavailable. */
-export function readSetupCollapsed(storage: SetupStorage | null): string | null {
-  try {
-    return storage?.getItem(SETUP_COLLAPSED_KEY) ?? null;
-  } catch {
-    return null;
-  }
+export function readSetupCollapsed(storage: PrefStorage | null): string | null {
+  return readPref(storage, SETUP_COLLAPSED_KEY);
 }
 
 /**
  * Persist the choice, best-effort: returns false when storage is missing or throws (private
  * mode, blocked site data). The caller's in-memory state stays the source of truth.
  */
-export function writeSetupCollapsed(storage: SetupStorage | null, collapsed: boolean): boolean {
-  try {
-    if (!storage) return false;
-    storage.setItem(SETUP_COLLAPSED_KEY, collapsed ? "1" : "0");
-    return true;
-  } catch {
-    return false;
-  }
+export function writeSetupCollapsed(storage: PrefStorage | null, collapsed: boolean): boolean {
+  return writePref(storage, SETUP_COLLAPSED_KEY, collapsed ? "1" : "0");
 }
 
 /**

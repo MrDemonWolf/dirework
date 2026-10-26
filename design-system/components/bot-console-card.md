@@ -7,12 +7,12 @@ tokens: [color.scheme, radius, tracking]
 
 ## Purpose
 
-The "Run the bot" card on the Bot settings Overview (`/dashboard/bot`, `(sections)/overview-page.tsx`) for the browser page that IS the bot: who chats where, the secret `/bot/<token>` URL with Show / Copy / Reset, an Open button, and where to keep the page open.
+The "Run the bot" card on the Bot settings Overview (`/dashboard/bot`, `(sections)/overview-page.tsx`) for the browser page that IS the bot: who chats where, then the widget / dock handoff with the chosen secret URL, Show / Copy / Reset, an Open button for that view, and its steps.
 
 ## Anatomy
 
-- `Card.panel` header: `CardTitle` (h2) "Run the bot", `CardAction` `StatusChip`, description warning that the URL is a secret.
-- Body (account connected, data loaded): `{botUsername} chats in #{channelName}` (mono), `SecretUrlRow` labelled "Bot page" (with Reset), a second one labelled "Bot dock" (`?view=dock`, no Reset of its own — the same token), an "Open bot page" button (`<a target="_blank">`), and a collapsed flush `SectionGroup` "Where to keep it" with a numbered list.
+- `Card.panel` header: `CardTitle` (h2) "Run the bot", `CardAction` `StatusChip`, description warning that the URL is a secret and that the bot runs only while its widget or dock is open.
+- Body (account connected, data loaded): `{botUsername} chats in #{channelName}` (mono), then `BotPageHandoff` with `reset` (Reset on the row; one token, so the confirm is "Reset both bot page URLs?") and `renderAction`: an outline "Open widget" / "Open dock" button (`<a target="_blank">`) for the chosen view.
 
 ## Props and variants
 
@@ -32,8 +32,7 @@ Reset calls `bot.regenerateBotToken`; the returned `chatToken` (`revoked` / `unc
 
 ## Accessibility
 
-- `SecretUrlRow` supplies the named controls (`Show Bot page URL`, the `Bot page URL` textbox, the reset confirm).
-- The OBS icon is `aria-hidden`; the steps are an ordered list.
+- `BotPageHandoff` supplies the radiogroup and the named controls (`Show Widget URL`, the `Dock URL` textbox, the reset confirm).
 - Open uses `rel="noopener noreferrer"`.
 
 ## Do / Don't

@@ -1,34 +1,47 @@
 import { describe, expect, it } from "vitest";
 
-import { botPagePath, parseBotView, recentCommandLines, type BotActivityLine } from "../bot-view";
+import {
+  botPagePath,
+  botPageTitle,
+  parseBotView,
+  recentCommandLines,
+  type BotActivityLine,
+} from "../bot-view";
 
 describe("parseBotView", () => {
   it("selects the dock only for view=dock", () => {
     expect(parseBotView("dock")).toBe("dock");
     expect(parseBotView(" Dock ")).toBe("dock");
-    expect(parseBotView(undefined)).toBe("source");
-    expect(parseBotView("")).toBe("source");
-    expect(parseBotView("docked")).toBe("source");
-    expect(parseBotView("source")).toBe("source");
+    expect(parseBotView(undefined)).toBe("widget");
+    expect(parseBotView("")).toBe("widget");
+    expect(parseBotView("docked")).toBe("widget");
+    expect(parseBotView("source")).toBe("widget");
   });
 
   it("reads the first value of a repeated parameter", () => {
     expect(parseBotView(["dock", "source"])).toBe("dock");
-    expect(parseBotView(["source", "dock"])).toBe("source");
-    expect(parseBotView([])).toBe("source");
+    expect(parseBotView(["source", "dock"])).toBe("widget");
+    expect(parseBotView([])).toBe("widget");
   });
 });
 
 describe("botPagePath", () => {
-  it("builds the source and dock URLs from one token", () => {
+  it("builds the widget and dock URLs from one token", () => {
     expect(botPagePath("abc")).toBe("/bot/abc");
-    expect(botPagePath("abc", "source")).toBe("/bot/abc");
+    expect(botPagePath("abc", "widget")).toBe("/bot/abc");
     expect(botPagePath("abc", "dock")).toBe("/bot/abc?view=dock");
   });
 
   it("round-trips: the dock path's query parses back to the dock", () => {
     const query = new URL(botPagePath("abc", "dock"), "https://x.test").searchParams;
     expect(parseBotView(query.get("view") ?? undefined)).toBe("dock");
+  });
+});
+
+describe("botPageTitle", () => {
+  it("names the bot and its state", () => {
+    expect(botPageTitle("Connected")).toBe("DireWork bot · Connected");
+    expect(botPageTitle("Muted")).toBe("DireWork bot · Muted");
   });
 });
 

@@ -167,27 +167,33 @@ The bot will have `chat:read` and `chat:edit` permissions (plus the Helix chat s
 
 <Callout>
   **One more thing before the bot talks:** the bot runs in a token-gated browser page,
-  not on a server. Copy the bot page URL from **Dashboard → Bot** and keep it open in OBS
-  (a browser source or a custom browser dock) or in a pinned tab. The bot listens to chat
+  not on a server. Copy its URL from **Dashboard → Bot** and keep it open: the invisible
+  widget in an OBS browser source or a Moblin widget, or the dock in an OBS custom browser
+  dock or a pinned tab. The bot listens to chat
   only while that page is open. See [Chat commands](/docs/chat-commands) for the full
   command list.
 </Callout>
 
 ### Where to keep the bot page
 
-Pick one. The dashboard's **Set up streaming** card hands you both URLs (**Bot page** and
-**Bot dock**); they carry the same secret token, so treat both like a stream key.
+Pick one. The dashboard's **Set up streaming** card and the **Run the bot** card on
+**Dashboard → Bot** ask **How will you run the bot?** and show the URL for your pick
+(**Widget URL** or **Dock URL**) with its steps. Both carry the same secret token, so treat
+them like a stream key, and run one or the other: every open copy relays each command.
 
 | Option | URL | Notes |
 | --- | --- | --- |
-| **OBS browser source** | Bot page | About 400 × 200. Runs in every scene as long as **Shutdown source when not visible** stays off. |
-| **OBS custom browser dock** | Bot dock (`…/bot/<token>?view=dock`) | A narrow control panel you see while streaming, styled like OBS's dark theme: status light, muted state, timer and bot buttons, last error, recent commands and a **Reconnect** button. |
-| **Pinned browser tab** | Bot page | Any browser on the streaming PC. Keep the tab open. |
+| **Widget** | `…/bot/<token>` | A blank, transparent page: nothing shows on stream, so it can sit on any scene at any size. Add it as an **OBS browser source** (untick **Shutdown source when not visible**) or a **Moblin** browser widget (keep it in a scene that stays loaded). Its browser tab title says the state, such as `DireWork bot · Connected`. |
+| **Dock / browser tab** | `…/bot/<token>?view=dock` | A narrow control panel styled like OBS's dark theme: status light, muted state, timer and bot buttons, last error, recent commands and a **Reconnect** button. Add it as an **OBS custom browser dock**, or open it in a browser tab and pin the tab. |
+
+The widget never shows errors on stream. If the bot stops (the URL was reset, or Twitch no
+longer accepts the bot's login), the dock shows why, and **Dashboard → Bot** is where you fix
+it.
 
 **Add the dock (OBS 27 or newer on Windows, macOS and Linux X11):**
 
 1. In OBS, open **Docks → Custom Browser Docks** (older versions: **View → Docks → Custom Browser Docks**).
-2. Give it a name such as `DireWork Bot`, paste the **Bot dock** URL, and click **Apply**.
+2. Give it a name such as `DireWork Bot`, paste the **Dock URL**, and click **Apply**.
 3. Drag the dock where you want it. If it's in the way, **tab it** behind another dock.
 
 <Callout type="warn">
@@ -212,10 +218,11 @@ you'd typed it, but the bot's reply shows in the dock instead of chat:
 - The buttons turn on once the bot is connected. If a timer or task command is turned off in
   **Dashboard → Bot**, its button sends but the bot has no reply.
 
-**Streaming from a phone?** The bot page has to stay open on a computer. If your phone sends
-its feed to a PC or cloud OBS (SRT, RTMP) that goes live to Twitch, keep the bot page or dock
-open on that OBS. Apps that stream straight from the phone to Twitch can't keep the bot
-running.
+**Streaming from a phone?** Add the **Widget URL** as a browser widget in an app that draws
+web pages on the stream, such as Moblin; the bot runs while that widget's scene is loaded. If
+your phone instead sends its feed to a PC or cloud OBS (SRT, RTMP) that goes live to Twitch,
+add the widget or the dock on that OBS. Apps with no browser widget that stream straight to
+Twitch can't keep the bot running.
 
 ### OAuth scopes
 

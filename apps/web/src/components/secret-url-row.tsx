@@ -26,6 +26,7 @@ export function SecretUrlRow({
   onRegenerate,
   regenerating,
   resetDescription,
+  resetTitle,
 }: {
   label: string;
   path: string | null;
@@ -33,6 +34,8 @@ export function SecretUrlRow({
   regenerating?: boolean;
   /** What breaks when the URL is reset, shown in the confirm dialog. */
   resetDescription?: string;
+  /** The confirm dialog's title, when the reset reaches past this one URL. */
+  resetTitle?: string;
 }) {
   const origin = useOrigin();
   const [revealed, setRevealed] = useState(false);
@@ -130,7 +133,7 @@ export function SecretUrlRow({
                         <RefreshCw className={`size-3.5 ${regenerating ? "animate-spin" : ""}`} />
                       </Button>
                     }
-                    title={`Reset the ${label.toLowerCase()} URL?`}
+                    title={resetTitle ?? `Reset the ${label.toLowerCase()} URL?`}
                     description={resetDescription ?? ""}
                     confirmLabel="Reset URL"
                     onConfirm={onRegenerate}
