@@ -16,6 +16,8 @@ export const KNOWN_ALIAS_TARGETS = [
   "edit",
   "remove",
   "focus",
+  "start",
+  "pause",
   "check",
   "today",
   "next",

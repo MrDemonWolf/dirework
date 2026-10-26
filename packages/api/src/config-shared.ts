@@ -387,6 +387,12 @@ export const TASK_MESSAGE_FIELDS = {
   clearedDone: "msgClearedDone",
   nextNoContent: "msgNextNoContent",
   help: "msgHelp",
+  taskStarted: "msgTaskStarted",
+  taskStartedFocus: "msgTaskStartedFocus",
+  startCapReached: "msgStartCapReached",
+  noTaskToStart: "msgNoTaskToStart",
+  taskPaused: "msgTaskPaused",
+  noTaskToPause: "msgNoTaskToPause",
 } as const satisfies Record<string, keyof BotConfig>;
 
 // Only messages with a real emit site in bot/commands.ts belong here — see the

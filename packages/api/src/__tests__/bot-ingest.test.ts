@@ -21,6 +21,8 @@ import {
   CHAT_OPEN_TASK_CAP,
   DEFAULT_TASK_MESSAGES,
   DEFAULT_TIMER_MESSAGES,
+  MAX_CHAT_BYTES,
+  utf8ByteLength,
 } from "../config-shared";
 import { getTimerEta } from "../services/timer-service";
 import { appRouter } from "../routers/index";
@@ -1054,6 +1056,205 @@ describe("bot.ingest task commands end to end", () => {
   });
 });
 
+describe("bot.ingest !start / !pause / !check with started tasks", () => {
+  const T = DEFAULT_TASK_MESSAGES;
+
+  async function seed(count: number) {
+    for (let i = 1; i <= count; i++) await say(`!task task ${i}`);
+  }
+
+  async function statuses() {
+    return (await tasks()).filter((t) => t.authorTwitchId === "2000").map((t) => t.status);
+  }
+
+  it("!start N starts a waiting task beside the focus and counts what's going", async () => {
+    await seed(3);
+
+    expect((await say("!start 2")).replies).toEqual([
+      reply(T.taskStarted, { task: "task 2", count: "2", max: "3" }),
+    ]);
+    expect(await statuses()).toEqual(["active", "started", "pending"]);
+    expect(reply(T.taskStarted, { task: "task 2", count: "2", max: "3" })).toBe(
+      'Started "task 2", Viewer. 2/3 in progress.',
+    );
+
+    expect((await say("!start #3")).replies).toEqual([
+      reply(T.taskStarted, { task: "task 3", count: "3", max: "3" }),
+    ]);
+    expect(await statuses()).toEqual(["active", "started", "started"]);
+  });
+
+  it("!start N with no focus makes that task the focus", async () => {
+    await seed(1);
+    // Pausing the only task leaves nothing going (with another task waiting,
+    // pausing the focus would promote that one instead).
+    await say("!pause");
+    expect(await statuses()).toEqual(["pending"]);
+
+    expect((await say("!start 1")).replies).toEqual([
+      reply(T.taskStartedFocus, { task: "task 1" }),
+    ]);
+    expect(await statuses()).toEqual(["active"]);
+  });
+
+  it("!start past the cap refuses without a write and changes nothing", async () => {
+    await seed(4);
+    await say("!start 2");
+    await say("!start 3");
+
+    const statements: string[] = [];
+    const prepare = sqlite.prepare.bind(sqlite);
+    const spy = vi.spyOn(sqlite, "prepare").mockImplementation((query, params) => {
+      statements.push(query);
+      return prepare(query, params);
+    });
+    const { replies } = await say("!start 4");
+    spy.mockRestore();
+
+    expect(replies).toEqual([reply(T.startCapReached, { max: "3" })]);
+    expect(replies[0]).toBe(
+      "Viewer, you already have 3 going. Finish one with !done or pause one with !pause.",
+    );
+    expect(await statuses()).toEqual(["active", "started", "started", "pending"]);
+    expect(statements.filter((q) => /^update "task"/i.test(q))).toEqual([]);
+  });
+
+  it("two racing !start lines never pass the cap: one starts, one hears the cap", async () => {
+    await seed(4);
+    await say("!start 2");
+
+    const [a, b] = await Promise.all([say("!start 3"), say("!start 4")]);
+
+    const replies = [...a.replies, ...b.replies];
+    expect(replies).toHaveLength(2);
+    expect(replies).toContain(reply(T.startCapReached, { max: "3" }));
+    expect(replies.filter((r) => r.startsWith("Started"))).toHaveLength(1);
+    expect((await statuses()).filter((s) => s === "started")).toHaveLength(2);
+  });
+
+  it("a start that lands after the list was read hits the cap inside the guarded UPDATE", async () => {
+    await seed(4);
+    await say("!start 2");
+
+    // Another bot page starts task 4 between this line's list read (one slot
+    // free) and its UPDATE: the cap check in the statement must still refuse.
+    const prepare = sqlite.prepare.bind(sqlite);
+    let raced = false;
+    const spy = vi.spyOn(sqlite, "prepare").mockImplementation((query, params) => {
+      if (!raced && /^update "task"/i.test(query)) {
+        raced = true;
+        sqlite.run(`update task set status = 'started' where text = 'task 4'`);
+      }
+      return prepare(query, params);
+    });
+    const { replies } = await say("!start 3");
+    spy.mockRestore();
+
+    expect(raced).toBe(true);
+    expect(replies).toEqual([reply(T.startCapReached, { max: "3" })]);
+    expect(await statuses()).toEqual(["active", "started", "pending", "started"]);
+  });
+
+  it("!start on the focus, a started task or past the end is not startable", async () => {
+    await seed(2);
+    await say("!start 2");
+    const notStartable = reply(T.noTaskToStart);
+
+    expect((await say("!start 1")).replies).toEqual([notStartable]);
+    expect((await say("!start 2")).replies).toEqual([notStartable]);
+    expect((await say("!start 9")).replies).toEqual([notStartable]);
+    expect(await statuses()).toEqual(["active", "started"]);
+  });
+
+  it("!start without a number replies with usage", async () => {
+    const { replies } = await say("!start");
+    expect(replies).toHaveLength(1);
+    expect(replies[0]).toContain("!start [number]");
+    expect(replies[0]).toContain("!today");
+    expect((await say("!start soon")).replies[0]).toContain("!start [number]");
+  });
+
+  it("bare !pause pauses the focus and the next queued task (started first) takes over", async () => {
+    await seed(3);
+    await say("!start 3");
+
+    expect((await say("!pause")).replies).toEqual([reply(T.taskPaused, { task: "task 1" })]);
+    expect(await statuses()).toEqual(["pending", "pending", "active"]);
+  });
+
+  it("!pause N pauses a started task back to waiting and leaves the focus", async () => {
+    await seed(2);
+    await say("!start 2");
+
+    expect((await say("!pause 2")).replies).toEqual([reply(T.taskPaused, { task: "task 2" })]);
+    expect(await statuses()).toEqual(["active", "pending"]);
+  });
+
+  it("!pause with nothing to pause, or on a waiting task, replies noTaskToPause", async () => {
+    expect((await say("!pause")).replies).toEqual([reply(T.noTaskToPause)]);
+    await seed(2);
+    expect((await say("!pause 2")).replies).toEqual([reply(T.noTaskToPause)]);
+    expect((await say("!pause 7")).replies).toEqual([reply(T.noTaskToPause)]);
+    expect(await statuses()).toEqual(["active", "pending"]);
+  });
+
+  it("!pause with a word replies with usage instead of pausing the focus", async () => {
+    await seed(1);
+    const { replies } = await say("!pause lunch");
+    expect(replies[0]).toContain("!pause [number]");
+    expect(await statuses()).toEqual(["active"]);
+  });
+
+  it("!check notes how many more tasks are started, for you and for @user", async () => {
+    await seed(3);
+    expect((await say("!check")).replies).toEqual([reply(T.taskCheck, { task: "task 1" })]);
+
+    await say("!start 2");
+    await say("!start 3");
+    expect((await say("!check")).replies).toEqual([
+      'Viewer, you\'re on "task 1" (+2 more started).',
+    ]);
+    expect((await say("!check @viewer", { username: "other", twitchId: "3000" })).replies).toEqual([
+      'Viewer, Viewer is on "task 1" (+2 more started).',
+    ]);
+  });
+
+  it("keeps the check note whole beside a long task and a custom template", async () => {
+    await say(`!task ${"x".repeat(480)}`);
+    await say("!task second");
+    await say("!start 2");
+
+    const [line] = (await say("!check")).replies;
+    expect(utf8ByteLength(line ?? "")).toBeLessThanOrEqual(MAX_CHAT_BYTES);
+    expect(line).toMatch(/…" \(\+1 more started\)\.$/);
+
+    await db.update(schema.botConfig).set({ msgTaskCheck: "{user} works on {task}!" });
+    expect((await say("!check")).replies[0]).toMatch(/…! \(\+1 more started\)$/);
+  });
+
+  it("follows the task command switch and can be aliased", async () => {
+    await seed(2);
+    await db.update(schema.botConfig).set({ commandAliases: { go: "start", hold: "pause" } });
+    expect((await say("!go 2")).replies).toEqual([
+      reply(T.taskStarted, { task: "task 2", count: "2", max: "3" }),
+    ]);
+    expect((await say("!hold 2")).replies).toEqual([reply(T.taskPaused, { task: "task 2" })]);
+
+    await db.update(schema.botConfig).set({ taskCommandsEnabled: false });
+    expect((await say("!start 2")).replies).toEqual([]);
+    expect((await say("!pause")).replies).toEqual([]);
+    expect(await statuses()).toEqual(["active", "pending"]);
+  });
+
+  it("uses the owner's own wording for the new replies", async () => {
+    await seed(2);
+    await db
+      .update(schema.botConfig)
+      .set({ msgTaskStarted: "{user} has {count} of {max}: {task}" });
+    expect((await say("!start 2")).replies).toEqual(["Viewer has 2 of 3: task 2"]);
+  });
+});
+
 describe("bot.ingest !timer subcommands", () => {
   const M = DEFAULT_TIMER_MESSAGES;
   const mod = (message: string) => say(message, { isMod: true });
@@ -1214,6 +1415,14 @@ describe("bot.ingest !dw help", () => {
       expect((await say(line)).replies, line).toEqual([taskLine]);
     }
     expect((await say("!dw help clear")).replies[0]).toContain("(mods only)");
+  });
+
+  it("!dw help start and !dw help pause explain the new commands", async () => {
+    expect((await say("!dw help start")).replies).toEqual([`Viewer, ${COMMAND_HELP_LINES.start}`]);
+    expect((await say("!dw help !PAUSE")).replies).toEqual([`Viewer, ${COMMAND_HELP_LINES.pause}`]);
+    expect(COMMAND_HELP_LINES.start).toContain("3 going at once");
+    await db.update(schema.botConfig).set({ taskCommandsEnabled: false });
+    expect((await say("!dw help start")).replies).toEqual([DW_TASKS_OFF_REPLY("Viewer")]);
   });
 
   it("answers an unknown command with a friendly example, never echoing it", async () => {

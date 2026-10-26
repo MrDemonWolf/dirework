@@ -112,6 +112,8 @@ const VARIABLES = {
   oldTask: { description: "The task just finished (!next)", sample: "outline the video" },
   newTask: { description: "The task just started (!next)", sample: "record the intro" },
   user2: { description: "The viewer being looked up (!check @user)", sample: "another_viewer" },
+  count: { description: "Tasks the viewer has going after !start", sample: "2" },
+  max: { description: "Most tasks one viewer can have going at once", sample: "3" },
   phase: { description: "Time left in the current phase", sample: "12m" },
   time: { description: "Time left in the whole session", sample: "1h 40m" },
 } as const;
@@ -155,9 +157,9 @@ function fillTemplate(template: string, vars: Record<string, string>): string {
  * the {user} mention — survives instead of being cut off the end by the
  * wire-level truncation.
  */
-function fitToChatBytes(template: string, vars: Record<string, string>): string {
+function fitToChatBytes(template: string, vars: Record<string, string>, maxBytes: number): string {
   const full = fillTemplate(template, vars);
-  if (utf8ByteLength(full) <= MAX_CHAT_BYTES) return full;
+  if (utf8ByteLength(full) <= maxBytes) return full;
 
   const slots = TASK_TEXT_VARS.flatMap((key) => {
     const value = Object.hasOwn(vars, key) ? vars[key] : undefined;
@@ -168,7 +170,7 @@ function fitToChatBytes(template: string, vars: Record<string, string>): string 
 
   const fixed = { ...vars };
   for (const { key } of slots) fixed[key] = "";
-  let budget = MAX_CHAT_BYTES - utf8ByteLength(fillTemplate(template, fixed));
+  let budget = maxBytes - utf8ByteLength(fillTemplate(template, fixed));
   let remaining = slots.reduce((sum, slot) => sum + slot.count, 0);
 
   // Shortest first, so a short {oldTask} keeps its full text and leaves the
@@ -197,9 +199,14 @@ function fitToChatBytes(template: string, vars: Record<string, string>): string 
  * so a leading command character the owner's template didn't start with is
  * stripped. Templates that deliberately start with `/me` or `!` keep working.
  * The dashboard calls this with sample values to preview a template.
+ * `maxBytes` (default MAX_CHAT_BYTES) leaves room for a note the caller appends.
  */
-export function interpolate(template: string, vars: Record<string, string>): string {
-  const out = fitToChatBytes(template, vars);
+export function interpolate(
+  template: string,
+  vars: Record<string, string>,
+  maxBytes: number = MAX_CHAT_BYTES,
+): string {
+  const out = fitToChatBytes(template, vars, maxBytes);
   const lead = out.trimStart();
   if (CHAT_COMMAND_LEAD.test(lead) && lead[0] !== template.trimStart()[0]) {
     return lead.replace(/^[!./\s]+/, "");

@@ -119,12 +119,29 @@ export async function getActiveTask(db: DbClient, twitchId: string) {
   return task ?? null;
 }
 
-/** Case-insensitive lookup of another user's active task (for !check @user). */
-export async function findActiveTaskByUsername(db: DbClient, username: string) {
-  const task = await db.query.task.findFirst({
-    where: and(authorUsernameEquals(username), eq(schema.task.status, "active")),
+/**
+ * Case-insensitive lookup of another user's in-progress tasks (for !check @user):
+ * the focus (`active`) first, then their `started` tasks in list order. One read
+ * through the lower(author_username) index; at most 1 + MAX_STARTED_PER_AUTHOR rows
+ * per author.
+ */
+export async function findInProgressTasksByUsername(db: DbClient, username: string) {
+  const rows = await db.query.task.findMany({
+    where: and(authorUsernameEquals(username), inArray(schema.task.status, ["active", "started"])),
+    orderBy: [asc(schema.task.order), asc(schema.task.id)],
   });
-  return task ?? null;
+  return inProgressFirst(rows);
+}
+
+/**
+ * A viewer's in-progress tasks from any open list: the focus first, then the
+ * `started` ones in the order given (pending and done rows are dropped).
+ */
+export function inProgressFirst<T extends { status: string }>(rows: readonly T[]): T[] {
+  const rank = (row: T) => (row.status === "active" ? 0 : 1);
+  return rows
+    .filter((row) => row.status === "active" || row.status === "started")
+    .sort((a, b) => rank(a) - rank(b));
 }
 
 /**

@@ -8,6 +8,7 @@
 // most one emoji per message. Every line is byte-checked in viewer-help.test.ts.
 
 import { normalizeAliasToken } from "../chat-commands";
+import { MAX_STARTED_PER_AUTHOR } from "../config-defaults";
 
 /**
  * The three starter steps, shared by the built-in `!dw` guide and the default
@@ -44,11 +45,14 @@ export const COMMAND_HELP_LINES: Readonly<Record<string, string>> = {
   remove:
     "!remove + your task number from !today takes it off the list, like !remove 2. It isn't marked done, it's just gone.",
   focus:
-    "!focus + your task number from !today makes it the one you're working on now, like !focus 2. The old one waits in line.",
+    "!focus + your task number from !today makes it the one you're working on now, like !focus 2. The old one stays started if you have room, or waits in line.",
+  start: `!start + your task number from !today starts it, like !start 2. You can have ${1 + MAX_STARTED_PER_AUTHOR} going at once. With nothing going yet, it becomes the one you're on now.`,
+  pause:
+    "!pause pauses the one you're on now, and your next one starts. To pause a different one, use its number from !today, like !pause 2. It waits in line.",
   check:
-    "!check shows the one you're working on now. Add a name to see someone else's, like !check @friend.",
+    "!check shows the one you're working on now and how many more you started. Add a name to see someone else's, like !check @friend.",
   today:
-    "!today shows your plan: what you're on now, what's next, and each task's number. Just type !today. Use those numbers with !done, !edit, !remove and !focus.",
+    "!today shows your plan: what you're on now, what's next, and each task's number. Just type !today. Use those numbers with !done, !edit, !start and !pause.",
   next: "!next + your next task finishes the one you're on now and starts the new one, like !next answer emails.",
   help: "!help shows the quick steps to get started. Just type !help.",
   clear: `${MODS_ONLY} !clear done removes finished tasks. !clear all empties the whole list. !clear @name removes one viewer's tasks.`,

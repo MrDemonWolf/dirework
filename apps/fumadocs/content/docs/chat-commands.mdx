@@ -32,8 +32,11 @@ Once you've connected a [bot account](/docs/twitch-oauth#step-5-connect-the-bot-
 | `!edit <number> <text>` | Edit a specific task by position |
 | `!remove <number>` | Remove a specific task by position |
 | `!focus <number>` | Set a task as your active/focused task |
-| `!check` | Show your current active task |
-| `!check @user` | Show another user's active task (the `@` is optional, and trailing punctuation like `@user?` is ignored) |
+| `!start <number>` | Start a waiting task beside your focus (up to 3 going at once; with nothing going it becomes your focus) |
+| `!pause` | Pause your focus; your next started (or waiting) task takes over |
+| `!pause <number>` | Pause a specific task you started (it goes back to waiting) |
+| `!check` | Show your current active task, plus how many more you started |
+| `!check @user` | Show another user's active task and their started count (the `@` is optional, and trailing punctuation like `@user?` is ignored) |
 | `!today` | Show your active task, next two tasks (with their numbers), and how many more are queued |
 | `!next <text>` | Complete your active task and start a new one |
 | `!help` | Post the 3-step starter guide (the streamer can reword it) |
@@ -58,7 +61,7 @@ Once you've connected a [bot account](/docs/twitch-oauth#step-5-connect-the-bot-
 | `!timer reset` | Reset the timer to idle |
 | `!timer eta` | Show time remaining in the current phase and the whole session (while paused, the frozen time left) |
 
-Task numbers are the ones `!today` shows, so `!edit #2 …`, `!remove #2` and `!focus #2` work as well as the plain number.
+Task numbers are the ones `!today` shows, so `!edit #2 …`, `!remove #2`, `!focus #2`, `!start #2` and `!pause #2` work as well as the plain number.
 
 When `!timer pause`, `resume` or `skip` can't do anything, the bot says why instead of
 replying "Done.": pausing a paused timer gets `The timer is already paused. Use !timer resume
@@ -105,17 +108,28 @@ When you add your first task with `!task`, it automatically becomes your **activ
 
 - Your active task is what shows as your current focus in the overlay and in `!check` responses.
 - When you complete a task with `!done`, the next pending task is automatically activated.
-- Use `!focus <number>` to manually switch which task is active. The number is the position in your task list (1-based).
+- Use `!focus <number>` to manually switch which task is active. The number is the position in your task list (1-based). The old focus stays **started** if you have room, otherwise it goes back to waiting.
+
+## Started tasks (`!start` / `!pause`)
+
+Besides your one focus, you can keep up to **2 more tasks started**: in progress, but parked. That is **3 going at once**.
+
+- `!start 2` starts your task #2. If nothing is going yet, it becomes your focus (`Started "…", you. It's your focus now.`); otherwise the bot says how many you have going (`Started "…", you. 2/3 in progress.`).
+- With 3 already going, `!start` refuses and changes nothing: `you already have 3 going. Finish one with !done or pause one with !pause.` The limit is checked inside the database write, so two bot pages or two quick messages can never get past it.
+- `!start` only takes a waiting task; on your focus, a started task or a number you don't have it says `Nothing to start there`.
+- `!pause` with no number pauses your focus, like `!done` with no number finishes it. Your oldest started task takes over (or the first waiting one). `!pause 2` pauses task #2 if it's your focus or a started task; anything else gets `Nothing to pause`. A paused task goes back to waiting and keeps its number.
+- `!check` adds `(+n more started)` when you have started tasks, for example `you're on "write intro" (+1 more started).` This note is built in and works with a reworded **Task Check** reply.
+- When your focus is done, removed or paused, your oldest started task takes over before any waiting one.
 
 ## Today's plan
 
-`!today` shows your active task first, followed by the next two tasks in your list, each with its number (`Now: #2 … · Next: #1 …`). Those are the numbers `!done`, `!edit`, `!remove` and `!focus` take. If you have more open tasks, it shows how many remain. It only shows your own tasks; it does not assign due dates or expose another viewer's list.
+`!today` shows your active task first, followed by the next two tasks in your list, each with its number (`Now: #2 … · Next: #1 …`). Those are the numbers `!done`, `!edit`, `!remove`, `!focus`, `!start` and `!pause` take. Started tasks are listed right after your focus, as `Next`. If you have more open tasks, it shows how many remain. It only shows your own tasks; it does not assign due dates or expose another viewer's list.
 
 ## Command aliases
 
 Broadcasters can remap command names in **Bot settings → Commands** (`/dashboard/bot/commands`). For example, you could set `add` to map to `task`, so viewers can use `!add` instead of `!task`.
 
-An alias can point at any task or timer command (`task`, `done`, `edit`, `remove`, `focus`, `check`, `today`, `next`, `help`, `clear`, `timer`) — not the meta or moderation commands (`!dw`, `!dwhelp`, `!dwcommands`, `!mute`, `!unmute`, `!block`, `!unblock`). Each alias and target is a single command name with no arguments, so `!ts` → `!timer start` is not supported. Aliases can't reuse a built-in command name, so the built-in commands always keep working regardless of your aliases.
+An alias can point at any task or timer command (`task`, `done`, `edit`, `remove`, `focus`, `start`, `pause`, `check`, `today`, `next`, `help`, `clear`, `timer`) — not the meta or moderation commands (`!dw`, `!dwhelp`, `!dwcommands`, `!mute`, `!unmute`, `!block`, `!unblock`). Each alias and target is a single command name with no arguments, so `!ts` → `!timer start` is not supported. Aliases can't reuse a built-in command name, so the built-in commands always keep working regardless of your aliases.
 
 To save requests on Cloudflare's free plan, the bot page only forwards chat lines that start with a DireWork command or one of your aliases; other bots' commands (`!lurk`, `!so`) never leave the page. An open bot page picks up **new aliases** within an hour; reload the bot page (or refresh the OBS browser source) to use them right away.
 
@@ -148,6 +162,12 @@ All bot response messages are customizable from **Bot settings → Replies** (`/
 | Cleared All | `Cleared every task.` | none |
 | Cleared Done | `Cleared the finished tasks.` | none |
 | Next No Content | `What's next, {user}? Try !next [task].` | `{user}` |
+| Task Started | `Started "{task}", {user}. {count}/{max} in progress.` | `{task}`, `{user}`, `{count}`, `{max}` |
+| Task Started as Focus | `Started "{task}", {user}. It's your focus now.` | `{task}`, `{user}` |
+| Too Many Going (`!start`) | `{user}, you already have {max} going. Finish one with !done or pause one with !pause.` | `{user}`, `{max}` |
+| Nothing to Start | `Nothing to start there, {user}. Pick a waiting task from !today, like !start 2.` | `{user}` |
+| Task Paused | `Paused "{task}", {user}. It waits in line until you !start it again.` | `{task}`, `{user}` |
+| Nothing to Pause | `Nothing to pause, {user}. !today shows what you have going.` | `{user}` |
 | Viewer starter guide (`!help`) | `{user}, here's how it works: 1) Type !task and what you're working on, like !task read 10 pages. 2) Work along with the stream. 3) Type !done when you finish. Need more? Type !dw help` | `{user}` |
 
 If you never edited a reply, your bot picks up new default wording automatically when you update DireWork. Replies you customized are never touched; use **Reset to default** on the Bot settings page to get the stock wording back.
@@ -181,6 +201,8 @@ If you never edited a reply, your bot picks up new default wording automatically
 | `{task}` | The task text content |
 | `{oldTask}` | The task that was just completed (used in `!next`) |
 | `{newTask}` | The new task now being tracked (used in `!next`) |
+| `{count}` | How many tasks the viewer has going after `!start` (focus + started) |
+| `{max}` | The most tasks one viewer can have going at once (3) |
 | `{channel}` | The Twitch channel name, used as @mention to ping chat |
 | `{phase}` | Time remaining in the current phase, as a relative duration (e.g., `18m`) |
 | `{time}` | Time remaining until the whole session ends, as a relative duration (e.g., `1h 55m`) |

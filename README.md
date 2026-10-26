@@ -67,6 +67,8 @@ To try it locally first, follow [Development](#development).
 | `!edit <number> <text>` | Edit the numbered task                     |
 | `!remove <number>`      | Remove the numbered task                   |
 | `!focus <number>`       | Make the numbered task your active task    |
+| `!start <number>`       | Start a task beside your focus (3 at once) |
+| `!pause [number]`       | Pause your focus (or a numbered task)      |
 | `!check [@user]`        | Show your (or another user's) active task  |
 | `!today`                | Show your focus and next numbered tasks    |
 | `!next <text>`          | Complete active task and start a new one   |
