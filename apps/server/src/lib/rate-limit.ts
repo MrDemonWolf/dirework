@@ -63,16 +63,41 @@ export function missingRateLimitBindings(
 }
 
 /**
+ * Buckets from strictest (fewest requests per minute, see alchemy.run.ts) to
+ * most generous: auth 20, token 60, overlay 120, bot 300.
+ */
+const BUCKET_STRICTNESS: readonly BucketName[] = ["RL_AUTH", "RL_TOKEN", "RL_OVERLAY", "RL_BOT"];
+
+/** The bucket one tRPC procedure belongs to, by its router. */
+function procedureBucket(procedure: string): BucketName {
+  if (procedure.startsWith("overlay.")) return "RL_OVERLAY";
+  if (procedure.startsWith("bot.")) return "RL_BOT";
+  // Token-gated / unauthenticated reads (user.hasOwner) and the owner's own calls.
+  return "RL_TOKEN";
+}
+
+/** The procedure names in a `/trpc/a.b,c.d` path (percent-decoded; empty if malformed). */
+function trpcProcedures(pathname: string): string[] {
+  let names: string;
+  try {
+    names = decodeURIComponent(pathname.slice("/trpc".length).replace(/^\/+/, ""));
+  } catch {
+    return [];
+  }
+  return names.split(",").filter((name) => name.length > 0);
+}
+
+/**
  * Choose the bucket for a request path. Returns null for paths that should not
  * be limited (the liveness and root probes).
  *
  * tRPC batching means a path can carry several procedures
- * (`/trpc/bot.ingest,bot.getSession`), so this matches on procedure names
- * appearing anywhere in the path, in a fixed order: overlay first, then bot,
- * then everything else. A mixed batch therefore lands in the first matching
- * bucket, not the most restrictive one. That is acceptable: overlay-first only
- * moves a bot.* procedure to a tighter limit, and the RL_TOKEN procedures that
- * could ride along are owner-only (or the cheap `hasOwner` read).
+ * (`/trpc/bot.ingest,user.hasOwner`), and the whole request is charged once,
+ * so it is charged to the STRICTEST bucket any of its procedures belongs to:
+ * riding a token-gated read along with overlay or bot procedures can never
+ * move it into their more generous buckets. Overlay polling (overlay.* only)
+ * keeps its own bucket, so OBS sources keep rendering while another is
+ * saturated. A path naming no procedure falls to RL_TOKEN.
  */
 export function selectBucket(pathname: string): BucketName | null {
   if (pathname === "/health" || pathname === "/") return null;
@@ -83,12 +108,8 @@ export function selectBucket(pathname: string): BucketName | null {
   }
 
   if (pathname.startsWith("/trpc")) {
-    // Overlay polling is checked FIRST and gets its own generous bucket so OBS
-    // sources keep rendering even while another bucket is saturated.
-    if (pathname.includes("overlay.")) return "RL_OVERLAY";
-    if (pathname.includes("bot.")) return "RL_BOT";
-    // Remaining token-gated / unauthenticated reads (e.g. user.hasOwner).
-    return "RL_TOKEN";
+    const buckets = new Set(trpcProcedures(pathname).map(procedureBucket));
+    return BUCKET_STRICTNESS.find((bucket) => buckets.has(bucket)) ?? "RL_TOKEN";
   }
 
   return "RL_TOKEN";

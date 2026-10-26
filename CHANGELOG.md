@@ -355,6 +355,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   lucide-react 1.x pin, and Dependabot now bumps the fumadocs packages together.
 
 ### Fixed
+- **Security hardening.**
+  - **A limit of 200 open tasks for the whole list.** Every way a task is added (the
+    dashboard, `!task`, `!next`, and undoing a removal) checks it inside the database
+    write, so a flood of viewers can't grow the list without end, and two adds at once
+    can't go past it. In chat a full list gets the usual "task limit reached" reply; `!next`
+    keeps your current task instead of finishing it. The 20-per-viewer chat limit is
+    unchanged. The overlay and dashboard read at most 200 open tasks per poll.
+  - **The bot page slows down a viewer who spams commands.** More than 6 DireWork commands
+    from one viewer in 30 seconds are dropped in the bot page itself, before they cost a
+    request; the bot console logs it once. The broadcaster and mods are never slowed.
+  - **Hidden and reversing characters are removed** from task text, display names and
+    phase labels: right-to-left overrides and isolates (which can make a task read
+    backwards), zero-width characters (emoji sequences like 👩‍💻 keep theirs), and control
+    characters. Text that was only such characters counts as empty. Display names are
+    capped at 25 characters, like Twitch's own.
+  - **Batched API requests are rate limited by their strictest part**, so adding an
+    overlay or bot call to a request no longer moves it into a more generous limit.
+  - **Faster refusal of oversized style values**: colors, sizes and font names over their
+    length cap are refused before the pattern check, and the color pattern no longer slows
+    down on long unfinished input.
+  - **Undo checks the task's author** the way chat does (a Twitch id and login, or the
+    owner's own dashboard identity) and caps the name at 25 characters.
+  - **Abandoned sign-in records are cleaned up** at the next sign-in, beside expired
+    sessions. Migration `0024_verification_expires_idx` adds the index that keeps it cheap.
 - **Task rows are readable on a phone.** On a narrow screen the **Active** chip and the row
   buttons sit on their own line under the task, so the text gets the row's full width
   instead of a sliver. Long tasks now show in full instead of stopping after two lines, long

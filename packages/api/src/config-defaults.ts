@@ -29,6 +29,16 @@ export const MAX_TASK_LEN = 500;
  */
 export const MAX_STARTED_PER_AUTHOR = 2;
 
+/**
+ * Most open (pending, started or active) tasks the whole instance holds, across
+ * every author. Every task-creating path (dashboard create, chat !task / !next,
+ * the dashboard's undo) checks it inside its guarded INSERT, so concurrent
+ * creates can't exceed it, and the overlay/dashboard list reads cap their open
+ * slice at it, so a poll never reads an unbounded number of rows. The
+ * per-viewer chat cap (CHAT_OPEN_TASK_CAP) still applies underneath it.
+ */
+export const MAX_OPEN_TASKS = 200;
+
 // Default values live in @dirework/db/defaults (the same objects back the
 // schema column defaults); the typed re-exports below guarantee they stay in
 // shape-lockstep with the field maps.

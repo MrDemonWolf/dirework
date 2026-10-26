@@ -5,6 +5,7 @@ import { MAX_RELAYED_MESSAGE_LENGTH } from "@dirework/api/chat-text";
 import { BOT_REAUTH_REQUIRED_MESSAGE } from "@dirework/api/config-shared";
 
 import { BOT_HEARTBEAT_MS } from "../poll-intervals";
+import { VIEWER_COMMAND_LIMIT, VIEWER_COMMAND_WINDOW_MS } from "../viewer-throttle";
 
 import {
   AUTH_RECOVERY_DELAY_MS,
@@ -17,6 +18,7 @@ import {
   createBotSession,
   INGEST_DROPPED_MESSAGE,
   retryDelayMs,
+  viewerThrottledMessage,
   type BotIngestInput,
   type BotIrcClient,
   type BotSessionApi,
@@ -550,6 +552,41 @@ describe("createBotSession ingest", () => {
     expect(relayed).toEqual(["!add a"]);
   });
 
+  it("drops a viewer's commands past the per-viewer limit without a request", async () => {
+    const { ingest, events, callbacks } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+
+    for (let i = 0; i < VIEWER_COMMAND_LIMIT + 4; i++) callbacks().onChat?.(chat(`!task ${i}`));
+    // Another viewer is unaffected.
+    callbacks().onChat?.(chat("!task other", { twitchId: "43", username: "other" }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(ingest).toHaveBeenCalledTimes(VIEWER_COMMAND_LIMIT + 1);
+    const throttled = events.onActivity.mock.calls.filter(
+      ([, text]) => text === viewerThrottledMessage("Viewer"),
+    );
+    expect(throttled).toHaveLength(1);
+
+    // The window rolls: the viewer gets room again.
+    await vi.advanceTimersByTimeAsync(VIEWER_COMMAND_WINDOW_MS);
+    callbacks().onChat?.(chat("!task later"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ingest).toHaveBeenCalledTimes(VIEWER_COMMAND_LIMIT + 2);
+  });
+
+  it("never throttles the broadcaster or a mod", async () => {
+    const { ingest, callbacks } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+
+    for (let i = 0; i < VIEWER_COMMAND_LIMIT + 2; i++) {
+      callbacks().onChat?.(chat(`!timer ${i}`, { isMod: true, twitchId: "7" }));
+      callbacks().onChat?.(chat(`!task ${i}`, { isBroadcaster: true, twitchId: "1" }));
+    }
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(ingest).toHaveBeenCalledTimes((VIEWER_COMMAND_LIMIT + 2) * 2);
+  });
+
   it("keeps processing after a failed command", async () => {
     const { ingest, client, events, callbacks } = setup();
     await vi.advanceTimersByTimeAsync(0);
@@ -834,7 +871,7 @@ describe("createBotSession ingest backlog", () => {
       () => new Promise((r) => (gate.release = () => r({ replies: [] }))),
     );
     for (let i = 0; i < MAX_PENDING_INGESTS + 5; i++) {
-      callbacks().onChat?.(chat(`!task ${i}`));
+      callbacks().onChat?.(chat(`!task ${i}`, { twitchId: `v${i}` }));
     }
     await vi.advanceTimersByTimeAsync(0);
     expect(ingest).toHaveBeenCalledTimes(1);
@@ -855,7 +892,7 @@ describe("createBotSession ingest backlog", () => {
       () => new Promise((r) => (gate.release = () => r({ replies: [] }))),
     );
     for (let i = 0; i < MAX_PENDING_INGESTS + 1; i++) {
-      callbacks().onChat?.(chat(`!task again ${i}`));
+      callbacks().onChat?.(chat(`!task again ${i}`, { twitchId: `w${i}` }));
     }
     await vi.advanceTimersByTimeAsync(0);
     expect(overflowNotices(events)).toHaveLength(2);
@@ -872,7 +909,7 @@ describe("createBotSession ingest backlog", () => {
       () => new Promise((r) => (gate.release = () => r({ replies: [] }))),
     );
     for (let i = 0; i < MAX_PENDING_INGESTS + 1; i++) {
-      callbacks().onChat?.(chat(`!task ${i}`));
+      callbacks().onChat?.(chat(`!task ${i}`, { twitchId: `v${i}` }));
     }
     await vi.advanceTimersByTimeAsync(0);
     expect(overflowNotices(events)).toHaveLength(1);

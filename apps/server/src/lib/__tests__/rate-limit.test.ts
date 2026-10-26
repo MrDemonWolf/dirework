@@ -41,6 +41,28 @@ describe("selectBucket", () => {
 
   it("falls back to the token bucket for other tRPC paths", () => {
     expect(selectBucket("/trpc/user.hasOwner")).toBe("RL_TOKEN");
+    expect(selectBucket("/trpc")).toBe("RL_TOKEN");
+    expect(selectBucket("/trpc/")).toBe("RL_TOKEN");
+  });
+
+  it("charges a mixed batch to its strictest procedure's bucket", () => {
+    // A token-gated read riding along with overlay or bot calls must not escape
+    // into their more generous buckets (the old substring match let it).
+    expect(selectBucket("/trpc/overlay.getTaskList,user.hasOwner")).toBe("RL_TOKEN");
+    expect(selectBucket("/trpc/user.hasOwner,bot.ingest")).toBe("RL_TOKEN");
+    expect(selectBucket("/trpc/bot.ingest,overlay.getTimerState")).toBe("RL_OVERLAY");
+    expect(selectBucket("/trpc/bot.ingest,bot.getSession")).toBe("RL_BOT");
+  });
+
+  it("matches procedure names, not substrings anywhere in the path", () => {
+    expect(selectBucket("/trpc/user.overlay.x")).toBe("RL_TOKEN");
+    expect(selectBucket("/trpc/task.list,user.robot.ingest")).toBe("RL_TOKEN");
+  });
+
+  it("decodes a percent-encoded batch separator", () => {
+    expect(selectBucket("/trpc/overlay.getTaskList%2Cuser.hasOwner")).toBe("RL_TOKEN");
+    // A malformed escape names no procedure: the token bucket, never unlimited.
+    expect(selectBucket("/trpc/overlay.getTaskList%E0%A4%A")).toBe("RL_TOKEN");
   });
 });
 

@@ -118,5 +118,9 @@ export const verification = sqliteTable(
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .$onUpdate(() => new Date()),
   },
-  (table) => [index("verification_identifier_idx").on(table.identifier)],
+  (table) => [
+    index("verification_identifier_idx").on(table.identifier),
+    // The sign-in purge of expired rows (purgeExpiredVerifications) is a range on it.
+    index("verification_expires_at_idx").on(table.expiresAt),
+  ],
 );

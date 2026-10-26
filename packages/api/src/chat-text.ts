@@ -103,6 +103,89 @@ export function limitCombiningMarks(value: string): string {
   return value.replace(EXCESS_COMBINING_MARKS, "$1");
 }
 
+/** Bidi embeddings/overrides (U+202A–U+202E) and isolates (U+2066–U+2069). */
+const BIDI_CONTROL = /[\u202A-\u202E\u2066-\u2069]/u;
+/** Invisible characters with no joining role: ZWSP, word joiner and friends, BOM/ZWNBSP. */
+const INVISIBLE = /[\u200B\u2060-\u2064\uFEFF]/u;
+/** C0/C1 controls, DEL and the Unicode line/paragraph separators. */
+function isLineBreakingControl(character: string): boolean {
+  const codePoint = character.codePointAt(0) ?? 0;
+  return (
+    codePoint <= 0x1f ||
+    (codePoint >= 0x7f && codePoint <= 0x9f) ||
+    codePoint === 0x2028 ||
+    codePoint === 0x2029
+  );
+}
+const ZWNJ = "\u200C";
+const ZWJ = "\u200D";
+const EMOJI = /\p{Extended_Pictographic}/u;
+/** What may sit between an emoji and the ZWJ after it (variation selector, skin tone). */
+const EMOJI_TAIL = /[\uFE0F\p{Emoji_Modifier}]/u;
+const LETTER_OR_MARK = /[\p{L}\p{M}]/u;
+
+/** The emoji a ZWJ at `index` follows, skipping its variation selector / skin tone. */
+function emojiBefore(chars: readonly string[], index: number): boolean {
+  let i = index - 1;
+  while (i >= 0 && EMOJI_TAIL.test(chars[i] as string)) i--;
+  return i >= 0 && EMOJI.test(chars[i] as string);
+}
+
+/**
+ * A joiner keeps its job only between two letters (Persian, Indic and other
+ * scripts shape with ZWNJ/ZWJ) or, for ZWJ, between two emoji (woman technologist,
+ * rainbow flag).
+ * Anywhere else it is invisible padding.
+ */
+function keepJoiner(chars: readonly string[], index: number): boolean {
+  const prev = chars[index - 1];
+  const next = chars[index + 1];
+  if (prev === undefined || next === undefined) return false;
+  if (LETTER_OR_MARK.test(prev) && LETTER_OR_MARK.test(next)) return true;
+  return chars[index] === ZWJ && EMOJI.test(next) && emojiBefore(chars, index);
+}
+
+/**
+ * Make viewer-supplied text safe to show on the overlay, the dashboard and in
+ * chat replies: bidi overrides and isolates are dropped (they reverse the text
+ * after them, so a U+202E in "!task" text could make a row or a reply read backwards or
+ * hide what it says), invisible zero-width characters are dropped (ZWJ/ZWNJ
+ * are kept where they join letters, and ZWJ inside an emoji sequence), control
+ * characters and line separators become spaces, and Zalgo stacks are cut by
+ * limitCombiningMarks. Zod-free so the overlay can run it at render for rows
+ * stored before it existed. May return an empty or blank string (text that was
+ * only invisible characters): callers that need text check after it.
+ */
+export function sanitizeDisplayText(value: string): string {
+  const chars = Array.from(value);
+  let out = "";
+  for (let i = 0; i < chars.length; i++) {
+    const ch = chars[i] as string;
+    if (isLineBreakingControl(ch)) out += " ";
+    else if (BIDI_CONTROL.test(ch) || INVISIBLE.test(ch)) continue;
+    else if (ch === ZWJ || ch === ZWNJ) {
+      if (keepJoiner(chars, i)) out += ch;
+    } else out += ch;
+  }
+  return limitCombiningMarks(out);
+}
+
+/** Longest stored author display name, in UTF-16 units: Twitch caps display names at 25. */
+export const MAX_DISPLAY_NAME_LENGTH = 25;
+
+/**
+ * The display name stored on a chat task: sanitized (sanitizeDisplayText),
+ * trimmed and capped at MAX_DISPLAY_NAME_LENGTH, falling back to the login when
+ * nothing visible is left (or none was sent).
+ */
+export function chatDisplayName(displayName: string | undefined, login: string): string {
+  const name = truncateToLength(
+    sanitizeDisplayText(displayName ?? "").trim(),
+    MAX_DISPLAY_NAME_LENGTH,
+  );
+  return name || login;
+}
+
 // ── Reply templates ──────────────────────────────────────────────────────────
 
 const VARIABLES = {

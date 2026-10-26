@@ -6,7 +6,7 @@
  * bounded auth-failure recovery loop, retry backoff, the "no bot account yet"
  * slow poll, the one-bot-page lease (claim before joining chat, a heartbeat
  * every BOT_HEARTBEAT_MS, standby + take over), and serialized chat ingest of
- * Dirework commands only.
+ * Dirework commands only, with a per-viewer flood brake (viewer-throttle.ts).
  *
  * Secrets: the chat token is handed straight to the IRC client and kept only
  * for the rotation comparison — never emitted in an event.
@@ -20,6 +20,7 @@ import { classifyBotError } from "./bot-session-errors";
 import type { IrcChatMessage, IrcClientCallbacks, IrcCredentials, IrcStatus } from "./irc-client";
 import { BOT_HEARTBEAT_MS } from "./poll-intervals";
 import { createSerialQueue } from "./serial-queue";
+import { createViewerThrottle } from "./viewer-throttle";
 
 /**
  * - `not-configured`: no bot account (or owner) yet — keeps polling slowly so
@@ -215,6 +216,11 @@ export const RETRY_MAX_MS = 5 * 60 * 1000;
  */
 export const MAX_PENDING_INGESTS = 20;
 
+/** Logged once per burst when a viewer's commands start being dropped by the throttle. */
+export function viewerThrottledMessage(name: string): string {
+  return `${name} is sending commands too fast — ignoring them for a moment`;
+}
+
 /** Capped exponential backoff with ±20% jitter so many tabs don't retry in lockstep. */
 export function retryDelayMs(attempt: number, random: () => number = Math.random): number {
   const base = Math.min(RETRY_BASE_MS * 2 ** attempt, RETRY_MAX_MS);
@@ -258,6 +264,7 @@ export function createBotSession({
   let heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
 
   const inactive = () => disposed || revoked;
+  const viewerThrottle = createViewerThrottle();
 
   const later = (fn: () => void, ms: number) => {
     const timer = setTimeout(() => {
@@ -429,6 +436,16 @@ export function createBotSession({
     // would each cost a free-tier Worker request for nothing. The server still
     // decides what actually runs (disabled commands, permissions).
     if (!isDireworkCommandLine(text, aliasKeys)) return;
+    // Per-viewer flood brake, before any request: past VIEWER_COMMAND_LIMIT commands
+    // in VIEWER_COMMAND_WINDOW_MS a viewer's lines are dropped here, so spam costs
+    // no Worker request or D1 read. Never the broadcaster or a mod.
+    if (!chat.isBroadcaster && !chat.isMod) {
+      const verdict = viewerThrottle.check(chat.twitchId);
+      if (verdict === "throttled") {
+        events.onActivity("info", viewerThrottledMessage(chat.displayName ?? chat.username));
+      }
+      if (verdict !== "allowed") return;
+    }
     // Clamp to bot.ingest's own cap so the relay always passes its schema (a
     // rejected line would drop the command with no reply). truncateToLength
     // counts UTF-16 units and never splits an emoji; zod counts code points,

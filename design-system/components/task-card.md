@@ -33,8 +33,11 @@ It reads the streamer's saved task style, not the UI tokens.
     lines (1–6, `TASK_LINES_MIN`/`TASK_LINES_MAX`; a row saved under the old 1–100 range
     is clamped by `clampTaskLines` on read and at render). Text and author name carry
     `dir="auto"`, so Arabic and Hebrew lay out right to left.
-  - **Zalgo**: combining marks past two per letter are dropped (`limitCombiningMarks`,
-    `@dirework/api/chat-text`) when a task or display name is stored and again at render.
+  - **Unsafe Unicode**: `sanitizeDisplayText` (`@dirework/api/chat-text`) drops bidi
+    overrides/isolates and invisible zero-width characters (a ZWJ inside an emoji
+    sequence, and ZWJ/ZWNJ between letters, stay), turns control characters into spaces,
+    and keeps at most two combining marks per letter (`limitCombiningMarks`, so Zalgo
+    loses its stack) when a task or display name is stored and again at render.
 - **Active row**: a static tint of the username color (`ACTIVE_ROW_TINT_PERCENT`) plus an
   uppercase **Active** label in that color at the end of the row, 0.55× the task font
   size but never under `ACTIVE_LABEL_MIN_PX` at the source size. No glow, no pulse.

@@ -18,7 +18,19 @@ import {
   restoreTask,
   startTask,
 } from "../services/task-service";
-import { taskCreateInput, taskIdInput, taskRestoreInput } from "./input-schemas";
+import { MAX_OPEN_TASKS } from "../config-defaults";
+import {
+  isRestorableAuthor,
+  taskCreateInput,
+  taskIdInput,
+  taskRestoreInput,
+} from "./input-schemas";
+
+/** Refusal when the list already holds MAX_OPEN_TASKS open tasks. */
+export const TASK_LIST_FULL_MESSAGE = `The task list is full (${MAX_OPEN_TASKS} open tasks). Finish or clear some first.`;
+
+const taskListFull = () =>
+  new TRPCError({ code: "PRECONDITION_FAILED", message: TASK_LIST_FULL_MESSAGE });
 
 export const taskRouter = router({
   /** Open tasks + newest done tasks, with index-backed counts (`listTasks`). */
@@ -32,7 +44,7 @@ export const taskRouter = router({
    */
   create: ownerProcedure.input(taskCreateInput).mutation(async ({ ctx, input }) => {
     const authorTwitchId = await resolveOwnerTaskId(ctx.db, ctx.session.user);
-    return createTask(
+    const created = await createTask(
       ctx.db,
       {
         twitchId: authorTwitchId,
@@ -42,6 +54,9 @@ export const taskRouter = router({
       },
       input.text,
     );
+    // Null only when the instance-wide open-task cap refused the insert.
+    if (!created) throw taskListFull();
+    return created;
   }),
 
   /** Complete a task and promote the author's next pending one (`markTaskDone`). */
@@ -84,7 +99,27 @@ export const taskRouter = router({
 
   /** Undo for `remove`: re-inserts the removed row (see restoreTask). */
   restore: ownerProcedure.input(taskRestoreInput).mutation(async ({ ctx, input }) => {
-    return restoreTask(ctx.db, input);
+    // A Twitch-shaped author needs no read; only the owner's own non-Twitch key does.
+    const chatShaped = isRestorableAuthor(input, { taskId: "", name: "" });
+    const owner = chatShaped
+      ? null
+      : {
+          taskId: await resolveOwnerTaskId(ctx.db, ctx.session.user),
+          name: ctx.session.user.name,
+        };
+    if (owner && !isRestorableAuthor(input, owner)) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Unknown task author" });
+    }
+    const restored = await restoreTask(ctx.db, input);
+    if (restored || input.status === "done") return restored;
+    // Nothing inserted: a double-clicked undo (the id is back already) is a quiet
+    // no-op; otherwise the open-task cap refused it.
+    const existing = await ctx.db.query.task.findFirst({
+      where: (t, { eq }) => eq(t.id, input.id),
+      columns: { id: true },
+    });
+    if (existing) return null;
+    throw taskListFull();
   }),
 
   /** Delete every task (`clearAllTasks`). */

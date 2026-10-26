@@ -7,7 +7,7 @@ import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
 
 import { handleMessage } from "../bot/commands";
-import { limitCombiningMarks } from "../chat-text";
+import { chatDisplayName } from "../chat-text";
 import { BOT_STANDBY_MESSAGE, isLeaseHeldByOther } from "../bot-lease";
 import {
   buildBotConfig,
@@ -255,8 +255,9 @@ export const botRouter = router({
         userInfo: {
           twitchId: input.twitchId,
           username: input.username,
-          // Zalgo stacks off the name too: it lands on the overlay and in replies.
-          displayName: limitCombiningMarks(input.displayName ?? input.username),
+          // Sanitized like task text (bidi, invisible chars, Zalgo) and capped at 25:
+          // it lands on the overlay and in replies.
+          displayName: chatDisplayName(input.displayName, input.username),
           color: input.color ?? null,
           ...privileges,
         },
