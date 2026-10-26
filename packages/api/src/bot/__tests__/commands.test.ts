@@ -1,10 +1,21 @@
 import { describe, it, expect } from "vitest";
 
-import { MAX_CHAT_BYTES, utf8ByteLength } from "../../config-shared";
+import {
+  DEFAULT_TASK_MESSAGES,
+  MAX_CHAT_BYTES,
+  MAX_STARTED_PER_AUTHOR,
+  MAX_TASK_LEN,
+  utf8ByteLength,
+} from "../../config-shared";
 import {
   formatEtaDuration,
   formatTodayPlan,
   interpolate,
+  MAX_IN_PROGRESS,
+  moreStartedSuffix,
+  PAUSE_USAGE_REPLY,
+  POSITIONAL_USAGE_REPLY,
+  withCheckSuffix,
   parsePositionArg,
   parseTaskEditArgs,
   parseUserTarget,
@@ -332,5 +343,97 @@ describe("interpolate keeps long replies inside the chat byte cap", () => {
     expect(interpolate(template, { user: "Bob", task: "short" })).toBe(
       'Task "short" added, Bob! Good luck!',
     );
+  });
+});
+
+// Twitch display names are at most 25 characters; a CJK name is 3 bytes each.
+const LONGEST_NAME = "名".repeat(25);
+const LONGEST_TASK = "😀".repeat(MAX_TASK_LEN / 2);
+
+describe("!start / !pause / !check replies", () => {
+  const START_PAUSE_KEYS = [
+    "taskStarted",
+    "taskStartedFocus",
+    "startCapReached",
+    "noTaskToStart",
+    "taskPaused",
+    "noTaskToPause",
+  ] as const;
+
+  it("every built-in line fits one chat message with the longest name", () => {
+    const lines = [
+      POSITIONAL_USAGE_REPLY("!start", LONGEST_NAME),
+      PAUSE_USAGE_REPLY(LONGEST_NAME),
+      withCheckSuffix(
+        DEFAULT_TASK_MESSAGES.taskCheck,
+        { user: LONGEST_NAME, task: LONGEST_TASK },
+        MAX_STARTED_PER_AUTHOR,
+      ),
+      withCheckSuffix(
+        DEFAULT_TASK_MESSAGES.taskCheckUser,
+        { user: LONGEST_NAME, user2: LONGEST_NAME, task: LONGEST_TASK },
+        MAX_STARTED_PER_AUTHOR,
+      ),
+      ...START_PAUSE_KEYS.map((key) =>
+        interpolate(DEFAULT_TASK_MESSAGES[key], {
+          user: LONGEST_NAME,
+          channel: LONGEST_NAME,
+          task: LONGEST_TASK,
+          count: String(MAX_IN_PROGRESS),
+          max: String(MAX_IN_PROGRESS),
+        }),
+      ),
+    ];
+    for (const line of lines) {
+      expect(utf8ByteLength(line), line).toBeLessThanOrEqual(MAX_CHAT_BYTES);
+      expect(line, line).not.toMatch(/^[!./]/);
+    }
+  });
+
+  it("the default start/pause templates use only the placeholders their handler passes", () => {
+    const passed: Record<(typeof START_PAUSE_KEYS)[number], string[]> = {
+      taskStarted: ["user", "channel", "task", "count", "max"],
+      taskStartedFocus: ["user", "channel", "task", "max"],
+      startCapReached: ["user", "channel", "max"],
+      noTaskToStart: ["user", "channel", "max"],
+      taskPaused: ["user", "channel", "task"],
+      noTaskToPause: ["user", "channel"],
+    };
+    for (const key of START_PAUSE_KEYS) {
+      const used = [...DEFAULT_TASK_MESSAGES[key].matchAll(/\{(\w+)\}/g)].map((m) => m[1]);
+      for (const name of used) expect(passed[key], `${key}: {${name}}`).toContain(name);
+    }
+  });
+
+  it("MAX_IN_PROGRESS is the focus plus the started cap", () => {
+    expect(MAX_IN_PROGRESS).toBe(1 + MAX_STARTED_PER_AUTHOR);
+  });
+
+  it("moreStartedSuffix is empty with nothing more started", () => {
+    expect(moreStartedSuffix(0)).toBe("");
+    expect(moreStartedSuffix(2)).toBe(" (+2 more started)");
+  });
+
+  it("withCheckSuffix puts the note before one closing period, else at the end", () => {
+    const vars = { user: "Ana", task: "read" };
+    expect(withCheckSuffix('{user}, you\'re on "{task}".', vars, 0)).toBe(
+      'Ana, you\'re on "read".',
+    );
+    expect(withCheckSuffix('{user}, you\'re on "{task}".', vars, 1)).toBe(
+      'Ana, you\'re on "read" (+1 more started).',
+    );
+    expect(withCheckSuffix("{user} hunts {task}!", vars, 2)).toBe(
+      "Ana hunts read! (+2 more started)",
+    );
+  });
+
+  it("withCheckSuffix shortens the task, never the note", () => {
+    const out = withCheckSuffix(
+      '{user}, you\'re on "{task}".',
+      { user: "Ana", task: "x".repeat(600) },
+      1,
+    );
+    expect(utf8ByteLength(out)).toBeLessThanOrEqual(MAX_CHAT_BYTES);
+    expect(out).toMatch(/…" \(\+1 more started\)\.$/);
   });
 });

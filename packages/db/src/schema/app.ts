@@ -440,6 +440,23 @@ export const botConfig = sqliteTable("bot_config", {
     .notNull()
     .default(TASK_MESSAGE_COLUMN_DEFAULTS.nextNoContent),
   msgHelp: text("msg_help").notNull().default(TASK_MESSAGE_COLUMN_DEFAULTS.help),
+  // !start / !pause replies (0022_start_pause_replies, expand-only).
+  msgTaskStarted: text("msg_task_started")
+    .notNull()
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.taskStarted),
+  msgTaskStartedFocus: text("msg_task_started_focus")
+    .notNull()
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.taskStartedFocus),
+  msgStartCapReached: text("msg_start_cap_reached")
+    .notNull()
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.startCapReached),
+  msgNoTaskToStart: text("msg_no_task_to_start")
+    .notNull()
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.noTaskToStart),
+  msgTaskPaused: text("msg_task_paused").notNull().default(TASK_MESSAGE_COLUMN_DEFAULTS.taskPaused),
+  msgNoTaskToPause: text("msg_no_task_to_pause")
+    .notNull()
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.noTaskToPause),
   msgNotRunning: text("msg_not_running")
     .notNull()
     .default(TIMER_MESSAGE_COLUMN_DEFAULTS.notRunning),

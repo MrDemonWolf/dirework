@@ -7,6 +7,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **`!start` and `!pause` in chat.** Viewers can now keep up to 3 tasks going: `!start 2`
+  starts task #2 beside their focus (or makes it the focus when nothing is going), `!pause`
+  pauses the focus (the next started task takes over) and `!pause 2` puts a started task
+  back in line. `!check` and `!check @user` add `(+n more started)`. The six new replies
+  (started, started as focus, too many going, nothing to start, paused, nothing to pause)
+  are editable under **Bot settings → Replies** in a new "Starting & pausing" group, with
+  new `{count}` and `{max}` placeholders. Both commands follow the Task command switch, can
+  be aliased, and have `!dw help start` / `!dw help pause` lines. The cap is checked inside
+  the guarded UPDATE, so racing messages can't pass it; a full hand is refused from the list
+  already read, with no write. `!check @user` reads the focus and started tasks in the one
+  query it already made. New migration `0022_start_pause_replies` (add-only: six defaulted
+  `bot_config` columns). An alias named `start` or `pause` saved earlier is now shadowed by
+  the built-in command, and the alias editor flags it.
 - **Started tasks (api groundwork for multiple active tasks).** Besides the one task you
   focus on, each person can now keep up to 2 tasks **started**: in progress but parked.
   Switching focus (`!focus`, or the dashboard's activate) parks the old focus as started

@@ -104,6 +104,13 @@ export const DEFAULT_TASK_MESSAGES = {
   clearedAll: "Cleared every task.",
   clearedDone: "Cleared the finished tasks.",
   nextNoContent: "What's next, {user}? Try !next [task].",
+  taskStarted: 'Started "{task}", {user}. {count}/{max} in progress.',
+  taskStartedFocus: 'Started "{task}", {user}. It\'s your focus now.',
+  startCapReached:
+    "{user}, you already have {max} going. Finish one with !done or pause one with !pause.",
+  noTaskToStart: "Nothing to start there, {user}. Pick a waiting task from !today, like !start 2.",
+  taskPaused: 'Paused "{task}", {user}. It waits in line until you !start it again.',
+  noTaskToPause: "Nothing to pause, {user}. !today shows what you have going.",
   // The viewer starter guide. Its three steps match STARTER_STEPS in
   // packages/api/src/bot/viewer-help.ts (the built-in `!dw help` guide); a test pins it.
   help: "{user}, here's how it works: 1) Type !task and what you're working on, like !task read 10 pages. 2) Work along with the stream. 3) Type !done when you finish. Need more? Type !dw help",
@@ -155,6 +162,14 @@ export const TASK_MESSAGE_COLUMN_DEFAULTS = {
   clearedDone: "All finished tasks have been cleared from the den!",
   nextNoContent: "Don't leave the pack hanging! Try !next [task], {user}!",
   help: "{user}, join the hunt: !task, !done, !edit, !remove, !focus, !check, !next — or !dwhelp for the full list.",
+  // Added by migration 0022_start_pause_replies with the wording of that release.
+  taskStarted: 'Started "{task}", {user}. {count}/{max} in progress.',
+  taskStartedFocus: 'Started "{task}", {user}. It\'s your focus now.',
+  startCapReached:
+    "{user}, you already have {max} going. Finish one with !done or pause one with !pause.",
+  noTaskToStart: "Nothing to start there, {user}. Pick a waiting task from !today, like !start 2.",
+  taskPaused: 'Paused "{task}", {user}. It waits in line until you !start it again.',
+  noTaskToPause: "Nothing to pause, {user}. !today shows what you have going.",
 } satisfies Record<keyof typeof DEFAULT_TASK_MESSAGES, string>;
 
 export const TIMER_MESSAGE_COLUMN_DEFAULTS = {
@@ -199,6 +214,12 @@ export const LEGACY_TASK_MESSAGES: Record<keyof typeof DEFAULT_TASK_MESSAGES, re
     "{user} Join the hunt with !task, !remove, !edit, or !done.",
     "{user}, commands: !task, !done, !edit, !remove, !focus, !check, !today, !next. Full list: !dwhelp",
   ],
+  taskStarted: [],
+  taskStartedFocus: [],
+  startCapReached: [],
+  noTaskToStart: [],
+  taskPaused: [],
+  noTaskToPause: [],
 };
 
 export const LEGACY_TIMER_MESSAGES: Record<keyof typeof DEFAULT_TIMER_MESSAGES, readonly string[]> =

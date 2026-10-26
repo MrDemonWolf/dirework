@@ -12,7 +12,7 @@ import {
   clearDoneTasks,
   createTask,
   editTask,
-  findActiveTaskByUsername,
+  findInProgressTasksByUsername,
   isUniqueViolation,
   listOverlayTasks,
   listTasks,
@@ -525,22 +525,44 @@ describe("restoreTask (dashboard undo of a removal)", () => {
   });
 });
 
-describe("findActiveTaskByUsername", () => {
-  it("matches the author's active task case-insensitively and ignores non-active rows", async () => {
+describe("findInProgressTasksByUsername", () => {
+  const ids = async (username: string) =>
+    (await findInProgressTasksByUsername(db, username)).map((t) => t.id);
+
+  it("returns the focus first, then started tasks, case-insensitively, never pending or done", async () => {
     await seed(
-      { id: "p", authorTwitchId: "1", authorUsername: "MixedCase", status: "pending" },
-      { id: "a", authorTwitchId: "1", authorUsername: "MixedCase", status: "active" },
+      { id: "s1", authorTwitchId: "1", authorUsername: "MixedCase", status: "started", order: 0 },
+      { id: "p", authorTwitchId: "1", authorUsername: "MixedCase", status: "pending", order: 1 },
+      { id: "a", authorTwitchId: "1", authorUsername: "MixedCase", status: "active", order: 2 },
+      { id: "s2", authorTwitchId: "1", authorUsername: "MixedCase", status: "started", order: 3 },
+      { id: "d", authorTwitchId: "1", authorUsername: "MixedCase", status: "done", order: 4 },
       { id: "o", authorTwitchId: "2", authorUsername: "other", status: "active" },
     );
 
-    expect((await findActiveTaskByUsername(db, "mixedcase"))?.id).toBe("a");
-    expect((await findActiveTaskByUsername(db, "MIXEDCASE"))?.id).toBe("a");
+    expect(await ids("mixedcase")).toEqual(["a", "s1", "s2"]);
+    expect(await ids("MIXEDCASE")).toEqual(["a", "s1", "s2"]);
   });
 
-  it("returns null when the author has no active task", async () => {
+  it("returns nothing when the author has no task in progress", async () => {
     await seed({ id: "p", authorTwitchId: "1", authorUsername: "viewer", status: "pending" });
 
-    expect(await findActiveTaskByUsername(db, "Viewer")).toBeNull();
-    expect(await findActiveTaskByUsername(db, "nobody")).toBeNull();
+    expect(await ids("Viewer")).toEqual([]);
+    expect(await ids("nobody")).toEqual([]);
+  });
+
+  it("reads through the lower(author_username) expression index", async () => {
+    const prepared: string[] = [];
+    const prepare = sqlite.prepare.bind(sqlite);
+    const spy = vi.spyOn(sqlite, "prepare").mockImplementation((query, params) => {
+      prepared.push(query);
+      return prepare(query, params);
+    });
+    await findInProgressTasksByUsername(db, "Viewer");
+    spy.mockRestore();
+
+    const [query] = prepared.filter((q) => /from "task"/i.test(q));
+    expect(query).toBeDefined();
+    const plan = sqlite.exec(`EXPLAIN QUERY PLAN ${query}`, ["Viewer", "active", "started"]);
+    expect(JSON.stringify(plan)).toContain("task_author_username_lower_idx");
   });
 });

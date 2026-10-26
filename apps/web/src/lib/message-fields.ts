@@ -47,6 +47,42 @@ export const taskMessageFields = [
     group: "Completing",
   },
   {
+    key: "taskStarted",
+    label: "Task started",
+    variables: ["task", "user", "count", "max"],
+    group: "Starting & pausing",
+  },
+  {
+    key: "taskStartedFocus",
+    label: "Task started as focus",
+    variables: ["task", "user"],
+    group: "Starting & pausing",
+  },
+  {
+    key: "startCapReached",
+    label: "Too many going (!start)",
+    variables: ["user", "max"],
+    group: "Starting & pausing",
+  },
+  {
+    key: "noTaskToStart",
+    label: "Nothing to start",
+    variables: ["user"],
+    group: "Starting & pausing",
+  },
+  {
+    key: "taskPaused",
+    label: "Task paused",
+    variables: ["task", "user"],
+    group: "Starting & pausing",
+  },
+  {
+    key: "noTaskToPause",
+    label: "Nothing to pause",
+    variables: ["user"],
+    group: "Starting & pausing",
+  },
+  {
     key: "taskEdited",
     label: "Task edited",
     variables: ["task", "user"],
@@ -107,6 +143,7 @@ export const TASK_MESSAGE_GROUP_COMMANDS: Record<
   "Viewer help": "!help",
   Adding: "!task",
   Completing: "!done !next !check",
+  "Starting & pausing": "!start !pause",
   "Editing & removing": "!edit !remove !clear",
   "Errors & limits": "any task command",
 };

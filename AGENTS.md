@@ -462,7 +462,16 @@ snapshot → focus if none, `started` under the cap, else `pending`). Promotion
 (order, id), then the first pending. List order (`sortTasksForList`): (priority, order, id),
 then each author's rows re-ranked focus → started → rest within the slots that author
 already holds, so author groups keep their order. `task.start` / `task.pause` exist with no
-UI yet. Chat positions (`getViewerOpenTasks`, `!done 2`, `!today`) still number by (order, id). Bot ingest is serialized
+UI yet. **Chat:** `!start N` (own task only, like `!done N`; pending → focus or started, the
+`startTask` outcome picks the reply; a full hand — focus + 2 started — is answered from the
+open list already read, no write), bare `!pause` = the focus (like bare `!done`), `!pause N`
+= that focus/started task (`pauseTask`), and `!check` / `!check @user` append the built-in
+`(+n more started)` via `withCheckSuffix` (template filled to fit beside it;
+`findInProgressTasksByUsername` replaced `findActiveTaskByUsername`, one indexed read).
+Replies `taskStarted` / `taskStartedFocus` / `startCapReached` / `noTaskToStart` /
+`taskPaused` / `noTaskToPause` are `bot_config` columns from `0022_start_pause_replies`
+whose frozen column default IS the current wording (`NEW_COLUMN_WORDING` in config.test.ts),
+with placeholders `{count}` / `{max}` (`MAX_IN_PROGRESS` = 1 + `MAX_STARTED_PER_AUTHOR`). Chat positions (`getViewerOpenTasks`, `!done 2`, `!today`) still number by (order, id). Bot ingest is serialized
 client-side (a serial queue in `createBotSession`, `apps/web/src/lib/bot-session.ts`) so chat commands apply in
 order. List ordering tiebreaks on `id` so concurrent creates sort deterministically.
 Dashboard removal is one click with an Undo toast: `task.restore` → `restoreTask`
