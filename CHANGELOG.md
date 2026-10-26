@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Dashboard stats.** A strip under the greeting shows focus time, pomodoros and tasks done
+  today (and how many of those came from chat), plus the days you streamed this week and your
+  week streak. A 14-day focus chart sits under the timer digits, today's bar highlighted. A
+  pomodoro counts when a work phase runs to its end, even with no page open; a skipped or
+  stopped work phase still counts the minutes worked. Days follow your browser's time zone.
+  Numbers are written only by writes the app already makes (no new polling, no writes on a
+  poll that changes nothing) and load in the dashboard's existing single request. New
+  migration `0020_daily_stats` (add-only); rows older than 400 days are pruned when a timer
+  starts.
 - **Wolf-pun greetings.** The dashboard greeting still follows the time of day, now from
   a pool of lines per part of the day ("Howl's it going, {name}?", "Werewolf hours",
   "Paws for a break?") mixed with plain ones. The line changes from day to day but holds
