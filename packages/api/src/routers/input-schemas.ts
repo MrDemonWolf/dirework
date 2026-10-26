@@ -12,6 +12,7 @@ import {
   timerStylesInputSchema,
   twitchAuthorColorSchema,
 } from "../config-shared";
+import { MAX_TIME_ZONE_LENGTH, isValidTimeZone } from "../stats-days";
 
 // ── Router input schemas ──────────────────────────────────────────────────────
 // Env-free module imported by BOTH the routers and the input-validation unit
@@ -76,6 +77,19 @@ export const confirmSetupStepInput = z
   .strict();
 
 export type SetupStep = z.infer<typeof confirmSetupStepInput>["step"];
+
+/**
+ * The dashboard reports the browser's IANA zone, which decides the local day a stat lands
+ * on. Only zones this runtime's Intl accepts get through, so a stored zone always formats.
+ */
+export const setTimeZoneInput = z
+  .object({
+    timeZone: z
+      .string()
+      .max(MAX_TIME_ZONE_LENGTH)
+      .refine(isValidTimeZone, { message: "Unknown time zone" }),
+  })
+  .strict();
 
 /** 24h — an upper bound on any single phase; also rejects NaN/Infinity. */
 const MAX_PHASE_MS = 24 * 60 * 60 * 1000;

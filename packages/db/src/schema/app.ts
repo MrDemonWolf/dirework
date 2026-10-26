@@ -47,6 +47,10 @@ export const instanceConfig = sqliteTable("instance_config", {
   setupTasksOverlayConfirmed: integer("setup_tasks_overlay_confirmed", { mode: "boolean" })
     .notNull()
     .default(false),
+  // The owner's IANA time zone (e.g. "America/Chicago"), reported by the
+  // dashboard through `user.setTimeZone`. Decides which local day a dashboard
+  // stat lands on; null reads as UTC.
+  timeZone: text("time_zone"),
 });
 
 export const botAccount = sqliteTable("bot_account", {
@@ -126,6 +130,20 @@ export const processedChatMessage = sqliteTable(
     index("processed_chat_message_processed_at_idx").on(table.processedAt),
   ],
 );
+
+// Dashboard stats: one row per local day (the owner's `time_zone`, else UTC),
+// keyed "YYYY-MM-DD" so a week or a 14-day chart is a primary-key range read.
+// Written only by writes that already happen (a phase the timer leaves, a task
+// marked done) as `INSERT … ON CONFLICT(day) DO UPDATE SET x = x + ?`; rows older
+// than STATS_RETENTION_DAYS are pruned when a timer starts.
+export const dailyStat = sqliteTable("daily_stat", {
+  day: text("day").primaryKey(),
+  focusMs: integer("focus_ms").notNull().default(0),
+  pomodoros: integer("pomodoros").notNull().default(0),
+  tasksDone: integer("tasks_done").notNull().default(0),
+  // Of tasks_done, those authored by someone other than the owner (chat).
+  tasksDoneChat: integer("tasks_done_chat").notNull().default(0),
+});
 
 export const timerState = sqliteTable("timer_state", {
   id: text("id").primaryKey().default(SINGLETON_ID),

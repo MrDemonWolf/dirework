@@ -141,6 +141,13 @@
       "when": 1792544172382,
       "tag": "0019_bot_mute_blocklist",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1792991222852,
+      "tag": "0020_daily_stats",
+      "breakpoints": true
     }
   ]
 }

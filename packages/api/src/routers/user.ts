@@ -12,11 +12,13 @@ import { env } from "@dirework/env/server";
 
 import { ownerProcedure, publicProcedure, router } from "../index";
 import { updateSingleton } from "../services/singleton";
+import { setStatsTimeZone } from "../services/stats-service";
 import { rotateInstanceToken } from "../services/tokens";
 import { disconnectBotAccount } from "../services/twitch-auth";
 import {
   confirmSetupStepInput,
   regenerateOverlayTokenInput,
+  setTimeZoneInput,
   type SetupStep,
 } from "./input-schemas";
 
@@ -70,6 +72,7 @@ export const userRouter = router({
           setupBotSourceConfirmed: true,
           setupTimerOverlayConfirmed: true,
           setupTasksOverlayConfirmed: true,
+          timeZone: true,
         },
       }),
       // H1 fix: never select accessToken/refreshToken/scopes — chat-scoped
@@ -98,7 +101,19 @@ export const userRouter = router({
       overlayTimerToken: instance?.overlayTimerToken ?? null,
       overlayTasksToken: instance?.overlayTasksToken ?? null,
       setup: setupState(instance),
+      // The zone dashboard stats use (null = UTC); the dashboard reports its own when they differ.
+      timeZone: instance?.timeZone ?? null,
     };
+  }),
+
+  /**
+   * ownerProcedure → stats `setStatsTimeZone`. Stores the browser's IANA zone for the
+   * dashboard stats' local days. A guarded UPDATE: reporting the zone already stored writes
+   * nothing. The dashboard sends it once, only when `me.timeZone` differs from the browser's.
+   */
+  setTimeZone: ownerProcedure.input(setTimeZoneInput).mutation(async ({ ctx, input }) => {
+    const changed = await setStatsTimeZone(ctx.db, input.timeZone);
+    return { timeZone: input.timeZone, changed };
   }),
 
   /**

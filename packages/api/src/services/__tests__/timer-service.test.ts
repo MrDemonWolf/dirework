@@ -242,7 +242,13 @@ describe("skipTimer guarded CAS vs a concurrent timer action", () => {
 describe("resetTimer uses configured defaultCycles (audit L4)", () => {
   it("resets totalCycles to timerConfig.defaultCycles, not a literal 4", async () => {
     const { db, setSpy } = makeDb({
-      timerState: { id: "singleton", status: "work", currentCycle: 3, totalCycles: 9 },
+      timerState: {
+        id: "singleton",
+        status: "work",
+        currentCycle: 3,
+        totalCycles: 9,
+        targetEndTime: null,
+      },
       timerConfig: { defaultCycles: 7 },
     });
     await resetTimer(db);
@@ -256,7 +262,13 @@ describe("resetTimer uses configured defaultCycles (audit L4)", () => {
 
   it("falls back to DEFAULTS.defaultCycles when no config row exists", async () => {
     const { db, setSpy } = makeDb({
-      timerState: { id: "singleton", status: "work", currentCycle: 2, totalCycles: 9 },
+      timerState: {
+        id: "singleton",
+        status: "work",
+        currentCycle: 2,
+        totalCycles: 9,
+        targetEndTime: null,
+      },
       timerConfig: undefined,
     });
     await resetTimer(db);
