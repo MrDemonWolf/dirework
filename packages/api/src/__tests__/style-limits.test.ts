@@ -104,6 +104,36 @@ describe("clampLength (read-time)", () => {
     expect(clampLength("500vw", TIMER_LENGTH_LIMITS["dimensions.width"], "300px")).toBe("100vw");
   });
 
+  it("checks every part's unit before any part's range, so a shorthand never half-clamps", () => {
+    expect(lengthIssue("80px 10%", padding)).toBe("unit");
+    expect(lengthIssue("10% 80px", padding)).toBe("unit");
+    expect(clampLength("80px 10%", padding, "10px 14px")).toBe("10px 14px");
+    expect(clampLength("-4px 2rem 60px", padding, "10px 14px")).toBe("0px 2rem 48px");
+  });
+
+  it("always returns a value inside the limit", () => {
+    const stored = [
+      "80px 10%",
+      "-1px -2px -3px -4px",
+      "9999pt 1rem",
+      "0 0 0 0 0",
+      "12px auto",
+      "+4px",
+      "50vw 50vh",
+      "3.33333px",
+      "",
+    ];
+    for (const [path, limit] of Object.entries(TASK_LENGTH_LIMITS)) {
+      const fallback = valueAt(DEFAULT_TASK_STYLES, path) as string;
+      for (const value of stored) {
+        expect(
+          lengthIssue(clampLength(value, limit, fallback), limit),
+          `${path} ${value}`,
+        ).toBeNull();
+      }
+    }
+  });
+
   it("falls back when the stored value can't be read under the limit", () => {
     expect(clampLength("auto", margin, "4px")).toBe("4px");
     expect(clampLength("50%", label, "20px")).toBe("20px");
