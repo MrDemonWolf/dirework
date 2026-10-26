@@ -417,15 +417,18 @@ function todayTaskPreview(text: string): string {
  * A short personal plan: current focus, the next two tasks, and a remaining count.
  * Each task carries its 1-based position in `tasks` (the viewer's open list in
  * list order), which is the number `!done`, `!edit`, `!remove` and `!focus` take —
- * the only place in chat a viewer can see those numbers.
+ * the only place in chat a viewer can see those numbers. Display order matches
+ * promotion (`promoteNextPendingStmt`): the focus, then started tasks, then the
+ * rest, each in list order, so "Next" is the task `!done` would resume.
  */
 export function formatTodayPlan(
   displayName: string,
   tasks: readonly { text: string; status: string }[],
 ): string {
   const numbered = tasks.map((task, index) => ({ ...task, position: index + 1 }));
-  const active = numbered.find((task) => task.status === "active");
-  const ordered = active ? [active, ...numbered.filter((task) => task !== active)] : numbered;
+  const rank = (status: string) => (status === "active" ? 0 : status === "started" ? 1 : 2);
+  // Stable sort: equal ranks keep list order, and positions never change.
+  const ordered = [...numbered].sort((a, b) => rank(a.status) - rank(b.status));
   const shown = ordered.slice(0, TODAY_TASK_LIMIT);
   let queuedCount = 0;
   const items = shown.map((task) => {
