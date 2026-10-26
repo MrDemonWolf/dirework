@@ -36,8 +36,10 @@ URL row at a time instead of two look-alike rows in two panels.
 `ObsSources` and `ObsPreviewColumn` take `state` from `useObsPreview()`, which the timer
 console (`dashboard.tsx`) owns: the selected tab, one preview switch for both tabs, and
 `side` (`useMediaQuery(LG_MEDIA_QUERY)`, `lib/use-media-query.ts`; `false` on the server and
-during hydration, harmless because the preview starts off). It reads `user.me` (both overlay tokens) from the cache the page's batch filled and
-owns the `user.regenerateOverlayToken` mutation (toasts "New overlay URL ready — paste it
+during hydration, harmless because the preview starts off) and `paths`: both overlay URLs
+from `user.me`, read by the hook's single observer from the cache the page's batch filled.
+The side column takes them from `state` and never observes `user.me` itself (it mounts on
+demand, and a new observer would refetch stale data on mount). `ObsSources` owns the `user.regenerateOverlayToken` mutation (toasts "New overlay URL ready — paste it
 into OBS" or `Couldn't reset the URL: ...`).
 
 ## States

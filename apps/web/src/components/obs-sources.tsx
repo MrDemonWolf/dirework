@@ -64,17 +64,23 @@ export interface ObsPreviewState {
   setPreview: (on: boolean) => void;
   /** From `lg` the preview is the console's right-hand column, not inline. */
   side: boolean;
+  /** Both overlay URLs, from the console's one `user.me` observer (`useOverlayPaths`). */
+  paths: Record<OverlayKind, string | null>;
 }
 
 /**
  * State for the timer console's OBS sources. The preview starts off and is one switch for
  * both tabs, so switching tabs while it is on swaps the overlay shown (never two iframes).
+ * The overlay URLs are read here, once, and handed down: the side column mounts on demand,
+ * and an observer of its own would refetch a `user.me` older than QUERY_FRESH_MS on mount
+ * (an extra /rpc request) every time the preview opens.
  */
 export function useObsPreview(): ObsPreviewState {
   const [tab, setTab] = useState<OverlayKind>("timer");
   const [preview, setPreview] = useState(false);
   const side = useMediaQuery(LG_MEDIA_QUERY);
-  return { tab, setTab, preview, setPreview, side };
+  const paths = useOverlayPaths();
+  return { tab, setTab, preview, setPreview, side, paths };
 }
 
 /** Recommended OBS browser-source dimensions, beside the "add it in OBS" hint. */
@@ -115,7 +121,10 @@ function PreviewStage({ kind, src }: { kind: OverlayKind; src: string }) {
   );
 }
 
-/** Both overlay URLs from `user.me` (the page's batch filled the cache; never fetches). */
+/**
+ * Both overlay URLs from `user.me` (the page's batch filled the cache). Called once, by
+ * `useObsPreview`, which mounts with the console; never from a component that mounts later.
+ */
 function useOverlayPaths(): Record<OverlayKind, string | null> {
   const me = useQuery(trpc.user.me.queryOptions());
   return {
@@ -129,9 +138,8 @@ function useOverlayPaths(): Record<OverlayKind, string | null> {
  * `user.me`; until it lands each row stays masked and disabled at the same size.
  */
 export function ObsSources({ state }: { state: ObsPreviewState }) {
-  const { tab: selected, setTab, preview, setPreview, side } = state;
+  const { tab: selected, setTab, preview, setPreview, side, paths } = state;
   const queryClient = useQueryClient();
-  const paths = useOverlayPaths();
 
   const regenerate = useMutation({
     ...trpc.user.regenerateOverlayToken.mutationOptions(),
@@ -208,7 +216,7 @@ export function ObsSources({ state }: { state: ObsPreviewState }) {
  * stage. Mounted only while shown, so its iframe polls only then.
  */
 export function ObsPreviewColumn({ state }: { state: ObsPreviewState }) {
-  const paths = useOverlayPaths();
+  const { paths } = state;
   const { tab } = SOURCES.find((s) => s.kind === state.tab) ?? SOURCES[0];
   const src = paths[state.tab];
   return (
