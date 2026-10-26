@@ -1185,6 +1185,49 @@ describe("bot.ingest !start / !pause / !check with started tasks", () => {
     expect(await statuses()).toEqual(["pending", "active", "pending"]);
   });
 
+  it("!check reads only the in-progress rows, never the queue or done history", async () => {
+    await seed(12);
+    await say("!start 2");
+    await say("!done 3");
+    await say("!done 3");
+
+    /** Rows each task read returned during `line`, and the plan of each task SELECT. */
+    async function taskReads(line: string, chatter?: Chatter) {
+      const rows: number[] = [];
+      const queries: string[] = [];
+      const findMany = vi.spyOn(db.query.task, "findMany");
+      const prepare = sqlite.prepare.bind(sqlite);
+      const spy = vi.spyOn(sqlite, "prepare").mockImplementation((query, params) => {
+        if (/^select[\s\S]*from "task"/i.test(query)) queries.push(query);
+        return prepare(query, params);
+      });
+      try {
+        await say(line, chatter);
+        for (const result of findMany.mock.results) {
+          rows.push(((await result.value) as unknown[]).length);
+        }
+      } finally {
+        findMany.mockRestore();
+        spy.mockRestore();
+      }
+      const plans = queries.map((query) => {
+        const params = Array((query.match(/\?/g) ?? []).length).fill("x");
+        return JSON.stringify(sqlite.exec(`EXPLAIN QUERY PLAN ${query}`, params));
+      });
+      return { rows, plans };
+    }
+
+    const own = await taskReads("!check");
+    expect(own.rows).toEqual([2]);
+    expect(own.plans.every((plan) => plan.includes("task_in_progress_author_idx"))).toBe(true);
+
+    const other = await taskReads("!check @viewer", { username: "other", twitchId: "3000" });
+    expect(other.rows).toEqual([2]);
+    expect(other.plans.every((plan) => plan.includes("task_in_progress_username_lower_idx"))).toBe(
+      true,
+    );
+  });
+
   it("!start on the focus, a started task or past the end is not startable", async () => {
     await seed(2);
     await say("!start 2");

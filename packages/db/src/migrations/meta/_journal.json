@@ -162,6 +162,13 @@
       "when": 1793039099616,
       "tag": "0022_start_pause_replies",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1793040504267,
+      "tag": "0023_in_progress_task_idx",
+      "breakpoints": true
     }
   ]
 }
