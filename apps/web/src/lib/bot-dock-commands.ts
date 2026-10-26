@@ -70,6 +70,8 @@ export interface DockControlsInput {
   muted: boolean;
   /** A dock command is in flight. */
   busy: boolean;
+  /** Another bot page holds the chat: commands run there, or here after Take over. */
+  standby?: boolean;
 }
 
 export interface DockControls {
@@ -86,8 +88,13 @@ export interface DockControls {
  * while a click is in flight (one request per click, never stacked). While muted the server
  * ignores everything but `!unmute`, so only Unmute stays on.
  */
-export function dockControls({ ready, muted, busy }: DockControlsInput): DockControls {
-  const off = !ready || busy;
+export function dockControls({
+  ready,
+  muted,
+  busy,
+  standby = false,
+}: DockControlsInput): DockControls {
+  const off = !ready || busy || standby;
   const disabled = {} as Record<DockCommandId, boolean>;
   for (const id of Object.keys(DOCK_COMMANDS) as DockCommandId[]) {
     disabled[id] = off || (muted && id !== "unmute");
@@ -96,7 +103,11 @@ export function dockControls({ ready, muted, busy }: DockControlsInput): DockCon
     muteToggle: muted ? "unmute" : "mute",
     disabled,
     // Muted has its own banner in the dock, so no second line here.
-    hint: ready ? null : "Buttons turn on once the bot is connected.",
+    hint: standby
+      ? "Buttons work in the bot page that's running, or here after Take over."
+      : ready
+        ? null
+        : "Buttons turn on once the bot is connected.",
   };
 }
 

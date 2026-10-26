@@ -396,6 +396,7 @@ Cloudflare account and reset at 00:00 UTC. Rough hourly usage:
 | Timer + task overlays (open in OBS)       | every 5s each, even in the background       | ~1.4k         |
 | Dashboard tab (visible, in use)           | timer 2s + tasks 3s, each counted twice     | ~6k           |
 | Dashboard tab (visible, untouched 2+ min) | timer + tasks every 15s, each counted twice | ~1k           |
+| Each open bot page (widget or dock)       | lease check-in every 2 min, plus commands   | 30 + commands |
 
 Dashboard requests count twice because the web worker proxies `/rpc` to the api
 worker, and both invocations are billed. Dashboard polling slows to every 15 seconds

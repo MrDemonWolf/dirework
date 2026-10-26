@@ -73,23 +73,41 @@ export async function requireBotToken(db: DbClient, token: string): Promise<void
 }
 
 /**
- * requireBotToken that also hands back the cached channel login from the SAME
- * instance_config read, so bot.ingest knows the streamer's real login (the one
- * !block must refuse) without another D1 round trip per chat line.
+ * requireBotToken that also hands back the cached channel login and the bot page
+ * lease from the SAME instance_config read, so bot.ingest knows the streamer's real
+ * login (the one !block must refuse) and whether another bot page holds the chat,
+ * without another D1 round trip per chat line.
  */
 export async function requireBotInstance(
   db: DbClient,
   token: string,
-): Promise<{ channelLogin: string | null; timeZone: string | null }> {
+): Promise<{
+  channelLogin: string | null;
+  timeZone: string | null;
+  lease: { instanceId: string | null; seenAt: Date | null };
+}> {
   // The owner's stats zone rides on this same read, so chat commands that record
   // stats (!done, !next, !timer) add no instance_config round trip.
   const instance = await db.query.instanceConfig.findFirst({
-    columns: { botToken: true, channelLogin: true, timeZone: true },
+    columns: {
+      botToken: true,
+      channelLogin: true,
+      timeZone: true,
+      botLeaseInstanceId: true,
+      botLeaseSeenAt: true,
+    },
   });
   if (!instance || !constantTimeEqual(instance.botToken, token)) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid bot token" });
   }
-  return { channelLogin: instance.channelLogin ?? null, timeZone: instance.timeZone ?? null };
+  return {
+    channelLogin: instance.channelLogin ?? null,
+    timeZone: instance.timeZone ?? null,
+    lease: {
+      instanceId: instance.botLeaseInstanceId ?? null,
+      seenAt: instance.botLeaseSeenAt ?? null,
+    },
+  };
 }
 
 /** instanceConfig columns that hold a rotatable bearer token. */

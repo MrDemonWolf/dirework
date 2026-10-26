@@ -46,6 +46,15 @@ export async function setBotAccount(page: Page, seed: boolean): Promise<void> {
 }
 
 /**
+ * Free the one-bot-page chat lease (the api worker's test-only `/__e2e/bot-lease` knob), so a
+ * spec that opens bot pages starts with none running, even right after an earlier attempt.
+ */
+export async function clearBotLease(page: Page): Promise<void> {
+  const res = await page.request.fetch(`${API_ORIGIN}/__e2e/bot-lease`, { method: "DELETE" });
+  expect(res.status(), "clear the bot lease").toBe(204);
+}
+
+/**
  * Mint an owner session through the DEV_LOGIN bypass. The request goes through the web
  * origin's /api/auth proxy, so the session cookie lands on the web origin exactly like a
  * real sign-in; `page.request` shares the page's cookie jar. On the fresh e2e database the

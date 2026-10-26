@@ -48,6 +48,7 @@ import {
 } from "@/components/timer-controls";
 import { TimerStatusBadge } from "@/components/timer-status-badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { dashboardBotChip, msUntilBotOffline } from "@/lib/bot-status";
 import { formatGreeting, pickGreeting } from "@/lib/greetings";
 import { setupProgress } from "@/lib/setup-steps";
 import { describeTrpcError } from "@/lib/trpc-errors";
@@ -201,6 +202,24 @@ function HeaderBand({ user, status }: { user: SessionUser; status: React.ReactNo
 }
 
 /**
+ * The clock the bot chip reads. `user.me` carries the bot page's last check-in as an age; the
+ * chip must flip to "Bot offline" when that age passes the lease, which no refetch announces,
+ * so ONE timer re-renders at exactly that moment. No request, no poll: a page coming online
+ * shows on the next `user.me` fetch (load, focus, an action that refreshes it).
+ */
+function useBotPresenceClock(seenMsAgo: number | null | undefined, fetchedAt: number): number {
+  const [now, setNow] = useState(() => fetchedAt);
+  useEffect(() => {
+    setNow(Date.now());
+    const wait = msUntilBotOffline({ seenMsAgo, fetchedAt, now: Date.now() });
+    if (wait <= 0) return;
+    const timer = setTimeout(() => setNow(Date.now()), wait + 50);
+    return () => clearTimeout(timer);
+  }, [seenMsAgo, fetchedAt]);
+  return now;
+}
+
+/**
  * Header section (needs `user.me` + `timer.get`): the band's live status cluster (Setup
  * button, timer status, bot chip) and the "Set up streaming" checklist under it, which share
  * the checklist's collapsed state. Both render together so that state is decided from loaded
@@ -231,6 +250,8 @@ function HeaderSection({ user }: { user: SessionUser }) {
     reopenRequested.current = false;
   }, [setupCollapsed]);
 
+  const presenceNow = useBotPresenceClock(me.data?.botPageSeenMsAgo, me.dataUpdatedAt);
+
   if (!me.data) {
     // The streamed `me` failed (or never streamed): the client refetches it on mount. Keep
     // the band's shape while it runs, then offer a retry if it fails too.
@@ -249,7 +270,11 @@ function HeaderSection({ user }: { user: SessionUser }) {
     );
   }
 
-  const botAccount = me.data.botAccount ?? null;
+  const botChip = dashboardBotChip(me.data.botAccount != null, {
+    seenMsAgo: me.data.botPageSeenMsAgo,
+    fetchedAt: me.dataUpdatedAt,
+    now: presenceNow,
+  });
 
   return (
     <>
@@ -270,16 +295,11 @@ function HeaderSection({ user }: { user: SessionUser }) {
             <TimerStatusBadge />
             <Link
               href={"/dashboard/bot" as const}
-              aria-label={
-                botAccount ? "Bot ready, open Bot settings" : "Bot not connected, open Bot settings"
-              }
+              aria-label={`${botChip.label}, open Bot settings`}
               // A compact chip, so on touch screens the link itself gets the 44px hit area.
               className="inline-flex items-center rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11"
             >
-              <StatusChip
-                tone={botAccount ? "accent" : "idle"}
-                label={botAccount ? "Bot ready" : "Bot not connected"}
-              />
+              <StatusChip tone={botChip.tone} label={botChip.label} />
             </Link>
           </>
         }

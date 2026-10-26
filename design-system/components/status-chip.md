@@ -37,7 +37,10 @@ markers and similar states. Used by the dashboard, `timer-controls`, `timer-stat
 | `idle` | `--muted-foreground` on `--muted` | Neutral, ready, locked |
 | `danger` | `--destructive` | Errors, revoked |
 
-Timer phases map to tones in `lib/status-tones.ts` (`TIMER_TONES`).
+Timer phases map to tones in `lib/status-tones.ts` (`TIMER_TONES`). The dashboard header's
+bot chip comes from `dashboardBotChip` (`lib/bot-status.ts`): `live` "Bot connected" while a
+bot page holds the chat lease (checked in within 5 minutes, read from `user.me`), `idle`
+"Bot offline" when none has, `idle` "Bot not connected" without a bot account.
 
 ## States
 

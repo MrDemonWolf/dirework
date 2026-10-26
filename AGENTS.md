@@ -208,6 +208,29 @@ chosen view under a visible "Widget URL" / "Dock URL" label (keyed on the view, 
 never reads as a reset), and that view's steps — never two look-alike masked rows. The pick is
 per-browser localStorage (`dirework.bot-view`, default widget on SSR/hydration). The card adds
 Reset (one token: "Reset both bot page URLs?") and "Open widget" / "Open dock".
+**One bot page at a time (chat lease).** Only one open bot page (widget or dock) joins chat:
+after `getSession` succeeds the session claims the lease with `bot.heartbeat({ token,
+instanceId })` BEFORE connecting IRC (`instanceId` = one `crypto.randomUUID()` per page load,
+kept across the dock's Reconnect), then checks in every `BOT_HEARTBEAT_MS` (2 min,
+`poll-intervals.ts`). The lease is `instance_config.bot_lease_instance_id` /
+`bot_lease_seen_at` (`0021_bot_page_lease`), written only by `services/bot-lease.ts`: ONE
+guarded UPDATE by primary key that takes/renews it when free, expired (`BOT_LEASE_TTL_MS` =
+5 min, `@dirework/api/bot-lease`, zod-free) or already ours, or unconditionally with
+`takeover`; a standby page's check-in is answered from the token read with no UPDATE.
+`holder: false` → phase `standby` (IRC disconnected, no hourly revalidation, heartbeat keeps
+checking and takes over once the lease expires; dock: "The bot is running somewhere else" +
+**Take over** → `takeOver()` = getSession + forced heartbeat; widget: title "DireWork bot ·
+Standby"). `bot.ingest` takes `instanceId` and refuses a page whose lease another page holds
+(CONFLICT + `BOT_STANDBY_MESSAGE` → `classifyBotError` "standby" → immediate standby), from
+the `requireBotInstance` read it already does; no `instanceId` (a page loaded before the
+lease) still relays. A failed claim fails OPEN (an api blip or an older api worker must not
+keep the only page off chat). On `pagehide` the holder sends `bot.release` as a plain
+`keepalive` fetch (`lib/bot-lease-release.ts`; sendBeacon can't send JSON), so a reload or
+the next page takes the chat at once. `user.me` returns `botPageSeenMsAgo` (an age, not a
+timestamp) from the instance row it already reads; the dashboard's header chip
+(`dashboardBotChip`, `lib/bot-status.ts`) says "Bot connected" while it is under the TTL
+(one local timer flips it to "Bot offline", no request), "Bot not connected" without an
+account. e2e: `/__e2e/bot-lease` DELETE frees the lease (`clearBotLease`).
 Chat token comes from `bot.getSession` (server refreshes it; the
 refresh token and client secret never reach the browser). Each PRIVMSG's IRC `id` tag is
 forwarded as `messageId` and, once it resolves to an enabled Dirework command, claimed in
@@ -467,7 +490,9 @@ the cached `channelLogin`, the owner's IANA `timeZone` (nullable, `0020_daily_st
 Dashboard stats), and the dashboard setup checklist flags
 `setupBotSourceConfirmed` / `setupTimerOverlayConfirmed` / `setupTasksOverlayConfirmed`
 (`integer({mode:"boolean"})`, NOT NULL default false; added expand-only by
-`0018_setup_confirmations`), which only `user.confirmSetupStep` writes. `botConfig.muted`
+`0018_setup_confirmations`), which only `user.confirmSetupStep` writes, and the bot page
+lease `botLeaseInstanceId` / `botLeaseSeenAt` (nullable, `0021_bot_page_lease`), which only
+`services/bot-lease.ts` writes. `botConfig.muted`
 (boolean) and `botConfig.blockedViewers` (JSON array of lowercase logins, ≤
 `MAX_BLOCKED_VIEWERS` = 200; added expand-only by `0019_bot_mute_blocklist`) are written only
 by `services/bot-moderation.ts` (shared by the chat commands and `config.setBotMuted` /
@@ -869,7 +894,9 @@ on the connected Overview, phone width), `30-timer` (Pomodoro start/stop and the
 come from `@dirework/api/config-defaults`), `40-theme-center`, `50-bot-settings`,
 `55-bot-dock` (`/bot/<token>?view=dock` renders the dock; the default view is the blank widget; a
 button click sends one `bot.ingest` as the broadcaster, with getSession/ingest stubbed and the
-IRC socket held by `routeWebSocket`),
+IRC socket held by `routeWebSocket`; on the REAL lease, a second page stands by, Take over
+moves the chat, the old page's next relay drops it to standby, closing the holder frees the
+lease, and the dashboard chip reads "Bot offline" / "Bot connected"),
 `60-token-reset` (the old overlay URL blanks), `70-sign-out`, `80-a11y`, `90-mobile`. Every
 spec passes when run twice in a row, because CI retries run immediately against the same
 database. Two projects: `chromium` runs all but `90-mobile`; `mobile` (Pixel 7) runs only
@@ -1100,7 +1127,10 @@ the default app to two workers, one D1 database and the existing rate-limit bind
 
 - No new polling, and no faster interval for an existing poll. Every cadence lives in
   `apps/web/src/lib/poll-intervals.ts`; a change there needs a stated request-budget
-  reason. Dashboard queries must keep stopping when the tab is hidden.
+  reason. Dashboard queries must keep stopping when the tab is hidden. The one approved
+  bot-page cadence is the lease heartbeat (`BOT_HEARTBEAT_MS`, 2 min): one Worker request
+  and one D1 write per open bot page, 30/hour, ≤720/day for a page open around the clock
+  (standby pages: the request, no write).
 - No Workers cron triggers, Durable Objects, Queues, or other paid/metered bindings.
   Prefer doing housekeeping lazily on an existing write path (like
   `purgeExpiredDoneTasks`) or once per deploy (`packages/infra/post-deploy.ts`). A

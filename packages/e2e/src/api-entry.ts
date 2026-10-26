@@ -1,6 +1,7 @@
 // The api worker's e2e entry: the real app (apps/server/src/index.ts), unchanged, plus
 // test-only knobs that production never has: an artificial delay on named tRPC procedures, a
-// request tally, and a fake connected bot account (`/__e2e/bot-account`, below).
+// request tally, a fake connected bot account (`/__e2e/bot-account`, below), and a reset of
+// the bot page lease (`/__e2e/bot-lease`).
 //
 // A spec sets the `e2e-delay` cookie on the web origin (`task.list=1500,timer.get=800`). The
 // web worker's server render forwards the browser's cookie on its batched call straight to
@@ -83,6 +84,19 @@ async function seedBotAccount(request: Request, env: E2eEnv): Promise<Response> 
   return new Response(null, { status: 204 });
 }
 
+/**
+ * `DELETE /__e2e/bot-lease` frees the one-bot-page chat lease, so a spec that opens bot pages
+ * starts from "no page running" even when a page from an earlier attempt still holds it
+ * (a lease outlives its page by up to 5 minutes when the release on close doesn't land).
+ */
+async function clearBotLease(request: Request, env: E2eEnv): Promise<Response> {
+  if (request.method !== "DELETE") return new Response(null, { status: 405 });
+  await env.DB.prepare(
+    "UPDATE instance_config SET bot_lease_instance_id = NULL, bot_lease_seen_at = NULL",
+  ).run();
+  return new Response(null, { status: 204 });
+}
+
 export default {
   fetch(request: Request, env: unknown, ctx: unknown) {
     const { pathname } = new URL(request.url);
@@ -92,6 +106,7 @@ export default {
       return new Response(body, { headers: { "content-type": "application/json" } });
     }
     if (pathname === "/__e2e/bot-account") return seedBotAccount(request, env as E2eEnv);
+    if (pathname === "/__e2e/bot-lease") return clearBotLease(request, env as E2eEnv);
     const key = pathname;
     served[key] = (served[key] ?? 0) + 1;
     return requestDelays.run(parseDelays(request.headers.get("cookie")), () =>

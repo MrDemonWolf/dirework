@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { BOT_STANDBY_MESSAGE } from "@dirework/api/bot-lease";
 import { MAX_RELAYED_MESSAGE_LENGTH } from "@dirework/api/chat-text";
 import { BOT_REAUTH_REQUIRED_MESSAGE } from "@dirework/api/config-shared";
+
+import { BOT_HEARTBEAT_MS } from "../poll-intervals";
 
 import {
   AUTH_RECOVERY_DELAY_MS,
@@ -23,6 +26,9 @@ import type { IrcChatMessage, IrcClientCallbacks } from "../irc-client";
 function trpcError(code: string, message = code): Error {
   return Object.assign(new Error(message), { data: { code } });
 }
+
+/** This page load's lease id. */
+const PAGE_ID = "11111111-1111-4111-8111-111111111111";
 
 const SESSION = {
   channelName: "streamer",
@@ -55,6 +61,10 @@ function setup(api: Partial<BotSessionApi> = {}) {
   const ingest = vi.fn<BotSessionApi["ingest"]>(
     api.ingest ?? (async () => ({ replies: [] as string[] })),
   );
+  const heartbeat = vi.fn<BotSessionApi["heartbeat"]>(
+    api.heartbeat ?? (async () => ({ holder: true })),
+  );
+  const release = vi.fn<BotSessionApi["release"]>();
   const events = {
     onPhase: vi.fn(),
     onIrcStatus: vi.fn(),
@@ -69,7 +79,8 @@ function setup(api: Partial<BotSessionApi> = {}) {
   };
   const session = createBotSession({
     token: "bot-token",
-    api: { getSession, ingest },
+    instanceId: PAGE_ID,
+    api: { getSession, ingest, heartbeat, release },
     createClient: (cbs) => {
       callbacks = cbs;
       return client;
@@ -77,7 +88,16 @@ function setup(api: Partial<BotSessionApi> = {}) {
     events,
     random: () => 0.5,
   });
-  return { session, client, getSession, ingest, events, callbacks: () => callbacks };
+  return {
+    session,
+    client,
+    getSession,
+    ingest,
+    heartbeat,
+    release,
+    events,
+    callbacks: () => callbacks,
+  };
 }
 
 const phases = (events: { onPhase: ReturnType<typeof vi.fn> }) =>
@@ -435,6 +455,7 @@ describe("createBotSession ingest", () => {
     expect(ingest).toHaveBeenCalledTimes(2);
     expect(ingest).toHaveBeenNthCalledWith(1, {
       token: "bot-token",
+      instanceId: PAGE_ID,
       kind: "message",
       username: "viewer",
       displayName: "Viewer",
@@ -556,6 +577,7 @@ describe("createBotSession ingest", () => {
 
     expect(ingest).toHaveBeenCalledWith({
       token: "bot-token",
+      instanceId: PAGE_ID,
       kind: "clearchat",
       targetUsername: "troll",
     });
@@ -900,6 +922,7 @@ describe("createBotSession runCommand (dock buttons)", () => {
     const sent = ingest.mock.calls.map(([input]) => input);
     expect(sent[0]).toEqual({
       token: "bot-token",
+      instanceId: PAGE_ID,
       kind: "message",
       username: "streamer",
       twitchId: "1000",
@@ -973,5 +996,225 @@ describe("createBotSession runCommand (dock buttons)", () => {
     await session.runCommand("!timer reset");
 
     expect(phases(events)).toContain("revoked");
+  });
+});
+
+describe("createBotSession chat lease (one bot page at a time)", () => {
+  const TAKEN = { holder: false };
+
+  it("claims the lease before joining chat, then renews it every heartbeat while live", async () => {
+    const { heartbeat, client, events } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(heartbeat).toHaveBeenCalledTimes(1);
+    expect(heartbeat).toHaveBeenCalledWith({ token: "bot-token", instanceId: PAGE_ID });
+    expect(heartbeat.mock.invocationCallOrder[0]).toBeLessThan(
+      client.connect.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(phases(events)).toEqual(["live"]);
+
+    await vi.advanceTimersByTimeAsync(BOT_HEARTBEAT_MS - 1);
+    expect(heartbeat).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(heartbeat).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(BOT_HEARTBEAT_MS * 3);
+    expect(heartbeat).toHaveBeenCalledTimes(5);
+    expect(client.connect).toHaveBeenCalledTimes(1);
+  });
+
+  it("stands by without joining chat when another page holds the lease", async () => {
+    const { heartbeat, client, events, getSession } = setup({ heartbeat: async () => TAKEN });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(phases(events)).toEqual(["standby"]);
+    expect(client.connect).not.toHaveBeenCalled();
+
+    // Re-checks on the heartbeat cadence, never through getSession.
+    await vi.advanceTimersByTimeAsync(BOT_HEARTBEAT_MS * 2);
+    expect(heartbeat).toHaveBeenCalledTimes(3);
+    expect(getSession).toHaveBeenCalledTimes(1);
+    expect(client.connect).not.toHaveBeenCalled();
+  });
+
+  it("takes over on its own once the other page stops renewing the lease", async () => {
+    let held = true;
+    const { heartbeat, client, events, getSession } = setup({
+      heartbeat: async () => ({ holder: !held }),
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(phases(events)).toEqual(["standby"]);
+
+    held = false; // the other page closed and its lease expired
+    await vi.advanceTimersByTimeAsync(BOT_HEARTBEAT_MS);
+
+    expect(phases(events)).toEqual(["standby", "live"]);
+    expect(getSession).toHaveBeenCalledTimes(2);
+    // The standby heartbeat already took the lease: no second claim before connecting.
+    expect(heartbeat).toHaveBeenCalledTimes(2);
+    expect(client.connect).toHaveBeenCalledTimes(1);
+    // Live again: the next check-in renews.
+    await vi.advanceTimersByTimeAsync(BOT_HEARTBEAT_MS);
+    expect(heartbeat).toHaveBeenCalledTimes(3);
+  });
+
+  it("leaves chat when a heartbeat finds another page took the lease", async () => {
+    let holder = true;
+    const { client, events } = setup({ heartbeat: async () => ({ holder }) });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(phases(events)).toEqual(["live"]);
+
+    holder = false;
+    await vi.advanceTimersByTimeAsync(BOT_HEARTBEAT_MS);
+
+    expect(phases(events)).toEqual(["live", "standby"]);
+    expect(client.disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it("Take over forces the lease to this page and goes live", async () => {
+    const { session, heartbeat, client, events } = setup({
+      heartbeat: async (input) => ({ holder: input.takeover === true }),
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(phases(events)).toEqual(["standby"]);
+
+    session.takeOver();
+    session.takeOver(); // a double click sends one takeover
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(phases(events)).toEqual(["standby", "boot", "live"]);
+    expect(heartbeat).toHaveBeenLastCalledWith({
+      token: "bot-token",
+      instanceId: PAGE_ID,
+      takeover: true,
+    });
+    expect(heartbeat.mock.calls.filter(([input]) => input.takeover)).toHaveLength(1);
+    expect(client.connect).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores Take over unless standing by", async () => {
+    const { session, heartbeat, events } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+
+    session.takeOver();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(phases(events)).toEqual(["live"]);
+    expect(heartbeat).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops to standby at once when ingest says another page holds the chat", async () => {
+    const { client, events, callbacks } = setup({
+      ingest: async () => {
+        throw trpcError("CONFLICT", BOT_STANDBY_MESSAGE);
+      },
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    callbacks().onChat?.(chat("!task write"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(phases(events)).toEqual(["live", "standby"]);
+    expect(client.disconnect).toHaveBeenCalledTimes(1);
+    expect(client.say).not.toHaveBeenCalled();
+    expect(events.onActivity).not.toHaveBeenCalledWith("error", INGEST_DROPPED_MESSAGE);
+  });
+
+  it("refuses dock commands in standby with no request", async () => {
+    const { session, ingest } = setup({
+      getSession: async () => ({ ...SESSION, broadcasterId: "1000" }),
+      heartbeat: async () => TAKEN,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    await expect(session.runCommand("!timer pause")).resolves.toEqual({
+      ok: false,
+      reason: "not-ready",
+    });
+    expect(ingest).not.toHaveBeenCalled();
+  });
+
+  it("fails open when the claim itself fails (an api blip or an older api worker)", async () => {
+    let calls = 0;
+    const { client, events } = setup({
+      heartbeat: async () => {
+        calls += 1;
+        throw trpcError("NOT_FOUND");
+      },
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(phases(events)).toEqual(["live"]);
+    expect(client.connect).toHaveBeenCalledTimes(1);
+
+    // A failing heartbeat keeps the live chat and tries again next tick.
+    await vi.advanceTimersByTimeAsync(BOT_HEARTBEAT_MS * 2);
+    expect(calls).toBe(3);
+    expect(phases(events)).toEqual(["live"]);
+    expect(client.disconnect).not.toHaveBeenCalled();
+  });
+
+  it("stops on a reset bot link reported by a heartbeat", async () => {
+    let fail = false;
+    const { events } = setup({
+      heartbeat: async () => {
+        if (fail) throw trpcError("UNAUTHORIZED");
+        return { holder: true };
+      },
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    fail = true;
+    await vi.advanceTimersByTimeAsync(BOT_HEARTBEAT_MS);
+
+    expect(phases(events)).toEqual(["live", "revoked"]);
+  });
+
+  it("skips the hourly revalidation while standing by", async () => {
+    const { getSession } = setup({ heartbeat: async () => TAKEN });
+    await vi.advanceTimersByTimeAsync(REVALIDATE_INTERVAL_MS * 2);
+    expect(getSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a standby heartbeat answer that lands after Take over", async () => {
+    let answerStandby: ((value: { holder: boolean }) => void) | undefined;
+    const { session, heartbeat, events, client } = setup({
+      heartbeat: (input) =>
+        input.takeover
+          ? Promise.resolve({ holder: true })
+          : new Promise((resolve) => {
+              if (heartbeat.mock.calls.length === 1) resolve({ holder: false });
+              else answerStandby = resolve;
+            }),
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(BOT_HEARTBEAT_MS); // a standby check-in is in flight
+    session.takeOver();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(phases(events)).toEqual(["standby", "boot", "live"]);
+
+    answerStandby?.({ holder: true }); // would otherwise bootstrap a second time
+    await vi.advanceTimersByTimeAsync(0);
+    expect(phases(events)).toEqual(["standby", "boot", "live"]);
+    expect(client.connect).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives the lease up on release only while holding it", async () => {
+    const live = setup();
+    await vi.advanceTimersByTimeAsync(0);
+    live.session.release();
+    live.session.release();
+    expect(live.release).toHaveBeenCalledTimes(1);
+    expect(live.release).toHaveBeenCalledWith({ token: "bot-token", instanceId: PAGE_ID });
+
+    const waiting = setup({ heartbeat: async () => TAKEN });
+    await vi.advanceTimersByTimeAsync(0);
+    waiting.session.release();
+    expect(waiting.release).not.toHaveBeenCalled();
+  });
+
+  it("stops heartbeating after dispose", async () => {
+    const { session, heartbeat } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+    session.dispose();
+    await vi.advanceTimersByTimeAsync(BOT_HEARTBEAT_MS * 3);
+    expect(heartbeat).toHaveBeenCalledTimes(1);
   });
 });

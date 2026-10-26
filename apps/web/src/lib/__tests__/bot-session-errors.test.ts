@@ -1,6 +1,7 @@
 import { TRPCClientError } from "@trpc/client";
 import { describe, expect, it } from "vitest";
 
+import { BOT_STANDBY_MESSAGE } from "@dirework/api/bot-lease";
 import { BOT_REAUTH_REQUIRED_MESSAGE } from "@dirework/api/config-shared";
 
 import { classifyBotError } from "../bot-session-errors";
@@ -30,6 +31,11 @@ describe("classifyBotError", () => {
     expect(
       classifyBotError(trpcError("PRECONDITION_FAILED", "Owner Twitch login unavailable")),
     ).toBe("transient");
+  });
+
+  it("treats the lease CONFLICT as standby, and any other CONFLICT as transient", () => {
+    expect(classifyBotError(trpcError("CONFLICT", BOT_STANDBY_MESSAGE))).toBe("standby");
+    expect(classifyBotError(trpcError("CONFLICT", "something else"))).toBe("transient");
   });
 
   it("treats NOT_FOUND as no bot account connected", () => {

@@ -53,6 +53,12 @@ describe("dockControls", () => {
     expect(controls.hint).toMatch(/once the bot is connected/);
   });
 
+  it("disables everything in standby, pointing at the running page or Take over", () => {
+    const controls = dockControls({ ready: true, muted: false, busy: false, standby: true });
+    expect(enabled(controls)).toEqual([]);
+    expect(controls.hint).toMatch(/Take over/);
+  });
+
   it("disables everything while a click is in flight, so clicks never stack", () => {
     expect(enabled(dockControls({ ready: true, muted: false, busy: true }))).toEqual([]);
     expect(enabled(dockControls({ ready: true, muted: true, busy: true }))).toEqual([]);
