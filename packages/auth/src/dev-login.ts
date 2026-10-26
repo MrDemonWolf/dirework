@@ -38,9 +38,9 @@ export const DEV_LOGIN_METHOD = "dev-login";
 
 /** Fixed identity used only when the local DB has no owner yet. */
 const DEV_USER = {
-  email: "dev@localhost",
-  name: "Dev Streamer",
-  displayName: "Dev Streamer",
+  email: "wolf@localhost",
+  name: "Wolf Streamer",
+  displayName: "Wolf Streamer",
 } as const;
 
 /**

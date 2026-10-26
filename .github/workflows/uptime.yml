@@ -46,9 +46,16 @@ jobs:
       - name: Probe both workers
         id: probe
         run: |
+          body="$(mktemp)"
+          trap 'rm -f "$body"' EXIT
           failed=""
           for url in "${API_URL%/}/ready" "${WEB_URL%/}/api/version"; do
-            if ! curl -fsS --max-time 15 --retry 2 --retry-delay 20 --retry-max-time 60 --retry-all-errors -o /dev/null "$url"; then
+            filter='.sha | type == "string" and test("^[0-9a-f]{7,40}$")'
+            if [ "$url" = "${API_URL%/}/ready" ]; then
+              filter='.status == "ready" and .db == "ok" and .limits == "ok"'
+            fi
+            if ! status="$(curl -fsS --max-time 15 --retry 2 --retry-delay 20 --retry-max-time 60 --retry-all-errors -o "$body" -w '%{http_code}' "$url")" ||
+              [ "$status" != "200" ] || ! jq -e "$filter" "$body" > /dev/null 2>&1; then
               failed="${failed:+$failed, }$url"
             fi
           done

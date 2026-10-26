@@ -17,7 +17,7 @@ test("the dashboard HTML arrives with its data, nav and no skeleton in the page"
   expect(res.ok()).toBe(true);
   const html = await res.text();
 
-  expect(html).toContain("Dev Streamer");
+  expect(html).toContain("Wolf Streamer");
   expect(html).toContain('aria-label="New task text"');
   expect(html).toContain("Timer overlay URL");
   expect(html).toContain('aria-label="Open menu"');
