@@ -43,7 +43,6 @@ import {
   TimerSettings,
   TimerTransport,
 } from "@/components/timer-controls";
-import { TimerStatusBadge } from "@/components/timer-status-badge";
 import { scheduleBotPresenceCheck } from "@/lib/bot-presence";
 import { dashboardBotChip } from "@/lib/bot-status";
 import { formatGreeting, pickGreeting } from "@/lib/greetings";
@@ -116,8 +115,8 @@ function useBotPresenceCheck(
 }
 
 /**
- * Header section (needs `user.me` + `timer.get`): the band's live status cluster (Setup
- * button, timer status, bot chip) and the "Set up streaming" checklist under it, which share
+ * Header section (needs `user.me`): the band's live status cluster (Setup button, bot
+ * chip) and the "Set up streaming" checklist under it, which share
  * the checklist's collapsed state. Both render together so that state is decided from loaded
  * data, never from a pending `me`.
  */
@@ -184,7 +183,6 @@ function HeaderSection({ user }: { user: SessionUser }) {
                 }}
               />
             )}
-            <TimerStatusBadge />
             <Link
               href={"/dashboard/bot" as const}
               aria-label={`${botChip.label}, open Bot settings`}
@@ -292,7 +290,7 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
   return (
     <div className="container mx-auto max-w-content px-4 py-8">
       <ProgressiveSection
-        queryKeys={[meKey, timerKey]}
+        queryKeys={[meKey]}
         fallback={
           <HeaderBand
             user={session.user}

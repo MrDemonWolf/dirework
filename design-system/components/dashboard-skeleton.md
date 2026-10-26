@@ -16,8 +16,9 @@ session is known.
 
 ## Anatomy
 
-- `StatusClusterPlaceholder`: two pill chips (timer status, bot) for the header band's
-  cluster; the bot chip's slot takes the link's 44px touch height.
+- `StatusClusterPlaceholder`: one pill chip (the bot chip) for the header band's cluster;
+  its slot takes the link's 44px touch height. The timer's phase shows only on the Timer
+  card's heading, so the band has no timer chip.
 - `StatTilesPlaceholder`: the stats strip under the greeting, a `.panel` of four cells
   (label, value, detail bars) laid out by the same `statCellClass` as `StatTiles`.
 - `FocusChartPlaceholder`: the 14-day focus chart's caption row, a 5:1 plot block and the

@@ -29,6 +29,17 @@ describe("dashboard layout", () => {
     expect(dashboard).toMatch(/<Link\s+href=\{"\/dashboard\/bot" as const\}[\s\S]*?<StatusChip/);
   });
 
+  it("shows the timer's phase only on the Timer card, never in the header band", () => {
+    // The header's "Ready" / "Focusing" chip repeated the card's phase chip; the owner kept
+    // the card's. The header section no longer waits on timer.get, and its placeholder
+    // reserves one chip (the bot's), so nothing shifts when it fills in.
+    expect(dashboard).not.toContain("TimerStatusBadge");
+    expect(dashboard.match(/<TimerPhaseChip \/>/g)).toHaveLength(1);
+    expect(dashboard).toContain("queryKeys={[meKey]}");
+    const cluster = skeleton.match(/export function StatusClusterPlaceholder[\s\S]*?\n}\n/)?.[0];
+    expect(cluster?.match(/<ChipSkeleton /g)).toHaveLength(1);
+  });
+
   it("gives the bot chip link a 44px touch target", () => {
     const link = dashboard.match(/<Link\s+href=\{"\/dashboard\/bot" as const\}[\s\S]*?>/)?.[0];
     expect(link).toContain("pointer-coarse:min-h-11");

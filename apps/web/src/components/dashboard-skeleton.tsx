@@ -58,13 +58,13 @@ function ObsSourcesSkeleton() {
 }
 
 /**
- * The header band's status cluster: the timer status chip and the bot chip, whose link takes
- * a 44px hit area on touch screens.
+ * The header band's status cluster: the bot chip, whose link takes a 44px hit area on touch
+ * screens. (The Setup button only shows once the checklist is collapsed, a per-browser
+ * choice, so it has no placeholder.)
  */
 export function StatusClusterPlaceholder() {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <ChipSkeleton className="w-18" />
       <div className="inline-flex items-center pointer-coarse:min-h-11">
         <ChipSkeleton className="w-36" />
       </div>

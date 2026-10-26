@@ -795,7 +795,7 @@ existing home and reuse it:
   repeats (e.g. a destructive callout) rather than copy-pasting it.
 - **Shared components** — `confirm-dialog`, `save-bar` (takes `blockedReason` to disable
   Save when the server's input schema would reject the payload), `status-chip`,
-  `timer-status-badge`, `unsaved-changes-guard`, `auto-scale`, `loader`, `query-error`
+  `unsaved-changes-guard`, `auto-scale`, `loader`, `query-error`
   (failed first load — never render editors over defaults), `secret-url-row`.
 - **Specs** — every component has a spec in `design-system/components/` (frontmatter
   `source:` + `tokens:`; README holds the page → components map), and
