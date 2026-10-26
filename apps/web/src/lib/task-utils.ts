@@ -1,3 +1,5 @@
+import { MAX_STARTED_PER_AUTHOR } from "@dirework/api/config-defaults";
+
 export interface Task {
   id: string;
   authorTwitchId?: string;
@@ -88,13 +90,69 @@ export function canMarkTaskDone(status: string): boolean {
 }
 
 /**
- * The owner's own active task, or null: what the timer console shows as "Now". `ownerKey` is
- * the same author key the board groups by (the owner's Twitch id); chat's active tasks never
- * count, and an empty key matches nothing.
+ * The owner's own in-progress tasks, what the timer console shows as "Now: <focus> · also:
+ * <started…>": the focus (`active`) and the parked `started` ones in list order. `ownerKey` is
+ * the same author key the board groups by (the owner's Twitch id); chat's tasks never count,
+ * and an empty key matches nothing.
  */
-export function ownerActiveTask<T extends Task>(tasks: readonly T[], ownerKey: string): T | null {
-  if (!ownerKey) return null;
-  return tasks.find((task) => task.status === "active" && authorKey(task) === ownerKey) ?? null;
+export function ownerInProgress<T extends Task>(
+  tasks: readonly T[],
+  ownerKey: string,
+): { focus: T | null; started: T[] } {
+  if (!ownerKey) return { focus: null, started: [] };
+  const own = tasks.filter((task) => authorKey(task) === ownerKey);
+  return {
+    focus: own.find((task) => task.status === "active") ?? null,
+    started: own.filter((task) => task.status === "started"),
+  };
+}
+
+/** Most tasks one author can have going at once: their focus plus the started ones. */
+export const MAX_IN_PROGRESS = 1 + MAX_STARTED_PER_AUTHOR;
+
+/** Why Start is off when an author's hand is full (tooltip and menu hint). */
+export const START_CAP_REASON = `${MAX_IN_PROGRESS} in progress — finish or pause one`;
+
+/**
+ * Whether Start would be refused for this author: they hold a focus AND
+ * MAX_STARTED_PER_AUTHOR started tasks (`startTask` makes a task the focus whenever the
+ * author has none, so without a focus Start always succeeds). Pass that author's rows; the
+ * list carries every open task, so the count is exact.
+ */
+export function isAtStartCap(authorTasks: readonly Pick<Task, "status">[]): boolean {
+  const hasFocus = authorTasks.some((task) => task.status === "active");
+  const started = authorTasks.filter((task) => task.status === "started").length;
+  return hasFocus && started >= MAX_STARTED_PER_AUTHOR;
+}
+
+/** A per-row status action: `task.start`, `task.activate` ("Make focus") or `task.pause`. */
+export type TaskRowAction = "start" | "focus" | "pause";
+
+/**
+ * The status actions a row offers, in display order. `inline` ones also get an icon button
+ * in the row on a hover-capable pointer; every action is in the row's ⋯ menu.
+ * - pending → Start (inline), Make focus (menu only: it parks or queues the current focus)
+ * - started → Make focus, Pause
+ * - focus (`active`) → Pause
+ * - done / unknown → none
+ */
+export function taskRowActions(status: string): { action: TaskRowAction; inline: boolean }[] {
+  switch (status) {
+    case "pending":
+      return [
+        { action: "start", inline: true },
+        { action: "focus", inline: false },
+      ];
+    case "started":
+      return [
+        { action: "focus", inline: true },
+        { action: "pause", inline: true },
+      ];
+    case "active":
+      return [{ action: "pause", inline: true }];
+    default:
+      return [];
+  }
 }
 
 const RESTORABLE_STATUSES = ["pending", "started", "active", "done"] as const;

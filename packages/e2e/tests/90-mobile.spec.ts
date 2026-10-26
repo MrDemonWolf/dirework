@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { confirmDialog, signIn } from "./helpers";
+import { confirmDialog, signIn, taskRow } from "./helpers";
 
 // Runs only in the `mobile` project (Pixel 7 emulation, see playwright.config.ts).
 test("the dashboard fits a phone and the menu button reaches the Theme Center", async ({
@@ -113,6 +113,83 @@ test.describe("on a 320px phone", () => {
     await stop.click();
     await confirmDialog(page, "Stop timer");
     await expect(start).toBeVisible();
+  });
+});
+
+test.describe("task row actions on a 320px phone", () => {
+  test.use({ viewport: { width: 320, height: 720 } });
+
+  test("Start, Make focus, Pause, Mark done and Remove are reachable through ⋯", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await page.goto("/dashboard");
+    const text = `Phone row ${Date.now()}`;
+    await page.getByRole("textbox", { name: "New task text" }).fill(text);
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    const row = taskRow(page, text);
+    await expect(row).toBeVisible();
+
+    // Touch: no hover-revealed icon buttons, one 44px ⋯ button per row.
+    await expect(page.getByLabel(`Remove "${text}"`)).toBeHidden();
+    const menuButton = page.getByRole("button", { name: `Actions for "${text}"` });
+    const buttonBox = (await menuButton.boundingBox())!;
+    expect(buttonBox.height).toBeGreaterThanOrEqual(44);
+    expect(buttonBox.width).toBeGreaterThanOrEqual(44);
+
+    const fits = async (what: string) => {
+      const widths = await page.evaluate(() => ({
+        scroll: document.documentElement.scrollWidth,
+        client: document.documentElement.clientWidth,
+      }));
+      expect(widths.scroll, `${what}: page wider than the viewport`).toBeLessThanOrEqual(
+        widths.client,
+      );
+      return widths.client;
+    };
+    await fits("row");
+
+    // The menu holds the row's status actions plus Mark done and Remove, as 44px items
+    // inside the viewport. A new task is either the focus (Pause) or waiting (Start).
+    await menuButton.click();
+    const menu = page.getByRole("menu");
+    await expect(menu.getByRole("menuitem", { name: "Mark done" })).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: "Remove" })).toBeVisible();
+    const client = await fits("open menu");
+    for (const item of await menu.getByRole("menuitem").all()) {
+      // The popup scales in from 0.98, so measure once it has settled.
+      await expect
+        .poll(async () => (await item.boundingBox())!.height, {
+          message: "menu item shorter than 44px",
+        })
+        .toBeGreaterThanOrEqual(44);
+      const box = (await item.boundingBox())!;
+      expect(box.x + box.width, "menu item past the viewport").toBeLessThanOrEqual(client);
+    }
+    const pause = menu.getByRole("menuitem", { name: "Pause", exact: true });
+    if (await pause.count()) {
+      await pause.click();
+      await expect(row.getByText("Focus", { exact: true })).toHaveCount(0);
+      await menuButton.click();
+    }
+    // Waiting: Start (it may become the focus or a started task), or Make focus when the
+    // owner's hand is already full (Start is off then), then Pause it back.
+    const start = menu.getByRole("menuitem", { name: /^Start/ });
+    if ((await start.getAttribute("aria-disabled")) !== "true") await start.click();
+    else await menu.getByRole("menuitem", { name: "Make focus" }).click();
+    await expect(
+      row.getByText("Focus", { exact: true }).or(row.getByText("Started", { exact: true })),
+    ).toBeVisible();
+    await menuButton.click();
+    await menu.getByRole("menuitem", { name: "Pause", exact: true }).click();
+    await expect(
+      row.getByText("Focus", { exact: true }).or(row.getByText("Started", { exact: true })),
+    ).toHaveCount(0);
+
+    // Remove from the menu.
+    await menuButton.click();
+    await menu.getByRole("menuitem", { name: "Remove" }).click();
+    await expect(row).toHaveCount(0);
   });
 });
 

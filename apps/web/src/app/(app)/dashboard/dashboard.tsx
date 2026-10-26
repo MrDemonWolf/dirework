@@ -48,7 +48,7 @@ import { dashboardBotChip } from "@/lib/bot-status";
 import { formatGreeting, pickGreeting } from "@/lib/greetings";
 import { PANEL_HEADER_CLASS, PANEL_TITLE_CLASS } from "@/lib/panel-header";
 import { setupProgress } from "@/lib/setup-steps";
-import { ownerActiveTask, ownerAuthorKey } from "@/lib/task-utils";
+import { ownerAuthorKey, ownerInProgress } from "@/lib/task-utils";
 import { trpc } from "@/utils/trpc";
 
 // Greeting (lib/greetings.ts) and date use the browser's local clock, which can differ from
@@ -257,18 +257,24 @@ function TimerConsoleBody() {
 }
 
 /**
- * "Now: <task>" under the transport: the owner's own active task, or nothing. Reads `task.list`
- * and `user.me` from the cache the page's batch filled; the observer has no refetchInterval
- * (the board owns the poll), and `select` re-renders only this line, only when the text changes.
+ * "Now: <focus> · also: <started…>" under the transport: the owner's own focus and the tasks
+ * they parked as started, or nothing without a focus. Reads `task.list` and `user.me` from the
+ * cache the page's batch filled; the observer has no refetchInterval (the board owns the
+ * poll), and `select` (structurally shared) re-renders only this line, only when a text changes.
  */
 function NowTask() {
   const me = useQuery(trpc.user.me.queryOptions());
   const ownerKey = ownerAuthorKey(me.data);
-  const { data: text } = useQuery({
+  const { data } = useQuery({
     ...trpc.task.list.queryOptions(),
-    select: (list) => ownerActiveTask(list.tasks, ownerKey)?.text ?? null,
+    select: (list) => {
+      const { focus, started } = ownerInProgress(list.tasks, ownerKey);
+      return { text: focus?.text ?? null, also: started.map((task) => task.text) };
+    },
   });
+  const text = data?.text;
   if (!text) return null;
+  const also = data.also.join(", ");
   return (
     <p className="flex min-w-0 items-baseline gap-2 text-sm">
       <span className="console-label shrink-0">Now</span>
@@ -276,6 +282,12 @@ function NowTask() {
       <span className="min-w-0 truncate" title={text}>
         {text}
       </span>
+      {also && (
+        // The started tasks give way first: they cap at half the line, the focus keeps the rest.
+        <span className="min-w-0 max-w-1/2 shrink-0 truncate text-muted-foreground" title={also}>
+          <span aria-hidden>· </span>also: {also}
+        </span>
+      )}
     </p>
   );
 }

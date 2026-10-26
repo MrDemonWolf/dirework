@@ -8,7 +8,7 @@ tokens: [color.scheme, font.size, tracking, radius]
 ## Purpose
 
 The LED-style status indicator of the Focus Console language: a small dot plus a mono
-uppercase label. Shows timer phase, bot connection, unsaved changes, "Host"/"Active" task
+uppercase label. Shows timer phase, bot connection, unsaved changes, "Host"/"Focus"/"Started" task
 markers and similar states. Used by the dashboard, `timer-controls`,
 `task-manager`, `save-bar`, `stream-scene`, the bot-settings cards and the Theme Center page.
 
@@ -28,6 +28,7 @@ markers and similar states. Used by the dashboard, `timer-controls`,
 | `label` | `string` | required | Visible text (rendered uppercase) |
 | `pulse` | `boolean` | `false` | Dot pulses; only while time is actually elapsing |
 | `size` | `"default" \| "sm"` | `"default"` | `px-2.5 py-1` vs `px-2 py-0.5` |
+| `dot` | `"solid" \| "half"` | `"solid"` | `half`: a `size-2` ring in the label color, its left half filled (◐); the task board's quieter "Started" chip. No pulse |
 | `title` | `string` | none | Full label on hover, for a label that may be cut |
 | `className` | `string` | none | Merged last |
 
@@ -35,7 +36,7 @@ markers and similar states. Used by the dashboard, `timer-controls`,
 |---|---|---|
 | `live` | `--success` (emerald) | Connected, running, focus phase |
 | `warn` | `--warning` (amber) | Paused, unsaved |
-| `accent` | `--link` (blue) | Starting, break, Host, Active |
+| `accent` | `--link` (blue) | Starting, break, Host, a task in Focus |
 | `alt` | `--cornflower` | Long break, finished |
 | `idle` | `--muted-foreground` on `--muted` | Neutral, ready, locked |
 | `danger` | `--destructive` | Errors, revoked |

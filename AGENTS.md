@@ -471,8 +471,8 @@ snapshot → focus if none, `started` under the cap, else `pending`). Promotion
 (`promoteNextPendingStmt`, used by done/remove/pause) takes the oldest started task by
 (order, id), then the first pending. List order (`sortTasksForList`): (priority, order, id),
 then each author's rows re-ranked focus → started → rest within the slots that author
-already holds, so author groups keep their order. `task.start` / `task.pause` exist with no
-UI yet. **Chat:** `!start N` (own task only, like `!done N`; pending → focus or started, the
+already holds, so author groups keep their order. `task.start` / `task.pause` back the
+dashboard's Start / Pause (see Dashboard). **Chat:** `!start N` (own task only, like `!done N`; pending → focus or started, the
 `startTask` outcome picks the reply; a full hand — focus + 2 started — is answered from the
 open list already read, no write), bare `!pause` = the focus (like bare `!done`), `!pause N`
 = that focus/started task (`pauseTask`), and `!check` / `!check @user` append the built-in
@@ -768,10 +768,11 @@ the unsaved-changes guard hook. 6 theme presets in `lib/theme-presets.ts`.
 subtitle) — "Timer" with `TimerPhaseChip`, "Tasks" with "N open / N done" and the options
 menu. The timer console is then a `lg:grid-cols-5` panel — `TimerInstrument` (digits, phase
 rail, cycle dots; hollow dots preview the planned run while idle) in 3/5, and in 2/5
-`TimerTransport` (`[Start] [Skip] | [Stop]`; Skip/Stop exist only mid-run) with "Now: <task>"
-under it (the owner's own active task, `ownerActiveTask` in `lib/task-utils.ts`, read from
-the cached `task.list` by an observer with no `refetchInterval`, so no new request; nothing
-when the owner has none), `TimerSettings` behind the "Edit session settings" `SectionGroup`
+`TimerTransport` (`[Start] [Skip] | [Stop]`; Skip/Stop exist only mid-run) with "Now: <focus>
+· also: <started…>" under it (the owner's own focus and started tasks, `ownerInProgress` in
+`lib/task-utils.ts`, read from the cached `task.list` by an observer with no
+`refetchInterval`, so no new request; the "also" part truncates at half the line; nothing
+when the owner has no focus), `TimerSettings` behind the "Edit session settings" `SectionGroup`
 (its collapsed summary is `formatSessionSummary` in `lib/session-summary.ts`, from the SAVED
 config with `TIMER_CONFIG_DEFAULTS` fallbacks) and `ObsSources` (`components/obs-sources.tsx`):
 both overlay URLs in one block, a "Timer" / "Tasks" tab each (URL row with Show/Copy/Reset,
@@ -783,8 +784,18 @@ the console's third column (`ObsPreviewColumn`: overlay name + "Close live previ
 room. One iframe at most either way. The task board (`task-manager.tsx`) takes the full width.
 The setup checklist's URL handoffs stay separate (Show/Copy only). Rows are `min-h-11`: checkbox, then
 the task text (full wrap, no clamp, `wrap-anywhere`, `dir="auto"`) and a meta line
-(`data-slot="task-row-meta"`: status chip slot + action group, where later row controls go)
-that sits under the text below `sm` and beside it from `sm`. The clock is `formatClock`
+(`data-slot="task-row-meta"`: status chip slot + `TaskRowControls`)
+that sits under the text below `sm` and beside it from `sm`. Chips: "Focus" (pulsing accent,
+the focus row also gets the `bg-primary/5` tint) and "Started" (idle, half-lit `dot="half"`
+◐); pending has none. Status actions come from the pure `taskRowActions` (`lib/task-utils.ts`):
+pending → Start (+ Make focus, menu only), started → Make focus (`task.activate`) + Pause,
+focus → Pause. Start is off when the author already holds a focus plus
+`MAX_STARTED_PER_AUTHOR` started (`isAtStartCap`, tooltip "3 in progress — finish or pause
+one"). On a hover pointer they are hover-revealed icon buttons beside Remove and a ⋯ menu;
+on a coarse pointer the icons are `pointer-coarse:hidden` and the 44px ⋯ menu (every action
+plus Mark done and Remove, `pointer-coarse:min-h-11` items) is the way in — no swipe or
+long-press. They wait for the server and invalidate `task.list` like the other row writes
+(one request per click; a row's status actions are off while one is in flight); no new poll. The clock is `formatClock`
 (`MM:SS`, `H:MM:SS` from an hour up, also on the overlay and Theme Center preview) sized by
 `.timer-digits` against its `@container` (`clockEm`), so `24:00:00` fits at 320px; a long
 phase label truncates in `TimerPhaseChip` (`title` = full label). Author groups fold (Collapsible, component

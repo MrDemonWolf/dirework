@@ -157,7 +157,21 @@ describe("dashboard layout", () => {
     const now = dashboard.slice(dashboard.indexOf("function NowTask()"));
     expect(now).toMatch(/useQuery\(\{\s*\.\.\.trpc\.task\.list\.queryOptions\(\),\s*select:/);
     expect(now.slice(0, now.indexOf("\n}\n"))).not.toContain("refetchInterval");
-    expect(now).toContain("ownerActiveTask(list.tasks, ownerKey)");
+    expect(now).toContain("ownerInProgress(list.tasks, ownerKey)");
+    expect(now).toContain("also: {also}");
+  });
+
+  it("puts every row action in the row's ⋯ menu, and hides the icon buttons on touch", () => {
+    const controls = taskManager.slice(taskManager.indexOf("function TaskRowControls("));
+    // Inline icon buttons are for hover-capable pointers only; a coarse pointer uses the menu.
+    expect(controls.match(/pointer-coarse:hidden/g)).toHaveLength(2);
+    expect(controls).toContain("data-row-menu={task.id}");
+    expect(controls).toContain("pointer-coarse:size-11");
+    expect(controls).toMatch(/aria-label=\{`Actions for "\$\{task\.text\}"`\}/);
+    // The menu lists the status actions, Mark done and Remove, each a 44px row on touch.
+    expect(controls).toMatch(/\{actions\.map\(\(\{ action \}\)[\s\S]*?<DropdownMenuItem/);
+    expect(controls).toContain("Mark done");
+    expect(controls.match(/className="pointer-coarse:min-h-11"/g)).toHaveLength(3);
   });
 
   it("keeps the bulk clears in the board options menu, behind their confirms", () => {
@@ -186,8 +200,9 @@ describe("dashboard layout", () => {
     // The body stacks text over the meta line on a phone and sets them side by side from sm.
     expect(taskManager).toContain("flex min-w-0 flex-1 flex-col gap-1.5 sm:flex-row");
     const meta = taskManager.slice(taskManager.indexOf('data-slot="task-row-meta"'));
-    expect(meta.indexOf('label="Active"')).toBeGreaterThan(0);
-    expect(meta.indexOf("data-remove-task")).toBeGreaterThan(meta.indexOf('label="Active"'));
+    expect(meta.indexOf('label="Focus"')).toBeGreaterThan(0);
+    expect(meta.indexOf('label="Started"')).toBeGreaterThan(meta.indexOf('label="Focus"'));
+    expect(meta.indexOf("<TaskRowControls")).toBeGreaterThan(meta.indexOf('label="Started"'));
     expect(taskManager.indexOf("{task.text}\n")).toBeLessThan(
       taskManager.indexOf('data-slot="task-row-meta"'),
     );

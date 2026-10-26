@@ -1,10 +1,15 @@
+import { MAX_STARTED_PER_AUTHOR } from "@dirework/api/config-defaults";
 import { describe, expect, it } from "vitest";
 
 import {
   canMarkTaskDone,
   countDoneByAuthor,
   groupTasksByAuthor,
-  ownerActiveTask,
+  isAtStartCap,
+  MAX_IN_PROGRESS,
+  ownerInProgress,
+  START_CAP_REASON,
+  taskRowActions,
   toRestoreInput,
 } from "../task-utils";
 import type { Task } from "../task-utils";
@@ -298,7 +303,7 @@ describe("toRestoreInput", () => {
   });
 });
 
-describe("ownerActiveTask", () => {
+describe("ownerInProgress", () => {
   const task = (id: string, author: string | undefined, name: string, status: string): Task => ({
     id,
     authorTwitchId: author,
@@ -308,25 +313,76 @@ describe("ownerActiveTask", () => {
     status,
   });
 
-  it("returns the owner's active task, never a viewer's", () => {
+  it("returns the owner's focus and started tasks in list order, never a viewer's", () => {
     const tasks = [
       task("1", "viewer", "Viewer", "active"),
-      task("2", "owner", "Owner", "pending"),
+      task("2", "owner", "Owner", "started"),
       task("3", "owner", "Owner", "active"),
+      task("4", "viewer", "Viewer", "started"),
+      task("5", "owner", "Owner", "pending"),
+      task("6", "owner", "Owner", "started"),
     ];
-    expect(ownerActiveTask(tasks, "owner")?.id).toBe("3");
+    const { focus, started } = ownerInProgress(tasks, "owner");
+    expect(focus?.id).toBe("3");
+    expect(started.map((t) => t.id)).toEqual(["2", "6"]);
   });
 
-  it("returns null when only viewers have an active task", () => {
+  it("has no focus when only viewers have one", () => {
     const tasks = [task("1", "viewer", "Viewer", "active"), task("2", "owner", "Owner", "done")];
-    expect(ownerActiveTask(tasks, "owner")).toBeNull();
+    expect(ownerInProgress(tasks, "owner")).toEqual({ focus: null, started: [] });
   });
 
   it("matches nothing for an empty owner key (user.me not loaded yet)", () => {
-    expect(ownerActiveTask([task("1", undefined, "", "active")], "")).toBeNull();
+    expect(ownerInProgress([task("1", undefined, "", "active")], "")).toEqual({
+      focus: null,
+      started: [],
+    });
   });
 
   it("keys a task without a Twitch id by display name, like the board's groups", () => {
-    expect(ownerActiveTask([task("1", undefined, "Host", "active")], "Host")?.id).toBe("1");
+    expect(ownerInProgress([task("1", undefined, "Host", "active")], "Host").focus?.id).toBe("1");
+  });
+});
+
+describe("isAtStartCap", () => {
+  const rows = (...statuses: string[]) => statuses.map((status) => ({ status }));
+  const started = (n: number) => Array.from({ length: n }, () => "started");
+
+  it("is full with a focus and MAX_STARTED_PER_AUTHOR started tasks", () => {
+    expect(isAtStartCap(rows("active", ...started(MAX_STARTED_PER_AUTHOR), "pending"))).toBe(true);
+    expect(MAX_IN_PROGRESS).toBe(MAX_STARTED_PER_AUTHOR + 1);
+    expect(START_CAP_REASON).toBe(`${MAX_IN_PROGRESS} in progress — finish or pause one`);
+  });
+
+  it("has room under the cap", () => {
+    expect(isAtStartCap(rows("active", ...started(MAX_STARTED_PER_AUTHOR - 1), "pending"))).toBe(
+      false,
+    );
+  });
+
+  it("has room without a focus: Start then makes the task the focus", () => {
+    expect(isAtStartCap(rows(...started(MAX_STARTED_PER_AUTHOR), "pending", "done"))).toBe(false);
+  });
+});
+
+describe("taskRowActions", () => {
+  const actions = (status: string) =>
+    taskRowActions(status).map(({ action, inline }) => `${action}${inline ? "" : " (menu)"}`);
+
+  it("offers Start on a pending task, with Make focus in the menu only", () => {
+    expect(actions("pending")).toEqual(["start", "focus (menu)"]);
+  });
+
+  it("offers Make focus and Pause on a started task", () => {
+    expect(actions("started")).toEqual(["focus", "pause"]);
+  });
+
+  it("offers only Pause on the focus", () => {
+    expect(actions("active")).toEqual(["pause"]);
+  });
+
+  it("offers nothing on a done or unknown task", () => {
+    expect(actions("done")).toEqual([]);
+    expect(actions("archived")).toEqual([]);
   });
 });
