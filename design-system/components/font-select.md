@@ -11,14 +11,17 @@ Theme Center font picker over the fixed, self-hosted overlay font list (`FONT_OP
 
 ## Anatomy
 
-- `FieldRow` label, then a `Select` with an `h-8 w-40 text-xs` trigger.
+- `FieldRow` label, then a `Select` whose trigger fills the control column with the editor
+  inputs' height (`h-9`, `md:h-8`, `pointer-coarse:min-h-11`), border (`muted-foreground/70`)
+  and type size (`text-base`, `md:text-sm`), set in the chosen face itself.
 - Each option renders in its own family (`'{font}', sans-serif`), the same self-hosted faces the overlays use, with no Google CDN request.
 
 ## Props and variants
 
 | Prop | Type | Notes |
 |---|---|---|
-| `label` | `string` | Row label; id is derived as `font-{label-slug}`, so labels must be unique per page |
+| `label` | `string` | Row label; id is derived as `font-{label-slug}` unless `id` is passed |
+| `id` | `string` | Overrides the derived id (the section editor passes `{idPrefix}-{path}`) |
 | `value` | `string` | Current family |
 | `onChange` | `(value: string) => void` | Never called with an empty value |
 

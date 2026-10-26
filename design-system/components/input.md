@@ -16,6 +16,8 @@ settings editors (`MessageEditor`, `CommandAliasEditor`, `BlockedViewersCard`).
 - Full width, `rounded-lg`, 1px border in `border-muted-foreground/70`, transparent fill
   (`bg-input/30` in dark), `px-2.5 py-1`.
 - Height `h-9` on phones, `md:h-8`; `pointer-coarse:min-h-11` (44px) on touch.
+- The frame (border, fill, radius, heights) is exported as `inputFrameClassName`, so a field
+  built around inputs (the Theme Center's swatch + hex `ColorInput`) wears the same one.
 - Text `text-base` (16px) on phones so iOS never zooms on focus, `md:text-sm`.
 - Placeholder `text-muted-foreground`; file inputs get an inline `text-sm` button.
 

@@ -24,7 +24,7 @@ export type LeafPath<T> = {
 }[keyof T & string];
 
 type FieldKind =
-  | { kind: "color"; hint?: string }
+  | { kind: "color" }
   | { kind: "opacity" }
   | {
       kind: "length";
@@ -47,12 +47,16 @@ export type StyleField<T> = FieldKind & {
   group: string;
   label: string;
   section: StyleSection;
+  /**
+   * One short line under the label saying what the field changes on the overlay. Only
+   * where the label alone can't say it (a multi-value padding, a fallback color). A
+   * function makes it depend on the current styles; null hides it.
+   */
+  hint?: string | ((styles: T) => string | null);
   /** Not rendered while this returns true (bullet rows while checkboxes are on). */
   hidden?: (styles: T) => boolean;
   /** Rendered but inactive while this returns true (scroll speed while scroll is off). */
   disabled?: (styles: T) => boolean;
-  /** A line under the row, when it applies. */
-  note?: (styles: T) => string | null;
 };
 
 type TimerField = StyleField<TimerStylesConfig>;
@@ -93,6 +97,7 @@ export const TIMER_STYLE_FIELDS: readonly TimerField[] = [
   },
   {
     path: "text.outlineSize",
+    hint: "0px turns the outline off.",
     group: "Text",
     label: "Outline size",
     section: "typography",
@@ -120,6 +125,7 @@ export const TIMER_STYLE_FIELDS: readonly TimerField[] = [
   },
   {
     path: "fontSizes.cycle",
+    hint: "The 2/4 line under the time.",
     group: "Font sizes",
     label: "Pomo counter",
     section: "typography",
@@ -131,6 +137,7 @@ export const TIMER_STYLE_FIELDS: readonly TimerField[] = [
   // The progress ring needs absolute lengths: with %/vw/vh TimerDisplay skips it.
   {
     path: "dimensions.width",
+    hint: "The overlay scales to fit its OBS source.",
     group: "Size",
     label: "Width",
     section: "layout",
@@ -174,6 +181,7 @@ export const TIMER_STYLE_FIELDS: readonly TimerField[] = [
   },
   {
     path: "ring.gap",
+    hint: "Space between the ring and the panel edge.",
     group: "Progress ring",
     label: "Ring gap",
     section: "layout",
@@ -385,7 +393,7 @@ export const TASK_STYLE_FIELDS: readonly TaskField[] = [
     label: "Checkboxes",
     section: "layout",
     kind: "switch",
-    note: (s) =>
+    hint: (s) =>
       s.display.useCheckboxes ? "Bullet options appear when checkboxes are off." : null,
   },
   {
@@ -443,6 +451,7 @@ export const TASK_STYLE_FIELDS: readonly TaskField[] = [
   },
   {
     path: "header.padding",
+    hint: "One to four values, like 8px 12px.",
     group: "Header",
     label: "Padding",
     section: "layout",
@@ -503,6 +512,7 @@ export const TASK_STYLE_FIELDS: readonly TaskField[] = [
   },
   {
     path: "task.padding",
+    hint: "One to four values, like 8px 12px.",
     group: "Task rows",
     label: "Padding",
     section: "layout",

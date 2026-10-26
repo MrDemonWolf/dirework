@@ -12,7 +12,7 @@ import {
 // Self-hosted faces (public/fonts) — every option renders in its own family,
 // both here and on the overlays, with no Google CDN request.
 import { FONT_OPTIONS } from "@/lib/overlay-font-options";
-import { FieldRow } from "./field-row";
+import { FieldRow, fieldDescribedBy } from "./field-row";
 
 /**
  * Font family dropdown limited to `FONT_OPTIONS`. Its id is derived from `label` (so
@@ -23,17 +23,19 @@ export function FontSelect({
   value,
   onChange,
   id: idProp,
+  hint,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   /** Overrides the label-derived id, for a label that repeats on the page. */
   id?: string;
+  hint?: string;
 }) {
   const id = idProp ?? `font-${label.toLowerCase().replace(/\s+/g, "-")}`;
 
   return (
-    <FieldRow label={label} htmlFor={id}>
+    <FieldRow label={label} id={id} hint={hint}>
       <Select
         value={value}
         onValueChange={(v) => {
@@ -41,7 +43,13 @@ export function FontSelect({
           if (v) onChange(v);
         }}
       >
-        <SelectTrigger id={id} className="h-8 w-40 text-xs">
+        <SelectTrigger
+          id={id}
+          aria-describedby={fieldDescribedBy(id, hint)}
+          // The chosen face shown in itself, like the options below.
+          className="w-full"
+          style={{ fontFamily: `'${value}', sans-serif` }}
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -49,7 +57,7 @@ export function FontSelect({
             <SelectItem
               key={font}
               value={font}
-              className="text-xs"
+              className="text-sm"
               style={{ fontFamily: `'${font}', sans-serif` }}
             >
               {font}

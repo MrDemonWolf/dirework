@@ -135,6 +135,40 @@ test("previews either overlay over a chosen backdrop and says when edits are uns
   await expect(page.getByText("Matches the saved theme")).toBeVisible();
 });
 
+test("keeps each label beside its control and nudges lengths with the arrow keys", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto("/dashboard/styles");
+  await waitForHydration(page);
+  await page.getByRole("button", { name: "Typography", exact: true }).click();
+
+  // The control column sits right after the label, not at the far edge of a wide editor.
+  const time = page.getByRole("textbox", { name: "Time", exact: true });
+  const gap = await time.evaluate((input: HTMLInputElement) => {
+    const label = input.labels?.[0];
+    if (!label) return Number.POSITIVE_INFINITY;
+    return input.getBoundingClientRect().left - label.getBoundingClientRect().left;
+  });
+  expect(gap, "px from the label's start to its control").toBeLessThan(320);
+  // Every control shares one width: a color field (swatch + hex) matches a length field.
+  const colorField = page.getByRole("textbox", { name: "Track", exact: true }).locator("..");
+  const [colorBox, timeBox] = await Promise.all([colorField.boundingBox(), time.boundingBox()]);
+  expect(Math.round(colorBox?.width ?? 0)).toBe(Math.round(timeBox?.width ?? -1));
+
+  // ArrowUp adds 1 and Shift+ArrowUp 10, keeping the unit; the value lives in one field.
+  const start = Number.parseFloat(await time.inputValue());
+  await time.press("ArrowUp");
+  await expect(time).toHaveValue(`${start + 1}px`);
+  await time.press("Shift+ArrowUp");
+  await expect(time).toHaveValue(`${start + 11}px`);
+  await expect(page.getByText("Previewing unsaved changes")).toBeVisible();
+
+  await page.getByRole("button", { name: "Reset", exact: true }).click();
+  await confirmDialog(page, "Discard changes");
+  await expect(time).toHaveValue(`${start}px`);
+});
+
 test("resets one section of the draft to the Default theme", async ({ page }) => {
   await signIn(page);
   await page.goto("/dashboard/styles");

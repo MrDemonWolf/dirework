@@ -1,11 +1,12 @@
 "use client";
 
-// Theme Center color field: a native swatch picker paired with a hex text input.
+// Theme Center color field: a native swatch picker and a hex text input in one bordered field.
 
 import { useEffect, useState } from "react";
 
-import { Input } from "@/components/ui/input";
-import { FieldRow } from "./field-row";
+import { cn } from "@/lib/utils";
+import { inputFrameClassName } from "@/components/ui/input";
+import { FieldRow, fieldDescribedBy } from "./field-row";
 
 const FULL_HEX = /^#[0-9a-fA-F]{6}$/;
 const SHORT_HEX = /^#[0-9a-fA-F]{3}$/;
@@ -68,38 +69,46 @@ export function ColorInput({
     }
   };
 
-  const errorId = `${id}-error`;
-  const hintId = `${id}-hint`;
-  const describedBy = [hint ? hintId : null, invalid ? errorId : null].filter(Boolean).join(" ");
-
   return (
     <FieldRow
       label={label}
-      htmlFor={id}
+      id={id}
       error={invalid ? `Not applied. Use a hex color like #1a2b3c (current: ${value})` : null}
-      errorId={errorId}
       hint={hint}
-      hintId={hintId}
     >
-      <input
-        type="color"
-        // <input type="color"> only accepts #rrggbb, but the stored value may be any
-        // color the server allowlist takes (#rgb, rgb(), keywords); show black then.
-        value={FULL_HEX.test(value) ? value : "#000000"}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label={`${label} color picker`}
-        className="h-8 w-8 shrink-0 cursor-pointer rounded border border-border bg-transparent p-0.5"
-      />
-      <Input
-        id={id}
-        value={draft}
-        onChange={(e) => handleTextChange(e.target.value)}
-        onBlur={handleBlur}
-        aria-invalid={invalid || undefined}
-        aria-describedby={describedBy || undefined}
-        className="h-9 w-24 font-mono md:h-8"
-        placeholder="#000000"
-      />
+      {/* One field, two inputs: the swatch fills the field's left square (44px tall on a
+          touch screen) and the hex text sits beside it, so a color row is as wide as
+          every other control. The wrapper wears the Input frame and its focus/invalid
+          rings; the inputs inside are bare. */}
+      <div
+        className={cn(
+          inputFrameClassName,
+          "flex w-full items-stretch overflow-hidden transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/50 has-aria-invalid:border-destructive has-aria-invalid:ring-1 has-aria-invalid:ring-destructive/20 dark:has-aria-invalid:border-destructive/50 dark:has-aria-invalid:ring-destructive/40",
+        )}
+      >
+        <input
+          type="color"
+          // <input type="color"> only accepts #rrggbb, but the stored value may be any
+          // color the server allowlist takes (#rgb, rgb(), keywords); show black then.
+          value={FULL_HEX.test(value) ? value : "#000000"}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={`${label} color picker`}
+          className="h-auto w-9 shrink-0 cursor-pointer border-0 border-r border-muted-foreground/40 bg-transparent p-1 outline-none md:w-8 pointer-coarse:w-11 [&::-moz-color-swatch]:rounded-xs [&::-moz-color-swatch]:border-foreground/25 [&::-webkit-color-swatch]:rounded-xs [&::-webkit-color-swatch]:border-foreground/25 [&::-webkit-color-swatch-wrapper]:p-0"
+        />
+        <input
+          id={id}
+          value={draft}
+          onChange={(e) => handleTextChange(e.target.value)}
+          onBlur={handleBlur}
+          aria-invalid={invalid || undefined}
+          aria-describedby={fieldDescribedBy(id, hint, invalid)}
+          // Input's type sizes: 16px on phones (no iOS zoom on focus), 14px from md.
+          className="min-w-0 flex-1 bg-transparent px-2.5 font-mono text-base outline-none placeholder:text-muted-foreground md:text-sm"
+          placeholder="#000000"
+          spellCheck={false}
+          autoComplete="off"
+        />
+      </div>
     </FieldRow>
   );
 }

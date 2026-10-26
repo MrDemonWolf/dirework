@@ -10,11 +10,13 @@ export function OpacitySliderRow({
   id,
   value,
   onChange,
+  hint,
 }: {
   label: string;
   id: string;
   value: number;
   onChange: (value: number) => void;
+  hint?: string;
 }) {
   return (
     <SliderRow
@@ -25,6 +27,7 @@ export function OpacitySliderRow({
       min={0}
       max={100}
       format={(v) => `${v}%`}
+      hint={hint}
     />
   );
 }

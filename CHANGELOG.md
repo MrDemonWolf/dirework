@@ -74,6 +74,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hover that could never happen.
 
 ### Changed
+- **Easier-to-scan Theme Center style editors.** Every control now sits right beside its
+  label in one fixed-width column instead of at the far edge of the editor, and on a wide
+  screen the groups (Panel, Progress ring, Header…) flow into two columns under clearer
+  headings. A color is one field again: the swatch and its hex code share a single box.
+  Lengths show their value once ("20px", no separate unit label), left-aligned, and the
+  Up/Down arrow keys nudge a single length by 1 (Shift: 10). A few fields gained a short
+  line saying what they change (the ring gap, multi-value padding, the outline). Font
+  pickers show the chosen font in itself. Same values, validation and Reset section as before.
 - **Bot settings loads in one go too, and a slow part no longer holds up the rest.** A
   normal load of any Bot settings page now paints finished about 100ms in, instead of a
   skeleton that swapped to the real page around 370ms. If your settings or your account are

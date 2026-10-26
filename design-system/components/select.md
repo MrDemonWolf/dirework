@@ -12,9 +12,11 @@ Base UI `Select` styled to match the dropdown menu. Used by `FontSelect` in the 
 
 ## Anatomy
 
-- **Trigger**: `rounded-lg` (`rounded-md` at `sm`) bordered box, `border-input`, transparent
-  fill (`bg-input/30` dark), `text-xs`, value on the left, muted `ChevronDownIcon` on the right.
-  Height `h-8` (`h-7` at `sm`). Placeholder in `text-muted-foreground`.
+- **Trigger**: `rounded-lg` (`rounded-md` at `sm`) bordered box, `border-muted-foreground/70`
+  (the same ≥3:1 boundary as `Input`), transparent fill (`bg-input/30` dark), value on the
+  left, muted `ChevronDownIcon` on the right. Default size matches `Input`: `text-base`
+  (`md:text-sm`), `h-9` (`md:h-8`), `pointer-coarse:min-h-11`; `sm` is `h-7`, `text-xs`.
+  Placeholder in `text-muted-foreground`.
 - **Content**: portaled popup, `rounded-2xl`, `border-border/50`, `bg-popover`, `p-1`,
   `shadow-lg`, `backdrop-blur-2xl`, min width `min-w-36`; scroll arrows top and bottom.
 - **Item**: `menuItemRecipe` from `dropdown-menu.tsx`, check indicator at `right-2`,
