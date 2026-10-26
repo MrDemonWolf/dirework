@@ -105,6 +105,38 @@ test("the stats strip and focus chart render, and a finished task counts at once
   expect(summaryFetches).toHaveLength(1);
 });
 
+test("Live preview opens as the timer card's right-hand column on a wide screen", async ({
+  page,
+}) => {
+  const toggle = page.getByRole("button", { name: "Live preview of the timer overlay" });
+  const column = page.getByRole("complementary", { name: "Live preview" });
+  await expect(column).toHaveCount(0);
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(column.getByRole("heading", { name: "Timer overlay" })).toBeVisible();
+  await expect(column.locator('iframe[title="Timer overlay preview"]')).toBeVisible();
+  // The column sits to the right of the controls, and its stage is the only preview.
+  const columnBox = await column.boundingBox();
+  const toggleBox = await toggle.boundingBox();
+  expect(columnBox!.x).toBeGreaterThan(toggleBox!.x + toggleBox!.width);
+  await expect(page.locator("iframe")).toHaveCount(1);
+
+  // The tab follows: Tasks swaps the overlay in the same column.
+  await page.getByRole("tab", { name: "Tasks" }).click();
+  await expect(column.getByRole("heading", { name: "Tasks overlay" })).toBeVisible();
+  await expect(column.locator('iframe[title="Tasks overlay preview"]')).toBeVisible();
+  await expect(page.locator("iframe")).toHaveCount(1);
+
+  // Close turns the preview off (no iframe left polling) and hands focus back to the switch.
+  await column.getByRole("button", { name: "Close live preview" }).click();
+  await expect(column).toHaveCount(0);
+  await expect(page.locator("iframe")).toHaveCount(0);
+  const tasksToggle = page.getByRole("button", { name: "Live preview of the tasks overlay" });
+  await expect(tasksToggle).toHaveAttribute("aria-pressed", "false");
+  await expect(tasksToggle).toBeFocused();
+});
+
 test("removing a task offers Undo, and Undo puts it back", async ({ page }) => {
   const text = `Undo me ${Date.now()}`;
   await page.getByRole("textbox", { name: "New task text" }).fill(text);

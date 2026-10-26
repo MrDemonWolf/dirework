@@ -32,7 +32,7 @@ import {
 } from "@/components/dashboard-stats";
 import { ProgressiveSection, SectionPlaceholder } from "@/components/progressive-section";
 import { QueryError } from "@/components/query-error";
-import { ObsSources } from "@/components/obs-sources";
+import { ObsPreviewColumn, ObsSources, useObsPreview } from "@/components/obs-sources";
 import { SetupChecklist, SetupReopenButton, useSetupCollapsed } from "@/components/setup-checklist";
 import { StatusChip } from "@/components/status-chip";
 import { TaskManager } from "@/components/task-manager";
@@ -212,18 +212,22 @@ function HeaderSection({ user }: { user: SessionUser }) {
 /**
  * Timer console (needs `timer.get` + `config.get`): the one-line heading with the phase chip,
  * then instrument (3/5) | transport, the owner's active task, session settings and the OBS
- * sources (2/5). "Now" and the overlay URLs read `task.list` / `user.me` from the cache the
+ * sources (2/5). From lg, turning on the OBS live preview opens a third column on the right
+ * (`ObsPreviewColumn`) and the other two slide over to make room (`.timer-console-grid` in
+ * index.css). "Now" and the overlay URLs read `task.list` / `user.me` from the cache the
  * page's one batch filled; they never fetch on their own and fill in when that lands.
  */
 function TimerConsoleBody() {
+  const obs = useObsPreview();
+  const sidePreview = obs.preview && obs.side;
   return (
     <TimerProvider>
       <div className={PANEL_HEADER_CLASS}>
         <h2 className={PANEL_TITLE_CLASS}>Timer</h2>
         <TimerPhaseChip />
       </div>
-      <div className="grid lg:grid-cols-5">
-        <div className="flex flex-col items-center justify-center gap-8 px-5 py-8 lg:col-span-3">
+      <div className="timer-console-grid grid" data-preview={sidePreview || undefined}>
+        <div className="flex min-w-0 flex-col items-center justify-center gap-8 px-5 py-8">
           <TimerInstrument />
           <ProgressiveSection
             queryKeys={[trpc.stats.summary.queryKey()]}
@@ -236,14 +240,19 @@ function TimerConsoleBody() {
             <FocusChart />
           </ProgressiveSection>
         </div>
-        <div className="flex min-w-0 flex-col gap-5 border-t border-border/40 px-5 py-5 lg:col-span-2 lg:border-t-0 lg:border-l">
+        <div className="flex min-w-0 flex-col gap-5 border-t border-border/40 px-5 py-5 lg:border-t-0 lg:border-l">
           <div className="space-y-2.5">
             <TimerTransport />
             <NowTask />
           </div>
           <TimerSettings />
-          <ObsSources />
+          <ObsSources state={obs} />
         </div>
+        {sidePreview && (
+          <div className="min-w-0 overflow-hidden border-l border-border/40 px-5 py-5">
+            <ObsPreviewColumn state={obs} />
+          </div>
+        )}
       </div>
     </TimerProvider>
   );

@@ -14,6 +14,7 @@ const taskManager = read("components/task-manager.tsx");
 const timerControls = read("components/timer-controls.tsx");
 const skeleton = read("components/dashboard-skeleton.tsx");
 const obsSources = read("components/obs-sources.tsx");
+const css = read("index.css");
 const stats = read("components/dashboard-stats.tsx");
 const refresh = read("lib/stats-refresh.ts");
 
@@ -59,24 +60,48 @@ describe("dashboard layout", () => {
   });
 
   it("splits the timer console 3/5 | 2/5 and gives the task board the full width", () => {
-    expect(dashboard).toContain('<div className="grid lg:grid-cols-5">');
-    expect(dashboard).toMatch(/lg:col-span-3">\s*<TimerInstrument \/>/);
+    // The track list lives in index.css (.timer-console-grid): from lg the controls are 40%
+    // of the panel, so instrument | controls is 3/5 | 2/5 while the live preview is off.
+    expect(dashboard).toContain(
+      '<div className="timer-console-grid grid" data-preview={sidePreview || undefined}>',
+    );
+    expect(dashboard).toMatch(/py-8">\s*<TimerInstrument \/>/);
+    expect(css).toMatch(
+      /\.timer-console-grid \{\s*grid-template-columns: minmax\(0, 1fr\) 40% 0rem;/,
+    );
     // Right column: transport (with "Now" under it), settings, then both overlay URLs.
     expect(dashboard).toMatch(
-      /<TimerTransport \/>\s*<NowTask \/>\s*<\/div>\s*<TimerSettings \/>\s*<ObsSources \/>/,
+      /<TimerTransport \/>\s*<NowTask \/>\s*<\/div>\s*<TimerSettings \/>\s*<ObsSources state=\{obs\} \/>/,
     );
     expect(taskManager).not.toMatch(/lg:grid-cols-3|lg:col-span-2|monitor/);
-    // The skeleton keeps the same shapes, so the hand-off doesn't jump.
-    expect(skeleton).toContain("lg:grid-cols-5");
-    expect(skeleton).not.toContain("lg:grid-cols-3");
+    // The skeleton keeps the same shapes (the preview is off on load), so the hand-off
+    // doesn't jump.
+    expect(skeleton).toContain('<div className="timer-console-grid grid">');
+    expect(skeleton).not.toMatch(/lg:grid-cols-5|lg:col-span-3/);
     expect(skeleton).toMatch(/lg:h-15" \/>\s*<ObsSourcesSkeleton \/>/);
+  });
+
+  it("opens the live preview as the console's third column from lg, sliding the others over", () => {
+    // Three tracks in both states (lengths and percentages), so the columns transition.
+    expect(css).toMatch(
+      /\.timer-console-grid\[data-preview\] \{\s*grid-template-columns: minmax\(0, 1fr\) 20rem 18rem;/,
+    );
+    expect(css).toContain("transition: grid-template-columns var(--motion-base)");
+    // The side column exists only while the preview is on at lg (sidePreview), and the
+    // inline stage only below lg, so one iframe at most.
+    expect(dashboard).toContain("const sidePreview = obs.preview && obs.side;");
+    expect(dashboard).toMatch(/\{sidePreview && \([\s\S]*?<ObsPreviewColumn state=\{obs\} \/>/);
+    expect(obsSources).toMatch(/\{preview && !side && src && <PreviewStage /);
+    expect(obsSources.match(/<iframe/g)).toHaveLength(1);
+    expect(obsSources).toContain('aria-label="Close live preview"');
+    expect(obsSources).toContain('aria-label="Live preview"');
   });
 
   it("merges both overlay URLs into one OBS sources block with Timer / Tasks tabs", () => {
     // One SecretUrlRow, rendered per tab, and no per-panel monitor left behind.
     expect(dashboard).not.toContain("OverlayMonitor");
     expect(dashboard).not.toContain("SecretUrlRow");
-    expect(dashboard.match(/<ObsSources \/>/g)).toHaveLength(1);
+    expect(dashboard.match(/<ObsSources state=\{obs\} \/>/g)).toHaveLength(1);
     expect(obsSources).toContain('label="OBS sources"');
     // Row labels "Timer overlay" / "Tasks overlay" (the e2e suite drives them), sized from the
     // same constants as the Theme Center preview.
@@ -87,7 +112,7 @@ describe("dashboard layout", () => {
     expect(obsSources).toContain("source: TASKS_SOURCE");
     expect(obsSources.match(/<SecretUrlRow/g)).toHaveLength(1);
     // The preview iframe only exists while its toggle is on (and its tab is mounted).
-    expect(obsSources).toMatch(/\{show && src && \(/);
+    expect(obsSources).toMatch(/\{preview && !side && src && /);
   });
 
   it("gives both panels a one-line header: the h2 plus its live state, no eyebrow", () => {

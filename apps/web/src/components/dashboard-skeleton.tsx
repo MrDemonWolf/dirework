@@ -120,8 +120,8 @@ export function TimerConsoleBodyPlaceholder() {
       <PanelHeaderSkeleton>
         <ChipSkeleton className="w-21.5" />
       </PanelHeaderSkeleton>
-      <div className="grid lg:grid-cols-5">
-        <div className="flex flex-col items-center justify-center gap-8 px-5 py-8 lg:col-span-3">
+      <div className="timer-console-grid grid">
+        <div className="flex min-w-0 flex-col items-center justify-center gap-8 px-5 py-8">
           <div className="flex w-full flex-col items-center gap-5">
             <Skeleton className="h-18 w-52.5 lg:h-24 lg:w-70" />
             <Skeleton className="h-1.5 w-full max-w-xs rounded-full" />
@@ -129,7 +129,7 @@ export function TimerConsoleBodyPlaceholder() {
           </div>
           <FocusChartPlaceholder />
         </div>
-        <div className="flex min-w-0 flex-col gap-5 border-t border-border/40 px-5 py-5 lg:col-span-2 lg:border-t-0 lg:border-l">
+        <div className="flex min-w-0 flex-col gap-5 border-t border-border/40 px-5 py-5 lg:border-t-0 lg:border-l">
           {/* Transport bar, then the folded session settings (its summary wraps on a phone). */}
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-19 w-full rounded-xl lg:h-15" />
