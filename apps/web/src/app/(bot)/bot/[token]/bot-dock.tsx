@@ -2,9 +2,9 @@
 
 /**
  * The bot page's dock layout (`/bot/<token>?view=dock`): a narrow, tall control panel for an
- * OBS custom browser dock (View → Docks → Custom Browser Docks). It wears OBS Studio's default
- * dark theme (Yami: the `obs-*` color tokens) so it sits in OBS like a native dock, in every
- * app theme. The session, its state and every request live in `bot-console.tsx`; nothing here
+ * OBS custom browser dock (View → Docks → Custom Browser Docks) or a pinned browser tab, where
+ * it stays a centered column on the same grey. It wears OBS Studio's default dark theme (Yami:
+ * the `obs-*` color tokens) so it sits in OBS like a native dock, in every app theme. The session, its state and every request live in `bot-console.tsx`; nothing here
  * fetches or polls.
  *
  * Command buttons send ordinary chat command lines (`!timer pause`, `!mute`, `!clear done`)
@@ -138,7 +138,7 @@ export function BotDock({
   return (
     <main
       aria-label="DireWork bot dock"
-      className="flex h-dvh w-full min-w-0 flex-col overflow-y-auto bg-obs-window font-sans text-xs text-obs-text"
+      className="mx-auto flex h-dvh w-full max-w-md min-w-0 flex-col overflow-y-auto font-sans text-xs text-obs-text"
     >
       {/* Title bar, like a QDockWidget title: grey5 with a grey4 rule. */}
       <header className="flex items-center gap-2 border-b border-obs-control bg-obs-title px-2 py-1.5">

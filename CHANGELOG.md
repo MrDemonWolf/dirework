@@ -20,8 +20,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Local recovery drill.** `bun run recovery:check` exports and restores a synthetic
   database, verifies schema and application data, and runs in the shared CI gate.
   No production database or additional Cloudflare service is needed.
-- **Simpler bot source console.** Clear connection status, responsive identity and
-  activity panels, and recovery links; existing OBS dock controls stay available.
+- **Pick how you run the bot.** The setup checklist's bot step and the **Run the bot** card
+  now ask **How will you run the bot?**: **Widget** (an OBS browser source or a Moblin
+  widget, invisible on stream) or **Dock / browser tab** (controls and status in an OBS
+  custom browser dock or a pinned tab). You see one URL, labelled **Widget URL** or **Dock
+  URL**, with that option's own steps, instead of two masked rows that looked the same. Your
+  pick is remembered in this browser. **Open widget** / **Open dock** opens the one you
+  picked, and Reset says plainly that it changes both URLs.
   Landing and setup docs now state the single-owner and free-tier requirements directly.
 - **Viewer help that shows what to type.** `!help` now replies with a 3-step starter guide
   (add a task with `!task`, work along, finish with `!done`) instead of a list of command
@@ -92,6 +97,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Up/Down arrow keys nudge a single length by 1 (Shift: 10). A few fields gained a short
   line saying what they change (the ring gap, multi-value padding, the outline). Font
   pickers show the chosen font in itself. Same values, validation and Reset section as before.
+- **The bot page is now an invisible widget.** `/bot/<token>` runs the bot exactly as before
+  (same requests) but draws nothing: a transparent page you can put on any OBS or Moblin
+  scene, at any size, even on the canvas, so the bot also runs from a phone that streams with
+  Moblin. Its browser tab title shows the state (`DireWork bot · Connected`, `· Muted`,
+  `· Action needed`). Errors that need you, like a reset URL or an expired bot login, never
+  show on stream; the dock (`?view=dock`) and **Dashboard → Bot** show them. The dock is
+  also the page to pin in a browser tab now, and it stays a narrow column on a wide screen.
+  **Behaviour change:** an OBS browser source that points at the default bot page URL keeps
+  the bot running but no longer shows the status panel; use the dock URL if you want to see it.
 - **Bot settings loads in one go too, and a slow part no longer holds up the rest.** A
   normal load of any Bot settings page now paints finished about 100ms in, instead of a
   skeleton that swapped to the real page around 370ms. If your settings or your account are
@@ -259,6 +273,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   paints grey placeholders that fill in a moment later on a normal load. The page now waits
   up to 0.8s for its data and arrives finished in one step; placeholders only show when the
   server is genuinely slow. No extra requests.
+- **Red buttons are easier to read in dark mode.** Buttons like **Disconnect** on the Bot
+  account card measured 4.44:1, just under the 4.5:1 minimum; their red background is subtler now.
 - **The Theme Center opens finished.** Opening or reloading the page painted a loading
   skeleton first and swapped in the real page about 300ms later, even though the data was
   already there; the page then faded in on top of that. It now arrives complete in the first

@@ -5,13 +5,17 @@ import { parseBotView } from "@/lib/bot-view";
 import { BotConsole } from "./bot-console";
 
 export const metadata: Metadata = {
-  // Absolute: skip the "%s | DireWork" root template — this page lives in an
-  // OBS browser source, an OBS custom browser dock or a pinned tab, not the app shell.
-  title: { absolute: "DireWork Bot Console" },
+  // Absolute: skip the "%s | DireWork" root template — this page lives in an OBS browser
+  // source, a Moblin widget, an OBS custom browser dock or a pinned tab, not the app shell.
+  // The console replaces it with the live state ("DireWork bot · Connected") once it runs.
+  title: { absolute: "DireWork bot" },
   robots: { index: false, follow: false, noarchive: true },
 };
 
-/** `?view=dock` renders the compact OBS dock layout; same bot session, same requests. */
+/**
+ * The default view is the blank widget; `?view=dock` the visible control panel. Same bot
+ * session, same requests.
+ */
 export default async function BotPage({
   searchParams,
 }: {

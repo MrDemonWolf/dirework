@@ -4,9 +4,10 @@
  * Dirework Bot Console — the browser-held Twitch chat bot.
  *
  * This token-gated page IS the bot:
- * the streamer keeps it open (OBS browser source or pinned tab), it holds the
- * IRC WebSocket, and relays command lines to the stateless API which runs the
- * logic against D1 and returns replies to send back to chat.
+ * the streamer keeps it open (the blank widget in an OBS browser source or a
+ * Moblin widget, or the `?view=dock` panel in an OBS dock or a pinned tab), it
+ * holds the IRC WebSocket, and relays command lines to the stateless API which
+ * runs the logic against D1 and returns replies to send back to chat.
  *
  * Keepalive: everything here runs on the WebSocket plus coarse timers
  * (setTimeout / setInterval) — no requestAnimationFrame — so the relay keeps
@@ -20,7 +21,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { Activity, Radio } from "lucide-react";
 
 import { StatusChip, type StatusTone } from "@/components/status-chip";
 import {
@@ -44,14 +44,14 @@ import {
   type BotPhase,
   type BotSession,
 } from "@/lib/bot-session";
-import type { BotActivityLine, BotView } from "@/lib/bot-view";
+import { botPageTitle, type BotActivityLine, type BotView } from "@/lib/bot-view";
 import { TwitchIrcClient, type IrcStatus } from "@/lib/irc-client";
 import { publicTrpc } from "@/utils/trpc";
 
 import { BotDock } from "./bot-dock";
 import { DashboardBotLink } from "./dashboard-bot-link";
 
-/** Lines kept in the activity feed. */
+/** Lines kept in the activity feed (the dock's recent commands). */
 const MAX_ACTIVITY = 20;
 
 type ActivityLine = BotActivityLine;
@@ -63,11 +63,11 @@ const LED_CLASS: Record<"green" | "amber" | "red", string> = {
   red: "bg-red-500 shadow-[0_0_12px_2px_rgba(239,68,68,0.55)]",
 };
 
-const LINE_CLASS: Record<BotActivityKind, string> = {
-  info: "text-muted-foreground",
-  chat: "text-foreground",
-  reply: "text-success",
-  error: "text-destructive",
+/** What stopped the bot, for each phase that needs the owner. */
+const TERMINAL_HEADINGS: Record<"invalid" | "revoked" | "reauth", string> = {
+  invalid: "Invalid bot page URL",
+  revoked: "Bot page URL reset",
+  reauth: "Bot login expired",
 };
 
 function pad2(n: number): string {
@@ -88,33 +88,16 @@ function formatUptime(ms: number): string {
   return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
 }
 
-function StatCell({
-  label,
-  value,
-  accent = false,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className="bot-stat">
-      <dt>{label}</dt>
-      <dd className={accent ? "text-link" : undefined} title={value}>
-        {value}
-      </dd>
-    </div>
-  );
-}
-
 /**
  * The bot page. Wires `createBotSession` (state machine in lib/bot-session.ts) to React state;
  * it talks to the api worker directly via `publicTrpc` (token in the POST body, no cookies),
- * never through the web proxy. Terminal phases (`invalid`, `revoked`, `reauth`) replace the
- * console with a full-screen notice. `view="dock"` swaps the layout for the compact OBS
- * custom-browser-dock panel (`bot-dock.tsx`); the session, and so every request, is the same.
+ * never through the web proxy. `view="widget"` (the default) paints nothing: it sits on a
+ * stream, so its state goes only to the tab title and a screen-reader live region — even the
+ * terminal phases (`invalid`, `revoked`, `reauth`), which the dock and Bot settings show.
+ * `view="dock"` is the visible control panel (`bot-dock.tsx`), whose terminal phases are a
+ * full-screen notice. The session, and so every request, is the same in both.
  */
-export function BotConsole({ view = "source" }: { view?: BotView }) {
+export function BotConsole({ view = "widget" }: { view?: BotView }) {
   const { token } = useParams<{ token: string }>();
 
   const [phase, setPhase] = useState<BotPhase>("boot");
@@ -127,7 +110,7 @@ export function BotConsole({ view = "source" }: { view?: BotView }) {
   // Mod !mute / !unmute (or the dashboard switch), reported by every ingest and getSession.
   const [muted, setMuted] = useState(false);
   // The latest error the session logged (Twitch refusing a reply, a dropped command…), kept
-  // so the header can show it: at 400x200 the activity log is below the fold.
+  // so the status can say "Chat error" (the dock's header, the widget's tab title).
   const [chatErrorState, setChatErrorState] = useState<ChatErrorState | null>(null);
   const [nowTick, setNowTick] = useState(0);
   // The newest error line, kept apart from the 20-line feed so the dock can show it after
@@ -148,22 +131,18 @@ export function BotConsole({ view = "source" }: { view?: BotView }) {
   // Synchronous in-flight guard: state lags a double click by a render.
   const commandBusyRef = useRef(false);
 
-  const logRef = useRef<HTMLDivElement | null>(null);
   const lineIdRef = useRef(0);
 
-  // Uptime ticker — coarse 1s interval, safe under background throttling.
+  // 1s ticker — coarse, safe under background throttling. The dock needs it for uptime; the
+  // widget shows no uptime, so there it runs only while a chat error waits for its clear
+  // window (a page left open all stream, maybe on a phone, shouldn't re-render every second).
+  const tickerNeeded = view === "dock" || chatErrorState !== null;
   useEffect(() => {
+    if (!tickerNeeded) return;
     setNowTick(Date.now());
     const timer = setInterval(() => setNowTick(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, []);
-
-  // Pin the activity feed to the newest line (instant jump, reduced-motion safe).
-  useEffect(() => {
-    if (activity.length === 0) return;
-    const el = logRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [activity]);
+  }, [tickerNeeded]);
 
   useEffect(() => {
     if (!token) return;
@@ -238,38 +217,7 @@ export function BotConsole({ view = "source" }: { view?: BotView }) {
     }
   };
 
-  if (phase === "invalid" || phase === "revoked" || phase === "reauth") {
-    return (
-      // role="alert": a live page that drops here unmounts the role="status"
-      // header, so without it a screen reader in a pinned tab hears nothing.
-      <main role="alert" className="bot-notice">
-        <StatusChip tone="danger" label="Action needed" />
-        <h1 className="font-mono text-xl font-semibold">
-          {phase === "invalid"
-            ? "Invalid bot page URL"
-            : phase === "revoked"
-              ? "Bot page URL reset"
-              : "Bot login expired"}
-        </h1>
-        {phase === "revoked" ? (
-          <p className="max-w-sm text-sm text-console-muted">
-            This URL was reset. Copy the new one from <DashboardBotLink /> and paste it into your
-            OBS browser source or tab.
-          </p>
-        ) : phase === "reauth" ? (
-          <p className="max-w-sm text-sm text-console-muted">
-            Twitch no longer accepts the bot account&apos;s login. Reconnect it in{" "}
-            <DashboardBotLink />, then refresh this page (OBS: right-click the source → Refresh).
-          </p>
-        ) : (
-          <p className="max-w-sm text-sm text-console-muted">
-            This isn&apos;t a valid bot page URL. Copy the current one from <DashboardBotLink />.
-          </p>
-        )}
-      </main>
-    );
-  }
-
+  const terminal = phase === "invalid" || phase === "revoked" || phase === "reauth";
   const connected = phase !== "boot" && phase !== "not-configured" && ircStatus === "connected";
   // Muted is a deliberate state, not a fault: a steady amber LED, like not-configured.
   const showMuted = connected && muted;
@@ -288,8 +236,9 @@ export function BotConsole({ view = "source" }: { view?: BotView }) {
           ? "danger"
           : "warn";
 
-  const statusText =
-    phase === "boot"
+  const statusText = terminal
+    ? "Action needed"
+    : phase === "boot"
       ? "Starting"
       : phase === "not-configured"
         ? "Bot not connected"
@@ -309,13 +258,60 @@ export function BotConsole({ view = "source" }: { view?: BotView }) {
                   ? "Offline"
                   : "Starting";
 
+  // The tab title carries the state in both views: a pinned tab, or the blank widget opened
+  // in a browser, still says whether the bot is up.
+  useEffect(() => {
+    document.title = botPageTitle(statusText);
+  }, [statusText]);
+
+  if (view === "widget") {
+    // Nothing visible: the widget sits on a stream. Screen readers (and the tab title) get
+    // the state; a terminal phase is an alert, so a reader hears the bot stop.
+    return (
+      <main aria-label="DireWork bot widget" className="sr-only">
+        {terminal ? (
+          <p role="alert">{`DireWork bot: ${TERMINAL_HEADINGS[phase]}. Open the dock or Dashboard → Bot to fix it.`}</p>
+        ) : (
+          <p role="status">{`DireWork bot: ${statusText}`}</p>
+        )}
+      </main>
+    );
+  }
+
+  if (terminal) {
+    return (
+      // role="alert": a live page that drops here unmounts the dock's role="status"
+      // header, so without it a screen reader in a pinned tab hears nothing.
+      <main role="alert" className="bot-notice">
+        <StatusChip tone="danger" label="Action needed" />
+        <h1 className="font-mono text-xl font-semibold">{TERMINAL_HEADINGS[phase]}</h1>
+        {phase === "revoked" ? (
+          <p>
+            This URL was reset. Copy the new one from <DashboardBotLink /> and paste it into your
+            OBS dock or tab.
+          </p>
+        ) : phase === "reauth" ? (
+          <p>
+            Twitch no longer accepts the bot account&apos;s login. Reconnect it in{" "}
+            <DashboardBotLink />, then refresh this page (OBS: right-click the dock → Refresh).
+          </p>
+        ) : (
+          <p>
+            This isn&apos;t a valid bot page URL. Copy the current one from <DashboardBotLink />.
+          </p>
+        )}
+      </main>
+    );
+  }
+
   // Not-configured, muted and a chat error wait on a person, not on the bot — a steady LED,
   // so none of them reads as "Connecting".
   const led = tone === "live" ? "green" : tone === "danger" ? "red" : "amber";
   const ledClass = `${LED_CLASS[led]}${phase === "not-configured" || showMuted || chatError ? " animate-none" : ""}`;
 
-  if (view === "dock") {
-    return (
+  // The page is transparent (the widget's layout): the dock's grey fills a wide tab too.
+  return (
+    <div className="min-h-dvh bg-obs-window">
       <BotDock
         ledClass={ledClass}
         statusText={statusText}
@@ -347,111 +343,6 @@ export function BotConsole({ view = "source" }: { view?: BotView }) {
         pending={pendingCommand}
         result={commandResult}
       />
-    );
-  }
-
-  return (
-    <main className="bot-console font-mono">
-      {/* Status header — must read as a tiny OBS source (400x200): big LED +
-          state text pinned top-left. */}
-      <header className="bot-console-header">
-        <span role="status">
-          <StatusChip
-            tone={tone}
-            label={statusText}
-            pulse={tone === "warn" && phase !== "not-configured" && !showMuted && !chatError}
-            className="bot-connection-status"
-          />
-        </span>
-        <div className="bot-console-brand">
-          <Radio size={18} aria-hidden />
-          <h1>
-            DireWork <span>Bot Console</span>
-          </h1>
-        </div>
-        <span className="bot-header-settings">
-          <DashboardBotLink />
-        </span>
-      </header>
-
-      <div className="bot-console-body">
-        <p className="bot-console-instruction font-sans">
-          Keep this page open in OBS or a pinned tab. This page runs your Twitch bot.
-        </p>
-
-        {phase === "not-configured" && (
-          <p className="bot-setup-notice">
-            Connect a bot account in <DashboardBotLink />. This page goes live on its own.
-          </p>
-        )}
-
-        {showMuted && (
-          <p className="bot-setup-notice">
-            Muted — ignoring commands and posting nothing. A mod can send !unmute, or flip the Mute
-            bot switch in <DashboardBotLink />.
-          </p>
-        )}
-        {chatError && (
-          <p title={chatError} className="bot-setup-notice line-clamp-2">
-            {chatError}
-          </p>
-        )}
-
-        {/* Identity + uptime */}
-        <dl className="bot-stats bot-identity">
-          <StatCell label="Channel" value={channelName ? `#${channelName}` : "—"} />
-          <StatCell label="Bot" value={botUsername || "—"} />
-          <StatCell
-            label="Uptime"
-            value={connectedAt && nowTick ? formatUptime(nowTick - connectedAt) : "—"}
-          />
-        </dl>
-
-        {/* Counters */}
-        <dl className="bot-stats bot-counters">
-          <StatCell label="Chat lines" value={String(counters.seen)} />
-          <StatCell label="Commands" value={String(counters.commands)} accent />
-          <StatCell label="Replies" value={String(counters.replies)} accent />
-        </dl>
-
-        <section className="bot-activity" aria-labelledby="bot-activity-title">
-          <div className="bot-activity-heading">
-            <h2 id="bot-activity-title">
-              <Activity size={15} aria-hidden /> Activity
-            </h2>
-            <span>Latest {MAX_ACTIVITY} events</span>
-          </div>
-
-          {/* Activity feed — newest at the bottom, auto-pinned */}
-          <div
-            ref={logRef}
-            role="log"
-            aria-label="Activity log"
-            // Scrollable region: focusable so keyboard users can scroll it.
-            // biome-ignore lint/a11y/noNoninteractiveTabindex: scroll container
-            tabIndex={0}
-            className="bot-activity-log"
-          >
-            {activity.length === 0 ? (
-              <p className="bot-activity-empty">
-                Waiting for chat… Commands and bot replies appear here.
-              </p>
-            ) : (
-              <ul className="bot-activity-lines">
-                {activity.map((line) => (
-                  <li key={line.id}>
-                    <span className="bot-activity-time">{line.time}</span>
-                    <span className={`bot-activity-kind ${LINE_CLASS[line.kind]}`}>
-                      {line.kind}
-                    </span>
-                    <span className={`break-all ${LINE_CLASS[line.kind]}`}>{line.text}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </section>
-      </div>
-    </main>
+    </div>
   );
 }

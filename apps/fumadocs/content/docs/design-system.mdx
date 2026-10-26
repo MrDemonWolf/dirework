@@ -65,7 +65,7 @@ Each generated stylesheet declares the palette as plain CSS variables on `:root`
 | --- | --- | --- |
 | `color.scheme.{light,dark}` | `--background`, `--primary`, `--success`, `--border`, `--hairline`, `--cornflower`, `--chart-*`, `--sidebar-*`… | The UI palette, as oklch values. `{name}` aliases another key (`--chart-2: var(--cornflower)`). |
 | `color.phase` | `--phase-{work,break,long-break,paused}` | Timer phase accents |
-| `color.console` | `--color-console-*` (`bg-console-base`…) | The always-dark bot console, app only |
+| `color.console` | `--color-console-*` (`bg-console-base`…) | The always-dark bot page notices, app only |
 | `color.partner` | `--twitch`, `--twitch-hover` (`bg-twitch`) | Twitch purple, for Twitch actions only |
 | `radius` | `--radius` + `--radius-{xs…4xl}` | App only, as offsets from `--radius` (12px) |
 | `font.size`, `font.lineHeight` | `--text-2xs`, `--text-3xs` | Steps Tailwind doesn't ship; the rest are Tailwind's defaults, listed for reference |
@@ -140,6 +140,7 @@ Sources are relative to `apps/web/src/components/` unless they start with `apps/
 | `blocked-viewers-card.md` | Blocked Viewers Card | `bot-settings/blocked-viewers-card.tsx` |
 | `bot-account-card.md` | Bot Account Card | `bot-settings/bot-account-card.tsx` |
 | `bot-console-card.md` | Bot Console Card | `bot-settings/bot-console-card.tsx` |
+| `bot-page-handoff.md` | Bot Page Handoff | `bot-page-handoff.tsx` |
 | `bot-live-controls.md` | Bot Live Controls | `bot-settings/bot-live-controls.tsx` |
 | `bot-section-nav.md` | Bot Section Nav | `bot-settings/bot-section-nav.tsx` |
 | `bot-settings-skeleton.md` | Bot Settings Skeleton | `bot-settings-skeleton.tsx` |

@@ -13,6 +13,7 @@
 
 import { taskMessageFields } from "@/lib/message-fields";
 import { metaCommands, taskCommands, timerCommands } from "@/lib/command-rows";
+import { BotPageHandoffSkeleton } from "@/components/bot-page-handoff";
 import { CommandTable } from "@/components/bot-settings/command-table";
 import { SectionPlaceholder } from "@/components/progressive-section";
 import {
@@ -32,12 +33,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function BotConsoleBodySkeleton() {
   return (
     <>
-      {/* "<bot> chats in #<channel>", the bot page and dock URL rows, Open, "Where to keep it" */}
+      {/* "<bot> chats in #<channel>", then the widget / dock handoff with its Open button */}
       <Skeleton className="h-5 w-56" />
-      <Skeleton className="h-9 w-full" />
-      <Skeleton className="h-9 w-full" />
-      <Skeleton className="h-8 w-36" />
-      <Skeleton className="h-10.5 w-full rounded-xl" />
+      <BotPageHandoffSkeleton withAction />
     </>
   );
 }
@@ -195,7 +193,7 @@ function BotConsolePlaceholder() {
           <>
             The bot runs inside a browser page. Its URL is a secret: treat it like a stream key.
             <span className="mt-1 block font-medium text-foreground">
-              Runs only while the bot page is open in OBS or a browser tab.
+              Runs only while its widget or dock is open: in OBS, Moblin or a browser tab.
             </span>
           </>
         }

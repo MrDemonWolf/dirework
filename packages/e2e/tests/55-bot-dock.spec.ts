@@ -15,7 +15,7 @@ async function botToken(page: Page): Promise<string> {
   return body.result.data.botToken;
 }
 
-test("?view=dock renders the dock control panel; the default view stays the console", async ({
+test("?view=dock renders the dock control panel; the default view is the blank widget", async ({
   page,
 }) => {
   await signIn(page);
@@ -35,9 +35,12 @@ test("?view=dock renders the dock control panel; the default view stays the cons
     await expect(dock.getByRole("button", { name, exact: true })).toBeDisabled();
   }
 
+  // The default view is the blank widget: the same session, but only a screen-reader status
+  // and the tab title, and no controls.
   await page.goto(`/bot/${token}`);
-  await expect(page.getByRole("status")).toHaveText("Bot not connected");
-  await expect(page.getByRole("log", { name: "Activity log" })).toBeVisible();
+  await expect(page.getByRole("main", { name: "DireWork bot widget" })).toBeAttached();
+  await expect(page.getByRole("status")).toHaveText("DireWork bot: Bot not connected");
+  await expect(page).toHaveTitle("DireWork bot · Bot not connected");
   await expect(page.getByRole("main", { name: "DireWork bot dock" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Reconnect" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Pause", exact: true })).toHaveCount(0);

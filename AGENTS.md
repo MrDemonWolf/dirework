@@ -178,12 +178,18 @@ aliasable) but NOT alias targets; they are mod-only. `handleMessage` gates every
 and anything but a mod's `!unmute` while muted return silently, so they cost no write.
 `bot.ingest` returns `{ replies, muted }` (the post-command mute state, so the page's "Muted"
 status follows `!mute` without a request) and `bot.getSession` carries `muted` from its single
-bot_config read. Bot lives only while that page is open (OBS browser
-source, OBS custom browser dock, or pinned tab). `?view=dock` (`parseBotView` in
-`lib/bot-view.ts`) swaps the ~400×200 source layout for a narrow control panel
-(`bot-dock.tsx`: LED, mute state, last error, recent commands, Reconnect, command buttons)
-over the SAME session — no poll; Reconnect re-creates the session (one `getSession`, like a
-reload). The dock wears OBS Studio's Yami dark palette (`color.obs` tokens → `*-obs-*`
+bot_config read. Bot lives only while that page is open. Two views of ONE session
+(`parseBotView` in `lib/bot-view.ts`): the default is the **blank widget** — a transparent
+page that paints nothing (the `(bot)` layout forces `html,body` transparent like the
+overlays; the dock and the notices paint their own background), so it can sit on any OBS
+browser source or Moblin browser widget scene; its state goes only to `document.title`
+(`botPageTitle`: "DireWork bot · Connected" / "· Muted" / "· Action needed") and an sr-only
+live region, and even the terminal phases (`revoked`, `reauth`, `invalid`) and the `(bot)`
+error boundary stay off the stream (sr-only `role="alert"`; the dock and Dashboard → Bot
+show them). `?view=dock` is the visible control panel for an OBS custom browser dock or a
+pinned tab (`bot-dock.tsx`, a centered `max-w-md` column on the OBS grey: LED, mute state,
+last error, recent commands, Reconnect, command buttons) over the SAME session — no poll;
+Reconnect re-creates the session (one `getSession`, like a reload). The dock wears OBS Studio's Yami dark palette (`color.obs` tokens → `*-obs-*`
 classes) in every app theme. Its command buttons (`lib/bot-dock-commands.ts`: Start/Pause/
 Resume/Skip/Reset, Mute/Unmute, Clear done; Reset and Clear done confirm) add NO server
 surface: `session.runCommand(line)` sends the chat line (`!timer pause`, `!mute`,
@@ -195,7 +201,13 @@ claim. Replies are shown in the dock, never `client.say`'d. One request per clic
 guard disables every button while one is in flight); while muted only Unmute is enabled; with
 no `broadcasterId` (an older api worker) the buttons stay off. A closed OBS dock destroys the page (stops the
 bot); a tabbed one keeps running. The setup checklist's bot step and Bot settings' "Run the bot"
-card hand out both URLs.
+card hand the URL out through ONE component, `components/bot-page-handoff.tsx`: a "How will
+you run the bot?" segmented radiogroup (Base UI `radio-group`; "Widget" / "Dock / browser
+tab", copy and steps in the pure `lib/bot-run-modes.ts`), then a single `SecretUrlRow` for the
+chosen view under a visible "Widget URL" / "Dock URL" label (keyed on the view, so a switch
+never reads as a reset), and that view's steps — never two look-alike masked rows. The pick is
+per-browser localStorage (`dirework.bot-view`, default widget on SSR/hydration). The card adds
+Reset (one token: "Reset both bot page URLs?") and "Open widget" / "Open dock".
 Chat token comes from `bot.getSession` (server refreshes it; the
 refresh token and client secret never reach the browser). Each PRIVMSG's IRC `id` tag is
 forwarded as `messageId` and, once it resolves to an enabled Dirework command, claimed in
@@ -343,7 +355,7 @@ entry with a functional `setQueryData` (optimistic; rollback restores just that 
 snapshot), never cancels an in-flight `user.me` fetch (an overlay reset's refetch carries
 the rotated token), and refetches once only if such a fetch overlapped or the write failed
 (`shouldRefreshMeAfterConfirm`); the checklist never polls, and the bot page URL
-(`bot.getIngestInfo`) loads only while step 2 is open. Step handoffs reuse `SecretUrlRow`
+(`bot.getIngestInfo`) loads only while step 2 is open (step 2 is `BotPageHandoff`). Step handoffs reuse `SecretUrlRow`
 without its Reset action (omit `onRegenerate`). "Finish later" is per-browser localStorage
 (`dirework.setup-collapsed`); the header band's Setup button reopens the card.
 
@@ -799,8 +811,9 @@ idempotent, tokens never rotate).
 api worker from source and the web worker from its built bundle (`bun run build:worker` in
 apps/web first), both in local workerd on 127.0.0.1:3000/3001 over a fresh local D1 with every
 migration applied (`src/boot-api.ts`, `src/boot-web.ts`; the api runs behind `src/api-entry.ts`, the
-real app plus two test-only knobs production never has: the `e2e-delay` cookie that slows named
-procedures and a `/__e2e/requests` tally), signed in through the `DEV_LOGIN`
+real app plus test-only knobs production never has: the `e2e-delay` cookie that slows named
+procedures, a `/__e2e/requests` tally, and `/__e2e/bot-account` (POST seeds a fake connected
+bot account, DELETE removes it; `setBotAccount` in `tests/helpers.ts`)), signed in through the `DEV_LOGIN`
 bypass with a fixed test secret. One worker and serial specs (single-owner instance, one
 database). Spec files are numbered and run in order: `00-first-run` sees the fresh database
 (the claim page, then the first dev-login claims the instance), then `10-smoke`,
@@ -809,9 +822,12 @@ database). Spec files are numbered and run in order: `00-first-run` sees the fre
 paints no placeholder at the same request cost, even with every procedure slowed to a
 production-like 300ms; a slowed procedure shows only the placeholders
 of the sections or cards that read it, from the same one batch; a Bot settings sub-page switch
-costs no api request), `25-setup-checklist` (confirm/revert a step, Finish later), `30-timer` (Pomodoro start/stop and the ticking timer overlay; phase labels
+costs no api request), `25-setup-checklist` (confirm/revert a step, Finish later), `27-bot-page-handoff` (seeds a
+bot account, then removes it: the widget / dock choice in the checklist and the Run the bot
+card, one named URL row, arrow keys, the remembered pick, Open/Reset for the chosen view, axe
+on the connected Overview, phone width), `30-timer` (Pomodoro start/stop and the ticking timer overlay; phase labels
 come from `@dirework/api/config-defaults`), `40-theme-center`, `50-bot-settings`,
-`55-bot-dock` (`/bot/<token>?view=dock` renders the dock; the default view doesn't; a
+`55-bot-dock` (`/bot/<token>?view=dock` renders the dock; the default view is the blank widget; a
 button click sends one `bot.ingest` as the broadcaster, with getSession/ingest stubbed and the
 IRC socket held by `routeWebSocket`),
 `60-token-reset` (the old overlay URL blanks), `70-sign-out`, `80-a11y`, `90-mobile`. Every

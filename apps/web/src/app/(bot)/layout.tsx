@@ -1,15 +1,16 @@
 /**
- * Standalone chrome-less layout for the browser bot console — no app header,
- * nav, or footer. Like the (overlay) group, this renders inside the root
- * layout's <html>/<body>; it only pins the dark instrument-panel background
- * so the page never flashes the app theme. It deliberately does not load the
- * heading face: the console renders in the mono face, and only its rare
- * invalid-link/crash screens would use a heading, which fall back to the body
- * face (`--font-heading` in index.css) — so an OBS or pinned-tab startup never
- * downloads a font it won't show.
+ * Standalone chrome-less layout for the bot page — no app header, nav, or footer. Like the
+ * (overlay) group, this renders inside the root layout's <html>/<body>, and it paints no
+ * background: the default view is a blank widget composited onto a stream (an OBS browser
+ * source or a Moblin widget), whose canvas the <head> script (lib/theme-init.ts) marks
+ * transparent before the first paint. The dock and the notices paint their own. `dark` pins
+ * the dark tokens for those, so they never follow the app theme. It deliberately does not
+ * load the heading face: the dock renders in the body face, and only the rare notices use a
+ * heading, which falls back to the body face (`--font-heading` in index.css) — so a widget,
+ * dock or pinned-tab startup never downloads a font it won't show.
  */
 import "./bot-console.css";
 
 export default function BotLayout({ children }: { children: React.ReactNode }) {
-  return <div className="dark min-h-dvh bg-background text-foreground">{children}</div>;
+  return <div className="dark text-foreground">{children}</div>;
 }

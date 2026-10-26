@@ -28,6 +28,7 @@ page, so the URL stays hidden until explicitly revealed.
 | `onRegenerate` | `() => void` | Called after the reset confirm |
 | `regenerating` | `boolean` | Disables Reset and spins its icon |
 | `resetDescription` | `string` | What breaks when the URL is reset, shown in the dialog |
+| `resetTitle` | `string` | The dialog title when the reset reaches past this URL (`BotPageHandoff`: "Reset both bot page URLs?") |
 
 ## States
 
