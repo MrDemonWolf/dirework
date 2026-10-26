@@ -26,7 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MAX_TASK_LEN } from "@/lib/config-types";
 import { PANEL_HEADER_CLASS, PANEL_TITLE_CLASS } from "@/lib/panel-header";
 import { DASHBOARD_TASKS_POLL_MS, dashboardPollInterval } from "@/lib/poll-intervals";
-import { groupTasksByAuthor, toRestoreInput } from "@/lib/task-utils";
+import { canMarkTaskDone, groupTasksByAuthor, toRestoreInput } from "@/lib/task-utils";
 import { StatusChip } from "@/components/status-chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { describeTrpcError } from "@/lib/trpc-errors";
@@ -423,7 +423,7 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
                               onClick={() => {
                                 // aria-disabled doesn't block clicks, so guard here:
                                 // done rows and an in-flight markDone are no-ops.
-                                if (!(isActive || task.status === "pending")) return;
+                                if (!canMarkTaskDone(task.status)) return;
                                 if (markDone.isPending && markDone.variables?.id === task.id)
                                   return;
                                 markDone.mutate({ id: task.id });

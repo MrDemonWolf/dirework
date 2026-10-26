@@ -848,6 +848,34 @@ describe("bot.ingest task commands end to end", () => {
     ]);
   });
 
+  it("!edit N and !done N reach a task parked as started by !focus", async () => {
+    await seedTwo();
+    await say("!focus 2");
+    expect(await viewerTasks()).toMatchObject([
+      { text: "first thing", status: "started" },
+      { text: "second thing", status: "active" },
+    ]);
+
+    expect((await say("!edit 1 renamed")).replies).toEqual([
+      reply(T.taskEdited, { task: "renamed" }),
+    ]);
+    expect((await say("!done 1")).replies).toEqual([reply(T.taskDone, { task: "renamed" })]);
+    expect(await viewerTasks()).toMatchObject([
+      { text: "renamed", status: "done" },
+      { text: "second thing", status: "active" },
+    ]);
+  });
+
+  it("!remove N removes a started task and leaves the focus", async () => {
+    await seedTwo();
+    await say("!focus 2");
+
+    expect((await say("!remove 1")).replies).toEqual([
+      reply(T.taskRemoved, { task: "first thing" }),
+    ]);
+    expect(await viewerTasks()).toMatchObject([{ text: "second thing", status: "active" }]);
+  });
+
   it("!remove, !focus and !edit accept a #-prefixed number", async () => {
     await seedTwo();
 

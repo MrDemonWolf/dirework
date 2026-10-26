@@ -1026,6 +1026,24 @@ describe("dashboard stats against real SQLite", () => {
     expect(after.week.tasksDone).toBe(1);
   });
 
+  it("task.markDone completes a task parked as started by a focus switch", async () => {
+    const { db, owner } = await claimedInstance();
+    const first = await owner.task.create({ text: "first" });
+    const second = await owner.task.create({ text: "second" });
+    await owner.task.activate({ id: second?.id ?? "" });
+    const parked = await db.query.task.findFirst({
+      where: (t, { eq }) => eq(t.id, first?.id ?? ""),
+    });
+    expect(parked?.status).toBe("started");
+
+    expect(await owner.task.markDone({ id: first?.id ?? "" })).toMatchObject({ status: "done" });
+    const focus = await db.query.task.findFirst({
+      where: (t, { eq }) => eq(t.id, second?.id ?? ""),
+    });
+    expect(focus?.status).toBe("active");
+    expect((await owner.stats.summary()).today.tasksDone).toBe(1);
+  });
+
   it("stats.summary counts phases that ended while nobody was watching", async () => {
     const { db, owner } = await claimedInstance();
     // A work phase that ended a minute ago, never advanced by any poll.
