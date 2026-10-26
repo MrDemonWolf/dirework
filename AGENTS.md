@@ -326,7 +326,7 @@ Web app: `@/` → `apps/web/src/`. Internal packages: `@dirework/api`, `@direwor
 
 ### tRPC / API layer
 
-Routers in `packages/api/src/routers/` (`user`, `task`, `timer`, `config`, `overlay`, `bot`).
+Routers in `packages/api/src/routers/` (`user`, `task`, `timer`, `config`, `overlay`, `bot`, `stats`).
 Three tiers: `publicProcedure` (overlays + bot page, token-gated),
 `protectedProcedure` (valid session), and **`ownerProcedure`** (session AND
 `user.isOwner`, fails closed with FORBIDDEN). Every dashboard/config/task/timer/
@@ -372,6 +372,31 @@ array length. The overlay skips done rows entirely (count only) when `showDone` 
 `createTask`, `markTaskDone`, `replaceActiveTask`, `startTimer`, `resetTimer` — never on a
 poll. A test asserts via EXPLAIN QUERY PLAN that none of these queries full-scans.
 
+**Dashboard stats** (`services/stats-service.ts`, pure calendar math in `stats-days.ts`):
+`daily_stat` holds one row per owner-local day (`"YYYY-MM-DD"` in
+`instance_config.time_zone`, UTC when null). It is written ONLY as a side effect of writes
+that already happen, as `INSERT … ON CONFLICT(day) DO UPDATE SET x = x + excluded.x`:
+`maybeAdvanceOverdueTimer` records the work phases `catchUpOverdue` walked past (full length +
+1 pomodoro each, on the day each phase ENDED) only when its guarded CAS returned a row, so two
+pollers can't double count and a poll with nothing overdue reads/writes nothing extra (the zone
+is read beside `timer_config`, only once a timer is overdue); `skipTimerWithResult` /
+`resetTimer` (now a guarded CAS after a catch-up) credit `workedMs` (length minus remaining,
+so paused time never counts; never a pomodoro). Task completions (`completeTask`,
+`completeActiveTask`, `replaceActiveTask`) put `countTaskDoneStmt` in the SAME `db.batch`
+right after the guarded done UPDATE; it counts only if `changes() > 0` and the row carries
+that UPDATE's exact `completed_at`, so a repeat "done" or `task.restore` never counts twice.
+`tasks_done_chat` = author is not the owner, decided in SQL (owner twitch_id, Twitch account
+id or user id). Recording is best-effort (never fails a poll or chat command).
+`pruneDailyStats` (PK range DELETE, > `STATS_RETENTION_DAYS` = 400) runs in `startTimer`.
+`stats.summary` (ownerProcedure) reads ≤35 rows by PK range (this week + 4 before it) and
+returns today, this week (`focusDays`), a week streak (`capped` when it reaches the window
+start, shown "5+") and 14 daily buckets; it rides `streamDashboard`'s one batch and is never
+polled — the dashboard's `useStatsRefresh` (a QueryCache subscription, not an observer)
+invalidates it when the timer poll sees a status change or `task.list`'s `counts.done`
+rises. `user.setTimeZone` (guarded UPDATE, `is not`) is sent once by `useTimeZoneSync` when
+`me.timeZone` differs from the browser's zone. UI: `components/dashboard-stats.tsx`
+(`StatTiles` strip under the greeting, `FocusChart` inline SVG under the timer digits).
+
 **Task mutations are atomic.** `activateTask` / `markTaskDone` run their
 multi-step work in ONE `db.batch` (atomic on D1), `promoteNextPending` is a
 single guarded UPDATE with a subquery, and a **partial unique index**
@@ -386,7 +411,7 @@ a removed `active` task comes back `pending` if removal promoted another, so the
 single-active index holds. Owner action, so no viewer caps apply.
 
 **Services own mutations** (`packages/api/src/services/`): `task-service`, `timer-service`,
-`overlay-service`, `bot-moderation`, `twitch-auth`, `tokens`, `singleton`, `provision`. Both tRPC routers and
+`overlay-service`, `bot-moderation`, `stats-service`, `twitch-auth`, `tokens`, `singleton`, `provision`. Both tRPC routers and
 `bot.ingest` call the same service functions — never duplicate mutation logic in a router
 or command handler (audit M1). Pure logic (timer-logic.ts, config-shared.ts, services)
 must not import `@dirework/env/server` — Vitest runs in Node and cannot resolve
@@ -423,8 +448,9 @@ best-effort inside `REVOKE_BUDGET_MS` (shared with `disconnectBotAccount`, under
 
 Schema split: `auth.ts` (Better Auth tables), `app.ts` (instanceConfig, botAccount, task,
 timerState, timerConfig, timerStyle, taskStyle, botConfig,
-processedChatMessage), `index.ts` (relations). `instanceConfig` holds the three tokens,
-the cached `channelLogin`, and the dashboard setup checklist flags
+processedChatMessage, dailyStat), `index.ts` (relations). `instanceConfig` holds the three tokens,
+the cached `channelLogin`, the owner's IANA `timeZone` (nullable, `0020_daily_stats`; see
+Dashboard stats), and the dashboard setup checklist flags
 `setupBotSourceConfirmed` / `setupTimerOverlayConfirmed` / `setupTasksOverlayConfirmed`
 (`integer({mode:"boolean"})`, NOT NULL default false; added expand-only by
 `0018_setup_confirmations`), which only `user.confirmSetupStep` writes. `botConfig.muted`
@@ -818,7 +844,7 @@ bypass with a fixed test secret. One worker and serial specs (single-owner insta
 database). Spec files are numbered and run in order: `00-first-run` sees the fresh database
 (the claim page, then the first dev-login claims the instance), then `10-smoke`,
 `15-landing` (the viewer landing: claimed notice + deploy link, docs links, no `/rpc`),
-`20-dashboard`, `22-progressive` (a fast hard load of `/dashboard` or `/dashboard/bot`
+`20-dashboard` (incl. the stats strip counting a finished task without a reload), `22-progressive` (a fast hard load of `/dashboard` or `/dashboard/bot`
 paints no placeholder at the same request cost, even with every procedure slowed to a
 production-like 300ms; a slowed procedure shows only the placeholders
 of the sections or cards that read it, from the same one batch; a Bot settings sub-page switch
