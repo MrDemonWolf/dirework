@@ -652,7 +652,14 @@ are thin wrappers over `theme-center/style-sections-editor.tsx`, which renders
 `TIMER_STYLE_FIELDS` / `TASK_STYLE_FIELDS` from `lib/style-sections.ts`: every style leaf
 path has exactly one field and one section (Colors · Typography · Layout · Opacity; Colors
 opens first) plus a `group` (fieldset legend). `style-sections.test.ts` holds both lists to
-`leafPaths(DEFAULT_*_STYLES)`, so a new style key must get a field. `SectionGroup` takes a
+`leafPaths(DEFAULT_*_STYLES)`, so a new style key must get a field. Rows are
+`theme-center/field-row.tsx`: label (plus an optional one-line `hint` from the field list)
+on the left, every control in ONE fixed `w-44` column right after it — a color is one
+bordered field (swatch square + hex), a length one mono field showing its own unit (no
+unit label; ArrowUp/Down nudge a single length via `stepLength` in `lib/style-fields.ts`).
+Each group fieldset caps at `max-w-md` and the groups flow into two CSS columns from the
+`@2xl` container width (a container query: the editor's width depends on the preview rail,
+not the viewport). `SectionGroup` takes a
 `menu` (rendered beside, not inside, the toggle button); each section's menu "Reset section"
 → `resetSection` (to the Default preset's values), and the page's "Theme options" menu →
 "Reset theme to Default"; both confirm and only change the draft.

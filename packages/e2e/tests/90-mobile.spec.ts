@@ -120,6 +120,37 @@ test("every Bot settings page fits a phone and the sub-nav reaches each one", as
   }
 });
 
+test("the style editor rows fit a 320px phone with 44px touch controls", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  await signIn(page);
+  await page.goto("/dashboard/styles");
+  await expect(page.getByRole("radiogroup", { name: "Theme presets" })).toBeVisible();
+  for (const section of ["Typography", "Layout", "Opacity"]) {
+    await page.getByRole("button", { name: section, exact: true }).click();
+  }
+  const widths = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    client: document.documentElement.clientWidth,
+  }));
+  expect(widths.scroll, "style editor wider than the viewport").toBeLessThanOrEqual(widths.client);
+
+  // A coarse pointer gets 44px targets: a color field, a length, a font.
+  const colorField = page.getByRole("textbox", { name: "Track", exact: true }).locator("..");
+  const controls = [
+    colorField,
+    page.getByRole("textbox", { name: "Time", exact: true }),
+    page.getByRole("combobox", { name: "Font family" }),
+  ];
+  for (const control of controls) {
+    const box = await control.boundingBox();
+    expect(box?.height ?? 0, String(control)).toBeGreaterThanOrEqual(43.5);
+  }
+  // The swatch fills the color field's left square, inside its 1px border.
+  const swatch = await page.getByLabel("Track color picker").boundingBox();
+  expect(swatch?.width ?? 0).toBeGreaterThanOrEqual(43.5);
+  expect(swatch?.height ?? 0).toBeGreaterThanOrEqual(41.5);
+});
+
 test("on a phone the Save bar stacks its buttons under the status", async ({ page }) => {
   await signIn(page);
   await page.goto("/dashboard/bot/replies");

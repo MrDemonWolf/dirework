@@ -18,10 +18,14 @@ to the list, not by new markup.
 - One `SectionGroup` per entry of `STYLE_SECTIONS`, in that order; Colors opens by default.
 - Inside a section, rows are grouped by the overlay part they style (`field.group`, in
   first-appearance order), each group a `<fieldset>` with a `<legend>` ("Header",
-  "Progress ring"…).
+  "Progress ring"…): `text-sm` semibold over a full-width `border-border` rule.
+- Groups sit in an `@container`: one column capped at `max-w-md`, and from `@2xl` (the
+  editor column at least 42rem wide, whatever the viewport) two CSS columns (`gap-8`) with
+  `break-inside-avoid`, so groups balance down two columns and never split.
 - Each row is the control for its `field.kind`: `ColorInput` (color), `OpacitySliderRow`
-  (opacity), `TextFieldRow` (length, text), `SliderRow` (slider), `SwitchRow` (switch),
-  `FontSelect` (font), plus an optional muted note under it (`field.note`).
+  (opacity), `TextFieldRow` (length — `steppable` — and text), `SliderRow` (slider),
+  `SwitchRow` (switch), `FontSelect` (font), each with `field.hint` (a string, or a
+  function of the styles) as the line under its label.
 - A section menu (`DropdownMenu` on a ghost icon `Button`) with one item, "Reset section".
 - One shared `ConfirmDialog` for the reset.
 
@@ -37,7 +41,9 @@ to the list, not by new markup.
 | `overlayName` | `string` | "timer" or "task list", used in the reset confirmation copy |
 
 Per field: `hidden(styles)` drops a row (the bullet rows while checkboxes are on),
-`disabled(styles)` greys a slider (the scroll sliders while scrolling is off), `note(styles)` adds a hint line.
+`disabled(styles)` greys a slider (the scroll sliders while scrolling is off), `hint` is a
+one-line description of what the field changes (only where the label can't say it), or a
+function of the styles returning one or null (the Checkboxes row's bullet note).
 
 ## States
 
