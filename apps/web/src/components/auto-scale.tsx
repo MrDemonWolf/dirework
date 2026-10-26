@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 /**
  * Scales a fixed-size child up/down to fill its parent while preserving aspect
@@ -8,6 +8,10 @@ import { useEffect, useRef, useState } from "react";
  * so on a large OBS browser source it would otherwise sit tiny in the corner.
  * `offsetWidth/Height` report the pre-transform layout size, so measuring the
  * child is unaffected by the scale we apply back to it.
+ *
+ * The child stays hidden until the first measurement, which runs before paint: an
+ * unscaled frame would show a large child (the Theme Center's 1920 × 1080 scene)
+ * cropped at full size, in the server HTML and for a frame on every mount.
  */
 export function AutoScale({
   children,
@@ -18,9 +22,9 @@ export function AutoScale({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const childRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState<number | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const container = containerRef.current;
     const child = childRef.current;
     if (!container || !child) return;
@@ -46,7 +50,14 @@ export function AutoScale({
       ref={containerRef}
       className="flex h-full w-full items-center justify-center overflow-hidden"
     >
-      <div ref={childRef} style={{ transform: `scale(${scale})`, transformOrigin: "center" }}>
+      <div
+        ref={childRef}
+        style={{
+          transform: `scale(${scale ?? 1})`,
+          transformOrigin: "center",
+          visibility: scale === null ? "hidden" : undefined,
+        }}
+      >
         {children}
       </div>
     </div>

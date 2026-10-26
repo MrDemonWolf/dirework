@@ -634,12 +634,19 @@ a page never writes another page's draft. Each page with a draft mounts its own
 "2 · Customize" — the editor column (`lg:flex-1`) beside a sticky `lg:w-96` preview rail (capped
 above the Save bar via `--save-bar-clearance`). The preview is first in the DOM
 (`lg:flex-row-reverse`): below lg it is a sticky bar under the header with a Show/Hide button
-(collapsed by default, compact `max-w-64` canvas when open). No entrance animation: the page
+(collapsed by default; when open the 16:9 scene spans the bar, a close-up is capped at
+`max-w-64`). No entrance animation: the page
 arrives finished (shell hold, above). The preview (`theme-center/style-preview-panel.tsx`) renders the REAL
 `TimerDisplay` / `TaskListDisplay` client-side (no polling) over `lib/preview-session.ts` —
-`DEMO_SESSION`'s tasks and countdown, so the preview, landing and docs agree. One overlay at
-a time (`aria-pressed` "Preview timer" / "Preview tasks"), both scaled with `AutoScale` (tasks
-drawn at the 700×800 source). Backdrops dark / light / bright / checker are CSS classes in
+`DEMO_SESSION`'s tasks and countdown, so the preview, landing and docs agree. It is a 16:9
+stream canvas: a 1920×1080 logical scene (`STREAM_CANVAS`) scaled down whole with
+`AutoScale`, both overlays at true size and a usual spot (`previewSceneLayout`: tasks on the
+700×800 source down the left, the timer top right on a source sized to its `dimensions` via
+`timerSourceSize`, 300×300 for `%`/`vw` lengths), each source's inner markup matching its
+overlay page. "Preview timer" / "Preview tasks" (`aria-pressed`) select a source (an
+`outline-link` outline outside its box, as in OBS); the toolbar UNDER the canvas holds
+Play/Pause, the size readout and the "Close-up" toggle (the selected source alone, shaped to
+its aspect). Nothing is drawn over the canvas. Backdrops dark / light / bright / checker are CSS classes in
 `index.css` (`preview-scene-*`, `bg-checker`), deliberately outside the palette. The preview's
 header chip is the page's dirty indicator ("Previewing unsaved changes" / "Matches the saved
 theme"); `SaveBar` takes `label` and `saveHint` (Theme Center: "Unsaved — not on stream yet",
