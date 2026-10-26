@@ -116,6 +116,25 @@ export const taskMessageFields = [
     group: "Errors & limits",
   },
   { key: "notMod", label: "Not a mod", variables: ["user"], group: "Errors & limits" },
+  {
+    key: "notFollower",
+    label: "Followers only",
+    variables: ["user"],
+    group: "Who can add tasks",
+  },
+  {
+    key: "followCheckFailed",
+    label: "Follow check failed",
+    variables: ["user"],
+    group: "Who can add tasks",
+  },
+  {
+    key: "notSubscriber",
+    label: "Subscribers only",
+    variables: ["user"],
+    group: "Who can add tasks",
+  },
+  { key: "notVip", label: "VIPs and mods only", variables: ["user"], group: "Who can add tasks" },
 ] as const satisfies readonly MessageField<keyof TaskMessagesConfig>[];
 
 /** Fields for the timer message set, in display order. */
@@ -146,6 +165,7 @@ export const TASK_MESSAGE_GROUP_COMMANDS: Record<
   "Starting & pausing": "!start !pause",
   "Editing & removing": "!edit !remove !clear",
   "Errors & limits": "any task command",
+  "Who can add tasks": "!task !next",
 };
 
 export const TIMER_MESSAGE_GROUP_COMMANDS: Record<

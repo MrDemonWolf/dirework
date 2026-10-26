@@ -128,6 +128,7 @@ export const configRouter = router({
           taskCommandsEnabled: input.taskCommandsEnabled,
           timerCommandsEnabled: input.timerCommandsEnabled,
           commandAliases: input.commandAliases,
+          taskAccess: input.taskAccess,
           ...(input.task ? flattenWithFieldMap(TASK_MESSAGE_FIELDS, input.task) : {}),
           ...(input.timer ? flattenWithFieldMap(TIMER_MESSAGE_FIELDS, input.timer) : {}),
         }),

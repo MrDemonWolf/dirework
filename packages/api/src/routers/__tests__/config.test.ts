@@ -23,7 +23,10 @@ type BotConfigRow = Parameters<typeof buildBotConfig>[0];
 type TaskKey = keyof typeof TASK_MESSAGE_FIELDS;
 type TimerKey = keyof typeof TIMER_MESSAGE_FIELDS;
 
-/** Replies whose column default was written with the current wording (0022_start_pause_replies). */
+/**
+ * Replies whose column default was written with the current wording
+ * (0022_start_pause_replies, 0025_task_access).
+ */
 const NEW_COLUMN_WORDING = new Set<TaskKey>([
   "taskStarted",
   "taskStartedFocus",
@@ -31,6 +34,10 @@ const NEW_COLUMN_WORDING = new Set<TaskKey>([
   "noTaskToStart",
   "taskPaused",
   "noTaskToPause",
+  "notFollower",
+  "notSubscriber",
+  "notVip",
+  "followCheckFailed",
 ]);
 
 /** A full bot_config row whose every message is the owner's own text. */
@@ -291,6 +298,11 @@ describe("buildBotConfig", () => {
     msgNoTaskToStart: "s4",
     msgTaskPaused: "s5",
     msgNoTaskToPause: "s6",
+    msgNotFollower: "f1",
+    msgNotSubscriber: "f2",
+    msgNotVip: "f3",
+    msgFollowCheckFailed: "f4",
+    taskAccess: "followers" as const,
     msgNotRunning: "w5",
     msgWrongCommand: "w7",
     msgTimerRunning: "w8",
@@ -309,11 +321,22 @@ describe("buildBotConfig", () => {
     expect(result.task.help).toBe("r");
     expect(result.task.taskStarted).toBe("s1");
     expect(result.task.noTaskToPause).toBe("s6");
-    expect(Object.keys(result.task)).toHaveLength(24);
+    expect(result.task.notFollower).toBe("f1");
+    expect(result.task.followCheckFailed).toBe("f4");
+    expect(Object.keys(result.task)).toHaveLength(28);
+    expect(result.taskAccess).toBe("followers");
     expect(result.timer.notRunning).toBe("w5");
     expect(result.timer.eta).toBe("w14");
     // Only the 6 timer messages with a real emit site survive the P1 cleanup.
     expect(Object.keys(result.timer)).toHaveLength(6);
+  });
+
+  it("reads an unknown task_access value as everyone", () => {
+    const result = buildBotConfig({
+      ...fakeBotConfig,
+      taskAccess: "friends" as unknown as "everyone",
+    });
+    expect(result.taskAccess).toBe("everyone");
   });
 
   it("passes the moderation columns through and coerces a malformed block list to []", () => {

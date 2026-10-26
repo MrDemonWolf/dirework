@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 
 import {
+  DEFAULT_TASK_ACCESS,
   PHASE_LABEL_COLUMN_DEFAULTS,
   TASK_MESSAGE_COLUMN_DEFAULTS,
   TASK_STYLE_COLUMN_DEFAULTS,
@@ -10,6 +11,7 @@ import {
   TIMER_MESSAGE_COLUMN_DEFAULTS,
   TIMER_STATUSES,
   TIMER_STYLE_COLUMN_DEFAULTS,
+  type TaskAccessLevel,
 } from "../defaults";
 
 // Singleton pattern: one row per table, primary key pinned to "singleton".
@@ -146,6 +148,21 @@ export const processedChatMessage = sqliteTable(
     // it scans every row still in the window, so a busy chat pays quadratically.
     index("processed_chat_message_processed_at_idx").on(table.processedAt),
   ],
+);
+
+// Follow lookups for the "Followers" task access level: one row per viewer, written only
+// when bot.ingest asked Twitch (a task-creating command from a viewer with no fresh row).
+// A follow is trusted for FOLLOWER_CACHE_MS, a "not following" for NOT_FOLLOWER_CACHE_MS
+// (packages/api/src/services/follower-check.ts). Rows past the longer TTL are pruned by the
+// same batch that writes one, through the checked_at index.
+export const followerCheck = sqliteTable(
+  "follower_check",
+  {
+    twitchId: text("twitch_id").primaryKey(),
+    following: integer("following", { mode: "boolean" }).notNull(),
+    checkedAt: integer("checked_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [index("follower_check_checked_at_idx").on(table.checkedAt)],
 );
 
 // Dashboard stats: one row per local day (the owner's `time_zone`, else UTC),
@@ -414,6 +431,9 @@ export const botConfig = sqliteTable("bot_config", {
   // list with guarded JSON1 UPDATEs, never a read-modify-write.
   muted: integer("muted", { mode: "boolean" }).notNull().default(false),
   blockedViewers: text("blocked_viewers", { mode: "json" }).$type<string[]>().notNull().default([]),
+  // Who may add tasks from chat (0025_task_access, expand-only). Read from the row
+  // bot.ingest already loads; an unknown value reads back as "everyone".
+  taskAccess: text("task_access").$type<TaskAccessLevel>().notNull().default(DEFAULT_TASK_ACCESS),
   msgTaskAdded: text("msg_task_added").notNull().default(TASK_MESSAGE_COLUMN_DEFAULTS.taskAdded),
   msgNoTaskAdded: text("msg_no_task_added")
     .notNull()
@@ -467,6 +487,17 @@ export const botConfig = sqliteTable("bot_config", {
   msgNoTaskToPause: text("msg_no_task_to_pause")
     .notNull()
     .default(TASK_MESSAGE_COLUMN_DEFAULTS.noTaskToPause),
+  // "Who can add tasks" refusals (0025_task_access, expand-only).
+  msgNotFollower: text("msg_not_follower")
+    .notNull()
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.notFollower),
+  msgNotSubscriber: text("msg_not_subscriber")
+    .notNull()
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.notSubscriber),
+  msgNotVip: text("msg_not_vip").notNull().default(TASK_MESSAGE_COLUMN_DEFAULTS.notVip),
+  msgFollowCheckFailed: text("msg_follow_check_failed")
+    .notNull()
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.followCheckFailed),
   msgNotRunning: text("msg_not_running")
     .notNull()
     .default(TIMER_MESSAGE_COLUMN_DEFAULTS.notRunning),

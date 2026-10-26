@@ -163,7 +163,7 @@ This prevents the bot from being rate-limited when sending messages.
 5. Authorize the app
 6. You'll be redirected back to Bot settings (`/dashboard/bot?bot=connected`) with a success message
 
-The bot will have `chat:read` and `chat:edit` permissions (plus the Helix chat scopes `user:read:chat` and `user:write:chat`) — enough to read messages and respond to commands.
+The bot will have `chat:read` and `chat:edit` permissions (plus the Helix chat scopes `user:read:chat` and `user:write:chat`) — enough to read messages and respond to commands — and `moderator:read:followers` and `moderation:read` for the follower and ban checks below.
 
 <Callout>
   **One more thing before the bot talks:** the bot runs in a token-gated browser page,
@@ -237,6 +237,8 @@ DireWork requests specific OAuth scopes for each connection type:
 | **Streamer login** | `openid` | Authentication, profile info (no email) |
 | **Bot account** | `chat:read`, `chat:edit` | Read and send chat messages over IRC (the connection the bot page actually uses) |
 | **Bot account** | `user:read:chat`, `user:write:chat` | Helix chat API equivalents — reserved for a future move to Helix sends |
+| **Bot account** | `moderator:read:followers` | Check whether a viewer follows you, for **Who can add tasks → Followers**. Twitch answers only when the bot is a mod in your chat |
+| **Bot account** | `moderation:read` | Confirm a ban still stands before ban cleanup removes a viewer's tasks. Twitch answers only for the channel's own account, so this is used only when the bot account IS your streamer account |
 
 <Callout>
   You don't need to configure scopes manually — DireWork requests them automatically during the OAuth flow. The scopes are minimal by design: only what's needed for the bot to read and write chat messages.
@@ -246,6 +248,13 @@ DireWork requests specific OAuth scopes for each connection type:
   **Connected your bot before `chat:read`/`chat:edit` were added?** Existing tokens don't
   gain scopes automatically — disconnect the bot account and connect it again to pick up
   the new scopes.
+</Callout>
+
+<Callout>
+  **Connected your bot before the follower and ban checks?** It keeps working exactly as
+  before. Only **Who can add tasks → Followers** (and, for a bot that is your own account,
+  confirming bans) needs the new permissions: click **Reconnect the bot** where Bot settings
+  asks, or **Connect bot account** again with the same account. One reconnect covers both.
 </Callout>
 
 ### If connection fails

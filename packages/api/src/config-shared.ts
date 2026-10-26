@@ -12,6 +12,8 @@ import type { BotConfig, TaskStyle, TimerConfig, TimerStyle } from "@dirework/db
 
 import type { TimerStatus } from "@dirework/db/defaults";
 
+import { readTaskAccess, type TaskAccessLevel } from "./bot-permissions";
+
 import {
   ALIAS_MAX_LENGTH,
   isBuiltinCommandName,
@@ -419,6 +421,10 @@ export const TASK_MESSAGE_FIELDS = {
   noTaskToStart: "msgNoTaskToStart",
   taskPaused: "msgTaskPaused",
   noTaskToPause: "msgNoTaskToPause",
+  notFollower: "msgNotFollower",
+  notSubscriber: "msgNotSubscriber",
+  notVip: "msgNotVip",
+  followCheckFailed: "msgFollowCheckFailed",
 } as const satisfies Record<string, keyof BotConfig>;
 
 // Only messages with a real emit site in bot/commands.ts belong here — see the
@@ -492,6 +498,8 @@ export interface BotConfigData {
   muted: boolean;
   /** Lowercase Twitch logins whose commands are ignored. */
   blockedViewers: string[];
+  /** Who may add tasks from chat (!task, !next). */
+  taskAccess: TaskAccessLevel;
   task: TaskMessagesConfig;
   timer: TimerMessagesConfig;
 }
@@ -736,6 +744,7 @@ export function buildBotConfig(bc: BotConfig): BotConfigData {
     blockedViewers: Array.isArray(bc.blockedViewers)
       ? bc.blockedViewers.filter((v): v is string => typeof v === "string")
       : [],
+    taskAccess: readTaskAccess(bc.taskAccess),
     task: limitTemplateRepeats(
       upgradeLegacyDefaults(
         buildFromFieldMap(TASK_MESSAGE_FIELDS, bc),

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BOT_STANDBY_MESSAGE } from "@dirework/api/bot-lease";
+import { BAN_CLEANUP_DELAY_MS } from "@dirework/api/bot-permissions";
 import { MAX_RELAYED_MESSAGE_LENGTH } from "@dirework/api/chat-text";
 import { BOT_REAUTH_REQUIRED_MESSAGE } from "@dirework/api/config-shared";
 
@@ -9,6 +10,9 @@ import { VIEWER_COMMAND_LIMIT, VIEWER_COMMAND_WINDOW_MS } from "../viewer-thrott
 
 import {
   AUTH_RECOVERY_DELAY_MS,
+  banCancelledMessage,
+  banCleanupMessage,
+  banScheduledMessage,
   MAX_AUTH_RECOVERY,
   MAX_PENDING_INGESTS,
   NOT_CONFIGURED_POLL_MS,
@@ -18,12 +22,13 @@ import {
   createBotSession,
   INGEST_DROPPED_MESSAGE,
   retryDelayMs,
+  timeoutKeptMessage,
   viewerThrottledMessage,
   type BotIngestInput,
   type BotIrcClient,
   type BotSessionApi,
 } from "../bot-session";
-import type { IrcChatMessage, IrcClientCallbacks } from "../irc-client";
+import type { IrcChatMessage, IrcClearChat, IrcClientCallbacks } from "../irc-client";
 
 function trpcError(code: string, message = code): Error {
   return Object.assign(new Error(message), { data: { code } });
@@ -47,8 +52,15 @@ function chat(message: string, overrides: Partial<IrcChatMessage> = {}): IrcChat
     message,
     isMod: false,
     isBroadcaster: false,
+    isVip: false,
+    isSubscriber: false,
     ...overrides,
   };
+}
+
+/** A permanent ban of `login` (CLEARCHAT with no ban-duration). */
+function ban(login: string, targetUserId = "77"): IrcClearChat {
+  return { targetUsername: login, targetUserId, permanent: true };
 }
 
 function setup(api: Partial<BotSessionApi> = {}) {
@@ -465,6 +477,8 @@ describe("createBotSession ingest", () => {
       message: "!task a",
       color: undefined,
       isMod: false,
+      isVip: false,
+      isSubscriber: false,
       messageId: "msg-1",
     });
     expect(client.say.mock.calls).toEqual([["ok !task a"], ["ok !done"]]);
@@ -604,19 +618,21 @@ describe("createBotSession ingest", () => {
     expect(client.say.mock.calls).toEqual([["second"]]);
   });
 
-  it("relays clearchat events and revokes on an UNAUTHORIZED ingest", async () => {
+  it("relays a ban's cleanup after the grace period and revokes on an UNAUTHORIZED ingest", async () => {
     const { ingest, events, callbacks } = setup();
     await vi.advanceTimersByTimeAsync(0);
     ingest.mockRejectedValueOnce(trpcError("UNAUTHORIZED"));
 
-    callbacks().onClearChat?.("troll");
-    await vi.advanceTimersByTimeAsync(0);
+    callbacks().onClearChat?.(ban("troll"));
+    await vi.advanceTimersByTimeAsync(BAN_CLEANUP_DELAY_MS);
 
     expect(ingest).toHaveBeenCalledWith({
       token: "bot-token",
       instanceId: PAGE_ID,
       kind: "clearchat",
       targetUsername: "troll",
+      targetUserId: "77",
+      verifyBan: true,
     });
     expect(phases(events)).toEqual(["live", "revoked"]);
 
@@ -635,6 +651,115 @@ describe("createBotSession ingest", () => {
     callbacks().onError?.("socket closed");
     expect(events.onIrcStatus).toHaveBeenCalledWith("reconnecting");
     expect(events.onActivity).toHaveBeenCalledWith("error", "socket closed");
+  });
+});
+
+describe("createBotSession ban cleanup", () => {
+  const cleanups = (ingest: ReturnType<typeof setup>["ingest"]) =>
+    ingest.mock.calls.filter(([input]) => input.kind === "clearchat");
+
+  it("ignores a timeout: no request, tasks stay", async () => {
+    const { ingest, events, callbacks } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+
+    callbacks().onClearChat?.({ targetUsername: "napper", targetUserId: "5", permanent: false });
+    await vi.advanceTimersByTimeAsync(BAN_CLEANUP_DELAY_MS * 2);
+
+    expect(cleanups(ingest)).toHaveLength(0);
+    expect(events.onActivity).toHaveBeenCalledWith("info", timeoutKeptMessage("napper"));
+  });
+
+  it("waits the full grace period before removing a banned viewer's tasks", async () => {
+    const { ingest, events, callbacks } = setup({
+      ingest: async () => ({ replies: [], banCleanup: { removed: 2, check: "unsupported" } }),
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    callbacks().onClearChat?.(ban("troll"));
+    expect(events.onActivity).toHaveBeenCalledWith("info", banScheduledMessage("troll"));
+    await vi.advanceTimersByTimeAsync(BAN_CLEANUP_DELAY_MS - 1);
+    expect(cleanups(ingest)).toHaveLength(0);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(cleanups(ingest)).toHaveLength(1);
+    expect(events.onActivity).toHaveBeenCalledWith(
+      "info",
+      banCleanupMessage("troll", { removed: 2, check: "unsupported" }),
+    );
+  });
+
+  it("sends one cleanup for repeated bans of the same viewer", async () => {
+    const { ingest, callbacks } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+
+    callbacks().onClearChat?.(ban("troll"));
+    await vi.advanceTimersByTimeAsync(60_000);
+    callbacks().onClearChat?.(ban("troll"));
+    callbacks().onClearChat?.(ban("other", "78"));
+    await vi.advanceTimersByTimeAsync(BAN_CLEANUP_DELAY_MS);
+
+    expect(
+      cleanups(ingest).map(([input]) => input.kind === "clearchat" && input.targetUsername),
+    ).toEqual(["troll", "other"]);
+  });
+
+  it("drops the cleanup when the viewer chats again (they were unbanned)", async () => {
+    const { ingest, events, callbacks } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+
+    callbacks().onClearChat?.(ban("viewer"));
+    await vi.advanceTimersByTimeAsync(60_000);
+    callbacks().onChat?.(chat("sorry about that"));
+    await vi.advanceTimersByTimeAsync(BAN_CLEANUP_DELAY_MS);
+
+    expect(cleanups(ingest)).toHaveLength(0);
+    expect(events.onActivity).toHaveBeenCalledWith("info", banCancelledMessage("viewer"));
+  });
+
+  it("logs a lifted ban the server confirmed with Twitch", async () => {
+    const { events, callbacks } = setup({
+      ingest: async () => ({ replies: [], banCleanup: { removed: 0, check: "not-banned" } }),
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    callbacks().onClearChat?.(ban("troll"));
+    await vi.advanceTimersByTimeAsync(BAN_CLEANUP_DELAY_MS);
+
+    expect(events.onActivity).toHaveBeenCalledWith(
+      "info",
+      banCleanupMessage("troll", { removed: 0, check: "not-banned" }),
+    );
+  });
+
+  it("skips a pending cleanup when the page closes inside the grace period", async () => {
+    const { session, ingest, callbacks } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+
+    callbacks().onClearChat?.(ban("troll"));
+    session.dispose();
+    await vi.advanceTimersByTimeAsync(BAN_CLEANUP_DELAY_MS);
+
+    expect(cleanups(ingest)).toHaveLength(0);
+  });
+
+  it("forwards the VIP and subscriber badges with each command", async () => {
+    const { ingest, callbacks } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+
+    callbacks().onChat?.(chat("!task a", { isVip: true, isSubscriber: true }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(ingest.mock.calls[0]?.[0]).toMatchObject({ isVip: true, isSubscriber: true });
+  });
+});
+
+describe("banCleanupMessage", () => {
+  it("words each server answer", () => {
+    expect(banCleanupMessage("t", undefined)).toBe("ban cleanup sent for t");
+    expect(banCleanupMessage("t", { removed: 0 })).toBe("t had no tasks to remove after their ban");
+    expect(banCleanupMessage("t", { removed: 1, check: "banned" })).toBe(
+      "removed t's tasks after their ban",
+    );
   });
 });
 
@@ -716,7 +841,7 @@ describe("createBotSession after revoke", () => {
     callbacks().onChat?.(chat("!task a", { displayName: undefined }));
     expect(events.onActivity).toHaveBeenCalledWith("chat", "viewer: !task a");
     ingest.mockRejectedValue(trpcError("UNAUTHORIZED"));
-    callbacks().onClearChat?.("troll");
+    callbacks().onClearChat?.(ban("troll"));
     await vi.advanceTimersByTimeAsync(REVALIDATE_INTERVAL_MS - 1000);
     callbacks().onAuthFailure?.();
     getSession.mockRejectedValue(trpcError("UNAUTHORIZED"));
@@ -731,7 +856,7 @@ describe("createBotSession after revoke", () => {
     events.onIrcStatus.mockClear();
     callbacks().onStatus?.("closed");
     callbacks().onAuthFailure?.();
-    callbacks().onClearChat?.("someone");
+    callbacks().onClearChat?.(ban("someone"));
     await vi.advanceTimersByTimeAsync(REVALIDATE_INTERVAL_MS + AUTH_RECOVERY_DELAY_MS);
 
     // Startup + the revalidation; the scheduled recovery never ran.
@@ -754,7 +879,7 @@ describe("createBotSession after revoke", () => {
     );
     callbacks().onChat?.(chat("!task a"));
     callbacks().onChat?.(chat("!done"));
-    callbacks().onClearChat?.("troll");
+    callbacks().onClearChat?.(ban("troll"));
     getSession.mockRejectedValue(trpcError("UNAUTHORIZED"));
     await vi.advanceTimersByTimeAsync(REVALIDATE_INTERVAL_MS);
 

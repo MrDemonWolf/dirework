@@ -170,15 +170,45 @@ export interface IrcChatMessage {
   color?: string;
   isMod: boolean;
   isBroadcaster: boolean;
+  /** `vip` tag or a `vip/` badge: "Who can add tasks" lets VIPs in from Subscribers up. */
+  isVip: boolean;
+  /** `subscriber` tag, or a `subscriber/` or `founder/` badge. */
+  isSubscriber: boolean;
   /** `id` tag — unique per PRIVMSG; lets the server dedupe multiple bot pages. */
   messageId?: string;
+}
+
+/** A per-user CLEARCHAT: a ban, or a timeout (which carries `ban-duration`). */
+export interface IrcClearChat {
+  /** Lowercase login from the trailing parameter. */
+  targetUsername: string;
+  /** `target-user-id` tag, when it is a Twitch user id. */
+  targetUserId?: string;
+  /** True for a ban; false for a timeout. */
+  permanent: boolean;
+}
+
+/** A CLEARCHAT's per-user details, or null for a full chat clear (no target). */
+export function parseClearChat(
+  trailing: string | null | undefined,
+  tags: ReadonlyMap<string, string>,
+): IrcClearChat | null {
+  const target = trailing?.trim().toLowerCase();
+  if (!target) return null;
+  const id = tags.get("target-user-id");
+  return {
+    targetUsername: target,
+    ...(id && /^\d{1,32}$/.test(id) ? { targetUserId: id } : {}),
+    // Twitch sets ban-duration (seconds) only on a timeout.
+    permanent: !tags.get("ban-duration"),
+  };
 }
 
 export interface IrcClientCallbacks {
   onStatus?: (status: IrcStatus) => void;
   onChat?: (message: IrcChatMessage) => void;
   /** CLEARCHAT with a target user (timeout/ban). Full chat clears are ignored. */
-  onClearChat?: (targetUsername: string) => void;
+  onClearChat?: (event: IrcClearChat) => void;
   onError?: (message: string) => void;
   /**
    * A queued reply was actually written to the socket as a PRIVMSG. `say()` only queues: the
@@ -477,8 +507,8 @@ export class TwitchIrcClient {
         // clear, which has no per-user meaning for us — ignored. A Shared
         // Chat partner channel's moderation is not ours to act on.
         if (isFromSharedChatPartner(msg.tags)) break;
-        const target = msg.trailing?.trim();
-        if (target) this.callbacks.onClearChat?.(target.toLowerCase());
+        const clear = parseClearChat(msg.trailing, msg.tags);
+        if (clear) this.callbacks.onClearChat?.(clear);
         break;
       }
 
@@ -545,6 +575,11 @@ export class TwitchIrcClient {
     const badges = msg.tags.get("badges") ?? "";
     const isBroadcaster = badges.includes("broadcaster/");
     const isMod = msg.tags.get("mod") === "1" || badges.includes("moderator/");
+    const isVip = msg.tags.has("vip") || badges.includes("vip/");
+    const isSubscriber =
+      msg.tags.get("subscriber") === "1" ||
+      badges.includes("subscriber/") ||
+      badges.includes("founder/");
 
     this.callbacks.onChat?.({
       username,
@@ -554,6 +589,8 @@ export class TwitchIrcClient {
       color: msg.tags.get("color") || undefined,
       isMod,
       isBroadcaster,
+      isVip,
+      isSubscriber,
       messageId: msg.tags.get("id") || undefined,
     });
   }

@@ -7,13 +7,13 @@ tokens: [color.scheme, radius, motion]
 
 ## Purpose
 
-The "Live controls" card on the Bot settings Overview (`/dashboard/bot`, `(sections)/overview-page.tsx`): the switches a streamer reaches for mid-stream (mute, Task commands, Timer commands) and the block list's size with a link to Moderation. Every switch saves the moment it flips; none of them is a draft, so nothing here goes through a Save bar.
+The "Live controls" card on the Bot settings Overview (`/dashboard/bot`, `(sections)/overview-page.tsx`): the switches a streamer reaches for mid-stream (mute, Task commands, Timer commands), who can add tasks, and the block list's size with a link to Moderation. Every switch saves the moment it flips; none of them is a draft, so nothing here goes through a Save bar.
 
 ## Anatomy
 
-- `Card.panel` header: `CardTitle` (h2) "Live controls", description "Each switch takes effect as soon as you flip it."
+- `Card.panel` header: `CardTitle` (h2) "Live controls", description "Each control takes effect as soon as you change it."
 - A hairline-divided list of rows; each row is a label (and, for mute, a small `StatusChip`), a one-line sentence under it, and the control at the right edge.
-- Rows: "Mute bot" (`config.setBotMuted`), "Task commands" and "Timer commands" (`useCommandGroupSwitch` from `lib/use-command-group-switch.ts`, which sends only that flag to `config.updateBotSettings`), "Blocked viewers" ("n of 200 blocked" + a "Manage" link to `/dashboard/bot/moderation`, no prefetch).
+- Rows: "Mute bot" (`config.setBotMuted`), "Task commands" and "Timer commands" (`useCommandGroupSwitch` from `lib/use-command-group-switch.ts`, which sends only that flag to `config.updateBotSettings`), "Who can add tasks" (a `Select`, `w-36`, of Everyone / Followers / Subscribers / VIPs and mods via `useTaskAccess` in `lib/use-task-access.ts`, which sends only `taskAccess`; at Followers with a bot that lacks the follower scope, a destructive `Callout` "Reconnect the bot to allow follower checks" links to `/api/bot/authorize`), "Blocked viewers" ("n of 200 blocked" + a "Manage" link to `/dashboard/bot/moderation`, no prefetch).
 
 ## Props and variants
 
@@ -23,6 +23,8 @@ The "Live controls" card on the Bot settings Overview (`/dashboard/bot`, `(secti
 | `taskCommandsEnabled` / `timerCommandsEnabled` | `boolean` | Live `config.get` values |
 | `blockedCount` | `number` | Length of the live block list |
 | `hasBotAccount` | `boolean` | Picks the mute chip copy (`botMuteStatus`) |
+| `taskAccess` | `TaskAccessLevel` | Live `config.get` value |
+| `followerCheckNeedsReconnect` | `boolean` | `user.me` bot account lacks `moderator:read:followers` |
 
 ## States
 

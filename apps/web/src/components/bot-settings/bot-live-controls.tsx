@@ -1,8 +1,8 @@
 "use client";
 
 // "Live controls" on the Bot settings Overview: the switches a streamer reaches for mid-stream
-// (mute, Task commands, Timer commands) and the block list's size. Every switch saves the
-// moment it flips (no Save bar). The mute chip reports the switch (Off, Muted, Unmuted),
+// (mute, Task commands, Timer commands), who can add tasks, and the block list's size. Every
+// control saves the moment it changes (no Save bar). The mute chip reports the switch (Off, Muted, Unmuted),
 // never that the bot is running: that depends on its bot page being open.
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -18,9 +18,24 @@ import {
   COMMAND_GROUP_LABEL,
   useCommandGroupSwitch,
 } from "@/lib/use-command-group-switch";
+import {
+  TASK_ACCESS_DESCRIPTION,
+  TASK_ACCESS_LABEL,
+  TASK_ACCESS_LEVELS,
+  type TaskAccessLevel,
+  useTaskAccess,
+} from "@/lib/use-task-access";
 import { StatusChip } from "@/components/status-chip";
+import { Callout } from "@/components/ui/callout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { trpc } from "@/utils/trpc";
 
@@ -89,22 +104,93 @@ function CommandGroupRow({ group, enabled }: { group: CommandGroup; enabled: boo
   );
 }
 
+const TASK_ACCESS_ITEMS = TASK_ACCESS_LEVELS.map((level) => ({
+  value: level,
+  label: TASK_ACCESS_LABEL[level],
+}));
+
 /**
- * `muted`, the two group flags and `blockedCount` are live `config.get` values, never a
- * draft. The mute switch stays usable without a bot account, so a streamer can pre-mute.
+ * "Who can add tasks": a picker that saves on change. At Followers, a bot connected before
+ * the follower check existed can't ask Twitch, so every non-follow-exempt viewer is refused
+ * until it is reconnected: the callout below says so and links straight to the reconnect.
+ */
+function TaskAccessRow({
+  level,
+  followerCheckNeedsReconnect,
+}: {
+  level: TaskAccessLevel;
+  followerCheckNeedsReconnect: boolean;
+}) {
+  const access = useTaskAccess(level);
+  const id = "task-access-select";
+  return (
+    <li className="space-y-3 py-3.5 first:pt-0 last:pb-0">
+      <div className="flex items-center gap-4">
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <Label htmlFor={id} className="text-sm font-medium">
+            Who can add tasks
+          </Label>
+          <p className="text-sm text-muted-foreground">{TASK_ACCESS_DESCRIPTION[access.value]}</p>
+        </div>
+        <div className="shrink-0">
+          <Select
+            items={TASK_ACCESS_ITEMS}
+            value={access.value}
+            onValueChange={access.onChange}
+            disabled={access.pending}
+          >
+            <SelectTrigger id={id} className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TASK_ACCESS_ITEMS.map((item) => (
+                <SelectItem key={item.value} value={item.value} className="text-sm">
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      {access.value === "followers" && followerCheckNeedsReconnect && (
+        <Callout variant="destructive" title="Reconnect the bot to allow follower checks">
+          The bot account was connected before DireWork could check follows, so viewers can&apos;t
+          add tasks yet.{" "}
+          <a
+            href="/api/bot/authorize"
+            className="font-medium text-link underline-offset-4 hover:underline"
+          >
+            Reconnect the bot
+          </a>{" "}
+          with the same account, and make sure it&apos;s a mod in your chat.
+        </Callout>
+      )}
+    </li>
+  );
+}
+
+/**
+ * `muted`, the two group flags, `taskAccess` and `blockedCount` are live `config.get` values,
+ * never a draft. The mute switch stays usable without a bot account, so a streamer can
+ * pre-mute. `followerCheckNeedsReconnect` comes from `user.me` (the bot account lacks the
+ * follower scope).
  */
 export function BotLiveControls({
   muted,
   taskCommandsEnabled,
   timerCommandsEnabled,
+  taskAccess,
   blockedCount,
   hasBotAccount,
+  followerCheckNeedsReconnect,
 }: {
   muted: boolean;
   taskCommandsEnabled: boolean;
   timerCommandsEnabled: boolean;
+  taskAccess: TaskAccessLevel;
   blockedCount: number;
   hasBotAccount: boolean;
+  followerCheckNeedsReconnect: boolean;
 }) {
   const queryClient = useQueryClient();
   const setBotMuted = useMutation({
@@ -130,7 +216,7 @@ export function BotLiveControls({
         <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
           Live controls
         </CardTitle>
-        <CardDescription>Each switch takes effect as soon as you flip it.</CardDescription>
+        <CardDescription>Each control takes effect as soon as you change it.</CardDescription>
       </CardHeader>
       <CardContent className="px-5">
         <ul className="divide-y divide-border/40">
@@ -151,6 +237,10 @@ export function BotLiveControls({
             }
           />
           <CommandGroupRow group="task" enabled={taskCommandsEnabled} />
+          <TaskAccessRow
+            level={taskAccess}
+            followerCheckNeedsReconnect={followerCheckNeedsReconnect}
+          />
           <CommandGroupRow group="timer" enabled={timerCommandsEnabled} />
           <ControlRow
             label="Blocked viewers"

@@ -5,19 +5,27 @@
  * Owns: getSession bootstrap (with startup + hourly Twitch validation), the
  * bounded auth-failure recovery loop, retry backoff, the "no bot account yet"
  * slow poll, the one-bot-page lease (claim before joining chat, a heartbeat
- * every BOT_HEARTBEAT_MS, standby + take over), and serialized chat ingest of
- * Dirework commands only, with a per-viewer flood brake (viewer-throttle.ts).
+ * every BOT_HEARTBEAT_MS, standby + take over), serialized chat ingest of
+ * Dirework commands only, with a per-viewer flood brake (viewer-throttle.ts),
+ * and delayed ban cleanup (BAN_CLEANUP_DELAY_MS after a ban; timeouts ignored).
  *
  * Secrets: the chat token is handed straight to the IRC client and kept only
  * for the rotation comparison — never emitted in an event.
  */
 
+import { BAN_CLEANUP_DELAY_MS } from "@dirework/api/bot-permissions";
 import { isDireworkCommandLine } from "@dirework/api/chat-commands";
 import { MAX_RELAYED_MESSAGE_LENGTH, truncateToLength } from "@dirework/api/chat-text";
 
 import type { DockCommandResult } from "./bot-dock-commands";
 import { classifyBotError } from "./bot-session-errors";
-import type { IrcChatMessage, IrcClientCallbacks, IrcCredentials, IrcStatus } from "./irc-client";
+import type {
+  IrcChatMessage,
+  IrcClearChat,
+  IrcClientCallbacks,
+  IrcCredentials,
+  IrcStatus,
+} from "./irc-client";
 import { BOT_HEARTBEAT_MS } from "./poll-intervals";
 import { createSerialQueue } from "./serial-queue";
 import { createViewerThrottle } from "./viewer-throttle";
@@ -83,10 +91,27 @@ export type BotIngestInput =
       message: string;
       color?: string;
       isMod: boolean;
+      /** IRC badges for "Who can add tasks". Absent from the dock's own lines. */
+      isVip?: boolean;
+      isSubscriber?: boolean;
       /** IRC message id; the server dedupes on it when two bot pages relay the same line. */
       messageId?: string;
     }
-  | { token: string; instanceId: string; kind: "clearchat"; targetUsername: string };
+  | {
+      token: string;
+      instanceId: string;
+      kind: "clearchat";
+      targetUsername: string;
+      targetUserId?: string;
+      /** Ask Twitch whether the ban still stands before removing (where Twitch allows it). */
+      verifyBan: true;
+    };
+
+/** What `bot.ingest` reports for a ban cleanup (absent from an older api worker). */
+export interface BanCleanupResult {
+  removed: number;
+  check?: "banned" | "not-banned" | "unsupported" | "unavailable";
+}
 
 export interface BotLeaseInput {
   token: string;
@@ -121,7 +146,9 @@ export interface BotSessionApi {
     revalidate?: boolean;
   }): Promise<BotSessionInfo>;
   /** `muted` is the state after the line ran; absent for clearchat and older api workers. */
-  ingest(input: BotIngestInput): Promise<{ replies: string[]; muted?: boolean }>;
+  ingest(
+    input: BotIngestInput,
+  ): Promise<{ replies: string[]; muted?: boolean; banCleanup?: BanCleanupResult }>;
   /** Take or renew the chat lease; `holder: false` means another page holds it. */
   heartbeat(input: BotLeaseInput): Promise<{ holder: boolean }>;
   /** Give the lease up as the page closes. Fire-and-forget: the page is going away. */
@@ -216,6 +243,30 @@ export const RETRY_MAX_MS = 5 * 60 * 1000;
  */
 export const MAX_PENDING_INGESTS = 20;
 
+/** Logged when a timeout arrives: timeouts never remove tasks. */
+export function timeoutKeptMessage(login: string): string {
+  return `${login} was timed out — their tasks stay`;
+}
+
+/** Logged when a ban arrives and its cleanup is scheduled. */
+export function banScheduledMessage(login: string): string {
+  return `${login} was banned — removing their tasks in ${Math.round(BAN_CLEANUP_DELAY_MS / 60_000)} minutes unless they're unbanned`;
+}
+
+/** Logged when a banned viewer chats again before the cleanup ran: they were unbanned. */
+export function banCancelledMessage(login: string): string {
+  return `${login} is chatting again — keeping their tasks`;
+}
+
+/** Logged when a ban cleanup ran (the server's answer, when it gave one). */
+export function banCleanupMessage(login: string, result: BanCleanupResult | undefined): string {
+  if (result?.check === "not-banned") return `${login} was unbanned — kept their tasks`;
+  if (!result) return `ban cleanup sent for ${login}`;
+  return result.removed > 0
+    ? `removed ${login}'s tasks after their ban`
+    : `${login} had no tasks to remove after their ban`;
+}
+
 /** Logged once per burst when a viewer's commands start being dropped by the throttle. */
 export function viewerThrottledMessage(name: string): string {
   return `${name} is sending commands too fast — ignoring them for a moment`;
@@ -265,6 +316,10 @@ export function createBotSession({
 
   const inactive = () => disposed || revoked;
   const viewerThrottle = createViewerThrottle();
+  // Ban cleanups waiting out BAN_CLEANUP_DELAY_MS, by login. A repeat ban of the same viewer
+  // keeps the first timer; the viewer chatting again cancels it. Cleared on dispose, so a
+  // page closed inside the window never runs it.
+  const pendingBans = new Map<string, ReturnType<typeof setTimeout>>();
 
   const later = (fn: () => void, ms: number) => {
     const timer = setTimeout(() => {
@@ -373,13 +428,18 @@ export function createBotSession({
    */
   // Whether the most recent ingest (they run one at a time) reached DireWork.
   let lastIngestOk = false;
-  const ingestOnce = async (input: BotIngestInput): Promise<string[]> => {
+  type IngestResult = Awaited<ReturnType<BotSessionApi["ingest"]>>;
+  const ingestOnce = async (
+    input: BotIngestInput,
+    onResult?: (result: IngestResult) => void,
+  ): Promise<string[]> => {
     // Queued before a revoke or dispose: the request would only 401 (or act
     // for a page that is gone) and burn a free-tier Worker request.
     if (inactive()) return [];
     try {
       const result = await api.ingest(input);
       lastIngestOk = true;
+      onResult?.(result);
       // Every relayed line reports the mute state, so a mod's !mute shows here
       // without another request.
       applyMuted(result.muted);
@@ -408,7 +468,10 @@ export function createBotSession({
   // chat doesn't also flood the activity log.
   let pendingIngests = 0;
   let overflowLogged = false;
-  const ingest = async (input: BotIngestInput): Promise<string[]> => {
+  const ingest = async (
+    input: BotIngestInput,
+    onResult?: (result: IngestResult) => void,
+  ): Promise<string[]> => {
     if (pendingIngests >= MAX_PENDING_INGESTS) {
       if (!overflowLogged) {
         overflowLogged = true;
@@ -418,7 +481,7 @@ export function createBotSession({
     }
     pendingIngests += 1;
     try {
-      return await runSerially(() => ingestOnce(input));
+      return await runSerially(() => ingestOnce(input, onResult));
     } finally {
       pendingIngests -= 1;
       if (pendingIngests === 0) {
@@ -428,8 +491,59 @@ export function createBotSession({
     }
   };
 
+  /** Run one ban cleanup now: the server asks Twitch whether the ban stands, where it can. */
+  const runBanCleanup = async (clear: IrcClearChat) => {
+    if (inactive() || standby) return;
+    const result = await ingestOnceForBan({
+      token,
+      instanceId,
+      kind: "clearchat",
+      targetUsername: clear.targetUsername,
+      targetUserId: clear.targetUserId,
+      verifyBan: true,
+    });
+    if (result === null || inactive()) return;
+    events.onActivity("info", banCleanupMessage(clear.targetUsername, result));
+  };
+
+  const handleClearChat = (clear: IrcClearChat) => {
+    const login = clear.targetUsername;
+    if (!clear.permanent) {
+      events.onActivity("info", timeoutKeptMessage(login));
+      return;
+    }
+    if (pendingBans.has(login)) return;
+    events.onActivity("info", banScheduledMessage(login));
+    const timer = setTimeout(() => {
+      pendingBans.delete(login);
+      void runBanCleanup(clear);
+    }, BAN_CLEANUP_DELAY_MS);
+    pendingBans.set(login, timer);
+  };
+
+  /**
+   * The ban cleanup's ingest: same serial queue and backlog cap as chat, but it keeps the
+   * server's report. Null when it never reached DireWork.
+   */
+  async function ingestOnceForBan(
+    input: Extract<BotIngestInput, { kind: "clearchat" }>,
+  ): Promise<BanCleanupResult | undefined | null> {
+    let report: BanCleanupResult | undefined | null = null;
+    await ingest(input, (result) => {
+      report = result.banCleanup;
+    });
+    return report;
+  }
+
   const handleChat = (chat: IrcChatMessage) => {
     events.onCounter("seen");
+    // A banned viewer can't chat: a line from one waiting on cleanup means they were unbanned.
+    const pendingBan = pendingBans.get(chat.username);
+    if (pendingBan) {
+      clearTimeout(pendingBan);
+      pendingBans.delete(chat.username);
+      events.onActivity("info", banCancelledMessage(chat.username));
+    }
     const text = chat.message.trim();
     // Relay only lines whose first word is a Dirework command or one of this
     // instance's aliases: plain chatter and other bots' commands (!lurk, !so)
@@ -464,6 +578,8 @@ export function createBotSession({
         message,
         color: chat.color,
         isMod: chat.isMod,
+        isVip: chat.isVip,
+        isSubscriber: chat.isSubscriber,
         messageId: chat.messageId,
       });
       // Standing by now: the page that took over answers chat.
@@ -490,11 +606,9 @@ export function createBotSession({
       if (inactive()) return;
       handleChat(chat);
     },
-    onClearChat: (targetUsername) => {
+    onClearChat: (clear) => {
       if (inactive()) return;
-      events.onActivity("info", `clearchat: ${targetUsername} — removing their tasks`);
-      // No replies expected for moderation events.
-      void ingest({ token, instanceId, kind: "clearchat", targetUsername });
+      handleClearChat(clear);
     },
     onError: (message) => {
       if (inactive()) return;
@@ -773,6 +887,8 @@ export function createBotSession({
       disposed = true;
       for (const timer of pendingTimers) clearTimeout(timer);
       pendingTimers.clear();
+      for (const timer of pendingBans.values()) clearTimeout(timer);
+      pendingBans.clear();
       clearHeartbeat();
       if (revalidateTimer) clearInterval(revalidateTimer);
       client.dispose();

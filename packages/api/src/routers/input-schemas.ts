@@ -15,6 +15,7 @@ import {
   timerStylesInputSchema,
   twitchAuthorColorSchema,
 } from "../config-shared";
+import { TASK_ACCESS_LEVELS } from "../bot-permissions";
 import { MAX_TIME_ZONE_LENGTH, isValidTimeZone } from "../stats-days";
 
 // ── Router input schemas ──────────────────────────────────────────────────────
@@ -192,6 +193,7 @@ export const updateStylesInput = z.object({
  */
 export const updateBotSettingsInput = updateMessagesInput
   .extend(commandAliasesInput.shape)
+  .extend({ taskAccess: z.enum(TASK_ACCESS_LEVELS) })
   .partial()
   .refine((input) => Object.values(input).some((value) => value !== undefined), {
     message: "Nothing to save",

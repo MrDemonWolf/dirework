@@ -1499,7 +1499,8 @@ describe("bot.ingest clearchat", () => {
       targetUsername: "viewer",
     });
 
-    expect(result).toEqual({ replies: [] });
+    // An older bot page (no verifyBan) removes at once, without asking Twitch.
+    expect(result).toEqual({ replies: [], banCleanup: { removed: 2 } });
     expect(await tasks()).toEqual([{ text: "other a", status: "active", authorTwitchId: "3000" }]);
   });
 

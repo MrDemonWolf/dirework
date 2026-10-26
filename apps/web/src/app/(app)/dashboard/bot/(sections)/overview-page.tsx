@@ -14,6 +14,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
+import { FOLLOWER_CHECK_SCOPE } from "@dirework/api/bot-permissions";
 import { botOAuthErrorMessage } from "@dirework/api/config-shared";
 
 import { describeTrpcError } from "@/lib/trpc-errors";
@@ -55,16 +56,27 @@ export default function BotOverviewPage() {
   );
 }
 
-/** The live switches: `config.get` values, plus whether a bot account exists (for the chip). */
-function LiveControls({ hasBotAccount }: { hasBotAccount: boolean }) {
+/**
+ * The live switches: `config.get` values, plus whether a bot account exists (for the chip) and
+ * whether it still lacks the follower-check scope (from `user.me`).
+ */
+function LiveControls({
+  hasBotAccount,
+  followerCheckNeedsReconnect,
+}: {
+  hasBotAccount: boolean;
+  followerCheckNeedsReconnect: boolean;
+}) {
   const bot = useBotConfig().botConfig;
   return (
     <BotLiveControls
       muted={bot.muted}
       taskCommandsEnabled={bot.taskCommandsEnabled}
       timerCommandsEnabled={bot.timerCommandsEnabled}
+      taskAccess={bot.taskAccess}
       blockedCount={bot.blockedViewers.length}
       hasBotAccount={hasBotAccount}
+      followerCheckNeedsReconnect={followerCheckNeedsReconnect}
     />
   );
 }
@@ -111,7 +123,12 @@ function Overview() {
             needs={["config"]}
             fallback={<LiveControlsPlaceholder hasBotAccount={botAccount !== null} />}
           >
-            <LiveControls hasBotAccount={botAccount !== null} />
+            <LiveControls
+              hasBotAccount={botAccount !== null}
+              followerCheckNeedsReconnect={
+                botAccount?.missingScopes.includes(FOLLOWER_CHECK_SCOPE) ?? false
+              }
+            />
           </BotSection>
           {botAccount && accountCard}
         </div>

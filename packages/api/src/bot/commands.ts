@@ -1,6 +1,7 @@
 import type { DbClient } from "@dirework/db";
 
 import { interpolate, sanitizeDisplayText } from "../chat-text";
+import { taskAccessVerdict } from "../bot-permissions";
 import type { BotConfigData } from "../config-shared";
 import {
   CHAT_OPEN_TASK_CAP,
@@ -19,6 +20,7 @@ import {
   utf8ByteLength,
 } from "../config-shared";
 import { blockViewer, setBotMuted, streamerLogin, unblockViewer } from "../services/bot-moderation";
+import { checkFollower } from "../services/follower-check";
 import {
   activateTask,
   clearAllTasks,
@@ -46,6 +48,7 @@ import {
   skipTimerWithResult,
   startTimer,
 } from "../services/timer-service";
+import type { FollowLookup } from "../services/twitch-helix";
 import {
   COMMAND_HELP_LINES,
   DW_GUIDE_REPLY,
@@ -66,6 +69,10 @@ export interface ChatUserInfo {
   color: string | null;
   isBroadcaster: boolean;
   isMod: boolean;
+  /** From the IRC `vip` tag / badge, forwarded by the bot page like `isMod`. */
+  isVip?: boolean;
+  /** From the IRC `subscriber` tag / subscriber or founder badge. */
+  isSubscriber?: boolean;
 }
 
 export interface MessageContext {
@@ -95,6 +102,12 @@ export interface MessageContext {
    * Resolving false means another bot page already handled it.
    */
   claim?: () => Promise<boolean>;
+  /**
+   * Ask Twitch whether this chatter follows the channel (one Helix call). Called only for a
+   * task-creating command at the "followers" level, from a chatter the level doesn't already
+   * admit and with no fresh follower_check row. Absent: every such lookup is `unavailable`.
+   */
+  lookupFollow?: () => Promise<FollowLookup>;
 }
 
 // Template rendering lives in ../chat-text (zod-free) so the dashboard previews a reply with
@@ -501,6 +514,46 @@ async function handleTaskToday(ctx: MessageContext): Promise<void> {
   say(formatTodayPlan(userInfo.displayName, tasks));
 }
 
+/**
+ * "Who can add tasks" (bot_config.task_access) for a task-creating command (!task, !next):
+ * true when the chatter may add one, else the refusal is said and false returned. Badges
+ * decide everything but a follow; only that reads follower_check (one primary-key read) and,
+ * on a miss, asks Twitch once. A failed lookup refuses (fail closed) with its own reply.
+ */
+async function mayAddTasks(ctx: MessageContext): Promise<boolean> {
+  const { config, userInfo, say } = ctx;
+  const vars = { user: userInfo.displayName, channel: ctx.channelName };
+  const verdict = taskAccessVerdict(config.taskAccess, {
+    isBroadcaster: userInfo.isBroadcaster,
+    isMod: userInfo.isMod,
+    isVip: userInfo.isVip === true,
+    isSubscriber: userInfo.isSubscriber === true,
+  });
+  if (verdict === "allowed") return true;
+  if (verdict === "denied") {
+    say(
+      interpolate(
+        config.taskAccess === "vips" ? config.task.notVip : config.task.notSubscriber,
+        vars,
+      ),
+    );
+    return false;
+  }
+  const follow = await checkFollower(
+    ctx.db,
+    userInfo.twitchId,
+    ctx.lookupFollow ?? (async () => "unavailable"),
+  );
+  if (follow === "following") return true;
+  say(
+    interpolate(
+      follow === "not-following" ? config.task.notFollower : config.task.followCheckFailed,
+      vars,
+    ),
+  );
+  return false;
+}
+
 async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void> {
   const { config, userInfo, say, db } = ctx;
   const text = chatTaskText(args);
@@ -510,6 +563,8 @@ async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void>
     say(interpolate(config.task.noTaskContent, vars));
     return;
   }
+
+  if (!(await mayAddTasks(ctx))) return;
 
   // L1: per-user open-task cap on the chat path.
   const openTasks = await getViewerOpenTasks(db, userInfo.twitchId);
@@ -753,6 +808,8 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
     say(interpolate(config.task.nextNoContent, vars));
     return;
   }
+
+  if (!(await mayAddTasks(ctx))) return;
 
   // One read: the open list already holds the active task (the partial unique
   // index guarantees at most one), so a separate getActiveTask is redundant.

@@ -41,6 +41,33 @@ Once you've connected a [bot account](/docs/twitch-oauth#step-5-connect-the-bot-
 | `!next <text>` | Complete your active task and start a new one |
 | `!help` | Post the 3-step starter guide (the streamer can reword it) |
 
+### Who can add tasks
+
+**Dashboard → Bot → Live controls → Who can add tasks** limits the two commands that create
+tasks, `!task` and `!next`. It saves the moment you pick a level:
+
+| Level | Who can add tasks |
+| --- | --- |
+| **Everyone** (default) | Any viewer |
+| **Followers** | Followers, subscribers, VIPs and mods |
+| **Subscribers** | Subscribers (founders too), VIPs and mods |
+| **VIPs and mods** | VIPs and mods |
+
+- The streamer and mods can always add tasks. Every other command (`!done`, `!start`,
+  `!check`, …) works for anyone who already has tasks.
+- Subscribers and VIPs come from the badges Twitch sends with each chat line, read by the bot
+  page the same way it reads mod badges.
+- **Followers** asks Twitch once per viewer, as the bot account. A confirmed follow is
+  remembered for 7 days and a "not following" for 10 minutes, so a viewer who just followed
+  gets in soon. Subscribers, VIPs and mods skip the check.
+- For **Followers**, the bot account must be a **mod** in your chat (`/mod YourBot`) and must
+  have been connected with the follower permission. A bot connected before this setting
+  existed needs one reconnect: Bot settings shows **Reconnect the bot to allow follower
+  checks** when it does.
+- If Twitch can't answer (a hiccup, the bot isn't a mod, or it hasn't been reconnected), the
+  bot refuses the task rather than letting everyone in, and replies **Follow check failed**
+  ("I couldn't check your follow just now…"). The viewer can try again a minute later.
+
 ## Task commands (broadcaster / mods)
 
 | Command | Description |
@@ -88,6 +115,19 @@ so I left it alone. Check it and try again.` These fixed replies aren't editable
 - **Blocking is by Twitch login.** A viewer who renames their account slips the block;
   block the new name too. The block list holds up to 200 names and is also editable under
   **Moderation** on **Dashboard → Bot**.
+
+### Bans and timeouts
+
+- **A timeout keeps the viewer's tasks.** Nothing changes on the board.
+- **A ban removes the viewer's tasks 5 minutes later**, so a mistaken ban can be undone
+  first. If the viewer chats again within those 5 minutes they were unbanned, and their tasks
+  stay. A second ban of the same viewer in that window doesn't add another removal.
+- **The bot page must stay open** for those 5 minutes: it holds the timer. Close or reload
+  it in that window and the removal is skipped; clear the viewer with `!clear @user`.
+- **When the bot account is your own Twitch account**, DireWork also asks Twitch whether the
+  ban still stands before removing anything (Twitch only answers that for the channel's own
+  account). A separate bot account can't ask, so the removal goes ahead unless the viewer
+  chatted again.
 
 ## Meta commands (always available)
 
@@ -168,6 +208,10 @@ All bot response messages are customizable from **Bot settings → Replies** (`/
 | Nothing to Start | `Nothing to start there, {user}. Pick a waiting task from !today, like !start 2.` | `{user}` |
 | Task Paused | `Paused "{task}", {user}. It waits in line until you !start it again.` | `{task}`, `{user}` |
 | Nothing to Pause | `Nothing to pause, {user}. !today shows what you have going.` | `{user}` |
+| Followers Only | `Only followers can add tasks here, {user}. Follow the channel, then try again.` | `{user}` |
+| Follow Check Failed | `I couldn't check your follow just now, {user}. Try again in a minute.` | `{user}` |
+| Subscribers Only | `Only subscribers can add tasks here, {user}.` | `{user}` |
+| VIPs and Mods Only | `Only VIPs and mods can add tasks here, {user}.` | `{user}` |
 | Viewer starter guide (`!help`) | `{user}, here's how it works: 1) Type !task and what you're working on, like !task read 10 pages. 2) Work along with the stream. 3) Type !done when you finish. Need more? Type !dw help` | `{user}` |
 
 If you never edited a reply, your bot picks up new default wording automatically when you update DireWork. Replies you customized are never touched; use **Reset to default** on the Bot settings page to get the stock wording back.
