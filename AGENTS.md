@@ -672,7 +672,10 @@ the unsaved-changes guard hook. 6 theme presets in `lib/theme-presets.ts`.
 subtitle) — "Timer" with `TimerPhaseChip`, "Tasks" with "N open / N done" and the options
 menu. The timer console is then a `lg:grid-cols-5` panel — `TimerInstrument` (digits, phase
 rail, cycle dots; hollow dots preview the planned run while idle) in 3/5, and in 2/5
-`TimerTransport` (`[Start] [Skip] | [Stop]`; Skip/Stop exist only mid-run), `TimerSettings` behind the "Edit session settings" `SectionGroup`
+`TimerTransport` (`[Start] [Skip] | [Stop]`; Skip/Stop exist only mid-run) with "Now: <task>"
+under it (the owner's own active task, `ownerActiveTask` in `lib/task-utils.ts`, read from
+the cached `task.list` by an observer with no `refetchInterval`, so no new request; nothing
+when the owner has none), `TimerSettings` behind the "Edit session settings" `SectionGroup`
 (its collapsed summary is `formatSessionSummary` in `lib/session-summary.ts`, from the SAVED
 config with `TIMER_CONFIG_DEFAULTS` fallbacks) and `ObsSources` (`components/obs-sources.tsx`):
 both overlay URLs in one block, a "Timer" / "Tasks" tab each (URL row with Show/Copy/Reset,

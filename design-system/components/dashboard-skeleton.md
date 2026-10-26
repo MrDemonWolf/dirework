@@ -25,7 +25,7 @@ session is known.
 - `TimerConsoleBodyPlaceholder`: the whole timer console: its one-line header (title bar and
   phase chip), then `lg:grid-cols-5`: the instrument (digits, rail, dots) above the focus
   chart placeholder in 3/5, and in 2/5 the transport bar, the folded settings bar and the OBS
-  sources block.
+  sources block. The "Now" line exists only with an active task, so it is left out.
 - `TaskBoardPlaceholder`: the task board's one-line header (title bar, counts bar, options
   button), then the form and two task groups across the full width.
 - `DashboardSkeleton`: header band bars plus the status placeholder, the stats strip, then a

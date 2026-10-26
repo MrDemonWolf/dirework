@@ -11,7 +11,8 @@ The dashboard timer console (`dashboard/dashboard.tsx`): the hero clock, its tra
 session settings. Five exports share one context so the per-second countdown re-renders only
 the instrument. The console opens with a one-line header (the "Timer" `h2` with
 `TimerPhaseChip` beside it); on `lg` it is then a `grid-cols-5` panel: `TimerInstrument` in
-3/5, and in 2/5 `TimerTransport`, `TimerSettings` and `ObsSources`.
+3/5, and in 2/5 `TimerTransport` with the owner's active task under it ("Now", from the
+cached `task.list`, rendered by the dashboard), `TimerSettings` and `ObsSources`.
 
 ## Anatomy
 

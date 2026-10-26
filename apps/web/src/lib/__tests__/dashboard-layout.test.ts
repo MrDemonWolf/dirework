@@ -61,8 +61,10 @@ describe("dashboard layout", () => {
   it("splits the timer console 3/5 | 2/5 and gives the task board the full width", () => {
     expect(dashboard).toContain('<div className="grid lg:grid-cols-5">');
     expect(dashboard).toMatch(/lg:col-span-3">\s*<TimerInstrument \/>/);
-    // Right column: transport, settings, then both overlay URLs.
-    expect(dashboard).toMatch(/<TimerTransport \/>\s*<TimerSettings \/>\s*<ObsSources \/>/);
+    // Right column: transport (with "Now" under it), settings, then both overlay URLs.
+    expect(dashboard).toMatch(
+      /<TimerTransport \/>\s*<NowTask \/>\s*<\/div>\s*<TimerSettings \/>\s*<ObsSources \/>/,
+    );
     expect(taskManager).not.toMatch(/lg:grid-cols-3|lg:col-span-2|monitor/);
     // The skeleton keeps the same shapes, so the hand-off doesn't jump.
     expect(skeleton).toContain("lg:grid-cols-5");
@@ -103,6 +105,15 @@ describe("dashboard layout", () => {
     expect(skeleton).toContain("className={PANEL_HEADER_CLASS}");
     // The instrument no longer carries its own chip; the heading does.
     expect(timerControls).toMatch(/export function TimerPhaseChip\(\)[\s\S]*?<StatusChip/);
+  });
+
+  it("shows the owner's active task beside the controls from the cached task list", () => {
+    // Read-only observer: no refetchInterval, so the board's poll stays the only one; the
+    // select keeps re-renders to the line itself.
+    const now = dashboard.slice(dashboard.indexOf("function NowTask()"));
+    expect(now).toMatch(/useQuery\(\{\s*\.\.\.trpc\.task\.list\.queryOptions\(\),\s*select:/);
+    expect(now.slice(0, now.indexOf("\n}\n"))).not.toContain("refetchInterval");
+    expect(now).toContain("ownerActiveTask(list.tasks, ownerKey)");
   });
 
   it("keeps the bulk clears in the board options menu, behind their confirms", () => {

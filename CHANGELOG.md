@@ -21,6 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   minutes, nothing while no bot runs or the tab is hidden). Resetting the bot URL frees the
   slot at once, so the new URL's page goes live right away. New migration
   `0021_bot_page_lease` (add-only).
+- **"Now" beside the timer.** The timer controls show the task you're working on (your own
+  active task, never a viewer's), so you can see what you're timing at a glance. It comes
+  from the task list the dashboard already loads: no new requests.
 - **Dashboard stats.** A strip under the greeting shows focus time, pomodoros and tasks done
   today (and how many of those came from chat), plus the days you streamed this week and your
   week streak. A 14-day focus chart sits under the timer digits, today's bar highlighted. A
