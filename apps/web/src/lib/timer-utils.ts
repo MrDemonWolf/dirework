@@ -77,21 +77,6 @@ export function colorWithOpacity(color: string, opacity: number): string {
   return `color-mix(in srgb, ${value} ${pct}%, transparent)`;
 }
 
-export function formatTime(
-  ms: number,
-  showHours: boolean,
-): { hours: string; minutes: string; seconds: string } {
-  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return {
-    hours: String(hours).padStart(2, "0"),
-    minutes: String(showHours ? minutes : Math.floor(totalSeconds / 60)).padStart(2, "0"),
-    seconds: String(seconds).padStart(2, "0"),
-  };
-}
-
 /**
  * Approximate advance widths (em) of the countdown glyphs in Montserrat bold with
  * tabular digits: "25:00" ≈ 4 × 0.7 + 0.3 = 3.1em, which at the default 64px is
@@ -105,13 +90,23 @@ const CLOCK_SEPARATOR_EM = 0.3;
 const CLOCK_REFERENCE_EM = 4 * CLOCK_DIGIT_EM + CLOCK_SEPARATOR_EM;
 
 /**
+ * Approximate advance width of a clock string in em (digits and separators at the
+ * widths above). The dashboard clock divides its container width by this to size the
+ * digits so "24:00:00" fits a 320px phone (`.timer-digits` in index.css).
+ */
+export function clockEm(text: string): number {
+  let em = 0;
+  for (const char of text) em += /\d/.test(char) ? CLOCK_DIGIT_EM : CLOCK_SEPARATOR_EM;
+  return em;
+}
+
+/**
  * Factor to scale the configured time font size by so a longer clock ("01:25:00"
- * with hours shown, or "120:00" past 99 minutes) is no wider than the "MM:SS"
+ * with hours shown, or "1:25:00" from an hour up) is no wider than the "MM:SS"
  * form the size was picked for. 1 for the minute form, so it never grows text.
  */
 export function clockFontScale(text: string): number {
-  let em = 0;
-  for (const char of text) em += /\d/.test(char) ? CLOCK_DIGIT_EM : CLOCK_SEPARATOR_EM;
+  const em = clockEm(text);
   if (em <= CLOCK_REFERENCE_EM) return 1;
   return Math.round((CLOCK_REFERENCE_EM / em) * 1000) / 1000;
 }

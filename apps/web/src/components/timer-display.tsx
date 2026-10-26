@@ -14,7 +14,7 @@ import {
   clockFontSize,
   colorWithOpacity,
   cssLengthToPx,
-  formatTime,
+  formatClock,
   phaseTotalMs,
   quoteFontFamily,
   ringFitsFrame,
@@ -199,8 +199,8 @@ export function TimerDisplay({
   const isIdle = state.status === "idle";
   const displayMs = isIdle ? total : remaining;
 
-  const { hours, minutes, seconds } = formatTime(displayMs, config.showHours);
-  const timeDisplay = config.showHours ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
+  // "MM:SS" under an hour, "H:MM:SS" from 60 minutes up; Show hours pads "HH:MM:SS".
+  const timeDisplay = formatClock(displayMs, config.showHours);
 
   const textShadow =
     config.text.outlineSize !== "0px"

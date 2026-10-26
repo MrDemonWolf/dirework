@@ -188,7 +188,7 @@ the bot, the dashboard's bot chip says **Bot connected**.
 | Option | URL | Notes |
 | --- | --- | --- |
 | **Widget** | `…/bot/<token>` | A blank, transparent page: nothing shows on stream, so it can sit on any scene at any size. Add it as an **OBS browser source** (untick **Shutdown source when not visible**) or a **Moblin** browser widget (keep it in a scene that stays loaded). Its browser tab title says the state, such as `DireWork bot · Connected`. |
-| **Dock / browser tab** | `…/bot/<token>?view=dock` | A narrow control panel styled like OBS's dark theme: status light, muted state, timer and bot buttons, last error, recent commands and a **Reconnect** button. Add it as an **OBS custom browser dock**, or open it in a browser tab and pin the tab. |
+| **Dock / browser tab** | `…/bot/<token>?view=dock` | A narrow control panel styled like OBS's dark theme: status light, muted state, timer and bot buttons, last error, recent commands and a **Reconnect** button. **Mute bot** / **Unmute bot** and **Reconnect** stay pinned at the top, so they're reachable even in a short dock. Add it as an **OBS custom browser dock**, or open it in a browser tab and pin the tab. |
 
 The widget never shows errors on stream. If the bot stops (the URL was reset, or Twitch no
 longer accepts the bot's login), the dock shows why, and **Dashboard → Bot** is where you fix

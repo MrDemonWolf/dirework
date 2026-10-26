@@ -405,9 +405,14 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
                             key={task.id}
                             data-active={isActive || undefined}
                             // The active row reads from a soft primary tint plus the
-                            // "Active" chip — no coloured edge bar.
+                            // "Active" chip — no coloured edge bar. Layout: checkbox, then
+                            // a body of the task text and a meta line (status chip slot +
+                            // row actions). Below `sm` the meta line sits under the text so
+                            // the text gets the row's full width on a 320px phone; from
+                            // `sm` it rides beside the text. A later Start/Pause control
+                            // or a "⋯" menu goes in the meta line's action group.
                             className={cn(
-                              "group flex min-h-11 items-center gap-3 px-3 py-2 transition-colors",
+                              "group flex min-h-11 items-start gap-3 px-3 py-3 transition-colors",
                               isActive ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/40",
                               rowEntry.fresh.has(task.id) && "row-enter",
                             )}
@@ -442,95 +447,108 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
                               {isDone && <Check className="size-3" />}
                             </button>
 
-                            {/* Task text */}
-                            <p
-                              className={cn(
-                                "min-w-0 flex-1 text-sm break-words line-clamp-2",
-                                isDone && "text-muted-foreground line-through",
-                              )}
-                            >
-                              {task.text}
-                            </p>
+                            <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:flex-row sm:items-start sm:gap-3">
+                              {/* Task text: wraps in full (no clamp), breaking a long URL or
+                                an unbroken word anywhere; dir="auto" lays an RTL task out
+                                right to left. */}
+                              <p
+                                dir="auto"
+                                className={cn(
+                                  "min-w-0 text-sm wrap-anywhere sm:flex-1",
+                                  isDone && "text-muted-foreground line-through",
+                                )}
+                              >
+                                {task.text}
+                              </p>
 
-                            {isActive && (
-                              <StatusChip
-                                size="sm"
-                                tone="accent"
-                                label="Active"
-                                pulse
-                                className="shrink-0"
-                              />
-                            )}
+                              <div
+                                data-slot="task-row-meta"
+                                className="flex min-h-6 items-center gap-2 sm:-my-0.5 sm:shrink-0"
+                              >
+                                {/* Status chip slot */}
+                                {isActive && (
+                                  <StatusChip
+                                    size="sm"
+                                    tone="accent"
+                                    label="Active"
+                                    pulse
+                                    className="shrink-0"
+                                  />
+                                )}
 
-                            {/* Activate button: always shown unless the primary pointer can hover (at any
+                                <div className="ml-auto flex items-center gap-2">
+                                  {/* Activate button: always shown unless the primary pointer can hover (at any
                                   width, so touch tablets keep it); focus reveals it too. */}
-                            {!isDone && !isActive && (
-                              <Tooltip>
-                                <TooltipTrigger
-                                  render={
-                                    <Button
-                                      variant="ghost"
-                                      size="icon-xs"
-                                      onClick={() => {
-                                        pendingFocus.current = {
-                                          kind: "activate",
-                                          taskId: task.id,
-                                        };
-                                        activateTask.mutate(
-                                          { id: task.id },
-                                          {
-                                            onError: () => {
-                                              pendingFocus.current = null;
-                                            },
+                                  {!isDone && !isActive && (
+                                    <Tooltip>
+                                      <TooltipTrigger
+                                        render={
+                                          <Button
+                                            variant="ghost"
+                                            size="icon-xs"
+                                            onClick={() => {
+                                              pendingFocus.current = {
+                                                kind: "activate",
+                                                taskId: task.id,
+                                              };
+                                              activateTask.mutate(
+                                                { id: task.id },
+                                                {
+                                                  onError: () => {
+                                                    pendingFocus.current = null;
+                                                  },
+                                                },
+                                              );
+                                            }}
+                                            disabled={
+                                              activateTask.isPending &&
+                                              activateTask.variables?.id === task.id
+                                            }
+                                            focusableWhenDisabled
+                                            aria-label={`Set "${task.text}" as active`}
+                                            className="relative opacity-100 transition-opacity after:absolute after:-inset-2 focus-visible:opacity-100 can-hover:opacity-0 group-hover:opacity-100"
+                                          />
+                                        }
+                                      >
+                                        <Focus className="size-3" />
+                                      </TooltipTrigger>
+                                      <TooltipContent>Set as active</TooltipContent>
+                                    </Tooltip>
+                                  )}
+
+                                  {/* Remove button: always shown unless the primary pointer can hover (at any
+                                  width, so touch tablets keep it); focus reveals it too. */}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-xs"
+                                    onClick={() => {
+                                      pendingFocus.current = {
+                                        kind: "remove",
+                                        taskId: task.id,
+                                        nextId: neighborTaskId(task.id),
+                                      };
+                                      removeTask.mutate(
+                                        { id: task.id },
+                                        {
+                                          onError: () => {
+                                            pendingFocus.current = null;
                                           },
-                                        );
-                                      }}
-                                      disabled={
-                                        activateTask.isPending &&
-                                        activateTask.variables?.id === task.id
-                                      }
-                                      focusableWhenDisabled
-                                      aria-label={`Set "${task.text}" as active`}
-                                      className="relative opacity-100 transition-opacity after:absolute after:-inset-2 focus-visible:opacity-100 can-hover:opacity-0 group-hover:opacity-100"
-                                    />
-                                  }
-                                >
-                                  <Focus className="size-3" />
-                                </TooltipTrigger>
-                                <TooltipContent>Set as active</TooltipContent>
-                              </Tooltip>
-                            )}
-
-                            {/* Remove button: always shown unless the primary pointer can hover (at any
-                                  width, so touch tablets keep it); focus reveals it too. */}
-                            <Button
-                              variant="ghost"
-                              size="icon-xs"
-                              onClick={() => {
-                                pendingFocus.current = {
-                                  kind: "remove",
-                                  taskId: task.id,
-                                  nextId: neighborTaskId(task.id),
-                                };
-                                removeTask.mutate(
-                                  { id: task.id },
-                                  {
-                                    onError: () => {
-                                      pendingFocus.current = null;
-                                    },
-                                  },
-                                );
-                              }}
-                              disabled={
-                                removeTask.isPending && removeTask.variables?.id === task.id
-                              }
-                              focusableWhenDisabled
-                              data-remove-task={task.id}
-                              aria-label={`Remove "${task.text}"`}
-                              className="relative text-destructive opacity-100 transition-opacity after:absolute after:-inset-2 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 can-hover:opacity-0 group-hover:opacity-100"
-                            >
-                              <Trash2 className="size-3" />
-                            </Button>
+                                        },
+                                      );
+                                    }}
+                                    disabled={
+                                      removeTask.isPending && removeTask.variables?.id === task.id
+                                    }
+                                    focusableWhenDisabled
+                                    data-remove-task={task.id}
+                                    aria-label={`Remove "${task.text}"`}
+                                    className="relative text-destructive opacity-100 transition-opacity after:absolute after:-inset-2 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 can-hover:opacity-0 group-hover:opacity-100"
+                                  >
+                                    <Trash2 className="size-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
                           </li>
                         );
                       })}

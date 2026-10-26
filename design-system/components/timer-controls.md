@@ -21,8 +21,12 @@ cached `task.list`, rendered by the dashboard), `TimerSettings` and `ObsSources`
   SAVED config (`formatSessionSummary` in `lib/session-summary.ts`, `TIMER_CONFIG_DEFAULTS`
   for anything missing).
 - `TimerPhaseChip`: a `StatusChip` with the streamer's phase label (keyed, `chip-swap`) and
-  the `sr-only` live status line, beside the console heading.
-- `TimerInstrument`, top to bottom: `font-heading text-7xl lg:text-8xl` tabular digits over a
+  the `sr-only` live status line, beside the console heading. A long custom label ends in an
+  ellipsis (the chip never outgrows the header row) with the full text as its `title`.
+- `TimerInstrument`, top to bottom: tabular `font-heading` digits (`formatClock`: `MM:SS`,
+  `H:MM:SS` from an hour up) sized by `.timer-digits` (index.css): the `text-7xl` /
+  `lg:text-8xl` sizes, capped at `96cqi / --clock-em` of the instrument's `@container`
+  (`clockEm` in `lib/timer-utils.ts`), so `24:00:00` fits a 320px phone; over a
   phase-tinted radial glow (`TIMER_PHASE_COLOR`, 14%); a `h-1.5` phase rail; cycle dots (or a
   `01/12` mono counter above 10 cycles). While idle the dots preview the planned run, every
   dot hollow (or "12 pomos" above 10).

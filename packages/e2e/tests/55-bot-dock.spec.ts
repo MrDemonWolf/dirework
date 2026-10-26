@@ -38,6 +38,23 @@ test("?view=dock renders the dock control panel; the default view is the blank w
     await expect(dock.getByRole("button", { name, exact: true })).toBeDisabled();
   }
 
+  // A short dock (OBS docks are often about 400×200, some only 240 wide) keeps Mute and
+  // Reconnect in the pinned top strip: in view without scrolling, and still there after the
+  // rest of the dock scrolls under them.
+  for (const width of [240, 300, 400]) {
+    await page.setViewportSize({ width, height: 200 });
+    for (const name of ["Mute bot", "Reconnect"]) {
+      await expect(dock.getByRole("button", { name, exact: true })).toBeInViewport({ ratio: 1 });
+    }
+    await dock.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+    await expect(dock.getByRole("button", { name: "Mute bot", exact: true })).toBeInViewport({
+      ratio: 1,
+    });
+    await expect(dock.getByRole("button", { name: "Reconnect" })).toBeInViewport({ ratio: 1 });
+    await dock.evaluate((el) => el.scrollTo(0, 0));
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
+
   // The default view is the blank widget: the same session, but only a screen-reader status
   // and the tab title, and no controls.
   await page.goto(`/bot/${token}`);

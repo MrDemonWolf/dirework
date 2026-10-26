@@ -86,8 +86,19 @@ describe("formatClock", () => {
     expect(formatClock(-500)).toBe("00:00");
   });
 
-  it("lets minutes exceed 99", () => {
-    expect(formatClock(100 * 60 * 1000)).toBe("100:00");
+  it("switches to H:MM:SS from 60 minutes up", () => {
+    expect(formatClock(59 * 60 * 1000 + 59_000)).toBe("59:59");
+    expect(formatClock(59 * 60 * 1000 + 59_001)).toBe("1:00:00");
+    expect(formatClock(60 * 60 * 1000)).toBe("1:00:00");
+    expect(formatClock(100 * 60 * 1000)).toBe("1:40:00");
+    expect(formatClock(24 * 60 * 60 * 1000)).toBe("24:00:00");
+  });
+
+  it("pads hours at every length when showHours is on", () => {
+    expect(formatClock(0, true)).toBe("00:00:00");
+    expect(formatClock(25 * 60 * 1000, true)).toBe("00:25:00");
+    expect(formatClock(90 * 60 * 1000 + 1, true)).toBe("01:30:01");
+    expect(formatClock(24 * 60 * 60 * 1000, true)).toBe("24:00:00");
   });
 
   it("treats non-finite input as 00:00", () => {

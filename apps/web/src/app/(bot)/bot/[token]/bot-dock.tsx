@@ -144,20 +144,43 @@ export function BotDock({
       aria-label="DireWork bot dock"
       className="mx-auto flex h-dvh w-full max-w-md min-w-0 flex-col overflow-y-auto font-sans text-xs text-obs-text"
     >
-      {/* Title bar, like a QDockWidget title: grey5 with a grey4 rule. */}
-      <header className="flex items-center gap-2 border-b border-obs-control bg-obs-title px-2 py-1.5">
-        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${ledClass}`} aria-hidden="true" />
-        <span
-          ref={statusRef}
-          role="status"
-          // Focus target after Take over, whose button unmounts with the standby notice.
-          tabIndex={-1}
-          className="min-w-0 truncate text-sm font-semibold outline-none"
+      {/* Pinned strip: the title bar plus the two controls a streamer reaches for mid-stream
+          (Mute / Unmute, Reconnect). It sticks to the top of the scrolling dock, so a short
+          dock (about 400×200, or 240 wide) never hides them below the fold. */}
+      <div className="sticky top-0 z-10 shrink-0 bg-obs-title">
+        {/* Title bar, like a QDockWidget title: grey5 with a grey4 rule. */}
+        <header className="flex items-center gap-2 border-b border-obs-control bg-obs-title px-2 py-1.5">
+          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${ledClass}`} aria-hidden="true" />
+          <span
+            ref={statusRef}
+            role="status"
+            // Focus target after Take over, whose button unmounts with the standby notice.
+            tabIndex={-1}
+            className="min-w-0 truncate text-sm font-semibold outline-none"
+          >
+            {statusText}
+          </span>
+          <span className="ml-auto shrink-0 text-2xs font-semibold text-obs-text">
+            DireWork Bot
+          </span>
+        </header>
+        <section
+          aria-label="Bot"
+          className="grid grid-cols-2 gap-1 border-b border-obs-control bg-obs-base px-2 py-1"
         >
-          {statusText}
-        </span>
-        <span className="ml-auto shrink-0 text-2xs font-semibold text-obs-text">DireWork Bot</span>
-      </header>
+          {commandButton(controls.muteToggle, muted ? "primary" : "default")}
+          <button
+            type="button"
+            onClick={onReconnect}
+            disabled={reconnectDisabled}
+            title="Restart the bot's Twitch connection"
+            className={`${BUTTON} ${BUTTON_TONE.default}`}
+          >
+            <RotateCw className="size-3" aria-hidden="true" />
+            Reconnect
+          </button>
+        </section>
+      </div>
 
       <dl className="grid grid-cols-2 gap-x-3 gap-y-0.5 border-b border-obs-control bg-obs-base px-2 py-1.5">
         {(
@@ -213,22 +236,6 @@ export function BotDock({
         <div className="grid grid-cols-2 gap-1">
           {start ? <div className="col-span-2 grid">{commandButton(start, "primary")}</div> : null}
           {timerRest.map((id) => commandButton(id))}
-        </div>
-      </Section>
-
-      <Section label="Bot">
-        <div className="grid grid-cols-2 gap-1">
-          {commandButton(controls.muteToggle, muted ? "primary" : "default")}
-          <button
-            type="button"
-            onClick={onReconnect}
-            disabled={reconnectDisabled}
-            title="Restart the bot's Twitch connection"
-            className={`${BUTTON} ${BUTTON_TONE.default}`}
-          >
-            <RotateCw className="size-3" aria-hidden="true" />
-            Reconnect
-          </button>
         </div>
       </Section>
 

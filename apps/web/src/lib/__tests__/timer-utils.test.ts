@@ -5,7 +5,6 @@ import {
   clockFontScale,
   clockFontSize,
   colorWithOpacity,
-  formatTime,
   formatClock,
   msUntilNextSecond,
   phaseTotalMs,
@@ -103,57 +102,17 @@ describe("formatClock", () => {
     expect(formatClock(25 * 60 * 1000)).toBe("25:00");
   });
 
-  it("does not roll minutes into hours (90:30 stays 90:30)", () => {
-    expect(formatClock((90 * 60 + 30) * 1000)).toBe("90:30");
+  it("rolls 60+ minutes into H:MM:SS (90:30 reads 1:30:30)", () => {
+    expect(formatClock((90 * 60 + 30) * 1000)).toBe("1:30:30");
+    expect(formatClock(24 * 60 * 60 * 1000)).toBe("24:00:00");
+  });
+
+  it("pads every length with showHours", () => {
+    expect(formatClock(25 * 60 * 1000, true)).toBe("00:25:00");
   });
 
   it("rounds partial seconds up", () => {
     expect(formatClock(1500)).toBe("00:02");
-  });
-});
-
-describe("formatTime", () => {
-  it("should format zero ms", () => {
-    const result = formatTime(0, false);
-    expect(result).toEqual({ hours: "00", minutes: "00", seconds: "00" });
-  });
-
-  it("should format negative ms as zero", () => {
-    const result = formatTime(-5000, false);
-    expect(result).toEqual({ hours: "00", minutes: "00", seconds: "00" });
-  });
-
-  it("should format 25 minutes without showHours", () => {
-    const result = formatTime(25 * 60 * 1000, false);
-    expect(result.minutes).toBe("25");
-    expect(result.seconds).toBe("00");
-  });
-
-  it("should format 25 minutes with showHours", () => {
-    const result = formatTime(25 * 60 * 1000, true);
-    expect(result.hours).toBe("00");
-    expect(result.minutes).toBe("25");
-    expect(result.seconds).toBe("00");
-  });
-
-  it("should handle hour boundary with showHours=false (minutes exceed 59)", () => {
-    const ms = 90 * 60 * 1000; // 90 minutes
-    const result = formatTime(ms, false);
-    expect(result.minutes).toBe("90");
-    expect(result.seconds).toBe("00");
-  });
-
-  it("should handle hour boundary with showHours=true (wraps minutes)", () => {
-    const ms = 90 * 60 * 1000; // 1h 30m
-    const result = formatTime(ms, true);
-    expect(result.hours).toBe("01");
-    expect(result.minutes).toBe("30");
-    expect(result.seconds).toBe("00");
-  });
-
-  it("should ceil partial seconds", () => {
-    const result = formatTime(100, false); // 0.1 seconds → ceil to 1
-    expect(result.seconds).toBe("01");
   });
 });
 
@@ -299,8 +258,8 @@ describe("clockFontScale / clockFontSize", () => {
     expect(64 * clockFontScale("01:25:00")).toBeCloseTo(41, 0);
   });
 
-  it("also shrinks minute counts past 99", () => {
-    expect(clockFontScale("120:00")).toBeLessThan(1);
+  it("also shrinks the unpadded hour form", () => {
+    expect(clockFontScale("1:25:00")).toBeLessThan(1);
   });
 });
 
