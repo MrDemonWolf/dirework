@@ -57,7 +57,7 @@ test("a fast hard load paints every section at once, never a placeholder", async
   await page.goto("/dashboard");
   await expectNoHydrationErrors(page);
   await expect(page.getByRole("textbox", { name: "New task text" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Pomodoro" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Timer", exact: true })).toBeVisible();
   await page.waitForTimeout(500);
 
   expect(await placeholderFrames(page), "frames that showed a section placeholder").toEqual([]);

@@ -1,7 +1,8 @@
 "use client";
 
 // Dashboard timer console: `TimerProvider` owns the timer.get poll, the transport
-// mutations and the locally edited timer config; `TimerInstrument` (the hero clock),
+// mutations and the locally edited timer config; `TimerPhaseChip` (beside the heading),
+// `TimerInstrument` (the hero clock),
 // `TimerTransport` (Start / Skip / Stop) and `TimerSettings` (the blur-autosaved durations
 // behind the "Edit session settings" disclosure) read it through context.
 
@@ -306,12 +307,39 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 }
 
 /**
- * The hero timer instrument — reads like a hardware timer: phase LED chip on top, big
- * tabular digits, phase-progress rail, cycle dots. The transport lives in
- * `TimerTransport`, beside it in the console's right column.
+ * The console's phase chip, beside its "Timer" heading: the streamer's own phase label (keyed,
+ * so a phase change replays its crossfade) plus the polite live region that announces it.
+ */
+export function TimerPhaseChip() {
+  const { status, configLabels } = useTimerContext();
+  // Runtime guard: the wire value is untyped JSON, so an unknown status reads as idle.
+  const timerStatus = toTimerStatus(status);
+  const { tone, pulse } = TIMER_TONES[timerStatus];
+  const phaseLabel = configLabels[timerStatus];
+  return (
+    <>
+      <StatusChip
+        key={timerStatus}
+        className="chip-swap"
+        tone={tone}
+        label={phaseLabel}
+        pulse={pulse}
+      />
+      {/* Announces phase changes (start / pause / stop / chat-driven) to screen readers. */}
+      <span role="status" aria-live="polite" className="sr-only">
+        Timer: {phaseLabel}
+      </span>
+    </>
+  );
+}
+
+/**
+ * The hero timer instrument — reads like a hardware timer: big tabular digits,
+ * phase-progress rail, cycle dots. Its phase chip (`TimerPhaseChip`) sits beside the console
+ * heading and the transport (`TimerTransport`) in the console's right column.
  */
 export function TimerInstrument() {
-  const { cycles, workMin, isIdle, totalDuration, state, status, configLabels } = useTimerContext();
+  const { cycles, workMin, isIdle, totalDuration, state, status } = useTimerContext();
 
   const remaining = useTimerCountdown(state);
 
@@ -327,27 +355,10 @@ export function TimerInstrument() {
       ? Math.min(100, Math.max(0, 100 * (1 - remaining / totalDuration)))
       : 0;
 
-  // Runtime guard: the wire value is untyped JSON, so an unknown status reads as idle.
-  const timerStatus = toTimerStatus(status);
-  const { tone, pulse } = TIMER_TONES[timerStatus];
-  const phaseColor = TIMER_PHASE_COLOR[timerStatus];
-  const phaseLabel = configLabels[timerStatus];
+  const phaseColor = TIMER_PHASE_COLOR[toTimerStatus(status)];
 
   return (
     <div className="flex w-full flex-col items-center gap-5">
-      {/* Keyed on the status so a phase change remounts the chip and plays its
-          one-shot crossfade; the aria-live span below is not keyed. */}
-      <StatusChip
-        key={timerStatus}
-        className="chip-swap"
-        tone={tone}
-        label={phaseLabel}
-        pulse={pulse}
-      />
-      {/* Announces phase changes (start / pause / stop / chat-driven) to screen readers. */}
-      <span role="status" aria-live="polite" className="sr-only">
-        Timer: {phaseLabel}
-      </span>
       {/* Digits with a static phase-tinted ambient glow */}
       <div className="relative">
         <div

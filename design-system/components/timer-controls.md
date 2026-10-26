@@ -8,9 +8,10 @@ tokens: [color.scheme, color.phase, radius, tracking, font.size]
 ## Purpose
 
 The dashboard timer console (`dashboard/dashboard.tsx`): the hero clock, its transport and the
-session settings. Four exports share one context so the per-second countdown re-renders only
-the instrument. On `lg` the console is a `grid-cols-5` panel: `TimerInstrument` in 3/5, and
-in 2/5 `TimerTransport`, `TimerSettings` and `ObsSources` (both overlay URLs).
+session settings. Five exports share one context so the per-second countdown re-renders only
+the instrument. The console opens with a one-line header (the "Timer" `h2` with
+`TimerPhaseChip` beside it); on `lg` it is then a `grid-cols-5` panel: `TimerInstrument` in
+3/5, and in 2/5 `TimerTransport`, `TimerSettings` and `ObsSources`.
 
 ## Anatomy
 
@@ -19,8 +20,9 @@ in 2/5 `TimerTransport`, `TimerSettings` and `ObsSources` (both overlay URLs).
   start / pause / resume / skip / reset mutations, and formats the settings summary from the
   SAVED config (`formatSessionSummary` in `lib/session-summary.ts`, `TIMER_CONFIG_DEFAULTS`
   for anything missing).
-- `TimerInstrument`, top to bottom: a `StatusChip` with the phase label (keyed, `chip-swap`);
-  an `sr-only` status line; `font-heading text-7xl lg:text-8xl` tabular digits over a
+- `TimerPhaseChip`: a `StatusChip` with the streamer's phase label (keyed, `chip-swap`) and
+  the `sr-only` live status line, beside the console heading.
+- `TimerInstrument`, top to bottom: `font-heading text-7xl lg:text-8xl` tabular digits over a
   phase-tinted radial glow (`TIMER_PHASE_COLOR`, 14%); a `h-1.5` phase rail; cycle dots (or a
   `01/12` mono counter above 10 cycles). While idle the dots preview the planned run, every
   dot hollow (or "12 pomos" above 10).
@@ -38,7 +40,8 @@ in 2/5 `TimerTransport`, `TimerSettings` and `ObsSources` (both overlay URLs).
 
 | Export | Props | Notes |
 |---|---|---|
-| `TimerProvider` | `children: ReactNode` | Must wrap the other three |
+| `TimerProvider` | `children: ReactNode` | Must wrap the other four |
+| `TimerPhaseChip` | none | Throws outside `TimerProvider` |
 | `TimerInstrument` | none | Throws outside `TimerProvider` |
 | `TimerTransport` | none | Throws outside `TimerProvider` |
 | `TimerSettings` | none | Throws outside `TimerProvider` |

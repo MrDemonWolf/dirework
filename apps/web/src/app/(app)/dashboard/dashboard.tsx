@@ -31,13 +31,13 @@ import {
 } from "@/components/dashboard-stats";
 import { ProgressiveSection, SectionPlaceholder } from "@/components/progressive-section";
 import { QueryError } from "@/components/query-error";
-import { ConsoleRule } from "@/components/console-rule";
 import { ObsSources } from "@/components/obs-sources";
 import { SetupChecklist, SetupReopenButton, useSetupCollapsed } from "@/components/setup-checklist";
 import { StatusChip } from "@/components/status-chip";
 import { TaskManager } from "@/components/task-manager";
 import {
   TimerInstrument,
+  TimerPhaseChip,
   TimerProvider,
   TimerSettings,
   TimerTransport,
@@ -46,6 +46,7 @@ import { TimerStatusBadge } from "@/components/timer-status-badge";
 import { scheduleBotPresenceCheck } from "@/lib/bot-presence";
 import { dashboardBotChip } from "@/lib/bot-status";
 import { formatGreeting, pickGreeting } from "@/lib/greetings";
+import { PANEL_HEADER_CLASS, PANEL_TITLE_CLASS } from "@/lib/panel-header";
 import { setupProgress } from "@/lib/setup-steps";
 import { trpc } from "@/utils/trpc";
 
@@ -207,14 +208,18 @@ function HeaderSection({ user }: { user: SessionUser }) {
 }
 
 /**
- * Timer console body (needs `timer.get` + `config.get`): instrument (3/5) | transport,
- * session settings and the OBS sources (2/5). The overlay
+ * Timer console (needs `timer.get` + `config.get`): the one-line heading with the phase chip,
+ * then instrument (3/5) | transport, session settings and the OBS sources (2/5). The overlay
  * URLs read `user.me` from the cache the page's one batch filled; until it lands each row
  * stays masked and disabled at the same size.
  */
 function TimerConsoleBody() {
   return (
     <TimerProvider>
+      <div className={PANEL_HEADER_CLASS}>
+        <h2 className={PANEL_TITLE_CLASS}>Timer</h2>
+        <TimerPhaseChip />
+      </div>
       <div className="grid lg:grid-cols-5">
         <div className="flex flex-col items-center justify-center gap-8 px-5 py-8 lg:col-span-3">
           <TimerInstrument />
@@ -285,15 +290,9 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
       </ProgressiveSection>
 
       <div className="grid gap-6">
-        {/* Hero instrument: the timer console. Its heading is static, so it is frame. */}
+        {/* Hero instrument: the timer console. Its heading row carries the live phase chip,
+            so it lives inside the section (the placeholder repeats its shape). */}
         <section className="panel-hero">
-          <div className="border-b border-border/40 px-5 pt-4 pb-3">
-            <ConsoleRule label="Timer Console" />
-            <h2 className="mt-2 font-heading text-lg font-semibold tracking-tight">Pomodoro</h2>
-            <p className="text-sm text-muted-foreground">
-              Run the focus session your viewers see in OBS
-            </p>
-          </div>
           <ProgressiveSection
             queryKeys={[timerKey, trpc.config.get.queryKey()]}
             fallback={

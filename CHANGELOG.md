@@ -116,6 +116,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the timer controls in **OBS sources**, with a **Timer** and a **Tasks** tab. Each tab keeps
   Show / Copy / Reset, the recommended source size (300 × 300, 700 × 800) and the Live
   preview. The task board gets the full width of the page.
+- **Simpler panel headings.** The timer console and the task board each have one heading
+  line: **Timer** with its phase chip beside it, and **Tasks** with its open / done counts.
 - **Easier-to-scan Theme Center style editors.** Every control now sits right beside its
   label in one fixed-width column instead of at the far edge of the editor, and on a wide
   screen the groups (Panel, Progress ring, Header…) flow into two columns under clearer

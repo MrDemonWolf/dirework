@@ -16,9 +16,9 @@ chrome.
 
 ## Anatomy
 
-- Header: `ConsoleRule` "Task Board", the "Tasks" `h2`, a subtitle, Open / Done counters
-  (`font-mono text-2xl`) from the server `counts`, and a ghost icon button that opens the
-  board options `DropdownMenu`: destructive "Clear done (N)" and "Clear all (N)" items, each
+- Header, one line (`PANEL_HEADER_CLASS` from `lib/panel-header.ts`, shared with the timer
+  console): the "Tasks" `h2`, then "N open" / "N done" (mono semibold numbers, muted words)
+  from the server `counts`, and a ghost icon button that opens the board options `DropdownMenu`: destructive "Clear done (N)" and "Clear all (N)" items, each
   opening its `ConfirmDialog`.
 - Add form: `Input` (placeholder "Add a task...", `maxLength` `MAX_TASK_LEN`) and an "Add"
   submit `Button`.
