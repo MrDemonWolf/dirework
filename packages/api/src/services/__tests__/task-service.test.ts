@@ -272,7 +272,8 @@ describe("activateTask atomicity", () => {
     expect(batchSpy.mock.calls[0]?.[0]).toHaveLength(2);
     // Demote must precede activate so the single-active slot is free when the
     // unique index checks the activate.
-    expect(setSpy.mock.calls[0]?.[0]).toMatchObject({ status: "pending" });
+    // (The demote's started-or-pending choice is SQL; task-service.sqlite.test.ts covers it.)
+    expect(setSpy.mock.calls[0]?.[0]?.status).not.toBe("active");
     expect(setSpy.mock.calls[1]?.[0]).toMatchObject({ status: "active" });
     expect(result).toMatchObject({ id: "t2", status: "active" });
   });

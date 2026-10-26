@@ -1,9 +1,22 @@
-import { DrizzleQueryError, type SQL, and, asc, desc, eq, inArray, lt, ne, sql } from "drizzle-orm";
+import {
+  DrizzleQueryError,
+  type SQL,
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  lt,
+  ne,
+  not,
+  sql,
+} from "drizzle-orm";
 
 import type { DbClient } from "@dirework/db";
 import * as schema from "@dirework/db/schema";
 
 import { limitCombiningMarks } from "../chat-text";
+import { MAX_STARTED_PER_AUTHOR } from "../config-defaults";
 import { localDay } from "../stats-days";
 import { countTaskDoneStmt, type KnownTimeZone, resolveStatsTimeZone } from "./stats-service";
 
@@ -54,13 +67,38 @@ export async function resolveOwnerTaskId(
   return (await resolveOwnerTwitchId(db, owner)) ?? owner.id;
 }
 
-const OPEN_STATUSES = ["pending", "active"];
+/**
+ * Task statuses. Each author has at most ONE focus (`active`, held by the partial
+ * unique index `task_one_active_per_author_idx`) plus up to MAX_STARTED_PER_AUTHOR
+ * parked in-progress tasks (`started`); everything else open is `pending`.
+ * `status` is plain text with no CHECK, so `started` needed no migration.
+ */
+export type TaskStatus = "pending" | "started" | "active" | "done";
+
+const OPEN_STATUSES: TaskStatus[] = ["pending", "started", "active"];
+/** Open but not the focus. */
+const QUEUED_STATUSES: TaskStatus[] = ["pending", "started"];
+
+/** SQL: how many `started` tasks the author holds, optionally not counting one id. */
+function startedCountSql(twitchId: string, exceptId?: string) {
+  const except = exceptId === undefined ? sql`` : sql` and ${schema.task.id} <> ${exceptId}`;
+  return sql`(select count(*) from ${schema.task}
+    where ${schema.task.authorTwitchId} = ${twitchId}
+      and ${schema.task.status} = 'started'${except})`;
+}
+
+/** SQL: whether the author already holds a focus (`active`) task. */
+function hasActiveSql(twitchId: string) {
+  return sql`exists (select 1 from ${schema.task}
+    where ${schema.task.authorTwitchId} = ${twitchId}
+      and ${schema.task.status} = 'active')`;
+}
 
 /** Case-insensitive author-username predicate (Twitch logins are case-insensitive). */
 const authorUsernameEquals = (username: string) =>
   sql`lower(${schema.task.authorUsername}) = lower(${username})`;
 
-/** All open (pending or active) tasks for a viewer, in list order (M5). */
+/** All open (pending, started or active) tasks for a viewer, in list order (M5). */
 export async function getViewerOpenTasks(db: DbClient, twitchId: string) {
   return db.query.task.findMany({
     where: and(
@@ -130,35 +168,37 @@ interface TaskPlacementOpts {
 }
 
 /**
- * SQL for "the viewer's next pending task", as a subquery. Ordering is
- * (order, id) so it stays deterministic when two tasks created concurrently
- * land on the same `order` value.
+ * SQL for "the viewer's next task to focus", as a subquery: the oldest
+ * `started` task first (a parked task resumes before new work), then the first
+ * pending one. "Oldest" is list order, (order, id), so it stays deterministic
+ * when two tasks created concurrently land on the same `order` value.
+ * `exceptId` skips one row (a just-paused focus must not be re-promoted).
  */
-function nextPendingIdSql(twitchId: string) {
+function nextQueuedIdSql(twitchId: string, exceptId?: string) {
+  const except = exceptId === undefined ? sql`` : sql` and ${schema.task.id} <> ${exceptId}`;
   return sql`(select ${schema.task.id} from ${schema.task}
     where ${schema.task.authorTwitchId} = ${twitchId}
-      and ${schema.task.status} = 'pending'
-    order by ${schema.task.order} asc, ${schema.task.id} asc
+      and ${schema.task.status} in ('started', 'pending')${except}
+    order by case ${schema.task.status} when 'started' then 0 else 1 end asc,
+      ${schema.task.order} asc, ${schema.task.id} asc
     limit 1)`;
 }
 
 /**
- * Promote the viewer's first pending task to active (M5) as ONE statement —
- * the old find-then-update pair could promote two tasks when two commands
- * raced. Safe to include in a db.batch.
+ * Promote the viewer's next queued task (oldest started, else first pending)
+ * to active (M5) as ONE statement — the old find-then-update pair could
+ * promote two tasks when two commands raced. Safe to include in a db.batch.
  */
-export function promoteNextPendingStmt(db: DbClient, twitchId: string) {
+export function promoteNextPendingStmt(db: DbClient, twitchId: string, exceptId?: string) {
   return db
     .update(schema.task)
     .set({ status: "active" })
     .where(
       and(
-        eq(schema.task.id, nextPendingIdSql(twitchId)),
+        eq(schema.task.id, nextQueuedIdSql(twitchId, exceptId)),
         // Belt-and-braces with the partial unique index: never promote while the
         // viewer already holds an active task.
-        sql`not exists (select 1 from ${schema.task}
-        where ${schema.task.authorTwitchId} = ${twitchId}
-          and ${schema.task.status} = 'active')`,
+        not(hasActiveSql(twitchId)),
       ),
     )
     .returning();
@@ -253,9 +293,9 @@ export function isUniqueViolation(err: unknown): boolean {
 }
 
 /**
- * Mark a pending task done (no promote needed: a pending task never held the
- * author's active slot). Guarded on `status = 'pending'`, so it neither
- * re-stamps an already-done task (which would reset its 24h retention) nor
+ * Mark a pending or started task done (no promote needed: neither holds the
+ * author's active slot). Guarded on `status in ('pending', 'started')`, so it
+ * neither re-stamps an already-done task (which would reset its 24h retention) nor
  * completes a task that was promoted to active since the caller read it —
  * that one needs the promote batch in `markTaskDone`. Null when nothing matched.
  */
@@ -266,7 +306,7 @@ export async function completeTask(db: DbClient, id: string, timeZone?: KnownTim
     db
       .update(schema.task)
       .set({ status: "done", completedAt })
-      .where(and(eq(schema.task.id, id), eq(schema.task.status, "pending")))
+      .where(and(eq(schema.task.id, id), inArray(schema.task.status, QUEUED_STATUSES)))
       .returning();
   const updatedRows = await withStatsFallback(
     async () =>
@@ -299,7 +339,8 @@ async function withStatsFallback<T>(
 }
 
 /**
- * Mark a task done; if it was active, promote the author's next pending task.
+ * Mark a task done; if it was active, promote the author's next queued task
+ * (oldest started, else first pending).
  * Complete + promote run in ONE db.batch (atomic on D1), so the viewer is never
  * momentarily left with zero active tasks and a concurrent command can't slot a
  * second task into the gap. Statement order matters: completing frees the
@@ -470,7 +511,10 @@ export async function editTask(db: DbClient, id: string, text: string) {
 }
 
 /**
- * Make `task` the author's single active task (demotes any other active).
+ * Make `task` the author's focus (single active task). The previous focus is
+ * parked as `started` when the author has room under MAX_STARTED_PER_AUTHOR
+ * (not counting `task` itself, which is leaving `started`), else `pending`;
+ * the cap is evaluated inside the UPDATE, so concurrent switches can't exceed it.
  * Both statements run in ONE db.batch so the demote and the activate can't be
  * interleaved by a concurrent !focus, which could leave the viewer with zero or
  * two active tasks. Demote runs first to free the single-active
@@ -484,17 +528,22 @@ export async function activateTask(db: DbClient, task: { id: string; authorTwitc
     select 1 from ${schema.task}
     where ${schema.task.id} = ${task.id}
       and ${schema.task.authorTwitchId} = ${task.authorTwitchId}
-      and ${schema.task.status} in ('pending', 'active')
+      and ${schema.task.status} in ('pending', 'started', 'active')
   )`;
 
   const [, activatedRows] = await db.batch([
     db
       .update(schema.task)
-      .set({ status: "pending" })
+      .set({
+        status: sql`case when ${startedCountSql(task.authorTwitchId, task.id)} < ${MAX_STARTED_PER_AUTHOR}
+          then 'started' else 'pending' end`,
+      })
       .where(
         and(
           eq(schema.task.authorTwitchId, task.authorTwitchId),
           eq(schema.task.status, "active"),
+          // Re-focusing the current focus is a no-op, not a demote + re-activate.
+          ne(schema.task.id, task.id),
           targetIsStillOpen,
         ),
       ),
@@ -513,8 +562,87 @@ export async function activateTask(db: DbClient, task: { id: string; authorTwitc
   return activatedRows[0] ?? null;
 }
 
+export type StartTaskResult =
+  | { outcome: "focused" | "started"; task: typeof schema.task.$inferSelect }
+  | { outcome: "cap_reached" | "not_startable"; task: null };
+
 /**
- * Delete a task; if it was active, promote the author's next pending task.
+ * Start a pending task. With no focus, the author's first started task IS the
+ * focus (`focused`); otherwise it is parked as `started` while the author holds
+ * fewer than MAX_STARTED_PER_AUTHOR (`started`), else `cap_reached`. Both are
+ * guarded UPDATEs in ONE batch and each evaluates its condition (no focus /
+ * started count under the cap) inside the statement, so concurrent starts can
+ * never exceed the cap or create a second focus. Anything but a pending task
+ * (gone, done, already started or the focus) is `not_startable`.
+ */
+export async function startTask(db: DbClient, id: string): Promise<StartTaskResult> {
+  const existing = await readTaskStatus(db, id);
+  if (existing?.status !== "pending") return { outcome: "not_startable", task: null };
+  const author = existing.authorTwitchId;
+  const stillPending = () =>
+    and(
+      eq(schema.task.id, id),
+      eq(schema.task.authorTwitchId, author),
+      eq(schema.task.status, "pending"),
+    );
+
+  const [focusedRows, startedRows] = await db.batch([
+    db
+      .update(schema.task)
+      .set({ status: "active" })
+      .where(and(stillPending(), not(hasActiveSql(author))))
+      .returning(),
+    // Runs after the focus attempt: if that won, the row is no longer pending.
+    db
+      .update(schema.task)
+      .set({ status: "started" })
+      .where(and(stillPending(), sql`${startedCountSql(author)} < ${MAX_STARTED_PER_AUTHOR}`))
+      .returning(),
+  ]);
+  if (focusedRows[0]) return { outcome: "focused", task: focusedRows[0] };
+  if (startedRows[0]) return { outcome: "started", task: startedRows[0] };
+
+  // Neither matched: the cap was full, unless the task changed under us.
+  const after = await readTaskStatus(db, id);
+  return after?.status === "pending"
+    ? { outcome: "cap_reached", task: null }
+    : { outcome: "not_startable", task: null };
+}
+
+/**
+ * Pause a task back to `pending`. A started task just un-parks. The focus is
+ * paused and the author's next queued task (oldest started, else first pending,
+ * never the one just paused) is promoted in the same atomic batch, so the
+ * author is never left without a focus while other work is queued. Guarded on
+ * the status that was read; null when it is not started/active or went stale.
+ */
+export async function pauseTask(db: DbClient, id: string) {
+  const existing = await readTaskStatus(db, id);
+  if (existing?.status === "started") {
+    const [paused] = await db
+      .update(schema.task)
+      .set({ status: "pending" })
+      .where(and(eq(schema.task.id, id), eq(schema.task.status, "started")))
+      .returning();
+    return paused ?? null;
+  }
+  if (existing?.status === "active") {
+    const [pausedRows] = await db.batch([
+      db
+        .update(schema.task)
+        .set({ status: "pending" })
+        .where(and(eq(schema.task.id, id), eq(schema.task.status, "active")))
+        .returning(),
+      promoteNextPendingStmt(db, existing.authorTwitchId, id),
+    ]);
+    return pausedRows[0] ?? null;
+  }
+  return null;
+}
+
+/**
+ * Delete a task; if it was active, promote the author's next queued task
+ * (oldest started, else first pending).
  * The delete must resolve first to learn the author, so this is a read-then-
  * batch rather than one batch; the promote carries its own not-exists guard, so
  * a concurrent promote can't produce a second active task.
@@ -537,7 +665,7 @@ export interface TaskSnapshot {
   authorDisplayName: string;
   authorColor: string | null;
   text: string;
-  status: "pending" | "active" | "done";
+  status: TaskStatus;
   priority: number;
   order: number;
   createdAt: Date;
@@ -552,21 +680,28 @@ export interface TaskSnapshot {
  * atomic statement: when removing the active task promoted the author's next
  * pending one, the restored task comes back as `pending` instead of fighting
  * the promoted task for `task_one_active_per_author_idx`. Its original `order`
- * still sorts it first in the author's queue.
+ * still sorts it first in the author's queue. A removed `started` task comes
+ * back `started` only while the author has room under MAX_STARTED_PER_AUTHOR
+ * (else `pending`), or as the focus when the author has none.
  *
  * Owner-only action, so it deliberately has no viewer caps (chat has none
  * either — task text is bounded by the input schema). An id that already exists
  * (a double-clicked undo) is a no-op that returns null.
  */
 export async function restoreTask(db: DbClient, snapshot: TaskSnapshot) {
-  const status =
-    snapshot.status === "active"
-      ? sql`case when exists (
-          select 1 from ${schema.task}
-          where ${schema.task.authorTwitchId} = ${snapshot.authorTwitchId}
-            and ${schema.task.status} = 'active'
-        ) then 'pending' else 'active' end`
-      : sql`${snapshot.status}`;
+  const author = snapshot.authorTwitchId;
+  let status: SQL;
+  if (snapshot.status === "active") {
+    status = sql`case when ${hasActiveSql(author)} then 'pending' else 'active' end`;
+  } else if (snapshot.status === "started") {
+    // A started task with no focus beside it becomes the focus (nothing else
+    // would promote it); otherwise it stays started while the cap has room.
+    status = sql`case when not ${hasActiveSql(author)} then 'active'
+      when ${startedCountSql(author)} < ${MAX_STARTED_PER_AUTHOR} then 'started'
+      else 'pending' end`;
+  } else {
+    status = sql`${snapshot.status}`;
+  }
   // Only done rows carry a completion time; the 24h purge keys off it.
   const completedAt =
     snapshot.status === "done" ? (snapshot.completedAt ?? new Date()).getTime() : null;
@@ -657,7 +792,7 @@ export async function purgeExpiredDoneTasks(db: DbClient, now: number = Date.now
 }
 
 export interface TaskCounts {
-  /** Pending + active tasks (every one is returned in the list). */
+  /** Pending + started + active tasks (every one is returned in the list). */
   open: number;
   /**
    * Every done task still in retention — NOT just the bounded slice the list
@@ -675,14 +810,53 @@ export interface TaskCounts {
 const listOrder = (a: { priority: number; order: number; id: string }, b: typeof a) =>
   a.priority - b.priority || a.order - b.order || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
+/** Within one author: focus, then started, then the rest (pending and done keep their order). */
+const STATUS_RANK: Record<string, number> = { active: 0, started: 1 };
+const statusRank = (status: string) => STATUS_RANK[status] ?? 2;
+
+interface ListRow {
+  id: string;
+  priority: number;
+  order: number;
+  status: string;
+  authorTwitchId: string;
+}
+
+/**
+ * List order: rows sort by (priority, order, id), then each author's rows are
+ * re-ranked focus → started → rest WITHIN the slots that author already holds.
+ * Authors keep the positions their tasks occupy, so the per-author groups the
+ * dashboard and overlay render come in the same order as before; only the order
+ * inside a group changes. Stable, so equal ranks keep list order.
+ */
+export function sortTasksForList<TRow extends ListRow>(rows: readonly TRow[]): TRow[] {
+  const sorted = [...rows].sort(listOrder);
+  const slots = new Map<string, number[]>();
+  sorted.forEach((row, index) => {
+    const list = slots.get(row.authorTwitchId);
+    if (list) list.push(index);
+    else slots.set(row.authorTwitchId, [index]);
+  });
+  const result = sorted.slice();
+  for (const indexes of slots.values()) {
+    const ranked = indexes
+      .map((index) => sorted[index] as TRow)
+      .sort((a, b) => statusRank(a.status) - statusRank(b.status));
+    indexes.forEach((slot, i) => {
+      result[slot] = ranked[i] as TRow;
+    });
+  }
+  return result;
+}
+
 /**
  * The bounded list read behind the dashboard and the task overlay. Open tasks
  * come from an index range on status; done tasks are the newest `doneLimit`
  * by completed_at (index range + LIMIT); the done counters are a per-author
  * COUNT over the same index range. Nothing scans the table, and retention bounds the done range.
- * The two slices are merged back into list order (priority, order, id).
+ * The two slices are merged back into list order (`sortTasksForList`).
  */
-async function readBoundedTasks<TRow extends { id: string; priority: number; order: number }>(
+async function readBoundedTasks<TRow extends ListRow>(
   db: DbClient,
   readOpen: () => Promise<TRow[]>,
   readDone: (limit: number) => Promise<TRow[]>,
@@ -704,7 +878,7 @@ async function readBoundedTasks<TRow extends { id: string; priority: number; ord
     doneCount += Number(n);
   }
   const counts: TaskCounts = { open: open.length, done: doneCount, doneByAuthor };
-  return { tasks: [...open, ...done].sort(listOrder), counts };
+  return { tasks: sortTasksForList([...open, ...done]), counts };
 }
 
 const openTasksWhere = () => inArray(schema.task.status, OPEN_STATUSES);

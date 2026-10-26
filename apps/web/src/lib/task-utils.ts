@@ -88,7 +88,7 @@ export function ownerActiveTask<T extends Task>(tasks: readonly T[], ownerKey: s
   return tasks.find((task) => task.status === "active" && authorKey(task) === ownerKey) ?? null;
 }
 
-const RESTORABLE_STATUSES = ["pending", "active", "done"] as const;
+const RESTORABLE_STATUSES = ["pending", "started", "active", "done"] as const;
 type RestorableStatus = (typeof RESTORABLE_STATUSES)[number];
 
 /**

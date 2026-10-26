@@ -12,9 +12,11 @@ import {
   createTask,
   listTasks,
   markTaskDone,
+  pauseTask,
   removeTask,
   resolveOwnerTaskId,
   restoreTask,
+  startTask,
 } from "../services/task-service";
 import { taskCreateInput, taskIdInput, taskRestoreInput } from "./input-schemas";
 
@@ -61,7 +63,21 @@ export const taskRouter = router({
     return activateTask(ctx.db, task);
   }),
 
-  /** Delete a task, promoting the next pending one if it was active (`removeTask`). */
+  /**
+   * Start a pending task (`startTask`): it becomes the focus when the author has
+   * none, else a parked `started` task while under MAX_STARTED_PER_AUTHOR.
+   * Returns the outcome (`cap_reached` / `not_startable` change nothing).
+   */
+  start: ownerProcedure.input(taskIdInput).mutation(async ({ ctx, input }) => {
+    return startTask(ctx.db, input.id);
+  }),
+
+  /** Pause a started task or the focus back to pending (`pauseTask`). */
+  pause: ownerProcedure.input(taskIdInput).mutation(async ({ ctx, input }) => {
+    return pauseTask(ctx.db, input.id);
+  }),
+
+  /** Delete a task, promoting the next queued one if it was active (`removeTask`). */
   remove: ownerProcedure.input(taskIdInput).mutation(async ({ ctx, input }) => {
     return removeTask(ctx.db, input.id);
   }),
