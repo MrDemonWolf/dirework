@@ -16,11 +16,14 @@ import {
   DEFAULT_PHASE_LABELS,
   DEFAULT_TASK_MESSAGES,
   DEFAULT_TIMER_MESSAGES,
+  flattenTaskStyles,
   flattenWithFieldMap,
   PHASE_LABEL_FIELDS,
   SINGLETON_ID,
   TASK_MESSAGE_FIELDS,
+  taskStylesInputSchema,
   TIMER_MESSAGE_FIELDS,
+  timerStylesInputSchema,
 } from "../../config-shared";
 import { updateBotSettingsInput, updateStylesInput } from "../input-schemas";
 
@@ -110,6 +113,38 @@ describe("style rows clamp on read", () => {
     expect(updateStylesInput.safeParse({ timerStyles, taskStyles, phaseLabels }).success).toBe(
       true,
     );
+  });
+
+  // Shorthands the old allowlist took: every part is checked for a readable unit BEFORE any
+  // part is clamped, so an out-of-range first part never hides a later one in a unit the
+  // field no longer takes (which used to crash the read).
+  it.each([
+    // [column, stored, read back]
+    ["taskPadding", "80px 10%", "10px 14px"],
+    ["taskPadding", "10% 80px", "10px 14px"],
+    ["taskPadding", "-4px 2rem 60px", "0px 2rem 48px"],
+    ["taskPadding", "-1px -2px -3px -4px", "0px 0px 0px 0px"],
+    ["taskPadding", "4px 8px 12px 16px", "4px 8px 12px 16px"],
+    ["taskPadding", "80px auto", "10px 14px"],
+    ["taskPadding", "1px 2px 3px 4px 5px", "10px 14px"],
+    ["headerPadding", "100px 1ch", "12px 18px"],
+    ["taskBorderRadius", "80px 60% -2px 4px", "64px 50% 0px 4px"],
+    ["headerBorderRadius", "99px 99px 2vw 0", "14px 14px 0 0"],
+    ["bodyBorderRadius", "0 0 5rem 5rem", "0 0 64px 64px"],
+  ] as const)("task %s %j reads back as %j, and saves", (column, stored, expected) => {
+    const taskStyles = buildTaskStylesConfig(taskRow({ [column]: stored }));
+    expect(flattenTaskStyles(taskStyles)[column]).toBe(expected);
+    expect(taskStylesInputSchema.safeParse(taskStyles).success).toBe(true);
+  });
+
+  it.each([
+    ["bgBorderRadius", "700px 10vw"],
+    ["bgBorderRadius", "-5% 700px 20% 1pt"],
+    ["width", "5000pt"],
+    ["fontSizeLabel", "1px 2px"],
+  ] as const)("timer %s %j reads back saveable", (column, stored) => {
+    const timerStyles = buildTimerStylesConfig(timerRow({ [column]: stored }));
+    expect(timerStylesInputSchema.safeParse(timerStyles).success).toBe(true);
   });
 
   it("a row already inside every limit reads back unchanged", () => {

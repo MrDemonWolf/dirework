@@ -124,18 +124,26 @@ export function unitRange(limit: LengthLimit, unit: string): readonly [number, n
 
 export type LengthIssue = "format" | "count" | "unit" | "range";
 
-/** Why `value` breaks `limit`, or null when it fits. Whitespace around it is ignored. */
+/**
+ * Why `value` breaks `limit`, or null when it fits. Whitespace around it is ignored.
+ * Every part's format and unit are checked before any part's range, so "range" always
+ * means each part is readable and only its number is off: `clampLength` relies on that
+ * to clamp a shorthand part by part ("80px 10%" is "unit", not "range").
+ */
 export function lengthIssue(value: string, limit: LengthLimit): LengthIssue | null {
   const tokens = value.trim().split(/\s+/);
   if (tokens.length > (limit.maxValues ?? 1)) return "count";
+  const parsed: { token: LengthToken; range: readonly [number, number] }[] = [];
   for (const raw of tokens) {
     const token = parseToken(raw);
     if (!token) return "format";
     const range = unitRange(limit, token.unit);
     if (!range) return "unit";
-    if (token.value < range[0] || token.value > range[1]) return "range";
+    parsed.push({ token, range });
   }
-  return null;
+  return parsed.some(({ token, range }) => token.value < range[0] || token.value > range[1])
+    ? "range"
+    : null;
 }
 
 /** "14–48px", "0–64px or 0–50%", "120–1200px, 10–100% or 10–100vw/vh" (+ "; up to 4 values"). */
@@ -160,8 +168,9 @@ const round = (n: number) => Math.round(n * 10_000) / 10_000;
 
 /**
  * `value` held inside `limit` for reading a stored row: an out-of-range part is moved to
- * the nearest bound (an absolute one in px), and a value that can't be read at all (a
- * unit or shorthand the limit doesn't take) becomes `fallback`.
+ * the nearest bound (an absolute one in px), and a value that can't be read at all (any
+ * part in a unit or form the limit doesn't take, or too many parts) becomes `fallback`.
+ * Either way the result passes `lengthIssue` (and so `boundedLengthSchema`).
  */
 export function clampLength(value: string, limit: LengthLimit, fallback: string): string {
   if (typeof value !== "string") return fallback;
