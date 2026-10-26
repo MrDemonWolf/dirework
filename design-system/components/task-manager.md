@@ -25,9 +25,14 @@ chrome.
 - List (`max-h-100`, scrolls): one `rounded-xl` `Collapsible` per author. Its header is the
   trigger (`min-h-11`): a chevron, a dot (primary for the host, else the Twitch color or
   cornflower), the name, a "Host" accent chip for the owner, and a `done/total` console label.
-  Rows (`min-h-11`): a round checkbox button, the text clamped to two lines (`line-clamp-2`),
-  an "Active" pulsing accent chip, a "Set as active" icon button and a destructive Remove icon
-  button.
+  Rows (`min-h-11`, `items-start`): a round checkbox button, then a body of the task text and
+  a meta line (`data-slot="task-row-meta"`): the status chip slot (an "Active" pulsing accent
+  chip) and the action group (a "Set as active" icon button and a destructive Remove icon
+  button). The text wraps in full, never clamped (`wrap-anywhere`, so a long URL breaks
+  instead of squeezing the row; `dir="auto"` for right-to-left tasks). Below `sm` the meta
+  line sits under the text, so the text gets the row's full width on a 320px phone; from `sm`
+  it rides beside the text. New row controls (Start / Pause, a "⋯" menu) join the action
+  group.
 - Footer (when there are tasks): "Done tasks clear automatically after 24h".
 
 ## Props and variants

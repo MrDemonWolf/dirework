@@ -36,19 +36,25 @@ export function StatusChip({
   label,
   pulse = false,
   size = "default",
+  title,
   className,
 }: {
   tone?: StatusTone;
   label: string;
   pulse?: boolean;
   size?: "default" | "sm";
+  /** Full text on hover, for a label that may be cut (a streamer's custom phase label). */
+  title?: string;
   className?: string;
 }) {
   const styles = toneStyles[tone];
+  // Never shrinks below its label in a row (neighbours truncate first), but never grows wider
+  // than its row either (max-w-full): a long label then ends in an ellipsis.
   return (
     <span
+      title={title}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border font-mono text-2xs font-medium tracking-chip uppercase",
+        "inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-full border font-mono text-2xs font-medium tracking-chip uppercase",
         size === "sm" ? "px-2 py-0.5" : "px-2.5 py-1",
         styles.chip,
         className,
@@ -58,7 +64,7 @@ export function StatusChip({
         aria-hidden
         className={cn("size-1.5 shrink-0 rounded-full", styles.dot, pulse && "animate-led-pulse")}
       />
-      {label}
+      <span className="min-w-0 truncate">{label}</span>
     </span>
   );
 }

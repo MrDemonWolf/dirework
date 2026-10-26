@@ -97,8 +97,10 @@ black and white (`theme-contrast.test.ts`).
   ring drains once per displayed second with a matching `stroke-dashoffset 1s linear`
   transition.
 - **Paused**: the ring measures against the phase it froze in (`resolvePhaseDuration`).
-- **Hours**: with `showHours` (or past 99 minutes), `clockFontSize` (`lib/timer-utils.ts`)
-  shrinks the digits so `01:25:00` is no wider than `25:00` (about 41px at the default).
+- **Hours**: from 60 minutes up the clock reads `H:MM:SS` (`formatClock`; a 24-hour focus is
+  `24:00:00`, never `1440:00`), and `showHours` pads every length to `HH:MM:SS`. Either way
+  `clockFontSize` (`lib/timer-utils.ts`) shrinks the digits so `01:25:00` is no wider than
+  `25:00` (about 41px at the default).
   It never grows text.
 - **Fitted**: a long phase label, a wide font, a big size or a circle ring's narrower
   chord shrinks just the line that would cross the ring; below `MIN_FIT_SCALE` it ends in

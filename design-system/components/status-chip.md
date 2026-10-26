@@ -16,7 +16,9 @@ markers and similar states. Used by the dashboard, `timer-controls`,
 
 - Pill (`rounded-full`) with a tone-tinted border (`/30`) and fill (`/10`).
 - Leading dot `size-1.5`, `aria-hidden`, solid tone color; optional `animate-led-pulse`.
-- Label: `font-mono text-2xs font-medium tracking-chip uppercase`.
+- Label: `font-mono text-2xs font-medium tracking-chip uppercase`, in a `truncate` span. The
+  chip is `max-w-full shrink-0`: neighbours truncate before it does, and a label longer than
+  the whole row ends in an ellipsis; pass `title` with the full text when a label may be cut.
 
 ## Props and variants
 
@@ -26,6 +28,7 @@ markers and similar states. Used by the dashboard, `timer-controls`,
 | `label` | `string` | required | Visible text (rendered uppercase) |
 | `pulse` | `boolean` | `false` | Dot pulses; only while time is actually elapsing |
 | `size` | `"default" \| "sm"` | `"default"` | `px-2.5 py-1` vs `px-2 py-0.5` |
+| `title` | `string` | none | Full label on hover, for a label that may be cut |
 | `className` | `string` | none | Merged last |
 
 | Tone (`StatusTone`) | Color | Meaning |

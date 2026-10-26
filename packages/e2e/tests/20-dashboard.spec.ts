@@ -137,6 +137,37 @@ test("Live preview opens as the timer card's right-hand column on a wide screen"
   await expect(tasksToggle).toBeFocused();
 });
 
+test("on a 320px phone a long active task wraps in full across the row", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  const text = `https://example.com/${"averyveryverylongunbrokenpath".repeat(3)}?t=${Date.now()}`;
+  await page.getByRole("textbox", { name: "New task text" }).fill(text);
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  const row = taskRow(page, text);
+  await expect(row).toBeVisible();
+  const activate = page.getByLabel(`Set "${text}" as active`);
+  if (await activate.count()) await activate.click();
+  await expect(row.getByText("Active", { exact: true })).toBeVisible();
+
+  // The status chip moves under the text, so the text keeps most of the row (it once got
+  // ~75px of it), shows in full (no clamp) and widens nothing.
+  const sizes = await row.evaluate((li) => {
+    const p = li.querySelector("p");
+    return {
+      row: li.getBoundingClientRect().width,
+      text: p?.getBoundingClientRect().width ?? 0,
+      clipped: p ? p.scrollHeight > p.clientHeight + 1 : true,
+      scroll: document.documentElement.scrollWidth,
+      client: document.documentElement.clientWidth,
+    };
+  });
+  expect(sizes.text, "task text width").toBeGreaterThan(sizes.row * 0.7);
+  expect(sizes.clipped, "task text clipped").toBe(false);
+  expect(sizes.scroll, "page wider than the viewport").toBeLessThanOrEqual(sizes.client);
+
+  await page.getByLabel(`Remove "${text}"`).click();
+  await expect(page.getByText(text)).toHaveCount(0);
+});
+
 test("removing a task offers Undo, and Undo puts it back", async ({ page }) => {
   const text = `Undo me ${Date.now()}`;
   await page.getByRole("textbox", { name: "New task text" }).fill(text);

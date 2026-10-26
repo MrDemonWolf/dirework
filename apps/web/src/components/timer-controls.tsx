@@ -7,7 +7,7 @@
 // behind the "Edit session settings" disclosure) read it through context.
 
 import { createContext, Fragment, useContext, useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info, Pause, Play, SkipForward, Square } from "lucide-react";
 import { toast } from "sonner";
@@ -22,7 +22,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { DASHBOARD_TIMER_QUERY_OPTS } from "@/lib/poll-intervals";
 import { formatSessionSummary } from "@/lib/session-summary";
-import { type TimerState, formatClock, resolvePhaseDuration } from "@/lib/timer-utils";
+import { type TimerState, clockEm, formatClock, resolvePhaseDuration } from "@/lib/timer-utils";
 import { useTimerCountdown } from "@/lib/use-timer-countdown";
 import { TIMER_TONES, TIMER_PHASE_COLOR, toTimerStatus } from "@/lib/status-tones";
 import {
@@ -323,6 +323,7 @@ export function TimerPhaseChip() {
         tone={tone}
         label={phaseLabel}
         pulse={pulse}
+        title={phaseLabel}
       />
       {/* Announces phase changes (start / pause / stop / chat-driven) to screen readers. */}
       <span role="status" aria-live="polite" className="sr-only">
@@ -357,9 +358,11 @@ export function TimerInstrument() {
   const phaseColor = TIMER_PHASE_COLOR[toTimerStatus(status)];
 
   return (
-    <div className="flex w-full flex-col items-center gap-5">
-      {/* Digits with a static phase-tinted ambient glow */}
-      <div className="relative">
+    <div className="@container flex w-full flex-col items-center gap-5">
+      {/* Digits with a static phase-tinted ambient glow. `.timer-digits` (index.css) sizes them
+          from this container's width and the clock's length (`--clock-em`), so a 24-hour
+          "24:00:00" fits a 320px phone at the full width the instrument has. */}
+      <div className="relative max-w-full">
         <div
           aria-hidden
           className="absolute inset-x-0 top-1/2 -z-10 h-32 -translate-y-1/2"
@@ -367,7 +370,10 @@ export function TimerInstrument() {
             background: `radial-gradient(closest-side, color-mix(in oklab, ${phaseColor} 14%, transparent), transparent)`,
           }}
         />
-        <span className="font-heading text-7xl font-semibold tracking-tight tabular-nums lg:text-8xl">
+        <span
+          className="timer-digits font-heading font-semibold tracking-tight whitespace-nowrap tabular-nums"
+          style={{ "--clock-em": clockEm(displayTime).toFixed(2) } as CSSProperties}
+        >
           {displayTime}
         </span>
       </div>

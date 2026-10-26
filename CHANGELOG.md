@@ -310,6 +310,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   lucide-react 1.x pin, and Dependabot now bumps the fumadocs packages together.
 
 ### Fixed
+- **Task rows are readable on a phone.** On a narrow screen the **Active** chip and the row
+  buttons sit on their own line under the task, so the text gets the row's full width
+  instead of a sliver. Long tasks now show in full instead of stopping after two lines, long
+  links break instead of squeezing the row, and right-to-left tasks read the right way.
+- **Long timers read as hours.** A phase of an hour or more shows `1:30:00` instead of
+  `90:00`, and a 24-hour focus shows `24:00:00` instead of `1440:00`, on the dashboard, the
+  timer overlay and the Theme Center preview. The dashboard clock also shrinks to fit a
+  320px phone instead of running off the card.
+- **Long phase labels fit the Timer card.** A long custom phase label ends in "…" (hover it
+  for the full text) instead of running off the card on a phone.
+- **Mute and Reconnect stay in reach in a short bot dock.** In a small OBS dock (about
+  400×200, or 240 wide) **Mute bot** / **Unmute bot** and **Reconnect** are pinned under the
+  dock's title bar, so you never scroll to find them.
 - **The dashboard arrives complete.** Opening the dashboard (or Bot settings) no longer
   paints grey placeholders that fill in a moment later on a normal load. The page now waits
   up to 0.8s for its data and arrives finished in one step; placeholders only show when the

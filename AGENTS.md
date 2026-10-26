@@ -188,7 +188,8 @@ live region, and even the terminal phases (`revoked`, `reauth`, `invalid`) and t
 error boundary stay off the stream (sr-only `role="alert"`; the dock and Dashboard → Bot
 show them). `?view=dock` is the visible control panel for an OBS custom browser dock or a
 pinned tab (`bot-dock.tsx`, a centered `max-w-md` column on the OBS grey: LED, mute state,
-last error, recent commands, Reconnect, command buttons) over the SAME session — no poll;
+last error, recent commands, Reconnect, command buttons; the title bar plus Mute/Unmute and
+Reconnect are a `sticky top-0` strip, so a ~400×200 or 240-wide dock never scrolls them away) over the SAME session — no poll;
 Reconnect re-creates the session (one `getSession`, like a reload). The dock wears OBS Studio's Yami dark palette (`color.obs` tokens → `*-obs-*`
 classes) in every app theme. Its command buttons (`lib/bot-dock-commands.ts`: Start/Pause/
 Resume/Skip/Reset, Mute/Unmute, Clear done; Reset and Clear done confirm) add NO server
@@ -685,7 +686,13 @@ only the selected tab is mounted). The tab and the preview switch live in the co
 the console's third column (`ObsPreviewColumn`: overlay name + "Close live preview") and
 `.timer-console-grid` (index.css) slides instrument | controls from 3/5 · 2/5 over to make
 room. One iframe at most either way. The task board (`task-manager.tsx`) takes the full width.
-The setup checklist's URL handoffs stay separate (Show/Copy only). Rows are `min-h-11` with `line-clamp-2` text, author groups fold (Collapsible, component
+The setup checklist's URL handoffs stay separate (Show/Copy only). Rows are `min-h-11`: checkbox, then
+the task text (full wrap, no clamp, `wrap-anywhere`, `dir="auto"`) and a meta line
+(`data-slot="task-row-meta"`: status chip slot + action group, where later row controls go)
+that sits under the text below `sm` and beside it from `sm`. The clock is `formatClock`
+(`MM:SS`, `H:MM:SS` from an hour up, also on the overlay and Theme Center preview) sized by
+`.timer-digits` against its `@container` (`clockEm`), so `24:00:00` fits at 320px; a long
+phase label truncates in `TimerPhaseChip` (`title` = full label). Author groups fold (Collapsible, component
 state only), and "Clear done (N)" / "Clear all (N)" live in the "Task board options" menu,
 each opening its confirm. The bot's status appears once, as the header chip that links to Bot settings.
 The per-section placeholders in `dashboard-skeleton.tsx` (and the client-navigation

@@ -174,10 +174,33 @@ describe("dashboard layout", () => {
     expect(taskManager).not.toMatch(/localStorage|sessionStorage/);
   });
 
-  it("gives task rows a 44px minimum and two lines of text", () => {
-    expect(taskManager).toContain('"group flex min-h-11 items-center');
-    expect(taskManager).toContain("line-clamp-2");
-    expect(taskManager).not.toContain("flex-1 truncate text-sm");
+  it("gives task rows a 44px minimum and lets the text wrap in full", () => {
+    expect(taskManager).toContain('"group flex min-h-11 items-start');
+    // No clamp or truncate: a long task wraps (breaking URLs anywhere), in its own direction.
+    expect(taskManager).not.toMatch(/line-clamp-|flex-1 truncate text-sm/);
+    expect(taskManager).toContain("wrap-anywhere");
+    expect(taskManager).toContain('dir="auto"');
+  });
+
+  it("puts the status chip and row actions on a meta line under the text below sm", () => {
+    // The body stacks text over the meta line on a phone and sets them side by side from sm.
+    expect(taskManager).toContain("flex min-w-0 flex-1 flex-col gap-1.5 sm:flex-row");
+    const meta = taskManager.slice(taskManager.indexOf('data-slot="task-row-meta"'));
+    expect(meta.indexOf('label="Active"')).toBeGreaterThan(0);
+    expect(meta.indexOf("data-remove-task")).toBeGreaterThan(meta.indexOf('label="Active"'));
+    expect(taskManager.indexOf("{task.text}\n")).toBeLessThan(
+      taskManager.indexOf('data-slot="task-row-meta"'),
+    );
+  });
+
+  it("sizes the dashboard clock from its container and cuts a long phase label", () => {
+    expect(timerControls).toContain('className="@container flex w-full flex-col');
+    expect(timerControls).toContain('"--clock-em": clockEm(displayTime)');
+    expect(timerControls).toContain("timer-digits");
+    expect(css).toMatch(
+      /\.timer-digits \{\s*font-size: min\(4\.5rem, calc\(96cqi \/ var\(--clock-em/,
+    );
+    expect(timerControls).toMatch(/<StatusChip[\s\S]*?title=\{phaseLabel\}/);
   });
 
   it("keeps the timer names the e2e suite drives", () => {

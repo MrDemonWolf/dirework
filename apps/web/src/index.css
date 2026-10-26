@@ -195,6 +195,20 @@
     }
   }
 
+  /* Dashboard clock (TimerInstrument). The text-7xl / lg:text-8xl sizes, capped so the clock
+     never outgrows its @container: --clock-em is the clock's width in em (clockEm in
+     lib/timer-utils.ts: 3.1 for "25:00", 5.5 for "24:00:00"), so 96cqi / --clock-em keeps
+     the digits inside the column on a 320px phone instead of overflowing the card. */
+  .timer-digits {
+    font-size: min(4.5rem, calc(96cqi / var(--clock-em, 3.1)));
+    line-height: 1;
+  }
+  @media (width >= 64rem) {
+    .timer-digits {
+      font-size: min(6rem, calc(96cqi / var(--clock-em, 3.1)));
+    }
+  }
+
   /* Checkerboard backdrop (transparency preview) */
   .bg-checker {
     background-color: #e8e8ec;
