@@ -7,6 +7,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **One bot page at a time, and "Bot connected" on the dashboard.** Only one open bot page
+  (widget or dock) joins Twitch chat now. Any other copy stands by: its tab title says
+  `DireWork bot · Standby`, and the dock says **The bot is running somewhere else** with a
+  **Take over** button that moves the bot to it. A standby page takes over on its own once
+  the running page closes; a page that closes or reloads hands the bot over at once. The
+  dashboard's bot chip says **Bot connected** while a page runs the bot and **Bot offline**
+  when none has checked in for 5 minutes. Cost: each open bot page checks in every 2 minutes
+  (one Worker request and one D1 write: 30 an hour, at most 720 a day per page left open
+  around the clock); a stale page's relays are refused from the token read the api already
+  does, and the chip reads `user.me` (no new request or poll). New migration
+  `0021_bot_page_lease` (add-only).
 - **Dashboard stats.** A strip under the greeting shows focus time, pomodoros and tasks done
   today (and how many of those came from chat), plus the days you streamed this week and your
   week streak. A 14-day focus chart sits under the timer digits, today's bar highlighted. A

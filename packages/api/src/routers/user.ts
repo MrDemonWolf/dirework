@@ -46,6 +46,15 @@ function setupState(instance: SetupColumns | null | undefined): Record<SetupStep
   };
 }
 
+/**
+ * Milliseconds since a bot page last held the chat lease (claimed or renewed it), or null
+ * when none holds it. An age, not a timestamp, so the dashboard compares it against
+ * BOT_LEASE_TTL_MS without trusting the browser's clock.
+ */
+export function botPageSeenMsAgo(seenAt: Date | null | undefined, now: number): number | null {
+  return seenAt ? Math.max(0, now - seenAt.getTime()) : null;
+}
+
 export const userRouter = router({
   /**
    * Public setup gate: does this single-tenant instance have an owner yet?
@@ -56,9 +65,10 @@ export const userRouter = router({
 
   /**
    * ownerProcedure. The dashboard's identity payload: the user row, the overlay
-   * tokens, the setup checklist flags, and the bot account's public fields
-   * (never its OAuth tokens). The flags come from the instance row this already
-   * reads, so the checklist costs no extra statement.
+   * tokens, the setup checklist flags, the bot account's public fields (never its
+   * OAuth tokens), and how long ago a bot page last checked in (the header's "Bot
+   * connected" chip). The flags and the check-in come from the instance row this
+   * already reads, so they cost no extra statement.
    */
   me: ownerProcedure.query(async ({ ctx }) => {
     const [user, instance, botAccount, twitchAccount] = await Promise.all([
@@ -73,6 +83,7 @@ export const userRouter = router({
           setupTimerOverlayConfirmed: true,
           setupTasksOverlayConfirmed: true,
           timeZone: true,
+          botLeaseSeenAt: true,
         },
       }),
       // H1 fix: never select accessToken/refreshToken/scopes — chat-scoped
@@ -103,6 +114,7 @@ export const userRouter = router({
       setup: setupState(instance),
       // The zone dashboard stats use (null = UTC); the dashboard reports its own when they differ.
       timeZone: instance?.timeZone ?? null,
+      botPageSeenMsAgo: botPageSeenMsAgo(instance?.botLeaseSeenAt, Date.now()),
     };
   }),
 

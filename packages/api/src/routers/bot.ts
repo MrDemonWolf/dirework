@@ -7,6 +7,7 @@ import * as schema from "@dirework/db/schema";
 import { env } from "@dirework/env/server";
 
 import { handleMessage } from "../bot/commands";
+import { BOT_STANDBY_MESSAGE, isLeaseHeldByOther } from "../bot-lease";
 import {
   buildBotConfig,
   hasControlCharacters,
@@ -17,6 +18,7 @@ import {
   TWITCH_LOGIN_PATTERN,
 } from "../config-shared";
 import { ownerProcedure, publicProcedure, router } from "../index";
+import { claimBotLease, releaseBotLease } from "../services/bot-lease";
 import { claimChatMessage } from "../services/chat-dedupe";
 import { ensureBotConfig, ensureInstanceConfig } from "../services/provision";
 import { removeTasksByUsername, resolveOwnerTwitchId } from "../services/task-service";
@@ -48,8 +50,22 @@ const safeChatTextInput = z
   .max(MAX_RELAYED_MESSAGE_LENGTH)
   .refine((value) => !hasControlCharacters(value), "Control characters are not allowed");
 
+/**
+ * A bot page's random per-load id (crypto.randomUUID), which names the page holding the
+ * chat lease. Not a secret: the bot token is the gate.
+ */
+export const botInstanceIdInput = z
+  .string()
+  .min(8)
+  .max(64)
+  .regex(/^[0-9a-f-]+$/i);
+
 export const botIngestInputSchema = z.object({
   token: tokenInput,
+  // The relaying page's lease id. A page that lost the lease is refused (CONFLICT) and drops
+  // to standby. Optional: a page loaded before the lease existed sends none and still relays
+  // (processed_chat_message dedupes it) until it is reloaded.
+  instanceId: botInstanceIdInput.optional(),
   kind: z.enum(["message", "clearchat"]).default("message"),
   username: twitchLoginInput.optional(),
   displayName: z.string().trim().min(1).max(64).optional(),
@@ -196,7 +212,13 @@ export const botRouter = router({
       // The token check's own instance_config read also yields the cached channel
       // login (written by getSession's resolveChannelLogin), so !block can refuse
       // the streamer's real login without another D1 read.
-      const { channelLogin, timeZone } = await requireBotInstance(ctx.db, input.token);
+      const { channelLogin, timeZone, lease } = await requireBotInstance(ctx.db, input.token);
+
+      // The lease rides on the token read above: a page another one took over from is
+      // refused before anything runs, with no extra D1 query and no write.
+      if (input.instanceId && isLeaseHeldByOther(lease, input.instanceId, Date.now())) {
+        throw new TRPCError({ code: "CONFLICT", message: BOT_STANDBY_MESSAGE });
+      }
 
       // Moderation piggyback (L9): CLEARCHAT (ban/timeout) → drop the user's tasks.
       if (input.kind === "clearchat") {
@@ -244,6 +266,47 @@ export const botRouter = router({
       });
 
       return { replies, muted };
+    }),
+
+  /**
+   * Bot page lease check-in: only one open bot page holds the Twitch chat connection. A page
+   * calls this before it joins chat, then every 2 minutes while it holds the lease or waits
+   * in standby. One token read plus (unless another page's lease is live) ONE guarded
+   * UPDATE: the lease is taken or renewed only
+   * when it is free, expired or already this page's, or forced with `takeover` (the dock's
+   * "Take over"). `holder: false` sends the page to standby (no IRC connection).
+   */
+  heartbeat: publicProcedure
+    .input(
+      z.object({
+        token: tokenInput,
+        instanceId: botInstanceIdInput,
+        takeover: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { lease } = await requireBotInstance(ctx.db, input.token);
+      // A standby page's check-in is answered from the token read: no UPDATE while another
+      // page's lease is live. The guarded UPDATE below still settles every other case.
+      if (!input.takeover && isLeaseHeldByOther(lease, input.instanceId, Date.now())) {
+        return { holder: false };
+      }
+      const holder = await claimBotLease(ctx.db, {
+        instanceId: input.instanceId,
+        takeover: input.takeover,
+      });
+      return { holder };
+    }),
+
+  /**
+   * A closing bot page gives its lease up (best-effort, a keepalive fetch on pagehide), so
+   * the next page to open takes the chat at once. Only the holder's own id clears it.
+   */
+  release: publicProcedure
+    .input(z.object({ token: tokenInput, instanceId: botInstanceIdInput }))
+    .mutation(async ({ ctx, input }) => {
+      await requireBotToken(ctx.db, input.token);
+      return { released: await releaseBotLease(ctx.db, input.instanceId) };
     }),
 
   /**

@@ -148,6 +148,13 @@
       "when": 1792991222852,
       "tag": "0020_daily_stats",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1792996897802,
+      "tag": "0021_bot_page_lease",
+      "breakpoints": true
     }
   ]
 }

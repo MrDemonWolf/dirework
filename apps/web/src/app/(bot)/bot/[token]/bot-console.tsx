@@ -44,6 +44,7 @@ import {
   type BotPhase,
   type BotSession,
 } from "@/lib/bot-session";
+import { releaseBotLease } from "@/lib/bot-lease-release";
 import { botPageTitle, type BotActivityLine, type BotView } from "@/lib/bot-view";
 import { TwitchIrcClient, type IrcStatus } from "@/lib/irc-client";
 import { publicTrpc } from "@/utils/trpc";
@@ -56,7 +57,8 @@ const MAX_ACTIVITY = 20;
 
 type ActivityLine = BotActivityLine;
 
-const LED_CLASS: Record<"green" | "amber" | "red", string> = {
+const LED_CLASS: Record<"green" | "amber" | "red" | "off", string> = {
+  off: "bg-obs-muted",
   green: "bg-emerald-400 shadow-[0_0_12px_2px_rgba(52,211,153,0.55)]",
   amber:
     "bg-amber-400 shadow-[0_0_12px_2px_rgba(251,191,36,0.5)] animate-pulse motion-reduce:animate-none",
@@ -128,6 +130,9 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
     ok: boolean;
   } | null>(null);
   const sessionRef = useRef<BotSession | null>(null);
+  // This page load's chat-lease id: minted once in the browser and kept across the dock's
+  // Reconnect, so a restarted session renews its own lease instead of standing by for it.
+  const instanceIdRef = useRef("");
   // Synchronous in-flight guard: state lags a double click by a render.
   const commandBusyRef = useRef(false);
 
@@ -161,11 +166,15 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
 
     if (generation > 0) pushActivity("info", "reconnecting — requested from the dock");
 
+    instanceIdRef.current ||= crypto.randomUUID();
     const session = createBotSession({
       token,
+      instanceId: instanceIdRef.current,
       api: {
         getSession: (input) => publicTrpc.bot.getSession.mutate(input),
         ingest: (input) => publicTrpc.bot.ingest.mutate(input),
+        heartbeat: (input) => publicTrpc.bot.heartbeat.mutate(input),
+        release: (input) => releaseBotLease(input),
       },
       createClient: (callbacks) => new TwitchIrcClient(callbacks),
       events: {
@@ -194,9 +203,14 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
       },
     });
     sessionRef.current = session;
+    // Closing (or reloading) the page gives the chat lease up, so the next bot page to open
+    // goes live at once instead of standing by until the lease expires.
+    const onPageHide = () => session.release();
+    window.addEventListener("pagehide", onPageHide);
     // Disposing closes the IRC socket and timers, so a token change or unmount never leaves
-    // a second bot relaying the same chat.
+    // a second bot relaying the same chat. The lease is kept: Reconnect reuses this page's id.
     return () => {
+      window.removeEventListener("pagehide", onPageHide);
       sessionRef.current = null;
       session.dispose();
     };
@@ -218,15 +232,18 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
   };
 
   const terminal = phase === "invalid" || phase === "revoked" || phase === "reauth";
-  const connected = phase !== "boot" && phase !== "not-configured" && ircStatus === "connected";
+  // Standby: another bot page holds the chat, so this one is off IRC on purpose.
+  const standby = phase === "standby";
+  const connected = phase === "live" && ircStatus === "connected";
   // Muted is a deliberate state, not a fault: a steady amber LED, like not-configured.
   const showMuted = connected && muted;
   // Muted posts nothing, so a reply error can only be stale there. `nowTick` (the uptime
   // tick) re-evaluates the clear window every second without a timer of its own.
   const chatError = connected && !showMuted ? currentChatError(chatErrorState, nowTick) : null;
 
-  const tone: StatusTone =
-    phase === "boot" || phase === "not-configured"
+  const tone: StatusTone = standby
+    ? "idle"
+    : phase === "boot" || phase === "not-configured"
       ? "warn"
       : ircStatus === "connected"
         ? showMuted || chatError
@@ -238,25 +255,27 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
 
   const statusText = terminal
     ? "Action needed"
-    : phase === "boot"
-      ? "Starting"
-      : phase === "not-configured"
-        ? "Bot not connected"
-        : ircStatus === "connected"
-          ? showMuted
-            ? "Muted"
-            : chatError
-              ? "Chat error"
-              : "Connected"
-          : ircStatus === "connecting"
-            ? "Connecting"
-            : ircStatus === "reconnecting"
-              ? "Reconnecting"
-              : ircStatus === "auth-failed"
-                ? "Refreshing login"
-                : ircStatus === "closed"
-                  ? "Offline"
-                  : "Starting";
+    : standby
+      ? "Standby"
+      : phase === "boot"
+        ? "Starting"
+        : phase === "not-configured"
+          ? "Bot not connected"
+          : ircStatus === "connected"
+            ? showMuted
+              ? "Muted"
+              : chatError
+                ? "Chat error"
+                : "Connected"
+            : ircStatus === "connecting"
+              ? "Connecting"
+              : ircStatus === "reconnecting"
+                ? "Reconnecting"
+                : ircStatus === "auth-failed"
+                  ? "Refreshing login"
+                  : ircStatus === "closed"
+                    ? "Offline"
+                    : "Starting";
 
   // The tab title carries the state in both views: a pinned tab, or the blank widget opened
   // in a browser, still says whether the bot is up.
@@ -305,8 +324,8 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
   }
 
   // Not-configured, muted and a chat error wait on a person, not on the bot — a steady LED,
-  // so none of them reads as "Connecting".
-  const led = tone === "live" ? "green" : tone === "danger" ? "red" : "amber";
+  // so none of them reads as "Connecting". Standby is neither a fault nor a wait: a grey LED.
+  const led = standby ? "off" : tone === "live" ? "green" : tone === "danger" ? "red" : "amber";
   const ledClass = `${LED_CLASS[led]}${phase === "not-configured" || showMuted || chatError ? " animate-none" : ""}`;
 
   // The page is transparent (the widget's layout): the dock's grey fills a wide tab too.
@@ -319,7 +338,7 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
         muted={muted}
         channelName={channelName}
         botUsername={botUsername}
-        uptime={connectedAt && nowTick ? formatUptime(nowTick - connectedAt) : "—"}
+        uptime={connectedAt && nowTick && !standby ? formatUptime(nowTick - connectedAt) : "—"}
         counters={counters}
         activity={activity}
         lastError={lastError}
@@ -338,7 +357,10 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
           ready: phase === "live" && commandsReady,
           muted,
           busy: pendingCommand !== null,
+          standby,
         })}
+        // One getSession + one forced heartbeat; the dock shows "Starting" until it lands.
+        onTakeOver={() => sessionRef.current?.takeOver()}
         onCommand={(id) => void runDockCommand(id)}
         pending={pendingCommand}
         result={commandResult}

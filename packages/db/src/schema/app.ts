@@ -51,6 +51,13 @@ export const instanceConfig = sqliteTable("instance_config", {
   // dashboard through `user.setTimeZone`. Decides which local day a dashboard
   // stat lands on; null reads as UTC.
   timeZone: text("time_zone"),
+  // Bot page lease: only one open bot page (widget or dock) holds the Twitch chat
+  // connection at a time. The holder's random per-page-load id and the last time it
+  // checked in (`bot.heartbeat`, every 2 minutes). A lease older than BOT_LEASE_TTL_MS
+  // is free, which is also how the dashboard reads "Bot offline". Null = nobody holds
+  // it. Written only by services/bot-lease.ts.
+  botLeaseInstanceId: text("bot_lease_instance_id"),
+  botLeaseSeenAt: integer("bot_lease_seen_at", { mode: "timestamp_ms" }),
 });
 
 export const botAccount = sqliteTable("bot_account", {

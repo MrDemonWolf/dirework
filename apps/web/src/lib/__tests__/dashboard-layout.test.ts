@@ -20,9 +20,11 @@ describe("dashboard layout", () => {
   it("shows the bot's status exactly once, as the header chip that links to Bot settings", () => {
     // The bottom bot strip repeated the header chip; the owner kept the chip.
     expect(dashboard).not.toContain("Bot settings & console");
+    // The chip's copy is decided in lib/bot-status.ts (dashboardBotChip), rendered once.
     expect(
-      dashboard.match(/label=\{botAccount \? "Bot ready" : "Bot not connected"\}/g),
+      dashboard.match(/<StatusChip tone=\{botChip\.tone\} label=\{botChip\.label\} \/>/g),
     ).toHaveLength(1);
+    expect(dashboard.match(/dashboardBotChip\(/g)).toHaveLength(1);
     expect(dashboard).toMatch(/<Link\s+href=\{"\/dashboard\/bot" as const\}[\s\S]*?<StatusChip/);
   });
 

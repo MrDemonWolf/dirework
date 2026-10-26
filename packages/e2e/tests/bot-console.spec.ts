@@ -10,6 +10,15 @@ const botPath = "/bot/synthetic-console-test-token";
 const dockPath = `${botPath}?view=dock`;
 
 async function mockBotSession(page: Page, body: unknown, status = 200) {
+  // The synthetic token would get the real api's 401 on the chat-lease check-in: this page
+  // always holds the lease (55-bot-dock drives the real one).
+  await page.route("**/trpc/bot.heartbeat*", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify([{ result: { data: { holder: true } } }]),
+    }),
+  );
   await page.route("**/trpc/bot.getSession*", (route) =>
     route.fulfill({
       status,

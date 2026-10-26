@@ -150,10 +150,16 @@ The bot only listens to chat **while its bot page is open** somewhere. Run throu
   and [keep it open](/docs/twitch-oauth#where-to-keep-the-bot-page): the widget in an OBS
   browser source or a Moblin widget, or the dock in an OBS custom browser dock or one pinned
   browser tab. The widget is blank on purpose; its tab title (or the dock) shows whether it's
-  connected. If no copy is open, the bot hears nothing. A
-  **closed** OBS dock counts as not open — tab it behind another dock instead of closing it. Extra copies are safe — each chat message runs once, deduplicated by
-  its Twitch message id, and only one copy replies — but each copy spends Worker requests, so
-  close the ones you don't need.
+  connected, and the dashboard's bot chip says **Bot connected** while one is running (it
+  turns **Bot offline** within 5 minutes of the last one closing). If no copy is open, the
+  bot hears nothing. A **closed** OBS dock counts as not open — tab it behind another dock
+  instead of closing it.
+- **Is it running somewhere else?** Only one bot page joins chat at a time. Any other copy
+  you open stands by: its tab title says **Standby** and the dock says **The bot is running
+  somewhere else**. Click **Take over** in that dock to move the bot there (the other page
+  stands by within 2 minutes, or at once the next time it relays a command). A standby page
+  takes over on its own once the running page closes, at most about 5 minutes later. Each
+  open page checks in every 2 minutes (one Worker request), so close copies you don't need.
 - **Was the bot token regenerated?** Regenerating the token kills any previously copied
   widget and dock URL (they share one token). Re-copy the fresh URL from **Dashboard → Bot**
   and update your OBS source, Moblin widget, dock or pinned tab. Treat this URL as a bearer credential and never post it publicly.

@@ -159,7 +159,9 @@ function caller(session: unknown, rows: DbRows = {}) {
 /** Every procedure reachable without a session. Everything else must be owner-only. */
 const PUBLIC_PROCEDURES = [
   "bot.getSession",
+  "bot.heartbeat",
   "bot.ingest",
+  "bot.release",
   "overlay.getTaskList",
   "overlay.getTimerState",
   "user.hasOwner",

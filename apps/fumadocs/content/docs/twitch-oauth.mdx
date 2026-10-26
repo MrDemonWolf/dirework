@@ -179,7 +179,11 @@ The bot will have `chat:read` and `chat:edit` permissions (plus the Helix chat s
 Pick one. The dashboard's **Set up streaming** card and the **Run the bot** card on
 **Dashboard → Bot** ask **How will you run the bot?** and show the URL for your pick
 (**Widget URL** or **Dock URL**) with its steps. Both carry the same secret token, so treat
-them like a stream key, and run one or the other: every open copy relays each command.
+them like a stream key, and run one or the other: only one bot page joins chat at a time.
+Open a second copy and it stands by (tab title `DireWork bot · Standby`); the dock version
+shows **The bot is running somewhere else** with a **Take over** button that moves the bot
+to it. A standby page takes over on its own once the running page closes. While a page runs
+the bot, the dashboard's bot chip says **Bot connected**.
 
 | Option | URL | Notes |
 | --- | --- | --- |

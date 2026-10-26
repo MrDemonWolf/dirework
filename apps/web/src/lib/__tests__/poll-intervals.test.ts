@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { BOT_LEASE_TTL_MS } from "@dirework/api/bot-lease";
+
 import {
+  BOT_HEARTBEAT_MS,
   DASHBOARD_IDLE_AFTER_MS,
   DASHBOARD_IDLE_POLL_MS,
   DASHBOARD_TASKS_POLL_MS,
@@ -51,5 +54,13 @@ describe("OVERLAY_POLL_MS", () => {
 
   it("never polls faster than every 5s", () => {
     expect(OVERLAY_POLL_MS).toBeGreaterThanOrEqual(5000);
+  });
+});
+
+describe("BOT_HEARTBEAT_MS", () => {
+  it("is 2 minutes, at most half the 5-minute bot lease, so one lost check-in never drops the bot", () => {
+    // 30 requests and 30 D1 writes an hour per open bot page: the owner-approved budget.
+    expect(BOT_HEARTBEAT_MS).toBe(2 * 60_000);
+    expect(BOT_HEARTBEAT_MS * 2).toBeLessThanOrEqual(BOT_LEASE_TTL_MS);
   });
 });
