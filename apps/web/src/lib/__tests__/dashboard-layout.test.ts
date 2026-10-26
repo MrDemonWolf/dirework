@@ -44,6 +44,8 @@ describe("dashboard layout", () => {
     // Refresh signals: a newer completion (never the purge-prone done count) and local midnight.
     expect(stats).toContain("latestDoneAt: tasks ? latestCompletion(tasks) : undefined");
     expect(stats).not.toContain("counts.done");
+    // The timer signal is the phase identity, never the bare status.
+    expect(stats).toContain("timerPhase: timerPhaseKey(queryClient.getQueryData(timerKey))");
     expect(stats).toContain("scheduleDayRollover(refresh)");
     // Tiles and their placeholder share one cell layout, box for box.
     expect(stats).toContain("className={statCellClass(i)}");

@@ -21,6 +21,7 @@ import {
   shouldRefreshStats,
   statCellClass,
   statTiles,
+  timerPhaseKey,
   type StatsWatch,
 } from "@/lib/stats-view";
 import { cn } from "@/lib/utils";
@@ -133,7 +134,7 @@ export function FocusChart() {
 
 /**
  * Refetch `stats.summary` when the polls the dashboard already runs see a change stats
- * depend on (the timer changing phase, a newer task completion), and once just after each
+ * depend on (the timer moving to another phase, a newer task completion), and once just after each
  * local midnight (the summary's "today" and week are day-bound). A cache subscription, not
  * an observer, plus one timer a day: it adds no poll. The owner's own timer and task
  * mutations reach it the same way (they invalidate those queries).
@@ -149,8 +150,7 @@ export function useStatsRefresh() {
     const read = (): StatsWatch => {
       const tasks = queryClient.getQueryData(tasksKey)?.tasks;
       return {
-        timerStatus: (queryClient.getQueryData(timerKey) as { status?: string } | null | undefined)
-          ?.status,
+        timerPhase: timerPhaseKey(queryClient.getQueryData(timerKey)),
         latestDoneAt: tasks ? latestCompletion(tasks) : undefined,
       };
     };
@@ -160,7 +160,7 @@ export function useStatsRefresh() {
       const next = read();
       // Keep the last known value of either while the other updates.
       const merged: StatsWatch = {
-        timerStatus: next.timerStatus ?? seen.timerStatus,
+        timerPhase: next.timerPhase ?? seen.timerPhase,
         latestDoneAt: next.latestDoneAt !== undefined ? next.latestDoneAt : seen.latestDoneAt,
       };
       if (shouldRefreshStats(seen, merged)) refresh();

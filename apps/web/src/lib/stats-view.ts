@@ -131,16 +131,39 @@ export function chartBars(days: StatsSummary["days"]) {
   });
 }
 
-/** The values that decide whether the stats may have changed: timer status, done-task count. */
+/** The values that decide whether the stats may have changed: timer phase, newest completion. */
 export interface StatsWatch {
-  /** undefined = timer.get not loaded yet. */
-  timerStatus?: string;
+  /** `timerPhaseKey` of the current timer; undefined = timer.get not loaded yet. */
+  timerPhase?: string;
   /**
    * The newest `completedAt` (ms) among the done tasks `task.list` returns: null = none,
    * undefined = the list is not loaded yet. Monotonic for completions, unlike the done
    * count, which the 24h purge can hold level or lower in the same write.
    */
   latestDoneAt?: number | null;
+}
+
+/**
+ * Identity of the timer's current phase: status, cycle, session length and the phase's end.
+ * It changes on every transition, including ones that land on the same status — a whole
+ * break that passed between two polls (work, cycle 1 → work, cycle 2) or a session restarted
+ * into the same phase — which a bare status would miss. Pause and resume also change it (the
+ * end time moves), costing one refetch each; that is an owner action, never a poll.
+ */
+export function timerPhaseKey(
+  timer:
+    | {
+        status: string;
+        currentCycle?: number | null;
+        totalCycles?: number | null;
+        targetEndTime?: string | Date | null;
+      }
+    | null
+    | undefined,
+): string | undefined {
+  if (!timer) return undefined;
+  const end = timer.targetEndTime ? new Date(timer.targetEndTime).getTime() : "";
+  return `${timer.status}|${timer.currentCycle ?? ""}|${timer.totalCycles ?? ""}|${end}`;
 }
 
 /** The newest completion time among `tasks`' done rows (ms), or null when none is done. */
@@ -158,20 +181,20 @@ export function latestCompletion(
 
 /**
  * Refetch the summary when the dashboard's existing polls see something stats depend on:
- * the timer changing phase (a work phase ended, was skipped, or was reset) or a newer task
- * completion (a task finished, from the dashboard or chat; a purge or an undo of a removal
- * never moves it forward). The first value seen for either only records it.
+ * the timer moving to another phase (`timerPhaseKey`: a work phase ended, was skipped, or was
+ * reset) or a newer task completion (a task finished, from the dashboard or chat; a purge or
+ * an undo of a removal never moves it forward). The first value seen for either only records it.
  */
 export function shouldRefreshStats(prev: StatsWatch, next: StatsWatch): boolean {
-  const statusChanged =
-    prev.timerStatus !== undefined &&
-    next.timerStatus !== undefined &&
-    prev.timerStatus !== next.timerStatus;
+  const phaseChanged =
+    prev.timerPhase !== undefined &&
+    next.timerPhase !== undefined &&
+    prev.timerPhase !== next.timerPhase;
   const newCompletion =
     prev.latestDoneAt !== undefined &&
     next.latestDoneAt != null &&
     (prev.latestDoneAt === null || next.latestDoneAt > prev.latestDoneAt);
-  return statusChanged || newCompletion;
+  return phaseChanged || newCompletion;
 }
 
 /** Milliseconds from `now` until just past the next local midnight (DST-safe: calendar based). */
