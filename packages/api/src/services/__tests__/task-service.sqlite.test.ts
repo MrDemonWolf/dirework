@@ -11,6 +11,7 @@ import {
   DONE_TASK_RETENTION_MS,
   clearDoneTasks,
   createTask,
+  editTask,
   findActiveTaskByUsername,
   isUniqueViolation,
   listOverlayTasks,
@@ -148,6 +149,26 @@ describe("markTaskDone guards", () => {
 
     expect((await markTaskDone(db, "b"))?.id).toBe("b");
     expect(await statusById()).toEqual({ b: "done", c: "active" });
+  });
+});
+
+describe("task text Zalgo trimming (every caller, owner and chat)", () => {
+  const zalgo = "Z̷̢̛̖̗o̶̧̿̀";
+  const trimmed = "Z̷̢o̶̧";
+
+  it("stores the text and display name with at most two marks per letter", async () => {
+    const created = await createTask(db, { ...viewer, displayName: zalgo }, zalgo);
+    expect(created?.text).toBe(trimmed);
+    expect(created?.authorDisplayName).toBe(trimmed);
+
+    const edited = await editTask(db, created?.id ?? "", `${zalgo}!`);
+    expect(edited?.text).toBe(`${trimmed}!`);
+  });
+
+  it("trims the replacement on !next too", async () => {
+    const active = await createTask(db, viewer, "first", { activate: true });
+    const result = await replaceActiveTask(db, { id: active?.id ?? "" }, viewer, zalgo);
+    expect(result.created?.text).toBe(trimmed);
   });
 });
 

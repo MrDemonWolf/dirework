@@ -38,3 +38,18 @@ export const DEFAULT_TASK_STYLES: TaskStylesConfig = DB_DEFAULT_TASK_STYLES;
 /** Canonical timer duration/cycle defaults — single source for the dashboard
  * controls, the overlay/preview progress fallbacks, and the schema columns. */
 export const TIMER_CONFIG_DEFAULTS = DB_TIMER_CONFIG_DEFAULTS;
+
+/**
+ * The task overlay's "Lines per task" range. Long task text wraps (there is no
+ * length cap beyond MAX_TASK_LEN) and is cut with an ellipsis after this many
+ * lines. The save schema takes only this range; a row saved under the old 1–100
+ * range is clamped on read (`nestTaskStyleRow`) and again at render.
+ */
+export const TASK_LINES_MIN = 1;
+export const TASK_LINES_MAX = 6;
+
+/** `numberOfLines` held to TASK_LINES_MIN..TASK_LINES_MAX (a non-finite value reads as the default). */
+export function clampTaskLines(lines: number): number {
+  if (!Number.isFinite(lines)) return DEFAULT_TASK_STYLES.display.numberOfLines;
+  return Math.min(TASK_LINES_MAX, Math.max(TASK_LINES_MIN, Math.round(lines)));
+}

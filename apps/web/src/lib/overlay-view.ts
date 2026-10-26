@@ -39,28 +39,69 @@ export const TIMER_CYCLE_OPACITY = 0.8;
  */
 export const ACTIVE_ROW_TINT_PERCENT = 10;
 
+/**
+ * Floor (px) for the "Active" label, which is otherwise 0.55× the task font size
+ * (13.2px at the default 24px). Measured at the overlay's own source size
+ * (700×800 for tasks), before OBS scales the source.
+ */
+export const ACTIVE_LABEL_MIN_PX = 14;
+
 /** Opacity of the "+N more" footer a non-scrolling task list shows when rows are cut off. */
 export const MORE_FOOTER_OPACITY = 0.8;
 
 /** Vertical gap (px) between task rows inside an author group. */
 export const TASK_ROW_GAP_PX = 2;
 
+/** One author group of a non-scrolling list, measured from the top of the list area. */
+export interface ListGroupBox {
+  /** The group card's bottom edge. */
+  bottom: number;
+  /** Each task row's bottom edge, in list order. */
+  rowBottoms: readonly number[];
+}
+
+export interface StaticListFit {
+  /** Rows the "+N more" footer reports. */
+  hidden: number;
+  /**
+   * Per group: how many of its rows show, and how far to clip the card up from
+   * its bottom edge so it ends at its last shown row (0 when every row or no row
+   * shows). A group with no row showing is hidden whole, header included.
+   */
+  groups: { visibleRows: number; clipBottom: number }[];
+}
+
 /**
- * How many task rows the "+N more" footer reports on a non-scrolling list.
- * `rowBottoms` are each row's bottom edge measured from the top of the list area.
- * If every row fits the whole area, nothing is hidden and no footer shows.
- * Otherwise the footer is overlaid on the bottom of the area, so a row counts as
- * hidden when its bottom falls below the space left above the footer. The area
- * itself never shrinks for the footer, so the result can return to 0.
+ * Which rows a non-scrolling task list shows. Whole rows only: a row shows when
+ * it fits entirely, and once one doesn't, every later row is hidden too (so the
+ * list never skips a long row to show a short one after it). If every row fits
+ * the whole area, nothing is hidden and no footer shows. Otherwise the footer is
+ * overlaid on the bottom of the area and rows must end above it; the area itself
+ * never shrinks for the footer, so the result can return to "all shown".
  */
-export function countHiddenRows(
-  rowBottoms: readonly number[],
+export function fitStaticList(
+  groups: readonly ListGroupBox[],
   areaHeight: number,
   footerHeight: number,
-): number {
-  if (rowBottoms.every((bottom) => bottom <= areaHeight)) return 0;
-  const limit = areaHeight - footerHeight;
-  return rowBottoms.filter((bottom) => bottom > limit).length;
+): StaticListFit {
+  const fitsWhole = groups.every((g) => g.rowBottoms.every((bottom) => bottom <= areaHeight));
+  const limit = fitsWhole ? areaHeight : areaHeight - footerHeight;
+  let hidden = 0;
+  let open = true;
+  const fit = groups.map((group) => {
+    let visibleRows = 0;
+    for (const bottom of group.rowBottoms) {
+      if (open && bottom <= limit) visibleRows++;
+      else {
+        open = false;
+        hidden++;
+      }
+    }
+    const cut = visibleRows > 0 && visibleRows < group.rowBottoms.length;
+    const lastShown = group.rowBottoms[visibleRows - 1] ?? group.bottom;
+    return { visibleRows, clipBottom: cut ? Math.max(0, group.bottom - lastShown) : 0 };
+  });
+  return { hidden, groups: fit };
 }
 
 /**

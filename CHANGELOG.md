@@ -323,6 +323,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Mute and Reconnect stay in reach in a short bot dock.** In a small OBS dock (about
   400×200, or 240 wide) **Mute bot** / **Unmute bot** and **Reconnect** are pinned under the
   dock's title bar, so you never scroll to find them.
+- **Long tasks wrap on the tasks overlay.** A link or a word with no spaces now breaks onto
+  the next line instead of running off the row cut mid-letter, and long task text wraps up to
+  **Lines per task** lines, then ends in "…". There is still no new length cap. Lines per
+  task now defaults to 4 and goes from 1 to 6 (it was 2, up to 100): an untouched setting
+  moves to 4 on its own, and a saved value above 6 shows as 6. Arabic and Hebrew tasks and
+  names lay out right to left. When scrolling is off and the list is full, only whole rows
+  show: no half-cut row and no author name left above "+N more" without a task under it.
+  "Zalgo" text (letters buried under stacks of accent marks) keeps at most two marks per
+  letter, both when a task or name is saved (chat and dashboard) and when the overlay draws
+  older tasks. The **Active** label is never smaller than 14px. No new requests or polling:
+  the list measures itself once per update, not every frame.
 - **The dashboard arrives complete.** Opening the dashboard (or Bot settings) no longer
   paints grey placeholders that fill in a moment later on a normal load. The page now waits
   up to 0.8s for its data and arrives finished in one step; placeholders only show when the

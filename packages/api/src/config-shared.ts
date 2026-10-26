@@ -17,6 +17,7 @@ import { hasControlCharacters, utf8ByteLength } from "./chat-text";
 
 export {
   hasControlCharacters,
+  limitCombiningMarks,
   MAX_CHAT_BYTES,
   MAX_RELAYED_MESSAGE_LENGTH,
   replaceControlCharacters,
@@ -31,6 +32,9 @@ export {
   DEFAULT_TIMER_MESSAGES,
   DEFAULT_TIMER_STYLES,
   MAX_TASK_LEN,
+  TASK_LINES_MAX,
+  TASK_LINES_MIN,
+  clampTaskLines,
   TIMER_CONFIG_DEFAULTS,
 } from "./config-defaults";
 import {
@@ -45,10 +49,13 @@ import {
   type StyleColumnValue,
 } from "@dirework/db/defaults";
 import {
+  clampTaskLines,
   DEFAULT_TASK_MESSAGES,
   DEFAULT_TASK_STYLES,
   DEFAULT_TIMER_MESSAGES,
   DEFAULT_TIMER_STYLES,
+  TASK_LINES_MAX,
+  TASK_LINES_MIN,
 } from "./config-defaults";
 
 /** Singleton-row primary key used by every one-row config table (single source: packages/db schema). */
@@ -435,7 +442,8 @@ export function nestTaskStyleRow(s: TaskStyle) {
       showCount: s.displayShowCount,
       useCheckboxes: s.displayUseCheckboxes,
       crossOnDone: s.displayCrossOnDone,
-      numberOfLines: s.displayNumberOfLines,
+      // Rows saved under the old 1–100 range read back inside TASK_LINES_MAX.
+      numberOfLines: clampTaskLines(s.displayNumberOfLines),
     },
     fonts: { header: s.fontHeader, body: s.fontBody },
     scroll: {
@@ -676,7 +684,7 @@ export const taskStylesInputSchema = z.object({
       showCount: z.boolean().optional(),
       useCheckboxes: z.boolean().optional(),
       crossOnDone: z.boolean().optional(),
-      numberOfLines: boundedInt(1, 100).optional(),
+      numberOfLines: boundedInt(TASK_LINES_MIN, TASK_LINES_MAX).optional(),
     })
     .optional(),
   fonts: z

@@ -25,13 +25,26 @@ It reads the streamer's saved task style, not the UI tokens.
   - **Author header**: display name in the author's Twitch chat color (falling back to
     `task.usernameColor`) over a `AUTHOR_HEADER_TINT_PERCENT` tint of that color, plus the
     author's `{done}/{total}` at `AUTHOR_COUNT_OPACITY`.
-  - **Rows** (`TaskItem`): checkbox (or bullet), the line-clamped task text
-    (`display.numberOfLines`), rows `TASK_ROW_GAP_PX` apart with the task border radius.
+  - **Rows** (`TaskItem`): checkbox (or bullet), the task text, rows `TASK_ROW_GAP_PX`
+    apart with the task border radius. Task text has no length cap beyond `MAX_TASK_LEN`:
+    it wraps (`overflow-wrap: anywhere`, so a URL or a string with no spaces breaks
+    instead of running off the row) and ends in an ellipsis after `display.numberOfLines`
+    lines (1–6, `TASK_LINES_MIN`/`TASK_LINES_MAX`; a row saved under the old 1–100 range
+    is clamped by `clampTaskLines` on read and at render). Text and author name carry
+    `dir="auto"`, so Arabic and Hebrew lay out right to left.
+  - **Zalgo**: combining marks past two per letter are dropped (`limitCombiningMarks`,
+    `@dirework/api/chat-text`) when a task or display name is stored and again at render.
 - **Active row**: a static tint of the username color (`ACTIVE_ROW_TINT_PERCENT`) plus an
-  uppercase **Active** label in that color at the end of the row. No glow, no pulse.
-- **"+N more" footer** (scroll off): rows that don't fit are cut off and a footer in the
-  task font color at `MORE_FOOTER_OPACITY` says how many (`countHiddenRows`). It is
-  overlaid on the bottom of the list area, so the area never resizes with it.
+  uppercase **Active** label in that color at the end of the row, 0.55× the task font
+  size but never under `ACTIVE_LABEL_MIN_PX` at the source size. No glow, no pulse.
+- **"+N more" footer** (scroll off): only whole rows show. A row that doesn't fit is
+  hidden, never drawn half cut; every row after it is hidden too; an author header shows
+  only with at least one of its rows, and a group cut part way is clipped at its last
+  shown row (`fitStaticList`). The footer, in the task font color at
+  `MORE_FOOTER_OPACITY`, says how many rows are hidden. It is overlaid on the bottom of
+  the list area, so the area never resizes with it. Measured after each render (new poll
+  data) and on resize, never per frame; hiding uses `visibility` and `clip-path`, which
+  don't move layout.
 - No outlines: header, body and task borders are `0px` in every preset except Minimal
   Light, which keeps a 1px grey edge so white panels don't dissolve into a light scene.
 
@@ -61,7 +74,7 @@ changed or added default fails until this spec moves with it.
 | `display.showCount` | `DEFAULT_TASK_STYLES` | `true` |
 | `display.useCheckboxes` | `DEFAULT_TASK_STYLES` | `true` |
 | `display.crossOnDone` | `DEFAULT_TASK_STYLES` | `true` |
-| `display.numberOfLines` | `DEFAULT_TASK_STYLES` | `2` |
+| `display.numberOfLines` | `DEFAULT_TASK_STYLES` | `4` |
 | `fonts.header` | `DEFAULT_TASK_STYLES` | `Montserrat` |
 | `fonts.body` | `DEFAULT_TASK_STYLES` | `Roboto` |
 | `scroll.enabled` | `DEFAULT_TASK_STYLES` | `true` |
@@ -116,6 +129,7 @@ changed or added default fails until this spec moves with it.
 | `bullet.margin.left` | `DEFAULT_TASK_STYLES` | `2px` |
 | `bullet.margin.right` | `DEFAULT_TASK_STYLES` | `8px` |
 | `ACTIVE_ROW_TINT_PERCENT` | `lib/overlay-view.ts` | `10` |
+| `ACTIVE_LABEL_MIN_PX` | `lib/overlay-view.ts` | `14` |
 | `AUTHOR_HEADER_TINT_PERCENT` | `lib/overlay-view.ts` | `6` |
 | `MORE_FOOTER_OPACITY` | `lib/overlay-view.ts` | `0.8` |
 | `AUTHOR_COUNT_OPACITY` | `lib/overlay-view.ts` | `0.8` |
