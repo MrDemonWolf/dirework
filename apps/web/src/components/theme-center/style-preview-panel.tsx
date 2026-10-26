@@ -2,11 +2,12 @@
 
 // Theme Center live preview: renders the real overlay components (TimerDisplay,
 // TaskListDisplay) with the owner's unsaved styles over the shared demo session
-// (DEMO_SESSION, via lib/preview-session). Entirely client-side — the preview never
-// polls or calls the API.
+// (DEMO_SESSION, via lib/preview-session), placed on a 1920 × 1080 stream canvas at the
+// size and spot they take on stream. Entirely client-side — the preview never polls or
+// calls the API.
 
-import { useEffect, useId, useState } from "react";
-import { ChevronDown, Pause, Play } from "lucide-react";
+import { useEffect, useId, useState, type ReactNode } from "react";
+import { ChevronDown, Pause, Play, ZoomIn } from "lucide-react";
 
 import type { TimerStylesConfig, TaskStylesConfig, PhaseLabelsConfig } from "@/lib/config-types";
 import {
@@ -16,6 +17,12 @@ import {
   PREVIEW_PHASE_MS,
   PREVIEW_REMAINING_MS,
   PREVIEW_TASKS,
+  STREAM_CANVAS,
+  TASKS_SOURCE,
+  previewSceneLayout,
+  timerSourceSize,
+  type SceneSource,
+  type Size,
 } from "@/lib/preview-session";
 import type { TimerState } from "@/lib/timer-utils";
 import { cn } from "@/lib/utils";
@@ -44,9 +51,6 @@ type PreviewTarget = "timer" | "tasks";
 // The canvas frame. Not `.panel-inset`: its background ships inside an @supports block
 // that comes later in the stylesheet, so it painted over the backdrop scenes.
 const CANVAS = "relative overflow-hidden rounded-xl border border-border shadow-inner";
-
-/** The recommended task-list browser source (the dashboard's size chip). */
-const TASKS_SOURCE = { width: 700, height: 800 } as const;
 
 const targets: { id: PreviewTarget; label: string; name: string }[] = [
   { id: "timer", label: "Timer", name: "Preview timer" },
@@ -117,10 +121,41 @@ function BackdropToggle({ value, onChange }: { value: Backdrop; onChange: (v: Ba
 }
 
 /**
- * OBS-like preview canvas — the page's hero instrument. One overlay at a time (timer or
- * task list), over a switchable backdrop: dark stays the default since streamers design
- * against dark scenes; light, bright and checkerboard reveal how a transparent overlay
- * really composites. The header chip says whether the preview shows unsaved edits.
+ * One browser source at its stream size. On the scene it sits at its canvas spot, and the
+ * selected one wears an outline outside its box (as OBS marks the selected source), so
+ * nothing is drawn over the overlay itself.
+ */
+function Source({
+  size,
+  at,
+  selected,
+  children,
+}: {
+  size: Size;
+  at?: SceneSource;
+  selected?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        at ? "absolute" : "relative",
+        selected && "outline-6 outline-offset-6 outline-link",
+      )}
+      style={{ width: size.width, height: size.height, left: at?.x, top: at?.y }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * The page's hero instrument: a 16:9 stream canvas (1920 × 1080) with both overlays at
+ * their true size and a usual spot, scaled down as a whole, so the owner sees what viewers
+ * see. Timer / Tasks picks the source the toolbar talks about; Close-up zooms to that
+ * source alone, for reading small type. Backdrops: dark stays the default since streamers
+ * design against dark scenes; light, bright and checkerboard reveal how a transparent
+ * overlay really composites. The header chip says whether the preview shows unsaved edits.
  */
 export function StylePreviewPanel({
   timerStyles,
@@ -141,6 +176,7 @@ export function StylePreviewPanel({
   const [pausedRemaining, setPausedRemaining] = useState(PREVIEW_REMAINING_MS);
   const [backdrop, setBackdrop] = useState<Backdrop>("dark");
   const [target, setTarget] = useState<PreviewTarget>("timer");
+  const [closeUp, setCloseUp] = useState(false);
   // Below lg only (see the Show/Hide button); starts collapsed, so the editors lead.
   const [expanded, setExpanded] = useState(false);
   const bodyId = useId();
@@ -175,6 +211,29 @@ export function StylePreviewPanel({
     }
   };
 
+  const timerSize = timerSourceSize(timerStyles.dimensions);
+  const layout = previewSceneLayout(timerSize);
+  const selectedSize = target === "timer" ? timerSize : TASKS_SOURCE;
+  // The canvas takes the scene's 16:9, or the selected source's shape in a close-up.
+  const frame = closeUp ? selectedSize : STREAM_CANVAS;
+
+  // Each overlay page's own markup: the timer AutoScaled to fill its source, the task list
+  // filling its source inside a 16px pad.
+  const timer = (
+    <AutoScale>
+      <TimerDisplay
+        config={timerPreviewConfig(timerStyles, phaseLabels, showHours)}
+        state={timerState}
+        totalDuration={PREVIEW_PHASE_MS}
+      />
+    </AutoScale>
+  );
+  const tasks = (
+    <div className="size-full p-4">
+      <TaskListDisplay config={taskStyles} tasks={PREVIEW_TASKS} />
+    </div>
+  );
+
   return (
     <section aria-labelledby="style-preview-title" className="panel-hero">
       <div className="flex flex-col gap-3 p-3 lg:gap-4 lg:p-5">
@@ -197,8 +256,8 @@ export function StylePreviewPanel({
             />
           </ConsoleRule>
           {/* Below lg the panel is a sticky bar above the editors: collapsed it keeps the
-              status in view without covering the fields, expanded it shows a compact canvas
-              that stays put while the owner scrolls and edits. The rail is always open. */}
+              status in view without covering the fields, expanded it shows the canvas, which
+              stays put while the owner scrolls and edits. The rail is always open. */}
           <Button
             variant="outline"
             size="sm"
@@ -225,51 +284,67 @@ export function StylePreviewPanel({
             <BackdropToggle value={backdrop} onChange={setBackdrop} />
           </div>
 
-          {/* Capped below lg so the expanded sticky bar leaves the editors room. */}
-          <div className="mx-auto w-full max-w-64 lg:max-w-none">
-            {target === "timer" ? (
-              <div className={cn(CANVAS, "aspect-square p-6", canvasClass)}>
-                {/* Fit the fixed-size timer to the canvas, as AutoScale does in OBS. */}
-                <AutoScale margin={0.92}>
-                  <TimerDisplay
-                    config={timerPreviewConfig(timerStyles, phaseLabels, showHours)}
-                    state={timerState}
-                    totalDuration={PREVIEW_PHASE_MS}
-                  />
-                </AutoScale>
-                <span className="console-label absolute right-2 bottom-1.5 rounded-sm bg-background/80 px-1">
-                  {timerStyles.dimensions.width} × {timerStyles.dimensions.height}
-                </span>
-                <Button
-                  variant="secondary"
-                  size="xs"
-                  className="absolute bottom-1.5 left-2 gap-1 pointer-coarse:min-h-11"
-                  aria-pressed={!!targetEndTime}
-                  onClick={togglePlay}
-                >
-                  {targetEndTime ? <Pause className="size-3" /> : <Play className="size-3" />}
-                  {targetEndTime ? "Pause" : "Play"}
-                </Button>
-              </div>
-            ) : (
-              <div className={cn(CANVAS, "p-3", canvasClass)}>
-                {/* Drawn at the recommended 700 × 800 OBS source size and scaled to fit, so
-                type, padding and row heights keep the proportions the stream shows. */}
-                <div
-                  className="w-full"
-                  style={{ aspectRatio: `${TASKS_SOURCE.width} / ${TASKS_SOURCE.height}` }}
-                >
-                  <AutoScale margin={1}>
-                    <div style={{ width: TASKS_SOURCE.width, height: TASKS_SOURCE.height }}>
-                      <TaskListDisplay config={taskStyles} tasks={PREVIEW_TASKS} />
-                    </div>
-                  </AutoScale>
-                </div>
-                <span className="console-label absolute right-2 bottom-1.5 rounded-sm bg-background/80 px-1">
-                  700 × 800
-                </span>
-              </div>
+          {/* The canvas holds the overlays only; every control sits in the rows around it.
+              A close-up is capped below lg so the expanded sticky bar leaves the editors
+              room (the 16:9 scene is short enough at full width). */}
+          <figure className={cn("m-0 w-full", closeUp && "mx-auto max-w-64 lg:max-w-none")}>
+            <div
+              className={cn(CANVAS, closeUp && "p-4", canvasClass)}
+              style={{ aspectRatio: `${frame.width} / ${frame.height}` }}
+            >
+              <AutoScale margin={1}>
+                {closeUp ? (
+                  <Source size={selectedSize}>{target === "timer" ? timer : tasks}</Source>
+                ) : (
+                  <div
+                    className="relative"
+                    style={{ width: STREAM_CANVAS.width, height: STREAM_CANVAS.height }}
+                  >
+                    <Source size={TASKS_SOURCE} at={layout.tasks} selected={target === "tasks"}>
+                      {tasks}
+                    </Source>
+                    <Source size={timerSize} at={layout.timer} selected={target === "timer"}>
+                      {timer}
+                    </Source>
+                  </div>
+                )}
+              </AutoScale>
+            </div>
+            <figcaption className="sr-only">
+              {closeUp
+                ? `Close-up of the ${target === "timer" ? "timer" : "task list"} overlay.`
+                : `The timer and task list overlays at their size and place on a ${STREAM_CANVAS.width} × ${STREAM_CANVAS.height} stream.`}
+            </figcaption>
+          </figure>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {(target === "timer" || !closeUp) && (
+              <Button
+                variant="outline"
+                size="xs"
+                className="gap-1 pointer-coarse:min-h-11"
+                aria-pressed={!!targetEndTime}
+                onClick={togglePlay}
+              >
+                {targetEndTime ? <Pause className="size-3" /> : <Play className="size-3" />}
+                {targetEndTime ? "Pause" : "Play"}
+              </Button>
             )}
+            {/* The selected source's size, and the canvas it sits on. */}
+            <span className="console-label tabular-nums">
+              {selectedSize.width} × {selectedSize.height}
+              {!closeUp && ` in ${STREAM_CANVAS.height}p`}
+            </span>
+            <Button
+              variant="outline"
+              size="xs"
+              className="ml-auto gap-1 pointer-coarse:min-h-11"
+              aria-pressed={closeUp}
+              onClick={() => setCloseUp((on) => !on)}
+            >
+              <ZoomIn className="size-3" aria-hidden />
+              Close-up
+            </Button>
           </div>
         </div>
       </div>

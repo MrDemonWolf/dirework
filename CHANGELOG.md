@@ -11,6 +11,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   a pool of lines per part of the day ("Howl's it going, {name}?", "Werewolf hours",
   "Paws for a break?") mixed with plain ones. The line changes from day to day but holds
   steady on reload, and costs no requests.
+- **Theme Center preview looks like your stream.** The preview is now a 16:9, 1920 × 1080
+  stream canvas with the timer and task list at their real size and spot (timer top right
+  at its configured size, task list down the left at 700 × 800), so you see what viewers
+  see. Pick Timer or Tasks to outline that source, and use **Close-up** to zoom in on it
+  and read small type. Play/Pause and the size readout moved to a toolbar under the
+  canvas, so nothing covers the overlays. Still no requests: the preview runs in the page.
 - **Local recovery drill.** `bun run recovery:check` exports and restores a synthetic
   database, verifies schema and application data, and runs in the shared CI gate.
   No production database or additional Cloudflare service is needed.

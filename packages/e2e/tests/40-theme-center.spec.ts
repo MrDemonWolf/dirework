@@ -103,12 +103,25 @@ test("previews either overlay over a chosen backdrop and says when edits are uns
   const previewTimer = page.getByRole("button", { name: "Preview timer" });
   const previewTasks = page.getByRole("button", { name: "Preview tasks" });
   await expect(previewTimer).toHaveAttribute("aria-pressed", "true");
+  // The stream scene: the selected source's size on the 1080p canvas, both overlays on it.
+  await expect(page.getByText("300 × 300 in 1080p")).toBeVisible();
+  await expect(page.getByText("Sketch three logo concepts").first()).toBeAttached();
   await previewTasks.click();
   await expect(previewTasks).toHaveAttribute("aria-pressed", "true");
   await expect(previewTimer).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByText("700 × 800 in 1080p")).toBeVisible();
+
+  // Close-up zooms to the selected source alone; Play only shows while the timer is on view.
+  const closeUp = page.getByRole("button", { name: "Close-up" });
+  await closeUp.click();
+  await expect(closeUp).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("700 × 800", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Play" })).toBeHidden();
   // The sample rows come from the shared demo session. A list taller than the source
   // scrolls, which renders the rows twice, hence first().
   await expect(page.getByText("Sketch three logo concepts").first()).toBeVisible();
+  await closeUp.click();
+  await expect(closeUp).toHaveAttribute("aria-pressed", "false");
 
   const bright = page.getByRole("button", { name: "Bright backdrop" });
   await bright.click();
