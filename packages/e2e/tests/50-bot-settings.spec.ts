@@ -19,7 +19,7 @@ test("edits a reply, previews it as chat would show it, saves, and resets it", a
   // The preview runs the bot's own interpolate with sample values: the owner's name
   // stands in for the viewer.
   await expect(
-    page.getByText(`Got it, Dev Streamer: "write the intro" is on the list. [${stamp}]`),
+    page.getByText(`Got it, Wolf Streamer: "write the intro" is on the list. [${stamp}]`),
   ).toBeVisible();
 
   await page.getByRole("button", { name: "Save changes" }).click();

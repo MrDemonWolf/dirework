@@ -22,7 +22,7 @@ test.describe("signed in", () => {
   // Each page renders a skeleton until its data arrives, and its h1 only with the data, so
   // waiting for the heading means the real page is scanned, not placeholders.
   const pages: { path: string; heading: string | RegExp; name: string }[] = [
-    { path: "/dashboard", heading: /Dev Streamer$/, name: "dashboard" },
+    { path: "/dashboard", heading: /Wolf Streamer$/, name: "dashboard" },
     { path: "/dashboard/styles", heading: "Theme Center", name: "theme-center" },
     { path: "/dashboard/bot", heading: "Bot settings", name: "bot-settings" },
     { path: "/dashboard/bot/commands", heading: "Bot settings", name: "bot-commands" },
