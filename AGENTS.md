@@ -100,7 +100,7 @@ opt in; `shell-hold.test.ts` and
 `progressive.test.ts` pin the wiring, and `40-theme-center` / `22-progressive` assert no
 painted frame shows a skeleton on a fast load.
 **Progressive sections** (`/dashboard`, Bot settings; any page can opt in). `streamQueries(start)` starts the
-page's batch and waits for it only until every query settles or `SECTIONS_READY_MS` (150ms,
+page's batch and waits for it only until every query settles or `SECTIONS_READY_MS` (800ms,
 `lib/progressive.ts`) passes, then dehydrates successes as data and the queries still in
 flight as pending promises, which stream to the browser inside the RSC payload. The page holds
 the `(app)` shell for exactly that (`holdShellFor(load())`, above), so a fast load paints
@@ -113,11 +113,14 @@ from the same request. Static chrome (headings, the greeting) lives outside the 
 is repeated in the fallback. Why a server deadline and not a CSS-delayed placeholder: React
 reveals streamed boundaries in batches, the first at once and each later one ≥300ms after the
 previous, so a frame painted first and filled a moment later still flashed its placeholders
-(2 hard loads in 8 in testing). Keep state two places share inside one section (the
+(2 hard loads in 8 in testing). Why 800ms: a partial paint never finishes sooner (its
+placeholders stay ≥300ms), and a production batch (session read + each procedure's D1 reads,
+~45ms a round trip from the edge, more on a cold isolate) regularly took longer than the old
+150ms, so most real loads painted every section as a placeholder. Keep state two places share inside one section (the
 dashboard's checklist and its header Setup button, both gated on `user.me`) so it is never
 decided from a pending query; no entrance animation on sections (a fade would replay per
 reveal). Known exception: the setup checklist has no placeholder (its presence depends on
-`user.me` and a per-browser choice), so a `user.me` slower than 150ms mid-setup pushes the
+`user.me` and a per-browser choice), so a `user.me` slower than the deadline mid-setup pushes the
 page down once. To opt a page in: replace its awaited `prefetch*` with `streamQueries`, hold
 the shell on the loader, and wrap each data section. Bot settings wraps each card in
 `BotSection needs={["config" | "user"]}` (`(sections)/bot-data.tsx`): a `ProgressiveSection`
@@ -789,7 +792,8 @@ database). Spec files are numbered and run in order: `00-first-run` sees the fre
 (the claim page, then the first dev-login claims the instance), then `10-smoke`,
 `15-landing` (the viewer landing: claimed notice + deploy link, docs links, no `/rpc`),
 `20-dashboard`, `22-progressive` (a fast hard load of `/dashboard` or `/dashboard/bot`
-paints no placeholder at the same request cost; a slowed procedure shows only the placeholders
+paints no placeholder at the same request cost, even with every procedure slowed to a
+production-like 300ms; a slowed procedure shows only the placeholders
 of the sections or cards that read it, from the same one batch; a Bot settings sub-page switch
 costs no api request), `25-setup-checklist` (confirm/revert a step, Finish later), `30-timer` (Pomodoro start/stop and the ticking timer overlay; phase labels
 come from `@dirework/api/config-defaults`), `40-theme-center`, `50-bot-settings`,

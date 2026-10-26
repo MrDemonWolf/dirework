@@ -68,8 +68,11 @@ describe("sectionsReady (the first-paint deadline)", () => {
     await expect(ready).resolves.toBeUndefined();
   });
 
-  it("keeps the deadline near 150ms: long enough for a normal batch, short enough to feel instant", () => {
-    expect(SECTIONS_READY_MS).toBe(150);
+  it("keeps the deadline above a production batch plus React's 300ms reveal throttle, under ~1s", () => {
+    // Below ~450ms a batch landing just late would finish later partial (throttled) than held.
+    expect(SECTIONS_READY_MS).toBeGreaterThanOrEqual(450);
+    // Session check + deadline must stay inside the ~1s flow limit for a first paint.
+    expect(SECTIONS_READY_MS).toBeLessThanOrEqual(800);
   });
 });
 

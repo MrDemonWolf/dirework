@@ -9,7 +9,7 @@ tokens: [color.scheme, radius, layout, motion]
 
 Loading placeholders for the dashboard: one per progressive section, plus the whole-page
 `DashboardSkeleton` composed from them. A hard load paints the finished dashboard whenever its
-data arrives within `SECTIONS_READY_MS` (150ms, `lib/progressive.ts`), so a section's
+data arrives within `SECTIONS_READY_MS` (800ms, `lib/progressive.ts`), so a section's
 placeholder shows only when that section's data is slower, inside the otherwise finished
 page. `DashboardSkeleton` shows on client navigation (`dashboard/loading.tsx`), before the
 session is known.

@@ -89,13 +89,13 @@ describe("streamDashboard", () => {
   });
 
   it("slow procedure: returns at the deadline with the rest as data and that one still streaming", async () => {
-    const fetchMock = serveApi({ delays: { "task.list": 600 } });
+    const fetchMock = serveApi({ delays: { "task.list": SECTIONS_READY_MS + 450 } });
     const started = Date.now();
     const state = await streamDashboard();
     const elapsed = Date.now() - started;
 
     expect(elapsed).toBeGreaterThanOrEqual(SECTIONS_READY_MS - 10);
-    expect(elapsed).toBeLessThan(500);
+    expect(elapsed).toBeLessThan(SECTIONS_READY_MS + 350);
     expect(state.queries.map(keyOf).sort()).toEqual(DASHBOARD_KEYS());
     expect(find(state, trpc.user.me.queryKey())?.state.status).toBe("success");
     expect(find(state, trpc.timer.get.queryKey())?.state.status).toBe("success");
@@ -109,7 +109,7 @@ describe("streamDashboard", () => {
   });
 
   it("a procedure that fails after the deadline rejects only its own streamed promise", async () => {
-    serveApi({ delays: { "timer.get": 400 }, failing: ["timer.get"] });
+    serveApi({ delays: { "timer.get": SECTIONS_READY_MS + 250 }, failing: ["timer.get"] });
     const state = await streamDashboard();
     expect(find(state, trpc.user.me.queryKey())?.state.status).toBe("success");
     const timer = find(state, trpc.timer.get.queryKey());
@@ -196,11 +196,11 @@ describe("streamBot", () => {
   });
 
   it("slow user.me: returns at the deadline with config as data and user still streaming", async () => {
-    const fetchMock = serveApi({ delays: { "user.me": 600 } });
+    const fetchMock = serveApi({ delays: { "user.me": SECTIONS_READY_MS + 450 } });
     const started = Date.now();
     const state = await streamBot();
 
-    expect(Date.now() - started).toBeLessThan(500);
+    expect(Date.now() - started).toBeLessThan(SECTIONS_READY_MS + 350);
     expect(find(state, trpc.config.get.queryKey())?.state.status).toBe("success");
     const user = find(state, trpc.user.me.queryKey());
     expect(user?.state.status).toBe("pending");
