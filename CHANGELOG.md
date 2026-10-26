@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Start, Make focus and Pause on the dashboard.** Task rows now show what is going: the
+  task you focus on reads **Focus** (the old "Active" look) and a parked one reads
+  **Started** (a quieter, half-lit chip). A waiting task has **Start**, a started one **Make
+  focus** and **Pause**, the focus **Pause**. Start turns off once someone has 3 going, with
+  "3 in progress — finish or pause one" as its tooltip. On a computer the buttons appear on
+  hover, beside a new ⋯ menu per row; on a phone or touch tablet the ⋯ button (a 44px
+  target) holds every action: Start, Make focus, Pause, Mark done and Remove. The timer's
+  "Now" line adds your started tasks: "Now: <focus> · also: <started…>". No new requests or
+  polling: each click is one request, then the usual task list refresh.
 - **`!start` and `!pause` in chat.** Viewers can now keep up to 3 tasks going: `!start 2`
   starts task #2 beside their focus (or makes it the focus when nothing is going), `!pause`
   pauses the focus (the next started task takes over) and `!pause 2` puts a started task
@@ -27,7 +36,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Switching focus (`!focus`, or the dashboard's activate) parks the old focus as started
   when there is room, instead of sending it back to the queue. When a focus is finished,
   removed or paused, the oldest started task takes over before any waiting task. The api
-  gains `task.start` and `task.pause` (no dashboard buttons yet), and lists show each
+  gains `task.start` and `task.pause` (the dashboard's Start and Pause use them), and lists show each
   person's tasks as focus, then started, then waiting. Started tasks count toward the chat
   limit of 20 open tasks. No migration and no new requests or reads on any poll.
 - **Icon picker for the task bullet and tick.** The Theme Center's free-text "character"

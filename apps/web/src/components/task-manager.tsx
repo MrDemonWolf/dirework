@@ -7,7 +7,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronDown, Focus, MoreHorizontal, Trash2 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { Check, ChevronDown, Focus, MoreHorizontal, Pause, Play, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { QueryError } from "@/components/query-error";
@@ -26,7 +28,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MAX_TASK_LEN } from "@/lib/config-types";
 import { PANEL_HEADER_CLASS, PANEL_TITLE_CLASS } from "@/lib/panel-header";
 import { DASHBOARD_TASKS_POLL_MS, dashboardPollInterval } from "@/lib/poll-intervals";
-import { canMarkTaskDone, groupTasksByAuthor, toRestoreInput } from "@/lib/task-utils";
+import {
+  canMarkTaskDone,
+  groupTasksByAuthor,
+  isAtStartCap,
+  START_CAP_REASON,
+  taskRowActions,
+  toRestoreInput,
+  type TaskRowAction,
+} from "@/lib/task-utils";
 import { StatusChip } from "@/components/status-chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { describeTrpcError } from "@/lib/trpc-errors";
@@ -91,11 +101,40 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
     onError: mutationError("mark the task done"),
   });
 
+  // Status changes (Start / Make focus / Pause) wait for the server, then refetch the list:
+  // which status a started task lands in (focus or started) is the server's call.
   const activateTask = useMutation({
     ...trpc.task.activate.mutationOptions(),
     onSuccess: invalidate,
-    onError: mutationError("set the active task"),
+    onError: mutationError("make the task the focus"),
   });
+
+  const startTask = useMutation({
+    ...trpc.task.start.mutationOptions(),
+    onSuccess: (result) => {
+      invalidate();
+      // The button is off at the cap, so these only fire when the list was out of date.
+      if (result.outcome === "cap_reached") {
+        toast.error(`Couldn't start the task: ${START_CAP_REASON}`);
+      } else if (result.outcome === "not_startable") {
+        toast.error("Couldn't start the task: it changed since the list loaded");
+      }
+    },
+    onError: mutationError("start the task"),
+  });
+
+  const pauseTask = useMutation({
+    ...trpc.task.pause.mutationOptions(),
+    onSuccess: invalidate,
+    onError: mutationError("pause the task"),
+  });
+
+  // One request per click: a row's status actions are off while one of them is in flight.
+  const statusBusyIds = new Set(
+    [activateTask, startTask, pauseTask].flatMap((m) =>
+      m.isPending && m.variables ? [m.variables.id] : [],
+    ),
+  );
 
   const restoreTask = useMutation({
     ...trpc.task.restore.mutationOptions(),
@@ -162,38 +201,73 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
     });
   }
 
-  // Removing a task unmounts its row, and activating one unmounts its Activate
-  // button — either drops keyboard focus to <body>. Once the list reflects the
-  // change, move focus somewhere sensible (only if it was actually lost).
+  // Removing a task unmounts its row, and a status change (Start / Make focus / Pause)
+  // unmounts the icon button that made it — either drops keyboard focus to <body>. Once
+  // the list reflects the change, move focus somewhere sensible (only if it was lost).
   const addInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const pendingFocus = useRef<
     | { kind: "remove"; taskId: string; nextId: string | null }
-    | { kind: "activate"; taskId: string }
+    | { kind: "status"; taskId: string; from: string }
     | null
   >(null);
 
   // Runs on every list refresh; "settled" waits until the poll/invalidate result
-  // actually reflects the mutation (row gone / row active) before moving focus.
+  // actually reflects the mutation (row gone / status changed) before moving focus.
   useEffect(() => {
     const pending = pendingFocus.current;
     const data = tasks.data?.tasks;
     if (!pending || !data) return;
     const task = data.find((t) => t.id === pending.taskId);
-    const settled = pending.kind === "remove" ? !task : task?.status === "active";
+    const settled = pending.kind === "remove" ? !task : task?.status !== pending.from;
     if (!settled) return;
     pendingFocus.current = null;
     const active = document.activeElement;
     // The user already moved focus elsewhere — don't yank it back.
     if (active && active !== document.body) return;
-    // Focus targets the neighbor's (or the activated row's) Remove button, the
-    // one control every row renders; fall back to the add input when the list empties.
+    // Focus targets the neighbor's (or the changed row's) actions menu button, the one
+    // control every row renders on every pointer; fall back to the add input when the
+    // list empties.
     const targetId = pending.kind === "remove" ? pending.nextId : pending.taskId;
     const target = targetId
-      ? listRef.current?.querySelector<HTMLElement>(`[data-remove-task="${CSS.escape(targetId)}"]`)
+      ? listRef.current?.querySelector<HTMLElement>(`[data-row-menu="${CSS.escape(targetId)}"]`)
       : null;
     (target ?? addInputRef.current)?.focus();
   }, [tasks.data]);
+
+  /** Run a row's status action: one request, focus restored once the list shows it. */
+  const runStatusAction = (action: TaskRowAction, task: { id: string; status: string }) => {
+    if (statusBusyIds.has(task.id)) return;
+    pendingFocus.current = { kind: "status", taskId: task.id, from: task.status };
+    const mutation = { start: startTask, focus: activateTask, pause: pauseTask }[action];
+    mutation.mutate(
+      { id: task.id },
+      {
+        onError: () => {
+          pendingFocus.current = null;
+        },
+      },
+    );
+  };
+
+  const markTaskDone = (task: { id: string; status: string }) => {
+    if (!canMarkTaskDone(task.status)) return;
+    if (markDone.isPending && markDone.variables?.id === task.id) return;
+    markDone.mutate({ id: task.id });
+  };
+
+  const removeRow = (taskId: string) => {
+    if (removeTask.isPending && removeTask.variables?.id === taskId) return;
+    pendingFocus.current = { kind: "remove", taskId, nextId: neighborTaskId(taskId) };
+    removeTask.mutate(
+      { id: taskId },
+      {
+        onError: () => {
+          pendingFocus.current = null;
+        },
+      },
+    );
+  };
 
   // The empty board's call to action: bring the add input into view and focus it. Only
   // on a click — focusing on load would jump past the checklist and timer on a hard load.
@@ -366,6 +440,8 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
           ) : (
             orderedGroups.map((group) => {
               const isHost = group.authorKey === userTwitchId;
+              // Start is per author: their focus plus MAX_STARTED_PER_AUTHOR started tasks.
+              const atStartCap = isAtStartCap(group.tasks);
               return (
                 <Collapsible
                   key={group.authorKey}
@@ -400,17 +476,18 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
                       {group.tasks.map((task) => {
                         const isDone = task.status === "done";
                         const isActive = task.status === "active";
+                        const isStarted = task.status === "started";
                         return (
                           <li
                             key={task.id}
                             data-active={isActive || undefined}
-                            // The active row reads from a soft primary tint plus the
-                            // "Active" chip — no coloured edge bar. Layout: checkbox, then
+                            data-status={task.status}
+                            // The focus row reads from a soft primary tint plus the
+                            // "Focus" chip — no coloured edge bar. Layout: checkbox, then
                             // a body of the task text and a meta line (status chip slot +
-                            // row actions). Below `sm` the meta line sits under the text so
+                            // row controls). Below `sm` the meta line sits under the text so
                             // the text gets the row's full width on a 320px phone; from
-                            // `sm` it rides beside the text. A later Start/Pause control
-                            // or a "⋯" menu goes in the meta line's action group.
+                            // `sm` it rides beside the text.
                             className={cn(
                               "group flex min-h-11 items-start gap-3 px-3 py-3 transition-colors",
                               isActive ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/40",
@@ -420,14 +497,9 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
                             {/* Checkbox */}
                             <button
                               type="button"
-                              onClick={() => {
-                                // aria-disabled doesn't block clicks, so guard here:
-                                // done rows and an in-flight markDone are no-ops.
-                                if (!canMarkTaskDone(task.status)) return;
-                                if (markDone.isPending && markDone.variables?.id === task.id)
-                                  return;
-                                markDone.mutate({ id: task.id });
-                              }}
+                              // aria-disabled doesn't block clicks, so markTaskDone guards:
+                              // done rows and an in-flight markDone are no-ops.
+                              onClick={() => markTaskDone(task)}
                               // aria-disabled (not disabled) so the control keeps
                               // keyboard focus while pending and once done.
                               aria-disabled={
@@ -465,88 +537,38 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
                                 data-slot="task-row-meta"
                                 className="flex min-h-6 items-center gap-2 sm:-my-0.5 sm:shrink-0"
                               >
-                                {/* Status chip slot */}
+                                {/* Status chip slot: the focus keeps the lit, pulsing LED; a
+                                started task gets a quieter half-lit one. Pending: no chip. */}
                                 {isActive && (
                                   <StatusChip
                                     size="sm"
                                     tone="accent"
-                                    label="Active"
+                                    label="Focus"
                                     pulse
                                     className="shrink-0"
                                   />
                                 )}
+                                {isStarted && (
+                                  <StatusChip
+                                    size="sm"
+                                    tone="idle"
+                                    dot="half"
+                                    label="Started"
+                                    className="shrink-0"
+                                  />
+                                )}
 
-                                <div className="ml-auto flex items-center gap-2">
-                                  {/* Activate button: always shown unless the primary pointer can hover (at any
-                                  width, so touch tablets keep it); focus reveals it too. */}
-                                  {!isDone && !isActive && (
-                                    <Tooltip>
-                                      <TooltipTrigger
-                                        render={
-                                          <Button
-                                            variant="ghost"
-                                            size="icon-xs"
-                                            onClick={() => {
-                                              pendingFocus.current = {
-                                                kind: "activate",
-                                                taskId: task.id,
-                                              };
-                                              activateTask.mutate(
-                                                { id: task.id },
-                                                {
-                                                  onError: () => {
-                                                    pendingFocus.current = null;
-                                                  },
-                                                },
-                                              );
-                                            }}
-                                            disabled={
-                                              activateTask.isPending &&
-                                              activateTask.variables?.id === task.id
-                                            }
-                                            focusableWhenDisabled
-                                            aria-label={`Set "${task.text}" as active`}
-                                            className="relative opacity-100 transition-opacity after:absolute after:-inset-2 focus-visible:opacity-100 can-hover:opacity-0 group-hover:opacity-100"
-                                          />
-                                        }
-                                      >
-                                        <Focus className="size-3" />
-                                      </TooltipTrigger>
-                                      <TooltipContent>Set as active</TooltipContent>
-                                    </Tooltip>
-                                  )}
-
-                                  {/* Remove button: always shown unless the primary pointer can hover (at any
-                                  width, so touch tablets keep it); focus reveals it too. */}
-                                  <Button
-                                    variant="ghost"
-                                    size="icon-xs"
-                                    onClick={() => {
-                                      pendingFocus.current = {
-                                        kind: "remove",
-                                        taskId: task.id,
-                                        nextId: neighborTaskId(task.id),
-                                      };
-                                      removeTask.mutate(
-                                        { id: task.id },
-                                        {
-                                          onError: () => {
-                                            pendingFocus.current = null;
-                                          },
-                                        },
-                                      );
-                                    }}
-                                    disabled={
-                                      removeTask.isPending && removeTask.variables?.id === task.id
-                                    }
-                                    focusableWhenDisabled
-                                    data-remove-task={task.id}
-                                    aria-label={`Remove "${task.text}"`}
-                                    className="relative text-destructive opacity-100 transition-opacity after:absolute after:-inset-2 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 can-hover:opacity-0 group-hover:opacity-100"
-                                  >
-                                    <Trash2 className="size-3" />
-                                  </Button>
-                                </div>
+                                <TaskRowControls
+                                  task={task}
+                                  atStartCap={atStartCap}
+                                  statusBusy={statusBusyIds.has(task.id)}
+                                  removing={
+                                    removeTask.isPending && removeTask.variables?.id === task.id
+                                  }
+                                  onStatusAction={(action) => runStatusAction(action, task)}
+                                  onMarkDone={() => markTaskDone(task)}
+                                  onRemove={() => removeRow(task.id)}
+                                />
                               </div>
                             </div>
                           </li>
@@ -567,6 +589,162 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
           Done tasks clear automatically after 24h
         </p>
       )}
+    </div>
+  );
+}
+
+/** How each status action reads: menu label, icon, and the icon button's accessible name. */
+const STATUS_ACTION_UI: Record<
+  TaskRowAction,
+  { label: string; icon: LucideIcon; name: (text: string) => string }
+> = {
+  start: { label: "Start", icon: Play, name: (text) => `Start "${text}"` },
+  focus: { label: "Make focus", icon: Focus, name: (text) => `Make "${text}" the focus` },
+  pause: { label: "Pause", icon: Pause, name: (text) => `Pause "${text}"` },
+};
+
+/**
+ * The row controls' hover reveal, on their group (not each button, where a disabled
+ * button's `disabled:opacity-50` would win and show it): always shown unless the primary
+ * pointer can hover (at any width, so touch tablets keep them); hovering the row, focus
+ * inside the group or an open ⋯ menu reveals them.
+ */
+const HOVER_REVEAL =
+  "opacity-100 transition-opacity can-hover:opacity-0 group-hover:opacity-100 focus-within:opacity-100 has-data-popup-open:opacity-100";
+
+/**
+ * A row's controls, in the meta line's action group. On a hover-capable (fine) pointer: the
+ * row's inline status actions and Remove as small icon buttons, then the ⋯ menu. On a
+ * coarse pointer (phones, touch tablets) the icon buttons are gone and the ⋯ menu, a 44px
+ * target, holds every action: no swipe or long-press. The menu always lists them all —
+ * Start / Make focus / Pause (per `taskRowActions`), Mark done, Remove — so a keyboard user
+ * reaches them in one place too.
+ */
+function TaskRowControls({
+  task,
+  atStartCap,
+  statusBusy,
+  removing,
+  onStatusAction,
+  onMarkDone,
+  onRemove,
+}: {
+  task: { id: string; text: string; status: string };
+  /** The author already has a focus and the most started tasks: Start is off. */
+  atStartCap: boolean;
+  /** A Start / Make focus / Pause request for this row is in flight. */
+  statusBusy: boolean;
+  removing: boolean;
+  onStatusAction: (action: TaskRowAction) => void;
+  onMarkDone: () => void;
+  onRemove: () => void;
+}) {
+  const actions = taskRowActions(task.status);
+  const isOff = (action: TaskRowAction) => statusBusy || (action === "start" && atStartCap);
+
+  return (
+    <div
+      data-slot="task-row-controls"
+      className={cn("ml-auto flex items-center gap-2", HOVER_REVEAL)}
+    >
+      {actions
+        .filter(({ inline }) => inline)
+        .map(({ action }) => {
+          const ui = STATUS_ACTION_UI[action];
+          const Icon = ui.icon;
+          const capped = action === "start" && atStartCap;
+          return (
+            <Tooltip key={action}>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => {
+                      if (!isOff(action)) onStatusAction(action);
+                    }}
+                    disabled={isOff(action)}
+                    focusableWhenDisabled
+                    aria-label={ui.name(task.text)}
+                    className="relative after:absolute after:-inset-2 pointer-coarse:hidden"
+                  />
+                }
+              >
+                <Icon className="size-3" />
+              </TooltipTrigger>
+              <TooltipContent>{capped ? START_CAP_REASON : ui.label}</TooltipContent>
+            </Tooltip>
+          );
+        })}
+
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        onClick={onRemove}
+        disabled={removing}
+        focusableWhenDisabled
+        aria-label={`Remove "${task.text}"`}
+        className="relative text-destructive after:absolute after:-inset-2 hover:bg-destructive/10 hover:text-destructive pointer-coarse:hidden"
+      >
+        <Trash2 className="size-3" />
+      </Button>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              data-row-menu={task.id}
+              aria-label={`Actions for "${task.text}"`}
+              className="relative after:absolute after:-inset-2 pointer-coarse:size-11 pointer-coarse:after:hidden"
+            />
+          }
+        >
+          <MoreHorizontal className="size-3.5 pointer-coarse:size-5" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-64 bg-card" align="end">
+          {actions.map(({ action }) => {
+            const ui = STATUS_ACTION_UI[action];
+            const Icon = ui.icon;
+            const capped = action === "start" && atStartCap;
+            return (
+              <DropdownMenuItem
+                key={action}
+                disabled={isOff(action)}
+                onClick={() => onStatusAction(action)}
+                className="pointer-coarse:min-h-11"
+              >
+                <Icon />
+                {capped ? (
+                  <span className="flex flex-col gap-1">
+                    <span>{ui.label}</span>
+                    <span className="text-xs text-muted-foreground">{START_CAP_REASON}</span>
+                  </span>
+                ) : (
+                  ui.label
+                )}
+              </DropdownMenuItem>
+            );
+          })}
+          {canMarkTaskDone(task.status) && (
+            <DropdownMenuItem onClick={onMarkDone} className="pointer-coarse:min-h-11">
+              <Check />
+              Mark done
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            variant="destructive"
+            disabled={removing}
+            onClick={onRemove}
+            className="pointer-coarse:min-h-11"
+          >
+            <Trash2 />
+            Remove
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

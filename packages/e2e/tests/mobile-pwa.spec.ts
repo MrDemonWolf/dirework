@@ -49,10 +49,14 @@ test("task-row actions are shown on touch without a hover", async ({ page }) => 
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(taskRow(page, text)).toBeVisible();
 
+  // On touch the row's actions live in its ⋯ menu (the icon buttons are for hover pointers).
   // toBeVisible ignores opacity, and the hover-reveal hides these with opacity-0.
-  const remove = page.getByLabel(`Remove "${text}"`);
-  await expect(remove).toBeVisible();
-  await expect(remove).toHaveCSS("opacity", "1");
+  const menu = page.getByRole("button", { name: `Actions for "${text}"` });
+  await expect(menu).toBeVisible();
+  // The hover reveal sits on the controls' group.
+  await expect(menu.locator("xpath=..")).toHaveCSS("opacity", "1");
+  expect((await menu.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await expect(page.getByLabel(`Remove "${text}"`)).toBeHidden();
 });
 
 test.describe("on a touch tablet wider than the lg breakpoint", () => {
@@ -65,6 +69,8 @@ test.describe("on a touch tablet wider than the lg breakpoint", () => {
     await page.getByLabel("New task text").fill(text);
     await page.getByRole("button", { name: "Add", exact: true }).click();
     await expect(taskRow(page, text)).toBeVisible();
-    await expect(page.getByLabel(`Remove "${text}"`)).toHaveCSS("opacity", "1");
+    await expect(
+      page.getByRole("button", { name: `Actions for "${text}"` }).locator("xpath=.."),
+    ).toHaveCSS("opacity", "1");
   });
 });

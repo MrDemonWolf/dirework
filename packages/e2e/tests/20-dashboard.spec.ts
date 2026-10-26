@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  confirmDialog,
   expectNoHydrationErrors,
   revealSecretUrl,
   signIn,
@@ -52,17 +53,85 @@ test("shows the owner's active task beside the timer as Now, from the polled lis
   await page.getByRole("button", { name: "Add", exact: true }).click();
   const row = taskRow(page, text);
   await expect(row).toBeVisible();
-  // A new task is active only when the owner had none; otherwise make it the active one.
-  const activate = page.getByLabel(`Set "${text}" as active`);
-  if (await activate.count()) await activate.click();
+  // A new task is the focus only when the owner had none; otherwise make it the focus.
+  if (!(await row.getByText("Focus", { exact: true }).count())) {
+    await page.getByRole("button", { name: `Actions for "${text}"` }).click();
+    await page.getByRole("menuitem", { name: "Make focus" }).click();
+  }
+  await expect(row.getByText("Focus", { exact: true })).toBeVisible();
 
   // The "Now" line carries the full text in its title (the visible text truncates).
-  await expect(page.getByTitle(text)).toBeVisible();
+  await expect(page.getByTitle(text, { exact: true })).toBeVisible();
 
   // Done → no longer active → the line goes (or shows the next task, never this one).
   await page.getByLabel(`Mark "${text}" as done`).click();
   await expect(page.getByLabel(`${text} (done)`)).toBeVisible();
   await expect(page.getByTitle(text)).toHaveCount(0);
+});
+
+test("Start parks a task as Started, Make focus swaps, Pause returns it, the cap disables Start", async ({
+  page,
+}) => {
+  // A clean board, so the owner's focus and started counts are known (and a retry starts over).
+  await page.getByRole("button", { name: "Task board options" }).click();
+  const clearAll = page.getByRole("menuitem", { name: /^Clear all/ });
+  if (await clearAll.isEnabled()) {
+    await clearAll.click();
+    await confirmDialog(page, "Clear all tasks");
+  } else {
+    await page.keyboard.press("Escape");
+  }
+  await expect(page.getByText("What are you working on today?")).toBeVisible();
+
+  const stamp = Date.now();
+  const a = `Juggle A ${stamp}`;
+  const b = `Juggle B ${stamp}`;
+  const c = `Juggle C ${stamp}`;
+  const d = `Juggle D ${stamp}`;
+  for (const text of [a, b, c, d]) {
+    await page.getByRole("textbox", { name: "New task text" }).fill(text);
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(taskRow(page, text)).toBeVisible();
+  }
+  const chip = (text: string, label: "Focus" | "Started") =>
+    taskRow(page, text).getByText(label, { exact: true });
+
+  // The first task of an owner with no focus became the focus.
+  await expect(chip(a, "Focus")).toBeVisible();
+
+  // Start beside a focus parks the task as started.
+  await page.getByRole("button", { name: `Start "${b}"` }).click();
+  await expect(chip(b, "Started")).toBeVisible();
+  await expect(page.getByText(`also: ${b}`)).toBeVisible();
+
+  // Make focus swaps: B takes the focus, A is parked as started.
+  await page.getByRole("button", { name: `Make "${b}" the focus` }).click();
+  await expect(chip(b, "Focus")).toBeVisible();
+  await expect(chip(a, "Started")).toBeVisible();
+
+  // A focus plus two started tasks is the cap: Start is off on the rest, and says why.
+  await page.getByRole("button", { name: `Start "${c}"` }).click();
+  await expect(chip(c, "Started")).toBeVisible();
+  const startD = page.getByRole("button", { name: `Start "${d}"` });
+  await expect(startD).toBeDisabled();
+  await taskRow(page, d).hover();
+  await startD.hover();
+  await expect(page.getByText("3 in progress — finish or pause one")).toBeVisible();
+  // The row menu says the same, with Start off.
+  await page.getByRole("button", { name: `Actions for "${d}"` }).click();
+  await expect(page.getByRole("menuitem", { name: /^Start/ })).toBeDisabled();
+  await page.keyboard.press("Escape");
+
+  // Pause a started task: back to the queue (no chip), and Start is on again.
+  await page.getByRole("button", { name: `Pause "${a}"` }).click();
+  await expect(chip(a, "Started")).toHaveCount(0);
+  await expect(chip(a, "Focus")).toHaveCount(0);
+  await expect(startD).toBeEnabled();
+
+  // Pause the focus: it goes back to the queue and the oldest started task takes over.
+  await page.getByRole("button", { name: `Pause "${b}"` }).click();
+  await expect(chip(b, "Focus")).toHaveCount(0);
+  await expect(chip(c, "Focus")).toBeVisible();
 });
 
 test("the stats strip and focus chart render, and a finished task counts at once", async ({
@@ -144,9 +213,11 @@ test("on a 320px phone a long active task wraps in full across the row", async (
   await page.getByRole("button", { name: "Add", exact: true }).click();
   const row = taskRow(page, text);
   await expect(row).toBeVisible();
-  const activate = page.getByLabel(`Set "${text}" as active`);
-  if (await activate.count()) await activate.click();
-  await expect(row.getByText("Active", { exact: true })).toBeVisible();
+  if (!(await row.getByText("Focus", { exact: true }).count())) {
+    await page.getByRole("button", { name: `Actions for "${text}"` }).click();
+    await page.getByRole("menuitem", { name: "Make focus" }).click();
+  }
+  await expect(row.getByText("Focus", { exact: true })).toBeVisible();
 
   // The status chip moves under the text, so the text keeps most of the row (it once got
   // ~75px of it), shows in full (no clamp) and widens nothing.

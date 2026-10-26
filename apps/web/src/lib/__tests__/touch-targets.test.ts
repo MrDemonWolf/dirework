@@ -57,7 +57,11 @@ describe("touch targets", () => {
     // `lg:opacity-0` hid Activate/Remove on touch tablets >= 1024px, where group-hover
     // (wrapped in @media (hover: hover)) can never reveal them.
     expect(taskManager).not.toContain("lg:opacity-0");
-    expect(taskManager.match(/can-hover:opacity-0 group-hover:opacity-100/g)).toHaveLength(2);
+    // One shared class string on the row controls' group (a disabled button's own
+    // `disabled:opacity-50` would beat a per-button opacity-0 and show it without a hover).
+    expect(taskManager.match(/can-hover:opacity-0 group-hover:opacity-100/g)).toHaveLength(1);
+    expect(taskManager).toContain('cn("ml-auto flex items-center gap-2", HOVER_REVEAL)');
+    expect(taskManager).toContain("focus-within:opacity-100 has-data-popup-open:opacity-100");
   });
 
   it("pads every full-width edge container for the side safe-area insets", () => {

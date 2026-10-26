@@ -36,6 +36,7 @@ export function StatusChip({
   label,
   pulse = false,
   size = "default",
+  dot = "solid",
   title,
   className,
 }: {
@@ -43,6 +44,8 @@ export function StatusChip({
   label: string;
   pulse?: boolean;
   size?: "default" | "sm";
+  /** `half`: a half-filled ring in the label color (◐) for "under way, not in focus". */
+  dot?: "solid" | "half";
   /** Full text on hover, for a label that may be cut (a streamer's custom phase label). */
   title?: string;
   className?: string;
@@ -60,10 +63,20 @@ export function StatusChip({
         className,
       )}
     >
-      <span
-        aria-hidden
-        className={cn("size-1.5 shrink-0 rounded-full", styles.dot, pulse && "animate-led-pulse")}
-      />
+      {dot === "half" ? (
+        // A half-lit LED (◐): under way but not the one in focus.
+        <span
+          aria-hidden
+          className="relative size-2 shrink-0 overflow-hidden rounded-full border border-current"
+        >
+          <span className="absolute inset-y-0 left-0 w-1/2 bg-current" />
+        </span>
+      ) : (
+        <span
+          aria-hidden
+          className={cn("size-1.5 shrink-0 rounded-full", styles.dot, pulse && "animate-led-pulse")}
+        />
+      )}
       <span className="min-w-0 truncate">{label}</span>
     </span>
   );
