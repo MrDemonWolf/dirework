@@ -10,7 +10,7 @@ import { expectNoHydrationErrors, signIn, watchHydration } from "./helpers";
 // requests it serves (`/__e2e/requests`), so both halves are checked against the real stack.
 
 /** The one batched call the dashboard's server render makes. */
-const DASHBOARD_BATCH = "/trpc/user.me,timer.get,config.get,task.list";
+const DASHBOARD_BATCH = "/trpc/user.me,timer.get,config.get,task.list,stats.summary";
 
 /**
  * Note, for every painted frame, the names of the section placeholders on screen. The check
@@ -76,7 +76,7 @@ test("a production-speed batch (every procedure ~300ms) still paints complete", 
   await context.addCookies([
     {
       name: DELAY_COOKIE,
-      value: "user.me=300,timer.get=300,config.get=300,task.list=300",
+      value: "user.me=300,timer.get=300,config.get=300,task.list=300,stats.summary=300",
       url: WEB_ORIGIN,
     },
   ]);
@@ -128,6 +128,42 @@ test("a slow procedure holds back only its own section", async ({ page, context 
   expect(served[DASHBOARD_BATCH]).toBe(1);
   // The slow result rode the batch: no second fetch of task.list from the browser.
   expect(Object.keys(served).filter((path) => path.includes("task.list"))).toEqual([
+    DASHBOARD_BATCH,
+  ]);
+
+  await context.clearCookies({ name: DELAY_COOKIE });
+});
+
+test("a slow stats.summary holds back only the stats strip and the focus chart", async ({
+  page,
+  context,
+}) => {
+  await context.addCookies([{ name: DELAY_COOKIE, value: "stats.summary=2500", url: WEB_ORIGIN }]);
+  await recordPlaceholderFrames(page);
+  watchHydration(page);
+  await apiRequests(page);
+
+  await page.goto("/dashboard", { waitUntil: "commit" });
+
+  await expect(page.getByRole("textbox", { name: "New task text" })).toBeVisible();
+  await expect(page.locator('main [data-placeholder="stats"]')).toBeVisible();
+  await expect(page.locator('main [data-placeholder="focus-chart"]')).toBeVisible();
+  await expect(page.locator("main [data-placeholder]:visible")).toHaveCount(2);
+
+  await expect(page.getByRole("region", { name: "Today's stats" })).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.locator("main [data-placeholder]")).toHaveCount(0);
+  await expectNoHydrationErrors(page);
+  expect([...new Set((await placeholderFrames(page)).flat())].sort()).toEqual([
+    "focus-chart",
+    "stats",
+  ]);
+
+  // The slow result rode the batch: the stats were never fetched on their own.
+  const served = await apiRequests(page);
+  expect(served[DASHBOARD_BATCH]).toBe(1);
+  expect(Object.keys(served).filter((path) => path.includes("stats.summary"))).toEqual([
     DASHBOARD_BATCH,
   ]);
 

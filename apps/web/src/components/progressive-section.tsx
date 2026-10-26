@@ -14,11 +14,20 @@ import { sectionWait } from "@/lib/progressive";
 /**
  * Marks a section's data-shaped placeholder blocks: decorative, so hidden from assistive
  * tech, and named on `data-placeholder` for the e2e suite. Static chrome a fallback repeats
- * (a heading, the greeting) stays outside it.
+ * (a heading, the greeting) stays outside it. `className` sizes the wrapper where the live
+ * section is a flex item that sizes itself (e.g. `w-full` in a centered column).
  */
-export function SectionPlaceholder({ name, children }: { name: string; children: ReactNode }) {
+export function SectionPlaceholder({
+  name,
+  className,
+  children,
+}: {
+  name: string;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <div data-placeholder={name} aria-hidden>
+    <div data-placeholder={name} className={className} aria-hidden>
       {children}
     </div>
   );

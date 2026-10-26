@@ -36,6 +36,38 @@ test("adds a task, shows it on the tasks overlay, and marks it done", async ({ p
   await expect(page.getByLabel(`${text} (done)`)).toBeVisible();
 });
 
+test("the stats strip and focus chart render, and a finished task counts at once", async ({
+  page,
+}) => {
+  const stats = page.getByRole("region", { name: "Today's stats" });
+  await expect(stats.getByRole("term")).toHaveText([
+    "Focus today",
+    "Pomodoros today",
+    "Tasks done today",
+    "This week",
+  ]);
+  await expect(
+    page.getByRole("table", { name: "Focus time per day, last 14 days" }),
+  ).toBeAttached();
+  await expect(
+    page.getByRole("table", { name: /Focus time per day/ }).getByRole("row"),
+  ).toHaveCount(15);
+
+  // Relative to what earlier specs (or a retry) already finished today.
+  const tasksDone = stats
+    .getByText("Tasks done today", { exact: true })
+    .locator("xpath=following-sibling::dd[1]");
+  const before = Number(await tasksDone.textContent());
+
+  const text = `Count me ${Date.now()}`;
+  await page.getByRole("textbox", { name: "New task text" }).fill(text);
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByLabel(`Mark "${text}" as done`).click();
+
+  // No reload: the task poll's done count rose, so the summary refetched.
+  await expect(tasksDone).toHaveText(String(before + 1));
+});
+
 test("removing a task offers Undo, and Undo puts it back", async ({ page }) => {
   const text = `Undo me ${Date.now()}`;
   await page.getByRole("textbox", { name: "New task text" }).fill(text);

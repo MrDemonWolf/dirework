@@ -13,6 +13,7 @@ const dashboard = read("app/(app)/dashboard/dashboard.tsx");
 const taskManager = read("components/task-manager.tsx");
 const timerControls = read("components/timer-controls.tsx");
 const skeleton = read("components/dashboard-skeleton.tsx");
+const stats = read("components/dashboard-stats.tsx");
 
 describe("dashboard layout", () => {
   it("shows the bot's status exactly once, as the header chip that links to Bot settings", () => {
@@ -29,10 +30,20 @@ describe("dashboard layout", () => {
     expect(link).toContain("pointer-coarse:min-h-11");
   });
 
-  it("keeps the skeleton to the live page's two panels, with no bot strip", () => {
-    // A third skeleton panel would vanish when data lands and jump the layout.
-    expect(skeleton.match(/className="panel[ "-]/g)).toHaveLength(2);
+  it("keeps the skeleton to the live page's panels (stats strip + two), with no bot strip", () => {
+    // An extra skeleton panel would vanish when data lands and jump the layout.
+    expect(skeleton.match(/className="panel[ "-]/g)).toHaveLength(3);
     expect(dashboard.match(/<section className="panel/g)).toHaveLength(2);
+    expect(stats.match(/<section [^>]*className="panel /g)).toHaveLength(1);
+  });
+
+  it("puts the stats strip under the greeting and the focus chart under the timer digits", () => {
+    expect(dashboard).toMatch(/<HeaderSection [\s\S]*?<StatTiles \/>[\s\S]*?Timer Console/);
+    expect(dashboard).toMatch(/<TimerInstrument \/>\s*<ProgressiveSection[\s\S]*?<FocusChart \/>/);
+    expect(skeleton).toMatch(/<StatusClusterPlaceholder \/>\s*<\/div>\s*<StatTilesPlaceholder \/>/);
+    // Tiles and their placeholder share one cell layout, box for box.
+    expect(stats).toContain("className={statCellClass(i)}");
+    expect(skeleton).toContain("className={statCellClass(i)}");
   });
 
   it("splits the timer console 3/5 | 2/5 and the board 2/3 | 1/3", () => {

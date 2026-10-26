@@ -12,6 +12,7 @@
 // The task list's height follows the number of tasks, so its placeholder is a typical board.
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { statCellClass } from "@/lib/stats-view";
 
 /** A status chip (`StatusChip`: 27px tall). */
 function ChipSkeleton({ className }: { className: string }) {
@@ -53,17 +54,55 @@ export function StatusClusterPlaceholder() {
   );
 }
 
+/**
+ * The stats strip under the greeting (`StatTiles`): one panel of four cells, 2×2 on a phone
+ * and a row from lg, each a label, a value and a detail line.
+ */
+export function StatTilesPlaceholder() {
+  return (
+    <div className="panel mb-6 overflow-hidden">
+      <div className="grid grid-cols-2 lg:grid-cols-4">
+        {["focus", "pomodoros", "tasks", "week"].map((id, i) => (
+          <div key={id} className={statCellClass(i)}>
+            <Skeleton className="h-4.5 w-24" />
+            <Skeleton className="h-8 w-16" />
+            <Skeleton className="h-4 w-28" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** The 14-day focus chart (`FocusChart`): caption row, the 5:1 plot, the date row. */
+export function FocusChartPlaceholder() {
+  return (
+    <div className="w-full max-w-sm">
+      <div className="mb-2 flex h-4 items-center justify-between">
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-3 w-10" />
+      </div>
+      <Skeleton className="aspect-5/1 w-full" />
+      <div className="mt-1.5 flex h-4 items-center justify-between">
+        <Skeleton className="h-2.5 w-16" />
+        <Skeleton className="h-2.5 w-8" />
+      </div>
+    </div>
+  );
+}
+
 /** The timer console below its heading: instrument (3/5) | transport, settings, monitor (2/5). */
 export function TimerConsoleBodyPlaceholder() {
   return (
     <div className="grid lg:grid-cols-5">
-      <div className="flex items-center justify-center px-5 py-8 lg:col-span-3">
+      <div className="flex flex-col items-center justify-center gap-8 px-5 py-8 lg:col-span-3">
         <div className="flex w-full flex-col items-center gap-5">
           <ChipSkeleton className="w-21.5" />
           <Skeleton className="h-18 w-52.5 lg:h-24 lg:w-70" />
           <Skeleton className="h-1.5 w-full max-w-xs rounded-full" />
           <Skeleton className="h-2 w-14" />
         </div>
+        <FocusChartPlaceholder />
       </div>
       <div className="flex min-w-0 flex-col gap-5 border-t border-border/40 px-5 py-5 lg:col-span-2 lg:border-t-0 lg:border-l">
         {/* Transport bar, then the folded session settings (its summary wraps on a phone). */}
@@ -126,6 +165,8 @@ export function DashboardSkeleton() {
         </div>
         <StatusClusterPlaceholder />
       </div>
+
+      <StatTilesPlaceholder />
 
       <div className="grid gap-6">
         <div className="panel-hero">
