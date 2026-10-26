@@ -33,8 +33,25 @@ export const TIMER_CONFIG_DEFAULTS = {
   defaultCycles: 4,
 };
 
-/** Default phase labels (timer_config label_* columns). */
+/**
+ * The phase labels a never-customized instance shows. Free to change: the timer_config
+ * label_* column defaults are PHASE_LABEL_COLUMN_DEFAULTS below (frozen), and
+ * `buildTimerConfig` reads a stored label equal to one of those, or to a
+ * LEGACY_PHASE_LABELS entry, as the value here. Each label stays within
+ * PHASE_LABEL_MAX_GRAPHEMES / PHASE_LABEL_MAX_BYTES (@dirework/api/style-limits).
+ */
 export const DEFAULT_PHASE_LABELS = {
+  idle: "Resting",
+  starting: "Pack Gathering",
+  work: "On the Hunt",
+  break: "Den Rest",
+  longBreak: "Pack Slumber",
+  paused: "Paws'd",
+  finished: "Hunt Complete",
+};
+
+/** The timer_config label_* column DEFAULTs as the applied migrations wrote them. FROZEN. */
+export const PHASE_LABEL_COLUMN_DEFAULTS = {
   idle: "Resting",
   starting: "Gathering the Pack",
   work: "On the Hunt",
@@ -42,6 +59,20 @@ export const DEFAULT_PHASE_LABELS = {
   longBreak: "Pack Slumber",
   paused: "Paws'd",
   finished: "Hunt Complete",
+} satisfies Record<keyof typeof DEFAULT_PHASE_LABELS, string>;
+
+/**
+ * Earlier default labels other than the frozen column default, per phase. Append, never
+ * remove. ("Gathering the Pack", 18 characters, is the frozen column default.)
+ */
+export const LEGACY_PHASE_LABELS: Record<keyof typeof DEFAULT_PHASE_LABELS, readonly string[]> = {
+  idle: [],
+  starting: [],
+  work: [],
+  break: [],
+  longBreak: [],
+  paused: [],
+  finished: [],
 };
 
 /**
@@ -361,12 +392,15 @@ export const DEFAULT_TASK_STYLES = {
     background: { color: "#000000", opacity: 0 },
     border: { color: "#4a5b82", width: "2px", radius: "6px" },
     margin: { top: "4px", left: "2px", right: "8px" },
-    tickChar: "✔",
+    // An icon id from OVERLAY_ICONS (@dirework/api/style-limits), stored in the old
+    // free-text checkbox_tick_char column; the frozen "✔" reads back as "check".
+    tickIcon: "check" as const,
     tickSize: "14px",
     tickColor: "#00aced",
   },
   bullet: {
-    char: "•",
+    // An icon id, stored in the old bullet_char column; the frozen "•" reads back as "dot".
+    icon: "dot" as const,
     size: "20px",
     color: "#7c8db0",
     margin: { top: "0px", left: "2px", right: "8px" },

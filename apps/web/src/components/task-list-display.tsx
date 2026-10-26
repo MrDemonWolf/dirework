@@ -26,6 +26,7 @@ import { colorWithOpacity, quoteFontFamily } from "@/lib/timer-utils";
 import type { Task, TaskGroup } from "@/lib/task-utils";
 // Style shape comes from the shared config source of truth (audit M4)
 import type { TaskStylesConfig } from "@/lib/config-types";
+import { OverlayIcon } from "@/components/overlay-icon";
 
 /**
  * Infinite scroll using a dual-container system like Chat-Task-Tic.
@@ -277,30 +278,25 @@ function TaskItem({
           }}
         >
           {isDone && (
-            <span
-              style={{
-                fontSize: config.checkbox.tickSize,
-                color: config.checkbox.tickColor,
-                lineHeight: 1,
-              }}
-            >
-              {config.checkbox.tickChar}
-            </span>
+            <OverlayIcon
+              icon={config.checkbox.tickIcon}
+              size={config.checkbox.tickSize}
+              style={{ color: config.checkbox.tickColor }}
+            />
           )}
         </div>
       ) : (
         <span
-          className="flex-shrink-0"
+          data-overlay-bullet={config.bullet.icon}
+          className="flex flex-shrink-0"
           style={{
-            fontSize: config.bullet.size,
             color: config.bullet.color,
             marginTop: config.bullet.margin.top,
             marginLeft: config.bullet.margin.left,
             marginRight: config.bullet.margin.right,
-            lineHeight: 1,
           }}
         >
-          {config.bullet.char}
+          <OverlayIcon icon={config.bullet.icon} size={config.bullet.size} />
         </span>
       )}
 

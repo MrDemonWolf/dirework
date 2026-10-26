@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { cssLengthSchema } from "@dirework/api/config-shared";
+import { cssLengthSchema, taskStylesInputSchema } from "@dirework/api/config-shared";
+import { TASK_LENGTH_LIMITS, TIMER_LENGTH_LIMITS } from "@dirework/api/style-limits";
 
-import { stepLength, withDefaultUnit } from "../style-fields";
+import { lengthFieldError, stepLength, withDefaultUnit } from "../style-fields";
 
 describe("stepLength", () => {
   it("nudges a single length and keeps its unit", () => {
@@ -25,11 +26,38 @@ describe("stepLength", () => {
     }
   });
 
+  it("stays inside the field's limit, in the value's own unit", () => {
+    const label = TIMER_LENGTH_LIMITS["fontSizes.label"]; // 14–48px, 2–40vw/vh
+    expect(stepLength("48px", 1, "px", label)).toBe("48px");
+    expect(stepLength("14px", -10, "px", label)).toBe("14px");
+    expect(stepLength("90px", -1, "px", label)).toBe("48px");
+    expect(stepLength("3rem", 1, "px", label)).toBe("3rem");
+    expect(stepLength("40vw", 1, "px", label)).toBe("40vw");
+    expect(stepLength("20", 1, "px", label)).toBe("21px");
+    // A unit the field doesn't take: no nudge, the inline error explains.
+    expect(stepLength("50%", 1, "px", label)).toBeNull();
+  });
+
   it("leaves multi-value, empty and non-numeric values to the key's default", () => {
     expect(stepLength("10px 14px", 1)).toBeNull();
     expect(stepLength("", 1)).toBeNull();
     expect(stepLength("auto", 1)).toBeNull();
     expect(stepLength("-4px", 1)).toBeNull();
+  });
+});
+
+describe("lengthFieldError", () => {
+  const margin = TASK_LENGTH_LIMITS["task.marginBottom"];
+  it("agrees with the save schema for each field", () => {
+    for (const value of ["8px", "-4px", "49px", "auto", "4px 4px", "0", "3rem", "x;y"]) {
+      const saves = taskStylesInputSchema.safeParse({ task: { marginBottom: value } }).success;
+      expect(lengthFieldError(value, margin) === null, value).toBe(saves);
+    }
+  });
+
+  it("names the range", () => {
+    expect(lengthFieldError("-4px", margin)).toBe("Out of range. Use 0–48px");
+    expect(lengthFieldError("abc", margin)).toBe("Use a length in 0–48px");
   });
 });
 

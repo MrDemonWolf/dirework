@@ -27,7 +27,7 @@ describe("timer styles round-trip", () => {
         outlineSize: "0px",
         fontFamily: "Montserrat",
       },
-      fontSizes: { label: "13px", time: "48px", cycle: "12px" },
+      fontSizes: { label: "14px", time: "48px", cycle: "12px" },
     };
 
     const flat = flattenTimerStyles(nested);
@@ -66,7 +66,7 @@ describe("task styles round-trip", () => {
       task: {
         background: { color: "#2a2a2a", opacity: 0.8 },
         border: { color: "#444", width: "1px", radius: "8px" },
-        fontSize: "15px",
+        fontSize: "16px",
         fontColor: "#e0e0e0",
         usernameColor: "#ffffff",
         padding: "8px 10px",
@@ -82,12 +82,12 @@ describe("task styles round-trip", () => {
         background: { color: "transparent", opacity: 0 },
         border: { color: "#666", width: "2px", radius: "4px" },
         margin: { top: "1px", left: "0px", right: "8px" },
-        tickChar: "\u2713",
+        tickIcon: "check" as const,
         tickSize: "12px",
         tickColor: "#4ade80",
       },
       bullet: {
-        char: "\u2022",
+        icon: "dot" as const,
         size: "16px",
         color: "#888",
         margin: { top: "0px", left: "2px", right: "8px" },

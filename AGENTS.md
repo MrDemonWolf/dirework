@@ -266,8 +266,8 @@ backs off exponentially (5s up to 5min, with jitter).
 `normalizeAliases` (`config-shared.ts`) / `normalizeAliasToken` + `KNOWN_ALIAS_TARGETS`
 (`packages/api/src/chat-commands.ts`, re-exported by `config-shared`) are the single source shared by the chat resolver
 (`resolveAlias`), the `commandAliasesInput` schema, and the dashboard editor — they accept
-either form and reject empty, multi-word, built-in-shadowing, duplicate, recursive, and
-unknown-target entries (each issue carries its input index so the editor flags the row). (Fixes the old `!!task`
+either form and reject empty, too-long (over `ALIAS_MAX_LENGTH`), multi-word,
+built-in-shadowing, duplicate, recursive, and unknown-target entries (each issue carries its input index so the editor flags the row). (Fixes the old `!!task`
 bug where the UI stored `!t → !task` and the resolver re-prefixed `!`.)
 
 **API request logging** uses a structured, redacted middleware
@@ -482,7 +482,23 @@ must not import `@dirework/env/server` — Vitest runs in Node and cannot resolv
 The CSS ones are **allowlists, not length caps** — style values are interpolated
 into overlay CSS, so `;`/`{}`/`url()` must never survive validation. Chat
 messages are bounded by **UTF-8 bytes** (`truncateToBytes`, `MAX_CHAT_BYTES`),
-never characters — an IRC line caps at 512 bytes, so 500 emoji would overflow it.
+never characters — an IRC line caps at 512 bytes, so 500 emoji would overflow it; a reply
+template may also repeat one placeholder at most `MAX_PLACEHOLDER_REPEATS` (4) times
+(`chat-text`). **Every limit is one zod-free constant** read by both the save schema and the
+editor (min/max, arrow stepping, inline error, counter from 80%):
+`@dirework/api/style-limits` holds `TIMER_/TASK_LENGTH_LIMITS` (per style path: a px range,
+optional `%` / `vw`·`vh` ranges, up to 4 shorthand values; rem/em = 16px, never negative;
+`boundedLengthSchema` + `lengthIssue`), `TIMER_/TASK_NUMBER_LIMITS` (ring width/gap 0–40,
+lines, scroll), the bullet/tick `OVERLAY_ICONS` (lucide ids stored in the old
+`*_char` columns; `overlayIconSchema`), and the phase label caps
+(`PHASE_LABEL_MAX_GRAPHEMES` 16 via `Intl.Segmenter`, `PHASE_LABEL_MAX_BYTES` 48;
+`phaseLabelSchema`); `ALIAS_MAX_LENGTH` (25, no "!") lives in `chat-commands`. A stored value
+outside a newer limit is **never migrated, it is clamped on read** in the build* helpers
+(`clampTimerStyles` / `clampTaskStyles`: nearest bound, or the default when the unit is no
+longer accepted; `toOverlayIcon` maps old glyphs; `clampPhaseLabel`; `limitPlaceholderRepeats`;
+aliases re-run through `normalizeAliases`), so a whole-group save of what was read always
+passes (`clamp-on-read.test.ts`), and every preset sits inside every limit
+(`theme-presets.test.ts`).
 
 **Abuse protections:** Cloudflare rate-limit bindings (`RL_AUTH`, `RL_BOT`,
 `RL_TOKEN`, `RL_OVERLAY` — separate buckets so a flood on one can't starve
@@ -797,7 +813,15 @@ opens first) plus a `group` (fieldset legend). `style-sections.test.ts` holds bo
 `theme-center/field-row.tsx`: label (plus an optional one-line `hint` from the field list)
 on the left, every control in ONE fixed `w-44` column right after it — a color is one
 bordered field (swatch square + hex), a length one mono field showing its own unit (no
-unit label; ArrowUp/Down nudge a single length via `stepLength` in `lib/style-fields.ts`).
+unit label; ArrowUp/Down nudge a single length via `stepLength` in `lib/style-fields.ts`,
+held inside the field's `limit`, which `withLengthLimits` copies from `style-limits` by
+path; `lengthFieldError` gives the inline error naming the range, and the page's
+`updateStylesInput.safeParse` blocks Save). Sliders take their min/max from the
+`*_NUMBER_LIMITS`. The bullet and tick are `kind: "icon"` fields: `IconPickerRow`
+(`theme-center/icon-picker.tsx`, a full-width 7-column radiogroup, roving tabindex via
+`nextGridIndex`) over the overlay's own `OverlayIcon` (`components/overlay-icon.tsx`,
+named lucide imports only). Phase labels count with `phaseLabelBudget` (`ByteBudget`
+shows characters or bytes, whichever is tighter).
 Each group fieldset caps at `max-w-md` and the groups flow into two CSS columns from the
 `@2xl` container width (a container query: the editor's width depends on the preview rail,
 not the viewport). `SectionGroup` takes a

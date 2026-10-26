@@ -16,7 +16,9 @@ import {
   limitCombiningMarks,
   MAX_CHAT_BYTES,
   MAX_MESSAGE_TEMPLATE_BYTES,
+  MAX_PLACEHOLDER_REPEATS,
   opacitySchema,
+  phaseLabelSchema,
   TASK_LINES_MAX,
   TASK_LINES_MIN,
   taskStylesInputSchema,
@@ -274,5 +276,37 @@ describe("truncateToBytes", () => {
 
   it("handles a budget smaller than the first character", () => {
     expect(truncateToBytes("🐺", 2)).toBe("");
+  });
+});
+
+describe("bounded style lengths, icons, phase labels and placeholders (save schemas)", () => {
+  it("rejects negative and out-of-range lengths with the field's range in the message", () => {
+    const negative = taskStylesInputSchema.safeParse({ task: { marginBottom: "-4px" } });
+    expect(negative.success).toBe(false);
+    expect(negative.error?.issues[0]?.message).toBe("Out of range. Use 0–48px");
+    expect(timerStylesInputSchema.safeParse({ fontSizes: { time: "161px" } }).success).toBe(false);
+    expect(timerStylesInputSchema.safeParse({ fontSizes: { time: "160px" } }).success).toBe(true);
+    expect(timerStylesInputSchema.safeParse({ ring: { width: 41 } }).success).toBe(false);
+    expect(taskStylesInputSchema.safeParse({ scroll: { pixelsPerSecond: 201 } }).success).toBe(
+      false,
+    );
+  });
+
+  it("takes only icon ids for the bullet and the tick", () => {
+    expect(taskStylesInputSchema.safeParse({ bullet: { icon: "paw-print" } }).success).toBe(true);
+    expect(taskStylesInputSchema.safeParse({ bullet: { icon: "•" } }).success).toBe(false);
+    expect(taskStylesInputSchema.safeParse({ checkbox: { tickIcon: "none" } }).success).toBe(true);
+  });
+
+  it("caps phase labels at 16 characters and 48 bytes", () => {
+    expect(phaseLabelSchema.safeParse("Pack Gathering").success).toBe(true);
+    expect(phaseLabelSchema.safeParse("a".repeat(17)).success).toBe(false);
+    expect(phaseLabelSchema.safeParse("🇺🇸".repeat(7)).success).toBe(false);
+  });
+
+  it("caps any one placeholder at MAX_PLACEHOLDER_REPEATS uses", () => {
+    const at = "{user} ".repeat(MAX_PLACEHOLDER_REPEATS);
+    expect(chatMessageSchema.safeParse(at).success).toBe(true);
+    expect(chatMessageSchema.safeParse(`${at}{user}`).success).toBe(false);
   });
 });

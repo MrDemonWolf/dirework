@@ -25,7 +25,8 @@ It reads the streamer's saved task style, not the UI tokens.
   - **Author header**: display name in the author's Twitch chat color (falling back to
     `task.usernameColor`) over a `AUTHOR_HEADER_TINT_PERCENT` tint of that color, plus the
     author's `{done}/{total}` at `AUTHOR_COUNT_OPACITY`.
-  - **Rows** (`TaskItem`): checkbox (or bullet), the task text, rows `TASK_ROW_GAP_PX`
+  - **Rows** (`TaskItem`): checkbox (or bullet), each drawn with `OverlayIcon` (an id from
+    `OVERLAY_ICONS`, sized by `checkbox.tickSize` / `bullet.size`), the task text, rows `TASK_ROW_GAP_PX`
     apart with the task border radius. Task text has no length cap beyond `MAX_TASK_LEN`:
     it wraps (`overflow-wrap: anywhere`, so a URL or a string with no spaces breaks
     instead of running off the row) and ends in an ellipsis after `display.numberOfLines`
@@ -119,10 +120,10 @@ changed or added default fails until this spec moves with it.
 | `checkbox.margin.top` | `DEFAULT_TASK_STYLES` | `4px` |
 | `checkbox.margin.left` | `DEFAULT_TASK_STYLES` | `2px` |
 | `checkbox.margin.right` | `DEFAULT_TASK_STYLES` | `8px` |
-| `checkbox.tickChar` | `DEFAULT_TASK_STYLES` | `✔` |
+| `checkbox.tickIcon` | `DEFAULT_TASK_STYLES` | `check` |
 | `checkbox.tickSize` | `DEFAULT_TASK_STYLES` | `14px` |
 | `checkbox.tickColor` | `DEFAULT_TASK_STYLES` | `#00aced` |
-| `bullet.char` | `DEFAULT_TASK_STYLES` | `•` |
+| `bullet.icon` | `DEFAULT_TASK_STYLES` | `dot` |
 | `bullet.size` | `DEFAULT_TASK_STYLES` | `20px` |
 | `bullet.color` | `DEFAULT_TASK_STYLES` | `#7c8db0` |
 | `bullet.margin.top` | `DEFAULT_TASK_STYLES` | `0px` |

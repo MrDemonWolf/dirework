@@ -232,8 +232,8 @@ describe("buildTaskStylesConfig", () => {
     expect(result.scroll.enabled).toBe(true);
     expect(result.scroll.pixelsPerSecond).toBe(70);
     expect(result.task.usernameColor).toBe("#ffffff");
-    expect(result.checkbox.tickChar).toBe("✓");
-    expect(result.bullet.char).toBe("•");
+    expect(result.checkbox.tickIcon).toBe("check");
+    expect(result.bullet.icon).toBe("dot");
   });
 
   it("should not include a direction field in task", () => {
@@ -280,7 +280,8 @@ describe("buildBotConfig", () => {
     const result = buildBotConfig(fakeBotConfig);
     expect(result.taskCommandsEnabled).toBe(true);
     expect(result.timerCommandsEnabled).toBe(false);
-    expect(result.commandAliases).toEqual({ "!t": "!task" });
+    // A legacy "!"-prefixed record reads back canonical, as the save schema would store it.
+    expect(result.commandAliases).toEqual({ t: "task" });
     expect(result.task.taskAdded).toBe("a");
     expect(result.task.help).toBe("r");
     expect(Object.keys(result.task)).toHaveLength(18);

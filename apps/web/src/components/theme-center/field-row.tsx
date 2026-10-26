@@ -1,8 +1,8 @@
 "use client";
 
-import { cssLengthSchema } from "@dirework/api/config-shared";
+import type { LengthLimit } from "@dirework/api/style-limits";
 
-import { stepLength, withDefaultUnit } from "@/lib/style-fields";
+import { lengthFieldError, stepLength, withDefaultUnit } from "@/lib/style-fields";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -74,12 +74,12 @@ export function FieldRow({
 }
 
 /**
- * Free-text CSS value row. Validated inline against the same allowlist the server
- * applies (a CSS length unless `schema` says otherwise), so a bad value is flagged at
- * the field instead of failing the whole save. The value is shown whole ("20px",
- * "12px 18px"), so the unit lives in the field, never beside it: a bare number gets
- * `unit` on blur, and with `steppable` ArrowUp/ArrowDown nudge a single length by 1
- * (Shift: 10), keeping its unit.
+ * CSS length row. Validated inline against the same allowlist and range the server
+ * applies, so a bad value is flagged at the field (and Save is blocked) instead of
+ * failing the whole save. The value is shown whole ("20px", "12px 18px"), so the unit
+ * lives in the field, never beside it: a bare number gets `unit` on blur, and with
+ * `steppable` ArrowUp/ArrowDown nudge a single length by 1 (Shift: 10), keeping its unit
+ * and staying inside `limit`.
  */
 export function TextFieldRow({
   label,
@@ -90,8 +90,7 @@ export function TextFieldRow({
   placeholder,
   hint,
   steppable = false,
-  schema = cssLengthSchema,
-  invalidHint = "Use a CSS length like 12px, 50% or 1.5rem",
+  limit,
 }: {
   label: string;
   id: string;
@@ -101,12 +100,12 @@ export function TextFieldRow({
   placeholder?: string;
   hint?: string;
   steppable?: boolean;
-  schema?: { safeParse: (value: string) => { success: boolean } };
-  invalidHint?: string;
+  limit?: LengthLimit;
 }) {
-  const invalid = !schema.safeParse(value).success;
+  const error = lengthFieldError(value, limit);
+  const invalid = error !== null;
   return (
-    <FieldRow label={label} id={id} error={invalid ? invalidHint : null} hint={hint}>
+    <FieldRow label={label} id={id} error={error} hint={hint}>
       <Input
         id={id}
         value={value}
@@ -118,7 +117,7 @@ export function TextFieldRow({
         onKeyDown={(e) => {
           if (!steppable || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
           const step = (e.shiftKey ? 10 : 1) * (e.key === "ArrowUp" ? 1 : -1);
-          const next = stepLength(value, step, unit);
+          const next = stepLength(value, step, unit, limit);
           if (next === null) return;
           e.preventDefault();
           onChange(next);

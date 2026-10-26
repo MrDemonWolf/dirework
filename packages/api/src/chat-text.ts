@@ -206,3 +206,55 @@ export function interpolate(template: string, vars: Record<string, string>): str
   }
   return out;
 }
+
+// ── Placeholder repeat cap ───────────────────────────────────────────────────
+
+/**
+ * The most times one `{name}` placeholder may appear in a reply template. Each
+ * `{task}` can expand to a whole task, so a template repeating one placeholder
+ * only produces a reply the byte fitting has to cut to pieces. The save schema
+ * (`chatMessageSchema`) rejects more; a template stored before the cap is
+ * trimmed on read (`limitPlaceholderRepeats`, via `buildBotConfig`).
+ */
+export const MAX_PLACEHOLDER_REPEATS = 4;
+
+const PLACEHOLDER = /\{(\w+)\}/g;
+
+/** The placeholder `template` uses most and how many times (null when it has none). */
+export function mostRepeatedPlaceholder(template: string): { name: string; count: number } | null {
+  const counts = new Map<string, number>();
+  for (const match of template.matchAll(PLACEHOLDER)) {
+    const name = match[1] as string;
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  let top: { name: string; count: number } | null = null;
+  for (const [name, count] of counts) {
+    if (!top || count > top.count) top = { name, count };
+  }
+  return top;
+}
+
+/** `template` with every placeholder past its MAX_PLACEHOLDER_REPEATS-th use removed. */
+export function limitPlaceholderRepeats(template: string): string {
+  const seen = new Map<string, number>();
+  return template.replace(PLACEHOLDER, (match, name: string) => {
+    const count = (seen.get(name) ?? 0) + 1;
+    seen.set(name, count);
+    return count > MAX_PLACEHOLDER_REPEATS ? "" : match;
+  });
+}
+
+// ── Graphemes ────────────────────────────────────────────────────────────────
+
+/** User-perceived characters (an emoji with skin tone or a flag counts once). */
+export function graphemes(value: string): string[] {
+  return Array.from(
+    new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(value),
+    (s) => s.segment,
+  );
+}
+
+/** How many user-perceived characters `value` has. */
+export function graphemeLength(value: string): number {
+  return graphemes(value).length;
+}
