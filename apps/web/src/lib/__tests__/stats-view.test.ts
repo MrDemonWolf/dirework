@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { summarizeStats } from "@dirework/api/stats-days";
 
@@ -9,6 +9,9 @@ import {
   formatDay,
   formatFocus,
   formatFocusLong,
+  latestCompletion,
+  msUntilNextLocalDay,
+  scheduleDayRollover,
   shouldRefreshStats,
   statCellClass,
   statTiles,
@@ -113,14 +116,74 @@ describe("chartBars", () => {
 });
 
 describe("shouldRefreshStats", () => {
-  it("refetches on a timer status change or a rising done count", () => {
+  const done = (id: string, at: string) => ({ id, status: "done", completedAt: at });
+  const open = { id: "o", status: "pending", completedAt: null };
+
+  it("refetches on a timer status change or a newer completion", () => {
     expect(shouldRefreshStats({ timerStatus: "work" }, { timerStatus: "break" })).toBe(true);
-    expect(shouldRefreshStats({ doneCount: 2 }, { doneCount: 3 })).toBe(true);
+    expect(shouldRefreshStats({ latestDoneAt: 1000 }, { latestDoneAt: 2000 })).toBe(true);
+    // The first completion after a clear (or on a fresh day).
+    expect(shouldRefreshStats({ latestDoneAt: null }, { latestDoneAt: 2000 })).toBe(true);
   });
 
-  it("ignores first sightings, unchanged values and a falling done count", () => {
-    expect(shouldRefreshStats({}, { timerStatus: "work", doneCount: 3 })).toBe(false);
+  it("sees a completion even when the purge keeps the done count level", () => {
+    // One task finished while one expired completion was purged: same count, newer newest.
+    const before = [done("old", "2026-10-25T09:00:00Z"), done("a", "2026-10-26T09:00:00Z")];
+    const after = [done("a", "2026-10-26T09:00:00Z"), done("b", "2026-10-26T10:00:00Z"), open];
+    expect(before.length).toBe(after.filter((t) => t.status === "done").length);
+    expect(
+      shouldRefreshStats(
+        { latestDoneAt: latestCompletion(before) },
+        { latestDoneAt: latestCompletion(after) },
+      ),
+    ).toBe(true);
+  });
+
+  it("ignores first sightings, unchanged values, a purge, a clear and an undo of a removal", () => {
+    expect(shouldRefreshStats({}, { timerStatus: "work", latestDoneAt: 3 })).toBe(false);
     expect(shouldRefreshStats({ timerStatus: "work" }, { timerStatus: "work" })).toBe(false);
-    expect(shouldRefreshStats({ doneCount: 3 }, { doneCount: 0 })).toBe(false);
+    expect(shouldRefreshStats({ latestDoneAt: 3000 }, { latestDoneAt: 3000 })).toBe(false);
+    expect(shouldRefreshStats({ latestDoneAt: 3000 }, { latestDoneAt: null })).toBe(false);
+    // A restored done task keeps its old completedAt, so the newest doesn't move forward.
+    expect(shouldRefreshStats({ latestDoneAt: 3000 }, { latestDoneAt: 3000 })).toBe(false);
+  });
+
+  it("finds the newest completion among done rows only", () => {
+    expect(latestCompletion([open])).toBeNull();
+    expect(
+      latestCompletion([done("a", "2026-10-26T09:00:00Z"), done("b", "2026-10-26T08:00:00Z")]),
+    ).toBe(Date.parse("2026-10-26T09:00:00Z"));
+  });
+});
+
+describe("day rollover", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("waits until just past the next local midnight", () => {
+    const now = new Date(2026, 9, 26, 23, 59, 0);
+    const wait = msUntilNextLocalDay(now);
+    const fireAt = new Date(now.getTime() + wait);
+    expect(fireAt.getDate()).toBe(27);
+    expect(wait).toBe(61_000);
+  });
+
+  it("refreshes once per local midnight while open, and stops when cancelled", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 26, 22, 0, 0));
+    const onRollover = vi.fn();
+    const cancel = scheduleDayRollover(onRollover);
+
+    vi.advanceTimersByTime(2 * 60 * 60_000 - 1000); // 23:59:59 — not yet
+    expect(onRollover).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(2000); // 00:00:01
+    expect(onRollover).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(24 * 60 * 60_000); // the next midnight
+    expect(onRollover).toHaveBeenCalledTimes(2);
+
+    cancel();
+    vi.advanceTimersByTime(48 * 60 * 60_000);
+    expect(onRollover).toHaveBeenCalledTimes(2);
   });
 });

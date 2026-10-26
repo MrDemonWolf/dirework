@@ -11,8 +11,9 @@ import { updateSingleton } from "./singleton";
 import {
   type FocusCredit,
   pruneDailyStats,
-  readStatsTimeZone,
-  recordFocusCredits,
+  focusCreditStmts,
+  type KnownTimeZone,
+  resolveStatsTimeZone,
 } from "./stats-service";
 import { purgeExpiredDoneTasks } from "./task-service";
 
@@ -59,6 +60,33 @@ function casTimer(
 }
 
 /**
+ * `casTimer` plus the focus credits that move earned, in ONE db.batch: each
+ * credit upsert is guarded on `changes() > 0` (focusCreditStmts), so it lands
+ * only if the CAS matched, and atomically with it. Stats are best-effort: if the
+ * batch throws, the CAS is retried alone so the timer still moves.
+ */
+async function casTimerWithCredits(
+  db: DbClient,
+  prev: Pick<TimerStateRow, "status" | "currentCycle" | "targetEndTime">,
+  values: SQLiteUpdateSetSource<typeof schema.timerState>,
+  credits: readonly FocusCredit[],
+  timeZone: string | null,
+): Promise<TimerStateRow | undefined> {
+  if (credits.every((credit) => credit.focusMs <= 0 && credit.pomodoros <= 0)) {
+    return (await casTimer(db, prev, values))[0];
+  }
+  try {
+    const [rows] = await db.batch([
+      casTimer(db, prev, values),
+      ...focusCreditStmts(db, credits, timeZone),
+    ]);
+    return rows[0];
+  } catch {
+    return (await casTimer(db, prev, values))[0];
+  }
+}
+
+/**
  * Lazily advance a timer whose targetEndTime has passed. There is no always-on
  * server on Workers, so phase transitions are driven by reads: every overlay
  * poll, dashboard query, or chat command self-heals the state machine. Each new
@@ -71,11 +99,16 @@ function casTimer(
  * guarded on the state that was read, and a loser just re-reads.
  *
  * Dashboard stats: every work phase the catch-up walked past ran to its end, so
- * it earns a pomodoro and its full length, on the day it ended. Recorded ONLY by
- * the caller whose guarded UPDATE won, so two pollers advancing the same phase
- * count it once; a poll with nothing overdue reads and writes nothing extra.
+ * it earns a pomodoro and its full length, on the day it ended. The credits ride
+ * in the guarded UPDATE's own batch (`casTimerWithCredits`), so they land only
+ * when it wins (two pollers count a phase once) and atomically with it (a reader
+ * that sees the advanced timer sees the credits). A poll with nothing overdue
+ * reads and writes nothing extra; `timeZone` skips the zone read when known.
  */
-export async function maybeAdvanceOverdueTimer(db: DbClient): Promise<TimerStateRow | null> {
+export async function maybeAdvanceOverdueTimer(
+  db: DbClient,
+  opts: { timeZone?: KnownTimeZone } = {},
+): Promise<TimerStateRow | null> {
   let timer = (await db.query.timerState.findFirst()) ?? null;
   let loaded: { config: ReturnType<typeof getTimerConfig>; timeZone: string | null } | null = null;
 
@@ -86,21 +119,20 @@ export async function maybeAdvanceOverdueTimer(db: DbClient): Promise<TimerState
     if (!loaded) {
       const [configRow, timeZone] = await Promise.all([
         db.query.timerConfig.findFirst(),
-        readStatsTimeZone(db),
+        resolveStatsTimeZone(db, opts.timeZone),
       ]);
       loaded = { config: getTimerConfig(configRow ?? null), timeZone };
     }
     const { credits, ...next } = catchUpOverdue(timer, loaded.config, Date.now());
 
-    const [row] = await casTimer(db, timer, {
-      ...next,
-      pausedFromStatus: null,
-      pausedWithRemaining: null,
-    });
-    if (row) {
-      await recordFocusCredits(db, credits, loaded.timeZone);
-      return row;
-    }
+    const row = await casTimerWithCredits(
+      db,
+      timer,
+      { ...next, pausedFromStatus: null, pausedWithRemaining: null },
+      credits,
+      loaded.timeZone,
+    );
+    if (row) return row;
 
     // Guarded update lost (another poller advanced first) → re-read and retry.
     timer = (await db.query.timerState.findFirst()) ?? null;
@@ -174,8 +206,20 @@ export function workedMs(
   return Math.min(workDuration, Math.max(0, workDuration - remaining));
 }
 
-export async function getTimerState(db: DbClient): Promise<TimerStateRow | null> {
-  return maybeAdvanceOverdueTimer(db);
+/**
+ * Options for the stats-recording timer actions. `timeZone`: the owner's zone when
+ * the caller already has it (bot ingest reads it with the token gate), so a chat
+ * command adds no instance_config read; omitted, it is read when needed.
+ */
+export interface TimerStatsOpts {
+  timeZone?: KnownTimeZone;
+}
+
+export async function getTimerState(
+  db: DbClient,
+  opts: TimerStatsOpts = {},
+): Promise<TimerStateRow | null> {
+  return maybeAdvanceOverdueTimer(db, opts);
 }
 
 async function loadTimerConfig(db: DbClient) {
@@ -240,8 +284,9 @@ async function lostRace(db: DbClient): Promise<{
 /** Pause a running timer, storing the remaining milliseconds. */
 export async function pauseTimerWithResult(
   db: DbClient,
+  opts: TimerStatsOpts = {},
 ): Promise<TimerActionResult<PauseNoopReason>> {
-  const timer = await getTimerState(db);
+  const timer = await getTimerState(db, opts);
   if (timer?.status === "paused") return { changed: false, reason: "already-paused", row: timer };
   if (!timer?.targetEndTime) return { changed: false, reason: "not-running", row: timer };
 
@@ -271,8 +316,9 @@ export async function pauseTimer(db: DbClient) {
  */
 export async function resumeTimerWithResult(
   db: DbClient,
+  opts: TimerStatsOpts = {},
 ): Promise<TimerActionResult<ResumeNoopReason>> {
-  const timer = await getTimerState(db);
+  const timer = await getTimerState(db, opts);
   if (timer?.pausedWithRemaining == null) {
     const running = timer != null && RUNNING_STATUSES.has(timer.status);
     return { changed: false, reason: running ? "not-paused" : "not-running", row: timer };
@@ -300,11 +346,12 @@ export async function resumeTimer(db: DbClient) {
  */
 export async function skipTimerWithResult(
   db: DbClient,
+  opts: TimerStatsOpts = {},
 ): Promise<TimerActionResult<SkipNoopReason>> {
   const [timer, timerConfigRow, timeZone] = await Promise.all([
-    maybeAdvanceOverdueTimer(db),
+    maybeAdvanceOverdueTimer(db, opts),
     db.query.timerConfig.findFirst(),
-    readStatsTimeZone(db),
+    resolveStatsTimeZone(db, opts.timeZone),
   ]);
   if (!timer) return { changed: false, reason: "not-running", row: null };
 
@@ -325,22 +372,22 @@ export async function skipTimerWithResult(
   // Guarded CAS on the state we read: if a concurrent action already moved
   // past this phase, our UPDATE matches no row — report the current state
   // instead of clobbering it (which would skip a second phase).
-  const now = Date.now();
-  const [row] = await casTimer(db, timer, {
-    status: nextStatus,
-    currentCycle: nextCycle,
-    pausedFromStatus: null,
-    pausedWithRemaining: null,
-    targetEndTime: nextDuration ? new Date(now + nextDuration) : null,
-  });
-  if (!row) return lostRace(db);
   // A skipped work phase still counts its worked minutes (never a pomodoro).
-  await recordFocusCredits(
+  const now = Date.now();
+  const row = await casTimerWithCredits(
     db,
+    timer,
+    {
+      status: nextStatus,
+      currentCycle: nextCycle,
+      pausedFromStatus: null,
+      pausedWithRemaining: null,
+      targetEndTime: nextDuration ? new Date(now + nextDuration) : null,
+    },
     [{ at: now, focusMs: workedMs(timer, tc.workDuration, now), pomodoros: 0 }],
     timeZone,
   );
-  return { changed: true, row };
+  return row ? { changed: true, row } : lostRace(db);
 }
 
 /**
@@ -365,11 +412,11 @@ function rowOrNull(result: TimerActionResult<string>): TimerStateRow | null {
  * cut short are credited once even when two resets race. Should every attempt
  * lose, the reset still lands (unguarded, crediting nothing).
  */
-export async function resetTimer(db: DbClient) {
+export async function resetTimer(db: DbClient, opts: TimerStatsOpts = {}) {
   const [tc, , timeZone] = await Promise.all([
     loadTimerConfig(db),
     purgeExpiredDoneTasks(db),
-    readStatsTimeZone(db),
+    resolveStatsTimeZone(db, opts.timeZone),
   ]);
   const idle = {
     status: "idle" as const,
@@ -381,18 +428,17 @@ export async function resetTimer(db: DbClient) {
   };
 
   for (let attempt = 0; attempt < 3; attempt++) {
-    const timer = await maybeAdvanceOverdueTimer(db);
+    const timer = await maybeAdvanceOverdueTimer(db, { timeZone });
     if (!timer) break;
     const now = Date.now();
-    const [row] = await casTimer(db, timer, idle);
-    if (row) {
-      await recordFocusCredits(
-        db,
-        [{ at: now, focusMs: workedMs(timer, tc.workDuration, now), pomodoros: 0 }],
-        timeZone,
-      );
-      return row;
-    }
+    const row = await casTimerWithCredits(
+      db,
+      timer,
+      idle,
+      [{ at: now, focusMs: workedMs(timer, tc.workDuration, now), pomodoros: 0 }],
+      timeZone,
+    );
+    if (row) return row;
   }
   return updateSingleton(db, schema.timerState, idle);
 }
@@ -411,9 +457,12 @@ export interface TimerEta {
  * nothing to project (no timer, idle, finished). A paused timer projects from
  * its frozen remaining time and pre-pause phase.
  */
-export async function getTimerEta(db: DbClient): Promise<TimerEta | null> {
+export async function getTimerEta(
+  db: DbClient,
+  opts: TimerStatsOpts = {},
+): Promise<TimerEta | null> {
   const [timer, timerConfigRow] = await Promise.all([
-    maybeAdvanceOverdueTimer(db),
+    maybeAdvanceOverdueTimer(db, opts),
     db.query.timerConfig.findFirst(),
   ]);
   if (!timer) return null;

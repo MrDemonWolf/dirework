@@ -16,6 +16,8 @@ import {
   formatDay,
   formatFocus,
   formatFocusLong,
+  latestCompletion,
+  scheduleDayRollover,
   shouldRefreshStats,
   statCellClass,
   statTiles,
@@ -131,9 +133,10 @@ export function FocusChart() {
 
 /**
  * Refetch `stats.summary` when the polls the dashboard already runs see a change stats
- * depend on (the timer changing phase, the done-task count rising): a cache subscription,
- * not an observer, so it adds no poll and never refetches on its own. The owner's own
- * timer and task mutations reach it the same way (they invalidate those queries).
+ * depend on (the timer changing phase, a newer task completion), and once just after each
+ * local midnight (the summary's "today" and week are day-bound). A cache subscription, not
+ * an observer, plus one timer a day: it adds no poll. The owner's own timer and task
+ * mutations reach it the same way (they invalidate those queries).
  */
 export function useStatsRefresh() {
   const queryClient = useQueryClient();
@@ -142,25 +145,32 @@ export function useStatsRefresh() {
     const timerKey = trpc.timer.get.queryKey();
     const tasksKey = trpc.task.list.queryKey();
     const statsKey = trpc.stats.summary.queryKey();
-    const read = (): StatsWatch => ({
-      timerStatus: (queryClient.getQueryData(timerKey) as { status?: string } | null | undefined)
-        ?.status,
-      doneCount: queryClient.getQueryData(tasksKey)?.counts.done,
-    });
+    const refresh = () => void queryClient.invalidateQueries({ queryKey: statsKey });
+    const read = (): StatsWatch => {
+      const tasks = queryClient.getQueryData(tasksKey)?.tasks;
+      return {
+        timerStatus: (queryClient.getQueryData(timerKey) as { status?: string } | null | undefined)
+          ?.status,
+        latestDoneAt: tasks ? latestCompletion(tasks) : undefined,
+      };
+    };
     let seen = read();
-    return queryClient.getQueryCache().subscribe((event) => {
+    const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
       if (event.type !== "updated") return;
       const next = read();
       // Keep the last known value of either while the other updates.
-      const merged = {
+      const merged: StatsWatch = {
         timerStatus: next.timerStatus ?? seen.timerStatus,
-        doneCount: next.doneCount ?? seen.doneCount,
+        latestDoneAt: next.latestDoneAt !== undefined ? next.latestDoneAt : seen.latestDoneAt,
       };
-      if (shouldRefreshStats(seen, merged)) {
-        void queryClient.invalidateQueries({ queryKey: statsKey });
-      }
+      if (shouldRefreshStats(seen, merged)) refresh();
       seen = merged;
     });
+    const cancelRollover = scheduleDayRollover(refresh);
+    return () => {
+      unsubscribe();
+      cancelRollover();
+    };
   }, [queryClient]);
 }
 

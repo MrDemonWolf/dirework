@@ -72,6 +72,12 @@ export interface MessageContext {
    * can be a display name, so !block compares against this.
    */
   channelLogin?: string | null;
+  /**
+   * The owner's stats time zone, read with the bot token gate (null = UTC). Passed
+   * to every service that records dashboard stats, so a chat line adds no
+   * instance_config read; undefined (tests, other callers) reads it when needed.
+   */
+  timeZone?: string | null;
   config: BotConfigData;
   message: string;
   userInfo: ChatUserInfo;
@@ -486,7 +492,7 @@ async function handleTaskDone(args: string[], ctx: MessageContext): Promise<void
     return;
   }
 
-  await markTaskDone(db, task.id);
+  await markTaskDone(db, task.id, { timeZone: ctx.timeZone });
   say(interpolate(config.task.taskDone, { ...vars, task: task.text }));
 }
 
@@ -623,6 +629,7 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
 
   const result = await replaceActiveTask(db, activeTask, userInfo, newText, {
     isBroadcaster: userInfo.isBroadcaster,
+    timeZone: ctx.timeZone,
   });
   if (!result.created) {
     // The active task was completed or removed after we read it, so the guarded
@@ -750,12 +757,13 @@ async function handleModerationCommand(
 
 async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<void> {
   const { config, say, db, channelName, userInfo } = ctx;
+  const stats = { timeZone: ctx.timeZone };
   const sub = args[0]?.toLowerCase();
   const vars = { user: userInfo.displayName, channel: channelName };
 
   switch (sub) {
     case "start": {
-      const timer = await getTimerState(db);
+      const timer = await getTimerState(db, stats);
       if (timer && timer.status !== "idle" && timer.status !== "finished") {
         say(interpolate(config.timer.timerRunning, vars));
         return;
@@ -777,7 +785,7 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
     }
 
     case "pause": {
-      const result = await pauseTimerWithResult(db);
+      const result = await pauseTimerWithResult(db, stats);
       if (result.changed) say(interpolate(config.timer.commandSuccess, vars));
       else if (result.reason === "already-paused") say(TIMER_ALREADY_PAUSED_REPLY);
       else if (result.reason === "lost-race") say(TIMER_CHANGED_REPLY);
@@ -786,7 +794,7 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
     }
 
     case "resume": {
-      const result = await resumeTimerWithResult(db);
+      const result = await resumeTimerWithResult(db, stats);
       if (result.changed) say(interpolate(config.timer.commandSuccess, vars));
       else if (result.reason === "not-paused") say(interpolate(config.timer.timerRunning, vars));
       else if (result.reason === "lost-race") say(TIMER_CHANGED_REPLY);
@@ -795,7 +803,7 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
     }
 
     case "skip": {
-      const result = await skipTimerWithResult(db);
+      const result = await skipTimerWithResult(db, stats);
       if (result.changed) say(interpolate(config.timer.commandSuccess, vars));
       else if (result.reason === "lost-race") say(TIMER_CHANGED_REPLY);
       else say(interpolate(config.timer.notRunning, vars));
@@ -803,13 +811,13 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
     }
 
     case "reset": {
-      await resetTimer(db);
+      await resetTimer(db, stats);
       say(interpolate(config.timer.commandSuccess, vars));
       break;
     }
 
     case "eta": {
-      const eta = await getTimerEta(db);
+      const eta = await getTimerEta(db, stats);
       if (!eta) {
         say(interpolate(config.timer.notRunning, vars));
         return;

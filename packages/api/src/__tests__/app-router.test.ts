@@ -1018,6 +1018,26 @@ describe("dashboard stats against real SQLite", () => {
     expect(after.week.tasksDone).toBe(1);
   });
 
+  it("stats.summary counts phases that ended while nobody was watching", async () => {
+    const { db, owner } = await claimedInstance();
+    // A work phase that ended a minute ago, never advanced by any poll.
+    const overdue = {
+      status: "work" as const,
+      targetEndTime: new Date(Date.now() - 60_000),
+      currentCycle: 1,
+    };
+    await db
+      .insert(schema.timerState)
+      .values(overdue)
+      .onConflictDoUpdate({ target: schema.timerState.id, set: overdue });
+
+    const summary = await owner.stats.summary();
+
+    expect(summary.today.pomodoros).toBe(1);
+    expect(summary.today.focusMs).toBe(1_500_000);
+    expect((await owner.timer.get())?.status).toBe("break");
+  });
+
   it("user.setTimeZone stores a valid zone once and me reports it", async () => {
     const { owner } = await claimedInstance();
     expect((await owner.user.me())?.timeZone).toBeNull();

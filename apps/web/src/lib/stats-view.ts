@@ -133,24 +133,70 @@ export function chartBars(days: StatsSummary["days"]) {
 
 /** The values that decide whether the stats may have changed: timer status, done-task count. */
 export interface StatsWatch {
+  /** undefined = timer.get not loaded yet. */
   timerStatus?: string;
-  doneCount?: number;
+  /**
+   * The newest `completedAt` (ms) among the done tasks `task.list` returns: null = none,
+   * undefined = the list is not loaded yet. Monotonic for completions, unlike the done
+   * count, which the 24h purge can hold level or lower in the same write.
+   */
+  latestDoneAt?: number | null;
+}
+
+/** The newest completion time among `tasks`' done rows (ms), or null when none is done. */
+export function latestCompletion(
+  tasks: readonly { status: string; completedAt?: string | Date | null }[],
+): number | null {
+  let latest: number | null = null;
+  for (const task of tasks) {
+    if (task.status !== "done" || !task.completedAt) continue;
+    const at = new Date(task.completedAt).getTime();
+    if (Number.isFinite(at) && (latest === null || at > latest)) latest = at;
+  }
+  return latest;
 }
 
 /**
  * Refetch the summary when the dashboard's existing polls see something stats depend on:
- * the timer changing phase (a work phase ended, was skipped, or was reset) or the done-task
- * count rising (a task finished, from the dashboard or chat). The first value seen for
- * either only records it.
+ * the timer changing phase (a work phase ended, was skipped, or was reset) or a newer task
+ * completion (a task finished, from the dashboard or chat; a purge or an undo of a removal
+ * never moves it forward). The first value seen for either only records it.
  */
 export function shouldRefreshStats(prev: StatsWatch, next: StatsWatch): boolean {
   const statusChanged =
     prev.timerStatus !== undefined &&
     next.timerStatus !== undefined &&
     prev.timerStatus !== next.timerStatus;
-  const doneRose =
-    prev.doneCount !== undefined && next.doneCount !== undefined && next.doneCount > prev.doneCount;
-  return statusChanged || doneRose;
+  const newCompletion =
+    prev.latestDoneAt !== undefined &&
+    next.latestDoneAt != null &&
+    (prev.latestDoneAt === null || next.latestDoneAt > prev.latestDoneAt);
+  return statusChanged || newCompletion;
+}
+
+/** Milliseconds from `now` until just past the next local midnight (DST-safe: calendar based). */
+export function msUntilNextLocalDay(now: Date): number {
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  // A second of slack, so the refetch lands on the new day even with a skewed clock.
+  return midnight.getTime() - now.getTime() + 1000;
+}
+
+/**
+ * Call `onRollover` just after each local midnight until cancelled: one timer per day, no
+ * polling. "Today", the week and the chart all hang off the local day, so a dashboard left
+ * open overnight refetches them once. Returns the cancel function.
+ */
+export function scheduleDayRollover(onRollover: () => void): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const arm = () => {
+    timer = setTimeout(() => {
+      onRollover();
+      arm();
+    }, msUntilNextLocalDay(new Date()));
+  };
+  arm();
+  return () => clearTimeout(timer);
 }
 
 /** The browser's IANA zone, or null where Intl can't say. */
