@@ -8,8 +8,8 @@ tokens: [color.scheme, radius, tracking]
 ## Purpose
 
 The dashboard Task Board (`dashboard/dashboard.tsx`): the owner's view of every task, theirs
-and chat's, grouped by author, in the left two thirds of its panel with the tasks-overlay
-monitor in the right third on `lg`. Polls `task.list` through the `/rpc` proxy at
+and chat's, grouped by author, across the full width of its panel (the overlay URLs live in
+the timer console's `ObsSources`). Polls `task.list` through the `/rpc` proxy at
 `dashboardPollInterval(DASHBOARD_TASKS_POLL_MS)`; every write is an owner-only `task.*`
 procedure sharing service code with the chat commands. The parent supplies the `.panel-hero`
 chrome.
@@ -29,15 +29,12 @@ chrome.
   an "Active" pulsing accent chip, a "Set as active" icon button and a destructive Remove icon
   button.
 - Footer (when there are tasks): "Done tasks clear automatically after 24h".
-- Optional `monitor`: the right third on `lg` (`lg:grid-cols-3`, the board `lg:col-span-2`),
-  below the board on narrower screens.
 
 ## Props and variants
 
 | Prop | Type | Notes |
 |---|---|---|
 | `userTwitchId` | `string` | The owner's Twitch id; that group is the pinned "Host" group |
-| `monitor` | `ReactNode` | Optional tasks-overlay monitor (URL row + Live preview) beside the board |
 
 ## States
 

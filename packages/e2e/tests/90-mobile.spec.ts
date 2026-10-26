@@ -84,10 +84,17 @@ test.describe("on a 320px phone", () => {
     for (const [name, locator] of [
       ["Stop button", stop],
       ["pomos unit", pomosUnit],
+      ["OBS sources Reset", page.getByRole("button", { name: "Reset Timer overlay URL" })],
+      ["OBS sources size chip", page.getByRole("button", { name: /^Recommended size 300/ })],
     ] as const) {
       const box = await locator.boundingBox();
       expect(box, `${name} has no box`).not.toBeNull();
       expect(box!.x + box!.width, `${name} clipped`).toBeLessThanOrEqual(layout.client - 16);
+    }
+
+    // The OBS sources tabs are full-size touch targets.
+    for (const tab of await page.getByRole("tab").all()) {
+      expect((await tab.boundingBox())!.height, "tab shorter than 44px").toBeGreaterThanOrEqual(44);
     }
 
     // Leave the timer idle for the specs that run after this one.

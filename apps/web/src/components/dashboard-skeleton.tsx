@@ -1,7 +1,8 @@
 // Loading placeholders for the dashboard, one per progressive section, plus the whole-page
 // `DashboardSkeleton` built from them. Each repeats its live section's own layout classes and
 // box sizes (measured at 1280px and 412px wide), so a section filling in does not move the
-// page; update them alongside dashboard.tsx, timer-controls.tsx and task-manager.tsx.
+// page; update them alongside dashboard.tsx, timer-controls.tsx, task-manager.tsx and
+// obs-sources.tsx.
 //
 // Where they show:
 //  - A section's placeholder, inside the live frame, only when that section's data missed the
@@ -20,20 +21,24 @@ function ChipSkeleton({ className }: { className: string }) {
 }
 
 /**
- * An overlay monitor with its preview off: rule + size chip, URL row, then the hint and the
- * Live preview toggle, which wrap onto two rows in a narrow column exactly like the live ones.
+ * The OBS sources block (`ObsSources`) with the Timer tab open and its preview off: the rule,
+ * the tab list and the URL row (both taller on touch screens, like their buttons), the hint
+ * with the size chip, then the Live preview toggle.
  */
-function MonitorSkeleton() {
+function ObsSourcesSkeleton() {
   return (
-    <div className="space-y-2.5">
-      <div className="flex h-5.5 items-center justify-between gap-3">
-        <Skeleton className="h-3 w-28" />
-        <Skeleton className="h-5.5 w-20 rounded-full" />
-      </div>
-      <Skeleton className="h-9 w-full" />
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <Skeleton className="h-4 w-58" />
-        <Skeleton className="ml-auto h-6 w-28" />
+    <div className="space-y-3">
+      <Skeleton className="h-4.75 w-28" />
+      <div className="space-y-3">
+        <Skeleton className="h-8 w-full rounded-xl pointer-coarse:h-12.5" />
+        <div className="space-y-2.5">
+          <Skeleton className="h-9 w-full pointer-coarse:h-11" />
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <Skeleton className="h-4 w-52" />
+            <Skeleton className="h-5.5 w-20 rounded-full" />
+          </div>
+          <Skeleton className="h-6 w-28 pointer-coarse:h-9" />
+        </div>
       </div>
     </div>
   );
@@ -91,30 +96,32 @@ export function FocusChartPlaceholder() {
   );
 }
 
-/** The timer console below its heading: instrument (3/5) | transport, settings, monitor (2/5). */
+/** The timer console below its heading: instrument (3/5) | transport, settings, OBS sources (2/5). */
 export function TimerConsoleBodyPlaceholder() {
   return (
-    <div className="grid lg:grid-cols-5">
-      <div className="flex flex-col items-center justify-center gap-8 px-5 py-8 lg:col-span-3">
-        <div className="flex w-full flex-col items-center gap-5">
-          <ChipSkeleton className="w-21.5" />
-          <Skeleton className="h-18 w-52.5 lg:h-24 lg:w-70" />
-          <Skeleton className="h-1.5 w-full max-w-xs rounded-full" />
-          <Skeleton className="h-2 w-14" />
+    <>
+      <div className="grid lg:grid-cols-5">
+        <div className="flex flex-col items-center justify-center gap-8 px-5 py-8 lg:col-span-3">
+          <div className="flex w-full flex-col items-center gap-5">
+            <ChipSkeleton className="w-21.5" />
+            <Skeleton className="h-18 w-52.5 lg:h-24 lg:w-70" />
+            <Skeleton className="h-1.5 w-full max-w-xs rounded-full" />
+            <Skeleton className="h-2 w-14" />
+          </div>
+          <FocusChartPlaceholder />
         </div>
-        <FocusChartPlaceholder />
+        <div className="flex min-w-0 flex-col gap-5 border-t border-border/40 px-5 py-5 lg:col-span-2 lg:border-t-0 lg:border-l">
+          {/* Transport bar, then the folded session settings (its summary wraps on a phone). */}
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-19 w-full rounded-xl lg:h-15" />
+          <ObsSourcesSkeleton />
+        </div>
       </div>
-      <div className="flex min-w-0 flex-col gap-5 border-t border-border/40 px-5 py-5 lg:col-span-2 lg:border-t-0 lg:border-l">
-        {/* Transport bar, then the folded session settings (its summary wraps on a phone). */}
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-19 w-full rounded-xl lg:h-15" />
-        <MonitorSkeleton />
-      </div>
-    </div>
+    </>
   );
 }
 
-/** The task board: header band; form + groups (2/3) | tasks monitor (1/3). */
+/** The task board, full width: header band; form + groups. */
 export function TaskBoardPlaceholder() {
   return (
     <div className="flex h-full flex-col">
@@ -132,20 +139,15 @@ export function TaskBoardPlaceholder() {
           </div>
         </div>
       </div>
-      <div className="grid flex-1 lg:grid-cols-3 lg:items-start">
-        <div className="min-w-0 space-y-4 px-5 py-5 lg:col-span-2">
-          <div className="flex gap-2">
-            <Skeleton className="h-10 flex-1" />
-            <Skeleton className="h-10 w-16" />
-          </div>
-          <div className="space-y-3">
-            {["task-group-1", "task-group-2"].map((key) => (
-              <Skeleton key={key} className="h-26 w-full rounded-xl" />
-            ))}
-          </div>
+      <div className="min-w-0 space-y-4 px-5 py-5">
+        <div className="flex gap-2">
+          <Skeleton className="h-10 flex-1" />
+          <Skeleton className="h-10 w-16" />
         </div>
-        <div className="min-w-0 border-t border-border/40 p-5 lg:self-stretch lg:border-t-0 lg:border-l">
-          <MonitorSkeleton />
+        <div className="space-y-3">
+          {["task-group-1", "task-group-2"].map((key) => (
+            <Skeleton key={key} className="h-26 w-full rounded-xl" />
+          ))}
         </div>
       </div>
     </div>

@@ -25,7 +25,9 @@ test("adds a task, shows it on the tasks overlay, and marks it done", async ({ p
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByText(text)).toBeVisible();
 
-  // The overlay is a separate public page polling the api directly with its token.
+  // The overlay is a separate public page polling the api directly with its token. Both
+  // overlay URLs live in the timer console's OBS sources, one tab each.
+  await page.getByRole("tab", { name: "Tasks" }).click();
   const overlayUrl = await revealSecretUrl(page, "Tasks overlay");
   const overlay = await context.newPage();
   await overlay.goto(overlayUrl);

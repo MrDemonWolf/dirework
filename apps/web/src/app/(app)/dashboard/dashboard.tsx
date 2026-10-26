@@ -1,7 +1,7 @@
 "use client";
 
 // Owner dashboard home (/dashboard): the timer console (instrument | controls, settings and
-// the timer-overlay monitor) and the task board (board | tasks-overlay monitor). The header's
+// the OBS sources with both overlay URLs) and the full-width task board. The header's
 // bot chip is the page's only bot status. All data comes from owner-only tRPC procedures:
 // streamed from the server's one batched call on first load (page.tsx), then polled through
 // the same-origin /rpc proxy.
@@ -13,13 +13,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff } from "lucide-react";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 
 import type { authClient } from "@/lib/auth-client";
-import { Button } from "@/components/ui/button";
-import { ConsoleRule } from "@/components/console-rule";
 import {
   FocusChartPlaceholder,
   StatTilesPlaceholder,
@@ -35,9 +31,9 @@ import {
 } from "@/components/dashboard-stats";
 import { ProgressiveSection, SectionPlaceholder } from "@/components/progressive-section";
 import { QueryError } from "@/components/query-error";
-import { SecretUrlRow } from "@/components/secret-url-row";
+import { ConsoleRule } from "@/components/console-rule";
+import { ObsSources } from "@/components/obs-sources";
 import { SetupChecklist, SetupReopenButton, useSetupCollapsed } from "@/components/setup-checklist";
-import { overlayPath } from "@/lib/overlay-view";
 import { StatusChip } from "@/components/status-chip";
 import { TaskManager } from "@/components/task-manager";
 import {
@@ -47,12 +43,10 @@ import {
   TimerTransport,
 } from "@/components/timer-controls";
 import { TimerStatusBadge } from "@/components/timer-status-badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { scheduleBotPresenceCheck } from "@/lib/bot-presence";
 import { dashboardBotChip } from "@/lib/bot-status";
 import { formatGreeting, pickGreeting } from "@/lib/greetings";
 import { setupProgress } from "@/lib/setup-steps";
-import { describeTrpcError } from "@/lib/trpc-errors";
 import { trpc } from "@/utils/trpc";
 
 // Greeting (lib/greetings.ts) and date use the browser's local clock, which can differ from
@@ -61,118 +55,6 @@ function getDateStr(): string {
   return new Date()
     .toLocaleDateString("en-US", { weekday: "short", month: "short", day: "2-digit" })
     .replace(",", "");
-}
-
-/**
- * An overlay's monitor: labeled rule with the recommended OBS size, the masked URL row,
- * and a Live preview toggle. The preview is a live overlay iframe that polls the api on the
- * overlay cadence while shown, so it starts hidden and its stage only exists while on.
- */
-function OverlayMonitor({
-  label,
-  noun,
-  size,
-  sizeHint,
-  aspectRatio,
-  src,
-  show,
-  onToggle,
-  onRegenerate,
-  regenerating,
-}: {
-  /** "Timer overlay" / "Tasks overlay": the rule and the URL row's accessible names. */
-  label: string;
-  noun: "timer" | "tasks";
-  size: string;
-  sizeHint: string;
-  aspectRatio: string;
-  src: string | null;
-  show: boolean;
-  onToggle: (next: boolean) => void;
-  onRegenerate: () => void;
-  regenerating: boolean;
-}) {
-  return (
-    <div className="space-y-2.5">
-      <ConsoleRule label={label} className="flex items-center">
-        <SizeChip size={size} hint={sizeHint} />
-      </ConsoleRule>
-      <SecretUrlRow
-        label={label}
-        path={src}
-        onRegenerate={onRegenerate}
-        regenerating={regenerating}
-        resetDescription={OVERLAY_RESET_DESCRIPTION}
-      />
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <p className="text-xs text-muted-foreground">Add the URL as a browser source in OBS</p>
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={() => onToggle(!show)}
-          aria-pressed={show}
-          disabled={!src}
-          className="ml-auto gap-1.5"
-        >
-          {show ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-          Live preview
-          <span className="sr-only"> of the {noun} overlay</span>
-        </Button>
-      </div>
-      {show && src && (
-        <div
-          className="panel-inset bg-grain relative w-full overflow-hidden"
-          style={{ aspectRatio }}
-        >
-          <iframe
-            src={src}
-            title={`${label} preview`}
-            className="pointer-events-none absolute inset-0 h-full w-full"
-            style={{ border: "none", background: "transparent" }}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Confirm-dialog body for resetting either overlay URL (the old token stops working). */
-const OVERLAY_RESET_DESCRIPTION =
-  "The current URL stops working immediately: any OBS browser source still using it goes blank (fully transparent) until you paste the new URL into OBS.";
-
-/** Recommended OBS browser-source dimensions, shown beside each overlay URL. */
-function SizeChip({ size, hint }: { size: string; hint: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <button
-            type="button"
-            aria-label={`Recommended size ${size}: ${hint}`}
-            className="ml-auto shrink-0 cursor-default rounded-full border border-border/60 bg-background/60 px-2 py-0.5 font-mono text-xs text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          >
-            {size}
-          </button>
-        }
-      />
-      <TooltipContent>{hint}</TooltipContent>
-    </Tooltip>
-  );
-}
-
-/** Resetting an overlay URL: one mutation per monitor, with the shared toasts. */
-function useRegenerateOverlayToken() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    ...trpc.user.regenerateOverlayToken.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.user.me.queryKey() });
-      toast.success("New overlay URL ready — paste it into OBS");
-    },
-    onError: (err) => {
-      toast.error(`Couldn't reset the URL: ${describeTrpcError(err)}`);
-    },
-  });
 }
 
 type SessionUser = (typeof authClient.$Infer.Session)["user"];
@@ -326,16 +208,11 @@ function HeaderSection({ user }: { user: SessionUser }) {
 
 /**
  * Timer console body (needs `timer.get` + `config.get`): instrument (3/5) | transport,
- * session settings and the timer-overlay monitor (2/5). The monitor's URL comes from
- * `user.me`; until that lands the row stays masked and disabled at the same size.
+ * session settings and the OBS sources (2/5). The overlay
+ * URLs read `user.me` from the cache the page's one batch filled; until it lands each row
+ * stays masked and disabled at the same size.
  */
 function TimerConsoleBody() {
-  const me = useQuery(trpc.user.me.queryOptions());
-  const regenerateToken = useRegenerateOverlayToken();
-  // Previews start hidden: each one is a live overlay iframe that polls the api on the
-  // overlay cadence for as long as it is shown.
-  const [showPreview, setShowPreview] = useState(false);
-
   return (
     <TimerProvider>
       <div className="grid lg:grid-cols-5">
@@ -355,18 +232,7 @@ function TimerConsoleBody() {
         <div className="flex min-w-0 flex-col gap-5 border-t border-border/40 px-5 py-5 lg:col-span-2 lg:border-t-0 lg:border-l">
           <TimerTransport />
           <TimerSettings />
-          <OverlayMonitor
-            label="Timer overlay"
-            noun="timer"
-            size="300 × 300"
-            sizeHint="Square OBS browser source — the timer scales to fill it"
-            aspectRatio="1 / 1"
-            src={overlayPath("timer", me.data?.overlayTimerToken)}
-            show={showPreview}
-            onToggle={setShowPreview}
-            onRegenerate={() => regenerateToken.mutate({ type: "timer" })}
-            regenerating={regenerateToken.isPending}
-          />
+          <ObsSources />
         </div>
       </div>
     </TimerProvider>
@@ -376,28 +242,7 @@ function TimerConsoleBody() {
 /** Task board (needs `task.list` + `user.me`, which pins the streamer's own group first). */
 function TaskBoard() {
   const me = useQuery(trpc.user.me.queryOptions());
-  const regenerateToken = useRegenerateOverlayToken();
-  const [showPreview, setShowPreview] = useState(false);
-
-  return (
-    <TaskManager
-      userTwitchId={me.data?.twitchId ?? me.data?.id ?? ""}
-      monitor={
-        <OverlayMonitor
-          label="Tasks overlay"
-          noun="tasks"
-          size="700 × 800"
-          sizeHint="OBS browser source — the list fills it and scrolls when tasks overflow"
-          aspectRatio="7 / 8"
-          src={overlayPath("tasks", me.data?.overlayTasksToken)}
-          show={showPreview}
-          onToggle={setShowPreview}
-          onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
-          regenerating={regenerateToken.isPending}
-        />
-      }
-    />
-  );
+  return <TaskManager userTwitchId={me.data?.twitchId ?? me.data?.id ?? ""} />;
 }
 
 /**
@@ -461,7 +306,7 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
           </ProgressiveSection>
         </section>
 
-        {/* Task board (2/3) with the tasks-overlay monitor (1/3) */}
+        {/* Task board, full width: the overlay URLs live in the timer console's OBS sources. */}
         <section className="panel-hero min-w-0">
           <ProgressiveSection
             queryKeys={[trpc.task.list.queryKey(), meKey]}

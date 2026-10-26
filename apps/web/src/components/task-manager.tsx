@@ -1,11 +1,11 @@
 "use client";
 
 // Dashboard Task Board: the owner's view of every task (theirs and chat's), grouped by
-// author, in the left two thirds of its panel; the tasks-overlay monitor (URL row + live
-// preview) fills the right third. Polls `task.list` via the authed /rpc proxy; all writes
+// author, across the full width of its panel (the overlay URLs live in the timer console's
+// OBS sources). Polls `task.list` via the authed /rpc proxy; all writes
 // go through owner-only task.* procedures, which share service code with the chat commands.
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronDown, Focus, MoreHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -13,7 +13,6 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { ConsoleRule } from "@/components/console-rule";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
@@ -25,6 +24,7 @@ import { QueryError } from "@/components/query-error";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MAX_TASK_LEN } from "@/lib/config-types";
+import { ConsoleRule } from "@/components/console-rule";
 import { DASHBOARD_TASKS_POLL_MS, dashboardPollInterval } from "@/lib/poll-intervals";
 import { groupTasksByAuthor, toRestoreInput } from "@/lib/task-utils";
 import { StatusChip } from "@/components/status-chip";
@@ -38,16 +38,14 @@ const UNDO_TOAST_MS = 5000;
 interface TaskManagerProps {
   /** The owner's Twitch id; tasks authored under it are the "Host" group, pinned first. */
   userTwitchId: string;
-  /** The tasks-overlay monitor (URL row + live preview), in the board's right third. */
-  monitor?: ReactNode;
 }
 
 /**
  * The Task Board panel — renders the full panel content (header with the count cluster
- * and the board options menu, add form, collapsible author groups, monitor column). The
- * parent supplies the `.panel-hero` chrome.
+ * and the board options menu, add form, collapsible author groups). The parent supplies the
+ * `.panel-hero` chrome.
  */
-export function TaskManager({ userTwitchId, monitor }: TaskManagerProps) {
+export function TaskManager({ userTwitchId }: TaskManagerProps) {
   const queryClient = useQueryClient();
   const [newTask, setNewTask] = useState("");
   // Which bulk clear is waiting on its confirm (opened from the board options menu).
@@ -301,280 +299,265 @@ export function TaskManager({ userTwitchId, monitor }: TaskManagerProps) {
         </div>
       </div>
 
-      {/* Board (two thirds) beside the tasks-overlay monitor (one third). */}
-      <div className="grid flex-1 lg:grid-cols-3 lg:items-start">
-        <div className="flex min-w-0 flex-col lg:col-span-2">
-          {/* Body: add form + grouped list */}
-          <div className="flex-1 space-y-4 px-5 py-5">
-            <form onSubmit={handleSubmit} className="flex gap-2">
-              <Input
-                ref={addInputRef}
-                value={newTask}
-                onChange={(e) => setNewTask(e.target.value)}
-                placeholder="Add a task..."
-                maxLength={MAX_TASK_LEN}
-                disabled={createTask.isPending}
-                aria-label="New task text"
-                className="h-10 md:h-10"
-              />
-              <Button
-                type="submit"
-                disabled={!newTask.trim() || createTask.isPending}
-                className="h-10 px-4 md:h-10"
-              >
-                Add
-              </Button>
-            </form>
+      {/* Body: add form + grouped list */}
+      <div className="flex-1 space-y-4 px-5 py-5">
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <Input
+            ref={addInputRef}
+            value={newTask}
+            onChange={(e) => setNewTask(e.target.value)}
+            placeholder="Add a task..."
+            maxLength={MAX_TASK_LEN}
+            disabled={createTask.isPending}
+            aria-label="New task text"
+            className="h-10 md:h-10"
+          />
+          <Button
+            type="submit"
+            disabled={!newTask.trim() || createTask.isPending}
+            className="h-10 px-4 md:h-10"
+          >
+            Add
+          </Button>
+        </form>
 
-            <div ref={listRef} className="max-h-100 space-y-3 overflow-y-auto">
-              {!tasks.data && tasks.isError ? (
-                // A failed first load must not masquerade as an empty board.
-                <QueryError
-                  title="Couldn't load tasks"
-                  onRetry={() => tasks.refetch()}
-                  retrying={tasks.isFetching}
-                />
-              ) : !tasks.data ? (
-                <div className="space-y-2" aria-hidden>
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-              ) : taskList.length === 0 ? (
-                <div className="flex flex-col items-center gap-3 py-10">
-                  {/* Focus-ring motif empty state */}
-                  <svg viewBox="0 0 48 48" className="size-10" aria-hidden>
-                    <title>Decorative empty task ring</title>
-                    <circle
-                      cx="24"
-                      cy="24"
-                      r="20"
-                      fill="none"
-                      className="stroke-border"
-                      strokeWidth="4"
-                    />
-                    <circle
-                      cx="24"
-                      cy="24"
-                      r="20"
-                      fill="none"
-                      className="stroke-link/60"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                      strokeDasharray="30 96"
-                      transform="rotate(-90 24 24)"
-                    />
-                  </svg>
-                  <div className="max-w-72 text-center">
-                    <p className="font-heading text-base font-semibold tracking-tight">
-                      What are you working on today?
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Viewers add theirs in chat with{" "}
-                      <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">!task</code>.
-                    </p>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={focusAddInput}>
-                    Add a task
-                  </Button>
-                </div>
-              ) : (
-                orderedGroups.map((group) => {
-                  const isHost = group.authorKey === userTwitchId;
-                  return (
-                    <Collapsible
-                      key={group.authorKey}
-                      open={!collapsedAuthors.has(group.authorKey)}
-                      onOpenChange={(open) => setAuthorOpen(group.authorKey, open)}
-                      className="overflow-hidden rounded-xl border border-border/40 bg-muted/20"
-                    >
-                      {/* Author header (folds the group) — Twitch color only ever tints the dot */}
-                      <CollapsibleTrigger className="group/author flex min-h-11 w-full cursor-pointer items-center gap-2.5 bg-muted/40 px-3 py-2 text-left transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset">
-                        <ChevronDown
-                          aria-hidden
-                          className="size-3.5 shrink-0 -rotate-90 text-muted-foreground transition-transform group-data-[panel-open]/author:rotate-0"
-                        />
-                        <span
-                          aria-hidden
-                          className="size-2 shrink-0 rounded-full"
-                          style={{
-                            background: isHost
-                              ? "var(--primary)"
-                              : (group.authorColor ?? "var(--cornflower)"),
-                          }}
-                        />
-                        <span className="truncate text-sm font-medium">
-                          {group.authorDisplayName}
-                        </span>
-                        {isHost && <StatusChip size="sm" tone="accent" label="Host" />}
-                        <span className="console-label ml-auto shrink-0">
-                          {group.done}/{group.pending + group.done}
-                          <span className="sr-only"> done</span>
-                        </span>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <ul className="divide-y divide-border/40 border-t border-border/40">
-                          {group.tasks.map((task) => {
-                            const isDone = task.status === "done";
-                            const isActive = task.status === "active";
-                            return (
-                              <li
-                                key={task.id}
-                                data-active={isActive || undefined}
-                                // The active row reads from a soft primary tint plus the
-                                // "Active" chip — no coloured edge bar.
-                                className={cn(
-                                  "group flex min-h-11 items-center gap-3 px-3 py-2 transition-colors",
-                                  isActive
-                                    ? "bg-primary/5 hover:bg-primary/10"
-                                    : "hover:bg-muted/40",
-                                  rowEntry.fresh.has(task.id) && "row-enter",
-                                )}
-                              >
-                                {/* Checkbox */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    // aria-disabled doesn't block clicks, so guard here:
-                                    // done rows and an in-flight markDone are no-ops.
-                                    if (!(isActive || task.status === "pending")) return;
-                                    if (markDone.isPending && markDone.variables?.id === task.id)
-                                      return;
-                                    markDone.mutate({ id: task.id });
-                                  }}
-                                  // aria-disabled (not disabled) so the control keeps
-                                  // keyboard focus while pending and once done.
-                                  aria-disabled={
-                                    isDone ||
-                                    (markDone.isPending && markDone.variables?.id === task.id)
-                                  }
-                                  aria-label={
-                                    isDone ? `${task.text} (done)` : `Mark "${task.text}" as done`
-                                  }
-                                  className={cn(
-                                    // after:-inset-2.5 = 45px effective touch target on a 20px control
-                                    "relative flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors after:absolute after:-inset-2.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                                    isDone
-                                      ? "border-primary bg-primary text-primary-foreground"
-                                      : "border-muted-foreground hover:border-primary aria-disabled:cursor-not-allowed aria-disabled:hover:border-muted-foreground",
-                                  )}
-                                >
-                                  {isDone && <Check className="size-3" />}
-                                </button>
-
-                                {/* Task text */}
-                                <p
-                                  className={cn(
-                                    "min-w-0 flex-1 text-sm break-words line-clamp-2",
-                                    isDone && "text-muted-foreground line-through",
-                                  )}
-                                >
-                                  {task.text}
-                                </p>
-
-                                {isActive && (
-                                  <StatusChip
-                                    size="sm"
-                                    tone="accent"
-                                    label="Active"
-                                    pulse
-                                    className="shrink-0"
-                                  />
-                                )}
-
-                                {/* Activate button: always shown unless the primary pointer can hover (at any
-                                  width, so touch tablets keep it); focus reveals it too. */}
-                                {!isDone && !isActive && (
-                                  <Tooltip>
-                                    <TooltipTrigger
-                                      render={
-                                        <Button
-                                          variant="ghost"
-                                          size="icon-xs"
-                                          onClick={() => {
-                                            pendingFocus.current = {
-                                              kind: "activate",
-                                              taskId: task.id,
-                                            };
-                                            activateTask.mutate(
-                                              { id: task.id },
-                                              {
-                                                onError: () => {
-                                                  pendingFocus.current = null;
-                                                },
-                                              },
-                                            );
-                                          }}
-                                          disabled={
-                                            activateTask.isPending &&
-                                            activateTask.variables?.id === task.id
-                                          }
-                                          focusableWhenDisabled
-                                          aria-label={`Set "${task.text}" as active`}
-                                          className="relative opacity-100 transition-opacity after:absolute after:-inset-2 focus-visible:opacity-100 can-hover:opacity-0 group-hover:opacity-100"
-                                        />
-                                      }
-                                    >
-                                      <Focus className="size-3" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>Set as active</TooltipContent>
-                                  </Tooltip>
-                                )}
-
-                                {/* Remove button: always shown unless the primary pointer can hover (at any
-                                  width, so touch tablets keep it); focus reveals it too. */}
-                                <Button
-                                  variant="ghost"
-                                  size="icon-xs"
-                                  onClick={() => {
-                                    pendingFocus.current = {
-                                      kind: "remove",
-                                      taskId: task.id,
-                                      nextId: neighborTaskId(task.id),
-                                    };
-                                    removeTask.mutate(
-                                      { id: task.id },
-                                      {
-                                        onError: () => {
-                                          pendingFocus.current = null;
-                                        },
-                                      },
-                                    );
-                                  }}
-                                  disabled={
-                                    removeTask.isPending && removeTask.variables?.id === task.id
-                                  }
-                                  focusableWhenDisabled
-                                  data-remove-task={task.id}
-                                  aria-label={`Remove "${task.text}"`}
-                                  className="relative text-destructive opacity-100 transition-opacity after:absolute after:-inset-2 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 can-hover:opacity-0 group-hover:opacity-100"
-                                >
-                                  <Trash2 className="size-3" />
-                                </Button>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  );
-                })
-              )}
+        <div ref={listRef} className="max-h-100 space-y-3 overflow-y-auto">
+          {!tasks.data && tasks.isError ? (
+            // A failed first load must not masquerade as an empty board.
+            <QueryError
+              title="Couldn't load tasks"
+              onRetry={() => tasks.refetch()}
+              retrying={tasks.isFetching}
+            />
+          ) : !tasks.data ? (
+            <div className="space-y-2" aria-hidden>
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
             </div>
-          </div>
+          ) : taskList.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-10">
+              {/* Focus-ring motif empty state */}
+              <svg viewBox="0 0 48 48" className="size-10" aria-hidden>
+                <title>Decorative empty task ring</title>
+                <circle
+                  cx="24"
+                  cy="24"
+                  r="20"
+                  fill="none"
+                  className="stroke-border"
+                  strokeWidth="4"
+                />
+                <circle
+                  cx="24"
+                  cy="24"
+                  r="20"
+                  fill="none"
+                  className="stroke-link/60"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  strokeDasharray="30 96"
+                  transform="rotate(-90 24 24)"
+                />
+              </svg>
+              <div className="max-w-72 text-center">
+                <p className="font-heading text-base font-semibold tracking-tight">
+                  What are you working on today?
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Viewers add theirs in chat with{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">!task</code>.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={focusAddInput}>
+                Add a task
+              </Button>
+            </div>
+          ) : (
+            orderedGroups.map((group) => {
+              const isHost = group.authorKey === userTwitchId;
+              return (
+                <Collapsible
+                  key={group.authorKey}
+                  open={!collapsedAuthors.has(group.authorKey)}
+                  onOpenChange={(open) => setAuthorOpen(group.authorKey, open)}
+                  className="overflow-hidden rounded-xl border border-border/40 bg-muted/20"
+                >
+                  {/* Author header (folds the group) — Twitch color only ever tints the dot */}
+                  <CollapsibleTrigger className="group/author flex min-h-11 w-full cursor-pointer items-center gap-2.5 bg-muted/40 px-3 py-2 text-left transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset">
+                    <ChevronDown
+                      aria-hidden
+                      className="size-3.5 shrink-0 -rotate-90 text-muted-foreground transition-transform group-data-[panel-open]/author:rotate-0"
+                    />
+                    <span
+                      aria-hidden
+                      className="size-2 shrink-0 rounded-full"
+                      style={{
+                        background: isHost
+                          ? "var(--primary)"
+                          : (group.authorColor ?? "var(--cornflower)"),
+                      }}
+                    />
+                    <span className="truncate text-sm font-medium">{group.authorDisplayName}</span>
+                    {isHost && <StatusChip size="sm" tone="accent" label="Host" />}
+                    <span className="console-label ml-auto shrink-0">
+                      {group.done}/{group.pending + group.done}
+                      <span className="sr-only"> done</span>
+                    </span>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <ul className="divide-y divide-border/40 border-t border-border/40">
+                      {group.tasks.map((task) => {
+                        const isDone = task.status === "done";
+                        const isActive = task.status === "active";
+                        return (
+                          <li
+                            key={task.id}
+                            data-active={isActive || undefined}
+                            // The active row reads from a soft primary tint plus the
+                            // "Active" chip — no coloured edge bar.
+                            className={cn(
+                              "group flex min-h-11 items-center gap-3 px-3 py-2 transition-colors",
+                              isActive ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/40",
+                              rowEntry.fresh.has(task.id) && "row-enter",
+                            )}
+                          >
+                            {/* Checkbox */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                // aria-disabled doesn't block clicks, so guard here:
+                                // done rows and an in-flight markDone are no-ops.
+                                if (!(isActive || task.status === "pending")) return;
+                                if (markDone.isPending && markDone.variables?.id === task.id)
+                                  return;
+                                markDone.mutate({ id: task.id });
+                              }}
+                              // aria-disabled (not disabled) so the control keeps
+                              // keyboard focus while pending and once done.
+                              aria-disabled={
+                                isDone || (markDone.isPending && markDone.variables?.id === task.id)
+                              }
+                              aria-label={
+                                isDone ? `${task.text} (done)` : `Mark "${task.text}" as done`
+                              }
+                              className={cn(
+                                // after:-inset-2.5 = 45px effective touch target on a 20px control
+                                "relative flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors after:absolute after:-inset-2.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                                isDone
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-muted-foreground hover:border-primary aria-disabled:cursor-not-allowed aria-disabled:hover:border-muted-foreground",
+                              )}
+                            >
+                              {isDone && <Check className="size-3" />}
+                            </button>
 
-          {/* Footer note: the retention rule behind the Done count */}
-          {taskList.length > 0 && (
-            <p className="border-t border-border/40 px-5 py-2.5 text-xs text-muted-foreground">
-              Done tasks clear automatically after 24h
-            </p>
+                            {/* Task text */}
+                            <p
+                              className={cn(
+                                "min-w-0 flex-1 text-sm break-words line-clamp-2",
+                                isDone && "text-muted-foreground line-through",
+                              )}
+                            >
+                              {task.text}
+                            </p>
+
+                            {isActive && (
+                              <StatusChip
+                                size="sm"
+                                tone="accent"
+                                label="Active"
+                                pulse
+                                className="shrink-0"
+                              />
+                            )}
+
+                            {/* Activate button: always shown unless the primary pointer can hover (at any
+                                  width, so touch tablets keep it); focus reveals it too. */}
+                            {!isDone && !isActive && (
+                              <Tooltip>
+                                <TooltipTrigger
+                                  render={
+                                    <Button
+                                      variant="ghost"
+                                      size="icon-xs"
+                                      onClick={() => {
+                                        pendingFocus.current = {
+                                          kind: "activate",
+                                          taskId: task.id,
+                                        };
+                                        activateTask.mutate(
+                                          { id: task.id },
+                                          {
+                                            onError: () => {
+                                              pendingFocus.current = null;
+                                            },
+                                          },
+                                        );
+                                      }}
+                                      disabled={
+                                        activateTask.isPending &&
+                                        activateTask.variables?.id === task.id
+                                      }
+                                      focusableWhenDisabled
+                                      aria-label={`Set "${task.text}" as active`}
+                                      className="relative opacity-100 transition-opacity after:absolute after:-inset-2 focus-visible:opacity-100 can-hover:opacity-0 group-hover:opacity-100"
+                                    />
+                                  }
+                                >
+                                  <Focus className="size-3" />
+                                </TooltipTrigger>
+                                <TooltipContent>Set as active</TooltipContent>
+                              </Tooltip>
+                            )}
+
+                            {/* Remove button: always shown unless the primary pointer can hover (at any
+                                  width, so touch tablets keep it); focus reveals it too. */}
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              onClick={() => {
+                                pendingFocus.current = {
+                                  kind: "remove",
+                                  taskId: task.id,
+                                  nextId: neighborTaskId(task.id),
+                                };
+                                removeTask.mutate(
+                                  { id: task.id },
+                                  {
+                                    onError: () => {
+                                      pendingFocus.current = null;
+                                    },
+                                  },
+                                );
+                              }}
+                              disabled={
+                                removeTask.isPending && removeTask.variables?.id === task.id
+                              }
+                              focusableWhenDisabled
+                              data-remove-task={task.id}
+                              aria-label={`Remove "${task.text}"`}
+                              className="relative text-destructive opacity-100 transition-opacity after:absolute after:-inset-2 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 can-hover:opacity-0 group-hover:opacity-100"
+                            >
+                              <Trash2 className="size-3" />
+                            </Button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </CollapsibleContent>
+                </Collapsible>
+              );
+            })
           )}
         </div>
-        {monitor && (
-          <div className="min-w-0 border-t border-border/40 p-5 lg:self-stretch lg:border-t-0 lg:border-l">
-            {monitor}
-          </div>
-        )}
       </div>
+
+      {/* Footer note: the retention rule behind the Done count */}
+      {taskList.length > 0 && (
+        <p className="border-t border-border/40 px-5 py-2.5 text-xs text-muted-foreground">
+          Done tasks clear automatically after 24h
+        </p>
+      )}
     </div>
   );
 }

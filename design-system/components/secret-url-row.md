@@ -7,8 +7,8 @@ tokens: [color.scheme, radius, font.family]
 
 ## Purpose
 
-Masked URL row for the token-bearing overlay and bot page links (dashboard timer and task
-heroes, `BotConsoleCard`). The token in the path is the only credential for that public
+Masked URL row for the token-bearing overlay and bot page links (the dashboard's
+`ObsSources` tabs, `BotConsoleCard`). The token in the path is the only credential for that public
 page, so the URL stays hidden until explicitly revealed.
 
 ## Anatomy
