@@ -14,9 +14,9 @@
   "dependencies": {
     "@dirework/fonts": "workspace:*",
     "@dirework/overlay-kit": "workspace:*",
-    "fumadocs-core": "16.17.7",
-    "fumadocs-mdx": "15.4.9",
-    "fumadocs-ui": "16.17.7",
+    "fumadocs-core": "16.17.8",
+    "fumadocs-mdx": "15.4.10",
+    "fumadocs-ui": "16.17.8",
     "lucide-react": "catalog:",
     "next": "16.4.2",
     "react": "catalog:",
