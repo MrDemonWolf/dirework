@@ -1,7 +1,32 @@
 // Status copy for the bot settings page. Pure, so the "is the bot actually on?" decision is
 // unit-tested instead of living in JSX ternaries.
 
+import { BOT_LEASE_TTL_MS } from "@dirework/api/bot-lease";
+
 import type { StatusTone } from "@/components/status-chip";
+
+/** Whether `user.me`'s answer had a bot page holding the chat lease when the api sent it. */
+export function botPageLiveAtFetch(seenMsAgo: number | null | undefined): boolean {
+  return seenMsAgo != null && seenMsAgo < BOT_LEASE_TTL_MS;
+}
+
+/**
+ * The dashboard header's bot chip, from `user.me` alone (no request of its own): "Bot
+ * connected" while the last answer had a bot page (widget or dock) holding the chat lease,
+ * "Bot offline" when it had none. Never decided by the local clock: a running bot renews
+ * its lease without telling the dashboard, so "offline" waits for a fresh answer that says
+ * so (`scheduleBotPresenceCheck` in lib/bot-presence.ts fetches one when the lease would
+ * have run out).
+ */
+export function dashboardBotChip(
+  hasBotAccount: boolean,
+  seenMsAgo: number | null | undefined,
+): { tone: StatusTone; label: string } {
+  if (!hasBotAccount) return { tone: "idle", label: "Bot not connected" };
+  return botPageLiveAtFetch(seenMsAgo)
+    ? { tone: "live", label: "Bot connected" }
+    : { tone: "idle", label: "Bot offline" };
+}
 
 export interface BotMuteStatus {
   tone: StatusTone;

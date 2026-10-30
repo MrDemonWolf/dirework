@@ -28,7 +28,7 @@ Work through these in order. The detailed steps below use the same numbers:
   to your fork. The tables below give their exact names.
 - [ ] **4. Deploy and claim:** [enable Actions and run Deploy](#step-4--run-the-first-deploy).
   Keep the run open. When it turns green, open your app and **Claim with Twitch immediately**.
-- [ ] **Finish:** connect your bot account, keep one bot page or OBS dock open, add the
+- [ ] **Finish:** connect your bot account, keep one bot page open (the widget or the dock), add the
   overlays, and complete the [live checklist](#after-youre-live--quick-checklist).
 
 <Callout>
@@ -233,8 +233,9 @@ To tear everything down again: `bun run destroy` (with the same values exported)
 - [ ] You claimed the instance with your own streamer account (the Dashboard shows your
   Twitch name)
 - [ ] Your bot account connects (Dashboard → Bot)
-- [ ] The **bot page** is added to OBS as a browser source (or pinned in a tab) — the
-  bot only listens to chat while that page is open. See [Chat commands](/docs/chat-commands).
+- [ ] The **bot page** is open: the invisible widget in an OBS browser source or a Moblin
+  widget, or the dock in an OBS custom browser dock or a pinned tab — the bot only listens
+  to chat while that page is open. See [Chat commands](/docs/chat-commands).
 - [ ] The timer and task list overlays show up in OBS
 - [ ] A real chat command adds a task, and a timer cycle advances in OBS
 - [ ] One bot page is open. A second copy won't run commands twice (DireWork dedupes each
@@ -361,7 +362,7 @@ it again.
 3. **Sign in immediately** at `https://dirework.<your-subdomain>.workers.dev` with your
    streamer account — the setup screen is back, and the first sign-in claims it again.
 4. **Re-copy your OBS URLs.** The timer overlay, task overlay and bot page URLs all changed
-   in step 2, so update each OBS browser source (Dashboard → Overlays / Bot), then
+   in step 2, so update each OBS browser source (Dashboard → OBS sources, Dashboard → Bot), then
    reconnect your bot account.
 5. **Review what they could have changed:** timer and task styles, bot commands, aliases,
    message templates, and the task list. The reset above deliberately keeps those rows so
@@ -432,6 +433,7 @@ Cloudflare account and reset at 00:00 UTC. Rough hourly usage:
 | Timer + task overlays (open in OBS)       | every 5s each, even in the background       | ~1.4k         |
 | Dashboard tab (visible, in use)           | timer 2s + tasks 3s, each counted twice     | ~6k           |
 | Dashboard tab (visible, untouched 2+ min) | timer + tasks every 15s, each counted twice | ~1k           |
+| Each open bot page (widget or dock)       | lease check-in every 2 min, plus commands   | 30 + commands |
 
 Dashboard requests count twice because the web worker proxies `/rpc` to the api
 worker, and both invocations are billed. Dashboard polling slows to every 15 seconds

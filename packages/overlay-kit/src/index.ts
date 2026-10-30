@@ -58,14 +58,20 @@ export function roundedRectPerimeter(w: number, h: number, r: number): number {
 }
 
 /**
- * Format milliseconds as a "MM:SS" clock string (minutes can exceed 99).
- * Negative and non-finite values clamp to "00:00"; partial seconds round up.
+ * Format milliseconds as a countdown clock. Under an hour it is "MM:SS"; from
+ * 60 minutes up it is "H:MM:SS" (a 24-hour focus reads "24:00:00", never
+ * "1440:00"). `showHours` (the timer config's "Show hours" switch) forces the
+ * zero-padded "HH:MM:SS" form at every length. Negative and non-finite values
+ * clamp to zero; partial seconds round up.
  */
-export function formatClock(ms: number): string {
+export function formatClock(ms: number, showHours = false): string {
   const totalSeconds = Number.isFinite(ms) ? Math.max(0, Math.ceil(ms / 1000)) : 0;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  const hours = Math.floor(totalSeconds / 3600);
+  const mm = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+  const ss = String(totalSeconds % 60).padStart(2, "0");
+  if (showHours) return `${String(hours).padStart(2, "0")}:${mm}:${ss}`;
+  if (hours > 0) return `${hours}:${mm}:${ss}`;
+  return `${mm}:${ss}`;
 }
 
 /** The cycle counter as the timer overlay and its mocks print it: "Cycle 2 / 4". */

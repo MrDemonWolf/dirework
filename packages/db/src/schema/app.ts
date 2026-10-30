@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 
 import {
-  DEFAULT_PHASE_LABELS,
+  PHASE_LABEL_COLUMN_DEFAULTS,
   TASK_MESSAGE_COLUMN_DEFAULTS,
   TASK_STYLE_COLUMN_DEFAULTS,
   TIMER_CONFIG_DEFAULTS,
@@ -47,6 +47,17 @@ export const instanceConfig = sqliteTable("instance_config", {
   setupTasksOverlayConfirmed: integer("setup_tasks_overlay_confirmed", { mode: "boolean" })
     .notNull()
     .default(false),
+  // The owner's IANA time zone (e.g. "America/Chicago"), reported by the
+  // dashboard through `user.setTimeZone`. Decides which local day a dashboard
+  // stat lands on; null reads as UTC.
+  timeZone: text("time_zone"),
+  // Bot page lease: only one open bot page (widget or dock) holds the Twitch chat
+  // connection at a time. The holder's random per-page-load id and the last time it
+  // checked in (`bot.heartbeat`, every 2 minutes). A lease older than BOT_LEASE_TTL_MS
+  // is free, which is also how the dashboard reads "Bot offline". Null = nobody holds
+  // it. Written only by services/bot-lease.ts.
+  botLeaseInstanceId: text("bot_lease_instance_id"),
+  botLeaseSeenAt: integer("bot_lease_seen_at", { mode: "timestamp_ms" }),
 });
 
 export const botAccount = sqliteTable("bot_account", {
@@ -108,6 +119,16 @@ export const task = sqliteTable(
     uniqueIndex("task_one_active_per_author_idx")
       .on(table.authorTwitchId)
       .where(sql`${table.status} = 'active'`),
+    // A viewer's in-progress tasks (the focus plus at most MAX_STARTED_PER_AUTHOR
+    // started ones), for !check and !check @user: partial, so the read touches only
+    // those rows, never the viewer's queue or done history. The query must spell the
+    // same literal `status in ('active', 'started')` for SQLite to pick it.
+    index("task_in_progress_author_idx")
+      .on(table.authorTwitchId, table.status)
+      .where(sql`${table.status} in ('active', 'started')`),
+    index("task_in_progress_username_lower_idx")
+      .on(sql`lower(${table.authorUsername})`)
+      .where(sql`${table.status} in ('active', 'started')`),
   ],
 );
 
@@ -126,6 +147,20 @@ export const processedChatMessage = sqliteTable(
     index("processed_chat_message_processed_at_idx").on(table.processedAt),
   ],
 );
+
+// Dashboard stats: one row per local day (the owner's `time_zone`, else UTC),
+// keyed "YYYY-MM-DD" so a week or a 14-day chart is a primary-key range read.
+// Written only by writes that already happen (a phase the timer leaves, a task
+// marked done) as `INSERT … ON CONFLICT(day) DO UPDATE SET x = x + ?`; rows older
+// than STATS_RETENTION_DAYS are pruned when a timer starts.
+export const dailyStat = sqliteTable("daily_stat", {
+  day: text("day").primaryKey(),
+  focusMs: integer("focus_ms").notNull().default(0),
+  pomodoros: integer("pomodoros").notNull().default(0),
+  tasksDone: integer("tasks_done").notNull().default(0),
+  // Of tasks_done, those authored by someone other than the owner (chat).
+  tasksDoneChat: integer("tasks_done_chat").notNull().default(0),
+});
 
 export const timerState = sqliteTable("timer_state", {
   id: text("id").primaryKey().default(SINGLETON_ID),
@@ -156,13 +191,13 @@ export const timerConfig = sqliteTable("timer_config", {
   noLastBreak: integer("no_last_break", { mode: "boolean" })
     .notNull()
     .default(TIMER_CONFIG_DEFAULTS.noLastBreak),
-  labelIdle: text("label_idle").notNull().default(DEFAULT_PHASE_LABELS.idle),
-  labelStarting: text("label_starting").notNull().default(DEFAULT_PHASE_LABELS.starting),
-  labelWork: text("label_work").notNull().default(DEFAULT_PHASE_LABELS.work),
-  labelBreak: text("label_break").notNull().default(DEFAULT_PHASE_LABELS.break),
-  labelLongBreak: text("label_long_break").notNull().default(DEFAULT_PHASE_LABELS.longBreak),
-  labelPaused: text("label_paused").notNull().default(DEFAULT_PHASE_LABELS.paused),
-  labelFinished: text("label_finished").notNull().default(DEFAULT_PHASE_LABELS.finished),
+  labelIdle: text("label_idle").notNull().default(PHASE_LABEL_COLUMN_DEFAULTS.idle),
+  labelStarting: text("label_starting").notNull().default(PHASE_LABEL_COLUMN_DEFAULTS.starting),
+  labelWork: text("label_work").notNull().default(PHASE_LABEL_COLUMN_DEFAULTS.work),
+  labelBreak: text("label_break").notNull().default(PHASE_LABEL_COLUMN_DEFAULTS.break),
+  labelLongBreak: text("label_long_break").notNull().default(PHASE_LABEL_COLUMN_DEFAULTS.longBreak),
+  labelPaused: text("label_paused").notNull().default(PHASE_LABEL_COLUMN_DEFAULTS.paused),
+  labelFinished: text("label_finished").notNull().default(PHASE_LABEL_COLUMN_DEFAULTS.finished),
 });
 
 export const timerStyle = sqliteTable("timer_style", {
@@ -415,6 +450,23 @@ export const botConfig = sqliteTable("bot_config", {
     .notNull()
     .default(TASK_MESSAGE_COLUMN_DEFAULTS.nextNoContent),
   msgHelp: text("msg_help").notNull().default(TASK_MESSAGE_COLUMN_DEFAULTS.help),
+  // !start / !pause replies (0022_start_pause_replies, expand-only).
+  msgTaskStarted: text("msg_task_started")
+    .notNull()
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.taskStarted),
+  msgTaskStartedFocus: text("msg_task_started_focus")
+    .notNull()
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.taskStartedFocus),
+  msgStartCapReached: text("msg_start_cap_reached")
+    .notNull()
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.startCapReached),
+  msgNoTaskToStart: text("msg_no_task_to_start")
+    .notNull()
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.noTaskToStart),
+  msgTaskPaused: text("msg_task_paused").notNull().default(TASK_MESSAGE_COLUMN_DEFAULTS.taskPaused),
+  msgNoTaskToPause: text("msg_no_task_to_pause")
+    .notNull()
+    .default(TASK_MESSAGE_COLUMN_DEFAULTS.noTaskToPause),
   msgNotRunning: text("msg_not_running")
     .notNull()
     .default(TIMER_MESSAGE_COLUMN_DEFAULTS.notRunning),

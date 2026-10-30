@@ -7,10 +7,10 @@ DireWork provides two overlays that you add as browser sources in OBS (or any st
 
 ## Overlay URLs
 
-After signing in, go to your **Dashboard**. Each console has its overlay URL in the strip along its bottom edge:
+After signing in, go to your **Dashboard**. Both overlay URLs are in **OBS sources**, under the timer controls, one tab each:
 
-- **Timer overlay** — `/overlay/t/{token}`, under the Pomodoro console
-- **Tasks overlay** — `/overlay/l/{token}`, under the task board
+- **Timer** tab: the **Timer overlay** URL, `/overlay/t/{token}`
+- **Tasks** tab: the **Tasks overlay** URL, `/overlay/l/{token}`
 
 Each overlay has its own private URL. The row is masked by default: use the Show button to reveal it, or the Copy button to copy the full URL.
 
@@ -33,7 +33,7 @@ Each overlay has its own private URL. The row is masked by default: use the Show
 ## Timer overlay
 
 The timer overlay shows:
-- Current phase label (defaults are wolf-themed and editable in Theme Center — e.g. "Gathering the Pack", "On the Hunt", "Den Rest", "Pack Slumber", "Paws'd", "Hunt Complete")
+- Current phase label (defaults are wolf-themed and editable in Theme Center — e.g. "Pack Gathering", "On the Hunt", "Den Rest", "Pack Slumber", "Paws'd", "Hunt Complete")
 - Countdown timer with configurable font
 - Cycle count (e.g. 1/4)
 - Progress ring (circle or rounded rectangle shape)
@@ -104,8 +104,10 @@ Both ask first, and neither reaches your stream until you press **Save changes**
 | **Opacity** | Panel background; ring fill and track |
 
 The **Phase labels** tab sets the text for each of the seven phases — Idle, Starting, Focus,
-Break, Long break, Paused, Done. Defaults are wolf-themed: "Resting", "Gathering the Pack",
-"On the Hunt", "Den Rest", "Pack Slumber", "Paws'd", "Hunt Complete".
+Break, Long break, Paused, Done. Defaults are wolf-themed: "Resting", "Pack Gathering",
+"On the Hunt", "Den Rest", "Pack Slumber", "Paws'd", "Hunt Complete". Each label holds up to
+16 characters (an emoji counts as one), so it fits inside the ring; the field shows a counter
+as you get close. A longer label saved by an earlier version shows cut to 16 characters.
 
 > The progress ring has no dedicated shape control — its shape follows the panel's
 > **Corner radius** (Layout). Set the border radius to `50%` for a circle; any other value (e.g. `22%`)
@@ -122,11 +124,38 @@ Break, Long break, Paused, Done. Defaults are wolf-themed: "Resting", "Gathering
 | Section | Options |
 | --- | --- |
 | **Colors** | Background, text and border colors for the header, body and task rows; fallback username color (used when a viewer has no Twitch chat color); done-task background and text; checkbox background, border and tick; bullet color |
-| **Typography** | Header and body fonts; header and task font sizes; tick character and size; bullet character and size |
+| **Typography** | Header and body fonts; header and task font sizes; tick icon and size; bullet icon and size |
 | **Layout** | Show done tasks, show count, checkboxes, cross out done tasks, lines per task; scroll on/off, speed and loop gap; heights, padding, margins, border widths, corner radii and max width |
 | **Opacity** | Background opacity of the header, body, task rows, done tasks and checkboxes |
 
-Bullet settings appear only while **Checkboxes** is off.
+Bullet settings appear only while **Checkboxes** is off. The tick and the bullet are picked
+from a fixed set of icons (dot, circle, check, check in a circle or square, star, sparkles,
+arrow, chevron, paw print, heart, flame, lightning, or none), drawn in the tick or bullet
+color at the size you set. A custom character saved by an earlier version shows as the
+matching icon (a ✔ as the check, a • as the dot), or as the default icon.
+
+### Size limits
+
+Every size field has a range, and the Theme Center won't save a value outside it: the field
+says the range, the arrow keys stop at its ends, and **Save** stays off until it is fixed.
+A value saved before these limits existed shows at the nearest end of its range.
+
+| Field | Range |
+| --- | --- |
+| Timer width and height | 120–1200px, 10–100% or 10–100vw/vh |
+| Timer phase label / countdown / pomo counter font | 14–48px / 32–160px / 12–48px (or 2–40vw/vh) |
+| Timer text outline | 0–6px |
+| Ring width and ring gap | 0–40px |
+| Task header height / header font | 24–160px / 16–72px |
+| Task font | 16–64px |
+| Paddings and margins | 0–48px (paddings take up to four values) |
+| Border widths | 0–12px |
+| Corner radii | 0–64px (checkbox 0–32px, timer panel 0–600px) or 0–50% |
+| Task max width | 100–2000px or 10–100% |
+| Checkbox and bullet size / tick size | 12–64px / 8–64px |
+| Scroll speed / loop gap | 1–200 px/s / 0–300px |
+
+rem and em count as 16px.
 
 ### Theme presets
 

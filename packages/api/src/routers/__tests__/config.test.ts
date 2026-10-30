@@ -23,6 +23,16 @@ type BotConfigRow = Parameters<typeof buildBotConfig>[0];
 type TaskKey = keyof typeof TASK_MESSAGE_FIELDS;
 type TimerKey = keyof typeof TIMER_MESSAGE_FIELDS;
 
+/** Replies whose column default was written with the current wording (0022_start_pause_replies). */
+const NEW_COLUMN_WORDING = new Set<TaskKey>([
+  "taskStarted",
+  "taskStartedFocus",
+  "startCapReached",
+  "noTaskToStart",
+  "taskPaused",
+  "noTaskToPause",
+]);
+
 /** A full bot_config row whose every message is the owner's own text. */
 function customRow(): BotConfigRow {
   const columns = [...Object.values(TASK_MESSAGE_FIELDS), ...Object.values(TIMER_MESSAGE_FIELDS)];
@@ -73,7 +83,14 @@ describe("buildBotConfig legacy default upgrade", () => {
       expect(chatMessageSchema.safeParse(value).success, key).toBe(true);
       expect(value, key).not.toMatch(/^[!./]/);
       expect(LEGACY_TASK_MESSAGES[key], key).not.toContain(value);
-      expect(TASK_MESSAGE_COLUMN_DEFAULTS[key], key).not.toBe(value);
+      // A reply added after the rewording (the !start / !pause ones, 0022) has a
+      // column default that IS the current wording; every older one was reworded.
+      if (!NEW_COLUMN_WORDING.has(key)) {
+        expect(TASK_MESSAGE_COLUMN_DEFAULTS[key], key).not.toBe(value);
+      }
+    }
+    for (const key of NEW_COLUMN_WORDING) {
+      expect(TASK_MESSAGE_COLUMN_DEFAULTS[key], key).toBe(DEFAULT_TASK_MESSAGES[key]);
     }
     for (const key of Object.keys(DEFAULT_TIMER_MESSAGES) as TimerKey[]) {
       const value = DEFAULT_TIMER_MESSAGES[key];
@@ -232,8 +249,8 @@ describe("buildTaskStylesConfig", () => {
     expect(result.scroll.enabled).toBe(true);
     expect(result.scroll.pixelsPerSecond).toBe(70);
     expect(result.task.usernameColor).toBe("#ffffff");
-    expect(result.checkbox.tickChar).toBe("✓");
-    expect(result.bullet.char).toBe("•");
+    expect(result.checkbox.tickIcon).toBe("check");
+    expect(result.bullet.icon).toBe("dot");
   });
 
   it("should not include a direction field in task", () => {
@@ -268,6 +285,12 @@ describe("buildBotConfig", () => {
     msgClearedDone: "p",
     msgNextNoContent: "q",
     msgHelp: "r",
+    msgTaskStarted: "s1",
+    msgTaskStartedFocus: "s2",
+    msgStartCapReached: "s3",
+    msgNoTaskToStart: "s4",
+    msgTaskPaused: "s5",
+    msgNoTaskToPause: "s6",
     msgNotRunning: "w5",
     msgWrongCommand: "w7",
     msgTimerRunning: "w8",
@@ -280,10 +303,13 @@ describe("buildBotConfig", () => {
     const result = buildBotConfig(fakeBotConfig);
     expect(result.taskCommandsEnabled).toBe(true);
     expect(result.timerCommandsEnabled).toBe(false);
-    expect(result.commandAliases).toEqual({ "!t": "!task" });
+    // A legacy "!"-prefixed record reads back canonical, as the save schema would store it.
+    expect(result.commandAliases).toEqual({ t: "task" });
     expect(result.task.taskAdded).toBe("a");
     expect(result.task.help).toBe("r");
-    expect(Object.keys(result.task)).toHaveLength(18);
+    expect(result.task.taskStarted).toBe("s1");
+    expect(result.task.noTaskToPause).toBe("s6");
+    expect(Object.keys(result.task)).toHaveLength(24);
     expect(result.timer.notRunning).toBe("w5");
     expect(result.timer.eta).toBe("w14");
     // Only the 6 timer messages with a real emit site survive the P1 cleanup.

@@ -62,6 +62,7 @@ function run(opts: {
   prefersDark?: boolean;
   initialClasses?: string[];
   pathname?: string;
+  search?: string;
 }) {
   const root = makeRoot(opts.initialClasses);
   const getItem = vi.fn((key: string) => {
@@ -75,7 +76,7 @@ function run(opts: {
   vi.stubGlobal("localStorage", { getItem });
   vi.stubGlobal("matchMedia", matchMedia);
   vi.stubGlobal("window", { matchMedia });
-  vi.stubGlobal("location", { pathname: opts.pathname ?? "/" });
+  vi.stubGlobal("location", { pathname: opts.pathname ?? "/", search: opts.search ?? "" });
   new Function(opts.script ?? THEME_INIT_SCRIPT)();
   return {
     classes: [...root.classes].sort(),
@@ -137,7 +138,17 @@ describe("THEME_INIT_SCRIPT", () => {
     expect(run({ pathname: "/overlay/t/abc" }).surface).toBe(OVERLAY_SURFACE);
     expect(run({ pathname: "/overlay/l/abc" }).surface).toBe(OVERLAY_SURFACE);
     expect(run({ pathname: "/dashboard" }).surface).toBeUndefined();
-    expect(run({ pathname: "/bot/abc" }).surface).toBeUndefined();
+  });
+
+  it("marks the bot page's blank widget, never its dock, the way parseBotView reads ?view", () => {
+    expect(run({ pathname: "/bot/abc" }).surface).toBe(OVERLAY_SURFACE);
+    expect(run({ pathname: "/bot/abc", search: "?view=source" }).surface).toBe(OVERLAY_SURFACE);
+    expect(run({ pathname: "/bot/abc", search: "?view=dock" }).surface).toBeUndefined();
+    expect(run({ pathname: "/bot/abc", search: "?view=%20Dock%20" }).surface).toBeUndefined();
+    expect(run({ pathname: "/bot/abc", search: "?view=dock&view=x" }).surface).toBeUndefined();
+    expect(run({ pathname: "/bot/abc", search: "?view=x&view=dock" }).surface).toBe(
+      OVERLAY_SURFACE,
+    );
   });
 
   it.each([

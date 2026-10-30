@@ -6,12 +6,23 @@ import { fileURLToPath } from "node:url";
 import {
   buildTaskStylesConfig,
   buildTimerStylesConfig,
+  clampTaskStyles,
+  clampTimerStyles,
   flattenTaskStyles,
   flattenTimerStyles,
   SINGLETON_ID,
   taskStylesInputSchema,
   timerStylesInputSchema,
 } from "@dirework/api/config-shared";
+import {
+  lengthIssue,
+  TASK_LENGTH_LIMITS,
+  TASK_NUMBER_LIMITS,
+  TIMER_LENGTH_LIMITS,
+  TIMER_NUMBER_LIMITS,
+} from "@dirework/api/style-limits";
+
+import { getAtPath } from "../style-sections";
 
 import {
   defaultTimerStyles,
@@ -57,6 +68,28 @@ describe("themePresets", () => {
     (_id, preset) => {
       expectSavable(timerStylesInputSchema, preset.timerStyles);
       expectSavable(taskStylesInputSchema, preset.taskStyles);
+    },
+  );
+
+  it.each(themePresets.map((p) => [p.id, p] as const))(
+    "preset '%s' sits inside every style limit, so read-time clamping never changes it",
+    (_id, preset) => {
+      for (const [path, limit] of Object.entries(TIMER_LENGTH_LIMITS)) {
+        expect(lengthIssue(getAtPath(preset.timerStyles, path) as string, limit), path).toBeNull();
+      }
+      for (const [path, limit] of Object.entries(TASK_LENGTH_LIMITS)) {
+        expect(lengthIssue(getAtPath(preset.taskStyles, path) as string, limit), path).toBeNull();
+      }
+      for (const [path, [min, max]] of Object.entries(TIMER_NUMBER_LIMITS)) {
+        const value = getAtPath(preset.timerStyles, path) as number;
+        expect(value >= min && value <= max, path).toBe(true);
+      }
+      for (const [path, [min, max]] of Object.entries(TASK_NUMBER_LIMITS)) {
+        const value = getAtPath(preset.taskStyles, path) as number;
+        expect(value >= min && value <= max, path).toBe(true);
+      }
+      expect(clampTimerStyles(preset.timerStyles)).toEqual(preset.timerStyles);
+      expect(clampTaskStyles(preset.taskStyles)).toEqual(preset.taskStyles);
     },
   );
 

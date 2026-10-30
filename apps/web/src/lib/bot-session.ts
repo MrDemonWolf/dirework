@@ -4,7 +4,9 @@
  *
  * Owns: getSession bootstrap (with startup + hourly Twitch validation), the
  * bounded auth-failure recovery loop, retry backoff, the "no bot account yet"
- * slow poll, and serialized chat ingest of Dirework commands only.
+ * slow poll, the one-bot-page lease (claim before joining chat, a heartbeat
+ * every BOT_HEARTBEAT_MS, standby + take over), and serialized chat ingest of
+ * Dirework commands only, with a per-viewer flood brake (viewer-throttle.ts).
  *
  * Secrets: the chat token is handed straight to the IRC client and kept only
  * for the rotation comparison — never emitted in an event.
@@ -16,16 +18,28 @@ import { MAX_RELAYED_MESSAGE_LENGTH, truncateToLength } from "@dirework/api/chat
 import type { DockCommandResult } from "./bot-dock-commands";
 import { classifyBotError } from "./bot-session-errors";
 import type { IrcChatMessage, IrcClientCallbacks, IrcCredentials, IrcStatus } from "./irc-client";
+import { BOT_HEARTBEAT_MS } from "./poll-intervals";
 import { createSerialQueue } from "./serial-queue";
+import { createViewerThrottle } from "./viewer-throttle";
 
 /**
  * - `not-configured`: no bot account (or owner) yet — keeps polling slowly so
  *   connecting the bot from the dashboard picks up without reloading OBS.
+ * - `standby`: another open bot page holds the chat lease, so this one stays
+ *   off IRC. It checks the lease every BOT_HEARTBEAT_MS and takes over once the
+ *   other page stops renewing it (closed), or at once on `takeOver()`.
  * - `invalid`: the bot link was never valid. `revoked`: it was reset.
  * - `reauth`: the link is fine but the bot's Twitch login can no longer be
  *   refreshed (or Twitch kept rejecting it) — reconnect the bot account.
  */
-export type BotPhase = "boot" | "live" | "not-configured" | "invalid" | "revoked" | "reauth";
+export type BotPhase =
+  | "boot"
+  | "live"
+  | "standby"
+  | "not-configured"
+  | "invalid"
+  | "revoked"
+  | "reauth";
 
 export type BotActivityKind = "info" | "chat" | "reply" | "error";
 
@@ -60,6 +74,8 @@ export function isLoginRefreshError(message: string): boolean {
 export type BotIngestInput =
   | {
       token: string;
+      /** This page's lease id: the server refuses a page another one took over from. */
+      instanceId: string;
       kind: "message";
       username: string;
       displayName?: string;
@@ -70,7 +86,14 @@ export type BotIngestInput =
       /** IRC message id; the server dedupes on it when two bot pages relay the same line. */
       messageId?: string;
     }
-  | { token: string; kind: "clearchat"; targetUsername: string };
+  | { token: string; instanceId: string; kind: "clearchat"; targetUsername: string };
+
+export interface BotLeaseInput {
+  token: string;
+  instanceId: string;
+  /** Force the lease to this page (the dock's "Take over"). */
+  takeover?: boolean;
+}
 
 export interface BotSessionInfo {
   channelName: string;
@@ -99,6 +122,10 @@ export interface BotSessionApi {
   }): Promise<BotSessionInfo>;
   /** `muted` is the state after the line ran; absent for clearchat and older api workers. */
   ingest(input: BotIngestInput): Promise<{ replies: string[]; muted?: boolean }>;
+  /** Take or renew the chat lease; `holder: false` means another page holds it. */
+  heartbeat(input: BotLeaseInput): Promise<{ holder: boolean }>;
+  /** Give the lease up as the page closes. Fire-and-forget: the page is going away. */
+  release(input: { token: string; instanceId: string }): void;
 }
 
 /** The slice of TwitchIrcClient the session drives. */
@@ -136,6 +163,11 @@ export interface BotSessionEvents {
 
 export interface BotSessionOptions {
   token: string;
+  /**
+   * This page load's lease id (crypto.randomUUID once per load). The dock's Reconnect keeps
+   * it, so a restarted session renews its own lease instead of waiting on itself.
+   */
+  instanceId: string;
   api: BotSessionApi;
   createClient: (callbacks: IrcClientCallbacks) => BotIrcClient;
   events: BotSessionEvents;
@@ -153,6 +185,13 @@ export interface BotSession {
    * are NOT posted to Twitch chat. One request per call; never retried.
    */
   runCommand(line: string): Promise<DockCommandResult>;
+  /**
+   * In standby, force the lease to this page and go live (one getSession + one heartbeat).
+   * The page that held it sees it lost on its next heartbeat or relayed command and stands by.
+   */
+  takeOver(): void;
+  /** The page is closing: give the lease up if this session holds it. */
+  release(): void;
 }
 
 /**
@@ -177,6 +216,11 @@ export const RETRY_MAX_MS = 5 * 60 * 1000;
  */
 export const MAX_PENDING_INGESTS = 20;
 
+/** Logged once per burst when a viewer's commands start being dropped by the throttle. */
+export function viewerThrottledMessage(name: string): string {
+  return `${name} is sending commands too fast — ignoring them for a moment`;
+}
+
 /** Capped exponential backoff with ±20% jitter so many tabs don't retry in lockstep. */
 export function retryDelayMs(attempt: number, random: () => number = Math.random): number {
   const base = Math.min(RETRY_BASE_MS * 2 ** attempt, RETRY_MAX_MS);
@@ -185,6 +229,7 @@ export function retryDelayMs(attempt: number, random: () => number = Math.random
 
 export function createBotSession({
   token,
+  instanceId,
   api,
   createClient,
   events,
@@ -211,8 +256,15 @@ export function createBotSession({
   let retryAttempts = 0;
   let revalidateTimer: ReturnType<typeof setInterval> | null = null;
   const pendingTimers = new Set<ReturnType<typeof setTimeout>>();
+  // The chat lease: standing by (off IRC) while another page holds it. `leaseEpoch` bumps on
+  // every live/standby switch, so a heartbeat answer that crossed one is ignored.
+  let standby = false;
+  let holdsLease = false;
+  let leaseEpoch = 0;
+  let heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
 
   const inactive = () => disposed || revoked;
+  const viewerThrottle = createViewerThrottle();
 
   const later = (fn: () => void, ms: number) => {
     const timer = setTimeout(() => {
@@ -227,10 +279,92 @@ export function createBotSession({
   const stop = (next: "revoked" | "reauth") => {
     if (revoked) return;
     revoked = true;
+    clearHeartbeat();
     events.onPhase(next);
     client.dispose();
   };
   const enterRevoked = () => stop("revoked");
+
+  function clearHeartbeat() {
+    if (heartbeatTimer) clearTimeout(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+
+  /** The next lease check-in, live or in standby. Only one is ever pending. */
+  function scheduleHeartbeat() {
+    clearHeartbeat();
+    heartbeatTimer = setTimeout(() => {
+      heartbeatTimer = null;
+      if (!inactive()) void heartbeat();
+    }, BOT_HEARTBEAT_MS);
+  }
+
+  /**
+   * Another page holds the chat: leave IRC and check the lease every BOT_HEARTBEAT_MS
+   * (taking over once it expires). No getSession, no hourly revalidation meanwhile.
+   */
+  function enterStandby() {
+    if (inactive() || standby) return;
+    standby = true;
+    holdsLease = false;
+    leaseEpoch += 1;
+    client.disconnect();
+    events.onPhase("standby");
+    events.onActivity("info", "the bot is running in another bot page — standing by");
+    scheduleHeartbeat();
+  }
+
+  async function heartbeat(): Promise<void> {
+    const epoch = leaseEpoch;
+    let holder: boolean;
+    try {
+      ({ holder } = await api.heartbeat({ token, instanceId }));
+    } catch (err) {
+      if (inactive() || epoch !== leaseEpoch) return;
+      const kind = classifyBotError(err);
+      if (kind === "revoked" || kind === "invalid-link") {
+        enterRevoked();
+        return;
+      }
+      // Transient: keep the current state and check again next tick. A live page keeps its
+      // chat (a missed check-in is what the 5-minute lease absorbs).
+      scheduleHeartbeat();
+      return;
+    }
+    if (inactive() || epoch !== leaseEpoch) return;
+    if (standby && holder) {
+      // The other page stopped renewing (closed): this one now holds the lease, so go live.
+      events.onActivity("info", "the other bot page stopped — taking over");
+      void bootstrap({ claimed: true });
+      return;
+    }
+    if (!standby && !holder) {
+      enterStandby();
+      return;
+    }
+    scheduleHeartbeat();
+  }
+
+  /**
+   * Claim the lease before joining chat. Resolves false when another page holds it, null
+   * when the bot link was reset. A failed request fails OPEN (true): an api blip, or an api
+   * worker from before the lease, must not keep the only bot page off chat; its next
+   * heartbeat settles who holds it.
+   */
+  async function claimLease(takeover: boolean): Promise<boolean | null> {
+    try {
+      const { holder } = await api.heartbeat({
+        token,
+        instanceId,
+        takeover: takeover || undefined,
+      });
+      return holder;
+    } catch (err) {
+      const kind = classifyBotError(err);
+      if (kind === "revoked" || kind === "invalid-link") return null;
+      return true;
+    }
+  }
 
   /**
    * Relay one chat line to the stateless API. Mutations are deliberately not
@@ -252,7 +386,11 @@ export function createBotSession({
       return result.replies;
     } catch (err) {
       lastIngestOk = false;
-      if (classifyBotError(err) === "revoked") enterRevoked();
+      const kind = classifyBotError(err);
+      if (kind === "revoked") enterRevoked();
+      // Another page took the chat over: this one must stop relaying now, not at its next
+      // heartbeat.
+      else if (kind === "standby") enterStandby();
       else events.onActivity("error", INGEST_DROPPED_MESSAGE);
       return [];
     }
@@ -298,6 +436,16 @@ export function createBotSession({
     // would each cost a free-tier Worker request for nothing. The server still
     // decides what actually runs (disabled commands, permissions).
     if (!isDireworkCommandLine(text, aliasKeys)) return;
+    // Per-viewer flood brake, before any request: past VIEWER_COMMAND_LIMIT commands
+    // in VIEWER_COMMAND_WINDOW_MS a viewer's lines are dropped here, so spam costs
+    // no Worker request or D1 read. Never the broadcaster or a mod.
+    if (!chat.isBroadcaster && !chat.isMod) {
+      const verdict = viewerThrottle.check(chat.twitchId);
+      if (verdict === "throttled") {
+        events.onActivity("info", viewerThrottledMessage(chat.displayName ?? chat.username));
+      }
+      if (verdict !== "allowed") return;
+    }
     // Clamp to bot.ingest's own cap so the relay always passes its schema (a
     // rejected line would drop the command with no reply). truncateToLength
     // counts UTF-16 units and never splits an emoji; zod counts code points,
@@ -308,6 +456,7 @@ export function createBotSession({
     void (async () => {
       const replies = await ingest({
         token,
+        instanceId,
         kind: "message",
         username: chat.username,
         displayName: chat.displayName,
@@ -317,7 +466,8 @@ export function createBotSession({
         isMod: chat.isMod,
         messageId: chat.messageId,
       });
-      if (inactive()) return;
+      // Standing by now: the page that took over answers chat.
+      if (inactive() || standby) return;
       for (const reply of replies) {
         client.say(reply);
         events.onCounter("replies");
@@ -344,7 +494,7 @@ export function createBotSession({
       if (inactive()) return;
       events.onActivity("info", `clearchat: ${targetUsername} — removing their tasks`);
       // No replies expected for moderation events.
-      void ingest({ token, kind: "clearchat", targetUsername });
+      void ingest({ token, instanceId, kind: "clearchat", targetUsername });
     },
     onError: (message) => {
       if (inactive()) return;
@@ -410,7 +560,13 @@ export function createBotSession({
     });
   }
 
-  async function bootstrap(opts: { forceRefresh?: boolean } = {}): Promise<void> {
+  /**
+   * `takeover`: force the chat lease to this page (the dock's button). `claimed`: a standby
+   * heartbeat already took the lease, so skip the claim.
+   */
+  async function bootstrap(
+    opts: { forceRefresh?: boolean; takeover?: boolean; claimed?: boolean } = {},
+  ): Promise<void> {
     try {
       // Validate against Twitch on startup too, not only hourly. forceRefresh
       // already mints a fresh token, so it skips the extra check.
@@ -423,6 +579,25 @@ export function createBotSession({
       events.onSessionRefreshed();
       retryAttempts = 0;
       notConfigured = false;
+      // One bot page on chat at a time: claim the lease before joining. Only once a session
+      // exists, so a page with no bot account yet never holds it.
+      if (!opts.claimed) {
+        const holder = await claimLease(opts.takeover === true);
+        if (inactive()) return;
+        if (holder === null) {
+          // getSession accepted the link a moment ago, so it was reset just now.
+          enterRevoked();
+          return;
+        }
+        if (!holder) {
+          enterStandby();
+          return;
+        }
+      }
+      standby = false;
+      holdsLease = true;
+      leaseEpoch += 1;
+      scheduleHeartbeat();
       wasLive = true;
       events.onPhase("live");
       applyAliases(session);
@@ -480,7 +655,8 @@ export function createBotSession({
   function startRevalidateLoop(): void {
     if (revalidateTimer) return;
     revalidateTimer = setInterval(() => {
-      if (inactive()) return;
+      // Standing by holds no chat token worth checking; taking over fetches a fresh one.
+      if (inactive() || standby) return;
       void revalidate();
     }, REVALIDATE_INTERVAL_MS);
   }
@@ -488,7 +664,7 @@ export function createBotSession({
   async function revalidate(): Promise<void> {
     try {
       const session = await api.getSession({ token, revalidate: true });
-      if (inactive()) return;
+      if (inactive() || standby) return;
       events.onSessionRefreshed();
       // Alias edits on the dashboard reach a running page here (or on reload).
       applyAliases(session);
@@ -524,11 +700,19 @@ export function createBotSession({
   void bootstrap();
 
   async function runCommand(line: string): Promise<DockCommandResult> {
-    if (inactive() || !wasLive || notConfigured || !broadcasterId || !currentChannelName) {
+    if (
+      inactive() ||
+      standby ||
+      !wasLive ||
+      notConfigured ||
+      !broadcasterId ||
+      !currentChannelName
+    ) {
       return { ok: false, reason: "not-ready" };
     }
     const input: BotIngestInput = {
       token,
+      instanceId,
       kind: "message",
       // The streamer's own login and id: the server derives broadcaster (and so mod)
       // privileges from the id, exactly as for a line they typed in chat.
@@ -551,8 +735,13 @@ export function createBotSession({
         for (const reply of result.replies) events.onActivity("reply", `→ (dock) ${reply}`);
         return { ok: true, replies: result.replies };
       } catch (err) {
-        if (classifyBotError(err) === "revoked") {
+        const kind = classifyBotError(err);
+        if (kind === "revoked") {
           enterRevoked();
+          return { ok: false, reason: "not-ready" };
+        }
+        if (kind === "standby") {
+          enterStandby();
           return { ok: false, reason: "not-ready" };
         }
         events.onActivity("error", `couldn't send ${line} to DireWork`);
@@ -561,12 +750,30 @@ export function createBotSession({
     });
   }
 
+  function takeOver(): void {
+    // Leaving standby here also makes a second click a no-op.
+    if (inactive() || !standby) return;
+    standby = false;
+    clearHeartbeat();
+    leaseEpoch += 1; // a heartbeat already in flight must not undo the takeover
+    events.onPhase("boot");
+    events.onActivity("info", "taking over from the other bot page");
+    void bootstrap({ takeover: true });
+  }
+
   return {
     runCommand,
+    takeOver,
+    release() {
+      if (inactive() || !holdsLease) return;
+      holdsLease = false;
+      api.release({ token, instanceId });
+    },
     dispose() {
       disposed = true;
       for (const timer of pendingTimers) clearTimeout(timer);
       pendingTimers.clear();
+      clearHeartbeat();
       if (revalidateTimer) clearInterval(revalidateTimer);
       client.dispose();
     },

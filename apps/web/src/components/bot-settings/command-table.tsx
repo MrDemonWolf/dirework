@@ -8,6 +8,7 @@ import type { CommandRow } from "@/lib/command-rows";
 import { aliasedCommand, commandName } from "@/lib/command-rows";
 import { cn } from "@/lib/utils";
 import { StatusChip } from "@/components/status-chip";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * From `sm` up: Command · Usage · Who · Aliases columns. On a phone the usage line moves
@@ -23,8 +24,11 @@ export function CommandTable({
   /** Names the table for screen readers (visually hidden). */
   caption: string;
   commands: readonly CommandRow[];
-  /** Canonical aliases by target command name (`aliasesByTarget`). */
-  aliases: ReadonlyMap<string, string[]>;
+  /**
+   * Canonical aliases by target command name (`aliasesByTarget`). `null` while the config is
+   * still streaming in (the Commands page placeholder): each alias cell is then a skeleton.
+   */
+  aliases: ReadonlyMap<string, string[]> | null;
   disabled?: boolean;
 }) {
   return (
@@ -53,7 +57,7 @@ export function CommandTable({
       </thead>
       <tbody className="divide-y divide-border/40">
         {commands.map((row) => {
-          const rowAliases = aliases.get(commandName(row)) ?? [];
+          const rowAliases = aliases?.get(commandName(row)) ?? [];
           // A usage line that only repeats the command (`!today`) says nothing new.
           const usage = row.usage === row.command ? null : row.usage;
           return (
@@ -78,7 +82,9 @@ export function CommandTable({
                 )}
               </td>
               <td className="py-2.5">
-                {rowAliases.length === 0 ? (
+                {aliases === null ? (
+                  <Skeleton className="my-0.5 h-3 w-6" />
+                ) : rowAliases.length === 0 ? (
                   <span className="text-xs text-muted-foreground">
                     <span aria-hidden>—</span>
                     <span className="sr-only">None</span>

@@ -12,7 +12,9 @@ import {
 import type { Context } from "../context";
 import { botIngestInputSchema } from "../routers/bot";
 import { appRouter } from "../routers/index";
+import { MAX_OPEN_TASKS } from "../config-defaults";
 import { taskRestoreInput } from "../routers/input-schemas";
+import { TASK_LIST_FULL_MESSAGE } from "../routers/task";
 import { createSqliteDb } from "./helpers/sqlite-db";
 
 /**
@@ -59,11 +61,11 @@ function makeDb(rows: DbRows = {}) {
   const db = {
     query: {
       task: {
-        // The bounded done-task read is the only task findMany with a `limit`;
-        // seeded rows are open tasks, so it sees none (real SQL is covered by
-        // the sqlite suites).
-        findMany: async (args?: { limit?: number }) =>
-          args?.limit === undefined ? (rows.tasks ?? []) : [],
+        // The bounded done-task read is the only task findMany with an
+        // `orderBy`; seeded rows are open tasks, so it sees none (real SQL is
+        // covered by the sqlite suites).
+        findMany: async (args?: { orderBy?: unknown }) =>
+          args?.orderBy === undefined ? (rows.tasks ?? []) : [],
         findFirst: async () => rows.tasks?.[0],
       },
       timerState: { findFirst: async () => rows.timerState },
@@ -159,7 +161,9 @@ function caller(session: unknown, rows: DbRows = {}) {
 /** Every procedure reachable without a session. Everything else must be owner-only. */
 const PUBLIC_PROCEDURES = [
   "bot.getSession",
+  "bot.heartbeat",
   "bot.ingest",
+  "bot.release",
   "overlay.getTaskList",
   "overlay.getTimerState",
   "user.hasOwner",
@@ -257,6 +261,175 @@ describe("task.restore (undo of a dashboard removal)", () => {
   });
 });
 
+describe("task.create and task.restore against real SQLite", () => {
+  const OWNER = {
+    id: "u1",
+    name: "streamer",
+    email: "owner@example.test",
+    twitchId: "owner-1",
+    displayName: "Streamer",
+    isOwner: true,
+  };
+
+  async function claimedInstance(
+    owner: typeof OWNER | (Omit<typeof OWNER, "twitchId"> & { twitchId: null }) = OWNER,
+  ) {
+    const { db } = await createSqliteDb();
+    await provisionSingletonRows(db);
+    await db.insert(schema.user).values(owner);
+    const caller = appRouter.createCaller({
+      session: { user: { ...owner } },
+      db,
+    } as unknown as Context);
+    return { db, owner: caller };
+  }
+
+  async function fillOpenTasks(db: Awaited<ReturnType<typeof createSqliteDb>>["db"], n: number) {
+    await db.insert(schema.task).values(
+      Array.from({ length: n }, (_, i) => ({
+        id: `fill-${i}`,
+        authorTwitchId: String(5000 + i),
+        authorUsername: `viewer${i}`,
+        authorDisplayName: `Viewer${i}`,
+        text: `task ${i}`,
+        status: "pending",
+        priority: 1,
+        order: i + 1,
+      })),
+    );
+  }
+
+  it("task.create derives the author from the authenticated owner", async () => {
+    const { db, owner } = await claimedInstance();
+
+    await owner.task.create({ text: "write the docs" });
+
+    const rows = await db.query.task.findMany();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      authorTwitchId: "owner-1",
+      authorUsername: "streamer",
+      authorDisplayName: "Streamer",
+      text: "write the docs",
+      priority: 0,
+      status: "active",
+    });
+  });
+
+  it("uses the linked Twitch account when a legacy owner row has no custom Twitch ID", async () => {
+    const { db, owner } = await claimedInstance({ ...OWNER, twitchId: null });
+    const now = new Date();
+    await db.insert(schema.account).values({
+      id: "acct",
+      accountId: "owner-1",
+      providerId: "twitch",
+      userId: OWNER.id,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await owner.task.create({ text: "write the docs" });
+    const me = await owner.user.me();
+
+    const [row] = await db.query.task.findMany();
+    expect(row).toMatchObject({ authorTwitchId: "owner-1", priority: 0 });
+    expect(me?.twitchId).toBe("owner-1");
+  });
+
+  it("strips bidi overrides and zero-width characters from dashboard task text", async () => {
+    const { db, owner } = await claimedInstance();
+
+    await owner.task.create({ text: "\u202Eabc\u200B def" });
+
+    const [row] = await db.query.task.findMany();
+    expect(row?.text).toBe("abc def");
+  });
+
+  it("refuses task text that is only invisible characters", async () => {
+    const { db, owner } = await claimedInstance();
+
+    await expect(owner.task.create({ text: "\u200B\u202E\u2066" })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+    expect(await db.query.task.findMany()).toHaveLength(0);
+  });
+
+  it("task.create refuses a new task once the list holds MAX_OPEN_TASKS", async () => {
+    const { db, owner } = await claimedInstance();
+    await fillOpenTasks(db, MAX_OPEN_TASKS);
+
+    await expect(owner.task.create({ text: "one too many" })).rejects.toMatchObject({
+      code: "PRECONDITION_FAILED",
+      message: TASK_LIST_FULL_MESSAGE,
+    });
+    expect(await db.$count(schema.task)).toBe(MAX_OPEN_TASKS);
+  });
+
+  const removed = {
+    id: "gone",
+    authorTwitchId: "100",
+    authorUsername: "viewer",
+    authorDisplayName: "Viewer",
+    authorColor: null,
+    text: "write the docs",
+    status: "pending" as const,
+    priority: 1,
+    order: 3,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    completedAt: null,
+  };
+
+  it("task.restore refuses an open task once the list is full, but not a done one", async () => {
+    const { db, owner } = await claimedInstance();
+    await fillOpenTasks(db, MAX_OPEN_TASKS);
+
+    await expect(owner.task.restore(removed)).rejects.toMatchObject({
+      code: "PRECONDITION_FAILED",
+    });
+    await expect(
+      owner.task.restore({
+        ...removed,
+        status: "done",
+        completedAt: new Date().toISOString(),
+      }),
+    ).resolves.toMatchObject({ id: "gone", status: "done" });
+  });
+
+  it("task.restore of an id that is already back is a quiet no-op", async () => {
+    const { owner } = await claimedInstance();
+
+    await expect(owner.task.restore(removed)).resolves.toMatchObject({ id: "gone" });
+    await expect(owner.task.restore(removed)).resolves.toBeNull();
+  });
+
+  it("task.restore accepts the owner's own non-Twitch author key and name", async () => {
+    // A local dev owner has no Twitch account: dashboard tasks carry the user id and name.
+    const devOwner = { ...OWNER, id: "devownerid123", name: "Wolf Streamer", twitchId: null };
+    const { owner } = await claimedInstance(devOwner);
+
+    await expect(
+      owner.task.restore({
+        ...removed,
+        authorTwitchId: "devownerid123",
+        authorUsername: "Wolf Streamer",
+        authorDisplayName: "Wolf Streamer",
+      }),
+    ).resolves.toMatchObject({ id: "gone", authorTwitchId: "devownerid123" });
+  });
+
+  it.each([
+    ["a non-numeric id that is not the owner's", { authorTwitchId: "someoneelse" }],
+    ["a login with spaces that is not the owner's name", { authorUsername: "not a login" }],
+  ])("task.restore rejects %s", async (_label, patch) => {
+    const { db, owner } = await claimedInstance();
+
+    await expect(owner.task.restore({ ...removed, ...patch })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+    expect(await db.query.task.findMany()).toHaveLength(0);
+  });
+});
+
 describe("input validation through the real procedures", () => {
   it("rejects empty task text", async () => {
     const { caller: owner } = caller(ownerSession);
@@ -332,53 +505,6 @@ describe("input validation through the real procedures", () => {
 });
 
 describe("database effects of owner mutations", () => {
-  it("task.create derives the author from the authenticated owner", async () => {
-    const { caller: owner, inserted } = caller(ownerSession, { tasks: [] });
-
-    await owner.task.create({ text: "write the docs" });
-
-    expect(inserted).toHaveLength(1);
-    expect(inserted[0]).toMatchObject({
-      authorTwitchId: "owner-1",
-      authorUsername: "streamer",
-      authorDisplayName: "Streamer",
-      text: "write the docs",
-      priority: 0,
-    });
-  });
-
-  it("uses the linked Twitch account when a legacy owner row has no custom Twitch ID", async () => {
-    const legacyOwnerSession = {
-      user: {
-        id: "u1",
-        isOwner: true,
-        name: "streamer",
-        twitchId: null,
-        displayName: "Streamer",
-      },
-    };
-    const rows = {
-      tasks: [],
-      user: {
-        id: "u1",
-        twitchId: null,
-        name: "streamer",
-        displayName: "Streamer",
-      },
-      twitchAccount: { accountId: "owner-1" },
-    };
-    const { caller: owner, inserted } = caller(legacyOwnerSession, rows);
-
-    await owner.task.create({ text: "write the docs" });
-    const me = await owner.user.me();
-
-    expect(inserted[0]).toMatchObject({
-      authorTwitchId: "owner-1",
-      priority: 0,
-    });
-    expect(me?.twitchId).toBe("owner-1");
-  });
-
   it("timer.pause writes a paused state derived from the running timer", async () => {
     const { caller: owner, updated } = caller(ownerSession, {
       timerState: {
@@ -554,7 +680,13 @@ describe("database effects of owner mutations", () => {
 
     expect(updated).toEqual([
       { overlayTasksToken: token, setupTasksOverlayConfirmed: false },
-      { botToken, setupBotSourceConfirmed: false },
+      // The same UPDATE frees the bot page lease the old URL's page held.
+      {
+        botToken,
+        setupBotSourceConfirmed: false,
+        botLeaseInstanceId: null,
+        botLeaseSeenAt: null,
+      },
     ]);
     // No bot account connected: only the URL rotates, nothing to revoke.
     expect(chatToken).toBe("no-account");
@@ -981,5 +1113,102 @@ describe("config.updateBotSettings partial saves against real SQLite", () => {
     await expect(owner.config.updateBotSettings({})).rejects.toMatchObject({
       code: "BAD_REQUEST",
     });
+  });
+});
+
+describe("dashboard stats against real SQLite", () => {
+  const OWNER = {
+    id: "owner",
+    name: "streamer",
+    email: "owner@example.test",
+    twitchId: "1000",
+    displayName: "Streamer",
+    isOwner: true,
+  };
+  const session = { user: { ...OWNER } };
+
+  async function claimedInstance() {
+    const { db } = await createSqliteDb();
+    await provisionSingletonRows(db);
+    await db.insert(schema.user).values(OWNER);
+    return { db, owner: appRouter.createCaller({ session, db } as unknown as Context) };
+  }
+
+  it("stats.summary starts empty, then counts a task the owner marks done", async () => {
+    const { owner } = await claimedInstance();
+
+    const empty = await owner.stats.summary();
+    expect(empty.today).toMatchObject({ focusMs: 0, pomodoros: 0, tasksDone: 0 });
+    expect(empty.days).toHaveLength(14);
+    expect(empty.timeZone).toBe("UTC");
+
+    const task = await owner.task.create({ text: "ship stats" });
+    await owner.task.markDone({ id: task?.id ?? "" });
+
+    const after = await owner.stats.summary();
+    expect(after.today).toMatchObject({ tasksDone: 1, tasksDoneChat: 0 });
+    expect(after.week.tasksDone).toBe(1);
+  });
+
+  it("task.markDone completes a task parked as started by a focus switch", async () => {
+    const { db, owner } = await claimedInstance();
+    const first = await owner.task.create({ text: "first" });
+    const second = await owner.task.create({ text: "second" });
+    await owner.task.activate({ id: second?.id ?? "" });
+    const parked = await db.query.task.findFirst({
+      where: (t, { eq }) => eq(t.id, first?.id ?? ""),
+    });
+    expect(parked?.status).toBe("started");
+
+    expect(await owner.task.markDone({ id: first?.id ?? "" })).toMatchObject({ status: "done" });
+    const focus = await db.query.task.findFirst({
+      where: (t, { eq }) => eq(t.id, second?.id ?? ""),
+    });
+    expect(focus?.status).toBe("active");
+    expect((await owner.stats.summary()).today.tasksDone).toBe(1);
+  });
+
+  it("stats.summary counts phases that ended while nobody was watching", async () => {
+    const { db, owner } = await claimedInstance();
+    // A work phase that ended a minute ago, never advanced by any poll.
+    const overdue = {
+      status: "work" as const,
+      targetEndTime: new Date(Date.now() - 60_000),
+      currentCycle: 1,
+    };
+    await db
+      .insert(schema.timerState)
+      .values(overdue)
+      .onConflictDoUpdate({ target: schema.timerState.id, set: overdue });
+
+    const summary = await owner.stats.summary();
+
+    expect(summary.today.pomodoros).toBe(1);
+    expect(summary.today.focusMs).toBe(1_500_000);
+    expect((await owner.timer.get())?.status).toBe("break");
+  });
+
+  it("user.setTimeZone stores a valid zone once and me reports it", async () => {
+    const { owner } = await claimedInstance();
+    expect((await owner.user.me())?.timeZone).toBeNull();
+
+    await expect(owner.user.setTimeZone({ timeZone: "America/Chicago" })).resolves.toEqual({
+      timeZone: "America/Chicago",
+      changed: true,
+    });
+    await expect(owner.user.setTimeZone({ timeZone: "America/Chicago" })).resolves.toEqual({
+      timeZone: "America/Chicago",
+      changed: false,
+    });
+    expect((await owner.user.me())?.timeZone).toBe("America/Chicago");
+    expect((await owner.stats.summary()).timeZone).toBe("America/Chicago");
+  });
+
+  it.each(["Mars/Olympus", "", "x".repeat(65)])("user.setTimeZone rejects %j", async (timeZone) => {
+    const { owner } = await claimedInstance();
+    await expect(owner.user.setTimeZone({ timeZone })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+    expect((await owner.user.me())?.timeZone).toBeNull();
   });
 });

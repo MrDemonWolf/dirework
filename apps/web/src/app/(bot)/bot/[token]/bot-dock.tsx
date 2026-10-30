@@ -2,9 +2,9 @@
 
 /**
  * The bot page's dock layout (`/bot/<token>?view=dock`): a narrow, tall control panel for an
- * OBS custom browser dock (View → Docks → Custom Browser Docks). It wears OBS Studio's default
- * dark theme (Yami: the `obs-*` color tokens) so it sits in OBS like a native dock, in every
- * app theme. The session, its state and every request live in `bot-console.tsx`; nothing here
+ * OBS custom browser dock (View → Docks → Custom Browser Docks) or a pinned browser tab, where
+ * it stays a centered column on the same grey. It wears OBS Studio's default dark theme (Yami:
+ * the `obs-*` color tokens) so it sits in OBS like a native dock, in every app theme. The session, its state and every request live in `bot-console.tsx`; nothing here
  * fetches or polls.
  *
  * Command buttons send ordinary chat command lines (`!timer pause`, `!mute`, `!clear done`)
@@ -13,7 +13,7 @@
  */
 
 import { RotateCw } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useRef } from "react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
@@ -77,6 +77,7 @@ export function BotDock({
   lastError,
   reconnectDisabled,
   onReconnect,
+  onTakeOver,
   controls,
   onCommand,
   pending,
@@ -94,6 +95,8 @@ export function BotDock({
   lastError: { time: string; text: string } | null;
   reconnectDisabled: boolean;
   onReconnect: () => void;
+  /** Standby only: run the bot here; the page that had it stands by. */
+  onTakeOver: () => void;
   controls: DockControls;
   onCommand: (id: DockCommandId) => void;
   /** The command in flight, if any. */
@@ -102,6 +105,7 @@ export function BotDock({
   result: { time: string; text: string; ok: boolean } | null;
 }) {
   const recent = recentCommandLines(activity, RECENT_LIMIT);
+  const statusRef = useRef<HTMLSpanElement>(null);
 
   const commandButton = (id: DockCommandId, tone: keyof typeof BUTTON_TONE = "default") => {
     const command = DOCK_COMMANDS[id];
@@ -138,16 +142,45 @@ export function BotDock({
   return (
     <main
       aria-label="DireWork bot dock"
-      className="flex h-dvh w-full min-w-0 flex-col overflow-y-auto bg-obs-window font-sans text-xs text-obs-text"
+      className="mx-auto flex h-dvh w-full max-w-md min-w-0 flex-col overflow-y-auto font-sans text-xs text-obs-text"
     >
-      {/* Title bar, like a QDockWidget title: grey5 with a grey4 rule. */}
-      <header className="flex items-center gap-2 border-b border-obs-control bg-obs-title px-2 py-1.5">
-        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${ledClass}`} aria-hidden="true" />
-        <span role="status" className="min-w-0 truncate text-sm font-semibold">
-          {statusText}
-        </span>
-        <span className="ml-auto shrink-0 text-2xs font-semibold text-obs-text">DireWork Bot</span>
-      </header>
+      {/* Pinned strip: the title bar plus the two controls a streamer reaches for mid-stream
+          (Mute / Unmute, Reconnect). It sticks to the top of the scrolling dock, so a short
+          dock (about 400×200, or 240 wide) never hides them below the fold. */}
+      <div className="sticky top-0 z-10 shrink-0 bg-obs-title">
+        {/* Title bar, like a QDockWidget title: grey5 with a grey4 rule. */}
+        <header className="flex items-center gap-2 border-b border-obs-control bg-obs-title px-2 py-1.5">
+          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${ledClass}`} aria-hidden="true" />
+          <span
+            ref={statusRef}
+            role="status"
+            // Focus target after Take over, whose button unmounts with the standby notice.
+            tabIndex={-1}
+            className="min-w-0 truncate text-sm font-semibold outline-none"
+          >
+            {statusText}
+          </span>
+          <span className="ml-auto shrink-0 text-2xs font-semibold text-obs-text">
+            DireWork Bot
+          </span>
+        </header>
+        <section
+          aria-label="Bot"
+          className="grid grid-cols-2 gap-1 border-b border-obs-control bg-obs-base px-2 py-1"
+        >
+          {commandButton(controls.muteToggle, muted ? "primary" : "default")}
+          <button
+            type="button"
+            onClick={onReconnect}
+            disabled={reconnectDisabled}
+            title="Restart the bot's Twitch connection"
+            className={`${BUTTON} ${BUTTON_TONE.default}`}
+          >
+            <RotateCw className="size-3" aria-hidden="true" />
+            Reconnect
+          </button>
+        </section>
+      </div>
 
       <dl className="grid grid-cols-2 gap-x-3 gap-y-0.5 border-b border-obs-control bg-obs-base px-2 py-1.5">
         {(
@@ -165,7 +198,31 @@ export function BotDock({
         ))}
       </dl>
 
-      {phase === "not-configured" ? (
+      {phase === "standby" ? (
+        <section
+          aria-labelledby="bot-standby-heading"
+          className="border-b border-obs-control bg-obs-base px-2 py-2"
+        >
+          <h2 id="bot-standby-heading" className="text-sm font-semibold">
+            The bot is running somewhere else
+          </h2>
+          <p className="mt-0.5 text-obs-muted">
+            Another bot page (an OBS source, dock or tab) is connected to chat, and only one runs at
+            a time. This dock takes over on its own once that page closes.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              onTakeOver();
+              statusRef.current?.focus();
+            }}
+            title="Run the bot in this dock; the other page stands by"
+            className={`${BUTTON} ${BUTTON_TONE.primary} mt-2 w-full`}
+          >
+            Take over
+          </button>
+        </section>
+      ) : phase === "not-configured" ? (
         <p className="border-b border-obs-control px-2 py-1.5 text-obs-muted">
           Connect a bot account in Dashboard → Bot. This dock goes live on its own.
         </p>
@@ -179,22 +236,6 @@ export function BotDock({
         <div className="grid grid-cols-2 gap-1">
           {start ? <div className="col-span-2 grid">{commandButton(start, "primary")}</div> : null}
           {timerRest.map((id) => commandButton(id))}
-        </div>
-      </Section>
-
-      <Section label="Bot">
-        <div className="grid grid-cols-2 gap-1">
-          {commandButton(controls.muteToggle, muted ? "primary" : "default")}
-          <button
-            type="button"
-            onClick={onReconnect}
-            disabled={reconnectDisabled}
-            title="Restart the bot's Twitch connection"
-            className={`${BUTTON} ${BUTTON_TONE.default}`}
-          >
-            <RotateCw className="size-3" aria-hidden="true" />
-            Reconnect
-          </button>
         </div>
       </Section>
 

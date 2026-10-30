@@ -1,6 +1,6 @@
 import type { DbClient } from "@dirework/db";
 
-import { interpolate } from "../chat-text";
+import { interpolate, sanitizeDisplayText } from "../chat-text";
 import type { BotConfigData } from "../config-shared";
 import {
   CHAT_OPEN_TASK_CAP,
@@ -8,6 +8,7 @@ import {
   isBuiltinCommandName,
   MAX_BLOCKED_VIEWERS,
   MAX_CHAT_BYTES,
+  MAX_STARTED_PER_AUTHOR,
   MAX_TASK_LEN,
   MODERATION_COMMANDS,
   normalizeAliasToken,
@@ -24,13 +25,17 @@ import {
   clearDoneTasks,
   createTask,
   editTask,
-  findActiveTaskByUsername,
+  findInProgressTasksByUsername,
   getActiveTask,
+  getViewerInProgressTasks,
   getViewerOpenTasks,
+  inProgressFirst,
   markTaskDone,
+  pauseTask,
   removeTask,
   replaceActiveTask,
   removeTasksByUsername,
+  startTask,
 } from "../services/task-service";
 import {
   getTimerEta,
@@ -72,6 +77,12 @@ export interface MessageContext {
    * can be a display name, so !block compares against this.
    */
   channelLogin?: string | null;
+  /**
+   * The owner's stats time zone, read with the bot token gate (null = UTC). Passed
+   * to every service that records dashboard stats, so a chat line adds no
+   * instance_config read; undefined (tests, other callers) reads it when needed.
+   */
+  timeZone?: string | null;
   config: BotConfigData;
   message: string;
   userInfo: ChatUserInfo;
@@ -116,11 +127,21 @@ export function parsePositionArg(arg: string | undefined): number | null {
   return match?.[1] ? parseInt(match[1], 10) : null;
 }
 
+/**
+ * Task text from a command's words: bidi overrides, invisible characters and
+ * Zalgo stacks removed (`sanitizeDisplayText`, so a reply echoes what is stored
+ * and text that was only invisible characters counts as missing) and capped at
+ * the same MAX_TASK_LEN as the tRPC schema (audit L1).
+ */
+function chatTaskText(words: string[]): string {
+  return truncateToLength(sanitizeDisplayText(words.join(" ")).trim(), MAX_TASK_LEN);
+}
+
 /** `!edit <position> <new text>`, or null when either part is missing. */
 export function parseTaskEditArgs(args: string[]): { position: number; text: string } | null {
   const position = parsePositionArg(args[0]);
   if (args.length < 2 || position === null) return null;
-  const text = truncateToLength(args.slice(1).join(" ").trim(), MAX_TASK_LEN);
+  const text = chatTaskText(args.slice(1));
   return text ? { position, text } : null;
 }
 
@@ -141,7 +162,7 @@ export function parseUserTarget(arg: string): string | null {
  * word a hint would add a D1 round trip to the ingest path (AGENTS.md cost
  * rules). `!today` is where a viewer sees their task numbers.
  */
-const POSITIONAL_USAGE_REPLY = (command: string, displayName: string) =>
+export const POSITIONAL_USAGE_REPLY = (command: string, displayName: string) =>
   `Which task, ${displayName}? Use ${command} [number]. !today lists your open tasks with their numbers.`;
 
 const CLEAR_USAGE_REPLY = (displayName: string) =>
@@ -149,6 +170,9 @@ const CLEAR_USAGE_REPLY = (displayName: string) =>
 
 const DONE_USAGE_REPLY = (displayName: string) =>
   `${displayName}, use !done to finish your current task, or !done [number] for another one. !today lists the numbers.`;
+
+export const PAUSE_USAGE_REPLY = (displayName: string) =>
+  `${displayName}, use !pause to pause your current task, or !pause [number] for another one. !today lists the numbers.`;
 
 const CHECK_USAGE_REPLY = (displayName: string) =>
   `${displayName}, use !check for your own task or !check @user for someone else's.`;
@@ -184,6 +208,36 @@ const NOT_BLOCKED_REPLY = (login: string) => `${login} isn't blocked.`;
 /** Hardcoded like POSITIONAL_USAGE_REPLY: no owner template fits "retry". */
 const STALE_NEXT_REPLY = (displayName: string) =>
   `Your current task changed before I could replace it, ${displayName}. Check it with !check and try !next again.`;
+
+/** Most tasks one viewer can have going at once: the focus plus the started ones. */
+export const MAX_IN_PROGRESS = 1 + MAX_STARTED_PER_AUTHOR;
+
+/**
+ * The `!check` note for a viewer's other started tasks, " (+2 more started)", or
+ * "" when there are none. Built in (no owner template): it rides on the owner's
+ * check reply, which `withCheckSuffix` keeps whole.
+ */
+export function moreStartedSuffix(more: number): string {
+  return more > 0 ? ` (+${more} more started)` : "";
+}
+
+/**
+ * A rendered check reply with the started-count note added: before one closing
+ * "." so the default reads `you're on "x" (+1 more started).`, else at the end.
+ * The template is filled to fit beside the note, so the note is never cut off.
+ */
+export function withCheckSuffix(
+  template: string,
+  vars: Record<string, string>,
+  more: number,
+): string {
+  const suffix = moreStartedSuffix(more);
+  if (!suffix) return interpolate(template, vars);
+  const base = interpolate(template, vars, MAX_CHAT_BYTES - utf8ByteLength(suffix));
+  const out = base.endsWith(".") ? `${base.slice(0, -1)}${suffix}.` : `${base}${suffix}`;
+  // Only a template with no task text to shorten can still be over; cut its end.
+  return utf8ByteLength(out) <= MAX_CHAT_BYTES ? out : truncateToBytes(out, MAX_CHAT_BYTES);
+}
 
 /**
  * Resolve a 1-based position arg to the viewer's nth open task — the lookup
@@ -222,6 +276,8 @@ const TASK_COMMANDS = new Set([
   "!edit",
   "!remove",
   "!focus",
+  "!start",
+  "!pause",
   "!check",
   "!today",
   "!next",
@@ -328,6 +384,12 @@ async function dispatchMessage(ctx: MessageContext, state: ModerationState): Pro
     case "!focus":
       await handleTaskFocus(args, ctx);
       break;
+    case "!start":
+      await handleTaskStart(args, ctx);
+      break;
+    case "!pause":
+      await handleTaskPause(args, ctx);
+      break;
     case "!check":
       await handleTaskCheck(args, ctx);
       break;
@@ -353,7 +415,7 @@ function sayCommandList(ctx: MessageContext): void {
     ctx.say(`${name}, the full command list is here: ${ctx.docsUrl}/docs/chat-commands`);
   } else {
     ctx.say(
-      `${name}, available commands: !dw help, !task, !done, !edit, !remove, !focus, !check, !today, !next, !help, !clear (mods), !timer (mods), !block, !unblock, !mute, !unmute (mods)`,
+      `${name}, available commands: !dw help, !task, !done, !edit, !remove, !focus, !start, !pause, !check, !today, !next, !help, !clear (mods), !timer (mods), !block, !unblock, !mute, !unmute (mods)`,
     );
   }
 }
@@ -402,15 +464,18 @@ function todayTaskPreview(text: string): string {
  * A short personal plan: current focus, the next two tasks, and a remaining count.
  * Each task carries its 1-based position in `tasks` (the viewer's open list in
  * list order), which is the number `!done`, `!edit`, `!remove` and `!focus` take —
- * the only place in chat a viewer can see those numbers.
+ * the only place in chat a viewer can see those numbers. Display order matches
+ * promotion (`promoteNextPendingStmt`): the focus, then started tasks, then the
+ * rest, each in list order, so "Next" is the task `!done` would resume.
  */
 export function formatTodayPlan(
   displayName: string,
   tasks: readonly { text: string; status: string }[],
 ): string {
   const numbered = tasks.map((task, index) => ({ ...task, position: index + 1 }));
-  const active = numbered.find((task) => task.status === "active");
-  const ordered = active ? [active, ...numbered.filter((task) => task !== active)] : numbered;
+  const rank = (status: string) => (status === "active" ? 0 : status === "started" ? 1 : 2);
+  // Stable sort: equal ranks keep list order, and positions never change.
+  const ordered = [...numbered].sort((a, b) => rank(a.status) - rank(b.status));
   const shown = ordered.slice(0, TODAY_TASK_LIMIT);
   let queuedCount = 0;
   const items = shown.map((task) => {
@@ -438,8 +503,7 @@ async function handleTaskToday(ctx: MessageContext): Promise<void> {
 
 async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void> {
   const { config, userInfo, say, db } = ctx;
-  // L1: the chat path enforces the same MAX_TASK_LEN as the tRPC schema.
-  const text = truncateToLength(args.join(" ").trim(), MAX_TASK_LEN);
+  const text = chatTaskText(args);
   const vars = { user: userInfo.displayName, channel: ctx.channelName, task: text };
 
   if (!text) {
@@ -456,11 +520,12 @@ async function handleTaskAdd(args: string[], ctx: MessageContext): Promise<void>
 
   // isBroadcaster was derived from the owner row bot.ingest already read, so
   // createTask doesn't read it again for this chat line.
-  await createTask(db, userInfo, text, {
+  const created = await createTask(db, userInfo, text, {
     openTaskCount: openTasks.length,
     isBroadcaster: userInfo.isBroadcaster,
   });
-  say(interpolate(config.task.taskAdded, vars));
+  // Null: the whole list is at MAX_OPEN_TASKS, so the same "not added" reply.
+  say(interpolate(created ? config.task.taskAdded : config.task.noTaskAdded, vars));
 }
 
 async function handleTaskDone(args: string[], ctx: MessageContext): Promise<void> {
@@ -486,7 +551,7 @@ async function handleTaskDone(args: string[], ctx: MessageContext): Promise<void
     return;
   }
 
-  await markTaskDone(db, task.id);
+  await markTaskDone(db, task.id, { timeZone: ctx.timeZone });
   say(interpolate(config.task.taskDone, { ...vars, task: task.text }));
 }
 
@@ -562,7 +627,8 @@ async function handleTaskCheck(args: string[], ctx: MessageContext): Promise<voi
       say(CHECK_USAGE_REPLY(userInfo.displayName));
       return;
     }
-    const targetTask = await findActiveTaskByUsername(db, target);
+    // The focus first; a started task stands in only if the focus is missing.
+    const [targetTask, ...more] = await findInProgressTasksByUsername(db, target);
 
     if (!targetTask) {
       say(interpolate(config.task.noTaskOther, vars));
@@ -570,28 +636,117 @@ async function handleTaskCheck(args: string[], ctx: MessageContext): Promise<voi
     }
 
     say(
-      interpolate(config.task.taskCheckUser, {
-        ...vars,
-        user2: targetTask.authorDisplayName,
-        task: targetTask.text,
-      }),
+      withCheckSuffix(
+        config.task.taskCheckUser,
+        { ...vars, user2: targetTask.authorDisplayName, task: targetTask.text },
+        more.length,
+      ),
     );
     return;
   }
 
-  const activeTask = await getActiveTask(db, userInfo.twitchId);
+  // One read of only the focus and started rows (partial index), never the queue.
+  const [activeTask, ...more] = await getViewerInProgressTasks(db, userInfo.twitchId);
 
   if (!activeTask) {
     say(interpolate(config.task.noTask, vars));
     return;
   }
 
-  say(interpolate(config.task.taskCheck, { ...vars, task: activeTask.text }));
+  say(withCheckSuffix(config.task.taskCheck, { ...vars, task: activeTask.text }, more.length));
+}
+
+/**
+ * `!start N`: start the viewer's own task #N (positions from `!today`). With no
+ * focus it becomes the focus; otherwise it is parked as started while the viewer
+ * has fewer than MAX_IN_PROGRESS going. Own tasks only, like !done/!focus. A full
+ * hand is answered from the list already read, with no write; `startTask` still
+ * checks the cap inside its guarded UPDATE, so a race can't pass it.
+ */
+async function handleTaskStart(args: string[], ctx: MessageContext): Promise<void> {
+  const { config, userInfo, say, db } = ctx;
+  const max = String(MAX_IN_PROGRESS);
+  const vars = { user: userInfo.displayName, channel: ctx.channelName, max };
+
+  const position = parsePositionArg(args[0]);
+  if (position === null) {
+    say(POSITIONAL_USAGE_REPLY("!start", userInfo.displayName));
+    return;
+  }
+
+  const openTasks = await getViewerOpenTasks(db, userInfo.twitchId);
+  const task = openTasks[position - 1];
+  if (task?.status !== "pending") {
+    say(interpolate(config.task.noTaskToStart, vars));
+    return;
+  }
+
+  const inProgress = inProgressFirst(openTasks);
+  const hasFocus = inProgress[0]?.status === "active";
+  if (hasFocus && inProgress.length >= MAX_IN_PROGRESS) {
+    say(interpolate(config.task.startCapReached, vars));
+    return;
+  }
+
+  // The row from the list read: startTask doesn't read it again.
+  const result = await startTask(db, task);
+  const taskVars = { ...vars, task: task.text };
+  switch (result.outcome) {
+    case "focused":
+      say(interpolate(config.task.taskStartedFocus, taskVars));
+      return;
+    case "started":
+      say(
+        interpolate(config.task.taskStarted, {
+          ...taskVars,
+          count: String(Math.min(inProgress.length + 1, MAX_IN_PROGRESS)),
+        }),
+      );
+      return;
+    case "cap_reached":
+      say(interpolate(config.task.startCapReached, vars));
+      return;
+    default:
+      say(interpolate(config.task.noTaskToStart, vars));
+  }
+}
+
+/**
+ * `!pause` pauses the viewer's focus (like a bare !done finishes it) and
+ * `!pause N` pauses their task #N, focus or started. A paused task goes back to
+ * waiting; pausing the focus promotes the next one (`pauseTask`).
+ */
+async function handleTaskPause(args: string[], ctx: MessageContext): Promise<void> {
+  const { config, userInfo, say, db } = ctx;
+  const vars = { user: userInfo.displayName, channel: ctx.channelName };
+
+  // Anything but a number is a usage hint: pausing the focus for "!pause lunch"
+  // would answer a question nobody asked.
+  const position = parsePositionArg(args[0]);
+  if (args[0] !== undefined && position === null) {
+    say(PAUSE_USAGE_REPLY(userInfo.displayName));
+    return;
+  }
+
+  const task =
+    position !== null
+      ? await getTaskAtPosition(db, userInfo.twitchId, position)
+      : await getActiveTask(db, userInfo.twitchId);
+
+  const paused =
+    task && (task.status === "active" || task.status === "started")
+      ? await pauseTask(db, task)
+      : null;
+  if (!paused) {
+    say(interpolate(config.task.noTaskToPause, vars));
+    return;
+  }
+  say(interpolate(config.task.taskPaused, { ...vars, task: paused.text }));
 }
 
 async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void> {
   const { config, userInfo, say, db } = ctx;
-  const newText = truncateToLength(args.join(" ").trim(), MAX_TASK_LEN);
+  const newText = chatTaskText(args);
   const vars = { user: userInfo.displayName, channel: ctx.channelName };
 
   if (!newText) {
@@ -613,17 +768,28 @@ async function handleTaskNext(args: string[], ctx: MessageContext): Promise<void
   // No active task means there is no {oldTask} to announce — fall back to the
   // plain taskAdded template instead of interpolating empty quotes.
   if (!activeTask) {
-    await createTask(db, userInfo, newText, {
+    const created = await createTask(db, userInfo, newText, {
       activate: true,
       isBroadcaster: userInfo.isBroadcaster,
     });
-    say(interpolate(config.task.taskAdded, { ...vars, task: newText }));
+    say(
+      interpolate(created ? config.task.taskAdded : config.task.noTaskAdded, {
+        ...vars,
+        task: newText,
+      }),
+    );
     return;
   }
 
   const result = await replaceActiveTask(db, activeTask, userInfo, newText, {
     isBroadcaster: userInfo.isBroadcaster,
+    timeZone: ctx.timeZone,
   });
+  if (result.full) {
+    // The list is at MAX_OPEN_TASKS: nothing changed, the old task is still active.
+    say(interpolate(config.task.noTaskAdded, { ...vars, task: newText }));
+    return;
+  }
   if (!result.created) {
     // The active task was completed or removed after we read it, so the guarded
     // batch created nothing — don't announce a replacement that never happened.
@@ -750,12 +916,13 @@ async function handleModerationCommand(
 
 async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<void> {
   const { config, say, db, channelName, userInfo } = ctx;
+  const stats = { timeZone: ctx.timeZone };
   const sub = args[0]?.toLowerCase();
   const vars = { user: userInfo.displayName, channel: channelName };
 
   switch (sub) {
     case "start": {
-      const timer = await getTimerState(db);
+      const timer = await getTimerState(db, stats);
       if (timer && timer.status !== "idle" && timer.status !== "finished") {
         say(interpolate(config.timer.timerRunning, vars));
         return;
@@ -777,7 +944,7 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
     }
 
     case "pause": {
-      const result = await pauseTimerWithResult(db);
+      const result = await pauseTimerWithResult(db, stats);
       if (result.changed) say(interpolate(config.timer.commandSuccess, vars));
       else if (result.reason === "already-paused") say(TIMER_ALREADY_PAUSED_REPLY);
       else if (result.reason === "lost-race") say(TIMER_CHANGED_REPLY);
@@ -786,7 +953,7 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
     }
 
     case "resume": {
-      const result = await resumeTimerWithResult(db);
+      const result = await resumeTimerWithResult(db, stats);
       if (result.changed) say(interpolate(config.timer.commandSuccess, vars));
       else if (result.reason === "not-paused") say(interpolate(config.timer.timerRunning, vars));
       else if (result.reason === "lost-race") say(TIMER_CHANGED_REPLY);
@@ -795,7 +962,7 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
     }
 
     case "skip": {
-      const result = await skipTimerWithResult(db);
+      const result = await skipTimerWithResult(db, stats);
       if (result.changed) say(interpolate(config.timer.commandSuccess, vars));
       else if (result.reason === "lost-race") say(TIMER_CHANGED_REPLY);
       else say(interpolate(config.timer.notRunning, vars));
@@ -803,13 +970,13 @@ async function handleTimerCommand(args: string[], ctx: MessageContext): Promise<
     }
 
     case "reset": {
-      await resetTimer(db);
+      await resetTimer(db, stats);
       say(interpolate(config.timer.commandSuccess, vars));
       break;
     }
 
     case "eta": {
-      const eta = await getTimerEta(db);
+      const eta = await getTimerEta(db, stats);
       if (!eta) {
         say(interpolate(config.timer.notRunning, vars));
         return;

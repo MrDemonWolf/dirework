@@ -4,7 +4,7 @@ import ModerationPage from "./moderation-page";
 
 export const metadata: Metadata = { title: "Bot moderation" };
 
-/** Data comes from the (sections) layout's prefetch, through `useBotData`. */
+/** Data streams from the (sections) layout; each card is a `BotSection` (../bot-data.tsx). */
 export default function BotModerationRoute() {
   return <ModerationPage />;
 }

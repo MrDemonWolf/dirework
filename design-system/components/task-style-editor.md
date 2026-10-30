@@ -21,8 +21,8 @@ Stacked `SectionGroup`s built from `FieldRow` rows:
 | Body | collapsed | background, border, Vertical / Horizontal padding |
 | Task item | open | background, border, Font size, Font color, Fallback username color, Padding, Margin bottom, Max width |
 | Done tasks | collapsed | background, Font color |
-| Checkbox | collapsed | Size, background, border, margins, Tick character, Tick size, Tick color |
-| Bullet | collapsed, only when checkboxes are off | Character, Size, Color, margins |
+| Checkbox | collapsed | Size, background, border, margins, Tick icon (`IconPickerRow`), Tick size, Tick color |
+| Bullet | collapsed, only when checkboxes are off | Icon (`IconPickerRow`), Size, Color, margins |
 | Scroll | collapsed | Enabled, Speed (px/s), Loop gap |
 
 ## Props and variants
@@ -35,7 +35,7 @@ Stacked `SectionGroup`s built from `FieldRow` rows:
 ## States
 
 - Checkboxes on: a note says bullet options appear when they are off.
-- Inline validation per row (`cssLengthSchema`, `glyphSchema` for tick/bullet characters).
+- Inline validation per row against the field's range (`lengthFieldError` in `lib/style-fields.ts`: the `cssLengthSchema` allowlist, then `TASK_LENGTH_LIMITS` from `@dirework/api/style-limits`, the bound the save schema applies); the error names the range, and Save is blocked while one is out of range.
 
 ## Accessibility
 

@@ -35,6 +35,17 @@ Each DireWork deployment is independently operated. Production operators should:
 
 If a credential or bearer URL leaks, rotate it before investigating further. Rotate the Cloudflare API token and Twitch client secret at their providers, replace deployment secrets in GitHub, regenerate bot and overlay tokens in DireWork, and redeploy. Resetting the bot page URL also revokes the Twitch chat token that page was given; the bot keeps working with a freshly issued one. If the dashboard reports that Twitch did not confirm the revocation, the old chat token stays usable until it expires on its own within a few hours. To end it immediately, sign in to Twitch as the bot account, remove DireWork under Settings > Connections (this kills every token Twitch issued to it), then reconnect the bot account in DireWork. Rotating `BETTER_AUTH_SECRET` invalidates existing sessions; `PROXY_SECRET` can be rotated at any time (both workers receive the new value in the same deploy).
 
+## Built-in abuse limits
+
+DireWork brakes abuse without paid services: Cloudflare rate-limit bindings per concern
+(a batched API request is charged to the strictest bucket among its procedures), a cap of
+200 open tasks for the whole instance (checked inside the insert) on top of 20 per chat
+viewer, a per-viewer command throttle in the bot page (6 commands per 30 seconds; never the
+broadcaster or mods), and display sanitizing of viewer text (bidi overrides, invisible
+characters, control characters and Zalgo stacks are removed before storage and again at
+render). The limiter fails open if a binding is missing; the post-deploy smoke check
+requires all of them.
+
 ## Pinned dependency remediations
 
 The root dependency constraints keep transitive build tooling on patched releases when

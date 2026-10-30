@@ -52,11 +52,24 @@ describe("commandAliasesInput validation", () => {
     expect(Object.keys(result.commandAliases)).toHaveLength(50);
   });
 
-  it("accepts key at exactly 50 characters", () => {
+  it("accepts an alias of exactly ALIAS_MAX_LENGTH (25) characters", () => {
     const result = commandAliasesSchema.parse({
-      commandAliases: { ["a".repeat(50)]: "task" },
+      commandAliases: { ["a".repeat(25)]: "task" },
     });
     expect(Object.keys(result.commandAliases)).toHaveLength(1);
+  });
+
+  it("rejects an alias or a target over ALIAS_MAX_LENGTH characters (the '!' doesn't count)", () => {
+    expect(() =>
+      commandAliasesSchema.parse({ commandAliases: { ["a".repeat(26)]: "task" } }),
+    ).toThrow(/too-long/);
+    expect(() =>
+      commandAliasesSchema.parse({ commandAliases: { t: `!${"a".repeat(26)}` } }),
+    ).toThrow(/too-long/);
+    expect(
+      commandAliasesSchema.parse({ commandAliases: { [`!${"a".repeat(25)}`]: "!task" } })
+        .commandAliases,
+    ).toEqual({ ["a".repeat(25)]: "task" });
   });
 
   // ── Normalization + semantic validation ───────────────────────────────────

@@ -1,6 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import { botConsoleStatus, botMuteStatus } from "../bot-status";
+import { BOT_LEASE_TTL_MS } from "@dirework/api/bot-lease";
+
+import { botConsoleStatus, botMuteStatus, dashboardBotChip } from "../bot-status";
+
+describe("dashboardBotChip", () => {
+  it("keeps the no-account state", () => {
+    expect(dashboardBotChip(false, 0)).toEqual({ tone: "idle", label: "Bot not connected" });
+  });
+
+  it("says connected when the last answer had a bot page inside the lease", () => {
+    expect(dashboardBotChip(true, 60_000)).toEqual({ tone: "live", label: "Bot connected" });
+    expect(dashboardBotChip(true, BOT_LEASE_TTL_MS - 1).label).toBe("Bot connected");
+  });
+
+  it("says offline only when an answer says so: no check-in, or one older than the lease", () => {
+    const offline = { tone: "idle", label: "Bot offline" };
+    expect(dashboardBotChip(true, null)).toEqual(offline);
+    expect(dashboardBotChip(true, BOT_LEASE_TTL_MS)).toEqual(offline);
+  });
+});
 
 describe("botMuteStatus", () => {
   it("never says Live without a bot account", () => {

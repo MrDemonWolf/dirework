@@ -4,6 +4,8 @@
 // Display-only: the bot's real parsing lives in `@dirework/api/chat-commands`, so the rows
 // are kept in step by hand and pinned by apps/web/src/lib/__tests__/command-rows.test.ts.
 
+import { MAX_STARTED_PER_AUTHOR } from "@dirework/api/config-defaults";
+
 /** One row of the command reference. */
 export interface CommandRow {
   command: string;
@@ -92,9 +94,21 @@ export const taskCommands: CommandRow[] = [
     permission: "everyone",
   },
   {
+    command: "!start",
+    usage: "!start [#]",
+    description: `Start a task beside your focus (${1 + MAX_STARTED_PER_AUTHOR} at once)`,
+    permission: "everyone",
+  },
+  {
+    command: "!pause",
+    usage: "!pause or !pause [#]",
+    description: "Pause a task you started",
+    permission: "everyone",
+  },
+  {
     command: "!check",
     usage: "!check or !check @user",
-    description: "Show your current task",
+    description: "Show your current task and how many more you started",
     permission: "everyone",
   },
   {

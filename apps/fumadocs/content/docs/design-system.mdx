@@ -65,7 +65,7 @@ Each generated stylesheet declares the palette as plain CSS variables on `:root`
 | --- | --- | --- |
 | `color.scheme.{light,dark}` | `--background`, `--primary`, `--success`, `--border`, `--hairline`, `--cornflower`, `--chart-*`, `--sidebar-*`… | The UI palette, as oklch values. `{name}` aliases another key (`--chart-2: var(--cornflower)`). |
 | `color.phase` | `--phase-{work,break,long-break,paused}` | Timer phase accents |
-| `color.console` | `--color-console-*` (`bg-console-base`…) | The always-dark bot console, app only |
+| `color.console` | `--color-console-*` (`bg-console-base`…) | The always-dark bot page notices, app only |
 | `color.partner` | `--twitch`, `--twitch-hover` (`bg-twitch`) | Twitch purple, for Twitch actions only |
 | `radius` | `--radius` + `--radius-{xs…4xl}` | App only, as offsets from `--radius` (12px) |
 | `font.size`, `font.lineHeight` | `--text-2xs`, `--text-3xs` | Steps Tailwind doesn't ship; the rest are Tailwind's defaults, listed for reference |
@@ -140,6 +140,7 @@ Sources are relative to `apps/web/src/components/` unless they start with `apps/
 | `blocked-viewers-card.md` | Blocked Viewers Card | `bot-settings/blocked-viewers-card.tsx` |
 | `bot-account-card.md` | Bot Account Card | `bot-settings/bot-account-card.tsx` |
 | `bot-console-card.md` | Bot Console Card | `bot-settings/bot-console-card.tsx` |
+| `bot-page-handoff.md` | Bot Page Handoff | `bot-page-handoff.tsx` |
 | `bot-live-controls.md` | Bot Live Controls | `bot-settings/bot-live-controls.tsx` |
 | `bot-section-nav.md` | Bot Section Nav | `bot-settings/bot-section-nav.tsx` |
 | `bot-settings-skeleton.md` | Bot Settings Skeleton | `bot-settings-skeleton.tsx` |
@@ -157,17 +158,21 @@ Sources are relative to `apps/web/src/components/` unless they start with `apps/
 | `console-rule.md` | Console Rule | `console-rule.tsx` |
 | `count-badge.md` | Count Badge | `count-badge.tsx` |
 | `dashboard-skeleton.md` | Dashboard Skeleton | `dashboard-skeleton.tsx` |
+| `dashboard-stats.md` | Dashboard Stats | `dashboard-stats.tsx` |
 | `dev-login-button.md` | Dev Login Button | `dev-login-button.tsx` |
 | `dropdown-menu.md` | Dropdown Menu | `ui/dropdown-menu.tsx` |
 | `field-row.md` | Field Row | `theme-center/field-row.tsx` |
 | `font-gate.md` | Font Gate | `font-gate.tsx` |
 | `font-select.md` | Font Select | `theme-center/font-select.tsx` |
 | `header.md` | Header | `header.tsx` |
+| `icon-picker.md` | Icon Picker | `theme-center/icon-picker.tsx` |
 | `input.md` | Input | `ui/input.tsx` |
 | `label.md` | Label | `ui/label.tsx` |
 | `loader.md` | Loader | `loader.tsx` |
 | `message-editor.md` | Message Editor | `bot-settings/message-editor.tsx` |
 | `mode-toggle.md` | Mode Toggle | `mode-toggle.tsx` |
+| `obs-sources.md` | OBS Sources | `obs-sources.tsx` |
+| `overlay-icon.md` | Overlay Icon | `overlay-icon.tsx` |
 | `phase-labels-editor.md` | Phase Labels Editor | `theme-center/phase-labels-editor.tsx` |
 | `progressive-section.md` | Progressive Section | `progressive-section.tsx` |
 | `providers.md` | Providers | `providers.tsx` |
@@ -200,7 +205,6 @@ Sources are relative to `apps/web/src/components/` unless they start with `apps/
 | `timer-controls.md` | Timer Controls | `timer-controls.tsx` |
 | `timer-overlay-widget.md` | Timer Overlay Widget (docs mock) | `apps/fumadocs/src/app/(home)/_widgets/TimerOverlayWidget.tsx` |
 | `timer-ring.md` | Timer Ring (TimerDisplay) | `timer-display.tsx` |
-| `timer-status-badge.md` | Timer Status Badge | `timer-status-badge.tsx` |
 | `timer-style-editor.md` | Timer Style Editor | `theme-center/timer-style-editor.tsx` |
 | `tooltip.md` | Tooltip | `ui/tooltip.tsx` |
 | `twitch-icon.md` | Twitch Icon | `icons/twitch-icon.tsx` |

@@ -16,9 +16,5 @@ Completed plans and dated reviews live in `history/`. They document earlier deci
 and verification, and may describe older code or limits:
 
 - [Cloudflare migration](history/MIGRATION.md) and [pre-migration audit](history/AUDIT-cloudflare-migration.md)
-- [Marketing review](history/MARKETING-REVIEW.md)
 - [October 24 Cloudflare research](history/2026-10-24-cloudflare-services-research.md)
-- [October 24 landing-page review](history/2026-10-24-landing-ui-review.md)
-- [October 24 bot-console review](history/2026-10-24-bot-console-ui-review.md)
-- [October 26 codebase and website review](history/2026-10-26-codebase-and-site-review.md)
 - [Logo prompt](history/logo.md)

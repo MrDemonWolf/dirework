@@ -12,7 +12,44 @@ import {
   PREVIEW_PHASE_MS,
   PREVIEW_REMAINING_MS,
   PREVIEW_TASKS,
+  STREAM_CANVAS,
+  TASKS_SOURCE,
+  TIMER_SOURCE_FALLBACK,
+  previewSceneLayout,
+  timerSourceSize,
 } from "@/lib/preview-session";
+import { DEFAULT_TIMER_STYLES } from "@dirework/api/config-defaults";
+
+describe("Theme Center stream canvas", () => {
+  it("sizes the timer source from its configured dimensions", () => {
+    expect(timerSourceSize(DEFAULT_TIMER_STYLES.dimensions)).toEqual({ width: 300, height: 300 });
+    expect(timerSourceSize({ width: "420px", height: "15rem" })).toEqual({
+      width: 420,
+      height: 240,
+    });
+  });
+
+  it("falls back to the recommended source for lengths that need a layout", () => {
+    expect(timerSourceSize({ width: "50%", height: "300px" })).toEqual(TIMER_SOURCE_FALLBACK);
+    expect(timerSourceSize({ width: "20vw", height: "20vw" })).toEqual(TIMER_SOURCE_FALLBACK);
+    expect(timerSourceSize({ width: "0px", height: "300px" })).toEqual(TIMER_SOURCE_FALLBACK);
+  });
+
+  it("puts the task list down the left edge and the timer top right, apart", () => {
+    const { timer, tasks } = previewSceneLayout(timerSourceSize(DEFAULT_TIMER_STYLES.dimensions));
+    expect(tasks).toMatchObject({ ...TASKS_SOURCE, x: 48, y: 48 });
+    expect(timer).toMatchObject({ width: 300, height: 300, y: 48 });
+    expect(timer.x + timer.width).toBe(STREAM_CANVAS.width - 48);
+    expect(timer.x).toBeGreaterThan(tasks.x + tasks.width);
+  });
+
+  it("keeps a source larger than the canvas pinned to its edge, never off it", () => {
+    const { timer } = previewSceneLayout({ width: 2400, height: 1200 });
+    expect(timer).toMatchObject({ x: 0, y: 0 });
+    const { timer: tall } = previewSceneLayout({ width: 300, height: 1060 });
+    expect(tall.y).toBe(STREAM_CANVAS.height - 1060);
+  });
+});
 
 describe("Theme Center preview session", () => {
   it("renders the demo session's tasks in order", () => {

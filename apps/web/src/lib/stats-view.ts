@@ -1,0 +1,232 @@
+// Pure presentation logic for the dashboard stats (tiles + 14-day focus chart), kept
+// React-free so the copy, the bar geometry and the refresh rule are unit-tested.
+
+import type { StatsSummary } from "@dirework/api/stats-days";
+
+/** "0m", "25m", "1h 5m", "12h" — focus time as people say it. Whole minutes, rounded down. */
+export function formatFocus(ms: number): string {
+  const minutes = Math.max(0, Math.floor(ms / 60_000));
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest}m`;
+  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
+}
+
+/** Long form for screen readers and bar titles: "1 hour 5 minutes", "0 minutes". */
+export function formatFocusLong(ms: number): string {
+  const minutes = Math.max(0, Math.floor(ms / 60_000));
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  const unit = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  if (hours === 0) return unit(rest, "minute");
+  return rest === 0 ? unit(hours, "hour") : `${unit(hours, "hour")} ${unit(rest, "minute")}`;
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** The chat share under "Tasks done today". */
+export function chatShareLabel(done: number, fromChat: number): string {
+  if (done === 0) return "None yet";
+  if (fromChat === 0) return "All yours";
+  if (fromChat === done) return "All from chat";
+  return `${fromChat} from chat`;
+}
+
+/** The week streak under "This week": "3-week streak", "5+ week streak", or a nudge. */
+export function streakLabel(streak: StatsSummary["streak"]): string {
+  if (streak.weeks === 0) return "A focus day starts a streak";
+  return streak.capped ? `${streak.weeks}+ week streak` : `${streak.weeks}-week streak`;
+}
+
+/** The four tiles under the greeting, in order. */
+export function statTiles(summary: StatsSummary) {
+  const { today, week } = summary;
+  return [
+    {
+      id: "focus",
+      label: "Focus today",
+      value: formatFocus(today.focusMs),
+      detail: `${formatFocus(week.focusMs)} this week`,
+    },
+    {
+      id: "pomodoros",
+      label: "Pomodoros today",
+      value: String(today.pomodoros),
+      detail: `${week.pomodoros} this week`,
+    },
+    {
+      id: "tasks",
+      label: "Tasks done today",
+      value: String(today.tasksDone),
+      detail: chatShareLabel(today.tasksDone, today.tasksDoneChat),
+    },
+    {
+      id: "week",
+      label: "This week",
+      value: plural(week.focusDays, "day"),
+      detail: streakLabel(summary.streak),
+    },
+  ] as const;
+}
+
+/**
+ * Layout classes of the stats strip's cell `index`, shared by `StatTiles` and its
+ * placeholder so they stay box for box: the hairlines form a cross on a phone (2×2) and
+ * column rules from lg (one row).
+ */
+export function statCellClass(index: number): string {
+  return [
+    "flex min-w-0 flex-col gap-1 px-5 py-4",
+    index % 2 === 1 ? "border-l border-border/60" : "",
+    index >= 2 ? "border-t border-border/60 lg:border-t-0" : "",
+    index === 2 ? "lg:border-l" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** Chart geometry, in SVG user units (the SVG scales to its column). */
+export const CHART = { width: 280, height: 56, barWidth: 12, radius: 4, minBar: 2 } as const;
+
+/** A day as "Mon, Oct 26" (the day string is a calendar date, so it is formatted in UTC). */
+export function formatDay(day: string): string {
+  return new Date(`${day}T00:00:00Z`).toLocaleDateString("en-US", {
+    timeZone: "UTC",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/**
+ * One bar per day, oldest first: a column with a 4px rounded top, square at the baseline.
+ * Heights scale to the busiest day; a day with no focus keeps a 2px stub on the baseline
+ * so it reads as zero, not missing. The last day is today.
+ */
+export function chartBars(days: StatsSummary["days"]) {
+  const max = Math.max(0, ...days.map((d) => d.focusMs));
+  const slot = CHART.width / Math.max(1, days.length);
+  return days.map((d, i) => {
+    const height =
+      max > 0 && d.focusMs > 0
+        ? Math.max(CHART.radius + 1, (d.focusMs / max) * CHART.height)
+        : CHART.minBar;
+    const x = i * slot + (slot - CHART.barWidth) / 2;
+    const y = CHART.height - height;
+    const r = height > CHART.radius ? CHART.radius : 0;
+    const right = x + CHART.barWidth;
+    const path =
+      r > 0
+        ? `M${x},${CHART.height}V${y + r}Q${x},${y} ${x + r},${y}H${right - r}Q${right},${y} ${right},${y + r}V${CHART.height}Z`
+        : `M${x},${CHART.height}V${y}H${right}V${CHART.height}Z`;
+    return {
+      day: d.day,
+      focusMs: d.focusMs,
+      today: i === days.length - 1,
+      path,
+      // The hover target is the whole slot, taller than the bar.
+      hit: { x: i * slot, width: slot },
+      title: `${formatDay(d.day)}: ${formatFocusLong(d.focusMs)} of focus`,
+    };
+  });
+}
+
+/** The values that decide whether the stats may have changed: timer phase, newest completion. */
+export interface StatsWatch {
+  /** `timerPhaseKey` of the current timer; undefined = timer.get not loaded yet. */
+  timerPhase?: string;
+  /**
+   * The newest `completedAt` (ms) among the done tasks `task.list` returns: null = none,
+   * undefined = the list is not loaded yet. Monotonic for completions, unlike the done
+   * count, which the 24h purge can hold level or lower in the same write.
+   */
+  latestDoneAt?: number | null;
+}
+
+/**
+ * Identity of the timer's current phase: status, cycle, session length and the phase's end.
+ * It changes on every transition, including ones that land on the same status — a whole
+ * break that passed between two polls (work, cycle 1 → work, cycle 2) or a session restarted
+ * into the same phase — which a bare status would miss. Pause and resume also change it (the
+ * end time moves), costing one refetch each; that is an owner action, never a poll.
+ */
+export function timerPhaseKey(
+  timer:
+    | {
+        status: string;
+        currentCycle?: number | null;
+        totalCycles?: number | null;
+        targetEndTime?: string | Date | null;
+      }
+    | null
+    | undefined,
+): string | undefined {
+  if (!timer) return undefined;
+  const end = timer.targetEndTime ? new Date(timer.targetEndTime).getTime() : "";
+  return `${timer.status}|${timer.currentCycle ?? ""}|${timer.totalCycles ?? ""}|${end}`;
+}
+
+/** The newest completion time among `tasks`' done rows (ms), or null when none is done. */
+export function latestCompletion(
+  tasks: readonly { status: string; completedAt?: string | Date | null }[],
+): number | null {
+  let latest: number | null = null;
+  for (const task of tasks) {
+    if (task.status !== "done" || !task.completedAt) continue;
+    const at = new Date(task.completedAt).getTime();
+    if (Number.isFinite(at) && (latest === null || at > latest)) latest = at;
+  }
+  return latest;
+}
+
+/**
+ * Refetch the summary when the dashboard's existing polls see something stats depend on:
+ * the timer moving to another phase (`timerPhaseKey`: a work phase ended, was skipped, or was
+ * reset) or a newer task completion (a task finished, from the dashboard or chat; a purge or
+ * an undo of a removal never moves it forward). The first value seen for either only records it.
+ */
+export function shouldRefreshStats(prev: StatsWatch, next: StatsWatch): boolean {
+  const phaseChanged =
+    prev.timerPhase !== undefined &&
+    next.timerPhase !== undefined &&
+    prev.timerPhase !== next.timerPhase;
+  const newCompletion =
+    prev.latestDoneAt !== undefined &&
+    next.latestDoneAt != null &&
+    (prev.latestDoneAt === null || next.latestDoneAt > prev.latestDoneAt);
+  return phaseChanged || newCompletion;
+}
+
+/** Milliseconds from `now` until just past the next local midnight (DST-safe: calendar based). */
+export function msUntilNextLocalDay(now: Date): number {
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  // A second of slack, so the refetch lands on the new day even with a skewed clock.
+  return midnight.getTime() - now.getTime() + 1000;
+}
+
+/**
+ * Call `onRollover` just after each local midnight until cancelled: one timer per day, no
+ * polling. "Today", the week and the chart all hang off the local day, so a dashboard left
+ * open overnight refetches them once. Returns the cancel function.
+ */
+export function scheduleDayRollover(onRollover: () => void): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const arm = () => {
+    timer = setTimeout(() => {
+      onRollover();
+      arm();
+    }, msUntilNextLocalDay(new Date()));
+  };
+  arm();
+  return () => clearTimeout(timer);
+}
+
+/** The browser's IANA zone, or null where Intl can't say. */
+export function browserTimeZone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+}

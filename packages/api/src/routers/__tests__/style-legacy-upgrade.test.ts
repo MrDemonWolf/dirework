@@ -59,6 +59,22 @@ describe("read-time upgrade of never-customized style rows", () => {
     expect(styles.body).toEqual(DEFAULT_TASK_STYLES.body);
   });
 
+  it("reads a never-customized display group at the current 4 lines per task", () => {
+    expect(TASK_STYLE_COLUMN_DEFAULTS.displayNumberOfLines).toBe(2);
+    expect(buildTaskStylesConfig(frozenTaskRow()).display.numberOfLines).toBe(4);
+  });
+
+  it("clamps a line count saved under the old 1–100 range to 6 on read", () => {
+    const row = { ...frozenTaskRow(), displayShowDone: false, displayNumberOfLines: 100 };
+    const styles = buildTaskStylesConfig(row);
+    expect(styles.display.numberOfLines).toBe(6);
+    // A customized group keeps its other values (and its line count, when in range).
+    expect(styles.display.showDone).toBe(false);
+    expect(buildTaskStylesConfig({ ...row, displayNumberOfLines: 3 }).display.numberOfLines).toBe(
+      3,
+    );
+  });
+
   it("maps every LEGACY_* value to the current default", () => {
     const currentTimer = flattenTimerStyles(DEFAULT_TIMER_STYLES) as Record<string, unknown>;
     for (const [key, values] of Object.entries(LEGACY_TIMER_STYLE_VALUES)) {
@@ -122,6 +138,9 @@ describe("read-time upgrade of never-customized style rows", () => {
         "bodyBorderWidth",
         "bodyPaddingHorizontal",
         "bodyPaddingVertical",
+        "bulletChar",
+        "checkboxTickChar",
+        "displayNumberOfLines",
         "headerBorderRadius",
         "headerBorderWidth",
         "headerFontSize",

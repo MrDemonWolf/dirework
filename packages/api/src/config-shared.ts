@@ -12,12 +12,49 @@ import type { BotConfig, TaskStyle, TimerConfig, TimerStyle } from "@dirework/db
 
 import type { TimerStatus } from "@dirework/db/defaults";
 
-import { isBuiltinCommandName, KNOWN_ALIAS_TARGETS, normalizeAliasToken } from "./chat-commands";
-import { hasControlCharacters, utf8ByteLength } from "./chat-text";
+import {
+  ALIAS_MAX_LENGTH,
+  isBuiltinCommandName,
+  KNOWN_ALIAS_TARGETS,
+  normalizeAliasToken,
+} from "./chat-commands";
+import {
+  hasControlCharacters,
+  limitPlaceholderRepeats,
+  MAX_PLACEHOLDER_REPEATS,
+  mostRepeatedPlaceholder,
+  sanitizeDisplayText,
+  utf8ByteLength,
+} from "./chat-text";
+import {
+  clampInt,
+  clampLength,
+  clampPhaseLabel,
+  DEFAULT_BULLET_ICON,
+  DEFAULT_TICK_ICON,
+  type LengthLimit,
+  lengthIssue,
+  lengthIssueMessage,
+  OVERLAY_ICONS,
+  PHASE_LABEL_MAX_BYTES,
+  PHASE_LABEL_MAX_GRAPHEMES,
+  phaseLabelIssue,
+  TASK_LENGTH_LIMITS,
+  TASK_NUMBER_LIMITS,
+  TIMER_LENGTH_LIMITS,
+  TIMER_NUMBER_LIMITS,
+  toOverlayIcon,
+} from "./style-limits";
 
 export {
+  graphemeLength,
   hasControlCharacters,
+  limitCombiningMarks,
+  limitPlaceholderRepeats,
   MAX_CHAT_BYTES,
+  MAX_DISPLAY_NAME_LENGTH,
+  MAX_PLACEHOLDER_REPEATS,
+  sanitizeDisplayText,
   MAX_RELAYED_MESSAGE_LENGTH,
   replaceControlCharacters,
   truncateToBytes,
@@ -30,14 +67,21 @@ export {
   DEFAULT_TASK_STYLES,
   DEFAULT_TIMER_MESSAGES,
   DEFAULT_TIMER_STYLES,
+  MAX_OPEN_TASKS,
+  MAX_STARTED_PER_AUTHOR,
   MAX_TASK_LEN,
+  TASK_LINES_MAX,
+  TASK_LINES_MIN,
+  clampTaskLines,
   TIMER_CONFIG_DEFAULTS,
 } from "./config-defaults";
 import {
+  LEGACY_PHASE_LABELS,
   LEGACY_TASK_MESSAGES,
   LEGACY_TASK_STYLE_VALUES,
   LEGACY_TIMER_MESSAGES,
   LEGACY_TIMER_STYLE_VALUES,
+  PHASE_LABEL_COLUMN_DEFAULTS,
   TASK_MESSAGE_COLUMN_DEFAULTS,
   TASK_STYLE_COLUMN_DEFAULTS,
   TIMER_MESSAGE_COLUMN_DEFAULTS,
@@ -45,6 +89,8 @@ import {
   type StyleColumnValue,
 } from "@dirework/db/defaults";
 import {
+  clampTaskLines,
+  DEFAULT_PHASE_LABELS,
   DEFAULT_TASK_MESSAGES,
   DEFAULT_TASK_STYLES,
   DEFAULT_TIMER_MESSAGES,
@@ -54,7 +100,7 @@ import {
 /** Singleton-row primary key used by every one-row config table (single source: packages/db schema). */
 export { SINGLETON_ID } from "@dirework/db/schema";
 
-/** Per-user open (pending+active) task cap enforced on the chat ingest path. */
+/** Per-user open (pending+started+active) task cap enforced on the chat ingest path. */
 export const CHAT_OPEN_TASK_CAP = 20;
 
 /**
@@ -107,6 +153,7 @@ export function botOAuthErrorMessage(code: string | null | undefined): string {
 // Command names and the alias normalizer live in ./chat-commands (zod-free, so
 // the browser bot page can filter chat without bundling zod).
 export {
+  ALIAS_MAX_LENGTH,
   chatCommandOf,
   cleanChatLine,
   isBuiltinCommandName,
@@ -131,6 +178,7 @@ export function aliasTokenHasWhitespace(raw: string): boolean {
 
 export type AliasIssueReason =
   | "empty"
+  | "too-long"
   | "multi-word"
   | "shadows-builtin"
   | "duplicate"
@@ -147,7 +195,7 @@ export interface AliasIssue {
  * Normalize raw aliases (keys/values with or without "!") into canonical form
  * and collect validation issues. Reused by the router input schema AND the
  * dashboard editor so client and server validate identically. Rejects empty
- * tokens, multi-word keys/targets, keys that would replace a built-in command,
+ * tokens, keys or targets over ALIAS_MAX_LENGTH, multi-word keys/targets, keys that would replace a built-in command,
  * duplicate keys (after normalization), self-recursion, and targets that are
  * not real commands. Accepts entries as well as a record so the editor can
  * pass its rows without collapsing duplicates first.
@@ -173,6 +221,10 @@ export function normalizeAliases(
     const target = normalizeAliasToken(rawValue);
     if (!key || !target) {
       issues.push({ key: rawKey || "(empty)", reason: "empty", index });
+      continue;
+    }
+    if (key.length > ALIAS_MAX_LENGTH || target.length > ALIAS_MAX_LENGTH) {
+      issues.push({ key, reason: "too-long", index });
       continue;
     }
     if (aliasTokenHasWhitespace(rawKey) || aliasTokenHasWhitespace(rawValue)) {
@@ -209,11 +261,27 @@ export { TIMER_STATUSES, type TimerStatus } from "@dirework/db/defaults";
 // comments can survive them, which closes CSS injection through a saved config.
 // They are deliberately permissive enough to accept every shipped default.
 
-/** #rgb / #rgba / #rrggbb / #rrggbbaa, rgb()/rgba()/hsl()/hsla(), or a safe keyword. */
+/**
+ * #rgb / #rgba / #rrggbb / #rrggbbaa, rgb()/rgba()/hsl()/hsla(), or a safe keyword.
+ * The function body is ONE character class (it already holds whitespace): a
+ * leading `\s*` beside it gave the engine two ways to match every space, so a
+ * long "rgb(   …" with no ")" backtracked quadratically.
+ */
 const CSS_COLOR_RE =
-  /^(#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|(?:rgb|hsl)a?\(\s*[0-9.,%\s/deg]+\)|transparent|currentcolor|inherit|none|[a-z]{3,20})$/i;
+  /^(#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|(?:rgb|hsl)a?\([0-9.,%\s/deg]+\)|transparent|currentcolor|inherit|none|[a-z]{3,20})$/i;
 
-export const cssColorSchema = z.string().trim().max(64).regex(CSS_COLOR_RE, "Invalid CSS color");
+/**
+ * The CSS allowlists' length caps abort: validation stops at the cap, so the
+ * pattern never runs on an oversized string (zod otherwise runs every check and
+ * would hand the regex the whole input).
+ */
+const ABORT = { abort: true } as const;
+
+export const cssColorSchema = z
+  .string()
+  .trim()
+  .max(64, ABORT)
+  .regex(CSS_COLOR_RE, "Invalid CSS color");
 
 /**
  * A Twitch chat author color as stored on a task (IRC `color` tag: #rrggbb).
@@ -230,23 +298,47 @@ export const twitchAuthorColorSchema = z.string().regex(/^#[0-9a-f]{6}$/i, "Inva
 const CSS_LENGTH_TOKEN = String.raw`(?:auto|0|[+-]?\d{1,5}(?:\.\d{1,4})?(?:px|%|r?em|v[hw]|ch|pt))`;
 const CSS_LENGTH_RE = new RegExp(`^${CSS_LENGTH_TOKEN}(?: ${CSS_LENGTH_TOKEN}){0,3}$`, "i");
 
-export const cssLengthSchema = z.string().trim().max(64).regex(CSS_LENGTH_RE, "Invalid CSS length");
+export const cssLengthSchema = z
+  .string()
+  .trim()
+  .max(64, ABORT)
+  .regex(CSS_LENGTH_RE, "Invalid CSS length");
 
 /** Font family name(s). No quotes/semicolons — the overlay wraps it itself. */
 export const fontFamilySchema = z
   .string()
   .trim()
-  .max(120)
+  .max(120, ABORT)
   .regex(/^[a-z0-9 ,'-]+$/i, "Invalid font family");
 
-/** A single decorative glyph (bullet "•", tick "✔"). */
-export const glyphSchema = z.string().min(1).max(8);
+/** A bullet or checkbox-tick icon id (OVERLAY_ICONS in ./style-limits). */
+export const overlayIconSchema = z.enum(OVERLAY_ICONS);
+
+/**
+ * A CSS length held to one field's range (TIMER_/TASK_LENGTH_LIMITS in ./style-limits):
+ * the allowlist above first, then the units, value count and bounds the limit accepts.
+ * The Theme Center checks fields with the same `lengthIssue`, so its inline error and
+ * this schema agree.
+ */
+export function boundedLengthSchema(limit: LengthLimit) {
+  return cssLengthSchema.superRefine((value, ctx) => {
+    // A value the allowlist already rejected carries that one issue, not a second.
+    if (!CSS_LENGTH_RE.test(value)) return;
+    const issue = lengthIssue(value, limit);
+    if (issue) ctx.addIssue({ code: "custom", message: lengthIssueMessage(issue, limit) });
+  });
+}
 
 /** Opacity 0–1. min/max also rejects NaN and ±Infinity. */
 export const opacitySchema = z.number().min(0).max(1);
 
 /** Bounded, finite integer helper for numeric style/config fields. */
 const boundedInt = (min: number, max: number) => z.number().int().min(min).max(max);
+const intIn = ([min, max]: readonly [number, number]) => boundedInt(min, max);
+const timerLength = (path: keyof typeof TIMER_LENGTH_LIMITS) =>
+  boundedLengthSchema(TIMER_LENGTH_LIMITS[path]).optional();
+const taskLength = (path: keyof typeof TASK_LENGTH_LIMITS) =>
+  boundedLengthSchema(TASK_LENGTH_LIMITS[path]).optional();
 
 // ── Twitch protocol limits ──────────────────────────────────────────────────
 // Wire limits and byte helpers live in ./chat-text (see MAX_CHAT_BYTES).
@@ -254,7 +346,10 @@ const boundedInt = (min: number, max: number) => z.number().int().min(min).max(m
 /** Max bytes for a stored message TEMPLATE, leaving room for interpolation. */
 export const MAX_MESSAGE_TEMPLATE_BYTES = 300;
 
-/** A stored chat-message template, bounded by UTF-8 bytes rather than chars. */
+/**
+ * A stored chat-message template, bounded by UTF-8 bytes rather than chars, with no
+ * placeholder repeated more than MAX_PLACEHOLDER_REPEATS times.
+ */
 export const chatMessageSchema = z
   .string()
   .max(500)
@@ -263,7 +358,28 @@ export const chatMessageSchema = z
   })
   .refine((v) => utf8ByteLength(v) <= MAX_MESSAGE_TEMPLATE_BYTES, {
     message: `Message must be at most ${MAX_MESSAGE_TEMPLATE_BYTES} bytes`,
+  })
+  .refine((v) => (mostRepeatedPlaceholder(v)?.count ?? 0) <= MAX_PLACEHOLDER_REPEATS, {
+    message: `Use each placeholder at most ${MAX_PLACEHOLDER_REPEATS} times`,
   });
+
+/**
+ * A timer phase label: at most PHASE_LABEL_MAX_GRAPHEMES user-perceived characters and
+ * PHASE_LABEL_MAX_BYTES UTF-8 bytes (./style-limits), no control characters.
+ */
+export const phaseLabelSchema = z
+  .string()
+  .refine((v) => !hasControlCharacters(v), {
+    message: "Label must not contain control characters",
+  })
+  .refine((v) => phaseLabelIssue(v) !== "graphemes", {
+    message: `Label must be at most ${PHASE_LABEL_MAX_GRAPHEMES} characters`,
+  })
+  .refine((v) => phaseLabelIssue(v) !== "bytes", {
+    message: `Label must be at most ${PHASE_LABEL_MAX_BYTES} bytes`,
+  })
+  // Shown on the stream: no bidi overrides, invisible characters or Zalgo stacks.
+  .transform(sanitizeDisplayText);
 
 // ── Field maps: nested config keys ↔ flat DB columns (single source) ─────────
 // Build and flatten are both generated from these maps, so they cannot drift.
@@ -297,6 +413,12 @@ export const TASK_MESSAGE_FIELDS = {
   clearedDone: "msgClearedDone",
   nextNoContent: "msgNextNoContent",
   help: "msgHelp",
+  taskStarted: "msgTaskStarted",
+  taskStartedFocus: "msgTaskStartedFocus",
+  startCapReached: "msgStartCapReached",
+  noTaskToStart: "msgNoTaskToStart",
+  taskPaused: "msgTaskPaused",
+  noTaskToPause: "msgNoTaskToPause",
 } as const satisfies Record<string, keyof BotConfig>;
 
 // Only messages with a real emit site in bot/commands.ts belong here — see the
@@ -348,7 +470,11 @@ function stringSchemaFromFieldMap<M extends Record<string, string>>(map: M) {
   return z.object(shape);
 }
 
-export const phaseLabelsInputSchema = stringSchemaFromFieldMap(PHASE_LABEL_FIELDS);
+export const phaseLabelsInputSchema = z.object(
+  Object.fromEntries(
+    Object.keys(PHASE_LABEL_FIELDS).map((key) => [key, phaseLabelSchema]),
+  ) as Record<keyof typeof PHASE_LABEL_FIELDS, typeof phaseLabelSchema>,
+);
 export const taskMessagesInputSchema = stringSchemaFromFieldMap(TASK_MESSAGE_FIELDS);
 export const timerMessagesInputSchema = stringSchemaFromFieldMap(TIMER_MESSAGE_FIELDS);
 
@@ -377,13 +503,15 @@ export interface BotConfigData {
  * upgraded to the current defaults (`upgradeLegacyStyleRow`), then nested.
  */
 export function buildTimerStylesConfig(row: TimerStyle): TimerStylesConfig {
-  return nestTimerStyleRow(
-    upgradeLegacyStyleRow(
-      row,
-      TIMER_STYLE_COLUMN_DEFAULTS,
-      LEGACY_TIMER_STYLE_VALUES,
-      CURRENT_TIMER_STYLE_ROW,
-      TIMER_STYLE_GROUPS,
+  return clampTimerStyles(
+    nestTimerStyleRow(
+      upgradeLegacyStyleRow(
+        row,
+        TIMER_STYLE_COLUMN_DEFAULTS,
+        LEGACY_TIMER_STYLE_VALUES,
+        CURRENT_TIMER_STYLE_ROW,
+        TIMER_STYLE_GROUPS,
+      ),
     ),
   );
 }
@@ -416,13 +544,15 @@ export type TimerStylesConfig = ReturnType<typeof nestTimerStyleRow>;
 
 /** Task overlay counterpart of `buildTimerStylesConfig`. */
 export function buildTaskStylesConfig(row: TaskStyle): TaskStylesConfig {
-  return nestTaskStyleRow(
-    upgradeLegacyStyleRow(
-      row,
-      TASK_STYLE_COLUMN_DEFAULTS,
-      LEGACY_TASK_STYLE_VALUES,
-      CURRENT_TASK_STYLE_ROW,
-      TASK_STYLE_GROUPS,
+  return clampTaskStyles(
+    nestTaskStyleRow(
+      upgradeLegacyStyleRow(
+        row,
+        TASK_STYLE_COLUMN_DEFAULTS,
+        LEGACY_TASK_STYLE_VALUES,
+        CURRENT_TASK_STYLE_ROW,
+        TASK_STYLE_GROUPS,
+      ),
     ),
   );
 }
@@ -435,7 +565,8 @@ export function nestTaskStyleRow(s: TaskStyle) {
       showCount: s.displayShowCount,
       useCheckboxes: s.displayUseCheckboxes,
       crossOnDone: s.displayCrossOnDone,
-      numberOfLines: s.displayNumberOfLines,
+      // Rows saved under the old 1–100 range read back inside TASK_LINES_MAX.
+      numberOfLines: clampTaskLines(s.displayNumberOfLines),
     },
     fonts: { header: s.fontHeader, body: s.fontBody },
     scroll: {
@@ -487,12 +618,12 @@ export function nestTaskStyleRow(s: TaskStyle) {
         left: s.checkboxMarginLeft,
         right: s.checkboxMarginRight,
       },
-      tickChar: s.checkboxTickChar,
+      tickIcon: toOverlayIcon(s.checkboxTickChar, DEFAULT_TICK_ICON),
       tickSize: s.checkboxTickSize,
       tickColor: s.checkboxTickColor,
     },
     bullet: {
-      char: s.bulletChar,
+      icon: toOverlayIcon(s.bulletChar, DEFAULT_BULLET_ICON),
       size: s.bulletSize,
       color: s.bulletColor,
       margin: { top: s.bulletMarginTop, left: s.bulletMarginLeft, right: s.bulletMarginRight },
@@ -512,8 +643,23 @@ export function buildTimerConfig(tc: TimerConfig) {
     defaultCycles: tc.defaultCycles,
     showHours: tc.showHours,
     noLastBreak: tc.noLastBreak,
-    labels: buildFromFieldMap(PHASE_LABEL_FIELDS, tc) satisfies PhaseLabelsConfig,
+    labels: clampPhaseLabels(
+      upgradeLegacyDefaults(
+        buildFromFieldMap(PHASE_LABEL_FIELDS, tc),
+        DEFAULT_PHASE_LABELS,
+        LEGACY_PHASE_LABEL_DEFAULTS,
+      ),
+    ) satisfies PhaseLabelsConfig,
   };
+}
+
+/** Every label cut to the phase label caps (rows saved before them). */
+function clampPhaseLabels(labels: PhaseLabelsConfig): PhaseLabelsConfig {
+  const out = { ...labels };
+  for (const key of Object.keys(out) as (keyof PhaseLabelsConfig)[]) {
+    out[key] = clampPhaseLabel(out[key]);
+  }
+  return out;
 }
 
 export type TimerConfigData = ReturnType<typeof buildTimerConfig>;
@@ -535,6 +681,10 @@ const LEGACY_TIMER_DEFAULTS = legacyDefaultSets(
   TIMER_MESSAGE_COLUMN_DEFAULTS,
   LEGACY_TIMER_MESSAGES,
 );
+const LEGACY_PHASE_LABEL_DEFAULTS = legacyDefaultSets(
+  PHASE_LABEL_COLUMN_DEFAULTS,
+  LEGACY_PHASE_LABELS,
+);
 
 /**
  * A stored reply that still holds a default from an earlier release — the frozen
@@ -555,24 +705,50 @@ function upgradeLegacyDefaults<K extends string>(
   return out;
 }
 
+/** Every template with placeholders past MAX_PLACEHOLDER_REPEATS dropped (rows saved before the cap). */
+function limitTemplateRepeats<K extends string>(messages: Record<K, string>): Record<K, string> {
+  const out = { ...messages };
+  for (const key of Object.keys(out) as K[]) {
+    if (typeof out[key] === "string") out[key] = limitPlaceholderRepeats(out[key]);
+  }
+  return out;
+}
+
+/**
+ * Stored aliases the current rules still accept (`normalizeAliases`); an alias saved
+ * before a rule existed (one over ALIAS_MAX_LENGTH) is dropped on read, so it neither
+ * resolves in chat nor blocks the next save of the alias list.
+ */
+function readAliases(stored: unknown): Record<string, string> {
+  if (!stored || typeof stored !== "object" || Array.isArray(stored)) return {};
+  const entries = Object.entries(stored).filter(
+    (entry): entry is [string, string] => typeof entry[1] === "string",
+  );
+  return normalizeAliases(entries).aliases;
+}
+
 export function buildBotConfig(bc: BotConfig): BotConfigData {
   return {
     taskCommandsEnabled: bc.taskCommandsEnabled,
     timerCommandsEnabled: bc.timerCommandsEnabled,
-    commandAliases: bc.commandAliases as Record<string, string>,
+    commandAliases: readAliases(bc.commandAliases),
     muted: bc.muted === true,
     blockedViewers: Array.isArray(bc.blockedViewers)
       ? bc.blockedViewers.filter((v): v is string => typeof v === "string")
       : [],
-    task: upgradeLegacyDefaults(
-      buildFromFieldMap(TASK_MESSAGE_FIELDS, bc),
-      DEFAULT_TASK_MESSAGES,
-      LEGACY_TASK_DEFAULTS,
+    task: limitTemplateRepeats(
+      upgradeLegacyDefaults(
+        buildFromFieldMap(TASK_MESSAGE_FIELDS, bc),
+        DEFAULT_TASK_MESSAGES,
+        LEGACY_TASK_DEFAULTS,
+      ),
     ),
-    timer: upgradeLegacyDefaults(
-      buildFromFieldMap(TIMER_MESSAGE_FIELDS, bc),
-      DEFAULT_TIMER_MESSAGES,
-      LEGACY_TIMER_DEFAULTS,
+    timer: limitTemplateRepeats(
+      upgradeLegacyDefaults(
+        buildFromFieldMap(TIMER_MESSAGE_FIELDS, bc),
+        DEFAULT_TIMER_MESSAGES,
+        LEGACY_TIMER_DEFAULTS,
+      ),
     ),
   };
 }
@@ -585,15 +761,15 @@ export function buildBotConfig(bc: BotConfig): BotConfigData {
 export const timerStylesInputSchema = z.object({
   dimensions: z
     .object({
-      width: cssLengthSchema.optional(),
-      height: cssLengthSchema.optional(),
+      width: timerLength("dimensions.width"),
+      height: timerLength("dimensions.height"),
     })
     .optional(),
   background: z
     .object({
       color: cssColorSchema.optional(),
       opacity: opacitySchema.optional(),
-      borderRadius: cssLengthSchema.optional(),
+      borderRadius: timerLength("background.borderRadius"),
     })
     .optional(),
   ring: z
@@ -603,23 +779,23 @@ export const timerStylesInputSchema = z.object({
       trackOpacity: opacitySchema.optional(),
       fillColor: cssColorSchema.optional(),
       fillOpacity: opacitySchema.optional(),
-      width: boundedInt(0, 200).optional(),
-      gap: boundedInt(0, 200).optional(),
+      width: intIn(TIMER_NUMBER_LIMITS["ring.width"]).optional(),
+      gap: intIn(TIMER_NUMBER_LIMITS["ring.gap"]).optional(),
     })
     .optional(),
   text: z
     .object({
       color: cssColorSchema.optional(),
       outlineColor: cssColorSchema.optional(),
-      outlineSize: cssLengthSchema.optional(),
+      outlineSize: timerLength("text.outlineSize"),
       fontFamily: fontFamilySchema.optional(),
     })
     .optional(),
   fontSizes: z
     .object({
-      label: cssLengthSchema.optional(),
-      time: cssLengthSchema.optional(),
-      cycle: cssLengthSchema.optional(),
+      label: timerLength("fontSizes.label"),
+      time: timerLength("fontSizes.time"),
+      cycle: timerLength("fontSizes.cycle"),
     })
     .optional(),
 });
@@ -657,17 +833,19 @@ const opacityGroupSchema = z.object({
   opacity: opacitySchema.optional(),
 });
 
-const borderGroupSchema = z.object({
-  color: cssColorSchema.optional(),
-  width: cssLengthSchema.optional(),
-  radius: cssLengthSchema.optional(),
-});
+const borderGroupSchema = (part: "header" | "body" | "task" | "checkbox") =>
+  z.object({
+    color: cssColorSchema.optional(),
+    width: taskLength(`${part}.border.width`),
+    radius: taskLength(`${part}.border.radius`),
+  });
 
-const marginGroupSchema = z.object({
-  top: cssLengthSchema.optional(),
-  left: cssLengthSchema.optional(),
-  right: cssLengthSchema.optional(),
-});
+const marginGroupSchema = (part: "checkbox" | "bullet") =>
+  z.object({
+    top: taskLength(`${part}.margin.top`),
+    left: taskLength(`${part}.margin.left`),
+    right: taskLength(`${part}.margin.right`),
+  });
 
 export const taskStylesInputSchema = z.object({
   display: z
@@ -676,7 +854,7 @@ export const taskStylesInputSchema = z.object({
       showCount: z.boolean().optional(),
       useCheckboxes: z.boolean().optional(),
       crossOnDone: z.boolean().optional(),
-      numberOfLines: boundedInt(1, 100).optional(),
+      numberOfLines: intIn(TASK_NUMBER_LIMITS["display.numberOfLines"]).optional(),
     })
     .optional(),
   fonts: z
@@ -688,28 +866,28 @@ export const taskStylesInputSchema = z.object({
   scroll: z
     .object({
       enabled: z.boolean().optional(),
-      pixelsPerSecond: boundedInt(1, 1000).optional(),
-      gapBetweenLoops: boundedInt(0, 5000).optional(),
+      pixelsPerSecond: intIn(TASK_NUMBER_LIMITS["scroll.pixelsPerSecond"]).optional(),
+      gapBetweenLoops: intIn(TASK_NUMBER_LIMITS["scroll.gapBetweenLoops"]).optional(),
     })
     .optional(),
   header: z
     .object({
-      height: cssLengthSchema.optional(),
+      height: taskLength("header.height"),
       background: opacityGroupSchema.optional(),
-      border: borderGroupSchema.optional(),
-      fontSize: cssLengthSchema.optional(),
+      border: borderGroupSchema("header").optional(),
+      fontSize: taskLength("header.fontSize"),
       fontColor: cssColorSchema.optional(),
-      padding: cssLengthSchema.optional(),
+      padding: taskLength("header.padding"),
     })
     .optional(),
   body: z
     .object({
       background: opacityGroupSchema.optional(),
-      border: borderGroupSchema.optional(),
+      border: borderGroupSchema("body").optional(),
       padding: z
         .object({
-          vertical: cssLengthSchema.optional(),
-          horizontal: cssLengthSchema.optional(),
+          vertical: taskLength("body.padding.vertical"),
+          horizontal: taskLength("body.padding.horizontal"),
         })
         .optional(),
     })
@@ -717,13 +895,13 @@ export const taskStylesInputSchema = z.object({
   task: z
     .object({
       background: opacityGroupSchema.optional(),
-      border: borderGroupSchema.optional(),
-      fontSize: cssLengthSchema.optional(),
+      border: borderGroupSchema("task").optional(),
+      fontSize: taskLength("task.fontSize"),
       fontColor: cssColorSchema.optional(),
       usernameColor: cssColorSchema.optional(),
-      padding: cssLengthSchema.optional(),
-      marginBottom: cssLengthSchema.optional(),
-      maxWidth: cssLengthSchema.optional(),
+      padding: taskLength("task.padding"),
+      marginBottom: taskLength("task.marginBottom"),
+      maxWidth: taskLength("task.maxWidth"),
     })
     .optional(),
   taskDone: z
@@ -734,21 +912,21 @@ export const taskStylesInputSchema = z.object({
     .optional(),
   checkbox: z
     .object({
-      size: cssLengthSchema.optional(),
+      size: taskLength("checkbox.size"),
       background: opacityGroupSchema.optional(),
-      border: borderGroupSchema.optional(),
-      margin: marginGroupSchema.optional(),
-      tickChar: glyphSchema.optional(),
-      tickSize: cssLengthSchema.optional(),
+      border: borderGroupSchema("checkbox").optional(),
+      margin: marginGroupSchema("checkbox").optional(),
+      tickIcon: overlayIconSchema.optional(),
+      tickSize: taskLength("checkbox.tickSize"),
       tickColor: cssColorSchema.optional(),
     })
     .optional(),
   bullet: z
     .object({
-      char: glyphSchema.optional(),
-      size: cssLengthSchema.optional(),
+      icon: overlayIconSchema.optional(),
+      size: taskLength("bullet.size"),
       color: cssColorSchema.optional(),
-      margin: marginGroupSchema.optional(),
+      margin: marginGroupSchema("bullet").optional(),
     })
     .optional(),
 });
@@ -842,10 +1020,10 @@ export function flattenTaskStyles(input: TaskStylesInput) {
     ...(input.checkbox?.margin?.right != null && {
       checkboxMarginRight: input.checkbox.margin.right,
     }),
-    ...(input.checkbox?.tickChar != null && { checkboxTickChar: input.checkbox.tickChar }),
+    ...(input.checkbox?.tickIcon != null && { checkboxTickChar: input.checkbox.tickIcon }),
     ...(input.checkbox?.tickSize != null && { checkboxTickSize: input.checkbox.tickSize }),
     ...(input.checkbox?.tickColor != null && { checkboxTickColor: input.checkbox.tickColor }),
-    ...(input.bullet?.char != null && { bulletChar: input.bullet.char }),
+    ...(input.bullet?.icon != null && { bulletChar: input.bullet.icon }),
     ...(input.bullet?.size != null && { bulletSize: input.bullet.size }),
     ...(input.bullet?.color != null && { bulletColor: input.bullet.color }),
     ...(input.bullet?.margin?.top != null && { bulletMarginTop: input.bullet.margin.top }),
@@ -974,3 +1152,46 @@ const TIMER_STYLE_GROUPS: readonly string[][] = styleGroups(
   flattenTimerStyles,
 );
 const TASK_STYLE_GROUPS: readonly string[][] = styleGroups(DEFAULT_TASK_STYLES, flattenTaskStyles);
+
+// ── Read-time clamp of values saved before a limit existed ──────────────────
+// Never migrated: a stored value outside today's range (a negative margin, a 300px time)
+// reads back inside it, so the overlay draws it sanely and a whole-group save of the
+// loaded theme never fails validation. Limits: ./style-limits.
+
+const valueAt = (root: unknown, path: string): unknown =>
+  path.split(".").reduce<unknown>((node, key) => (node as Record<string, unknown>)?.[key], root);
+
+function clampStyleTree<T>(
+  styles: T,
+  defaults: unknown,
+  lengths: Readonly<Record<string, LengthLimit>>,
+  numbers: Readonly<Record<string, readonly [number, number]>>,
+): T {
+  const out = structuredClone(styles) as Record<string, unknown>;
+  const set = (path: string, value: unknown) => {
+    const keys = path.split(".");
+    const last = keys.pop() as string;
+    const parent = keys.reduce<Record<string, unknown>>(
+      (node, key) => node[key] as Record<string, unknown>,
+      out,
+    );
+    parent[last] = value;
+  };
+  for (const [path, limit] of Object.entries(lengths)) {
+    set(path, clampLength(valueAt(out, path) as string, limit, valueAt(defaults, path) as string));
+  }
+  for (const [path, range] of Object.entries(numbers)) {
+    set(path, clampInt(valueAt(out, path) as number, range, valueAt(defaults, path) as number));
+  }
+  return out as T;
+}
+
+/** Timer styles with every length and integer inside its limit. */
+export function clampTimerStyles(styles: TimerStylesConfig): TimerStylesConfig {
+  return clampStyleTree(styles, DEFAULT_TIMER_STYLES, TIMER_LENGTH_LIMITS, TIMER_NUMBER_LIMITS);
+}
+
+/** Task styles with every length and integer inside its limit. */
+export function clampTaskStyles(styles: TaskStylesConfig): TaskStylesConfig {
+  return clampStyleTree(styles, DEFAULT_TASK_STYLES, TASK_LENGTH_LIMITS, TASK_NUMBER_LIMITS);
+}

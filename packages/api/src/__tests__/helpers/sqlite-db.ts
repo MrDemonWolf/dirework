@@ -67,7 +67,15 @@ export async function createSqliteDb() {
   const orm = drizzle(sqlite, { schema });
   patchRelationalQueries(orm);
 
-  const batch = async (statements: PromiseLike<unknown>[]) => {
+  // D1 runs batches one at a time; queue them so concurrent callers (Promise.all
+  // in a race test) never open a transaction inside another's.
+  let queue: Promise<unknown> = Promise.resolve();
+  const batch = (statements: PromiseLike<unknown>[]) => {
+    const run = queue.then(() => runBatch(statements));
+    queue = run.catch(() => undefined);
+    return run;
+  };
+  const runBatch = async (statements: PromiseLike<unknown>[]) => {
     sqlite.exec("BEGIN");
     try {
       const results: unknown[] = [];

@@ -72,7 +72,7 @@ claimed](/docs/deployment#recovering-an-instance-someone-else-claimed).
 ### Overlay shows a blank page
 
 - While idle, the timer overlay shows a full preview (your work length and a full ring), not a blank page. If it stays blank, the URL or token is probably wrong (for example, it was regenerated) or the overlay cannot reach the API.
-- Check that the overlay URL is correct. Copy it again from the overlay URL row under the matching console on the dashboard.
+- Check that the overlay URL is correct. Copy it again from **OBS sources** on the dashboard (the **Timer** or **Tasks** tab).
 - Treat overlay URLs as bearer credentials. If one was exposed, reset it and update OBS.
 - Try opening the overlay URL directly in your browser to see if it loads.
 
@@ -146,19 +146,27 @@ If you changed the work duration (e.g. to 50 minutes) but the timer still uses 2
 
 The bot only listens to chat **while its bot page is open** somewhere. Run through this list:
 
-- **Is a bot page open?** Copy the bot page URL from **Dashboard → Bot** and add it to
-  OBS as a browser source or a [custom browser dock](/docs/twitch-oauth#where-to-keep-the-bot-page)
-  (or keep it open in one pinned browser tab). If no copy is open, the bot hears nothing. A
-  **closed** OBS dock counts as not open — tab it behind another dock instead of closing it. Extra copies are safe — each chat message runs once, deduplicated by
-  its Twitch message id, and only one copy replies — but each copy spends Worker requests, so
-  close the ones you don't need.
+- **Is a bot page open?** Copy the **Widget URL** or **Dock URL** from **Dashboard → Bot**
+  and [keep it open](/docs/twitch-oauth#where-to-keep-the-bot-page): the widget in an OBS
+  browser source or a Moblin widget, or the dock in an OBS custom browser dock or one pinned
+  browser tab. The widget is blank on purpose; its tab title (or the dock) shows whether it's
+  connected, and the dashboard's bot chip says **Bot connected** while one is running (it
+  turns **Bot offline** a few minutes after the last one closes). If no copy is open, the
+  bot hears nothing. A **closed** OBS dock counts as not open — tab it behind another dock
+  instead of closing it.
+- **Is it running somewhere else?** Only one bot page joins chat at a time. Any other copy
+  you open stands by: its tab title says **Standby** and the dock says **The bot is running
+  somewhere else**. Click **Take over** in that dock to move the bot there (the other page
+  stands by within 2 minutes, or at once the next time it relays a command). A standby page
+  takes over on its own once the running page closes, at most about 5 minutes later. Each
+  open page checks in every 2 minutes (one Worker request), so close copies you don't need.
 - **Was the bot token regenerated?** Regenerating the token kills any previously copied
-  bot page URL. Re-copy the fresh URL from **Dashboard → Bot** and update your OBS
-  source or pinned tab. Treat this URL as a bearer credential and never post it publicly.
+  widget and dock URL (they share one token). Re-copy the fresh URL from **Dashboard → Bot**
+  and update your OBS source, Moblin widget, dock or pinned tab. Treat this URL as a bearer credential and never post it publicly.
 - **Is a bot account connected?** Check the **Bot account** card —
   [connect a bot account](/docs/twitch-oauth#step-5-connect-the-bot-account) if it isn't.
-- **Is the bot muted?** A muted bot ignores every command and posts nothing; the bot page
-  says **Muted** and **Dashboard → Bot** shows the **Mute bot** switch on. Flip the switch off,
+- **Is the bot muted?** A muted bot ignores every command and posts nothing; the dock (and
+  the widget's tab title) says **Muted** and **Dashboard → Bot** shows the **Mute bot** switch on. Flip the switch off,
   or have a mod send `!unmute`.
 - **Is that viewer blocked?** Blocked viewers get no reply at all. Check the **Blocked
   viewers** list in the **Moderation** card on **Dashboard → Bot**.
@@ -167,9 +175,9 @@ The bot only listens to chat **while its bot page is open** somewhere. Run throu
 
 - The bot account needs the `chat:read` and `chat:edit` scopes (the IRC connection the bot page uses requires them). If you connected the bot before these scopes were required, disconnect and reconnect it.
 - Check that the bot account isn't banned or timed out in your channel. When Twitch refuses a
-  reply (ban, timeout, slow mode, followers-only, subscribers-only), the bot page's LED turns
-  amber, the header reads **Chat error**, and the reason shows under it until a later reply
-  goes through.
+  reply (ban, timeout, slow mode, followers-only, subscribers-only), the dock's LED turns
+  amber, its header reads **Chat error** (so does the widget's tab title), and the reason
+  shows under **Last error**.
 
 ## Development issues
 

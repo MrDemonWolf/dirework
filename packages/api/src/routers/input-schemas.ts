@@ -1,17 +1,21 @@
 import { z } from "zod";
 
 import {
+  MAX_DISPLAY_NAME_LENGTH,
   MAX_TASK_LEN,
   hasControlCharacters,
+  sanitizeDisplayText,
   normalizeAliases,
   normalizeTwitchLogin,
   phaseLabelsInputSchema,
+  TWITCH_LOGIN_PATTERN,
   taskMessagesInputSchema,
   taskStylesInputSchema,
   timerMessagesInputSchema,
   timerStylesInputSchema,
   twitchAuthorColorSchema,
 } from "../config-shared";
+import { MAX_TIME_ZONE_LENGTH, isValidTimeZone } from "../stats-days";
 
 // ── Router input schemas ──────────────────────────────────────────────────────
 // Env-free module imported by BOTH the routers and the input-validation unit
@@ -24,7 +28,11 @@ export const taskTextInput = z
   .trim()
   .min(1)
   .max(MAX_TASK_LEN)
-  .refine((value) => !hasControlCharacters(value), "Control characters are not allowed");
+  .refine((value) => !hasControlCharacters(value), "Control characters are not allowed")
+  // Bidi overrides, invisible characters and Zalgo stacks off (the same
+  // sanitizeDisplayText chat task text gets); text that was nothing else is refused.
+  .transform((value) => sanitizeDisplayText(value).trim())
+  .refine((value) => value.length > 0, "Task text needs visible characters");
 
 /** Dashboard-created tasks always belong to the authenticated owner. */
 export const taskCreateInput = z.object({ text: taskTextInput }).strict();
@@ -38,23 +46,58 @@ const isoTimestampInput = z.iso.datetime().transform((value) => new Date(value))
  * Undo of a dashboard removal: the removed row, round-tripped. Every field is
  * bounded like the paths that originally wrote it — task text by taskTextInput,
  * the author color by twitchAuthorColorSchema, the same policy chat ingest uses
- * (it reaches overlay CSS).
+ * (it reaches overlay CSS), and the author fields by chat's limits: a Twitch id
+ * (digits, ≤ 32), a login (≤ 25) and a display name (≤ 25). The dashboard's own
+ * tasks use the owner's account id and name when no Twitch id is linked (local
+ * dev), so the id and login are shape-checked here and the router accepts the
+ * non-Twitch forms only when they are the owner's own (`isRestorableAuthor`).
  */
 export const taskRestoreInput = z
   .object({
     id: z.string().min(1).max(128),
-    authorTwitchId: z.string().min(1).max(128),
-    authorUsername: z.string().min(1).max(64),
-    authorDisplayName: z.string().min(1).max(64),
+    authorTwitchId: z
+      .string()
+      .min(1)
+      .max(32)
+      .regex(/^[A-Za-z0-9]+$/),
+    authorUsername: z
+      .string()
+      .min(1)
+      .max(25)
+      .refine((value) => !hasControlCharacters(value), "Control characters are not allowed"),
+    authorDisplayName: z
+      .string()
+      .min(1)
+      .max(MAX_DISPLAY_NAME_LENGTH)
+      .refine((value) => !hasControlCharacters(value), "Control characters are not allowed"),
     authorColor: twitchAuthorColorSchema.nullable(),
     text: taskTextInput,
-    status: z.enum(["pending", "active", "done"]),
+    status: z.enum(["pending", "started", "active", "done"]),
     priority: z.number().int().min(0).max(1),
     order: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
     createdAt: isoTimestampInput,
     completedAt: isoTimestampInput.nullable(),
   })
   .strict();
+
+const TWITCH_USER_ID = /^\d{1,32}$/;
+
+/**
+ * Whether a restore snapshot's author is one chat could have written (a Twitch
+ * id and login) or the owner's own dashboard identity. Keeps the undo from
+ * minting tasks under made-up authors that no chat path could produce.
+ */
+export function isRestorableAuthor(
+  snapshot: { authorTwitchId: string; authorUsername: string },
+  owner: { taskId: string; name: string },
+): boolean {
+  const twitchId = TWITCH_USER_ID.test(snapshot.authorTwitchId);
+  const login = TWITCH_LOGIN_PATTERN.test(snapshot.authorUsername.toLowerCase());
+  return (
+    (twitchId || snapshot.authorTwitchId === owner.taskId) &&
+    (login || snapshot.authorUsername === owner.name)
+  );
+}
 
 export const timerStartInput = z.object({
   totalCycles: z.number().int().min(1).max(99).optional(),
@@ -76,6 +119,19 @@ export const confirmSetupStepInput = z
   .strict();
 
 export type SetupStep = z.infer<typeof confirmSetupStepInput>["step"];
+
+/**
+ * The dashboard reports the browser's IANA zone, which decides the local day a stat lands
+ * on. Only zones this runtime's Intl accepts get through, so a stored zone always formats.
+ */
+export const setTimeZoneInput = z
+  .object({
+    timeZone: z
+      .string()
+      .max(MAX_TIME_ZONE_LENGTH)
+      .refine(isValidTimeZone, { message: "Unknown time zone" }),
+  })
+  .strict();
 
 /** 24h — an upper bound on any single phase; also rejects NaN/Infinity. */
 const MAX_PHASE_MS = 24 * 60 * 60 * 1000;

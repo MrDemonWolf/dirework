@@ -68,8 +68,11 @@ describe("sectionsReady (the first-paint deadline)", () => {
     await expect(ready).resolves.toBeUndefined();
   });
 
-  it("keeps the deadline near 150ms: long enough for a normal batch, short enough to feel instant", () => {
-    expect(SECTIONS_READY_MS).toBe(150);
+  it("keeps the deadline above a production batch plus React's 300ms reveal throttle, under ~1s", () => {
+    // Below ~450ms a batch landing just late would finish later partial (throttled) than held.
+    expect(SECTIONS_READY_MS).toBeGreaterThanOrEqual(450);
+    // Session check + deadline must stay inside the ~1s flow limit for a first paint.
+    expect(SECTIONS_READY_MS).toBeLessThanOrEqual(800);
   });
 });
 
@@ -140,10 +143,10 @@ describe("dashboard wiring", () => {
   });
 
   it("gives every data-backed section its own boundary and placeholder", () => {
-    for (const name of ["status", "timer", "tasks"]) {
-      expect(dashboard).toContain(`<SectionPlaceholder name="${name}">`);
+    for (const name of ["status", "stats", "timer", "focus-chart", "tasks"]) {
+      expect(dashboard).toMatch(new RegExp(`<SectionPlaceholder name="${name}"[ >]`));
     }
-    expect(dashboard.match(/<ProgressiveSection\b/g)).toHaveLength(3);
+    expect(dashboard.match(/<ProgressiveSection\b/g)).toHaveLength(5);
     // No entrance animation on the grid: sections appear in place, they do not rise in.
     expect(dashboard).not.toContain("stagger-reveal");
   });

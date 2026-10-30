@@ -1,36 +1,6 @@
-import { AxeBuilder } from "@axe-core/playwright";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-import { signIn } from "./helpers";
-
-/** WCAG 2.0 and 2.1, levels A and AA — the rule tags axe maps to those success criteria. */
-const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
-
-/**
- * Scan the current page and fail on any serious or critical violation. The full axe result
- * (every violation, pass, and incomplete check) is attached to the test report, so a failure
- * can be read in CI without rerunning the scan.
- */
-async function expectNoSeriousViolations(page: Page, name: string): Promise<void> {
-  // The theme class is applied by a script after the HTML streams in; until then the page
-  // shows the light palette, and a scan during that window measures the wrong colors.
-  await page.waitForFunction(() => document.documentElement.classList.contains("dark"));
-  const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
-  await test.info().attach(`axe-${name}.json`, {
-    body: JSON.stringify(results, null, 2),
-    contentType: "application/json",
-  });
-
-  const blocking = results.violations
-    .filter((violation) => violation.impact === "serious" || violation.impact === "critical")
-    .map(
-      (violation) =>
-        `${violation.id} (${violation.impact}): ${violation.help} — ${violation.nodes
-          .map((node) => node.target.join(" "))
-          .join(", ")}`,
-    );
-  expect(blocking, `axe violations on ${name}`).toEqual([]);
-}
+import { expectNoSeriousViolations, signIn } from "./helpers";
 
 // The dashboard panels fade in for ~0.75s after the heading appears, and axe blends that
 // transient opacity into the colors it measures. The app turns its animations off under

@@ -1,7 +1,7 @@
 import path from "node:path";
-import { expect, test, type Page, type WebSocketRoute } from "@playwright/test";
+import { expect, type Page, type Route, test, type WebSocketRoute } from "@playwright/test";
 import { BETTER_AUTH_SECRET, DEV_LOGIN_SECRET, PROXY_SECRET } from "../src/env";
-import { signIn, waitForHydration } from "../tests/helpers";
+import { clearBotLease, signIn, waitForHydration } from "../tests/helpers";
 
 const images = path.resolve(import.meta.dirname, "../../../apps/fumadocs/public/screenshots");
 const chatToken = "synthetic-wolf-chat-token";
@@ -39,7 +39,7 @@ test("capture synthetic Wolf example screens without a real Twitch connection", 
   ]) {
     await page.getByRole("textbox", { name: "New task text" }).fill(text);
     await page.getByRole("button", { name: "Add", exact: true }).click();
-    await expect(page.getByText(text, { exact: true })).toBeVisible();
+    await expect(page.getByLabel(`Mark "${text}" as done`)).toBeVisible();
   }
   await page.getByLabel('Mark "Review the Moonlight theme" as done').click();
   await expect(page.getByLabel("Review the Moonlight theme (done)")).toBeVisible();
@@ -49,19 +49,37 @@ test("capture synthetic Wolf example screens without a real Twitch connection", 
   await expect(page.getByRole("radiogroup", { name: "Theme presets" })).toBeVisible();
   await capture(page, "theme-center");
 
+  // The bot dock (`?view=dock`), with Twitch simulated: getSession and ingest are stubbed and
+  // the IRC socket is held here. The real bot token keeps the one-bot-page lease on the api.
+  const ingestInfo = await page.request.get("/rpc/bot.getIngestInfo");
+  expect(ingestInfo.ok()).toBe(true);
+  const { botToken } = ((await ingestInfo.json()) as { result: { data: { botToken: string } } })
+    .result.data;
+  await clearBotLease(page);
   let socket: WebSocketRoute | undefined;
-  const fulfill = (data: unknown) => ({
-    contentType: "application/json",
-    headers: { "access-control-allow-origin": "*" },
-    body: JSON.stringify([{ result: { data } }]),
-  });
-  await page.route("**/trpc/bot.getSession*", (route) =>
-    route.fulfill(fulfill({ channelName: "wolfstreamer", botUsername: "WolfBot", chatToken })),
+  const fulfill = (route: Route, data: unknown) =>
+    route.fulfill({
+      contentType: "application/json",
+      headers: {
+        "access-control-allow-origin": route.request().headers().origin ?? "*",
+        "access-control-allow-credentials": "true",
+      },
+      body: JSON.stringify([{ result: { data } }]),
+    });
+  await page.route(/\/trpc\/bot\.getSession\b/, (route) =>
+    fulfill(route, {
+      channelName: "wolfstreamer",
+      botUsername: "WolfBot",
+      chatToken,
+      aliases: [],
+      muted: false,
+      broadcasterId: "1000",
+    }),
   );
-  await page.route("**/trpc/bot.ingest*", (route) =>
-    route.fulfill(fulfill({ replies: ["MoonWolf, your task is on the list."] })),
+  await page.route(/\/trpc\/bot\.ingest\b/, (route) =>
+    fulfill(route, { replies: ["MoonWolf, your task is on the list."], muted: false }),
   );
-  await page.routeWebSocket("wss://irc-ws.chat.twitch.tv/**", (ws) => {
+  await page.routeWebSocket(/irc-ws\.chat\.twitch\.tv/, (ws) => {
     socket = ws;
     ws.onMessage((message) => {
       if (String(message).startsWith("NICK ")) {
@@ -69,14 +87,17 @@ test("capture synthetic Wolf example screens without a real Twitch connection", 
       }
     });
   });
-  await page.goto("/bot/synthetic-wolf-demo");
-  await expect(page.getByRole("status").filter({ hasText: "Connected" })).toBeVisible();
+  // An OBS custom browser dock is narrow.
+  await page.setViewportSize({ width: 360, height: 760 });
+  await page.goto(`/bot/${botToken}?view=dock`);
+  const dock = page.getByRole("main", { name: "DireWork bot dock" });
+  await expect(dock.getByRole("button", { name: "Pause", exact: true })).toBeEnabled();
   expect(socket).toBeDefined();
   socket?.send(
-    "@id=wolf-demo;user-id=789;display-name=MoonWolf;mod=0 :moonwolf!moonwolf@moonwolf.tmi.twitch.tv PRIVMSG #wolfstreamer :!task Finish the pack newsletter\r\n",
+    "@id=wolf-demo;room-id=1000;user-id=789;display-name=MoonWolf;mod=0 :moonwolf!moonwolf@moonwolf.tmi.twitch.tv PRIVMSG #wolfstreamer :!task Finish the pack newsletter\r\n",
   );
-  await expect(page.getByRole("log", { name: "Activity log" })).toContainText(
-    "MoonWolf, your task is on the list.",
+  await expect(dock.getByRole("region", { name: "Recent commands" })).toContainText(
+    "Finish the pack newsletter",
   );
-  await capture(page, "bot-console");
+  await capture(page, "bot-dock");
 });

@@ -4,14 +4,12 @@ This file provides guidance for coding agents working on the Dirework codebase.
 
 ## Critical Documentation Reference
 
-- October 26 codebase, deployment and screenshot review → `docs/history/2026-10-26-codebase-and-site-review.md`
 
 **ALWAYS update this section** when creating or discovering important docs to prevent context loss.
 
 - Historical records (completed plans and reviews) live in `docs/history/`:
   - Node/Postgres → Cloudflare migration (completed) → `docs/history/MIGRATION.md`
   - Pre-migration audit (29 findings, all addressed in the port) → `docs/history/AUDIT-cloudflare-migration.md`
-  - Marketing website research and UI/UX review → `docs/history/MARKETING-REVIEW.md`
   - Logo generation prompt → `docs/history/logo.md`
 - Security policy and production operator checklist → `SECURITY.md`
 - Documentation map → `docs/README.md`
@@ -71,7 +69,7 @@ token-authenticated traffic (overlay polling, bot page) goes DIRECT to the api w
 with their data: each page runs `requireSession()` first (a signed-out visitor never spends a
 batch) — for Bot settings the shared `bot/(sections)/layout.tsx` does it, ONCE on entering the
 section, since a layout is kept across its own pages' navigations and every procedure those
-pages call is owner-only — then `streamDashboard` / `prefetchStyles` / `prefetchBot` (`lib/server-query.ts`),
+pages call is owner-only — then `streamDashboard` / `prefetchStyles` / `streamBot` (`lib/server-query.ts`),
 which use a per-call `createServerTrpc(queryClient)` (`lib/server-trpc.ts`, no module state)
 to issue every query in one tick — `httpBatchStreamLink` folds them into ONE GET straight to
 the api worker's `/trpc` (cookie + signed client IP, 5s `INTERNAL_FETCH_TIMEOUT_MS`; never via
@@ -96,12 +94,14 @@ await (Next renders a route's layouts and page in parallel, so it registers befo
 layout's own await settles), and the `(app)` layout awaits `shellReleased()` (allSettled, a
 no-op when nothing is held) after its session, so the page is complete when the shell is
 written. A client navigation never runs the `(app)` layout, so its `loading.tsx` skeleton
-still shows instantly. `/dashboard/styles` (on its whole prefetch) and `/dashboard` (on
-`loadDashboard`, which waits at most `SECTIONS_READY_MS`) opt in; `shell-hold.test.ts` and
+still shows instantly. `/dashboard/styles` (on its whole prefetch), `/dashboard` (on
+`loadDashboard`, which waits at most `SECTIONS_READY_MS`) and Bot settings (the `(sections)`
+layout, on `loadBot`: a layout renders in parallel with the `(app)` layout just like a page)
+opt in; `shell-hold.test.ts` and
 `progressive.test.ts` pin the wiring, and `40-theme-center` / `22-progressive` assert no
 painted frame shows a skeleton on a fast load.
-**Progressive sections** (`/dashboard`; any page can opt in). `streamQueries(start)` starts the
-page's batch and waits for it only until every query settles or `SECTIONS_READY_MS` (150ms,
+**Progressive sections** (`/dashboard`, Bot settings; any page can opt in). `streamQueries(start)` starts the
+page's batch and waits for it only until every query settles or `SECTIONS_READY_MS` (800ms,
 `lib/progressive.ts`) passes, then dehydrates successes as data and the queries still in
 flight as pending promises, which stream to the browser inside the RSC payload. The page holds
 the `(app)` shell for exactly that (`holdShellFor(load())`, above), so a fast load paints
@@ -114,14 +114,22 @@ from the same request. Static chrome (headings, the greeting) lives outside the 
 is repeated in the fallback. Why a server deadline and not a CSS-delayed placeholder: React
 reveals streamed boundaries in batches, the first at once and each later one ≥300ms after the
 previous, so a frame painted first and filled a moment later still flashed its placeholders
-(2 hard loads in 8 in testing). Keep state two places share inside one section (the
+(2 hard loads in 8 in testing). Why 800ms: a partial paint never finishes sooner (its
+placeholders stay ≥300ms), and a production batch (session read + each procedure's D1 reads,
+~45ms a round trip from the edge, more on a cold isolate) regularly took longer than the old
+150ms, so most real loads painted every section as a placeholder. Keep state two places share inside one section (the
 dashboard's checklist and its header Setup button, both gated on `user.me`) so it is never
 decided from a pending query; no entrance animation on sections (a fade would replay per
 reveal). Known exception: the setup checklist has no placeholder (its presence depends on
-`user.me` and a per-browser choice), so a `user.me` slower than 150ms mid-setup pushes the
+`user.me` and a per-browser choice), so a `user.me` slower than the deadline mid-setup pushes the
 page down once. To opt a page in: replace its awaited `prefetch*` with `streamQueries`, hold
-the shell on the loader, and wrap each data section. e2e `22-progressive` slows one procedure
-through the e2e api worker's `e2e-delay` cookie (`packages/e2e/src/api-entry.ts`).
+the shell on the loader, and wrap each data section. Bot settings wraps each card in
+`BotSection needs={["config" | "user"]}` (`(sections)/bot-data.tsx`): a `ProgressiveSection`
+over just the queries that card reads, plus the failed-load retry (`botSectionStatus`,
+`lib/bot-section.ts`), with placeholders from `bot-settings-skeleton.tsx`; second known
+exception: the Overview's card order depends on `user.me`, so its placeholder takes the
+connected arrangement. e2e `22-progressive` slows one procedure through the e2e api worker's
+`e2e-delay` cookie (`packages/e2e/src/api-entry.ts`).
 
 **Per-request factories, no module singletons** (Workers isolate per request):
 `createDb()` (packages/db), `createAuth()` (packages/auth), `createContext({ context })`
@@ -171,12 +179,19 @@ aliasable) but NOT alias targets; they are mod-only. `handleMessage` gates every
 and anything but a mod's `!unmute` while muted return silently, so they cost no write.
 `bot.ingest` returns `{ replies, muted }` (the post-command mute state, so the page's "Muted"
 status follows `!mute` without a request) and `bot.getSession` carries `muted` from its single
-bot_config read. Bot lives only while that page is open (OBS browser
-source, OBS custom browser dock, or pinned tab). `?view=dock` (`parseBotView` in
-`lib/bot-view.ts`) swaps the ~400×200 source layout for a narrow control panel
-(`bot-dock.tsx`: LED, mute state, last error, recent commands, Reconnect, command buttons)
-over the SAME session — no poll; Reconnect re-creates the session (one `getSession`, like a
-reload). The dock wears OBS Studio's Yami dark palette (`color.obs` tokens → `*-obs-*`
+bot_config read. Bot lives only while that page is open. Two views of ONE session
+(`parseBotView` in `lib/bot-view.ts`): the default is the **blank widget** — a transparent
+page that paints nothing (the `(bot)` layout forces `html,body` transparent like the
+overlays; the dock and the notices paint their own background), so it can sit on any OBS
+browser source or Moblin browser widget scene; its state goes only to `document.title`
+(`botPageTitle`: "DireWork bot · Connected" / "· Muted" / "· Action needed") and an sr-only
+live region, and even the terminal phases (`revoked`, `reauth`, `invalid`) and the `(bot)`
+error boundary stay off the stream (sr-only `role="alert"`; the dock and Dashboard → Bot
+show them). `?view=dock` is the visible control panel for an OBS custom browser dock or a
+pinned tab (`bot-dock.tsx`, a centered `max-w-md` column on the OBS grey: LED, mute state,
+last error, recent commands, Reconnect, command buttons; the title bar plus Mute/Unmute and
+Reconnect are a `sticky top-0` strip, so a ~400×200 or 240-wide dock never scrolls them away) over the SAME session — no poll;
+Reconnect re-creates the session (one `getSession`, like a reload). The dock wears OBS Studio's Yami dark palette (`color.obs` tokens → `*-obs-*`
 classes) in every app theme. Its command buttons (`lib/bot-dock-commands.ts`: Start/Pause/
 Resume/Skip/Reset, Mute/Unmute, Clear done; Reset and Clear done confirm) add NO server
 surface: `session.runCommand(line)` sends the chat line (`!timer pause`, `!mute`,
@@ -188,7 +203,42 @@ claim. Replies are shown in the dock, never `client.say`'d. One request per clic
 guard disables every button while one is in flight); while muted only Unmute is enabled; with
 no `broadcasterId` (an older api worker) the buttons stay off. A closed OBS dock destroys the page (stops the
 bot); a tabbed one keeps running. The setup checklist's bot step and Bot settings' "Run the bot"
-card hand out both URLs.
+card hand the URL out through ONE component, `components/bot-page-handoff.tsx`: a "How will
+you run the bot?" segmented radiogroup (Base UI `radio-group`; "Widget" / "Dock / browser
+tab", copy and steps in the pure `lib/bot-run-modes.ts`), then a single `SecretUrlRow` for the
+chosen view under a visible "Widget URL" / "Dock URL" label (keyed on the view, so a switch
+never reads as a reset), and that view's steps — never two look-alike masked rows. The pick is
+per-browser localStorage (`dirework.bot-view`, default widget on SSR/hydration). The card adds
+Reset (one token: "Reset both bot page URLs?") and "Open widget" / "Open dock".
+**One bot page at a time (chat lease).** Only one open bot page (widget or dock) joins chat:
+after `getSession` succeeds the session claims the lease with `bot.heartbeat({ token,
+instanceId })` BEFORE connecting IRC (`instanceId` = one `crypto.randomUUID()` per page load,
+kept across the dock's Reconnect), then checks in every `BOT_HEARTBEAT_MS` (2 min,
+`poll-intervals.ts`). The lease is `instance_config.bot_lease_instance_id` /
+`bot_lease_seen_at` (`0021_bot_page_lease`), written only by `services/bot-lease.ts`: ONE
+guarded UPDATE by primary key that takes/renews it when free, expired (`BOT_LEASE_TTL_MS` =
+5 min, `@dirework/api/bot-lease`, zod-free) or already ours, or unconditionally with
+`takeover`; a standby page's check-in is answered from the token read with no UPDATE.
+`holder: false` → phase `standby` (IRC disconnected, no hourly revalidation, heartbeat keeps
+checking and takes over once the lease expires; dock: "The bot is running somewhere else" +
+**Take over** → `takeOver()` = getSession + forced heartbeat; widget: title "DireWork bot ·
+Standby"). `bot.ingest` takes `instanceId` and refuses a page whose lease another page holds
+(CONFLICT + `BOT_STANDBY_MESSAGE` → `classifyBotError` "standby" → immediate standby), from
+the `requireBotInstance` read it already does; no `instanceId` (a page loaded before the
+lease) still relays. A failed claim fails OPEN (an api blip or an older api worker must not
+keep the only page off chat). On `pagehide` the holder sends `bot.release` as a plain
+`keepalive` fetch (`lib/bot-lease-release.ts`; sendBeacon can't send JSON), so a reload or
+the next page takes the chat at once. `user.me` returns `botPageSeenMsAgo` (an age, not a
+timestamp) from the instance row it already reads; the dashboard's header chip
+(`dashboardBotChip`, `lib/bot-status.ts`) says "Bot connected" when the last answer had it
+under the TTL, "Bot offline" when not, "Bot not connected" without an account — never from
+the local clock (a running page renews without telling the dashboard). When the lease in
+the last answer would run out, `scheduleBotPresenceCheck` (`lib/bot-presence.ts`, fake-timer
+tested) refetches `user.me` ONCE (visible tab only; at most once per lease window) and
+re-arms from the fresh answer: ~1 `user.me` refetch (2 Worker requests via `/rpc`) per
+5 min while a bot runs and the dashboard is visible, nothing while none runs or the tab is
+hidden. Resetting the bot URL (`rotateInstanceToken("botToken")`) clears the lease in the
+same UPDATE. e2e: `/__e2e/bot-lease` DELETE frees the lease (`clearBotLease`).
 Chat token comes from `bot.getSession` (server refreshes it; the
 refresh token and client secret never reach the browser). Each PRIVMSG's IRC `id` tag is
 forwarded as `messageId` and, once it resolves to an enabled Dirework command, claimed in
@@ -215,8 +265,8 @@ backs off exponentially (5s up to 5min, with jitter).
 `normalizeAliases` (`config-shared.ts`) / `normalizeAliasToken` + `KNOWN_ALIAS_TARGETS`
 (`packages/api/src/chat-commands.ts`, re-exported by `config-shared`) are the single source shared by the chat resolver
 (`resolveAlias`), the `commandAliasesInput` schema, and the dashboard editor — they accept
-either form and reject empty, multi-word, built-in-shadowing, duplicate, recursive, and
-unknown-target entries (each issue carries its input index so the editor flags the row). (Fixes the old `!!task`
+either form and reject empty, too-long (over `ALIAS_MAX_LENGTH`), multi-word,
+built-in-shadowing, duplicate, recursive, and unknown-target entries (each issue carries its input index so the editor flags the row). (Fixes the old `!!task`
 bug where the UI stored `!t → !task` and the resolver re-prefixed `!`.)
 
 **API request logging** uses a structured, redacted middleware
@@ -307,7 +357,7 @@ Web app: `@/` → `apps/web/src/`. Internal packages: `@dirework/api`, `@direwor
 
 ### tRPC / API layer
 
-Routers in `packages/api/src/routers/` (`user`, `task`, `timer`, `config`, `overlay`, `bot`).
+Routers in `packages/api/src/routers/` (`user`, `task`, `timer`, `config`, `overlay`, `bot`, `stats`).
 Three tiers: `publicProcedure` (overlays + bot page, token-gated),
 `protectedProcedure` (valid session), and **`ownerProcedure`** (session AND
 `user.isOwner`, fails closed with FORBIDDEN). Every dashboard/config/task/timer/
@@ -336,7 +386,7 @@ entry with a functional `setQueryData` (optimistic; rollback restores just that 
 snapshot), never cancels an in-flight `user.me` fetch (an overlay reset's refetch carries
 the rotated token), and refetches once only if such a fetch overlapped or the write failed
 (`shouldRefreshMeAfterConfirm`); the checklist never polls, and the bot page URL
-(`bot.getIngestInfo`) loads only while step 2 is open. Step handoffs reuse `SecretUrlRow`
+(`bot.getIngestInfo`) loads only while step 2 is open (step 2 is `BotPageHandoff`). Step handoffs reuse `SecretUrlRow`
 without its Reset action (omit `onRegenerate`). "Finish later" is per-browser localStorage
 (`dirework.setup-collapsed`); the header band's Setup button reopens the card.
 
@@ -348,26 +398,107 @@ list order in JS, and return `{ tasks, counts: { open, done, doneByAuthor } }` �
 `counts.doneByAuthor` are index COUNTs of ALL done rows (overall and per author), so
 `{done}/{total}` headers, including each author group's, must use `counts`, never the
 array length. The overlay skips done rows entirely (count only) when `showDone` is off.
+The open slice is capped too: **`MAX_OPEN_TASKS` (200, `@dirework/api/config-defaults`)**
+open (pending/started/active) tasks for the whole instance. Every task-creating path
+checks it INSIDE its guarded INSERT … SELECT (`hasRoomForOpenTaskSql`, an index COUNT on
+`task_status_completed_idx`), so concurrent creates can't pass it: `createTask` (dashboard
+`task.create` → PRECONDITION_FAILED `TASK_LIST_FULL_MESSAGE`; chat `!task` / `!next` → the
+`noTaskAdded` reply, nothing written), `replaceActiveTask` (allowed AT the cap since the swap
+never grows the list; its complete-old UPDATE requires the replacement row, so a refused
+`!next` leaves the focus active and returns `full: true` — `isTaskListFull` is read only on
+that failure path) and `restoreTask` (open snapshots only; `task.restore` tells a full list
+from a double-clicked undo with one read on the null path). `listTasks` /
+`listOverlayTasks` read the open slice with `LIMIT MAX_OPEN_TASKS`. The per-viewer chat cap
+`CHAT_OPEN_TASK_CAP` (20) still applies underneath.
 `purgeExpiredDoneTasks` (indexed DELETE of done rows with `completed_at` older than
 `DONE_TASK_RETENTION_MS` = 24h, best-effort, never throws) runs on writes only:
 `createTask`, `markTaskDone`, `replaceActiveTask`, `startTimer`, `resetTimer` — never on a
 poll. A test asserts via EXPLAIN QUERY PLAN that none of these queries full-scans.
+
+**Dashboard stats** (`services/stats-service.ts`, pure calendar math in `stats-days.ts`):
+`daily_stat` holds one row per owner-local day (`"YYYY-MM-DD"` in
+`instance_config.time_zone`, UTC when null). It is written ONLY as a side effect of writes
+that already happen, as `INSERT … ON CONFLICT(day) DO UPDATE SET x = x + excluded.x`:
+`maybeAdvanceOverdueTimer` credits the work phases `catchUpOverdue` walked past (full length +
+1 pomodoro each, on the day each phase ENDED), and `skipTimerWithResult` / `resetTimer` (now a
+guarded CAS after a catch-up) credit `workedMs` (length minus remaining, so paused time never
+counts; never a pomodoro). All three go through `casTimerWithCredits`: the guarded CAS and
+`focusCreditStmts` (INSERT … SELECT … `WHERE changes() > 0`) in ONE batch, so credits land only
+when the CAS wins (two pollers can't double count) and atomically with it (a reader that sees
+the advanced timer sees them); a poll with nothing overdue reads/writes nothing extra (the zone
+is read beside `timer_config`, only once a timer is overdue). **Chat paths pass the zone**:
+`requireBotInstance` selects `time_zone` with the token gate and `MessageContext.timeZone`
+flows into `markTaskDone` / `replaceActiveTask` / the timer actions (`TimerStatsOpts`), so a
+chat line adds no instance_config read (`bot-ingest.test.ts` pins it). Task completions (`completeTask`,
+`completeActiveTask`, `replaceActiveTask`) put `countTaskDoneStmt` in the SAME `db.batch`
+right after the guarded done UPDATE; it counts only if `changes() > 0` and the row carries
+that UPDATE's exact `completed_at`, so a repeat "done" or `task.restore` never counts twice.
+`tasks_done_chat` = author is not the owner, decided in SQL (owner twitch_id, Twitch account
+id or user id). Recording is best-effort and never fails the write it rides on: if a combined
+batch throws (D1 batches are atomic, so nothing applied), `casTimerWithCredits` and the task
+paths (`withStatsFallback`) retry the same guarded mutation alone; the zone read and the prune
+swallow their errors (`stats-service.sqlite.test.ts` breaks `daily_stat` with triggers to pin it).
+`pruneDailyStats` (PK range DELETE, > `STATS_RETENTION_DAYS` = 400) runs in `startTimer`.
+`stats.summary` (ownerProcedure) reads ≤35 rows by PK range (this week + 4 before it) and
+returns today, this week (`focusDays`), a week streak (`capped` when it reaches the window
+start, shown "5+") and 14 daily buckets, after advancing an overdue timer first (so a
+dashboard opened after an unattended session counts it, though `timer.get` races in the same
+batch); it rides `streamDashboard`'s one batch and is never polled — the dashboard's
+`useStatsRefresh` (`lib/stats-refresh.ts`: a QueryCache subscription to the timer and task-list
+queries only, not an observer; it stores its watermark before invalidating, so one change is
+one refetch) invalidates it when the timer
+poll sees another phase (`timerPhaseKey`: status, cycle, total and phase end, so work → work of
+the next cycle counts) or `task.list` shows a newer completion (`latestCompletion`: the
+newest `completedAt`, monotonic, unlike `counts.done`, which the purge can hold level), plus
+once just after each local midnight (`scheduleDayRollover`, one timer a day). `user.setTimeZone` (guarded UPDATE, `is not`) is sent once by `useTimeZoneSync` when
+`me.timeZone` differs from the browser's zone. UI: `components/dashboard-stats.tsx`
+(`StatTiles` strip under the greeting, `FocusChart` inline SVG under the timer digits).
 
 **Task mutations are atomic.** `activateTask` / `markTaskDone` run their
 multi-step work in ONE `db.batch` (atomic on D1), `promoteNextPending` is a
 single guarded UPDATE with a subquery, and a **partial unique index**
 (`task_one_active_per_author_idx`) makes "≤1 active task per Twitch user" a DB
 invariant. `createTask` catches the resulting UNIQUE violation and falls back to
-`pending` rather than dropping the chat message. Bot ingest is serialized
+`pending` rather than dropping the chat message.
+**Focus + started.** Per author: ≤1 focus (`status='active'`, the index above) plus ≤
+`MAX_STARTED_PER_AUTHOR` (2, `@dirework/api/config-defaults`) parked `started` tasks;
+`status` is plain text, so `started` needed no migration. `OPEN_STATUSES` includes it (open
+counts, `CHAT_OPEN_TASK_CAP`, list reads). Every cap check runs INSIDE the guarded UPDATE
+(`startedCountSql` subquery), never read-then-write: `startTask` (pending → focus when the
+author has none, else `started` under the cap, else `cap_reached`), `pauseTask` (started →
+pending; focus → pending + promote, never the paused row), `activateTask` (old focus →
+`started` if room, not counting the target, else `pending`), `restoreTask` (a `started`
+snapshot → focus if none, `started` under the cap, else `pending`). Promotion
+(`promoteNextPendingStmt`, used by done/remove/pause) takes the oldest started task by
+(order, id), then the first pending. List order (`sortTasksForList`): (priority, order, id),
+then each author's rows re-ranked focus → started → rest within the slots that author
+already holds, so author groups keep their order. `task.start` / `task.pause` exist with no
+UI yet. **Chat:** `!start N` (own task only, like `!done N`; pending → focus or started, the
+`startTask` outcome picks the reply; a full hand — focus + 2 started — is answered from the
+open list already read, no write), bare `!pause` = the focus (like bare `!done`), `!pause N`
+= that focus/started task (`pauseTask`), and `!check` / `!check @user` append the built-in
+`(+n more started)` via `withCheckSuffix` (template filled to fit beside it;
+`getViewerInProgressTasks` / `findInProgressTasksByUsername`, which replaced
+`getActiveTask` / `findActiveTaskByUsername` there: one read of only the ≤3 in-progress rows
+through the partial indexes `task_in_progress_author_idx` (author_twitch_id, status) and
+`task_in_progress_username_lower_idx` (lower(author_username)), both `WHERE status in
+('active', 'started')` from `0023_in_progress_task_idx`; the query repeats that WHERE as a
+literal (`IN_PROGRESS_STATUS`), since SQLite won't match a partial index against bound params).
+`!start` / `!pause` hand the row they already loaded to `startTask` / `pauseTask` (no
+re-read; the cap-vs-stale check is a SELECT inside `startTask`'s batch).
+Replies `taskStarted` / `taskStartedFocus` / `startCapReached` / `noTaskToStart` /
+`taskPaused` / `noTaskToPause` are `bot_config` columns from `0022_start_pause_replies`
+whose frozen column default IS the current wording (`NEW_COLUMN_WORDING` in config.test.ts),
+with placeholders `{count}` / `{max}` (`MAX_IN_PROGRESS` = 1 + `MAX_STARTED_PER_AUTHOR`). Chat positions (`getViewerOpenTasks`, `!done 2`, `!today`) still number by (order, id). Bot ingest is serialized
 client-side (a serial queue in `createBotSession`, `apps/web/src/lib/bot-session.ts`) so chat commands apply in
 order. List ordering tiebreaks on `id` so concurrent creates sort deterministically.
 Dashboard removal is one click with an Undo toast: `task.restore` → `restoreTask`
 re-inserts the removed row (same id, author, placement, timestamps) in ONE INSERT … SELECT;
 a removed `active` task comes back `pending` if removal promoted another, so the
-single-active index holds. Owner action, so no viewer caps apply.
+single-active index holds. Owner action, so no per-viewer caps apply (`MAX_OPEN_TASKS` does).
 
 **Services own mutations** (`packages/api/src/services/`): `task-service`, `timer-service`,
-`overlay-service`, `bot-moderation`, `twitch-auth`, `tokens`, `singleton`, `provision`. Both tRPC routers and
+`overlay-service`, `bot-moderation`, `stats-service`, `twitch-auth`, `tokens`, `singleton`, `provision`. Both tRPC routers and
 `bot.ingest` call the same service functions — never duplicate mutation logic in a router
 or command handler (audit M1). Pure logic (timer-logic.ts, config-shared.ts, services)
 must not import `@dirework/env/server` — Vitest runs in Node and cannot resolve
@@ -378,7 +509,23 @@ must not import `@dirework/env/server` — Vitest runs in Node and cannot resolv
 The CSS ones are **allowlists, not length caps** — style values are interpolated
 into overlay CSS, so `;`/`{}`/`url()` must never survive validation. Chat
 messages are bounded by **UTF-8 bytes** (`truncateToBytes`, `MAX_CHAT_BYTES`),
-never characters — an IRC line caps at 512 bytes, so 500 emoji would overflow it.
+never characters — an IRC line caps at 512 bytes, so 500 emoji would overflow it; a reply
+template may also repeat one placeholder at most `MAX_PLACEHOLDER_REPEATS` (4) times
+(`chat-text`). **Every limit is one zod-free constant** read by both the save schema and the
+editor (min/max, arrow stepping, inline error, counter from 80%):
+`@dirework/api/style-limits` holds `TIMER_/TASK_LENGTH_LIMITS` (per style path: a px range,
+optional `%` / `vw`·`vh` ranges, up to 4 shorthand values; rem/em = 16px, never negative;
+`boundedLengthSchema` + `lengthIssue`), `TIMER_/TASK_NUMBER_LIMITS` (ring width/gap 0–40,
+lines, scroll), the bullet/tick `OVERLAY_ICONS` (lucide ids stored in the old
+`*_char` columns; `overlayIconSchema`), and the phase label caps
+(`PHASE_LABEL_MAX_GRAPHEMES` 16 via `Intl.Segmenter`, `PHASE_LABEL_MAX_BYTES` 48;
+`phaseLabelSchema`); `ALIAS_MAX_LENGTH` (25, no "!") lives in `chat-commands`. A stored value
+outside a newer limit is **never migrated, it is clamped on read** in the build* helpers
+(`clampTimerStyles` / `clampTaskStyles`: nearest bound, or the default when the unit is no
+longer accepted; `toOverlayIcon` maps old glyphs; `clampPhaseLabel`; `limitPlaceholderRepeats`;
+aliases re-run through `normalizeAliases`), so a whole-group save of what was read always
+passes (`clamp-on-read.test.ts`), and every preset sits inside every limit
+(`theme-presets.test.ts`).
 
 **Abuse protections:** Cloudflare rate-limit bindings (`RL_AUTH`, `RL_BOT`,
 `RL_TOKEN`, `RL_OVERLAY` — separate buckets so a flood on one can't starve
@@ -387,7 +534,23 @@ overlay polling) applied in `apps/server/src/lib/rate-limit.ts`. The limiter key
 HMAC signature verifies offline under `BETTER_AUTH_SECRET` (`lib/session-cookie.ts` —
 the limiter runs before better-auth, so an unverified cookie must never mint its own
 bucket); `ip:<forwarded>` when the web proxy's `PROXY_SECRET` signature verifies; else
-`ip:<CF-Connecting-IP>` (X-Forwarded-For is never trusted). A global
+`ip:<CF-Connecting-IP>` (X-Forwarded-For is never trusted). `selectBucket` charges a
+batched `/trpc/a,b` request to the STRICTEST bucket among its procedures (auth 20 < token
+60 < overlay 120 < bot 300 per minute), matched on procedure-name prefixes after
+percent-decoding, never a substring of the path. The bot page throttles each viewer
+before relaying (`lib/viewer-throttle.ts`: > `VIEWER_COMMAND_LIMIT` = 6 commands per
+30s rolling window are dropped with no request, logged once per burst; never the
+broadcaster or mods; ≤ 500 viewers tracked). Viewer text is sanitized by the zod-free
+`sanitizeDisplayText` (`@dirework/api/chat-text`: bidi overrides/isolates and zero-width
+characters dropped — ZWJ kept inside emoji sequences and ZWJ/ZWNJ between letters —
+control characters to spaces, then `limitCombiningMarks`) on every write of task text
+(`taskTextInput`, `chatTaskText`, task-service), phase labels (`phaseLabelSchema`) and
+display names (`chatDisplayName`: sanitized, ≤ `MAX_DISPLAY_NAME_LENGTH` = 25, login
+fallback), and again by the overlay at render. `taskRestoreInput` holds authors to chat's
+limits (id `[A-Za-z0-9]` ≤ 32, login ≤ 25, display name ≤ 25) and `task.restore` accepts a
+non-Twitch id or login only when it is the owner's own (`isRestorableAuthor`). The CSS
+allowlists cap length with `{ abort: true }`, so the pattern never sees an oversized
+string. A global
 `bodyLimit`; streamed (not buffered) proxy bodies with a 413 pre-check in
 `auth-proxy.ts`; and `AbortSignal.timeout` on every outbound Twitch fetch. The
 limiter **fails open** if a binding is absent — it's a brake, not a dependency.
@@ -404,11 +567,14 @@ best-effort inside `REVOKE_BUDGET_MS` (shared with `disconnectBotAccount`, under
 
 Schema split: `auth.ts` (Better Auth tables), `app.ts` (instanceConfig, botAccount, task,
 timerState, timerConfig, timerStyle, taskStyle, botConfig,
-processedChatMessage), `index.ts` (relations). `instanceConfig` holds the three tokens,
-the cached `channelLogin`, and the dashboard setup checklist flags
+processedChatMessage, dailyStat), `index.ts` (relations). `instanceConfig` holds the three tokens,
+the cached `channelLogin`, the owner's IANA `timeZone` (nullable, `0020_daily_stats`; see
+Dashboard stats), and the dashboard setup checklist flags
 `setupBotSourceConfirmed` / `setupTimerOverlayConfirmed` / `setupTasksOverlayConfirmed`
 (`integer({mode:"boolean"})`, NOT NULL default false; added expand-only by
-`0018_setup_confirmations`), which only `user.confirmSetupStep` writes. `botConfig.muted`
+`0018_setup_confirmations`), which only `user.confirmSetupStep` writes, and the bot page
+lease `botLeaseInstanceId` / `botLeaseSeenAt` (nullable, `0021_bot_page_lease`), which only
+`services/bot-lease.ts` writes. `botConfig.muted`
 (boolean) and `botConfig.blockedViewers` (JSON array of lowercase logins, ≤
 `MAX_BLOCKED_VIEWERS` = 200; added expand-only by `0019_bot_mute_blocklist`) are written only
 by `services/bot-moderation.ts` (shared by the chat commands and `config.setBotMuted` /
@@ -473,7 +639,10 @@ it (e.g. `0017_drop_task_status_idx` contracted 0015's superseded `task_status_i
   `<twitch sub>@users.twitch.invalid` placeholder (`twitchPlaceholderEmail`). Account
   linking is disabled (sign-in matches on the Twitch account row). The owner's own
   Twitch OAuth tokens are never stored (account create/update hooks null them) and
-  sessions keep no IP or user agent; expired sessions are purged at sign-in. Migration
+  sessions keep no IP or user agent; expired sessions, and expired `verification` rows
+  (abandoned OAuth state; `purgeExpiredVerifications`, best-effort, a range on
+  `verification_expires_at_idx` from `0024_verification_expires_idx`), are purged at
+  sign-in. Migration
   `0014_scrub_owner_pii` scrubs rows written by earlier builds, but migrations apply before cutover, so a sign-in served
   by the old worker could write tokens back. The token scrub is therefore re-run after
   cutover on every deploy (`packages/infra/post-deploy.ts`, called from `alchemy.run.ts`)
@@ -529,6 +698,24 @@ Before the first payload lands, and whenever the server answers null (invalid or
 token), both overlays render nothing (`lib/overlay-view.ts`), so a stale OBS URL goes
 blank instead of showing a fake 00:00 timer or empty list.
 Recommended OBS source sizes (the dashboard's size chips): 300×300 timer, 700×800 tasks.
+**Task overlay text** has no length cap beyond `MAX_TASK_LEN`: it wraps
+(`overflow-wrap: anywhere`, so URLs and no-space strings break instead of being cut
+mid-letter), `dir="auto"` on the text and author name, and ends in an ellipsis after
+`display.numberOfLines` (default 4, range `TASK_LINES_MIN`–`TASK_LINES_MAX` = 1–6 in
+`@dirework/api/config-defaults`; the save schema takes only that range, and
+`clampTaskLines` holds rows saved under the old 1–100 range to 6 on read in
+`nestTaskStyleRow` and again at render). Zalgo: `limitCombiningMarks`
+(`@dirework/api/chat-text`, zod-free) keeps ≤ `MAX_COMBINING_MARKS` (2) combining marks
+per base character; task-service (`createTask`, `replaceActiveTask`, `editTask`, text and
+display name), the chat commands (`chatTaskText`, so replies echo what is stored) and
+`bot.ingest`'s display name apply it on the way in, and `TaskListDisplay` again at render
+for older rows. With scrolling off, `StaticList` shows whole rows only (`fitStaticList` in
+`lib/overlay-view.ts`): a row that doesn't fit and every row after it are hidden, a group
+with no row showing is hidden header and all, and a group cut part way is clipped at its
+last shown row; it hides with `visibility` / `clip-path` written straight to the DOM (no
+layout change, so no ResizeObserver loop) and measures after each render (a poll that
+brought new data) and on resize, never per tick. The "Active" label is
+`max(ACTIVE_LABEL_MIN_PX = 14px, 0.55 × task font)`.
 
 **Style defaults upgrade on read** (same idea as the bot replies): the timer_style/task_style
 column defaults are frozen (`TIMER_STYLE_COLUMN_DEFAULTS` / `TASK_STYLE_COLUMN_DEFAULTS` in
@@ -577,15 +764,31 @@ separate and keep their own colors. All animation respects `prefers-reduced-moti
 inputs ≥16px on touch (iOS zoom). Destructive actions (token regenerate, disconnect,
 clear, stop) always confirm via the AlertDialog primitive. Editors with dirty state use
 the unsaved-changes guard hook. 6 theme presets in `lib/theme-presets.ts`.
-**Dashboard** (`/dashboard`, `dashboard.tsx`): the timer console is a `lg:grid-cols-5`
-panel — `TimerInstrument` (status chip, digits, phase rail, cycle dots; hollow dots preview
-the planned run while idle) in 3/5, and in 2/5 `TimerTransport` (`[Start] [Skip] | [Stop]`;
-Skip/Stop exist only mid-run), `TimerSettings` behind the "Edit session settings"
-`SectionGroup` (its collapsed summary is `formatSessionSummary` in `lib/session-summary.ts`,
-from the SAVED config with `TIMER_CONFIG_DEFAULTS` fallbacks) and the timer-overlay monitor.
-The task board (`task-manager.tsx`) takes 2/3 with the tasks-overlay monitor in 1/3; a
-monitor is the URL row plus a "Live preview" toggle whose iframe only exists while on.
-Rows are `min-h-11` with `line-clamp-2` text, author groups fold (Collapsible, component
+**Dashboard** (`/dashboard`, `dashboard.tsx`): both panels open with a one-line header
+(`PANEL_HEADER_CLASS` in `lib/panel-header.ts`: the `h2` and its live state, no eyebrow or
+subtitle) — "Timer" with `TimerPhaseChip`, "Tasks" with "N open / N done" and the options
+menu. The timer console is then a `lg:grid-cols-5` panel — `TimerInstrument` (digits, phase
+rail, cycle dots; hollow dots preview the planned run while idle) in 3/5, and in 2/5
+`TimerTransport` (`[Start] [Skip] | [Stop]`; Skip/Stop exist only mid-run) with "Now: <task>"
+under it (the owner's own active task, `ownerActiveTask` in `lib/task-utils.ts`, read from
+the cached `task.list` by an observer with no `refetchInterval`, so no new request; nothing
+when the owner has none), `TimerSettings` behind the "Edit session settings" `SectionGroup`
+(its collapsed summary is `formatSessionSummary` in `lib/session-summary.ts`, from the SAVED
+config with `TIMER_CONFIG_DEFAULTS` fallbacks) and `ObsSources` (`components/obs-sources.tsx`):
+both overlay URLs in one block, a "Timer" / "Tasks" tab each (URL row with Show/Copy/Reset,
+the 300×300 / 700×800 size chip, a "Live preview" toggle whose iframe only exists while on;
+only the selected tab is mounted). The tab and the preview switch live in the console
+(`useObsPreview`): below `lg` the preview is inline under the URL row; from `lg` it opens as
+the console's third column (`ObsPreviewColumn`: overlay name + "Close live preview") and
+`.timer-console-grid` (index.css) slides instrument | controls from 3/5 · 2/5 over to make
+room. One iframe at most either way. The task board (`task-manager.tsx`) takes the full width.
+The setup checklist's URL handoffs stay separate (Show/Copy only). Rows are `min-h-11`: checkbox, then
+the task text (full wrap, no clamp, `wrap-anywhere`, `dir="auto"`) and a meta line
+(`data-slot="task-row-meta"`: status chip slot + action group, where later row controls go)
+that sits under the text below `sm` and beside it from `sm`. The clock is `formatClock`
+(`MM:SS`, `H:MM:SS` from an hour up, also on the overlay and Theme Center preview) sized by
+`.timer-digits` against its `@container` (`clockEm`), so `24:00:00` fits at 320px; a long
+phase label truncates in `TimerPhaseChip` (`title` = full label). Author groups fold (Collapsible, component
 state only), and "Clear done (N)" / "Clear all (N)" live in the "Task board options" menu,
 each opening its confirm. The bot's status appears once, as the header chip that links to Bot settings.
 The per-section placeholders in `dashboard-skeleton.tsx` (and the client-navigation
@@ -594,11 +797,19 @@ pins them.
 **Bot settings** (`/dashboard/bot/*`): `bot/layout.tsx` is synchronous and data-free — the
 h1 and the sticky `<nav aria-label="Bot settings sections">` (`components/bot-settings/
 bot-section-nav.tsx`, sections from `lib/bot-sections.ts`, `aria-current="page"`, links
-`prefetch={false}`) paint at once. Below `bot/loading.tsx`, the route group's
-`(sections)/layout.tsx` runs `requireSession()` + `prefetchBot()` into a `HydrationBoundary`
-and `BotDataGate` (`(sections)/bot-data.tsx`), which holds `config.get` + `user.me` and hands
-them to pages via `useBotData()`; a header link's prefetch stops at that loading boundary, so
-it never reaches the api, and a sub-page switch is one web-worker RSC request (no api).
+`prefetch={false}`) paint with the page. Below `bot/loading.tsx`, the route group's
+`(sections)/layout.tsx` holds the shell on `loadBot` (`requireSession()` + `streamBot()`, ONE
+streamed `config.get,user.me` batch, waited on for at most `SECTIONS_READY_MS`) into a
+`HydrationBoundary` (Progressive sections, above). Each card of a page is a `BotSection`
+(`(sections)/bot-data.tsx`) that names the queries it reads and gets them through
+`useBotConfig()` / `useBotUser()`: Overview = `user` (the arrangement, account and console
+cards) with the live controls a nested `config` section; Commands and Moderation's Blocked
+viewers = `config` only (Moderation's static mod-command legend sits outside the boundary);
+Replies = both. Their observers set `refetchOnMount: false` (a sub-page switch mounts them
+afresh; past `QUERY_FRESH_MS` a mount would refetch), and a query that failed shows
+`QueryError` in its card, never editors over defaults. A header link's prefetch stops at
+the loading boundary, so it never reaches the api, and a sub-page switch is one web-worker
+RSC request (no api).
 Pages: **Overview** (`(sections)/page.tsx`: `BotLiveControls` — mute, Task/Timer switches via
 `lib/use-command-group-switch.ts`, which saves ONE flag on flip, and "n of 200 blocked ·
 Manage"; `BotConsoleCard` "Run the bot"; `BotAccountCard`, first while no account is
@@ -619,12 +830,19 @@ a page never writes another page's draft. Each page with a draft mounts its own
 "2 · Customize" — the editor column (`lg:flex-1`) beside a sticky `lg:w-96` preview rail (capped
 above the Save bar via `--save-bar-clearance`). The preview is first in the DOM
 (`lg:flex-row-reverse`): below lg it is a sticky bar under the header with a Show/Hide button
-(collapsed by default, compact `max-w-64` canvas when open). No entrance animation: the page
+(collapsed by default; when open the 16:9 scene spans the bar, a close-up is capped at
+`max-w-64`). No entrance animation: the page
 arrives finished (shell hold, above). The preview (`theme-center/style-preview-panel.tsx`) renders the REAL
 `TimerDisplay` / `TaskListDisplay` client-side (no polling) over `lib/preview-session.ts` —
-`DEMO_SESSION`'s tasks and countdown, so the preview, landing and docs agree. One overlay at
-a time (`aria-pressed` "Preview timer" / "Preview tasks"), both scaled with `AutoScale` (tasks
-drawn at the 700×800 source). Backdrops dark / light / bright / checker are CSS classes in
+`DEMO_SESSION`'s tasks and countdown, so the preview, landing and docs agree. It is a 16:9
+stream canvas: a 1920×1080 logical scene (`STREAM_CANVAS`) scaled down whole with
+`AutoScale`, both overlays at true size and a usual spot (`previewSceneLayout`: tasks on the
+700×800 source down the left, the timer top right on a source sized to its `dimensions` via
+`timerSourceSize`, 300×300 for `%`/`vw` lengths), each source's inner markup matching its
+overlay page. "Preview timer" / "Preview tasks" (`aria-pressed`) select a source (an
+`outline-link` outline outside its box, as in OBS); the toolbar UNDER the canvas holds
+Play/Pause, the size readout and the "Close-up" toggle (the selected source alone, shaped to
+its aspect). Nothing is drawn over the canvas. Backdrops dark / light / bright / checker are CSS classes in
 `index.css` (`preview-scene-*`, `bg-checker`), deliberately outside the palette. The preview's
 header chip is the page's dirty indicator ("Previewing unsaved changes" / "Matches the saved
 theme"); `SaveBar` takes `label` and `saveHint` (Theme Center: "Unsaved — not on stream yet",
@@ -637,7 +855,22 @@ are thin wrappers over `theme-center/style-sections-editor.tsx`, which renders
 `TIMER_STYLE_FIELDS` / `TASK_STYLE_FIELDS` from `lib/style-sections.ts`: every style leaf
 path has exactly one field and one section (Colors · Typography · Layout · Opacity; Colors
 opens first) plus a `group` (fieldset legend). `style-sections.test.ts` holds both lists to
-`leafPaths(DEFAULT_*_STYLES)`, so a new style key must get a field. `SectionGroup` takes a
+`leafPaths(DEFAULT_*_STYLES)`, so a new style key must get a field. Rows are
+`theme-center/field-row.tsx`: label (plus an optional one-line `hint` from the field list)
+on the left, every control in ONE fixed `w-44` column right after it — a color is one
+bordered field (swatch square + hex), a length one mono field showing its own unit (no
+unit label; ArrowUp/Down nudge a single length via `stepLength` in `lib/style-fields.ts`,
+held inside the field's `limit`, which `withLengthLimits` copies from `style-limits` by
+path; `lengthFieldError` gives the inline error naming the range, and the page's
+`updateStylesInput.safeParse` blocks Save). Sliders take their min/max from the
+`*_NUMBER_LIMITS`. The bullet and tick are `kind: "icon"` fields: `IconPickerRow`
+(`theme-center/icon-picker.tsx`, a full-width 7-column radiogroup, roving tabindex via
+`nextGridIndex`) over the overlay's own `OverlayIcon` (`components/overlay-icon.tsx`,
+named lucide imports only). Phase labels count with `phaseLabelBudget` (`ByteBudget`
+shows characters or bytes, whichever is tighter).
+Each group fieldset caps at `max-w-md` and the groups flow into two CSS columns from the
+`@2xl` container width (a container query: the editor's width depends on the preview rail,
+not the viewport). `SectionGroup` takes a
 `menu` (rendered beside, not inside, the toggle button); each section's menu "Reset section"
 → `resetSection` (to the Default preset's values), and the page's "Theme options" menu →
 "Reset theme to Default"; both confirm and only change the draft.
@@ -677,7 +910,7 @@ existing home and reuse it:
   repeats (e.g. a destructive callout) rather than copy-pasting it.
 - **Shared components** — `confirm-dialog`, `save-bar` (takes `blockedReason` to disable
   Save when the server's input schema would reject the payload), `status-chip`,
-  `timer-status-badge`, `unsaved-changes-guard`, `auto-scale`, `loader`, `query-error`
+  `unsaved-changes-guard`, `auto-scale`, `loader`, `query-error`
   (failed first load — never render editors over defaults), `secret-url-row`.
 - **Specs** — every component has a spec in `design-system/components/` (frontmatter
   `source:` + `tokens:`; README holds the page → components map), and
@@ -770,18 +1003,27 @@ idempotent, tokens never rotate).
 api worker from source and the web worker from its built bundle (`bun run build:worker` in
 apps/web first), both in local workerd on 127.0.0.1:3000/3001 over a fresh local D1 with every
 migration applied (`src/boot-api.ts`, `src/boot-web.ts`; the api runs behind `src/api-entry.ts`, the
-real app plus two test-only knobs production never has: the `e2e-delay` cookie that slows named
-procedures and a `/__e2e/requests` tally), signed in through the `DEV_LOGIN`
+real app plus test-only knobs production never has: the `e2e-delay` cookie that slows named
+procedures, a `/__e2e/requests` tally, and `/__e2e/bot-account` (POST seeds a fake connected
+bot account, DELETE removes it; `setBotAccount` in `tests/helpers.ts`)), signed in through the `DEV_LOGIN`
 bypass with a fixed test secret. One worker and serial specs (single-owner instance, one
 database). Spec files are numbered and run in order: `00-first-run` sees the fresh database
 (the claim page, then the first dev-login claims the instance), then `10-smoke`,
 `15-landing` (the viewer landing: claimed notice + deploy link, docs links, no `/rpc`),
-`20-dashboard`, `22-progressive` (a fast hard load paints no placeholder; a slowed
-procedure shows only its section's, from the same one batch), `25-setup-checklist` (confirm/revert a step, Finish later), `30-timer` (Pomodoro start/stop and the ticking timer overlay; phase labels
+`20-dashboard` (incl. the stats strip counting a finished task without a reload), `22-progressive` (a fast hard load of `/dashboard` or `/dashboard/bot`
+paints no placeholder at the same request cost, even with every procedure slowed to a
+production-like 300ms; a slowed procedure shows only the placeholders
+of the sections or cards that read it, from the same one batch; a Bot settings sub-page switch
+costs no api request), `25-setup-checklist` (confirm/revert a step, Finish later), `27-bot-page-handoff` (seeds a
+bot account, then removes it: the widget / dock choice in the checklist and the Run the bot
+card, one named URL row, arrow keys, the remembered pick, Open/Reset for the chosen view, axe
+on the connected Overview, phone width), `30-timer` (Pomodoro start/stop and the ticking timer overlay; phase labels
 come from `@dirework/api/config-defaults`), `40-theme-center`, `50-bot-settings`,
-`55-bot-dock` (`/bot/<token>?view=dock` renders the dock; the default view doesn't; a
+`55-bot-dock` (`/bot/<token>?view=dock` renders the dock; the default view is the blank widget; a
 button click sends one `bot.ingest` as the broadcaster, with getSession/ingest stubbed and the
-IRC socket held by `routeWebSocket`),
+IRC socket held by `routeWebSocket`; on the REAL lease, a second page stands by, Take over
+moves the chat, the old page's next relay drops it to standby, closing the holder frees the
+lease, and the dashboard chip reads "Bot offline" / "Bot connected"),
 `60-token-reset` (the old overlay URL blanks), `70-sign-out`, `80-a11y`, `90-mobile`. Every
 spec passes when run twice in a row, because CI retries run immediately against the same
 database. Two projects: `chromium` runs all but `90-mobile`; `mobile` (Pixel 7) runs only
@@ -1012,7 +1254,10 @@ the default app to two workers, one D1 database and the existing rate-limit bind
 
 - No new polling, and no faster interval for an existing poll. Every cadence lives in
   `apps/web/src/lib/poll-intervals.ts`; a change there needs a stated request-budget
-  reason. Dashboard queries must keep stopping when the tab is hidden.
+  reason. Dashboard queries must keep stopping when the tab is hidden. The one approved
+  bot-page cadence is the lease heartbeat (`BOT_HEARTBEAT_MS`, 2 min): one Worker request
+  and one D1 write per open bot page, 30/hour, ≤720/day for a page open around the clock
+  (standby pages: the request, no write).
 - No Workers cron triggers, Durable Objects, Queues, or other paid/metered bindings.
   Prefer doing housekeeping lazily on an existing write path (like
   `purgeExpiredDoneTasks`) or once per deploy (`packages/infra/post-deploy.ts`). A

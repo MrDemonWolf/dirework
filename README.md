@@ -22,8 +22,9 @@ or a managed hosting service.
 - **Twitch Bot** - Dedicated bot account for chat commands
   like `!task`, `!done`, `!timer start`, and `!timer eta`. Reply
   templates are editable (a few usage hints are fixed), and the task
-  and timer command groups can be turned off. The bot runs in a token-gated browser page (OBS
-  source, custom browser dock, or pinned tab), so no always-on server is needed.
+  and timer command groups can be turned off. The bot runs in a token-gated browser page (an
+  invisible widget in OBS or Moblin, or a dock in OBS or a pinned tab), so no always-on
+  server is needed.
 - **Theme Center** - 6 built-in themes, including Liquid
   Glass Dark, Ocean Depths, Cozy Cottage, and Twitch Purple,
   plus editable colors, fonts, layout, and phase labels.
@@ -50,7 +51,7 @@ GitHub secrets; the link does not provision resources with one click.
 1. Follow the short setup checklist, run **Actions → Deploy → Run workflow** in
    your fork, then claim the instance immediately with your streamer account.
 2. Connect your bot account in Dashboard → Bot.
-3. Keep one bot console open in an OBS source, OBS dock, or browser tab; chat commands require it.
+3. Keep one bot page open (the invisible widget in OBS or Moblin, or the dock in OBS or a browser tab); chat commands require it.
 4. Add the timer and task overlays to OBS and try a task command and timer cycle.
 
 To try it locally first, follow [Development](#development).
@@ -66,6 +67,8 @@ To try it locally first, follow [Development](#development).
 | `!edit <number> <text>` | Edit the numbered task                     |
 | `!remove <number>`      | Remove the numbered task                   |
 | `!focus <number>`       | Make the numbered task your active task    |
+| `!start <number>`       | Start a task beside your focus (3 at once) |
+| `!pause [number]`       | Pause your focus (or a numbered task)      |
 | `!check [@user]`        | Show your (or another user's) active task  |
 | `!today`                | Show your focus and next numbered tasks    |
 | `!next <text>`          | Complete active task and start a new one   |
@@ -103,10 +106,11 @@ explanation, and `!dwhelp` or `!dwcommands` for the full command list.
 
 Go to `/dashboard/bot` to manage your bot account, edit the
 response messages, enable or disable the task and timer command
-groups, set up command aliases, and copy your bot console link.
-The bot listens to chat while a bot console page is open, so add
-it to OBS as a browser source or custom browser dock, or keep the tab pinned. Keep to one
-copy: a second console is harmless (DireWork runs each chat
+groups, set up command aliases, and copy your bot page link.
+The bot listens to chat while its page is open. Pick how you run it: the **widget** is
+blank and transparent, so it can sit on any OBS or Moblin scene; the **dock** shows status
+and controls in an OBS custom browser dock or a pinned tab. Keep to one
+copy: a second one is harmless (DireWork runs each chat
 message once, by its Twitch message id), but it doubles the
 Worker requests every command costs.
 

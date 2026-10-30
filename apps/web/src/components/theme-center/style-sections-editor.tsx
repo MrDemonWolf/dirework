@@ -3,10 +3,13 @@
 // Renders a style editor as four sections (Colors · Typography · Layout · Opacity) from the
 // field lists in lib/style-sections.ts. Inside a section, rows are grouped by the overlay
 // part they style (Header, Progress ring…), each group a fieldset so a row's short label
-// ("Background") is read with its part. Each section's menu resets it to the Default theme.
+// ("Background") is read with its part; on a wide editor the groups flow into two columns.
+// Each section's menu resets it to the Default theme.
 
 import { useState } from "react";
 import { MoreHorizontal, RotateCcw } from "lucide-react";
+
+import type { OverlayIcon as OverlayIconId } from "@dirework/api/style-limits";
 
 import {
   getAtPath,
@@ -29,6 +32,7 @@ import {
 import { ColorInput } from "./color-input";
 import { SliderRow, SwitchRow, TextFieldRow } from "./field-row";
 import { FontSelect } from "./font-select";
+import { IconPickerRow } from "./icon-picker";
 import { OpacitySliderRow } from "./style-field-groups";
 
 function FieldControl<T>({
@@ -46,6 +50,7 @@ function FieldControl<T>({
   const value = getAtPath(styles, field.path);
   const set = (next: unknown) => onChange(setAtPath(styles, field.path, next));
   const disabled = field.disabled?.(styles) ?? false;
+  const hint = (typeof field.hint === "function" ? field.hint(styles) : field.hint) ?? undefined;
 
   switch (field.kind) {
     case "color":
@@ -53,14 +58,20 @@ function FieldControl<T>({
         <ColorInput
           label={field.label}
           id={id}
-          hint={field.hint}
+          hint={hint}
           value={value as string}
           onChange={set}
         />
       );
     case "opacity":
       return (
-        <OpacitySliderRow label={field.label} id={id} value={value as number} onChange={set} />
+        <OpacitySliderRow
+          label={field.label}
+          id={id}
+          value={value as number}
+          onChange={set}
+          hint={hint}
+        />
       );
     case "length":
       return (
@@ -71,17 +82,19 @@ function FieldControl<T>({
           onChange={set}
           unit={field.unit}
           placeholder={field.placeholder}
+          hint={hint}
+          limit={field.limit}
+          steppable
         />
       );
-    case "text":
+    case "icon":
       return (
-        <TextFieldRow
+        <IconPickerRow
           label={field.label}
           id={id}
-          value={value as string}
+          value={value as OverlayIconId}
           onChange={set}
-          schema={field.schema}
-          invalidHint={field.invalidHint}
+          hint={hint}
         />
       );
     case "slider":
@@ -94,13 +107,30 @@ function FieldControl<T>({
           min={field.min}
           max={field.max}
           disabled={disabled}
+          hint={hint}
           format={field.unit ? (v) => `${v}${field.unit}` : undefined}
         />
       );
     case "switch":
-      return <SwitchRow label={field.label} id={id} checked={value as boolean} onChange={set} />;
+      return (
+        <SwitchRow
+          label={field.label}
+          id={id}
+          checked={value as boolean}
+          onChange={set}
+          hint={hint}
+        />
+      );
     case "font":
-      return <FontSelect label={field.label} id={id} value={value as string} onChange={set} />;
+      return (
+        <FontSelect
+          label={field.label}
+          id={id}
+          value={value as string}
+          onChange={set}
+          hint={hint}
+        />
+      );
   }
 }
 
@@ -149,26 +179,32 @@ export function StyleSectionsEditor<T>({
               />
             }
           >
-            <div className="space-y-4">
-              {groupFields(visible).map(([group, rows]) => (
-                <fieldset key={group} className="min-w-0 space-y-3 border-0 p-0">
-                  <legend className="mb-2 text-xs font-semibold text-foreground">{group}</legend>
-                  {rows.map((field) => {
-                    const note = field.note?.(styles);
-                    return (
-                      <div key={field.path}>
-                        <FieldControl
-                          field={field}
-                          styles={styles}
-                          onChange={onChange}
-                          idPrefix={idPrefix}
-                        />
-                        {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
-                      </div>
-                    );
-                  })}
-                </fieldset>
-              ))}
+            {/* Groups flow into two balanced columns once the editor is wide enough (a
+                container query: the column's width depends on the preview rail, not the
+                viewport), and a group never splits. A lone column caps at max-w-md, so a
+                label never sits a screen's width from its control. */}
+            <div className="@container">
+              <div className="@2xl:columns-2 @2xl:gap-8">
+                {groupFields(visible).map(([group, rows]) => (
+                  <fieldset
+                    key={group}
+                    className="mb-6 min-w-0 max-w-md break-inside-avoid last:mb-0 space-y-2.5 border-0 p-0"
+                  >
+                    <legend className="mb-3 w-full border-b border-border pb-1.5 text-sm font-semibold text-foreground">
+                      {group}
+                    </legend>
+                    {rows.map((field) => (
+                      <FieldControl
+                        key={field.path}
+                        field={field}
+                        styles={styles}
+                        onChange={onChange}
+                        idPrefix={idPrefix}
+                      />
+                    ))}
+                  </fieldset>
+                ))}
+              </div>
             </div>
           </SectionGroup>
         );

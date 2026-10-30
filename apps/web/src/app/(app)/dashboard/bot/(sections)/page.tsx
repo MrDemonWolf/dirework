@@ -4,7 +4,7 @@ import BotOverviewPage from "./overview-page";
 
 export const metadata: Metadata = { title: "Bot settings" };
 
-/** Data comes from the (sections) layout's prefetch, through `useBotData`. */
+/** Data streams from the (sections) layout; each card is a `BotSection` (./bot-data.tsx). */
 export default function BotOverviewRoute() {
   return <BotOverviewPage />;
 }

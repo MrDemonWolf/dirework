@@ -8,19 +8,25 @@ tokens: [color.scheme, color.phase, radius, tracking, font.size]
 ## Purpose
 
 The dashboard timer console (`dashboard/dashboard.tsx`): the hero clock, its transport and the
-session settings. Four exports share one context so the per-second countdown re-renders only
-the instrument. On `lg` the console is a `grid-cols-5` panel: `TimerInstrument` in 3/5, and
-in 2/5 `TimerTransport`, `TimerSettings` and the timer-overlay monitor.
+session settings. Five exports share one context so the per-second countdown re-renders only
+the instrument. The console opens with a one-line header (the "Timer" `h2` with
+`TimerPhaseChip` beside it); on `lg` it is then a `grid-cols-5` panel: `TimerInstrument` in
+3/5, and in 2/5 `TimerTransport` with the owner's active task under it ("Now", from the
+cached `task.list`, rendered by the dashboard), `TimerSettings` and `ObsSources`.
 
 ## Anatomy
 
-- `TimerProvider` owns the `timer.get` poll (`DASHBOARD_TIMER_QUERY_OPTS`, the same key as
-  `TimerStatusBadge`), seeds the editable fields once from `config.get`, holds the
+- `TimerProvider` owns the `timer.get` poll (`DASHBOARD_TIMER_QUERY_OPTS`), seeds the editable fields once from `config.get`, holds the
   start / pause / resume / skip / reset mutations, and formats the settings summary from the
   SAVED config (`formatSessionSummary` in `lib/session-summary.ts`, `TIMER_CONFIG_DEFAULTS`
   for anything missing).
-- `TimerInstrument`, top to bottom: a `StatusChip` with the phase label (keyed, `chip-swap`);
-  an `sr-only` status line; `font-heading text-7xl lg:text-8xl` tabular digits over a
+- `TimerPhaseChip`: a `StatusChip` with the streamer's phase label (keyed, `chip-swap`) and
+  the `sr-only` live status line, beside the console heading. A long custom label ends in an
+  ellipsis (the chip never outgrows the header row) with the full text as its `title`.
+- `TimerInstrument`, top to bottom: tabular `font-heading` digits (`formatClock`: `MM:SS`,
+  `H:MM:SS` from an hour up) sized by `.timer-digits` (index.css): the `text-7xl` /
+  `lg:text-8xl` sizes, capped at `96cqi / --clock-em` of the instrument's `@container`
+  (`clockEm` in `lib/timer-utils.ts`), so `24:00:00` fits a 320px phone; over a
   phase-tinted radial glow (`TIMER_PHASE_COLOR`, 14%); a `h-1.5` phase rail; cycle dots (or a
   `01/12` mono counter above 10 cycles). While idle the dots preview the planned run, every
   dot hollow (or "12 pomos" above 10).
@@ -38,7 +44,8 @@ in 2/5 `TimerTransport`, `TimerSettings` and the timer-overlay monitor.
 
 | Export | Props | Notes |
 |---|---|---|
-| `TimerProvider` | `children: ReactNode` | Must wrap the other three |
+| `TimerProvider` | `children: ReactNode` | Must wrap the other four |
+| `TimerPhaseChip` | none | Throws outside `TimerProvider` |
 | `TimerInstrument` | none | Throws outside `TimerProvider` |
 | `TimerTransport` | none | Throws outside `TimerProvider` |
 | `TimerSettings` | none | Throws outside `TimerProvider` |

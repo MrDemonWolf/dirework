@@ -3,17 +3,24 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * The text field's frame, shared with fields built around it (the Theme Center's
+ * swatch + hex color field draws it on a wrapper). The border is muted-foreground/70,
+ * not --input, so an empty field keeps a ≥3:1 boundary in both themes (WCAG 1.4.11);
+ * touch-first pointers get a 44px minimum height (pointer-coarse).
+ */
+export const inputFrameClassName =
+  "dark:bg-input/30 border-muted-foreground/70 h-9 md:h-8 rounded-lg border bg-transparent pointer-coarse:min-h-11";
+
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
     <InputPrimitive
       type={type}
       data-slot="input"
       className={cn(
+        inputFrameClassName,
         // ≥16px on touch viewports (prevents iOS zoom-on-focus), 14px on md+ (audit M9).
-        // The border is muted-foreground/70, not --input, so an empty field
-        // keeps a ≥3:1 boundary in both themes (WCAG 1.4.11). Touch-first pointers get a
-        // 44px minimum height (pointer-coarse).
-        "dark:bg-input/30 border-muted-foreground/70 focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 disabled:bg-input/50 dark:disabled:bg-input/80 h-9 md:h-8 rounded-lg border bg-transparent px-2.5 py-1 text-base transition-colors file:h-6 file:text-sm file:font-medium focus-visible:ring-1 aria-invalid:ring-1 md:text-sm file:text-foreground placeholder:text-muted-foreground w-full min-w-0 outline-none file:inline-flex file:border-0 file:bg-transparent disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11",
+        "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 disabled:bg-input/50 dark:disabled:bg-input/80 px-2.5 py-1 text-base transition-colors file:h-6 file:text-sm file:font-medium focus-visible:ring-1 aria-invalid:ring-1 md:text-sm file:text-foreground placeholder:text-muted-foreground w-full min-w-0 outline-none file:inline-flex file:border-0 file:bg-transparent disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       {...props}

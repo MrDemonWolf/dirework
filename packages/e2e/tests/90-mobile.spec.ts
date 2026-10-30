@@ -84,11 +84,30 @@ test.describe("on a 320px phone", () => {
     for (const [name, locator] of [
       ["Stop button", stop],
       ["pomos unit", pomosUnit],
+      ["OBS sources Reset", page.getByRole("button", { name: "Reset Timer overlay URL" })],
+      ["OBS sources size chip", page.getByRole("button", { name: /^Recommended size 300/ })],
     ] as const) {
       const box = await locator.boundingBox();
       expect(box, `${name} has no box`).not.toBeNull();
       expect(box!.x + box!.width, `${name} clipped`).toBeLessThanOrEqual(layout.client - 16);
     }
+
+    // The OBS sources tabs are full-size touch targets.
+    for (const tab of await page.getByRole("tab").all()) {
+      expect((await tab.boundingBox())!.height, "tab shorter than 44px").toBeGreaterThanOrEqual(44);
+    }
+
+    // Below lg the live preview stays inline under the URL row: no side column.
+    const preview = page.getByRole("button", { name: "Live preview of the timer overlay" });
+    await preview.click();
+    const stage = page.locator('iframe[title="Timer overlay preview"]');
+    await expect(stage).toBeVisible();
+    await expect(page.getByRole("complementary", { name: "Live preview" })).toHaveCount(0);
+    expect((await stage.boundingBox())!.y).toBeGreaterThan((await preview.boundingBox())!.y);
+    const withPreview = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(withPreview, "inline preview widened the page").toBeLessThanOrEqual(layout.client);
+    await preview.click();
+    await expect(stage).toHaveCount(0);
 
     // Leave the timer idle for the specs that run after this one.
     await stop.click();
@@ -118,6 +137,37 @@ test("every Bot settings page fits a phone and the sub-nav reaches each one", as
     }));
     expect(widths.scroll, `${link} wider than the viewport`).toBeLessThanOrEqual(widths.client);
   }
+});
+
+test("the style editor rows fit a 320px phone with 44px touch controls", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  await signIn(page);
+  await page.goto("/dashboard/styles");
+  await expect(page.getByRole("radiogroup", { name: "Theme presets" })).toBeVisible();
+  for (const section of ["Typography", "Layout", "Opacity"]) {
+    await page.getByRole("button", { name: section, exact: true }).click();
+  }
+  const widths = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    client: document.documentElement.clientWidth,
+  }));
+  expect(widths.scroll, "style editor wider than the viewport").toBeLessThanOrEqual(widths.client);
+
+  // A coarse pointer gets 44px targets: a color field, a length, a font.
+  const colorField = page.getByRole("textbox", { name: "Track", exact: true }).locator("..");
+  const controls = [
+    colorField,
+    page.getByRole("textbox", { name: "Time", exact: true }),
+    page.getByRole("combobox", { name: "Font family" }),
+  ];
+  for (const control of controls) {
+    const box = await control.boundingBox();
+    expect(box?.height ?? 0, String(control)).toBeGreaterThanOrEqual(43.5);
+  }
+  // The swatch fills the color field's left square, inside its 1px border.
+  const swatch = await page.getByLabel("Track color picker").boundingBox();
+  expect(swatch?.width ?? 0).toBeGreaterThanOrEqual(43.5);
+  expect(swatch?.height ?? 0).toBeGreaterThanOrEqual(41.5);
 });
 
 test("on a phone the Save bar stacks its buttons under the status", async ({ page }) => {

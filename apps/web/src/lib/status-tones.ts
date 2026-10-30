@@ -1,5 +1,5 @@
-// Timer phase → visual tone mapping shared by the dashboard timer controls and
-// the header status badge, so both read the same color for the same phase.
+// Timer phase → visual tone mapping for the dashboard timer controls (the phase chip
+// and the instrument), so both read the same color for the same phase.
 
 import type { StatusTone } from "@/components/status-chip";
 import type { TimerStatus } from "@/lib/config-types";

@@ -16,12 +16,27 @@ export interface TaskGroup {
   tasks: Task[];
 }
 
+/**
+ * The key a task's author is grouped by: the Twitch id, or the display name for a row without
+ * one. The board's groups, its done counts and the timer's "Now" all use it, so they agree.
+ */
+export function authorKey(task: Pick<Task, "authorTwitchId" | "authorDisplayName">): string {
+  return task.authorTwitchId || task.authorDisplayName;
+}
+
+/** The owner's author key from `user.me` (their Twitch id, else the user id); "" until it loads. */
+export function ownerAuthorKey(
+  me: { twitchId?: string | null; id: string } | null | undefined,
+): string {
+  return me?.twitchId ?? me?.id ?? "";
+}
+
 /** Done tasks per author key, counted from rows (for full, unbounded lists). */
 export function countDoneByAuthor(tasks: Task[]): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const task of tasks) {
     if (task.status !== "done") continue;
-    const key = task.authorTwitchId || task.authorDisplayName;
+    const key = authorKey(task);
     counts[key] = (counts[key] ?? 0) + 1;
   }
   return counts;
@@ -39,7 +54,7 @@ export function groupTasksByAuthor(
 ): TaskGroup[] {
   const groups = new Map<string, TaskGroup>();
   for (const task of tasks) {
-    const key = task.authorTwitchId || task.authorDisplayName;
+    const key = authorKey(task);
     let group = groups.get(key);
     if (!group) {
       group = {
@@ -63,7 +78,26 @@ export function groupTasksByAuthor(
   return result;
 }
 
-const RESTORABLE_STATUSES = ["pending", "active", "done"] as const;
+/**
+ * Whether the board's checkbox may mark a task done: every open status — the focus
+ * (`active`), a parked `started` task and a `pending` one (`markTaskDone` accepts all
+ * three). Done rows and unknown statuses are no-ops.
+ */
+export function canMarkTaskDone(status: string): boolean {
+  return status === "active" || status === "started" || status === "pending";
+}
+
+/**
+ * The owner's own active task, or null: what the timer console shows as "Now". `ownerKey` is
+ * the same author key the board groups by (the owner's Twitch id); chat's active tasks never
+ * count, and an empty key matches nothing.
+ */
+export function ownerActiveTask<T extends Task>(tasks: readonly T[], ownerKey: string): T | null {
+  if (!ownerKey) return null;
+  return tasks.find((task) => task.status === "active" && authorKey(task) === ownerKey) ?? null;
+}
+
+const RESTORABLE_STATUSES = ["pending", "started", "active", "done"] as const;
 type RestorableStatus = (typeof RESTORABLE_STATUSES)[number];
 
 /**

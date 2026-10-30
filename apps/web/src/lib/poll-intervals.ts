@@ -24,6 +24,15 @@ export const DASHBOARD_IDLE_AFTER_MS = 2 * 60_000;
 export const DASHBOARD_IDLE_POLL_MS = 15_000;
 
 /**
+ * The bot page's chat-lease check-in (`bot.heartbeat`), live or in standby: one Worker
+ * request and one D1 write (the renewal) per open bot page every 2 minutes, so 30 an hour
+ * and at most 720 a day for a page left open around the clock. Well under the 5-minute lease
+ * (BOT_LEASE_TTL_MS in @dirework/api/bot-lease), so one lost check-in never drops a running
+ * bot; never longer than half that lease.
+ */
+export const BOT_HEARTBEAT_MS = 2 * 60_000;
+
+/**
  * A payload younger than this is reused on mount/tab-focus instead of refetched (hydrated
  * SSR data, back-navigation). `refetchInterval` polls and `invalidateQueries` ignore
  * staleness, so every cadence above is unchanged.

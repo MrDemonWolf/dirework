@@ -141,6 +141,41 @@
       "when": 1792544172382,
       "tag": "0019_bot_mute_blocklist",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1792991222852,
+      "tag": "0020_daily_stats",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1792996897802,
+      "tag": "0021_bot_page_lease",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1793039099616,
+      "tag": "0022_start_pause_replies",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1793040504267,
+      "tag": "0023_in_progress_task_idx",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1793041059797,
+      "tag": "0024_verification_expires_idx",
+      "breakpoints": true
     }
   ]
 }

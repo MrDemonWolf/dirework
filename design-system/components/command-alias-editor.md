@@ -23,7 +23,7 @@ The Aliases card on `/dashboard/bot/commands` (`(sections)/commands/commands-pag
 | `onChange` | `(rows: AliasRow[]) => void` | | Emits the whole list |
 | `maxRows` | `number` | `50` | Mirrors the server `commandAliasesInput` cap |
 
-Inputs cap at `maxLength` 50 (alias) / 100 (command). Either `!t` or `t` is accepted.
+Both inputs cap at `ALIAS_INPUT_MAX_LENGTH` (`ALIAS_MAX_LENGTH` 25 plus a typed `!`), with a `ByteBudget` character counter (`aliasBudget`) under each from 80% of 25; a longer alias or target is flagged `too-long`. Either `!t` or `t` is accepted.
 
 ## States
 

@@ -10,7 +10,8 @@ tokens: []
 Scales a fixed-size child up or down to fill its parent while keeping the aspect ratio. The
 timer overlay draws `TimerDisplay` at the fixed pixel size in `config.dimensions`; without
 this wrapper a 300×300 timer would sit tiny in the corner of a large OBS browser source.
-Used by the timer overlay page (`app/(overlay)/overlay/t/[token]/page.tsx`).
+Used by the timer overlay page (`app/(overlay)/overlay/t/[token]/page.tsx`) and the Theme
+Center preview (`style-preview-panel`), which also scales its whole 1920 × 1080 scene with it.
 
 ## Anatomy
 
@@ -32,7 +33,9 @@ No variants.
 
 ## States
 
-- **Before measurement:** scale `1` (the child renders at its configured size).
+- **Before measurement:** hidden (`visibility: hidden`), so the server HTML and a mount never
+  show the child unscaled and cropped. The first measurement runs in a layout effect, before
+  paint.
 - **Measured:** fills the container on its limiting axis.
 - **Zero-size container or child:** the scale is left unchanged (no divide-by-zero).
 

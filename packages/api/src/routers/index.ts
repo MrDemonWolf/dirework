@@ -7,6 +7,7 @@ import { router } from "../index";
 import { botRouter } from "./bot";
 import { configRouter } from "./config";
 import { overlayRouter } from "./overlay";
+import { statsRouter } from "./stats";
 import { taskRouter } from "./task";
 import { timerRouter } from "./timer";
 import { userRouter } from "./user";
@@ -20,6 +21,7 @@ export const appRouter = router({
   config: configRouter,
   overlay: overlayRouter,
   bot: botRouter,
+  stats: statsRouter,
 });
 
 /** Router type the web app's tRPC clients are typed against (type-only import). */

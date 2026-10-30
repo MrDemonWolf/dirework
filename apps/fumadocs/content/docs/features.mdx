@@ -6,7 +6,7 @@ description: Everything DireWork can do for your co-working stream
 import Image from "next/image";
 import dashboardScreenshot from "../../public/screenshots/dashboard.png";
 import themeScreenshot from "../../public/screenshots/theme-center.png";
-import botScreenshot from "../../public/screenshots/bot-console.png";
+import botScreenshot from "../../public/screenshots/bot-dock.png";
 
 DireWork is a self-hosted Pomodoro timer and task list built specifically for Twitch co-working and body-doubling streams. Here's everything it includes.
 
@@ -40,7 +40,7 @@ A task list your viewers manage from Twitch chat.
 A visual editor for customizing your overlays, available at `/dashboard/styles`.
 
 <figure>
-  <Image src={themeScreenshot} alt="Wolf Streamer's Theme Center with six presets, color controls, and a timer preview" unoptimized />
+  <Image src={themeScreenshot} alt="Wolf Streamer's Theme Center with six presets, color controls, and a 16:9 stream preview" unoptimized />
   <figcaption>Local Wolf Streamer demo. The preview shows edits before you save.</figcaption>
 </figure>
 
@@ -57,11 +57,11 @@ A visual editor for customizing your overlays, available at `/dashboard/styles`.
 Connect a separate Twitch bot account to handle chat commands.
 
 <figure>
-  <Image src={botScreenshot} alt="WolfBot console showing the wolfstreamer channel and a MoonWolf task command" unoptimized />
+  <Image src={botScreenshot} alt="The WolfBot dock, connected to the wolfstreamer channel, with a MoonWolf task command and its reply" unoptimized />
   <figcaption>WolfBot demo with a simulated Twitch connection. This is not a live stream.</figcaption>
 </figure>
 
-- **Task commands** — `!task`, `!done`, `!edit`, `!remove`, `!focus`, `!check`, `!today`, `!next`, `!help` for all viewers
+- **Task commands** — `!task`, `!done`, `!edit`, `!remove`, `!focus`, `!start`, `!pause`, `!check`, `!today`, `!next`, `!help` for all viewers
 - **Timer commands** — `!timer start`, `!timer pause`, `!timer resume`, `!timer skip`, `!timer reset`, `!timer eta` (mods only)
 - **Moderator commands** — `!clear all`, `!clear done`, `!clear @user` (mods only) to clear all tasks, only completed tasks, or one viewer's tasks; `!mute` / `!unmute` to pause the bot and `!block @user` / `!unblock @user` to manage the block list
 - **Mute switch** — Pause the bot from **Dashboard → Bot** (or with `!mute`): it ignores every command and posts nothing until it's unmuted
@@ -69,7 +69,7 @@ Connect a separate Twitch bot account to handle chat commands.
 - **Customizable bot messages** — Configure response templates for every command
 - **Command aliases** — Create custom aliases for any command
 - **Separate bot account** — Uses its own Twitch account so messages come from the bot, not you
-- **Runs in your browser** — The bot lives in a private browser page you add to OBS (or keep in a pinned tab); no always-on bot server to run
+- **Runs in your browser** — The bot lives in a private browser page: an invisible widget you add to OBS or Moblin, or a dock with controls in OBS or a pinned tab; no always-on bot server to run
 
 ## OBS overlays
 
@@ -92,13 +92,14 @@ A single-page control center for your stream.
   <figcaption>Real local dashboard with fictional Wolf Streamer data and masked private URLs.</figcaption>
 </figure>
 
-- **Set up streaming checklist** — Four steps from a fresh install to a working stream: connect the bot account, then add the bot page, the timer overlay and the tasks overlay to OBS. Each OBS step shows its URL and an **I added it to OBS** button. DireWork can't see inside OBS, so those steps count once you confirm them (and **Mark as not added** undoes it). **Finish later** hides the card; the **Setup** button next to the greeting brings it back
+- **Set up streaming checklist** — Four steps from a fresh install to a working stream: connect the bot account, then add the bot (as an invisible widget or a dock, your pick), the timer overlay and the tasks overlay to OBS. Each OBS step shows its URL and an **I added it to OBS** button. DireWork can't see inside OBS, so those steps count once you confirm them (and **Mark as not added** undoes it). **Finish later** hides the card; the **Setup** button next to the greeting brings it back
+- **Stream stats** — Under the greeting: focus time, pomodoros and tasks done today (with how many came from chat), and how many days you streamed this week plus your week streak (consecutive weeks with at least one focus day). Under the timer, a 14-day chart of focus minutes with today highlighted. A pomodoro counts when a work phase runs to its end, even with no page open; skipping or stopping a work phase still counts the minutes you worked (paused time never counts). Days follow your browser's time zone, which the dashboard saves the first time it loads. Stats are kept for about 400 days and cost no extra polling
 - **Timer controls** — Start, pause, resume, skip, and stop the timer with inline duration settings and info tooltips
 - **Task manager** — Add, complete, focus, and remove tasks (with Undo) directly from the dashboard
 - **Overlay previews** — Live iframe previews of both overlays (toggleable)
-- **Overlay URLs** — Copy each overlay URL for OBS with one click, or reset it if it leaks. The dashboard shows the recommended OBS browser-source size next to each URL: 300×300 for the timer and 700×800 for the task list
+- **Overlay URLs** — Copy each overlay URL for OBS with one click, or reset it if it leaks. Both live in the dashboard's **OBS sources** (a Timer and a Tasks tab), each with its recommended OBS browser-source size: 300×300 for the timer and 700×800 for the task list
 - **Bot management** — Connect, view status, and disconnect your bot account
-- **Time-of-day greeting** — The dashboard greets you by name, morning, afternoon, evening or late night
+- **Time-of-day greeting** — The dashboard greets you by name, early morning, morning, afternoon, evening or late night, with a different line (often a wolf pun) each day
 
 ## UI and design
 

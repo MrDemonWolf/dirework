@@ -25,8 +25,8 @@ was not an exhaustive security audit or a production account inspection.
   exact HTTP 200 plus the expected readiness fields or a valid commit SHA. Regression
   tests execute the workflow shell against healthy and faulty responses.
 - Documented a free-tier capacity risk: done-task aggregate counts read all retained
-  completed rows on each poll. A stable 1,000 completed tasks over eight hours at a
-  three-second cadence means about 5.76 million aggregate row reads, before other
+  completed rows on each poll. A stable 1,000 completed tasks over eight hours at the task
+  overlay's five-second poll means about 5.76 million aggregate row reads, before other
   requests. The 50-item display limit does not bound aggregate reads. Actual production
   consumption was not measured. See [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/).
 - Deferred KV, queues and additional services: no measured need justifies the extra

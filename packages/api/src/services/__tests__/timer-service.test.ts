@@ -11,6 +11,12 @@ import {
   skipTimer,
 } from "../timer-service";
 
+/** The focus-credit upserts ride in the CAS batch; this batch just runs the CAS. */
+const STATS_STUBS = {
+  insert: () => ({ select: () => ({ onConflictDoUpdate: () => ({ kind: "credit" }) }) }),
+  batch: async (statements: unknown[]) => [await statements[0]],
+};
+
 interface StubOptions {
   timerState?: Record<string, unknown>;
   timerConfig?: Record<string, unknown>;
@@ -34,6 +40,7 @@ function makeDb(opts: StubOptions) {
         };
       },
     }),
+    ...STATS_STUBS,
   } as unknown as DbClient;
   return { db, setSpy };
 }
@@ -63,6 +70,7 @@ describe("pauseTimer guarded CAS", () => {
           return { where: () => ({ returning: async () => [] }) };
         },
       }),
+      ...STATS_STUBS,
     } as unknown as DbClient;
 
     expect((await pauseTimer(db))?.status).toBe("break");
@@ -203,6 +211,7 @@ describe("skipTimer guarded CAS vs a concurrent timer action", () => {
           return { where: () => ({ returning: async () => [] }) }; // CAS lost
         },
       }),
+      ...STATS_STUBS,
     } as unknown as DbClient;
 
     const result = await skipTimer(db);
@@ -242,7 +251,13 @@ describe("skipTimer guarded CAS vs a concurrent timer action", () => {
 describe("resetTimer uses configured defaultCycles (audit L4)", () => {
   it("resets totalCycles to timerConfig.defaultCycles, not a literal 4", async () => {
     const { db, setSpy } = makeDb({
-      timerState: { id: "singleton", status: "work", currentCycle: 3, totalCycles: 9 },
+      timerState: {
+        id: "singleton",
+        status: "work",
+        currentCycle: 3,
+        totalCycles: 9,
+        targetEndTime: null,
+      },
       timerConfig: { defaultCycles: 7 },
     });
     await resetTimer(db);
@@ -256,7 +271,13 @@ describe("resetTimer uses configured defaultCycles (audit L4)", () => {
 
   it("falls back to DEFAULTS.defaultCycles when no config row exists", async () => {
     const { db, setSpy } = makeDb({
-      timerState: { id: "singleton", status: "work", currentCycle: 2, totalCycles: 9 },
+      timerState: {
+        id: "singleton",
+        status: "work",
+        currentCycle: 2,
+        totalCycles: 9,
+        targetEndTime: null,
+      },
       timerConfig: undefined,
     });
     await resetTimer(db);
@@ -386,6 +407,7 @@ describe("maybeAdvanceOverdueTimer (lazy read-driven transitions)", () => {
           return { where: () => ({ returning: async () => [] }) };
         },
       }),
+      ...STATS_STUBS,
     } as unknown as DbClient;
 
     const result = await maybeAdvanceOverdueTimer(db);

@@ -8,36 +8,38 @@ tokens: [color.scheme, radius, tracking]
 ## Purpose
 
 The dashboard Task Board (`dashboard/dashboard.tsx`): the owner's view of every task, theirs
-and chat's, grouped by author, in the left two thirds of its panel with the tasks-overlay
-monitor in the right third on `lg`. Polls `task.list` through the `/rpc` proxy at
+and chat's, grouped by author, across the full width of its panel (the overlay URLs live in
+the timer console's `ObsSources`). Polls `task.list` through the `/rpc` proxy at
 `dashboardPollInterval(DASHBOARD_TASKS_POLL_MS)`; every write is an owner-only `task.*`
 procedure sharing service code with the chat commands. The parent supplies the `.panel-hero`
 chrome.
 
 ## Anatomy
 
-- Header: `ConsoleRule` "Task Board", the "Tasks" `h2`, a subtitle, Open / Done counters
-  (`font-mono text-2xl`) from the server `counts`, and a ghost icon button that opens the
-  board options `DropdownMenu`: destructive "Clear done (N)" and "Clear all (N)" items, each
+- Header, one line (`PANEL_HEADER_CLASS` from `lib/panel-header.ts`, shared with the timer
+  console): the "Tasks" `h2`, then "N open" / "N done" (mono semibold numbers, muted words)
+  from the server `counts`, and a ghost icon button that opens the board options `DropdownMenu`: destructive "Clear done (N)" and "Clear all (N)" items, each
   opening its `ConfirmDialog`.
 - Add form: `Input` (placeholder "Add a task...", `maxLength` `MAX_TASK_LEN`) and an "Add"
   submit `Button`.
 - List (`max-h-100`, scrolls): one `rounded-xl` `Collapsible` per author. Its header is the
   trigger (`min-h-11`): a chevron, a dot (primary for the host, else the Twitch color or
   cornflower), the name, a "Host" accent chip for the owner, and a `done/total` console label.
-  Rows (`min-h-11`): a round checkbox button, the text clamped to two lines (`line-clamp-2`),
-  an "Active" pulsing accent chip, a "Set as active" icon button and a destructive Remove icon
-  button.
+  Rows (`min-h-11`, `items-start`): a round checkbox button, then a body of the task text and
+  a meta line (`data-slot="task-row-meta"`): the status chip slot (an "Active" pulsing accent
+  chip) and the action group (a "Set as active" icon button and a destructive Remove icon
+  button). The text wraps in full, never clamped (`wrap-anywhere`, so a long URL breaks
+  instead of squeezing the row; `dir="auto"` for right-to-left tasks). Below `sm` the meta
+  line sits under the text, so the text gets the row's full width on a 320px phone; from `sm`
+  it rides beside the text. New row controls (Start / Pause, a "⋯" menu) join the action
+  group.
 - Footer (when there are tasks): "Done tasks clear automatically after 24h".
-- Optional `monitor`: the right third on `lg` (`lg:grid-cols-3`, the board `lg:col-span-2`),
-  below the board on narrower screens.
 
 ## Props and variants
 
 | Prop | Type | Notes |
 |---|---|---|
 | `userTwitchId` | `string` | The owner's Twitch id; that group is the pinned "Host" group |
-| `monitor` | `ReactNode` | Optional tasks-overlay monitor (URL row + Live preview) beside the board |
 
 ## States
 

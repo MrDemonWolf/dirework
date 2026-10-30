@@ -7,8 +7,8 @@ tokens: [color.scheme, radius, font.family]
 
 ## Purpose
 
-Masked URL row for the token-bearing overlay and bot page links (dashboard timer and task
-heroes, `BotConsoleCard`). The token in the path is the only credential for that public
+Masked URL row for the token-bearing overlay and bot page links (the dashboard's
+`ObsSources` tabs, `BotConsoleCard`). The token in the path is the only credential for that public
 page, so the URL stays hidden until explicitly revealed.
 
 ## Anatomy
@@ -28,6 +28,7 @@ page, so the URL stays hidden until explicitly revealed.
 | `onRegenerate` | `() => void` | Called after the reset confirm |
 | `regenerating` | `boolean` | Disables Reset and spins its icon |
 | `resetDescription` | `string` | What breaks when the URL is reset, shown in the dialog |
+| `resetTitle` | `string` | The dialog title when the reset reaches past this URL (`BotPageHandoff`: "Reset both bot page URLs?") |
 
 ## States
 

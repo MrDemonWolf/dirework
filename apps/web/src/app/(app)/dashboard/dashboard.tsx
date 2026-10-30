@@ -1,7 +1,8 @@
 "use client";
 
-// Owner dashboard home (/dashboard): the timer console (instrument | controls, settings and
-// the timer-overlay monitor) and the task board (board | tasks-overlay monitor). The header's
+// Owner dashboard home (/dashboard): the timer console (instrument | controls, the owner's
+// active task, settings and the OBS sources with both overlay URLs) and the full-width task
+// board. The header's
 // bot chip is the page's only bot status. All data comes from owner-only tRPC procedures:
 // streamed from the server's one batched call on first load (page.tsx), then polled through
 // the same-origin /rpc proxy.
@@ -13,171 +14,49 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff } from "lucide-react";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 
 import type { authClient } from "@/lib/auth-client";
-import { Button } from "@/components/ui/button";
-import { ConsoleRule } from "@/components/console-rule";
 import {
+  FocusChartPlaceholder,
+  StatTilesPlaceholder,
   StatusClusterPlaceholder,
   TaskBoardPlaceholder,
   TimerConsoleBodyPlaceholder,
 } from "@/components/dashboard-skeleton";
+import {
+  FocusChart,
+  StatTiles,
+  useStatsRefresh,
+  useTimeZoneSync,
+} from "@/components/dashboard-stats";
 import { ProgressiveSection, SectionPlaceholder } from "@/components/progressive-section";
 import { QueryError } from "@/components/query-error";
-import { SecretUrlRow } from "@/components/secret-url-row";
+import { ObsPreviewColumn, ObsSources, useObsPreview } from "@/components/obs-sources";
 import { SetupChecklist, SetupReopenButton, useSetupCollapsed } from "@/components/setup-checklist";
-import { overlayPath } from "@/lib/overlay-view";
 import { StatusChip } from "@/components/status-chip";
 import { TaskManager } from "@/components/task-manager";
 import {
   TimerInstrument,
+  TimerPhaseChip,
   TimerProvider,
   TimerSettings,
   TimerTransport,
 } from "@/components/timer-controls";
-import { TimerStatusBadge } from "@/components/timer-status-badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { scheduleBotPresenceCheck } from "@/lib/bot-presence";
+import { dashboardBotChip } from "@/lib/bot-status";
+import { formatGreeting, pickGreeting } from "@/lib/greetings";
+import { PANEL_HEADER_CLASS, PANEL_TITLE_CLASS } from "@/lib/panel-header";
 import { setupProgress } from "@/lib/setup-steps";
-import { describeTrpcError } from "@/lib/trpc-errors";
+import { ownerActiveTask, ownerAuthorKey } from "@/lib/task-utils";
 import { trpc } from "@/utils/trpc";
 
-// Greeting, sub-greeting and date use the browser's local clock, which can differ from the
-// server render, so their elements carry suppressHydrationWarning.
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return "Good morning";
-  if (hour >= 12 && hour < 17) return "Good afternoon";
-  if (hour >= 17 && hour < 21) return "Good evening";
-  return "Working late";
-}
-
-function getSubGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return "What's first on the list?";
-  if (hour >= 12 && hour < 17) return "Keep it going.";
-  if (hour >= 17 && hour < 21) return "Wrapping up the day's work?";
-  return "Burning the midnight oil?";
-}
-
+// Greeting (lib/greetings.ts) and date use the browser's local clock, which can differ from
+// the server render, so their elements carry suppressHydrationWarning.
 function getDateStr(): string {
   return new Date()
     .toLocaleDateString("en-US", { weekday: "short", month: "short", day: "2-digit" })
     .replace(",", "");
-}
-
-/**
- * An overlay's monitor: labeled rule with the recommended OBS size, the masked URL row,
- * and a Live preview toggle. The preview is a live overlay iframe that polls the api on the
- * overlay cadence while shown, so it starts hidden and its stage only exists while on.
- */
-function OverlayMonitor({
-  label,
-  noun,
-  size,
-  sizeHint,
-  aspectRatio,
-  src,
-  show,
-  onToggle,
-  onRegenerate,
-  regenerating,
-}: {
-  /** "Timer overlay" / "Tasks overlay": the rule and the URL row's accessible names. */
-  label: string;
-  noun: "timer" | "tasks";
-  size: string;
-  sizeHint: string;
-  aspectRatio: string;
-  src: string | null;
-  show: boolean;
-  onToggle: (next: boolean) => void;
-  onRegenerate: () => void;
-  regenerating: boolean;
-}) {
-  return (
-    <div className="space-y-2.5">
-      <ConsoleRule label={label} className="flex items-center">
-        <SizeChip size={size} hint={sizeHint} />
-      </ConsoleRule>
-      <SecretUrlRow
-        label={label}
-        path={src}
-        onRegenerate={onRegenerate}
-        regenerating={regenerating}
-        resetDescription={OVERLAY_RESET_DESCRIPTION}
-      />
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <p className="text-xs text-muted-foreground">Add the URL as a browser source in OBS</p>
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={() => onToggle(!show)}
-          aria-pressed={show}
-          disabled={!src}
-          className="ml-auto gap-1.5"
-        >
-          {show ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-          Live preview
-          <span className="sr-only"> of the {noun} overlay</span>
-        </Button>
-      </div>
-      {show && src && (
-        <div
-          className="panel-inset bg-grain relative w-full overflow-hidden"
-          style={{ aspectRatio }}
-        >
-          <iframe
-            src={src}
-            title={`${label} preview`}
-            className="pointer-events-none absolute inset-0 h-full w-full"
-            style={{ border: "none", background: "transparent" }}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Confirm-dialog body for resetting either overlay URL (the old token stops working). */
-const OVERLAY_RESET_DESCRIPTION =
-  "The current URL stops working immediately: any OBS browser source still using it goes blank (fully transparent) until you paste the new URL into OBS.";
-
-/** Recommended OBS browser-source dimensions, shown beside each overlay URL. */
-function SizeChip({ size, hint }: { size: string; hint: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <button
-            type="button"
-            aria-label={`Recommended size ${size}: ${hint}`}
-            className="ml-auto shrink-0 cursor-default rounded-full border border-border/60 bg-background/60 px-2 py-0.5 font-mono text-xs text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          >
-            {size}
-          </button>
-        }
-      />
-      <TooltipContent>{hint}</TooltipContent>
-    </Tooltip>
-  );
-}
-
-/** Resetting an overlay URL: one mutation per monitor, with the shared toasts. */
-function useRegenerateOverlayToken() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    ...trpc.user.regenerateOverlayToken.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.user.me.queryKey() });
-      toast.success("New overlay URL ready — paste it into OBS");
-    },
-    onError: (err) => {
-      toast.error(`Couldn't reset the URL: ${describeTrpcError(err)}`);
-    },
-  });
 }
 
 type SessionUser = (typeof authClient.$Infer.Session)["user"];
@@ -188,6 +67,7 @@ type SessionUser = (typeof authClient.$Infer.Session)["user"];
  * is the page's only bot status, and it links to Bot settings.
  */
 function HeaderBand({ user, status }: { user: SessionUser; status: React.ReactNode }) {
+  const greeting = formatGreeting(pickGreeting(new Date()), user.name);
   return (
     <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div>
@@ -195,10 +75,10 @@ function HeaderBand({ user, status }: { user: SessionUser; status: React.ReactNo
           Console — {getDateStr()}
         </p>
         <h1 className="font-heading text-3xl font-bold tracking-tight" suppressHydrationWarning>
-          {getGreeting()}, {user.name}
+          {greeting.title}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground" suppressHydrationWarning>
-          {getSubGreeting()}
+          {greeting.subline}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">{status}</div>
@@ -207,13 +87,43 @@ function HeaderBand({ user, status }: { user: SessionUser; status: React.ReactNo
 }
 
 /**
- * Header section (needs `user.me` + `timer.get`): the band's live status cluster (Setup
- * button, timer status, bot chip) and the "Set up streaming" checklist under it, which share
+ * Keeps the bot chip honest without a poll: when the lease in the last `user.me` answer
+ * would have run out, refetch `user.me` once (visible tab only, at most once per lease
+ * window) and let the fresh answer decide (lib/bot-presence.ts). While the last answer
+ * said no bot page runs, nothing is scheduled: a page coming online shows on the next
+ * `user.me` fetch (load, focus, an action that refreshes it).
+ */
+function useBotPresenceCheck(
+  seenMsAgo: number | null | undefined,
+  fetchedAt: number,
+  refetch: () => unknown,
+): void {
+  const lastCheck = useRef(Number.NEGATIVE_INFINITY);
+  const [wake, setWake] = useState(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `wake` re-arms the check after a failed refetch or when the tab becomes visible.
+  useEffect(
+    () =>
+      scheduleBotPresenceCheck({
+        seenMsAgo,
+        fetchedAt,
+        lastCheck,
+        refetch,
+        rerun: () => setWake((n) => n + 1),
+      }),
+    [seenMsAgo, fetchedAt, refetch, wake],
+  );
+}
+
+/**
+ * Header section (needs `user.me`): the band's live status cluster (Setup button, bot
+ * chip) and the "Set up streaming" checklist under it, which share
  * the checklist's collapsed state. Both render together so that state is decided from loaded
  * data, never from a pending `me`.
  */
 function HeaderSection({ user }: { user: SessionUser }) {
   const me = useQuery(trpc.user.me.queryOptions());
+  // Stats bucket by the owner's local day: report this browser's zone if it differs.
+  useTimeZoneSync(me.data ? me.data.timeZone : undefined);
 
   // Setup checklist: "Finish later" hides the card and the header band's Setup button
   // brings it back. Focus follows only those clicks: collapsing hands it to the button,
@@ -235,6 +145,8 @@ function HeaderSection({ user }: { user: SessionUser }) {
     reopenRequested.current = false;
   }, [setupCollapsed]);
 
+  useBotPresenceCheck(me.data?.botPageSeenMsAgo, me.dataUpdatedAt, me.refetch);
+
   if (!me.data) {
     // The streamed `me` failed (or never streamed): the client refetches it on mount. Keep
     // the band's shape while it runs, then offer a retry if it fails too.
@@ -253,7 +165,7 @@ function HeaderSection({ user }: { user: SessionUser }) {
     );
   }
 
-  const botAccount = me.data.botAccount ?? null;
+  const botChip = dashboardBotChip(me.data.botAccount != null, me.data.botPageSeenMsAgo);
 
   return (
     <>
@@ -271,19 +183,13 @@ function HeaderSection({ user }: { user: SessionUser }) {
                 }}
               />
             )}
-            <TimerStatusBadge />
             <Link
               href={"/dashboard/bot" as const}
-              aria-label={
-                botAccount ? "Bot ready, open Bot settings" : "Bot not connected, open Bot settings"
-              }
+              aria-label={`${botChip.label}, open Bot settings`}
               // A compact chip, so on touch screens the link itself gets the 44px hit area.
               className="inline-flex items-center rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11"
             >
-              <StatusChip
-                tone={botAccount ? "accent" : "idle"}
-                label={botAccount ? "Bot ready" : "Bot not connected"}
-              />
+              <StatusChip tone={botChip.tone} label={botChip.label} />
             </Link>
           </>
         }
@@ -302,69 +208,82 @@ function HeaderSection({ user }: { user: SessionUser }) {
 }
 
 /**
- * Timer console body (needs `timer.get` + `config.get`): instrument (3/5) | transport,
- * session settings and the timer-overlay monitor (2/5). The monitor's URL comes from
- * `user.me`; until that lands the row stays masked and disabled at the same size.
+ * Timer console (needs `timer.get` + `config.get`): the one-line heading with the phase chip,
+ * then instrument (3/5) | transport, the owner's active task, session settings and the OBS
+ * sources (2/5). From lg, turning on the OBS live preview opens a third column on the right
+ * (`ObsPreviewColumn`) and the other two slide over to make room (`.timer-console-grid` in
+ * index.css). "Now" and the overlay URLs read `task.list` / `user.me` from the cache the
+ * page's one batch filled; they never fetch on their own and fill in when that lands.
  */
 function TimerConsoleBody() {
-  const me = useQuery(trpc.user.me.queryOptions());
-  const regenerateToken = useRegenerateOverlayToken();
-  // Previews start hidden: each one is a live overlay iframe that polls the api on the
-  // overlay cadence for as long as it is shown.
-  const [showPreview, setShowPreview] = useState(false);
-
+  const obs = useObsPreview();
+  const sidePreview = obs.preview && obs.side;
   return (
     <TimerProvider>
-      <div className="grid lg:grid-cols-5">
-        <div className="flex items-center justify-center px-5 py-8 lg:col-span-3">
+      <div className={PANEL_HEADER_CLASS}>
+        <h2 className={PANEL_TITLE_CLASS}>Timer</h2>
+        <TimerPhaseChip />
+      </div>
+      <div className="timer-console-grid grid" data-preview={sidePreview || undefined}>
+        <div className="flex min-w-0 flex-col items-center justify-center gap-8 px-5 py-8">
           <TimerInstrument />
+          <ProgressiveSection
+            queryKeys={[trpc.stats.summary.queryKey()]}
+            fallback={
+              <SectionPlaceholder name="focus-chart" className="w-full max-w-sm">
+                <FocusChartPlaceholder />
+              </SectionPlaceholder>
+            }
+          >
+            <FocusChart />
+          </ProgressiveSection>
         </div>
-        <div className="flex min-w-0 flex-col gap-5 border-t border-border/40 px-5 py-5 lg:col-span-2 lg:border-t-0 lg:border-l">
-          <TimerTransport />
+        <div className="flex min-w-0 flex-col gap-5 border-t border-border/40 px-5 py-5 lg:border-t-0 lg:border-l">
+          <div className="space-y-2.5">
+            <TimerTransport />
+            <NowTask />
+          </div>
           <TimerSettings />
-          <OverlayMonitor
-            label="Timer overlay"
-            noun="timer"
-            size="300 × 300"
-            sizeHint="Square OBS browser source — the timer scales to fill it"
-            aspectRatio="1 / 1"
-            src={overlayPath("timer", me.data?.overlayTimerToken)}
-            show={showPreview}
-            onToggle={setShowPreview}
-            onRegenerate={() => regenerateToken.mutate({ type: "timer" })}
-            regenerating={regenerateToken.isPending}
-          />
+          <ObsSources state={obs} />
         </div>
+        {sidePreview && (
+          <div className="min-w-0 overflow-hidden border-l border-border/40 px-5 py-5">
+            <ObsPreviewColumn state={obs} />
+          </div>
+        )}
       </div>
     </TimerProvider>
+  );
+}
+
+/**
+ * "Now: <task>" under the transport: the owner's own active task, or nothing. Reads `task.list`
+ * and `user.me` from the cache the page's batch filled; the observer has no refetchInterval
+ * (the board owns the poll), and `select` re-renders only this line, only when the text changes.
+ */
+function NowTask() {
+  const me = useQuery(trpc.user.me.queryOptions());
+  const ownerKey = ownerAuthorKey(me.data);
+  const { data: text } = useQuery({
+    ...trpc.task.list.queryOptions(),
+    select: (list) => ownerActiveTask(list.tasks, ownerKey)?.text ?? null,
+  });
+  if (!text) return null;
+  return (
+    <p className="flex min-w-0 items-baseline gap-2 text-sm">
+      <span className="console-label shrink-0">Now</span>
+      <span className="sr-only">:</span>
+      <span className="min-w-0 truncate" title={text}>
+        {text}
+      </span>
+    </p>
   );
 }
 
 /** Task board (needs `task.list` + `user.me`, which pins the streamer's own group first). */
 function TaskBoard() {
   const me = useQuery(trpc.user.me.queryOptions());
-  const regenerateToken = useRegenerateOverlayToken();
-  const [showPreview, setShowPreview] = useState(false);
-
-  return (
-    <TaskManager
-      userTwitchId={me.data?.twitchId ?? me.data?.id ?? ""}
-      monitor={
-        <OverlayMonitor
-          label="Tasks overlay"
-          noun="tasks"
-          size="700 × 800"
-          sizeHint="OBS browser source — the list fills it and scrolls when tasks overflow"
-          aspectRatio="7 / 8"
-          src={overlayPath("tasks", me.data?.overlayTasksToken)}
-          show={showPreview}
-          onToggle={setShowPreview}
-          onRegenerate={() => regenerateToken.mutate({ type: "tasks" })}
-          regenerating={regenerateToken.isPending}
-        />
-      }
-    />
-  );
+  return <TaskManager userTwitchId={ownerAuthorKey(me.data)} />;
 }
 
 /**
@@ -374,11 +293,13 @@ function TaskBoard() {
 export default function Dashboard({ session }: { session: typeof authClient.$Infer.Session }) {
   const meKey = trpc.user.me.queryKey();
   const timerKey = trpc.timer.get.queryKey();
+  // Stats are never polled: they refetch when the timer/task polls see a change.
+  useStatsRefresh();
 
   return (
     <div className="container mx-auto max-w-content px-4 py-8">
       <ProgressiveSection
-        queryKeys={[meKey, timerKey]}
+        queryKeys={[meKey]}
         fallback={
           <HeaderBand
             user={session.user}
@@ -393,16 +314,21 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
         <HeaderSection user={session.user} />
       </ProgressiveSection>
 
+      <ProgressiveSection
+        queryKeys={[trpc.stats.summary.queryKey()]}
+        fallback={
+          <SectionPlaceholder name="stats">
+            <StatTilesPlaceholder />
+          </SectionPlaceholder>
+        }
+      >
+        <StatTiles />
+      </ProgressiveSection>
+
       <div className="grid gap-6">
-        {/* Hero instrument: the timer console. Its heading is static, so it is frame. */}
+        {/* Hero instrument: the timer console. Its heading row carries the live phase chip,
+            so it lives inside the section (the placeholder repeats its shape). */}
         <section className="panel-hero">
-          <div className="border-b border-border/40 px-5 pt-4 pb-3">
-            <ConsoleRule label="Timer Console" />
-            <h2 className="mt-2 font-heading text-lg font-semibold tracking-tight">Pomodoro</h2>
-            <p className="text-sm text-muted-foreground">
-              Run the focus session your viewers see in OBS
-            </p>
-          </div>
           <ProgressiveSection
             queryKeys={[timerKey, trpc.config.get.queryKey()]}
             fallback={
@@ -415,7 +341,7 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
           </ProgressiveSection>
         </section>
 
-        {/* Task board (2/3) with the tasks-overlay monitor (1/3) */}
+        {/* Task board, full width: the overlay URLs live in the timer console's OBS sources. */}
         <section className="panel-hero min-w-0">
           <ProgressiveSection
             queryKeys={[trpc.task.list.queryKey(), meKey]}

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { countDoneByAuthor, groupTasksByAuthor, toRestoreInput } from "../task-utils";
+import {
+  canMarkTaskDone,
+  countDoneByAuthor,
+  groupTasksByAuthor,
+  ownerActiveTask,
+  toRestoreInput,
+} from "../task-utils";
 import type { Task } from "../task-utils";
 
 describe("groupTasksByAuthor", () => {
@@ -257,6 +263,19 @@ describe("groupTasksByAuthor with server done counts", () => {
   });
 });
 
+describe("canMarkTaskDone (the board's checkbox)", () => {
+  it("completes every open status, including a parked started task", () => {
+    expect(canMarkTaskDone("active")).toBe(true);
+    expect(canMarkTaskDone("started")).toBe(true);
+    expect(canMarkTaskDone("pending")).toBe(true);
+  });
+
+  it("is a no-op for done and unknown statuses", () => {
+    expect(canMarkTaskDone("done")).toBe(false);
+    expect(canMarkTaskDone("archived")).toBe(false);
+  });
+});
+
 describe("toRestoreInput", () => {
   const removed = {
     id: "t1",
@@ -269,11 +288,45 @@ describe("toRestoreInput", () => {
 
   it("passes every field of the removed row through for a known status", () => {
     expect(toRestoreInput(removed)).toEqual(removed);
+    expect(toRestoreInput({ ...removed, status: "started" })?.status).toBe("started");
   });
 
   it("offers no undo when nothing was removed or the status is unknown", () => {
     expect(toRestoreInput(null)).toBeNull();
     expect(toRestoreInput(undefined)).toBeNull();
     expect(toRestoreInput({ ...removed, status: "archived" })).toBeNull();
+  });
+});
+
+describe("ownerActiveTask", () => {
+  const task = (id: string, author: string | undefined, name: string, status: string): Task => ({
+    id,
+    authorTwitchId: author,
+    authorDisplayName: name,
+    authorColor: null,
+    text: `Task ${id}`,
+    status,
+  });
+
+  it("returns the owner's active task, never a viewer's", () => {
+    const tasks = [
+      task("1", "viewer", "Viewer", "active"),
+      task("2", "owner", "Owner", "pending"),
+      task("3", "owner", "Owner", "active"),
+    ];
+    expect(ownerActiveTask(tasks, "owner")?.id).toBe("3");
+  });
+
+  it("returns null when only viewers have an active task", () => {
+    const tasks = [task("1", "viewer", "Viewer", "active"), task("2", "owner", "Owner", "done")];
+    expect(ownerActiveTask(tasks, "owner")).toBeNull();
+  });
+
+  it("matches nothing for an empty owner key (user.me not loaded yet)", () => {
+    expect(ownerActiveTask([task("1", undefined, "", "active")], "")).toBeNull();
+  });
+
+  it("keys a task without a Twitch id by display name, like the board's groups", () => {
+    expect(ownerActiveTask([task("1", undefined, "Host", "active")], "Host")?.id).toBe("1");
   });
 });

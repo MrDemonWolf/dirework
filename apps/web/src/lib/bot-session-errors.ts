@@ -1,3 +1,4 @@
+import { BOT_STANDBY_MESSAGE } from "@dirework/api/bot-lease";
 import { BOT_REAUTH_REQUIRED_MESSAGE } from "@dirework/api/config-shared";
 
 /**
@@ -10,10 +11,18 @@ import { BOT_REAUTH_REQUIRED_MESSAGE } from "@dirework/api/config-shared";
  * - `reauth`: the token is fine but the bot's Twitch login can't be refreshed,
  *   so the streamer has to reconnect the bot account (PRECONDITION_FAILED with
  *   BOT_REAUTH_REQUIRED_MESSAGE; other PRECONDITION_FAILED causes are transient).
+ * - `standby`: another bot page holds the chat lease, so this one must stop
+ *   relaying (CONFLICT with BOT_STANDBY_MESSAGE, from bot.ingest).
  * - `no-account`: no bot account is connected yet (NOT_FOUND); retry slowly.
  * - `transient`: anything else (network, 429, Twitch or D1 outage); retry.
  */
-export type BotErrorKind = "revoked" | "invalid-link" | "reauth" | "no-account" | "transient";
+export type BotErrorKind =
+  | "revoked"
+  | "invalid-link"
+  | "reauth"
+  | "standby"
+  | "no-account"
+  | "transient";
 
 /**
  * Reads the tRPC error code structurally (a TRPCClientError carries it on
@@ -23,12 +32,13 @@ export function classifyBotError(err: unknown): BotErrorKind {
   if (typeof err !== "object" || err === null || !("data" in err)) return "transient";
   const code = (err as { data?: { code?: unknown } | null }).data?.code;
   if (typeof code !== "string") return "transient";
+  const message = err instanceof Error ? err.message : undefined;
   if (code === "UNAUTHORIZED") return "revoked";
   if (code === "BAD_REQUEST") return "invalid-link";
   if (code === "PRECONDITION_FAILED") {
-    const message = err instanceof Error ? err.message : undefined;
     return message === BOT_REAUTH_REQUIRED_MESSAGE ? "reauth" : "transient";
   }
+  if (code === "CONFLICT") return message === BOT_STANDBY_MESSAGE ? "standby" : "transient";
   if (code === "NOT_FOUND") return "no-account";
   return "transient";
 }

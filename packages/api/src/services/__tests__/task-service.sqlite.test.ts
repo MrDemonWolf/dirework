@@ -11,7 +11,10 @@ import {
   DONE_TASK_RETENTION_MS,
   clearDoneTasks,
   createTask,
-  findActiveTaskByUsername,
+  editTask,
+  findInProgressTasksByUsername,
+  getViewerInProgressTasks,
+  isTaskListFull,
   isUniqueViolation,
   listOverlayTasks,
   listTasks,
@@ -23,6 +26,8 @@ import {
   replaceActiveTask,
   restoreTask,
 } from "../task-service";
+import type { TaskSnapshot } from "../task-service";
+import { MAX_OPEN_TASKS } from "../../config-defaults";
 import { resetTimer, startTimer } from "../timer-service";
 
 /**
@@ -59,6 +64,26 @@ async function statusById() {
 }
 
 const viewer = { twitchId: "100", username: "viewer", displayName: "Viewer" };
+
+/** EXPLAIN QUERY PLAN (detail column, joined) of every task SELECT `run` prepares. */
+async function queryPlans(run: () => Promise<unknown>): Promise<string[]> {
+  const prepared: string[] = [];
+  const prepare = sqlite.prepare.bind(sqlite);
+  const spy = vi.spyOn(sqlite, "prepare").mockImplementation((query, params) => {
+    if (/^select[\s\S]*from "task"/i.test(query)) prepared.push(query);
+    return prepare(query, params);
+  });
+  try {
+    await run();
+  } finally {
+    spy.mockRestore();
+  }
+  return prepared.map((query) => {
+    const placeholders = (query.match(/\?/g) ?? []).length;
+    const [plan] = sqlite.exec(`EXPLAIN QUERY PLAN ${query}`, Array(placeholders).fill("x"));
+    return (plan?.values ?? []).map((row) => String(row[3])).join(" | ");
+  });
+}
 
 describe("removeTasksByUsername (ban / timeout / !clear @user)", () => {
   it("deletes only that author's tasks, case-insensitively", async () => {
@@ -151,6 +176,209 @@ describe("markTaskDone guards", () => {
   });
 });
 
+describe("task text Zalgo trimming (every caller, owner and chat)", () => {
+  const zalgo = "Z̷̢̛̖̗o̶̧̿̀";
+  const trimmed = "Z̷̢o̶̧";
+
+  it("stores the text and display name with at most two marks per letter", async () => {
+    const created = await createTask(db, { ...viewer, displayName: zalgo }, zalgo);
+    expect(created?.text).toBe(trimmed);
+    expect(created?.authorDisplayName).toBe(trimmed);
+
+    const edited = await editTask(db, created?.id ?? "", `${zalgo}!`);
+    expect(edited?.text).toBe(`${trimmed}!`);
+  });
+
+  it("trims the replacement on !next too", async () => {
+    const active = await createTask(db, viewer, "first", { activate: true });
+    const result = await replaceActiveTask(db, { id: active?.id ?? "" }, viewer, zalgo);
+    expect(result.created?.text).toBe(trimmed);
+  });
+});
+
+describe("createTask status and placement", () => {
+  it("auto-activates when the author has no open tasks, else queues as pending", async () => {
+    const first = await createTask(db, viewer, "first");
+    const second = await createTask(db, viewer, "second");
+
+    expect(first).toMatchObject({ text: "first", status: "active", priority: 1 });
+    expect(second).toMatchObject({ text: "second", status: "pending" });
+    expect(second?.order).toBe((first?.order ?? 0) + 1);
+  });
+
+  it("activate forces active when the author has no focus (!next)", async () => {
+    await seed({ id: "queued", authorTwitchId: viewer.twitchId });
+
+    expect(await createTask(db, viewer, "next", { activate: true })).toMatchObject({
+      status: "active",
+    });
+  });
+});
+
+describe("task text sanitizing (bidi, invisible characters)", () => {
+  it("strips bidi overrides and zero-width characters from text and display name", async () => {
+    const created = await createTask(
+      db,
+      { ...viewer, displayName: "\u202EViewer\u200B" },
+      "\u2066write\u2069 the\uFEFF intro\u202C",
+    );
+    expect(created?.text).toBe("write the intro");
+    expect(created?.authorDisplayName).toBe("Viewer");
+
+    const edited = await editTask(db, created?.id ?? "", "\u202Eedited");
+    expect(edited?.text).toBe("edited");
+  });
+
+  it("keeps the ZWJ inside an emoji sequence", async () => {
+    const technologist = "\u{1F469}\u200D\u{1F4BB}";
+    const created = await createTask(db, viewer, `code ${technologist}`);
+    expect(created?.text).toBe(`code ${technologist}`);
+  });
+
+  it("caps the display name at 25 and falls back to the login when nothing visible is left", async () => {
+    const long = await createTask(db, { ...viewer, displayName: "x".repeat(40) }, "a");
+    expect(long?.authorDisplayName).toBe("x".repeat(25));
+
+    const blank = await createTask(
+      db,
+      { ...viewer, twitchId: "201", username: "ghost", displayName: "\u200B\u202E" },
+      "b",
+    );
+    expect(blank?.authorDisplayName).toBe("ghost");
+  });
+});
+
+describe("instance-wide open-task cap (MAX_OPEN_TASKS)", () => {
+  async function fillOpenTasks(n: number, status = "pending") {
+    await seed(
+      ...Array.from({ length: n }, (_, i) => ({
+        id: `fill-${i}`,
+        authorTwitchId: String(5000 + i),
+        status,
+      })),
+    );
+  }
+
+  it("createTask inserts nothing once the list holds MAX_OPEN_TASKS open tasks", async () => {
+    await fillOpenTasks(MAX_OPEN_TASKS - 1);
+
+    expect(await createTask(db, viewer, "the last slot")).not.toBeNull();
+    expect(await createTask(db, { ...viewer, twitchId: "201" }, "one too many")).toBeNull();
+    expect(
+      await createTask(db, { ...viewer, twitchId: "202" }, "forced", { activate: true }),
+    ).toBeNull();
+    expect(await db.$count(schema.task)).toBe(MAX_OPEN_TASKS);
+  });
+
+  it("counts started and active tasks as open, done ones not", async () => {
+    await fillOpenTasks(MAX_OPEN_TASKS - 2, "started");
+    await seed(
+      { id: "focus", authorTwitchId: "9000", status: "active" },
+      { id: "done", authorTwitchId: "9001", status: "done", completedAt: new Date() },
+    );
+
+    expect(await createTask(db, viewer, "fits")).not.toBeNull();
+    expect(await createTask(db, { ...viewer, twitchId: "201" }, "full")).toBeNull();
+  });
+
+  it("concurrent creates can never push the list past the cap", async () => {
+    await fillOpenTasks(MAX_OPEN_TASKS - 3);
+
+    const results = await Promise.all(
+      Array.from({ length: 10 }, (_, i) =>
+        createTask(db, { ...viewer, twitchId: String(300 + i) }, `racer ${i}`),
+      ),
+    );
+
+    expect(results.filter(Boolean)).toHaveLength(3);
+    const open = await db.query.task.findMany({ columns: { status: true } });
+    expect(open.filter((row) => row.status !== "done")).toHaveLength(MAX_OPEN_TASKS);
+  });
+
+  it("replaceActiveTask still swaps at the cap (it never grows the list)", async () => {
+    await fillOpenTasks(MAX_OPEN_TASKS - 1);
+    await seed({ id: "old", authorTwitchId: viewer.twitchId, status: "active", order: 999 });
+
+    const result = await replaceActiveTask(db, { id: "old" }, viewer, "next up");
+
+    expect(result.full).toBe(false);
+    expect(result.completed?.status).toBe("done");
+    expect(result.created).toMatchObject({ text: "next up", status: "active" });
+  });
+
+  it("replaceActiveTask over the cap changes nothing and reports full", async () => {
+    await fillOpenTasks(MAX_OPEN_TASKS);
+    await seed({ id: "old", authorTwitchId: viewer.twitchId, status: "active", order: 999 });
+
+    const result = await replaceActiveTask(db, { id: "old" }, viewer, "never added");
+
+    expect(result).toEqual({ completed: null, created: null, full: true });
+    // The old focus was NOT finished: a full list must not leave the viewer empty-handed.
+    expect((await statusById()).old).toBe("active");
+    expect(await db.$count(schema.task)).toBe(MAX_OPEN_TASKS + 1);
+  });
+
+  it("restoreTask refuses an open snapshot at the cap but restores a done one", async () => {
+    await fillOpenTasks(MAX_OPEN_TASKS);
+    const snapshot: TaskSnapshot = {
+      id: "back",
+      authorTwitchId: viewer.twitchId,
+      authorUsername: viewer.username,
+      authorDisplayName: viewer.displayName,
+      authorColor: null,
+      text: "restored",
+      status: "pending",
+      priority: 1,
+      order: 1,
+      createdAt: new Date(),
+      completedAt: null,
+    };
+
+    expect(await restoreTask(db, snapshot)).toBeNull();
+    expect(
+      await restoreTask(db, { ...snapshot, status: "done", completedAt: new Date() }),
+    ).toMatchObject({ id: "back", status: "done" });
+  });
+
+  it("the list reads cap the open slice at MAX_OPEN_TASKS rows", async () => {
+    // Only a list filled before the cap existed can hold more; the poll still reads a bounded slice.
+    await fillOpenTasks(MAX_OPEN_TASKS + 5);
+
+    expect((await listTasks(db, { doneLimit: 0 })).tasks).toHaveLength(MAX_OPEN_TASKS);
+    expect((await listOverlayTasks(db, { doneLimit: 0 })).tasks).toHaveLength(MAX_OPEN_TASKS);
+  });
+
+  it("the cap check and the list reads use the status index, never a table scan", async () => {
+    const statements: string[] = [];
+    const prepare = sqlite.prepare.bind(sqlite);
+    const spy = vi.spyOn(sqlite, "prepare").mockImplementation((query, params) => {
+      statements.push(query);
+      return prepare(query, params);
+    });
+
+    await createTask(db, viewer, "probe");
+    await isTaskListFull(db);
+    await listTasks(db);
+    await listOverlayTasks(db);
+    spy.mockRestore();
+
+    const capped = statements.filter((q) =>
+      /select count\(\*\) from "task"\s+where "task"\."status" in/i.test(q),
+    );
+    const lists = statements.filter((q) => /from "task".*limit/is.test(q));
+    expect(capped.length).toBeGreaterThanOrEqual(1);
+    expect(lists.length).toBeGreaterThanOrEqual(2);
+    for (const query of [...capped, ...lists]) {
+      const [plan] = sqlite.exec(`EXPLAIN QUERY PLAN ${query.replace(/\?/g, "'x'")}`);
+      const details = (plan?.values ?? []).map((row) => String(row[3]));
+      expect(
+        details.filter((d) => /^SCAN "?task"?\b/.test(d)),
+        query,
+      ).toEqual([]);
+    }
+  });
+});
+
 describe("createTask with a caller-supplied open-task count", () => {
   it("uses the count instead of re-reading the author's open tasks", async () => {
     const findMany = vi.spyOn(db.query.task, "findMany");
@@ -204,7 +432,7 @@ describe("replaceActiveTask", () => {
 
     const result = await replaceActiveTask(db, { id: "old" }, viewer, "new work");
 
-    expect(result).toEqual({ completed: null, created: null });
+    expect(result).toEqual({ completed: null, created: null, full: false });
     expect(await statusById()).toEqual({ old: "done" });
   });
 
@@ -504,22 +732,51 @@ describe("restoreTask (dashboard undo of a removal)", () => {
   });
 });
 
-describe("findActiveTaskByUsername", () => {
-  it("matches the author's active task case-insensitively and ignores non-active rows", async () => {
+describe("findInProgressTasksByUsername", () => {
+  const ids = async (username: string) =>
+    (await findInProgressTasksByUsername(db, username)).map((t) => t.id);
+
+  it("returns the focus first, then started tasks, case-insensitively, never pending or done", async () => {
     await seed(
-      { id: "p", authorTwitchId: "1", authorUsername: "MixedCase", status: "pending" },
-      { id: "a", authorTwitchId: "1", authorUsername: "MixedCase", status: "active" },
+      { id: "s1", authorTwitchId: "1", authorUsername: "MixedCase", status: "started", order: 0 },
+      { id: "p", authorTwitchId: "1", authorUsername: "MixedCase", status: "pending", order: 1 },
+      { id: "a", authorTwitchId: "1", authorUsername: "MixedCase", status: "active", order: 2 },
+      { id: "s2", authorTwitchId: "1", authorUsername: "MixedCase", status: "started", order: 3 },
+      { id: "d", authorTwitchId: "1", authorUsername: "MixedCase", status: "done", order: 4 },
       { id: "o", authorTwitchId: "2", authorUsername: "other", status: "active" },
     );
 
-    expect((await findActiveTaskByUsername(db, "mixedcase"))?.id).toBe("a");
-    expect((await findActiveTaskByUsername(db, "MIXEDCASE"))?.id).toBe("a");
+    expect(await ids("mixedcase")).toEqual(["a", "s1", "s2"]);
+    expect(await ids("MIXEDCASE")).toEqual(["a", "s1", "s2"]);
   });
 
-  it("returns null when the author has no active task", async () => {
+  it("returns nothing when the author has no task in progress", async () => {
     await seed({ id: "p", authorTwitchId: "1", authorUsername: "viewer", status: "pending" });
 
-    expect(await findActiveTaskByUsername(db, "Viewer")).toBeNull();
-    expect(await findActiveTaskByUsername(db, "nobody")).toBeNull();
+    expect(await ids("Viewer")).toEqual([]);
+    expect(await ids("nobody")).toEqual([]);
+  });
+
+  it("reads only in-progress rows, through the partial in-progress indexes", async () => {
+    const byUsername = await queryPlans(() => findInProgressTasksByUsername(db, "Viewer"));
+    const byViewer = await queryPlans(() => getViewerInProgressTasks(db, "1"));
+    expect(byUsername.length).toBeGreaterThan(0);
+    expect(byViewer.length).toBeGreaterThan(0);
+    for (const plan of byUsername) expect(plan).toContain("task_in_progress_username_lower_idx");
+    for (const plan of byViewer) expect(plan).toContain("task_in_progress_author_idx");
+  });
+});
+
+describe("getViewerInProgressTasks", () => {
+  it("returns only the viewer's focus and started tasks, focus first", async () => {
+    await seed(
+      { id: "s1", authorTwitchId: "1", status: "started", order: 0 },
+      { id: "p", authorTwitchId: "1", status: "pending", order: 1 },
+      { id: "a", authorTwitchId: "1", status: "active", order: 2 },
+      { id: "d", authorTwitchId: "1", status: "done", order: 3 },
+      { id: "o", authorTwitchId: "2", status: "active" },
+    );
+    expect((await getViewerInProgressTasks(db, "1")).map((t) => t.id)).toEqual(["a", "s1"]);
+    expect(await getViewerInProgressTasks(db, "3")).toEqual([]);
   });
 });

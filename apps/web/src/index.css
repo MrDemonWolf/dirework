@@ -173,6 +173,42 @@
     background: var(--border);
   }
 
+  /* Dashboard timer console (dashboard.tsx, and its placeholder). Below lg one column; from
+     lg instrument | controls at 3/5 · 2/5 (the controls as 40% of the panel), and while the
+     OBS live preview is on (data-preview) a third column on the right that the other two
+     narrow for. Both states use the same three tracks in lengths and percentages, so
+     grid-template-columns slides between them (the reduced-motion gate cuts it to an
+     instant switch). Widths keep the lg 45:00 digits (17.5rem + padding) and the transport
+     row comfortable at 1024px. */
+  @media (width >= 64rem) {
+    .timer-console-grid {
+      grid-template-columns: minmax(0, 1fr) 40% 0rem;
+      transition: grid-template-columns var(--motion-base) var(--motion-ease-emphasized);
+    }
+    .timer-console-grid[data-preview] {
+      grid-template-columns: minmax(0, 1fr) 20rem 18rem;
+    }
+  }
+  @media (width >= 80rem) {
+    .timer-console-grid[data-preview] {
+      grid-template-columns: minmax(0, 1fr) 22rem 22rem;
+    }
+  }
+
+  /* Dashboard clock (TimerInstrument). The text-7xl / lg:text-8xl sizes, capped so the clock
+     never outgrows its @container: --clock-em is the clock's width in em (clockEm in
+     lib/timer-utils.ts: 3.1 for "25:00", 5.5 for "24:00:00"), so 96cqi / --clock-em keeps
+     the digits inside the column on a 320px phone instead of overflowing the card. */
+  .timer-digits {
+    font-size: min(4.5rem, calc(96cqi / var(--clock-em, 3.1)));
+    line-height: 1;
+  }
+  @media (width >= 64rem) {
+    .timer-digits {
+      font-size: min(6rem, calc(96cqi / var(--clock-em, 3.1)));
+    }
+  }
+
   /* Checkerboard backdrop (transparency preview) */
   .bg-checker {
     background-color: #e8e8ec;

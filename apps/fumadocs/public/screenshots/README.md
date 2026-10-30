@@ -14,6 +14,6 @@ bun run screenshots:capture
 ```
 
 Ports 3000 and 3001 must be free. The command starts the existing isolated E2E workers,
-uses test-only credentials, and writes `dashboard.png`, `theme-center.png`, and
-`bot-console.png` here at 1440×1000 in dark mode with reduced motion. It must never
+uses test-only credentials, and writes `dashboard.png` and `theme-center.png` (1440×1000) and `bot-dock.png` (the
+`?view=dock` page at a 360×760 OBS dock size) here, in dark mode with reduced motion. It must never
 target a deployed instance. Review the resulting images before publishing them.

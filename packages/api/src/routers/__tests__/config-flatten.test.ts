@@ -109,12 +109,12 @@ describe("flattenTaskStyles", () => {
         background: { color: "transparent", opacity: 0 },
         border: { color: "#666", width: "2px", radius: "4px" },
         margin: { top: "1px", left: "0px", right: "8px" },
-        tickChar: "\u2713",
+        tickIcon: "check",
         tickSize: "12px",
         tickColor: "#4ade80",
       },
       bullet: {
-        char: "\u2022",
+        icon: "dot",
         size: "16px",
         color: "#888",
         margin: { top: "0px", left: "2px", right: "8px" },
@@ -132,8 +132,8 @@ describe("flattenTaskStyles", () => {
     // body: bgColor, bgOpacity, borderColor, borderWidth, borderRadius, paddingVertical, paddingHorizontal = 7
     // task: bgColor, bgOpacity, borderColor, borderWidth, borderRadius, fontSize, fontColor, usernameColor, padding, marginBottom, maxWidth = 11
     // taskDone: bgColor, bgOpacity, fontColor = 3
-    // checkbox: size, bgColor, bgOpacity, borderColor, borderWidth, borderRadius, marginTop, marginLeft, marginRight, tickChar, tickSize, tickColor = 12
-    // bullet: char, size, color, marginTop, marginLeft, marginRight = 6
+    // checkbox: size, bgColor, bgOpacity, borderColor, borderWidth, borderRadius, marginTop, marginLeft, marginRight, tickIcon, tickSize, tickColor = 12
+    // bullet: icon, size, color, marginTop, marginLeft, marginRight = 6
     // Total = 58
     expect(Object.keys(result)).toHaveLength(58);
     expect(result).toHaveProperty("displayShowDone", true);
@@ -143,8 +143,8 @@ describe("flattenTaskStyles", () => {
     expect(result).toHaveProperty("bodyPaddingVertical", "8px");
     expect(result).toHaveProperty("taskUsernameColor", "#fff");
     expect(result).toHaveProperty("taskDoneFontColor", "#888");
-    expect(result).toHaveProperty("checkboxTickChar", "\u2713");
-    expect(result).toHaveProperty("bulletChar", "\u2022");
+    expect(result).toHaveProperty("checkboxTickChar", "check");
+    expect(result).toHaveProperty("bulletChar", "dot");
     expect(result).toHaveProperty("bulletMarginRight", "8px");
   });
 

@@ -9,14 +9,16 @@ tokens: [color.scheme, font.size, tracking, radius]
 
 The LED-style status indicator of the Focus Console language: a small dot plus a mono
 uppercase label. Shows timer phase, bot connection, unsaved changes, "Host"/"Active" task
-markers and similar states. Used by the dashboard, `timer-controls`, `timer-status-badge`,
+markers and similar states. Used by the dashboard, `timer-controls`,
 `task-manager`, `save-bar`, `stream-scene`, the bot-settings cards and the Theme Center page.
 
 ## Anatomy
 
 - Pill (`rounded-full`) with a tone-tinted border (`/30`) and fill (`/10`).
 - Leading dot `size-1.5`, `aria-hidden`, solid tone color; optional `animate-led-pulse`.
-- Label: `font-mono text-2xs font-medium tracking-chip uppercase`.
+- Label: `font-mono text-2xs font-medium tracking-chip uppercase`, in a `truncate` span. The
+  chip is `max-w-full shrink-0`: neighbours truncate before it does, and a label longer than
+  the whole row ends in an ellipsis; pass `title` with the full text when a label may be cut.
 
 ## Props and variants
 
@@ -26,6 +28,7 @@ markers and similar states. Used by the dashboard, `timer-controls`, `timer-stat
 | `label` | `string` | required | Visible text (rendered uppercase) |
 | `pulse` | `boolean` | `false` | Dot pulses; only while time is actually elapsing |
 | `size` | `"default" \| "sm"` | `"default"` | `px-2.5 py-1` vs `px-2 py-0.5` |
+| `title` | `string` | none | Full label on hover, for a label that may be cut |
 | `className` | `string` | none | Merged last |
 
 | Tone (`StatusTone`) | Color | Meaning |
@@ -37,7 +40,12 @@ markers and similar states. Used by the dashboard, `timer-controls`, `timer-stat
 | `idle` | `--muted-foreground` on `--muted` | Neutral, ready, locked |
 | `danger` | `--destructive` | Errors, revoked |
 
-Timer phases map to tones in `lib/status-tones.ts` (`TIMER_TONES`).
+Timer phases map to tones in `lib/status-tones.ts` (`TIMER_TONES`). The dashboard header's
+bot chip comes from `dashboardBotChip` (`lib/bot-status.ts`): `live` "Bot connected" while a
+bot page holds the chat lease (checked in within 5 minutes, per the last `user.me` answer),
+`idle` "Bot offline" when none has, `idle` "Bot not connected" without a bot account. It
+never goes offline on the local clock; `lib/bot-presence.ts` re-checks `user.me` when the
+lease would run out.
 
 ## States
 

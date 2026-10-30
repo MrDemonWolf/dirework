@@ -33,8 +33,25 @@ export const TIMER_CONFIG_DEFAULTS = {
   defaultCycles: 4,
 };
 
-/** Default phase labels (timer_config label_* columns). */
+/**
+ * The phase labels a never-customized instance shows. Free to change: the timer_config
+ * label_* column defaults are PHASE_LABEL_COLUMN_DEFAULTS below (frozen), and
+ * `buildTimerConfig` reads a stored label equal to one of those, or to a
+ * LEGACY_PHASE_LABELS entry, as the value here. Each label stays within
+ * PHASE_LABEL_MAX_GRAPHEMES / PHASE_LABEL_MAX_BYTES (@dirework/api/style-limits).
+ */
 export const DEFAULT_PHASE_LABELS = {
+  idle: "Resting",
+  starting: "Pack Gathering",
+  work: "On the Hunt",
+  break: "Den Rest",
+  longBreak: "Pack Slumber",
+  paused: "Paws'd",
+  finished: "Hunt Complete",
+};
+
+/** The timer_config label_* column DEFAULTs as the applied migrations wrote them. FROZEN. */
+export const PHASE_LABEL_COLUMN_DEFAULTS = {
   idle: "Resting",
   starting: "Gathering the Pack",
   work: "On the Hunt",
@@ -42,6 +59,20 @@ export const DEFAULT_PHASE_LABELS = {
   longBreak: "Pack Slumber",
   paused: "Paws'd",
   finished: "Hunt Complete",
+} satisfies Record<keyof typeof DEFAULT_PHASE_LABELS, string>;
+
+/**
+ * Earlier default labels other than the frozen column default, per phase. Append, never
+ * remove. ("Gathering the Pack", 18 characters, is the frozen column default.)
+ */
+export const LEGACY_PHASE_LABELS: Record<keyof typeof DEFAULT_PHASE_LABELS, readonly string[]> = {
+  idle: [],
+  starting: [],
+  work: [],
+  break: [],
+  longBreak: [],
+  paused: [],
+  finished: [],
 };
 
 /**
@@ -73,6 +104,13 @@ export const DEFAULT_TASK_MESSAGES = {
   clearedAll: "Cleared every task.",
   clearedDone: "Cleared the finished tasks.",
   nextNoContent: "What's next, {user}? Try !next [task].",
+  taskStarted: 'Started "{task}", {user}. {count}/{max} in progress.',
+  taskStartedFocus: 'Started "{task}", {user}. It\'s your focus now.',
+  startCapReached:
+    "{user}, you already have {max} going. Finish one with !done or pause one with !pause.",
+  noTaskToStart: "Nothing to start there, {user}. Pick a waiting task from !today, like !start 2.",
+  taskPaused: 'Paused "{task}", {user}. It waits in line until you !start it again.',
+  noTaskToPause: "Nothing to pause, {user}. !today shows what you have going.",
   // The viewer starter guide. Its three steps match STARTER_STEPS in
   // packages/api/src/bot/viewer-help.ts (the built-in `!dw help` guide); a test pins it.
   help: "{user}, here's how it works: 1) Type !task and what you're working on, like !task read 10 pages. 2) Work along with the stream. 3) Type !done when you finish. Need more? Type !dw help",
@@ -124,6 +162,14 @@ export const TASK_MESSAGE_COLUMN_DEFAULTS = {
   clearedDone: "All finished tasks have been cleared from the den!",
   nextNoContent: "Don't leave the pack hanging! Try !next [task], {user}!",
   help: "{user}, join the hunt: !task, !done, !edit, !remove, !focus, !check, !next — or !dwhelp for the full list.",
+  // Added by migration 0022_start_pause_replies with the wording of that release.
+  taskStarted: 'Started "{task}", {user}. {count}/{max} in progress.',
+  taskStartedFocus: 'Started "{task}", {user}. It\'s your focus now.',
+  startCapReached:
+    "{user}, you already have {max} going. Finish one with !done or pause one with !pause.",
+  noTaskToStart: "Nothing to start there, {user}. Pick a waiting task from !today, like !start 2.",
+  taskPaused: 'Paused "{task}", {user}. It waits in line until you !start it again.',
+  noTaskToPause: "Nothing to pause, {user}. !today shows what you have going.",
 } satisfies Record<keyof typeof DEFAULT_TASK_MESSAGES, string>;
 
 export const TIMER_MESSAGE_COLUMN_DEFAULTS = {
@@ -168,6 +214,12 @@ export const LEGACY_TASK_MESSAGES: Record<keyof typeof DEFAULT_TASK_MESSAGES, re
     "{user} Join the hunt with !task, !remove, !edit, or !done.",
     "{user}, commands: !task, !done, !edit, !remove, !focus, !check, !today, !next. Full list: !dwhelp",
   ],
+  taskStarted: [],
+  taskStartedFocus: [],
+  startCapReached: [],
+  noTaskToStart: [],
+  taskPaused: [],
+  noTaskToPause: [],
 };
 
 export const LEGACY_TIMER_MESSAGES: Record<keyof typeof DEFAULT_TIMER_MESSAGES, readonly string[]> =
@@ -325,7 +377,7 @@ export const DEFAULT_TASK_STYLES = {
     showCount: true,
     useCheckboxes: true,
     crossOnDone: true,
-    numberOfLines: 2,
+    numberOfLines: 4,
   },
   fonts: { header: "Montserrat", body: "Roboto" },
   scroll: { enabled: true, pixelsPerSecond: 40, gapBetweenLoops: 100 },
@@ -361,12 +413,15 @@ export const DEFAULT_TASK_STYLES = {
     background: { color: "#000000", opacity: 0 },
     border: { color: "#4a5b82", width: "2px", radius: "6px" },
     margin: { top: "4px", left: "2px", right: "8px" },
-    tickChar: "✔",
+    // An icon id from OVERLAY_ICONS (@dirework/api/style-limits), stored in the old
+    // free-text checkbox_tick_char column; the frozen "✔" reads back as "check".
+    tickIcon: "check" as const,
     tickSize: "14px",
     tickColor: "#00aced",
   },
   bullet: {
-    char: "•",
+    // An icon id, stored in the old bullet_char column; the frozen "•" reads back as "dot".
+    icon: "dot" as const,
     size: "20px",
     color: "#7c8db0",
     margin: { top: "0px", left: "2px", right: "8px" },

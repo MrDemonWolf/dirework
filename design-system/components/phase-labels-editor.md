@@ -11,8 +11,8 @@ Theme Center editor for the timer overlay's per-phase label text (the label `Tim
 
 ## Anatomy
 
-- `SectionGroup` "Phase labels" with an intro line.
-- Seven fields in phase order: Idle, Starting, Focus (`work`), Break, Long break (`longBreak`), Paused, Finished. Each: `Label`, `Input` (`#label-{key}`), `ByteBudget`, and a description line.
+- `SectionGroup` "Phase labels" with an intro line naming the cap (`PHASE_LABEL_MAX_GRAPHEMES`, 16 characters).
+- Seven fields in phase order: Idle, Starting, Focus (`work`), Break, Long break (`longBreak`), Paused, Finished. Each: `Label`, `Input` (`#label-{key}`), `ByteBudget` (fed by `phaseLabelBudget`), and a description line.
 
 ## Props and variants
 
@@ -23,8 +23,8 @@ Theme Center editor for the timer overlay's per-phase label text (the label `Tim
 
 ## States
 
-- **Near limit**: `ByteBudget` shown and linked.
-- **Over**: `aria-invalid`; the server's `chatMessageSchema` caps each label in UTF-8 bytes, not characters.
+- **Near limit** (80% of either cap): `ByteBudget` shown and linked, counting characters, or bytes when emoji make bytes the tighter cap.
+- **Over**: `aria-invalid`; the server's `phaseLabelSchema` caps each label at 16 user-perceived characters (`Intl.Segmenter` graphemes) and 48 UTF-8 bytes, so it fits the timer ring. Labels stored before the cap read back cut to it (`clampPhaseLabel`).
 
 ## Accessibility
 
@@ -32,7 +32,7 @@ Theme Center editor for the timer overlay's per-phase label text (the label `Tim
 
 ## Do / Don't
 
-- **Do** show the same byte budget as the chat-message editors.
+- **Do** count with `phaseLabelBudget`, the same two caps the server checks.
 - **Do** keep the field order matching the phase lifecycle.
-- **Don't** cap labels by character count.
+- **Don't** count `.length`: an emoji is one character to the owner but several code units.
 - **Don't** save from here; the Styles page Save bar persists the draft.

@@ -21,7 +21,7 @@ function makeQueryClient(): QueryClient {
     }),
     defaultOptions: {
       // A client default, not per-query: several observers share one key
-      // (timer.get is observed by TimerProvider and TimerStatusBadge) and React
+      // (user.me and task.list each have several) and React
       // Query applies each observer's own staleTime, so a per-query value would
       // have to be repeated everywhere. It only stops hydrated SSR data from
       // being refetched on mount; polls and invalidations ignore it, so the

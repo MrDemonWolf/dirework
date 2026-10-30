@@ -7,11 +7,86 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **`!start` and `!pause` in chat.** Viewers can now keep up to 3 tasks going: `!start 2`
+  starts task #2 beside their focus (or makes it the focus when nothing is going), `!pause`
+  pauses the focus (the next started task takes over) and `!pause 2` puts a started task
+  back in line. `!check` and `!check @user` add `(+n more started)`. The six new replies
+  (started, started as focus, too many going, nothing to start, paused, nothing to pause)
+  are editable under **Bot settings → Replies** in a new "Starting & pausing" group, with
+  new `{count}` and `{max}` placeholders. Both commands follow the Task command switch, can
+  be aliased, and have `!dw help start` / `!dw help pause` lines. The cap is checked inside
+  the guarded UPDATE, so racing messages can't pass it; a full hand is refused from the list
+  already read, with no write, and `!start` / `!pause` reuse the task row they loaded (no
+  second read). `!check` and `!check @user` read only the viewer's focus and started rows
+  (at most 3) through two new partial indexes, never their queue or done history. New
+  migrations `0022_start_pause_replies` (add-only: six defaulted `bot_config` columns) and
+  `0023_in_progress_task_idx` (add-only: two partial indexes on `task`). An alias named `start` or `pause` saved earlier is now shadowed by
+  the built-in command, and the alias editor flags it.
+- **Started tasks (api groundwork for multiple active tasks).** Besides the one task you
+  focus on, each person can now keep up to 2 tasks **started**: in progress but parked.
+  Switching focus (`!focus`, or the dashboard's activate) parks the old focus as started
+  when there is room, instead of sending it back to the queue. When a focus is finished,
+  removed or paused, the oldest started task takes over before any waiting task. The api
+  gains `task.start` and `task.pause` (no dashboard buttons yet), and lists show each
+  person's tasks as focus, then started, then waiting. Started tasks count toward the chat
+  limit of 20 open tasks. No migration and no new requests or reads on any poll.
+- **Icon picker for the task bullet and tick.** The Theme Center's free-text "character"
+  fields are now a row of icons (dot, circle, check, check in a circle or square, star,
+  sparkles, arrow, chevron, paw print, heart, flame, lightning, none), drawn as crisp SVG in
+  the bullet or tick color at the size you set. The choice is stored in the same column, so
+  there is no migration; a glyph saved before reads back as its icon (✔ → check, • → dot), or
+  as the default.
+- **Live preview beside the timer.** On a wide screen, turning on an overlay's **Live
+  preview** opens it as a column on the right of the Timer card, and the timer and its
+  controls slide over to make room. The column names the overlay (it follows the Timer /
+  Tasks tab) and has a close button. On narrower screens the preview stays under the URL as
+  before. Still one preview at a time, and no new requests.
+- **One bot page at a time, and "Bot connected" on the dashboard.** Only one open bot page
+  (widget or dock) joins Twitch chat now. Any other copy stands by: its tab title says
+  `DireWork bot · Standby`, and the dock says **The bot is running somewhere else** with a
+  **Take over** button that moves the bot to it. A standby page takes over on its own once
+  the running page closes; a page that closes or reloads hands the bot over at once. The
+  dashboard's bot chip says **Bot connected** while a page runs the bot and **Bot offline**
+  when none has checked in for 5 minutes. Cost: each open bot page checks in every 2 minutes
+  (one Worker request and one D1 write: 30 an hour, at most 720 a day per page left open
+  around the clock); a stale page's relays are refused from the token read the api already
+  does, and the chip reads `user.me`; while a bot runs and the dashboard is visible, it
+  re-checks `user.me` once when the lease would have run out (about one refetch per 5
+  minutes, nothing while no bot runs or the tab is hidden). Resetting the bot URL frees the
+  slot at once, so the new URL's page goes live right away. New migration
+  `0021_bot_page_lease` (add-only).
+- **"Now" beside the timer.** The timer controls show the task you're working on (your own
+  active task, never a viewer's), so you can see what you're timing at a glance. It comes
+  from the task list the dashboard already loads: no new requests.
+- **Dashboard stats.** A strip under the greeting shows focus time, pomodoros and tasks done
+  today (and how many of those came from chat), plus the days you streamed this week and your
+  week streak. A 14-day focus chart sits under the timer digits, today's bar highlighted. A
+  pomodoro counts when a work phase runs to its end, even with no page open; a skipped or
+  stopped work phase still counts the minutes worked. Days follow your browser's time zone.
+  Numbers are written only by writes the app already makes (no new polling, no writes on a
+  poll that changes nothing) and load in the dashboard's existing single request. New
+  migration `0020_daily_stats` (add-only); rows older than 400 days are pruned when a timer
+  starts.
+- **Wolf-pun greetings.** The dashboard greeting still follows the time of day, now from
+  a pool of lines per part of the day ("Howl's it going, {name}?", "Werewolf hours",
+  "Paws for a break?") mixed with plain ones. The line changes from day to day but holds
+  steady on reload, and costs no requests.
+- **Theme Center preview looks like your stream.** The preview is now a 16:9, 1920 × 1080
+  stream canvas with the timer and task list at their real size and spot (timer top right
+  at its configured size, task list down the left at 700 × 800), so you see what viewers
+  see. Pick Timer or Tasks to outline that source, and use **Close-up** to zoom in on it
+  and read small type. Play/Pause and the size readout moved to a toolbar under the
+  canvas, so nothing covers the overlays. Still no requests: the preview runs in the page.
 - **Local recovery drill.** `bun run recovery:check` exports and restores a synthetic
   database, verifies schema and application data, and runs in the shared CI gate.
   No production database or additional Cloudflare service is needed.
-- **Simpler bot source console.** Clear connection status, responsive identity and
-  activity panels, and recovery links; existing OBS dock controls stay available.
+- **Pick how you run the bot.** The setup checklist's bot step and the **Run the bot** card
+  now ask **How will you run the bot?**: **Widget** (an OBS browser source or a Moblin
+  widget, invisible on stream) or **Dock / browser tab** (controls and status in an OBS
+  custom browser dock or a pinned tab). You see one URL, labelled **Widget URL** or **Dock
+  URL**, with that option's own steps, instead of two masked rows that looked the same. Your
+  pick is remembered in this browser. **Open widget** / **Open dock** opens the one you
+  picked, and Reset says plainly that it changes both URLs.
   Landing and setup docs now state the single-owner and free-tier requirements directly.
 - **Viewer help that shows what to type.** `!help` now replies with a 3-step starter guide
   (add a task with `!task`, work along, finish with `!done`) instead of a list of command
@@ -74,6 +149,57 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hover that could never happen.
 
 ### Changed
+- **Every Theme Center size has a range.** Font sizes, the timer size, ring width and gap,
+  paddings, margins, borders, radii, checkbox and bullet sizes, and the scroll speed and gap
+  each accept a sensible range, and negative values are refused. The field says the range
+  when a value is outside it, the arrow keys stop at its ends, and Save stays off until it
+  is fixed. The server checks the same ranges. A value saved before is never rewritten; it
+  reads back at the nearest end of its range (or as the default when its unit is no longer
+  accepted), so saving a loaded theme always works.
+- **Phase labels hold up to 16 characters** (and 48 bytes), so a label always fits inside
+  the ring; the field counts from 13. The "Starting" default is now **Pack Gathering**
+  ("Gathering the Pack" was 18 characters; instances that never changed it switch over on
+  their own). Longer labels saved before show cut to 16 characters.
+- **Command aliases** and the commands they point at are capped at 25 characters (a leading
+  `!` doesn't count), with a counter near the end. A longer alias saved before is ignored.
+- **Bot replies** may use each placeholder (`{user}`, `{task}`, …) at most 4 times. The field
+  says so, and the placeholder's chip stops inserting at 4. Extra uses saved before are
+  dropped when the reply is read.
+- **The dashboard header no longer repeats the timer's status.** The "Ready" / "Focusing"
+  chip beside the bot chip duplicated the phase chip on the Timer card's heading, so the
+  header now holds only the Setup button (once the checklist is folded away) and the bot
+  chip. No change to requests: the Timer card's poll was the one both chips read.
+- **One place for your OBS sources.** The timer and tasks overlay URLs now sit together under
+  the timer controls in **OBS sources**, with a **Timer** and a **Tasks** tab. Each tab keeps
+  Show / Copy / Reset, the recommended source size (300 × 300, 700 × 800) and the Live
+  preview. The task board gets the full width of the page.
+- **Simpler panel headings.** The timer console and the task board each have one heading
+  line: **Timer** with its phase chip beside it, and **Tasks** with its open / done counts.
+- **Easier-to-scan Theme Center style editors.** Every control now sits right beside its
+  label in one fixed-width column instead of at the far edge of the editor, and on a wide
+  screen the groups (Panel, Progress ring, Header…) flow into two columns under clearer
+  headings. A color is one field again: the swatch and its hex code share a single box.
+  Lengths show their value once ("20px", no separate unit label), left-aligned, and the
+  Up/Down arrow keys nudge a single length by 1 (Shift: 10). A few fields gained a short
+  line saying what they change (the ring gap, multi-value padding, the outline). Font
+  pickers show the chosen font in itself. Same values, validation and Reset section as before.
+- **The bot page is now an invisible widget.** `/bot/<token>` runs the bot exactly as before
+  (same requests) but draws nothing: a transparent page you can put on any OBS or Moblin
+  scene, at any size, even on the canvas, so the bot also runs from a phone that streams with
+  Moblin. Its browser tab title shows the state (`DireWork bot · Connected`, `· Muted`,
+  `· Action needed`). Errors that need you, like a reset URL or an expired bot login, never
+  show on stream; the dock (`?view=dock`) and **Dashboard → Bot** show them. The dock is
+  also the page to pin in a browser tab now, and it stays a narrow column on a wide screen.
+  **Behaviour change:** an OBS browser source that points at the default bot page URL keeps
+  the bot running but no longer shows the status panel; use the dock URL if you want to see it.
+- **Bot settings loads in one go too, and a slow part no longer holds up the rest.** A
+  normal load of any Bot settings page now paints finished about 100ms in, instead of a
+  skeleton that swapped to the real page around 370ms. If your settings or your account are
+  slow to arrive, only the cards that need them keep a placeholder the size of the finished
+  card (on Overview, the live controls wait only for your settings; Commands and Moderation
+  never wait for your account), and each fills in on its own. Still one request to the API
+  per load, switching between Overview, Commands, Replies and Moderation still costs none,
+  and no new polling.
 - **The dashboard loads in one go, and a slow part no longer holds up the rest.** A normal
   load now paints the finished dashboard about 100ms in, instead of a full-page skeleton that
   swapped to the real page around 350ms. If one part's data is slow (the task list, the
@@ -229,6 +355,60 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   lucide-react 1.x pin, and Dependabot now bumps the fumadocs packages together.
 
 ### Fixed
+- **Security hardening.**
+  - **A limit of 200 open tasks for the whole list.** Every way a task is added (the
+    dashboard, `!task`, `!next`, and undoing a removal) checks it inside the database
+    write, so a flood of viewers can't grow the list without end, and two adds at once
+    can't go past it. In chat a full list gets the usual "task limit reached" reply; `!next`
+    keeps your current task instead of finishing it. The 20-per-viewer chat limit is
+    unchanged. The overlay and dashboard read at most 200 open tasks per poll.
+  - **The bot page slows down a viewer who spams commands.** More than 6 DireWork commands
+    from one viewer in 30 seconds are dropped in the bot page itself, before they cost a
+    request; the bot console logs it once. The broadcaster and mods are never slowed.
+  - **Hidden and reversing characters are removed** from task text, display names and
+    phase labels: right-to-left overrides and isolates (which can make a task read
+    backwards), zero-width characters (emoji sequences like 👩‍💻 keep theirs), and control
+    characters. Text that was only such characters counts as empty. Display names are
+    capped at 25 characters, like Twitch's own.
+  - **Batched API requests are rate limited by their strictest part**, so adding an
+    overlay or bot call to a request no longer moves it into a more generous limit.
+  - **Faster refusal of oversized style values**: colors, sizes and font names over their
+    length cap are refused before the pattern check, and the color pattern no longer slows
+    down on long unfinished input.
+  - **Undo checks the task's author** the way chat does (a Twitch id and login, or the
+    owner's own dashboard identity) and caps the name at 25 characters.
+  - **Abandoned sign-in records are cleaned up** at the next sign-in, beside expired
+    sessions. Migration `0024_verification_expires_idx` adds the index that keeps it cheap.
+- **Task rows are readable on a phone.** On a narrow screen the **Active** chip and the row
+  buttons sit on their own line under the task, so the text gets the row's full width
+  instead of a sliver. Long tasks now show in full instead of stopping after two lines, long
+  links break instead of squeezing the row, and right-to-left tasks read the right way.
+- **Long timers read as hours.** A phase of an hour or more shows `1:30:00` instead of
+  `90:00`, and a 24-hour focus shows `24:00:00` instead of `1440:00`, on the dashboard, the
+  timer overlay and the Theme Center preview. The dashboard clock also shrinks to fit a
+  320px phone instead of running off the card.
+- **Long phase labels fit the Timer card.** A long custom phase label ends in "…" (hover it
+  for the full text) instead of running off the card on a phone.
+- **Mute and Reconnect stay in reach in a short bot dock.** In a small OBS dock (about
+  400×200, or 240 wide) **Mute bot** / **Unmute bot** and **Reconnect** are pinned under the
+  dock's title bar, so you never scroll to find them.
+- **Long tasks wrap on the tasks overlay.** A link or a word with no spaces now breaks onto
+  the next line instead of running off the row cut mid-letter, and long task text wraps up to
+  **Lines per task** lines, then ends in "…". There is still no new length cap. Lines per
+  task now defaults to 4 and goes from 1 to 6 (it was 2, up to 100): an untouched setting
+  moves to 4 on its own, and a saved value above 6 shows as 6. Arabic and Hebrew tasks and
+  names lay out right to left. When scrolling is off and the list is full, only whole rows
+  show: no half-cut row and no author name left above "+N more" without a task under it.
+  "Zalgo" text (letters buried under stacks of accent marks) keeps at most two marks per
+  letter, both when a task or name is saved (chat and dashboard) and when the overlay draws
+  older tasks. The **Active** label is never smaller than 14px. No new requests or polling:
+  the list measures itself once per update, not every frame.
+- **The dashboard arrives complete.** Opening the dashboard (or Bot settings) no longer
+  paints grey placeholders that fill in a moment later on a normal load. The page now waits
+  up to 0.8s for its data and arrives finished in one step; placeholders only show when the
+  server is genuinely slow. No extra requests.
+- **Red buttons are easier to read in dark mode.** Buttons like **Disconnect** on the Bot
+  account card measured 4.44:1, just under the 4.5:1 minimum; their red background is subtler now.
 - **The Theme Center opens finished.** Opening or reloading the page painted a loading
   skeleton first and swapped in the real page about 300ms later, even though the data was
   already there; the page then faded in on top of that. It now arrives complete in the first

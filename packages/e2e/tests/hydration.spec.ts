@@ -19,7 +19,7 @@ test("the dashboard HTML arrives with its data, nav and no skeleton in the page"
 
   expect(html).toContain("Wolf Streamer");
   expect(html).toContain('aria-label="New task text"');
-  expect(html).toContain("Tasks overlay URL");
+  expect(html).toContain("Timer overlay URL");
   expect(html).toContain('aria-label="Open menu"');
   expect(html).toContain("Theme Center");
 
@@ -32,8 +32,10 @@ test("the dashboard HTML arrives with its data, nav and no skeleton in the page"
   );
   const dashboard = segments.find((segment) => segment.includes('aria-label="New task text"'));
   expect(dashboard, "the dashboard segment is in the streamed HTML").toBeDefined();
-  expect(dashboard).toContain("Tasks overlay URL");
   expect(dashboard).not.toContain('data-slot="skeleton"');
+  // The overlay URLs (the timer console's OBS sources) stream finished too. That segment is
+  // not checked for skeletons: the focus chart's nested boundary rides in it as a template.
+  expect(segments.some((segment) => segment.includes("Timer overlay URL"))).toBe(true);
 });
 
 // next-themes' context flips right after hydration when the OS scheme differs from the app

@@ -1,9 +1,12 @@
 import {
+  ALIAS_MAX_LENGTH,
   type AliasIssueReason,
   KNOWN_ALIAS_TARGETS,
   normalizeAliases,
   normalizeAliasToken,
 } from "@dirework/api/config-shared";
+
+import type { MessageBudget } from "./message-budget";
 
 /**
  * Alias rows carry a stable client-side id (audit L12) so React keys survive
@@ -30,6 +33,7 @@ export interface AliasRowIssue {
 const ISSUE_MESSAGES: Record<AliasRowField, Partial<Record<AliasIssueReason, string>>> = {
   key: {
     empty: "Fill in the alias, or remove the row.",
+    "too-long": `Keep the alias to ${ALIAS_MAX_LENGTH} characters.`,
     "multi-word": "Use a single word for the alias.",
     "shadows-builtin": "That's a built-in command — pick a different alias name.",
     duplicate: "Duplicate alias — rename or remove one before saving.",
@@ -37,6 +41,7 @@ const ISSUE_MESSAGES: Record<AliasRowField, Partial<Record<AliasIssueReason, str
   },
   value: {
     empty: "Fill in the command, or remove the row.",
+    "too-long": "No command is that long — pick one of the built-in commands.",
     "multi-word": "Use a single command name — aliases can't include arguments.",
     "unknown-target": "Unknown command — pick one of the built-in commands.",
   },
@@ -44,6 +49,24 @@ const ISSUE_MESSAGES: Record<AliasRowField, Partial<Record<AliasIssueReason, str
 
 export function aliasIssueMessage(field: AliasRowField, reason: AliasIssueReason): string {
   return ISSUE_MESSAGES[field][reason] ?? "Fix this field before saving.";
+}
+
+/**
+ * The alias input's `maxLength`: ALIAS_MAX_LENGTH plus one for a typed "!", which the
+ * server strips before counting.
+ */
+export const ALIAS_INPUT_MAX_LENGTH = ALIAS_MAX_LENGTH + 1;
+
+/** Characters an alias or command input counts against ALIAS_MAX_LENGTH (no leading "!"). */
+export function aliasBudget(raw: string): MessageBudget {
+  const used = raw.trim().replace(/^!+/, "").length;
+  return {
+    used,
+    max: ALIAS_MAX_LENGTH,
+    unit: "characters",
+    nearLimit: used >= ALIAS_MAX_LENGTH * 0.8,
+    over: used > ALIAS_MAX_LENGTH,
+  };
 }
 
 /**

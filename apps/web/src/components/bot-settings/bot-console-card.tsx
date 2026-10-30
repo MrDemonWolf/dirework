@@ -1,21 +1,20 @@
 "use client";
 
 // "Run the bot" card on the Bot settings Overview: the browser page that IS the bot. Shows
-// who chats where, the secret `/bot/<token>` URL with Show / Copy / Reset, the same page's
-// OBS dock URL (`?view=dock`), the Open button, and where to keep the page open.
+// who chats where, then `BotPageHandoff`: the widget / dock choice, the chosen secret URL with
+// Show / Copy / Reset (one token, so Reset changes both), an Open button for that view, and
+// its steps.
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, MonitorPlay } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 import { botConsoleStatus } from "@/lib/bot-status";
-import { botPagePath } from "@/lib/bot-view";
 import { describeTrpcError } from "@/lib/trpc-errors";
 import { useOrigin } from "@/lib/use-origin";
+import { BotPageHandoff } from "@/components/bot-page-handoff";
 import { BotConsoleBodySkeleton } from "@/components/bot-settings-skeleton";
 import { QueryError } from "@/components/query-error";
-import { SecretUrlRow } from "@/components/secret-url-row";
-import { SectionGroup } from "@/components/section-group";
 import { StatusChip } from "@/components/status-chip";
 import { Button } from "@/components/ui/button";
 import {
@@ -68,11 +67,10 @@ export function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
     },
   });
 
-  const botToken = ingestInfo.data?.botToken;
-  const botPath = botToken ? botPagePath(botToken) : null;
-  // `origin` is "" during SSR/hydration (useOrigin), so the Open button starts disabled.
-  const botUrl = origin && botPath ? `${origin}${botPath}` : "";
-  const status = botConsoleStatus({ hasBotAccount, hasBotUrl: Boolean(botToken) });
+  const status = botConsoleStatus({
+    hasBotAccount,
+    hasBotUrl: Boolean(ingestInfo.data?.botToken),
+  });
 
   return (
     <Card className="panel">
@@ -87,7 +85,7 @@ export function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
           The bot runs inside a browser page. Its URL is a secret: treat it like a stream key.
           {/* "URL ready" can't tell whether that page is open anywhere (no polling for it). */}
           <span className="mt-1 block font-medium text-foreground">
-            Runs only while the bot page is open in OBS or a browser tab.
+            Runs only while its widget or dock is open: in OBS, Moblin or a browser tab.
           </span>
         </CardDescription>
       </CardHeader>
@@ -112,54 +110,39 @@ export function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
               <span className="font-mono font-medium">#{ingestInfo.data.channelName ?? "—"}</span>
             </p>
 
-            <SecretUrlRow
-              label="Bot page"
-              path={botPath}
-              onRegenerate={() => regenerateBotToken.mutate()}
-              regenerating={regenerateBotToken.isPending}
-              resetDescription="The current bot page URL and the Twitch chat login it was given stop working immediately. Any OBS browser source or pinned tab running the bot goes offline until you open the new URL."
+            <BotPageHandoff
+              botToken={ingestInfo.data.botToken}
+              reset={{
+                onRegenerate: () => regenerateBotToken.mutate(),
+                regenerating: regenerateBotToken.isPending,
+                description:
+                  "The widget and dock URLs share one token, so both change. The current ones, and the Twitch chat login they were given, stop working immediately: any widget, dock or tab running the bot goes offline until you paste in the new URL.",
+              }}
+              renderAction={(path, mode) => {
+                // `origin` is "" during SSR/hydration (useOrigin), so Open starts disabled.
+                const url = origin && path ? `${origin}${path}` : "";
+                return (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      nativeButton={false}
+                      render={<a href={url || "#"} target="_blank" rel="noopener noreferrer" />}
+                      disabled={!url}
+                    >
+                      <ExternalLink className="size-3.5" />
+                      Open {mode.urlLabel.toLowerCase()}
+                    </Button>
+                    {/* A blank tab would otherwise look broken. */}
+                    {mode.view === "widget" && (
+                      <p className="text-xs text-muted-foreground">
+                        It opens blank: the tab title shows the bot&apos;s state.
+                      </p>
+                    )}
+                  </div>
+                );
+              }}
             />
-            {/* Same token, dock layout; Reset above rotates both. */}
-            <SecretUrlRow label="Bot dock" path={botToken ? botPagePath(botToken, "dock") : null} />
-
-            <div>
-              <Button
-                nativeButton={false}
-                render={<a href={botUrl || "#"} target="_blank" rel="noopener noreferrer" />}
-                disabled={!botUrl}
-              >
-                <ExternalLink className="size-3.5" />
-                Open bot page
-              </Button>
-            </div>
-
-            <SectionGroup
-              title="Where to keep it"
-              icon={<MonitorPlay className="size-4 text-link" aria-hidden />}
-              defaultOpen={false}
-              flush
-            >
-              <ol className="list-decimal space-y-1.5 py-3 pr-3 pl-8 text-xs/relaxed text-muted-foreground">
-                <li>
-                  Add a <span className="text-foreground">Browser</span> source and paste the bot
-                  page URL. Don&apos;t pick &quot;Local file&quot;.
-                </li>
-                <li>Set it to 400 × 200. It can sit anywhere, even off the canvas.</li>
-                <li>
-                  Leave &quot;Shutdown source when not visible&quot; unchecked, so the bot keeps
-                  running when you switch scenes.
-                </li>
-                <li>
-                  Or add the bot dock URL as an OBS custom browser dock (Docks → Custom Browser
-                  Docks) to get its controls beside your scenes. Keep the dock tabbed, not closed:
-                  closing it stops the bot.
-                </li>
-                <li>
-                  No OBS? Keep the page open in a pinned browser tab instead. The bot only runs
-                  while the page is open.
-                </li>
-              </ol>
-            </SectionGroup>
           </>
         )}
       </CardContent>
