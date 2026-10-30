@@ -4,7 +4,6 @@ This file provides guidance for coding agents working on the Dirework codebase.
 
 ## Critical Documentation Reference
 
-
 **ALWAYS update this section** when creating or discovering important docs to prevent context loss.
 
 - Historical records (completed plans and reviews) live in `docs/history/`:
