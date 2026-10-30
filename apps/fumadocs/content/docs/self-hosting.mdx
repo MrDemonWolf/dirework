@@ -1,0 +1,163 @@
+---
+title: Docker and server hosting
+description: Support status and requirements for Docker, Portainer, Dokploy, and Coolify
+---
+
+**Use [Cloudflare deployment](/docs/deployment) for a supported DireWork instance today.**
+It runs in your account, supports the free tier within account quotas, and keeps one
+streamer per instance.
+
+Docker, Portainer, Dokploy, and Coolify are deployment options we can evaluate for a
+future release. This page explains their current limits and the work required before
+they can run DireWork safely.
+
+<Callout type="warn">
+  **Container hosting is not currently supported.** The repository does not provide a
+  production Docker image or Compose deployment. Pointing a hosting panel at this
+  repository does not replace the Cloudflare runtime or provision its database.
+</Callout>
+
+## Choose a deployment path
+
+| Path | Current status | What runs there |
+|---|---|---|
+| Cloudflare Workers + D1 | Supported | Web app, API, database |
+| Docker Compose | Not supported yet | Requires a container runtime and database adapter |
+| Portainer | Not supported yet | Would manage the same production Compose stack |
+| Dokploy | Not supported yet | Would build or run the same production Compose stack |
+| Coolify | Not supported yet | Would build or run the same production Compose stack |
+| Container web app + Cloudflare API/D1 | Architecture candidate, unverified | Only the frontend moves to your server |
+
+Choosing a server host would not turn DireWork into a multi-user service. Each
+deployment would still belong to one streamer, claimed by the first Twitch sign-in.
+The browser bot would still need its page open in OBS, a custom browser dock, or a tab.
+
+## Why a generic Node container is not enough
+
+The API imports `cloudflare:workers` bindings, uses Drizzle's D1 adapter, and relies on
+Cloudflare rate-limit bindings. Alchemy provisions those resources and applies D1
+migrations. A Node process does not supply those bindings, and adding a PostgreSQL or
+SQLite container does not make it compatible with D1 automatically.
+
+The web app has Next.js build and start scripts, but that is only one piece of the
+deployment. Authentication, SSR requests, OAuth callbacks, same-origin proxying and
+signed client-IP forwarding must all work with its API. A successful container build
+alone would not verify those flows.
+
+Do not publish `next dev`, `wrangler dev`, the Playwright worker harness, or a deployment
+with `DEV_LOGIN` enabled as a production instance. Those tools serve local development
+and testing.
+
+## Smallest candidate: a container frontend
+
+The smallest architecture to investigate is:
+
+```text
+Browser / OBS → HTTPS server proxy → Next.js web container
+                                      ↓ authenticated traffic
+                                 Cloudflare API → D1
+Browser / OBS ── public token requests ────────↑
+```
+
+This retains Cloudflare for the API and database. It is **not a fully independent
+Docker deployment**, and it has not been validated as a supported release path.
+It adds server maintenance while retaining Cloudflare quotas, so Cloudflare-only
+hosting remains the simpler default.
+
+Before offering this option, the project needs:
+
+- A reproducible production Dockerfile and Compose definition, built from the monorepo
+  root with its workspace packages and bundled fonts.
+- A verified Next.js production startup and an explicit runtime environment contract.
+  Public API URLs are build-time configuration; private proxy secrets must stay out of
+  browser bundles and image layers.
+- Matching web origin, API CORS origin, auth base URL and Twitch callback URLs. Keeping
+  the old web deployment online must not accidentally serve a competing instance.
+- A trusted reverse-proxy boundary. The existing web proxy trusts Cloudflare's
+  `CF-Connecting-IP`; an Internet-facing container must not accept that header directly
+  from arbitrary clients and sign it as trusted identity.
+- A clean-instance test covering owner claim, both OAuth flows, session cookies,
+  dashboard actions, overlays, bot commands, URL reset, restart and rollback.
+
+## Docker Compose
+
+Docker is the runtime; Compose defines the services, networking and operational
+settings. It is the foundation the other panels would reuse.
+
+When a supported Compose release exists, the operator flow should be:
+
+1. Install Docker Engine and the Compose plugin on a maintained Linux server.
+2. Obtain the documented release image or build the documented Dockerfile from a
+   pinned commit. Use its matching Compose definition and environment example.
+3. Configure HTTPS, the public domain and Twitch callbacks before enabling sign-in.
+4. Configure persistent storage for any state held on that server, including its backup
+   and tested restore procedure. In a hybrid deployment, D1 still holds application data.
+5. Validate the Compose configuration, deploy, and complete the clean-instance checks
+   listed above before sending viewers to it.
+
+Those release artifacts do not exist today. Do not substitute a guessed container
+command. See Docker's [production Compose guide](https://docs.docker.com/compose/how-tos/production/)
+for production-specific configuration, restart policies and updating services.
+
+## Portainer
+
+Portainer can deploy a Docker Compose definition through **Stacks → Add stack**,
+using its web editor, upload, or Git repository source. The panel does not adapt
+Cloudflare-specific application code.
+
+Once DireWork publishes a supported Compose deployment:
+
+1. Select the intended Docker environment, then **Stacks → Add stack**.
+2. Choose the documented Compose source and pinned release reference. Do not guess a
+   Compose path in the current repository.
+3. Supply the documented variables through the stack's environment configuration;
+   confirm that the Compose definition actually passes them into its services.
+4. Set up HTTPS through the intended reverse proxy, deploy, and perform the same
+   authentication, bot, overlay and recovery checks as Docker Compose.
+
+Current platform instructions: [Portainer — Add a new stack](https://docs.portainer.io/user/docker/stacks/add).
+
+## Dokploy
+
+Dokploy's **Docker Compose** service is the appropriate starting point for a future
+Compose release. Its **Stack** mode is different: it targets Docker Swarm and does not
+support all Compose features, including `build`.
+
+Once a supported release exists:
+
+1. Create a Docker Compose service in the intended project and environment.
+2. Select the documented Git or Compose source and pin the intended release.
+3. Set its environment variables and domain. Dokploy's environment editor writes a
+   `.env` file; variables still need explicit Compose `environment` or `env_file`
+   references to reach the containers.
+4. Deploy and verify the HTTPS route, OAuth callbacks, persistence and recovery behavior.
+
+Current platform instructions: [Dokploy — Docker Compose](https://docs.dokploy.com/docs/core/docker-compose).
+
+## Coolify
+
+Coolify supports Compose from a Git repository or a pasted definition. The Git route
+creates an Application with repository deployment automation; **Docker Compose Empty**
+creates a Service without a Git source. Neither route supplies missing D1 bindings.
+
+Once a supported release exists:
+
+1. In the intended project and environment, create the documented Git application or
+   Compose service.
+2. For Git, choose the Compose build strategy and set the documented base directory
+   and Compose location. A path must refer to a file that actually ships in that release.
+3. Configure the documented variables and HTTPS domain, then deploy.
+4. Verify both OAuth flows, dashboard actions, OBS sources, bot behavior and recovery
+   before enabling automatic updates.
+
+Current platform instructions: [Coolify — Docker Compose](https://coolify.io/docs/applications/builds/docker-compose).
+
+## What full server support would require
+
+A deployment without Cloudflare would need a supported server API entry point,
+database adapter and migration runner, a replacement for binding-based rate limiting,
+and an explicit proxy trust model. It would also need production images, persistent
+storage, backup/restore instructions and CI that tests the container deployment.
+
+That is a separate runtime feature, rather than a hosting-panel setting. Until it is
+implemented and verified, follow the [Cloudflare deployment guide](/docs/deployment).

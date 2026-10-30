@@ -4,7 +4,17 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowDown, ArrowRight, Check, MessageSquare, Monitor, Radio, Timer } from "lucide-react";
+import Image from "next/image";
+import {
+  ArrowDown,
+  ArrowRight,
+  Check,
+  Cloud,
+  MessageSquare,
+  Monitor,
+  Radio,
+  Timer,
+} from "lucide-react";
 import {
   BRAND,
   DEMO_SESSION,
@@ -15,6 +25,7 @@ import {
 import { GithubIcon } from "@/components/icons/github-icon";
 import { ChatCommandWidget } from "./_widgets/ChatCommandWidget";
 import { OverlayThemePreview } from "./_widgets/OverlayThemePreview";
+import dashboardScreenshot from "../../../public/screenshots/dashboard.png";
 import "./marketing.css";
 
 const GITHUB = "https://github.com/mrdemonwolf/dirework";
@@ -163,15 +174,16 @@ export default function HomePage() {
               <h1 id="hero-title">{BRAND.tagline}.</h1>
               <p>{BRAND.description}</p>
               <div className="marketing-actions">
-                <Link href="/docs/getting-started" className="dw-btn dw-btn-primary">
-                  Set up DireWork <ArrowRight size={17} aria-hidden />
+                <Link href="/docs/deployment#quick-start" className="dw-btn dw-btn-primary">
+                  <Cloud size={18} aria-hidden /> Deploy on Cloudflare{" "}
+                  <ArrowRight size={17} aria-hidden />
                 </Link>
                 <a href="#overlays" className="marketing-text-link">
                   Explore the overlays <ArrowDown size={16} aria-hidden />
                 </a>
               </div>
               <p className="marketing-hero-fine">
-                Free &amp; open source · One streamer per instance · Cloudflare free tier supported
+                Guided setup · Free tier supported · One streamer per instance
               </p>
             </div>
             <div className="marketing-scene-wrap">
@@ -236,6 +248,17 @@ export default function HomePage() {
             </article>
           ))}
         </div>
+        <figure className="mt-10 overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--bg-surface)]">
+          <Image
+            src={dashboardScreenshot}
+            alt="Wolf Streamer's dashboard with a Pomodoro timer and wolf-themed example tasks"
+            unoptimized
+            className="h-auto w-full"
+          />
+          <figcaption className="p-4 text-sm text-[var(--txt-2)]">
+            The real dashboard, using local Wolf Streamer demo data. Private URLs stay hidden.
+          </figcaption>
+        </figure>
       </section>
       <section
         id="overlays"
@@ -336,6 +359,12 @@ export default function HomePage() {
               </li>
             ))}
           </ol>
+          <p className="marketing-supporting mt-6">
+            Using Docker, Portainer, Dokploy, or Coolify?{" "}
+            <Link href="/docs/self-hosting" className="marketing-inline-link">
+              Read the container hosting support status.
+            </Link>
+          </p>
         </div>
       </section>
       <section
@@ -377,8 +406,9 @@ export default function HomePage() {
         <div className="marketing-wrap">
           <h2 id="finale-title">Start your next focus session.</h2>
           <div className="marketing-actions">
-            <Link href="/docs/getting-started" className="dw-btn dw-btn-primary">
-              Set up DireWork <ArrowRight size={17} aria-hidden />
+            <Link href="/docs/deployment#quick-start" className="dw-btn dw-btn-primary">
+              <Cloud size={18} aria-hidden /> Deploy on Cloudflare{" "}
+              <ArrowRight size={17} aria-hidden />
             </Link>
             <a
               href={GITHUB}

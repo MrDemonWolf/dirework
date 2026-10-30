@@ -4,6 +4,8 @@ This file provides guidance for coding agents working on the Dirework codebase.
 
 ## Critical Documentation Reference
 
+- October 26 codebase, deployment and screenshot review → `docs/history/2026-10-26-codebase-and-site-review.md`
+
 **ALWAYS update this section** when creating or discovering important docs to prevent context loss.
 
 - Historical records (completed plans and reviews) live in `docs/history/`:
@@ -17,6 +19,7 @@ This file provides guidance for coding agents working on the Dirework codebase.
 - Production readiness evidence and remaining operator steps → `docs/production-readiness.md`
 - Database schemas → `packages/db/src/schema/` (index.ts, auth.ts, app.ts)
 - Setup guides → `.env.example`, docs `apps/fumadocs/content/docs/deployment.mdx`
+- Container hosting support and platform guide → `apps/fumadocs/content/docs/self-hosting.mdx` (unsupported; no production image)
 - Contributor setup + branch/PR workflow → `CONTRIBUTING.md`
 - Design system (tokens → generated CSS for app + docs, one spec per component, enforced by `spec-catalog.test.ts`) → `design-system/` (README), docs `apps/fumadocs/content/docs/design-system.mdx`; drift check `bun run tokens && git diff --exit-code`
 - Which Cloudflare services to use beyond Workers + D1 (KV, Durable Objects, Queues, Cron, …) → `docs/decisions/0001-cloudflare-services.md`

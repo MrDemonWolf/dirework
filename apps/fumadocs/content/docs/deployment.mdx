@@ -1,6 +1,6 @@
 ---
-title: Deployment
-description: Put DireWork online on Cloudflare Workers
+title: Deploy on Cloudflare
+description: Set up your own free-tier DireWork instance, one step at a time
 ---
 
 DireWork runs on **Cloudflare Workers** with a **D1** (SQLite) database — two small
@@ -10,12 +10,44 @@ service is required. No servers or Docker to maintain.
 
 You deploy these resources to your own Cloudflare account and operate your own instance. DireWork is always self-hosted; MrDemonWolf, Inc. does not provide a hosted or managed service.
 
+## Quick start
+
+**Use Cloudflare + GitHub Actions.** You configure accounts once; the Deploy workflow
+then creates and updates the app and database for you. You do not need a server or a
+local development environment. Cloudflare remains the default, with free-tier support
+for the core app; account quotas still apply.
+
+Work through these in order. The detailed steps below use the same numbers:
+
+- [ ] **Prepare:** [fork DireWork](https://github.com/MrDemonWolf/dirework/fork), sign in to
+  Cloudflare, and find your workers.dev subdomain under Workers & Pages.
+- [ ] **1. Cloudflare:** [create one API token](#step-1--create-a-cloudflare-api-token).
+- [ ] **2. Twitch:** [create or open your Twitch app](#step-2--tell-twitch-about-your-domain)
+  and add both callback URLs. Save its client ID and secret.
+- [ ] **3. GitHub:** [add seven secrets and two variables](#step-3--set-your-github-secrets)
+  to your fork. The tables below give their exact names.
+- [ ] **4. Deploy and claim:** [enable Actions and run Deploy](#step-4--run-the-first-deploy).
+  Keep the run open. When it turns green, open your app and **Claim with Twitch immediately**.
+- [ ] **Finish:** connect your bot account, keep one bot page or OBS dock open, add the
+  overlays, and complete the [live checklist](#after-youre-live--quick-checklist).
+
 <Callout>
-  **The short version:** create a Cloudflare API token, set seven GitHub secrets and two
-  required repository variables, then push to `main` (or run the Deploy workflow). GitHub
-  Actions deploys both workers and the database for you. **Sign in the moment the first
-  deploy finishes** — until you do, anyone can claim the instance.
+  **The Deploy on Cloudflare link opens this guided setup.** It does not create resources
+  with a single click. Twitch authorization and your private credentials still need your
+  input. After setup, **Actions → Deploy → Run workflow** runs the deployment.
 </Callout>
+
+### About Cloudflare's native deploy button
+
+Cloudflare's [native Deploy to Cloudflare button](https://developers.cloudflare.com/workers/platform/deploy-buttons/)
+discovers resources through a repository's Wrangler configuration. DireWork instead
+uses Alchemy to coordinate two Workers, D1 migrations, shared deployment state and
+post-deploy checks. There is no committed Wrangler configuration for that setup.
+
+The [Workers Builds monorepo guide](https://developers.cloudflare.com/workers/ci-cd/builds/advanced-setups/)
+describes connecting each Worker separately. We have not validated a native-button
+integration that preserves DireWork's full deployment flow. Use the GitHub Actions
+path below; the setup link deliberately avoids promising unsupported provisioning.
 
 ## What gets deployed
 
@@ -49,7 +81,9 @@ so everything works from the one `dirework.…workers.dev` address.
 
 ## Step 2 — Tell Twitch about your domain
 
-In the [Twitch Developer Console](https://dev.twitch.tv/console/apps), open your app and
+In the [Twitch Developer Console](https://dev.twitch.tv/console/apps), create a
+**Confidential** application if you do not already have one (see
+[Twitch setup](/docs/twitch-oauth)), or open your existing app, and
 add these two redirect URLs (swap in your workers.dev subdomain):
 
 ```
@@ -81,6 +115,9 @@ those; an environment secret with the same name wins.)
 
 <Callout type="warn">
   Generate fresh secrets for production — never reuse the ones from your computer.
+  Generate each of the four random values separately with your password manager, or
+  run `openssl rand -base64 32` four times. Save `ALCHEMY_PASSWORD` and
+  `ALCHEMY_STATE_TOKEN` securely: future deploys need the same values.
 </Callout>
 
 ### And set these repository variables
@@ -421,13 +458,21 @@ overlay and dashboard) reads rows. DireWork keeps that bounded:
 - **A poll never scans the task table.** It reads the open (pending + active) tasks and
   at most the **50 most recently completed** done tasks through an index, plus an index
   count of done tasks so the overlay's `done/total` counter stays right past 50. With the
-  overlay's **Show done** option off, done rows are only counted, never read.
+  overlay's **Show done** option off, done task details are omitted, but counting still
+  reads the retained done rows and uses the D1 quota.
 
 Roughly, a poll reads `open tasks + min(done tasks, 50) + done tasks` rows. A six-hour
 stream polled by the task overlay *and* a dashboard (~14,400 polls) with 20 open tasks and
 100 done stays near 2.5M rows; the 24h purge keeps yesterday's tasks from adding to
 tomorrow's. For very busy co-working streams, `!clear done` between streams (or **Clear
 done** on the Dashboard) resets the count to zero immediately.
+
+The 50-row display limit does **not** cap counting costs. For example, if 1,000 done
+tasks remain throughout an eight-hour stream, the task overlay's 5,760 polls alone
+read roughly 5.76 million rows just for counts, before open tasks or dashboard polls.
+Check D1 **Metrics → Row Metrics** after a representative stream; shorten the retained
+list with **Clear done** when needed. These are workload estimates, not measured
+production usage; [Cloudflare counts scanned rows toward the quota](https://developers.cloudflare.com/d1/platform/pricing/).
 
 ### Worker size
 

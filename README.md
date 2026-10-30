@@ -42,8 +42,13 @@ For full setup instructions including Twitch OAuth, bot
 account configuration, and OBS setup, see the
 **[Documentation](https://dirework.mrdemonwolf.dev)**.
 
-1. [Deploy your own instance](https://dirework.mrdemonwolf.dev/docs/deployment)
-   on Cloudflare, then claim it immediately with your streamer account.
+**[Deploy on Cloudflare](https://dirework.mrdemonwolf.dev/docs/deployment#quick-start)**
+opens the guided setup. The core app supports the free tier; no paid service or
+local development setup is required. Initial setup needs your Twitch keys and
+GitHub secrets; the link does not provision resources with one click.
+
+1. Follow the short setup checklist, run **Actions → Deploy → Run workflow** in
+   your fork, then claim the instance immediately with your streamer account.
 2. Connect your bot account in Dashboard → Bot.
 3. Keep one bot console open in an OBS source, OBS dock, or browser tab; chat commands require it.
 4. Add the timer and task overlays to OBS and try a task command and timer cycle.

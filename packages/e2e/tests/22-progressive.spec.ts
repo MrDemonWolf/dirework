@@ -76,7 +76,7 @@ test("a slow procedure holds back only its own section", async ({ page, context 
   await page.goto("/dashboard", { waitUntil: "commit" });
 
   // Everything else is already on screen, with the task board's placeholder in its slot.
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Dev Streamer");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Wolf Streamer");
   await expect(page.getByRole("button", { name: "Start", exact: true })).toBeVisible();
   await expect(page.locator('main [data-placeholder="tasks"]')).toBeVisible();
   await expect(page.getByRole("textbox", { name: "New task text" })).toHaveCount(0);

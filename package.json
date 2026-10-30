@@ -40,6 +40,7 @@
   "scripts": {
     "dev": "turbo run dev",
     "e2e": "bun run --cwd packages/e2e e2e",
+    "screenshots:capture": "bun run --cwd packages/e2e screenshots:capture",
     "e2e:install": "bun run --cwd packages/e2e e2e:install",
     "e2e:install-deps": "bun run --cwd packages/e2e e2e:install-deps",
     "recovery:check": "bun run --cwd packages/e2e recovery:check",

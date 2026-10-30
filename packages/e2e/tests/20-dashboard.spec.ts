@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("signs in through the dev bypass and greets the owner", async ({ page }) => {
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Dev Streamer");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Wolf Streamer");
   await expect(page.getByRole("heading", { name: "Tasks" })).toBeVisible();
 });
 
