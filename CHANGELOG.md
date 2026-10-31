@@ -171,12 +171,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - **Bans wait 5 minutes; timeouts keep tasks.** A timeout no longer removes the viewer's
   tasks. A ban removes them 5 minutes later from the open bot page, unless the viewer chats
-  again first (they were unbanned); repeat bans of one viewer send one removal, and closing
-  the bot page inside the window skips it. When the bot account is the streamer's own account,
-  the api also confirms the ban with Twitch (`moderation:read`) before removing.
-- **Bot account scopes.** The bot OAuth flow now also asks for `moderator:read:followers` and
-  `moderation:read`. Existing bots keep working; Followers-only tasks (and ban confirmation)
-  need one reconnect, which Bot settings prompts for.
+  again first (they were unbanned) or a timeout replaces the ban; repeat bans of one viewer
+  send one removal, and closing the bot page inside the window skips it.
+- **Bot account scopes.** The bot OAuth flow now also asks for `moderator:read:followers`.
+  Existing bots keep working; only Followers-only tasks need one reconnect, which Bot
+  settings prompts for.
 - **Every Theme Center size has a range.** Font sizes, the timer size, ring width and gap,
   paddings, margins, borders, radii, checkbox and bullet sizes, and the scroll speed and gap
   each accept a sensible range, and negative values are refused. The field says the range

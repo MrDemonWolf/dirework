@@ -12,6 +12,7 @@ import {
   AUTH_RECOVERY_DELAY_MS,
   banCancelledMessage,
   banCleanupMessage,
+  banReplacedByTimeoutMessage,
   banScheduledMessage,
   MAX_AUTH_RECOVERY,
   MAX_PENDING_INGESTS,
@@ -59,8 +60,8 @@ function chat(message: string, overrides: Partial<IrcChatMessage> = {}): IrcChat
 }
 
 /** A permanent ban of `login` (CLEARCHAT with no ban-duration). */
-function ban(login: string, targetUserId = "77"): IrcClearChat {
-  return { targetUsername: login, targetUserId, permanent: true };
+function ban(login: string): IrcClearChat {
+  return { targetUsername: login, permanent: true };
 }
 
 function setup(api: Partial<BotSessionApi> = {}) {
@@ -631,8 +632,6 @@ describe("createBotSession ingest", () => {
       instanceId: PAGE_ID,
       kind: "clearchat",
       targetUsername: "troll",
-      targetUserId: "77",
-      verifyBan: true,
     });
     expect(phases(events)).toEqual(["live", "revoked"]);
 
@@ -662,7 +661,7 @@ describe("createBotSession ban cleanup", () => {
     const { ingest, events, callbacks } = setup();
     await vi.advanceTimersByTimeAsync(0);
 
-    callbacks().onClearChat?.({ targetUsername: "napper", targetUserId: "5", permanent: false });
+    callbacks().onClearChat?.({ targetUsername: "napper", permanent: false });
     await vi.advanceTimersByTimeAsync(BAN_CLEANUP_DELAY_MS * 2);
 
     expect(cleanups(ingest)).toHaveLength(0);
@@ -671,7 +670,7 @@ describe("createBotSession ban cleanup", () => {
 
   it("waits the full grace period before removing a banned viewer's tasks", async () => {
     const { ingest, events, callbacks } = setup({
-      ingest: async () => ({ replies: [], banCleanup: { removed: 2, check: "unsupported" } }),
+      ingest: async () => ({ replies: [], banCleanup: { removed: 2 } }),
     });
     await vi.advanceTimersByTimeAsync(0);
 
@@ -684,7 +683,7 @@ describe("createBotSession ban cleanup", () => {
     expect(cleanups(ingest)).toHaveLength(1);
     expect(events.onActivity).toHaveBeenCalledWith(
       "info",
-      banCleanupMessage("troll", { removed: 2, check: "unsupported" }),
+      banCleanupMessage("troll", { removed: 2 }),
     );
   });
 
@@ -695,7 +694,7 @@ describe("createBotSession ban cleanup", () => {
     callbacks().onClearChat?.(ban("troll"));
     await vi.advanceTimersByTimeAsync(60_000);
     callbacks().onClearChat?.(ban("troll"));
-    callbacks().onClearChat?.(ban("other", "78"));
+    callbacks().onClearChat?.(ban("other"));
     await vi.advanceTimersByTimeAsync(BAN_CLEANUP_DELAY_MS);
 
     expect(
@@ -716,19 +715,22 @@ describe("createBotSession ban cleanup", () => {
     expect(events.onActivity).toHaveBeenCalledWith("info", banCancelledMessage("viewer"));
   });
 
-  it("logs a lifted ban the server confirmed with Twitch", async () => {
-    const { events, callbacks } = setup({
-      ingest: async () => ({ replies: [], banCleanup: { removed: 0, check: "not-banned" } }),
-    });
+  it("drops the cleanup when a timeout replaces the ban (unban, then timeout)", async () => {
+    const { ingest, events, callbacks } = setup();
     await vi.advanceTimersByTimeAsync(0);
 
     callbacks().onClearChat?.(ban("troll"));
-    await vi.advanceTimersByTimeAsync(BAN_CLEANUP_DELAY_MS);
+    await vi.advanceTimersByTimeAsync(60_000);
+    callbacks().onClearChat?.({ targetUsername: "troll", permanent: false });
+    await vi.advanceTimersByTimeAsync(BAN_CLEANUP_DELAY_MS * 2);
 
-    expect(events.onActivity).toHaveBeenCalledWith(
-      "info",
-      banCleanupMessage("troll", { removed: 0, check: "not-banned" }),
-    );
+    expect(cleanups(ingest)).toHaveLength(0);
+    expect(events.onActivity).toHaveBeenCalledWith("info", banReplacedByTimeoutMessage("troll"));
+
+    // A fresh ban after that schedules its own cleanup again.
+    callbacks().onClearChat?.(ban("troll"));
+    await vi.advanceTimersByTimeAsync(BAN_CLEANUP_DELAY_MS);
+    expect(cleanups(ingest)).toHaveLength(1);
   });
 
   it("skips a pending cleanup when the page closes inside the grace period", async () => {
@@ -757,9 +759,7 @@ describe("banCleanupMessage", () => {
   it("words each server answer", () => {
     expect(banCleanupMessage("t", undefined)).toBe("ban cleanup sent for t");
     expect(banCleanupMessage("t", { removed: 0 })).toBe("t had no tasks to remove after their ban");
-    expect(banCleanupMessage("t", { removed: 1, check: "banned" })).toBe(
-      "removed t's tasks after their ban",
-    );
+    expect(banCleanupMessage("t", { removed: 1 })).toBe("removed t's tasks after their ban");
   });
 });
 

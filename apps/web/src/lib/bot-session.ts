@@ -7,7 +7,8 @@
  * slow poll, the one-bot-page lease (claim before joining chat, a heartbeat
  * every BOT_HEARTBEAT_MS, standby + take over), serialized chat ingest of
  * Dirework commands only, with a per-viewer flood brake (viewer-throttle.ts),
- * and delayed ban cleanup (BAN_CLEANUP_DELAY_MS after a ban; timeouts ignored).
+ * and delayed ban cleanup (BAN_CLEANUP_DELAY_MS after a ban, cancelled by the viewer
+ * chatting again or a timeout replacing it; timeouts alone never remove tasks).
  *
  * Secrets: the chat token is handed straight to the IRC client and kept only
  * for the rotation comparison — never emitted in an event.
@@ -102,15 +103,11 @@ export type BotIngestInput =
       instanceId: string;
       kind: "clearchat";
       targetUsername: string;
-      targetUserId?: string;
-      /** Ask Twitch whether the ban still stands before removing (where Twitch allows it). */
-      verifyBan: true;
     };
 
 /** What `bot.ingest` reports for a ban cleanup (absent from an older api worker). */
 export interface BanCleanupResult {
   removed: number;
-  check?: "banned" | "not-banned" | "unsupported" | "unavailable";
 }
 
 export interface BotLeaseInput {
@@ -258,9 +255,13 @@ export function banCancelledMessage(login: string): string {
   return `${login} is chatting again — keeping their tasks`;
 }
 
-/** Logged when a ban cleanup ran (the server's answer, when it gave one). */
+/** Logged when a timeout replaces a pending ban (the mod unbanned, then timed them out). */
+export function banReplacedByTimeoutMessage(login: string): string {
+  return `${login}'s ban became a timeout — keeping their tasks`;
+}
+
+/** Logged when a ban cleanup ran (the server's count, when it gave one). */
 export function banCleanupMessage(login: string, result: BanCleanupResult | undefined): string {
-  if (result?.check === "not-banned") return `${login} was unbanned — kept their tasks`;
   if (!result) return `ban cleanup sent for ${login}`;
   return result.removed > 0
     ? `removed ${login}'s tasks after their ban`
@@ -491,32 +492,44 @@ export function createBotSession({
     }
   };
 
-  /** Run one ban cleanup now: the server asks Twitch whether the ban stands, where it can. */
-  const runBanCleanup = async (clear: IrcClearChat) => {
+  /** Run one ban cleanup now: nothing undid the ban during the grace period. */
+  const runBanCleanup = async (login: string) => {
     if (inactive() || standby) return;
     const result = await ingestOnceForBan({
       token,
       instanceId,
       kind: "clearchat",
-      targetUsername: clear.targetUsername,
-      targetUserId: clear.targetUserId,
-      verifyBan: true,
+      targetUsername: login,
     });
     if (result === null || inactive()) return;
-    events.onActivity("info", banCleanupMessage(clear.targetUsername, result));
+    events.onActivity("info", banCleanupMessage(login, result));
+  };
+
+  /** Drop a pending cleanup; true when there was one. */
+  const cancelPendingBan = (login: string): boolean => {
+    const timer = pendingBans.get(login);
+    if (!timer) return false;
+    clearTimeout(timer);
+    pendingBans.delete(login);
+    return true;
   };
 
   const handleClearChat = (clear: IrcClearChat) => {
     const login = clear.targetUsername;
     if (!clear.permanent) {
-      events.onActivity("info", timeoutKeptMessage(login));
+      // A timeout replaces whatever came before it: a ban the mod lifted and turned into a
+      // timeout must not still remove the viewer's tasks when its timer fires.
+      events.onActivity(
+        "info",
+        cancelPendingBan(login) ? banReplacedByTimeoutMessage(login) : timeoutKeptMessage(login),
+      );
       return;
     }
     if (pendingBans.has(login)) return;
     events.onActivity("info", banScheduledMessage(login));
     const timer = setTimeout(() => {
       pendingBans.delete(login);
-      void runBanCleanup(clear);
+      void runBanCleanup(login);
     }, BAN_CLEANUP_DELAY_MS);
     pendingBans.set(login, timer);
   };
@@ -538,10 +551,7 @@ export function createBotSession({
   const handleChat = (chat: IrcChatMessage) => {
     events.onCounter("seen");
     // A banned viewer can't chat: a line from one waiting on cleanup means they were unbanned.
-    const pendingBan = pendingBans.get(chat.username);
-    if (pendingBan) {
-      clearTimeout(pendingBan);
-      pendingBans.delete(chat.username);
+    if (cancelPendingBan(chat.username)) {
       events.onActivity("info", banCancelledMessage(chat.username));
     }
     const text = chat.message.trim();

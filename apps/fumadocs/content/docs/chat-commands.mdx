@@ -121,13 +121,12 @@ so I left it alone. Check it and try again.` These fixed replies aren't editable
 - **A timeout keeps the viewer's tasks.** Nothing changes on the board.
 - **A ban removes the viewer's tasks 5 minutes later**, so a mistaken ban can be undone
   first. If the viewer chats again within those 5 minutes they were unbanned, and their tasks
-  stay. A second ban of the same viewer in that window doesn't add another removal.
+  stay. If a mod lifts the ban and gives a timeout instead, the timeout wins and their tasks
+  stay too. A second ban of the same viewer in that window doesn't add another removal.
 - **The bot page must stay open** for those 5 minutes: it holds the timer. Close or reload
   it in that window and the removal is skipped; clear the viewer with `!clear @user`.
-- **When the bot account is your own Twitch account**, DireWork also asks Twitch whether the
-  ban still stands before removing anything (Twitch only answers that for the channel's own
-  account). A separate bot account can't ask, so the removal goes ahead unless the viewer
-  chatted again.
+- **An unban on its own isn't visible to the bot** (Twitch chat doesn't announce it), so a
+  viewer who is unbanned but stays quiet for those 5 minutes still loses their tasks.
 
 ## Meta commands (always available)
 

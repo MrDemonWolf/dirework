@@ -190,13 +190,12 @@ mod), whose clean answer is upserted in a batch that also prunes rows past 7 day
 `follower_check_checked_at_idx`. Fails closed: no scope, no account, 401/429/5xx or a timeout
 → `followCheckFailed` reply, nothing cached. **Ban cleanup:** the bot page ignores a timeout
 (CLEARCHAT with `ban-duration`); a ban (`parseClearChat` → `permanent`) schedules ONE
-`bot.ingest` `clearchat` per login `BAN_CLEANUP_DELAY_MS` (5 min) later, with `targetUserId` and
-`verifyBan`; the viewer chatting again in that window cancels it, and `dispose` clears the
-timers (closing the page inside the window skips the cleanup). The server
-(`services/ban-cleanup.ts`) asks Helix Get Banned Users (`lookupBan`, scope `moderation:read`)
-only when the bot account IS the broadcaster (Twitch answers that endpoint for the
-broadcaster's own token only); otherwise, or when Twitch can't answer, it removes the tasks
-as before. A clearchat without `verifyBan` (an older bot page) removes at once.
+`bot.ingest` `clearchat` per login `BAN_CLEANUP_DELAY_MS` (5 min) later. The viewer chatting
+again in that window (proof of an unban) or a timeout for them (a ban turned into a timeout)
+cancels it, and `dispose` clears the timers (closing the page inside the window skips the
+cleanup). The server just removes the tasks and returns `banCleanup: { removed }`. No Helix
+ban lookup: Get Banned Users answers only the broadcaster's own token, so a separate bot
+account could never use it, and the scope is not requested.
 `bot.ingest` returns `{ replies, muted }` (the post-command mute state, so the page's "Muted"
 status follows `!mute` without a request) and `bot.getSession` carries `muted` from its single
 bot_config read. Bot lives only while that page is open. Two views of ONE session
@@ -674,13 +673,12 @@ it (e.g. `0017_drop_task_status_idx` contracted 0015's superseded `task_status_i
   extra fetch per sign-in); `create-auth.test.ts` signs test tokens RS256 and stubs it.
 - Bot account connection = separate OAuth flow on Hono: `/api/bot/authorize` →
   `/api/bot/callback/twitch` (state cookie, `BOT_SCOPES` in `@dirework/api/bot-permissions`
-  = `chat:read chat:edit user:read:chat user:write:chat moderator:read:followers
-  moderation:read` — the browser bot speaks IRC, which needs the `chat:*` pair; the `user:*`
-  Helix pair is unused but kept to avoid a future reconnect; `moderator:read:followers` is
-  the Followers task access check and `moderation:read` the ban confirmation (channel's own
-  account only). A bot connected before those two keeps working: `user.me` returns
-  `botAccount.missingScopes` (derived from the stored scopes, which are never returned) and
-  `isChannelAccount`, and Bot settings prompts one reconnect only where it matters.
+  = `chat:read chat:edit user:read:chat user:write:chat moderator:read:followers` — the
+  browser bot speaks IRC, which needs the `chat:*` pair; the `user:*` Helix pair is unused
+  but kept to avoid a future reconnect; `moderator:read:followers` is the Followers task
+  access check. A bot connected before it keeps working: `user.me` returns
+  `botAccount.missingScopes` (derived from the stored scopes, which are never returned), and
+  Bot settings prompts one reconnect only when the level is Followers.
   `user:bot` is deliberately NOT requested until a server-side (EventSub) bot exists:
   Twitch asks apps to request only the scopes current features use;
   only Twitch's `access_denied` is a cancel — any other Twitch `error` is

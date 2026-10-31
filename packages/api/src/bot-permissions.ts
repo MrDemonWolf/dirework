@@ -17,20 +17,14 @@ export { DEFAULT_TASK_ACCESS, TASK_ACCESS_LEVELS, type TaskAccessLevel };
 export const FOLLOWER_CHECK_SCOPE = "moderator:read:followers";
 
 /**
- * `moderation:read` lets the bot ask Twitch whether a viewer is still banned before ban
- * cleanup removes their tasks (Helix Get Banned Users). Twitch answers that endpoint ONLY
- * for the broadcaster's own token, so the check runs only when the bot account IS the
- * channel's account; a separate bot account (the usual setup) falls back to removing.
- */
-export const BAN_CHECK_SCOPE = "moderation:read";
-
-/**
  * Scopes the bot OAuth flow requests (apps/server routes/bot-oauth.ts).
  * chat:read / chat:edit — the IRC connection the browser bot page uses.
  * user:read:chat / user:write:chat — Helix/EventSub chat scopes, kept so a future move to
  * Helix sends needs no reconnect.
- * FOLLOWER_CHECK_SCOPE / BAN_CHECK_SCOPE — above. A bot connected before they were added
- * keeps working; only the follower and ban checks need one reconnect.
+ * FOLLOWER_CHECK_SCOPE — above. A bot connected before it was added keeps working; only
+ * the Followers level needs one reconnect.
+ * No moderation scope: ban cleanup needs none (Twitch answers Get Banned Users only for the
+ * broadcaster's own token, so a separate bot account could never use one).
  * user:bot is deliberately not requested: only a server-side (EventSub) bot would use it.
  */
 export const BOT_SCOPES = [
@@ -39,10 +33,12 @@ export const BOT_SCOPES = [
   "user:read:chat",
   "user:write:chat",
   FOLLOWER_CHECK_SCOPE,
-  BAN_CHECK_SCOPE,
 ] as const;
 
-/** How long the bot page waits after a permanent ban before removing the viewer's tasks. */
+/**
+ * How long the bot page waits after a permanent ban before removing the viewer's tasks. The
+ * viewer chatting again (unbanned) or a timeout replacing the ban cancels it.
+ */
 export const BAN_CLEANUP_DELAY_MS = 5 * 60 * 1000;
 
 /** What a chatter's IRC badges say about them (the bot page forwards these). */
@@ -79,5 +75,5 @@ export function readTaskAccess(stored: unknown): TaskAccessLevel {
 /** The new scopes a stored bot account still lacks (an older connection), in BOT_SCOPES order. */
 export function missingBotScopes(granted: readonly string[] | null | undefined): string[] {
   const have = new Set(granted ?? []);
-  return [FOLLOWER_CHECK_SCOPE, BAN_CHECK_SCOPE].filter((scope) => !have.has(scope));
+  return [FOLLOWER_CHECK_SCOPE].filter((scope) => !have.has(scope));
 }
