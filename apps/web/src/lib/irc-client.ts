@@ -182,8 +182,6 @@ export interface IrcChatMessage {
 export interface IrcClearChat {
   /** Lowercase login from the trailing parameter. */
   targetUsername: string;
-  /** `target-user-id` tag, when it is a Twitch user id. */
-  targetUserId?: string;
   /** True for a ban; false for a timeout. */
   permanent: boolean;
 }
@@ -195,10 +193,8 @@ export function parseClearChat(
 ): IrcClearChat | null {
   const target = trailing?.trim().toLowerCase();
   if (!target) return null;
-  const id = tags.get("target-user-id");
   return {
     targetUsername: target,
-    ...(id && /^\d{1,32}$/.test(id) ? { targetUserId: id } : {}),
     // Twitch sets ban-duration (seconds) only on a timeout.
     permanent: !tags.get("ban-duration"),
   };

@@ -57,26 +57,18 @@ export function botPageSeenMsAgo(seenAt: Date | null | undefined, now: number): 
 }
 
 /**
- * The bot account as the dashboard sees it: public fields, the follower/ban-check scopes an
- * older connection still lacks (Bot settings asks for a reconnect), and whether the bot IS
- * the channel's account (Twitch answers ban lookups only for that one). Never the tokens.
+ * The bot account as the dashboard sees it: public fields and the follower-check scope an
+ * older connection still lacks (Bot settings asks for a reconnect). Never the tokens.
  */
-export function publicBotAccount(
-  account: {
-    username: string;
-    displayName: string;
-    twitchId: string;
-    expiresAt: Date;
-    scopes: string[] | null;
-  },
-  ownerTwitchId: string | null,
-) {
+export function publicBotAccount(account: {
+  username: string;
+  displayName: string;
+  twitchId: string;
+  expiresAt: Date;
+  scopes: string[] | null;
+}) {
   const { scopes, ...rest } = account;
-  return {
-    ...rest,
-    missingScopes: missingBotScopes(scopes),
-    isChannelAccount: ownerTwitchId !== null && account.twitchId === ownerTwitchId,
-  };
+  return { ...rest, missingScopes: missingBotScopes(scopes) };
 }
 
 export const userRouter = router({
@@ -140,7 +132,7 @@ export const userRouter = router({
     return {
       ...user,
       twitchId: ownerTwitchId,
-      botAccount: botAccount ? publicBotAccount(botAccount, ownerTwitchId) : null,
+      botAccount: botAccount ? publicBotAccount(botAccount) : null,
       overlayTimerToken: instance?.overlayTimerToken ?? null,
       overlayTasksToken: instance?.overlayTasksToken ?? null,
       setup: setupState(instance),

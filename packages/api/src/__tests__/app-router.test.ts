@@ -1163,30 +1163,26 @@ describe("user.me bot account permissions against real SQLite", () => {
     return appRouter.createCaller({ session, db } as unknown as Context);
   }
 
-  it("names the new scopes an older connection lacks, never the tokens or scopes", async () => {
+  it("names the follower scope an older connection lacks, never the tokens or scopes", async () => {
     const owner = await withBot({ twitchId: "4000" });
 
     const me = await owner.user.me();
 
     expect(me?.botAccount).toMatchObject({
       username: "direbot",
-      missingScopes: ["moderator:read:followers", "moderation:read"],
-      isChannelAccount: false,
+      missingScopes: ["moderator:read:followers"],
     });
     expect(me?.botAccount).not.toHaveProperty("scopes");
     expect(JSON.stringify(me)).not.toMatch(/secret-(access|refresh)-token/);
   });
 
-  it("reports nothing missing after a reconnect, and a bot that is the channel's account", async () => {
+  it("reports nothing missing after a reconnect", async () => {
     const owner = await withBot({
-      twitchId: "1000",
-      scopes: ["chat:read", "chat:edit", "moderator:read:followers", "moderation:read"],
+      twitchId: "4000",
+      scopes: ["chat:read", "chat:edit", "moderator:read:followers"],
     });
 
-    expect((await owner.user.me())?.botAccount).toMatchObject({
-      missingScopes: [],
-      isChannelAccount: true,
-    });
+    expect((await owner.user.me())?.botAccount).toMatchObject({ missingScopes: [] });
   });
 });
 

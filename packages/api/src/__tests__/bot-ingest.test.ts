@@ -1499,7 +1499,7 @@ describe("bot.ingest clearchat", () => {
       targetUsername: "viewer",
     });
 
-    // An older bot page (no verifyBan) removes at once, without asking Twitch.
+    // The server removes at once; the bot page is what waits out the grace period.
     expect(result).toEqual({ replies: [], banCleanup: { removed: 2 } });
     expect(await tasks()).toEqual([{ text: "other a", status: "active", authorTwitchId: "3000" }]);
   });

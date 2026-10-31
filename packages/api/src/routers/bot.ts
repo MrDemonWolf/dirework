@@ -20,10 +20,9 @@ import {
 } from "../config-shared";
 import { ownerProcedure, publicProcedure, router } from "../index";
 import { claimBotLease, releaseBotLease } from "../services/bot-lease";
-import { cleanUpBannedViewer, type BanCleanupResult } from "../services/ban-cleanup";
 import { claimChatMessage } from "../services/chat-dedupe";
 import { ensureBotConfig, ensureInstanceConfig } from "../services/provision";
-import { resolveOwnerTwitchId } from "../services/task-service";
+import { removeTasksByUsername, resolveOwnerTwitchId } from "../services/task-service";
 import {
   requireBotInstance,
   requireBotToken,
@@ -36,7 +35,7 @@ import {
   resolveChannelLogin,
   revokePreviousChatToken,
 } from "../services/twitch-auth";
-import { lookupBan, lookupFollow } from "../services/twitch-helix";
+import { lookupFollow } from "../services/twitch-helix";
 
 // The browser bot page (/bot/<token>) holds the Twitch IRC-over-WebSocket
 // connection and relays every chat line here. These procedures are stateless —
@@ -81,11 +80,6 @@ export const botIngestInputSchema = z.object({
   isVip: z.boolean().default(false),
   isSubscriber: z.boolean().default(false),
   targetUsername: twitchLoginInput.optional(),
-  // clearchat only: the banned viewer's id (CLEARCHAT `target-user-id`) and whether to ask
-  // Twitch if the ban still stands before removing their tasks (the bot page's delayed ban
-  // cleanup). An older page sends neither and removes at once, as before.
-  targetUserId: twitchIdInput.optional(),
-  verifyBan: z.boolean().optional(),
   // PRIVMSG `id` tag, used to dedupe relays from multiple open bot pages.
   // Lenient on purpose: an id that doesn't match the expected shape is dropped
   // (the command runs without dedupe) rather than rejected, so a Twitch format
@@ -224,7 +218,7 @@ export const botRouter = router({
       async ({
         ctx,
         input,
-      }): Promise<{ replies: string[]; muted?: boolean; banCleanup?: BanCleanupResult }> => {
+      }): Promise<{ replies: string[]; muted?: boolean; banCleanup?: { removed: number } }> => {
         // The token check's own instance_config read also yields the cached channel
         // login (written by getSession's resolveChannelLogin), so !block can refuse
         // the streamer's real login without another D1 read.
@@ -237,7 +231,8 @@ export const botRouter = router({
         }
 
         // Moderation piggyback (L9): a ban → drop the viewer's tasks. The bot page sends it
-        // BAN_CLEANUP_DELAY_MS after a permanent ban, with verifyBan (timeouts never come here).
+        // BAN_CLEANUP_DELAY_MS after a permanent ban that nothing undid (timeouts never come
+        // here); `removed` lets the page log what happened.
         if (input.kind === "clearchat") {
           if (!input.targetUsername) {
             throw new TRPCError({
@@ -245,18 +240,8 @@ export const botRouter = router({
               message: 'targetUsername is required for kind "clearchat"',
             });
           }
-          const creds = { clientId: env.TWITCH_CLIENT_ID, clientSecret: env.TWITCH_CLIENT_SECRET };
-          const banCleanup = await cleanUpBannedViewer(ctx.db, {
-            targetUsername: input.targetUsername,
-            targetUserId: input.targetUserId,
-            verify: input.verifyBan === true,
-            lookupBan: async (userId) => {
-              const owner = await loadOwner(ctx.db);
-              if (!owner?.twitchId) return "unavailable";
-              return lookupBan(ctx.db, creds, { broadcasterId: owner.twitchId, userId });
-            },
-          });
-          return { replies: [], banCleanup };
+          const removed = await removeTasksByUsername(ctx.db, input.targetUsername);
+          return { replies: [], banCleanup: { removed } };
         }
 
         if (!input.username || !input.twitchId || !input.message) {

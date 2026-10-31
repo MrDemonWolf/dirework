@@ -401,8 +401,8 @@ describe("TwitchIrcClient chat", () => {
     );
     ws.receive("@room-id=100;target-user-id=43 :tmi.twitch.tv CLEARCHAT #streamer :troll");
     expect(onClearChat.mock.calls).toEqual([
-      [{ targetUsername: "napper", targetUserId: "42", permanent: false }],
-      [{ targetUsername: "troll", targetUserId: "43", permanent: true }],
+      [{ targetUsername: "napper", permanent: false }],
+      [{ targetUsername: "troll", permanent: true }],
     ]);
   });
 
@@ -440,7 +440,6 @@ describe("TwitchIrcClient chat", () => {
     expect(onChat.mock.calls[0]?.[0]).toMatchObject({ message: "!done", messageId: "own-1" });
     expect(onClearChat).toHaveBeenCalledExactlyOnceWith({
       targetUsername: "viewer",
-      targetUserId: "42",
       permanent: true,
     });
   });

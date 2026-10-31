@@ -4,7 +4,7 @@ import type { DbClient } from "@dirework/db";
 import { provisionSingletonRows } from "@dirework/db/provision";
 import * as schema from "@dirework/db/schema";
 
-import { BAN_CHECK_SCOPE, FOLLOWER_CHECK_SCOPE, type TaskAccessLevel } from "../bot-permissions";
+import { FOLLOWER_CHECK_SCOPE, type TaskAccessLevel } from "../bot-permissions";
 import { interpolate } from "../bot/commands";
 import { DEFAULT_TASK_MESSAGES } from "../config-shared";
 import type { Context } from "../context";
@@ -15,8 +15,7 @@ import { createSqliteDb } from "./helpers/sqlite-db";
 /**
  * "Who can add tasks" and ban cleanup through the REAL appRouter over real SQLite, with
  * Twitch's Helix stubbed at `fetch`: which chatters a level admits, when the follower
- * cache is read and written, how many Twitch calls a viewer costs, and when a ban removes
- * tasks.
+ * cache is read and written, how many Twitch calls a viewer costs, and what a ban removes.
  */
 
 const BOT_TOKEN = "bot-token-0123456789abcdef";
@@ -83,7 +82,7 @@ async function connectBot(opts: { twitchId?: string; scopes?: string[] } = {}) {
     accessToken: "bot-access-token",
     refreshToken: "bot-refresh-token",
     expiresAt: new Date(Date.now() + 3_600_000),
-    scopes: opts.scopes ?? ["chat:read", "chat:edit", FOLLOWER_CHECK_SCOPE, BAN_CHECK_SCOPE],
+    scopes: opts.scopes ?? ["chat:read", "chat:edit", FOLLOWER_CHECK_SCOPE],
   });
 }
 
@@ -286,74 +285,19 @@ describe("who can add tasks: followers", () => {
 });
 
 describe("ban cleanup", () => {
-  async function seed() {
+  it("removes the banned viewer's tasks with no Twitch call, and reports how many", async () => {
+    await connectBot();
     await say("!task viewer a");
     await say("!task other a", { username: "other", twitchId: "3000" });
-  }
+    const calls = stubHelix(() => json({ data: [] }));
 
-  const clearchat = (verifyBan: boolean) =>
-    api().bot.ingest({
+    const result = await api().bot.ingest({
       token: BOT_TOKEN,
       kind: "clearchat",
       targetUsername: "viewer",
-      targetUserId: VIEWER_ID,
-      verifyBan,
     });
 
-  it("keeps the tasks when the channel's own bot account sees the ban was lifted", async () => {
-    await connectBot({ twitchId: OWNER_TWITCH_ID });
-    await seed();
-    const calls = stubHelix(() => json({ data: [] }));
-
-    const result = await clearchat(true);
-
-    expect(result.banCleanup).toEqual({ removed: 0, check: "not-banned" });
-    expect(await taskTexts()).toHaveLength(2);
-    expect(calls[0]?.pathname).toBe("/helix/moderation/banned");
-    expect(calls[0]?.searchParams.get("user_id")).toBe(VIEWER_ID);
-  });
-
-  it("removes them when Twitch says the ban stands", async () => {
-    await connectBot({ twitchId: OWNER_TWITCH_ID });
-    await seed();
-    stubHelix(() => json({ data: [{ user_id: VIEWER_ID, expires_at: "" }] }));
-
-    expect((await clearchat(true)).banCleanup).toEqual({ removed: 1, check: "banned" });
-    expect(await taskTexts()).toEqual(["other a"]);
-  });
-
-  it("treats a timeout Twitch still lists as not banned", async () => {
-    await connectBot({ twitchId: OWNER_TWITCH_ID });
-    await seed();
-    stubHelix(() => json({ data: [{ user_id: VIEWER_ID, expires_at: "2030-01-01T00:00:00Z" }] }));
-
-    expect((await clearchat(true)).banCleanup?.check).toBe("not-banned");
-    expect(await taskTexts()).toHaveLength(2);
-  });
-
-  it("a separate bot account can't ask Twitch, so it removes without a call", async () => {
-    await connectBot();
-    await seed();
-    const calls = stubHelix(() => json({ data: [] }));
-
-    expect((await clearchat(true)).banCleanup).toEqual({ removed: 1, check: "unsupported" });
-    expect(calls).toHaveLength(0);
-  });
-
-  it("removes when the check fails, as every ban did before it existed", async () => {
-    await connectBot({ twitchId: OWNER_TWITCH_ID });
-    await seed();
-    stubHelix(() => json({}, 500));
-
-    expect((await clearchat(true)).banCleanup).toEqual({ removed: 1, check: "unavailable" });
-  });
-
-  it("removes without the ban scope (an older connection)", async () => {
-    await connectBot({ twitchId: OWNER_TWITCH_ID, scopes: ["chat:read", "chat:edit"] });
-    await seed();
-    const calls = stubHelix(() => json({ data: [] }));
-
-    expect((await clearchat(true)).banCleanup?.check).toBe("unsupported");
+    expect(result).toEqual({ replies: [], banCleanup: { removed: 1 } });
     expect(calls).toHaveLength(0);
     expect(await taskTexts()).toEqual(["other a"]);
   });

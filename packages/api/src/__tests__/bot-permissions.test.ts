@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  BAN_CHECK_SCOPE,
   BOT_SCOPES,
   FOLLOWER_CHECK_SCOPE,
   missingBotScopes,
@@ -63,18 +62,15 @@ describe("readTaskAccess", () => {
 });
 
 describe("bot scopes", () => {
-  it("requests the follower and ban scopes beside the chat ones, never user:bot", () => {
+  it("requests the follower scope beside the chat ones, never user:bot or a moderation scope", () => {
     expect(BOT_SCOPES).toContain(FOLLOWER_CHECK_SCOPE);
-    expect(BOT_SCOPES).toContain(BAN_CHECK_SCOPE);
     expect(BOT_SCOPES).not.toContain("user:bot");
+    expect(BOT_SCOPES).not.toContain("moderation:read");
   });
 
-  it("names only the new scopes an older connection lacks", () => {
-    expect(missingBotScopes(["chat:read", "chat:edit"])).toEqual([
-      FOLLOWER_CHECK_SCOPE,
-      BAN_CHECK_SCOPE,
-    ]);
+  it("names only the new scope an older connection lacks", () => {
+    expect(missingBotScopes(["chat:read", "chat:edit"])).toEqual([FOLLOWER_CHECK_SCOPE]);
     expect(missingBotScopes([...BOT_SCOPES])).toEqual([]);
-    expect(missingBotScopes(null)).toEqual([FOLLOWER_CHECK_SCOPE, BAN_CHECK_SCOPE]);
+    expect(missingBotScopes(null)).toEqual([FOLLOWER_CHECK_SCOPE]);
   });
 });

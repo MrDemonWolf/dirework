@@ -1,13 +1,13 @@
 // Helix lookups made with the BOT account's token: whether a viewer follows the channel
-// (the "Followers" task access level) and whether a viewer is still banned (ban cleanup).
-// Each is ONE Twitch call, time-boxed, and made only when the caller has nothing cached.
+// (the "Followers" task access level). ONE Twitch call, time-boxed, and made only when the
+// caller has nothing cached.
 // Env-free like twitch-auth.ts: callers pass the app credentials.
 
 import { z } from "zod";
 
 import type { DbClient } from "@dirework/db";
 
-import { BAN_CHECK_SCOPE, FOLLOWER_CHECK_SCOPE } from "../bot-permissions";
+import { FOLLOWER_CHECK_SCOPE } from "../bot-permissions";
 import { refreshBotToken, TWITCH_FETCH_TIMEOUT_MS, type TwitchCredentials } from "./twitch-auth";
 
 /** Refresh first when the stored token expires within this margin (as getFreshChatToken). */
@@ -19,21 +19,8 @@ const followersResponseSchema = z.object({
   data: z.array(z.object({ user_id: twitchIdSchema })).max(100),
 });
 
-const bannedResponseSchema = z.object({
-  data: z
-    .array(z.object({ user_id: twitchIdSchema, expires_at: z.string().max(64).nullable() }))
-    .max(100),
-});
-
 /** `unavailable`: Twitch couldn't answer (missing scope, not a mod, 429/5xx, timeout). */
 export type FollowLookup = "following" | "not-following" | "unavailable";
-
-/**
- * `unsupported`: Twitch only answers ban lookups for the broadcaster's own token, so a
- * separate bot account (or one without the scope) can't ask. `unavailable`: it could, but
- * the call failed.
- */
-export type BanLookup = "banned" | "not-banned" | "unsupported" | "unavailable";
 
 interface HelixAccess {
   accessToken: string;
@@ -120,35 +107,4 @@ export async function lookupFollow(
   );
   if (!body) return "unavailable";
   return body.data.some((row) => row.user_id === ids.userId) ? "following" : "not-following";
-}
-
-/**
- * Is `userId` still permanently banned from `broadcasterId`? Helix Get Banned Users, which
- * Twitch answers only for the broadcaster's own token with BAN_CHECK_SCOPE, so any other
- * bot account is `unsupported` without a call. A timeout (a row with `expires_at`) counts
- * as not banned: timeouts never remove tasks.
- */
-export async function lookupBan(
-  db: DbClient,
-  creds: TwitchCredentials,
-  ids: { broadcasterId: string; userId: string },
-): Promise<BanLookup> {
-  const access = await botHelixAccess(
-    db,
-    creds,
-    (account) => account.twitchId === ids.broadcasterId && account.scopes.includes(BAN_CHECK_SCOPE),
-  );
-  if (access === "unusable") return "unsupported";
-  if (!access) return "unavailable";
-  const params = new URLSearchParams({ broadcaster_id: ids.broadcasterId, user_id: ids.userId });
-  const body = await helixGet(
-    `https://api.twitch.tv/helix/moderation/banned?${params}`,
-    access,
-    creds.clientId,
-    bannedResponseSchema,
-  );
-  if (!body) return "unavailable";
-  return body.data.some((row) => row.user_id === ids.userId && !row.expires_at)
-    ? "banned"
-    : "not-banned";
 }
