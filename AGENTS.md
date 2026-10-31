@@ -9,9 +9,7 @@ This file provides guidance for coding agents working on the Dirework codebase.
 - Historical records (completed plans and reviews) live in `docs/history/`:
   - Node/Postgres → Cloudflare migration (completed) → `docs/history/MIGRATION.md`
   - Pre-migration audit (29 findings, all addressed in the port) → `docs/history/AUDIT-cloudflare-migration.md`
-  - Marketing website research and UI/UX review → `docs/history/MARKETING-REVIEW.md`
   - Logo generation prompt → `docs/history/logo.md`
-  - October 26 codebase, deployment and screenshot review → `docs/history/2026-10-26-codebase-and-site-review.md`
 - Security policy and production operator checklist → `SECURITY.md`
 - Documentation map → `docs/README.md`
 - Local synthetic D1 export/restore drill → `packages/e2e/src/recovery-check.ts` (`bun run recovery:check`)
