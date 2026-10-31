@@ -737,8 +737,14 @@ for older rows. With scrolling off, `StaticList` shows whole rows only (`fitStat
 with no row showing is hidden header and all, and a group cut part way is clipped at its
 last shown row; it hides with `visibility` / `clip-path` written straight to the DOM (no
 layout change, so no ResizeObserver loop) and measures after each render (a poll that
-brought new data) and on resize, never per tick. The "Active" label is
-`max(ACTIVE_LABEL_MIN_PX = 14px, 0.55 × task font)`.
+brought new data) and on resize, never per tick. Each author's rows arrive focus → started
+→ rest (server order); the focus (`active`) row gets the username-color tint and an
+"Active" label, a parked `started` row only a "Started" label (no tint), both chosen by
+`taskStatusLabel` (`lib/overlay-view.ts`) and drawn by ONE label element in
+`config.task.usernameColor` at `max(ACTIVE_LABEL_MIN_PX = 14px, 0.55 × task font)`;
+`theme-contrast.test.ts` holds Active on its tint and Started on the bare group to AA for
+every preset. `DEMO_SESSION` carries one started task, so the Theme Center preview, the
+landing `StreamScene` and the docs mocks show the label.
 
 **Style defaults upgrade on read** (same idea as the bot replies): the timer_style/task_style
 column defaults are frozen (`TIMER_STYLE_COLUMN_DEFAULTS` / `TASK_STYLE_COLUMN_DEFAULTS` in

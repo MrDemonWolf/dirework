@@ -24,6 +24,8 @@ scene, chat preview and share cards. The real renderer is `task-card`
     decorative 20px checkbox (tick in theme `accent`) and the task text (15px).
 - Active row: a slightly stronger text tint plus a 3px accent edge. This differs from the
   real overlay (tint plus "Active" label); `task-card.md` is the source of truth.
+- Started row: no edge and no extra tint, just an uppercase 11px "Started" label at the
+  end of the row in the author's name color, like the real overlay's.
 
 ## Props and variants
 

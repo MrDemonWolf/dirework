@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { DEFAULT_PHASE_LABELS } from "../config-types";
-import { fitStaticList, overlayPath, taskOverlayView, timerOverlayView } from "../overlay-view";
+import {
+  fitStaticList,
+  overlayPath,
+  taskOverlayView,
+  taskStatusLabel,
+  timerOverlayView,
+} from "../overlay-view";
 import { defaultTaskStyles, defaultTimerStyles } from "../theme-presets";
 
 const timerConfig = {
@@ -64,6 +70,19 @@ describe("taskOverlayView", () => {
     const view = taskOverlayView({ tasks: [], counts, taskStyles: null });
 
     expect(view).toEqual({ config: defaultTaskStyles, tasks: [], counts });
+  });
+});
+
+describe("taskStatusLabel", () => {
+  it('labels the focus task "Active" and a parked started task "Started"', () => {
+    expect(taskStatusLabel("active")).toBe("Active");
+    expect(taskStatusLabel("started")).toBe("Started");
+  });
+
+  it("labels nothing else", () => {
+    for (const status of ["pending", "done", "unknown", ""]) {
+      expect(taskStatusLabel(status)).toBeNull();
+    }
   });
 });
 

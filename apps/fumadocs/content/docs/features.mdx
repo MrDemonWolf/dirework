@@ -29,6 +29,7 @@ A task list your viewers manage from Twitch chat.
 
 - **Chat commands** — Viewers add, edit, complete, and remove tasks with commands like `!task`, `!done`, `!edit`, `!remove`
 - **Multiple tasks per viewer** — Each viewer can have multiple tasks, numbered for easy reference
+- **Focus and started tasks** — Each viewer has one focus task and can keep up to two more started beside it (`!start` / `!pause`); the overlay marks the focus **Active** and the others **Started**
 - **Task priority** — Broadcaster tasks are pinned to the top, viewer tasks below in order
 - **Broadcaster controls** — Clear all tasks, clear completed tasks, or remove a specific user's tasks
 - **Author grouping** — Tasks are grouped by author, each with a styled card container showing the author's name and done/total count
@@ -77,7 +78,7 @@ Two transparent browser source overlays designed for OBS and streaming software.
 
 - **Timer overlay** — Shows phase label, countdown, and cycle count with a configurable progress ring
 - **Auto-scaling timer** — The timer overlay auto-scales to fill its OBS browser source while preserving aspect ratio, and while idle it shows a full preview (your configured work length and a full ring) instead of appearing blank, so you can position it during setup
-- **Task list overlay** — Shows task list with viewer usernames, checkboxes, and auto-scroll
+- **Task list overlay** — Shows task list with viewer usernames, checkboxes, and auto-scroll. Each viewer's focus task comes first, tinted and marked **Active**; tasks they started beside it (up to two, via `!start`) follow with a small **Started** label and no tint
 - **Transparent backgrounds** — Overlays render with no background, layering cleanly over your stream
 - **Private overlay URLs** — Each overlay has its own private overlay URL; reset it if it ever leaks
 - **Fast updates** — Overlays pick up changes within a few seconds, and the timer countdown ticks smoothly on the overlay itself

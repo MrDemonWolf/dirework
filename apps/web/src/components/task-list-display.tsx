@@ -21,6 +21,7 @@ import {
   MORE_FOOTER_OPACITY,
   type StaticListFit,
   TASK_ROW_GAP_PX,
+  taskStatusLabel,
 } from "@/lib/overlay-view";
 import { colorWithOpacity, quoteFontFamily } from "@/lib/timer-utils";
 import type { Task, TaskGroup } from "@/lib/task-utils";
@@ -222,8 +223,9 @@ function StaticList({ children, config }: { children: React.ReactNode; config: T
 
 /**
  * One task row: checkbox (or bullet), the line-clamped task text, and for the
- * active task a static username-color tint plus an "Active" label (no glow, no
- * pulse: a perpetual animation on a stream overlay is noise).
+ * active (focus) task a static username-color tint plus an "Active" label (no
+ * glow, no pulse: a perpetual animation on a stream overlay is noise). A
+ * `started` task gets only a "Started" label, no tint.
  */
 function TaskItem({
   task,
@@ -236,6 +238,7 @@ function TaskItem({
 }) {
   const isDone = task.status === "done";
   const isActive = task.status === "active";
+  const statusLabel = taskStatusLabel(task.status);
 
   return (
     <div
@@ -324,10 +327,13 @@ function TaskItem({
         {sanitizeDisplayText(task.text)}
       </span>
 
-      {isActive && (
+      {statusLabel && (
         // Plain visible text, so screen readers announce it as-is (an aria-label
-        // on a role-less span is ignored).
+        // on a role-less span is ignored). The focus row says "Active" (over its
+        // tint); a parked `started` row says "Started" with no tint, so viewers
+        // can tell the one task being worked on now from the ones in hand.
         <span
+          data-task-status-label={task.status}
           className="ml-auto shrink-0 self-center font-bold uppercase"
           style={{
             color: config.task.usernameColor,
@@ -339,7 +345,7 @@ function TaskItem({
             whiteSpace: "nowrap",
           }}
         >
-          Active
+          {statusLabel}
         </span>
       )}
     </div>

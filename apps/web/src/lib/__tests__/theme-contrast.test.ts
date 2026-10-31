@@ -123,6 +123,12 @@ describe.each(themePresets)("$name preset task overlay contrast", (preset) => {
     expect(contrastRatio(username, activeRow)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
   });
 
+  // A started row has no tint: its "Started" label, also in the username color,
+  // sits straight on the author group.
+  it('"Started" label meets AA on the untinted row', () => {
+    expect(contrastRatio(username, group)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+  });
+
   it('"+N more" footer meets AA on the body', () => {
     const text = composite(parseHex(styles.task.fontColor), MORE_FOOTER_OPACITY, body);
     expect(contrastRatio(text, body)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);

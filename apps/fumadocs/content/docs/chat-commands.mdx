@@ -145,7 +145,7 @@ everything else, they stay silent while the bot is muted).
 
 When you add your first task with `!task`, it automatically becomes your **active** task. Subsequent tasks are added as **pending**.
 
-- Your active task is what shows as your current focus in the overlay and in `!check` responses.
+- Your active task is what shows as your current focus in the overlay (a tinted row marked **Active**) and in `!check` responses.
 - When you complete a task with `!done`, the next pending task is automatically activated.
 - Use `!focus <number>` to manually switch which task is active. The number is the position in your task list (1-based). The old focus stays **started** if you have room, otherwise it goes back to waiting.
 
@@ -159,6 +159,7 @@ Besides your one focus, you can keep up to **2 more tasks started**: in progress
 - `!pause` with no number pauses your focus, like `!done` with no number finishes it. Your oldest started task takes over (or the first waiting one). `!pause 2` pauses task #2 if it's your focus or a started task; anything else gets `Nothing to pause`. A paused task goes back to waiting and keeps its number.
 - `!check` adds `(+n more started)` when you have started tasks, for example `you're on "write intro" (+1 more started).` This note is built in and works with a reworded **Task Check** reply.
 - When your focus is done, removed or paused, your oldest started task takes over before any waiting one.
+- On the stream's task overlay, your started tasks sit right under your focus with a small **Started** label in the username color. Only the focus row is tinted, so viewers can tell what you're on right now from what you have in hand.
 
 ## Today's plan
 

@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Started tasks on the stream overlay.** Viewers now see the tasks someone started with
+  `!start`: they sit right under that person's focus task with a small **Started** label in
+  the username color (same size as the **Active** label, never under 14px). Only the focus
+  row keeps its tint, so it still reads as the task being worked on right now. The label is
+  contrast-checked on every preset, rows still wrap and fit whole as before, and there is no
+  new style setting or request. The Theme Center preview, the landing scene and the docs
+  mocks show one started task too.
 - **Start, Make focus and Pause on the dashboard.** Task rows now show what is going: the
   task you focus on reads **Focus** (the old "Active" look) and a parked one reads
   **Started** (a quieter, half-lit chip). A waiting task has **Start**, a started one **Make

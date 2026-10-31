@@ -41,6 +41,11 @@ It reads the streamer's saved task style, not the UI tokens.
 - **Active row**: a static tint of the username color (`ACTIVE_ROW_TINT_PERCENT`) plus an
   uppercase **Active** label in that color at the end of the row, 0.55× the task font
   size but never under `ACTIVE_LABEL_MIN_PX` at the source size. No glow, no pulse.
+- **Started row** (a parked `started` task, up to two per author beside the focus): the
+  same label slot reads **Started**, same color, size and floor, but the row gets **no
+  tint**, so the one focus row still stands out. `taskStatusLabel(status)`
+  (`lib/overlay-view.ts`) picks the label; one element renders both, so they never drift
+  apart. The server already orders each author's rows focus → started → rest.
 - **"+N more" footer** (scroll off): only whole rows show. A row that doesn't fit is
   hidden, never drawn half cut; every row after it is hidden too; an author header shows
   only with at least one of its rows, and a group cut part way is clipped at its last
@@ -141,12 +146,14 @@ changed or added default fails until this spec moves with it.
 | `TASK_ROW_GAP_PX` | `lib/overlay-view.ts` | `2` |
 
 The tints and opacities are composited by `theme-contrast.test.ts` for every preset, so
-the Active label and the counters hold 4.5:1.
+the Active label (on its tint), the Started label (on the untinted group) and the
+counters hold 4.5:1.
 
 ## States
 
 - **Empty**: "No tasks yet" at 0.4 opacity in the body.
-- **Pending / active / done**: done rows take `taskDone` colors, a filled tick in
+- **Pending / active / started / done**: active rows take the tint and "Active", started
+  rows only the "Started" label; done rows take `taskDone` colors, a filled tick in
   `checkbox.tickColor`, and a strike-through when `crossOnDone` is on.
 - **Overflow**: scrolling lists loop with a second, `aria-hidden` copy trailing by
   `scroll.gapBetweenLoops`; static lists show the "+N more" footer.
@@ -157,7 +164,7 @@ the Active label and the counters hold 4.5:1.
 ## Accessibility
 
 - Done uses strike-through and the dimmed done color together, never color alone.
-- The Active label is visible text, so screen readers announce it as-is.
+- The Active and Started labels are visible text, so screen readers announce them as-is.
 - The looping scroll's second copy is `aria-hidden`, so the list is read once.
 - e2e (`20-dashboard.spec.ts`) finds a task on the overlay by its text; keep task text a
   plain text node.
@@ -169,3 +176,4 @@ the Active label and the counters hold 4.5:1.
 - **Don't** fade the whole done row: it multiplies over `taskDone.fontColor`, so the
   streamer's (contrast-checked) color never renders as chosen.
 - **Don't** add a glow or pulse to the active row.
+- **Don't** tint a started row: the tint marks the one task being worked on right now.

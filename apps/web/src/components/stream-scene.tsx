@@ -66,6 +66,7 @@ const doneCount = DEMO_SESSION.tasks.filter((task) => task.status === "done").le
 
 const STATUS_LABEL: Record<DemoTaskStatus, string> = {
   active: "Working on it",
+  started: "Started",
   pending: "Up next",
   done: "Done",
 };
@@ -159,6 +160,16 @@ function TaskListOverlay() {
                     >
                       {task.text}
                     </span>
+                    {/* A parked task wears the overlay's "Started" label (no tint); the
+                        sr-only status before the text already announces it. */}
+                    {status === "started" && (
+                      <span
+                        aria-hidden
+                        className="ml-auto shrink-0 self-center pl-2 font-mono text-2xs font-bold tracking-label text-link uppercase"
+                      >
+                        Started
+                      </span>
+                    )}
                   </li>
                 );
               })}

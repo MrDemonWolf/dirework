@@ -172,20 +172,32 @@ describe("DEMO_SESSION", () => {
     expect(cycleLabel(cycle.current, cycle.total)).toBe("Cycle 2 / 4");
   });
 
-  it("has three viewers with an active, a pending, one done and one long task", () => {
+  it("has three viewers with an active, a started, a pending, one done and one long task", () => {
     expect(authors).toEqual(["ada_codes", "pixel_pat", "night_owl"]);
     const statuses = tasks.map((task) => task.status);
     expect(statuses).toContain("active");
+    expect(statuses).toContain("started");
     expect(statuses).toContain("pending");
     expect(statuses.filter((status) => status === "done")).toHaveLength(1);
     expect(tasks.some((task) => task.text.length >= 60)).toBe(true);
   });
 
-  it("gives every viewer with open tasks exactly one active task, like the real list", () => {
+  it("gives every viewer with open tasks one active task and at most two started, like the real list", () => {
     for (const author of authors) {
       const open = tasks.filter((task) => task.author === author && task.status !== "done");
       const active = open.filter((task) => task.status === "active");
+      const started = open.filter((task) => task.status === "started");
+      // Promotion fills the focus first, so open tasks always mean one focus.
       expect(active, author).toHaveLength(open.length === 0 ? 0 : 1);
+      expect(started.length, author).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it("lists each viewer's focus, then started, then the rest, as the server orders them", () => {
+    const rank = { active: 0, started: 1, pending: 2, done: 2 } as const;
+    for (const author of authors) {
+      const ranks = tasks.filter((task) => task.author === author).map((t) => rank[t.status]);
+      expect(ranks, author).toEqual([...ranks].sort((a, b) => a - b));
     }
   });
 
