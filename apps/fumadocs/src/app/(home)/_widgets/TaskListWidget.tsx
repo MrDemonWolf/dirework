@@ -140,6 +140,24 @@ export function TaskListWidget({
                     >
                       {t.text}
                     </span>
+                    {/* A parked `started` task: a label in the author color, like the overlay (no edge, no tint). */}
+                    {t.status === "started" && (
+                      <span
+                        style={{
+                          marginLeft: "auto",
+                          paddingLeft: 10,
+                          alignSelf: "center",
+                          color: authorColor,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          letterSpacing: "0.1em",
+                          textTransform: "uppercase",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Started
+                      </span>
+                    )}
                   </div>
                 );
               })}

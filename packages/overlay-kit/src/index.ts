@@ -167,7 +167,12 @@ export const BRAND = {
 // scene and overlay previews, the share cards, the web landing — so the
 // numbers, names and bot replies agree everywhere.
 
-export type DemoTaskStatus = "active" | "pending" | "done";
+/**
+ * A demo row's state, as the real list stores it: `active` is the viewer's focus
+ * task (one at most), `started` one they have begun but parked (up to two more),
+ * `pending` not begun, `done` finished.
+ */
+export type DemoTaskStatus = "active" | "started" | "pending" | "done";
 
 export interface DemoTask {
   /** Twitch display name of the viewer who added it. */
@@ -215,8 +220,10 @@ export const DEMO_SESSION: DemoSession = {
   phaseMs: 25 * 60_000,
   remainingMs: 18 * 60_000 + 24_000,
   cycle: { current: 2, total: 4 },
-  // The app keeps one active task per viewer (the first open task is activated,
-  // finishing it promotes the next), so every viewer with open tasks has one.
+  // The app keeps one active (focus) task per viewer (the first open task is
+  // activated, finishing it promotes the next), so every viewer with open tasks has
+  // one; `!start` parks up to two more as `started`. pixel_pat shows one of those,
+  // listed right after the focus task as the server orders it.
   tasks: [
     {
       author: "ada_codes",
@@ -225,6 +232,7 @@ export const DEMO_SESSION: DemoSession = {
     },
     { author: "ada_codes", text: "Review the overlay pull request", status: "pending" },
     { author: "pixel_pat", text: "Sketch three logo concepts", status: "active" },
+    { author: "pixel_pat", text: "Pick a color palette", status: "started" },
     { author: "night_owl", text: "Read one chapter", status: "done" },
   ],
   // night_owl arrives with no task, adds one and finishes it; a mod checks the

@@ -40,7 +40,19 @@ export const TIMER_CYCLE_OPACITY = 0.8;
 export const ACTIVE_ROW_TINT_PERCENT = 10;
 
 /**
- * Floor (px) for the "Active" label, which is otherwise 0.55× the task font size
+ * The label a task row shows at its end on the overlay: "Active" for the
+ * author's focus task (which also gets the ACTIVE_ROW_TINT_PERCENT tint),
+ * "Started" for a parked `started` task (label only, no tint), none otherwise.
+ * Both are set in the username color at the same size.
+ */
+export function taskStatusLabel(status: string): "Active" | "Started" | null {
+  if (status === "active") return "Active";
+  if (status === "started") return "Started";
+  return null;
+}
+
+/**
+ * Floor (px) for the "Active" and "Started" labels, which are otherwise 0.55× the task font size
  * (13.2px at the default 24px). Measured at the overlay's own source size
  * (700×800 for tasks), before OBS scales the source.
  */

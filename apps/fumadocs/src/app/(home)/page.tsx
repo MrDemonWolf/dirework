@@ -112,6 +112,8 @@ function StreamScene() {
                 <p>{text}</p>
               </div>
               {status === "active" && <span className="sr-only">Active</span>}
+              {/* Visible, like the overlay's own "Started" label (no tint, no edge). */}
+              {status === "started" && <span className="marketing-task-label">Started</span>}
               {status === "done" && <span className="sr-only">Completed</span>}
             </div>
           ))}

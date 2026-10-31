@@ -32,9 +32,19 @@ describe("task overlay text", () => {
     expect(source).toContain("{sanitizeDisplayText(group.authorDisplayName)}");
   });
 
-  it("never draws the Active label under 14px at the source size", () => {
+  it("never draws the Active or Started label under 14px at the source size", () => {
     expect(ACTIVE_LABEL_MIN_PX).toBeGreaterThanOrEqual(14);
     expect(source).toMatch(/fontSize: `max\(\$\{ACTIVE_LABEL_MIN_PX\}px, calc\(/);
+    // One label element serves both statuses, so they can't drift apart in size.
+    expect(source.match(/ACTIVE_LABEL_MIN_PX\}px/g)).toHaveLength(1);
+    expect(source).toContain("taskStatusLabel(task.status)");
+  });
+
+  it("tints only the focus row, never a started one", () => {
+    expect(source).toMatch(
+      /: isActive\s*\?\s*`color-mix\(in srgb, \$\{config\.task\.usernameColor\} \$\{ACTIVE_ROW_TINT_PERCENT\}%/,
+    );
+    expect(source).not.toMatch(/started[^\n]*ACTIVE_ROW_TINT_PERCENT/);
   });
 
   it("hides whole rows and groups through fitStaticList, without moving layout", () => {
