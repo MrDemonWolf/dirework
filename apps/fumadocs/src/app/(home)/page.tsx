@@ -206,7 +206,7 @@ export default function HomePage() {
               href={GITHUB}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Browse the source on GitHub (opens in a new tab)"
+              aria-label="Open source on GitHub (opens in a new tab)"
             >
               <GithubIcon size={18} /> Open source <ArrowRight size={14} aria-hidden />
             </a>
