@@ -9,7 +9,8 @@ import { Copy, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { useOrigin } from "@/lib/use-origin";
-import { Button } from "@/components/ui/button";
+import { Button, destructiveIconButton } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -126,7 +127,7 @@ export function SecretUrlRow({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        className={cn("size-8 shrink-0", destructiveIconButton)}
                         disabled={regenerating || !ready}
                         aria-label={`Reset ${label} URL`}
                       >

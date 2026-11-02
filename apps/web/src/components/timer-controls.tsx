@@ -12,7 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info, Pause, Play, SkipForward, Square } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { Button, destructiveIconButton } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -490,7 +490,7 @@ export function TimerTransport() {
                 disabled={reset.isPending}
                 focusableWhenDisabled
                 aria-label="Stop timer"
-                className="size-12 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                className={cn("size-12", destructiveIconButton)}
               >
                 <Square className="size-4" />
               </Button>

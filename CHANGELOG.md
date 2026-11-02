@@ -405,7 +405,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   4.5:1 in both themes (the dark highlight measured 4.25:1 before), and keyboard focus draws
   a red ring instead of a blue one on a red row. Destructive buttons (Disconnect, the confirm
   dialogs' red action) keep their label readable on hover and show a full red focus border.
-  New token: `destructive-strong`.
+  The red icon buttons (Reset for the overlay and bot URLs, alias delete,
+  task Remove, timer Stop) get the same red keyboard focus. New token: `destructive-strong`.
 - **Tab panels show keyboard focus.** The Theme Center editors and the dashboard's OBS
   source tabs are Tab stops; they now draw a blue focus outline instead of nothing.
 - **Accessibility tests cover both themes, phones and open menus.** The axe suite now scans

@@ -17,7 +17,7 @@ import {
 } from "@/lib/alias-rows";
 import { cn } from "@/lib/utils";
 import { ByteBudget } from "@/components/byte-budget";
-import { Button } from "@/components/ui/button";
+import { Button, destructiveIconButton } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -130,7 +130,7 @@ export function CommandAliasEditor({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  className={cn("shrink-0", destructiveIconButton)}
                   onClick={() => handleRemove(row.id)}
                   aria-label={`Remove alias ${row.key || "(empty)"}`}
                 >

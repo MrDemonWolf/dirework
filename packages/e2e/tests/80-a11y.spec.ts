@@ -258,6 +258,63 @@ test.describe("keyboard focus", () => {
       await expectVisibleFocusOnEveryStop(page, name);
     });
   }
+
+  test("tab panel focus outlines are not clipped; red icon actions focus in red", async ({
+    page,
+  }) => {
+    /** The focused element's outline box (rect + offset + width) fits every clipping ancestor. */
+    const expectOutlineUnclipped = async (label: string) => {
+      const clipped = await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement;
+        const style = getComputedStyle(el);
+        const grow = Number.parseFloat(style.outlineOffset) + Number.parseFloat(style.outlineWidth);
+        const r = el.getBoundingClientRect();
+        const box = { l: r.left - grow, t: r.top - grow, r: r.right + grow, b: r.bottom + grow };
+        const out: string[] = [];
+        for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+          const s = getComputedStyle(a);
+          if (s.overflowX === "visible" && s.overflowY === "visible") continue;
+          const p = a.getBoundingClientRect();
+          // A scroll container clips only on the axes it scrolls on; its own scroll moves
+          // the outline into view, so check the non-scrolling (cross) axis only.
+          const clipX =
+            s.overflowX !== "visible" && (box.l < p.left - 0.5 || box.r > p.right + 0.5);
+          const clipY =
+            s.overflowY !== "visible" &&
+            !["auto", "scroll"].includes(s.overflowY) &&
+            (box.t < p.top - 0.5 || box.b > p.bottom + 0.5);
+          if (clipX || clipY) out.push(`${a.tagName.toLowerCase()}.${a.className}`.slice(0, 120));
+        }
+        return { grow, out };
+      });
+      expect(clipped.grow, `${label}: tab panel has a focus outline`).toBeGreaterThan(0);
+      expect(clipped.out, `${label}: outline clipped by`).toEqual([]);
+    };
+
+    await openPage(page, "/dashboard", /Wolf Streamer/);
+    // OBS sources: the Tasks tab, then Tab moves keyboard focus into its panel.
+    await page.getByRole("tab", { name: "Tasks" }).click();
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("tabpanel", { name: "Tasks" })).toBeFocused();
+    await expectOutlineUnclipped("OBS sources");
+
+    // The overlay URL Reset is a red icon action: its keyboard focus border is red (its own
+    // text color), not the blue ring.
+    const reset = page.getByRole("button", { name: "Reset Tasks overlay URL" });
+    await reset.focus();
+    const colors = await reset.evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { border: s.borderTopColor, text: s.color, visible: el.matches(":focus-visible") };
+    });
+    expect(colors.visible).toBe(true);
+    expect(colors.border).toBe(colors.text);
+
+    await openPage(page, "/dashboard/styles", "Theme Center");
+    await page.getByRole("tab", { name: "Timer style" }).click();
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("tabpanel", { name: "Timer style" })).toBeFocused();
+    await expectOutlineUnclipped("Theme Center editor");
+  });
 });
 
 test("reduced motion leaves no animation running", async ({ page }) => {

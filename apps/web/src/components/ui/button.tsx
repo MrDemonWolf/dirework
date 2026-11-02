@@ -49,6 +49,15 @@ const buttonVariants = cva(
   },
 );
 
+/**
+ * Red icon-only actions on a ghost or outline button (overlay/bot URL Reset, alias delete,
+ * task row Remove, timer Stop): red icon, a /10 red hover tint, and keyboard focus in red
+ * (`border-destructive` + `ring-destructive/40`) instead of the blue `ring`, like the
+ * destructive menu rows. `cn` lets these focus classes replace the base recipe's blue ones.
+ */
+const destructiveIconButton =
+  "text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:border-destructive focus-visible:ring-destructive/40";
+
 function Button({
   className,
   variant = "default",
@@ -64,4 +73,4 @@ function Button({
   );
 }
 
-export { Button, buttonVariants };
+export { Button, buttonVariants, destructiveIconButton };

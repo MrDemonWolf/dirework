@@ -33,6 +33,11 @@ exported for links styled as buttons (`<Link className={buttonVariants(...)}>`).
 | `destructive` | `bg-destructive/10` (`/15` dark), `text-destructive`; hover deepens the tint and the label turns `text-destructive-strong` (AA on it); focus-visible is a full `border-destructive` | Remove / reset / disconnect |
 | `link` | `text-primary`, underline on hover | Inline text action |
 
+Red icon-only actions on a `ghost` or `outline` button (overlay/bot URL Reset, alias delete,
+task row Remove, timer Stop) add the exported `destructiveIconButton` class string: red icon,
+`/10` red hover tint, and keyboard focus as `border-destructive` + `ring-destructive/40`
+(replacing the blue `ring` through `cn`). `destructive-focus.test.ts` pins it.
+
 | `size` | Box | Touch minimum (`pointer-coarse`) |
 |---|---|---|
 | `default` (default) | `h-8` | 44px |
