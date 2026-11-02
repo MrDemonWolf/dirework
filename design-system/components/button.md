@@ -30,7 +30,7 @@ exported for links styled as buttons (`<Link className={buttonVariants(...)}>`).
 | `outline` | `bg-background`, `border-border` (input tint in dark) | Secondary action |
 | `secondary` | `bg-secondary` | Low-emphasis filled |
 | `ghost` | No fill until hover (`bg-muted`) | Toolbars, icon buttons, menus |
-| `destructive` | `bg-destructive/10`, `text-destructive` | Remove / reset / disconnect |
+| `destructive` | `bg-destructive/10` (`/15` dark), `text-destructive`; hover deepens the tint and the label turns `text-destructive-strong` (AA on it); focus-visible is a full `border-destructive` | Remove / reset / disconnect |
 | `link` | `text-primary`, underline on hover | Inline text action |
 
 | `size` | Box | Touch minimum (`pointer-coarse`) |

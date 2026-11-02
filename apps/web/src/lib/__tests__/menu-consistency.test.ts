@@ -20,6 +20,17 @@ describe("menu interaction consistency", () => {
     expect(dropdownMenu).not.toContain("focus:outline-2");
   });
 
+  it("keeps destructive rows red in every state: red focus ring, AA label on the tint", () => {
+    // The blue ring on a red row read as a clash, and the dark /20 tint dropped the plain
+    // red label to 4.25:1 (tokens-contrast.test.ts measures the pair below).
+    expect(dropdownMenu).toContain("data-[variant=destructive]:focus-visible:ring-destructive");
+    expect(dropdownMenu).toContain(
+      "data-[variant=destructive]:data-highlighted:text-destructive-strong",
+    );
+    expect(dropdownMenu).toContain("data-[variant=destructive]:data-highlighted:bg-destructive/10");
+    expect(dropdownMenu).not.toContain("bg-destructive/20");
+  });
+
   it("gives select items the same recipe as dropdown items", () => {
     // select.tsx imports the one recipe string rather than copying it.
     expect(select).toMatch(/import \{ menuItemRecipe \} from "@\/components\/ui\/dropdown-menu"/);

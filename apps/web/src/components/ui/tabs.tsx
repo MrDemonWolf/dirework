@@ -85,10 +85,15 @@ function TabsTrigger({
 }
 
 function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
+  // Base UI makes the panel a Tab stop (tabIndex 0, the ARIA tabs pattern), so it needs its
+  // own visible focus ring (WCAG 2.4.7), offset so it never sits on the panel's content.
   return (
     <TabsPrimitive.Panel
       data-slot="tabs-content"
-      className={cn("text-xs/relaxed flex-1 outline-none", className)}
+      className={cn(
+        "text-xs/relaxed flex-1 rounded-md outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring",
+        className,
+      )}
       {...props}
     />
   );

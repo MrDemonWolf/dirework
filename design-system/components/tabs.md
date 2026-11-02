@@ -18,7 +18,7 @@ replies).
 - **TabsTrigger**: `rounded-lg` segment, `px-1.5 py-0.5`, `text-xs font-medium`, `size-4`
   icons, at least 44px tall on coarse pointers (`pointer-coarse:min-h-11`, pinned by `touch-targets.test.ts`). Active segment fills with `bg-background` (`bg-input/30` with an input border in dark).
   The `line` variant hides the fill and shows a 2px underline (`after:` bar) on the active tab.
-- **TabsContent**: `flex-1`, `text-xs/relaxed`, no outline.
+- **TabsContent**: `flex-1`, `text-xs/relaxed`, `rounded-md`; a Tab stop (Base UI `tabIndex=0`), so keyboard focus draws a 2px `outline-ring` offset 4px (no outline otherwise).
 
 ## Props and variants
 
