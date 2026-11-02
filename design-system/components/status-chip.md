@@ -56,7 +56,9 @@ Static except for the optional pulse. Callers that swap the tone remount it with
 ## Accessibility
 
 - The label is plain text; the dot is decorative, so color is never the only signal.
-- Chip text on its `/10` tint is held to 4.5:1 in both themes by `tokens-contrast.test.ts`.
+- Chip text on its `/10` tint is held to its level in `design-system/contrast.md` by
+  `tokens-contrast.test.ts`: AAA (7:1) on dark for every tone but `danger`, AA (≥ 5:1) on light.
+  The idle dot is `bg-muted-foreground/70` (3:1 on its chip).
 - The pulse stops under `prefers-reduced-motion: reduce`.
 - It is not a live region; pair it with a `role="status"` span when a change must be
   announced (see `timer-controls`).

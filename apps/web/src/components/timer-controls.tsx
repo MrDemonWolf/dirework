@@ -83,7 +83,7 @@ function CycleDots({ current, total }: { current: number; total: number }) {
               "size-2 rounded-full transition-colors",
               isDone && "bg-primary",
               isCurrent && "bg-primary ring-2 ring-primary/30",
-              !isDone && !isCurrent && "border border-muted-foreground/40 bg-transparent",
+              !isDone && !isCurrent && "border border-muted-foreground/70 bg-transparent",
             )}
           />
         );

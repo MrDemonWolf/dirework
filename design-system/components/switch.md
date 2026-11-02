@@ -13,7 +13,8 @@ Center booleans), the Commands page (command group enable, saved on flip) and `B
 ## Anatomy
 
 - **Track**: pill (`rounded-full`), `h-[18.4px] w-8` (`h-3.5 w-6` at `sm`). Checked
-  `bg-primary`; unchecked `bg-muted-foreground/70` on light, `bg-input/80` on dark.
+  `bg-primary`; unchecked `bg-muted-foreground/70` in both themes (≥ 3:1 on the card;
+  the old dark `bg-input/80` track was 1.5:1).
 - **Thumb**: `size-4` (`size-3` at `sm`) circle, `bg-background` on light; on dark
   `bg-foreground` unchecked and `bg-primary-foreground` checked. Slides right when checked.
 - An invisible `after:-inset-x-3 after:-inset-y-2` pad widens the hit area; on coarse pointers it

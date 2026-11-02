@@ -21,7 +21,7 @@ function Switch({
       data-slot="switch"
       data-size={size}
       className={cn(
-        "data-checked:bg-primary data-unchecked:bg-muted-foreground/70 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 dark:data-unchecked:bg-input/80 shrink-0 rounded-full border border-transparent focus-visible:ring-2 aria-invalid:ring-1 data-[size=default]:h-[18.4px] data-[size=default]:w-8 data-[size=sm]:h-3.5 data-[size=sm]:w-6 peer group/switch relative inline-flex items-center transition-all outline-none after:absolute after:-inset-x-3 after:-inset-y-2 pointer-coarse:after:-inset-y-3.5 pointer-coarse:data-[size=sm]:after:-inset-y-4 data-disabled:cursor-not-allowed data-disabled:opacity-50",
+        "data-checked:bg-primary data-unchecked:bg-muted-foreground/70 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 shrink-0 rounded-full border border-transparent focus-visible:ring-2 aria-invalid:ring-1 data-[size=default]:h-[18.4px] data-[size=default]:w-8 data-[size=sm]:h-3.5 data-[size=sm]:w-6 peer group/switch relative inline-flex items-center transition-all outline-none after:absolute after:-inset-x-3 after:-inset-y-2 pointer-coarse:after:-inset-y-3.5 pointer-coarse:data-[size=sm]:after:-inset-y-4 data-disabled:cursor-not-allowed data-disabled:opacity-50",
         className,
       )}
       {...props}

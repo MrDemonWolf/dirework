@@ -29,7 +29,7 @@ cached `task.list`, rendered by the dashboard), `TimerSettings` and `ObsSources`
   (`clockEm` in `lib/timer-utils.ts`), so `24:00:00` fits a 320px phone; over a
   phase-tinted radial glow (`TIMER_PHASE_COLOR`, 14%); a `h-1.5` phase rail; cycle dots (or a
   `01/12` mono counter above 10 cycles). While idle the dots preview the planned run, every
-  dot hollow (or "12 pomos" above 10).
+  dot hollow (`border-muted-foreground/70`, 3:1 on the card), or "12 pomos" above 10.
 - `TimerTransport`: `[Start] [Skip] | [Stop]`. One primary `h-12` button, then, only while a
   run is in progress, `size-12` Skip and Stop icon buttons split by a hairline. The primary
   button may shrink (`min-w-0 flex-1`, truncating label) so Skip and Stop fit a 320px phone.

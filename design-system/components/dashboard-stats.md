@@ -32,7 +32,7 @@ the stored one differs. Copy, bar geometry and the refresh rule live in `lib/sta
   (first day, "Today").
 
 Colors: today's bar is `fill-primary` (the accent fill), earlier days
-`fill-muted-foreground/55`; both themes come from the same tokens, no chart-only colors.
+`fill-muted-foreground/70` (`/55` on dark), each ≥ 3:1 on the card (`design-system/contrast.md`); both themes come from the same tokens, no chart-only colors.
 Values never wear the bar color; text stays in foreground / muted ink.
 
 ## Props and variants
