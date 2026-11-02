@@ -10,6 +10,7 @@ design-system/
   scripts/render.ts    # pure renderers: tokens → CSS / TS strings (imported by tests)
   scripts/generate.ts  # bun script: reads tokens.json, writes the outputs
   README.md            # this file
+  contrast.md          # every app color pairing, its WCAG ratio and chosen level
   components/          # one spec per component (README = index + page map)
 ```
 
@@ -56,26 +57,27 @@ Shared overlay geometry (squircle path/perimeter, `SQUIRCLE_RADIUS`, MM:SS clock
 
 ## Palette rationale
 
-A conventional neutral dark UI (GitHub / Vercel / Linear style), dark-first with a coherent light mode. Surfaces are Tailwind-zinc neutrals with no color cast: dark background `oklch(0.155 0.004 286)` (`#0c0c0e`), card `#151518`, popover `#19191d`, off-white text `#ededef`, muted text `#a1a1aa`; light is a `#fafafa` page with white cards and `#18181b` text. One standard blue accent, Cornflower as the secondary. Twitch purple (`#9146FF`) is reserved for Twitch sign-in/connect actions. Amber = paused/warning, emerald = live/connected, red = destructive. Montserrat for display, IBM Plex Sans for body, IBM Plex Mono for labels and numerals.
+A conventional neutral dark UI (GitHub / Vercel / Linear style), dark-first with a coherent light mode. Surfaces are Tailwind-zinc neutrals with no color cast: dark background `oklch(0.155 0.004 286)` (`#0c0c0e`), card `#151518`, popover `#19191d`, off-white text `#ededef`, muted text `#b3b3bc`; light is a `#fafafa` page with white cards and `#18181b` text. One standard blue accent, Cornflower as the secondary. Twitch purple (`#9146FF`) is reserved for Twitch sign-in/connect actions. Amber = paused/warning, emerald = live/connected, red = destructive. Montserrat for display, IBM Plex Sans for body, IBM Plex Mono for labels and numerals.
 
 | Role | Dark | Light |
 |---|---|---|
 | `--background` | `#0c0c0e` | `#fafafa` |
 | `--card` | `#151518` | `#ffffff` |
 | `--foreground` | `#ededef` | `#18181b` |
-| `--muted-foreground` | `#a1a1aa` | `#5f5f68` |
-| `--primary` (fill, white label) | `#236fea` | `#1866e0` |
-| `--link` (accent as text, `--ring`) | `#4f99f9` | `#155ed0` |
-| `--success` | `#41ce90` | `#007948` |
-| `--warning` | `#f7b83d` | `#9a5b00` |
-| `--destructive` | `#f75d59` | `#ce222c` |
+| `--muted-foreground` | `#b3b3bc` | `#4f4f57` |
+| `--primary` (fill, white label) | `#236fea` | `#105fd9` |
+| `--link` (accent as text; dark `--ring`) | `#68acff` | `#004ebf` |
+| `--success` | `#41ce90` | `#007343` |
+| `--warning` | `#f7b83d` | `#945500` |
+| `--destructive` | `#f75d59` | `#c40e22` |
+| `--cornflower` | `#9babfd` | `#4b53c2` |
 | `--border` / `--input` / `--hairline` | text at 12% / 20% / 8% | text at 14% / 24% / 10% |
 
 - **Two blues, on purpose.** No single blue clears 4.5:1 both under a white label and as text on near-black, so `--primary` is the fill (buttons, avatar, checked states; white `primary-foreground`) and `--link` is the lighter text form (links, icons, active nav, chips, focus ring). Write `text-link`, never `text-primary`.
-- **`--success` / `--warning` on light sit near L 0.5** so the 11px StatusChip text clears 4.5:1 on its own tinted fill.
+- **AAA where it keeps the look, AA everywhere.** Body, muted and link text clear 7:1 on every plain surface in both themes; dark status tones too. White on the blue and Twitch fills, red, and the light status tones stay AA (4.5:1), because their 7:1 versions read navy, salmon, maroon or muddy. Controls, the focus ring and chart marks clear 3:1. `contrast.md` lists every pairing, its ratio and why it sits at its level.
 - **Borders are translucent text color**, so they read on every surface: `--input` is heavier than `--border`; `--hairline` is the decorative rule the docs use for `--color-fd-border` and `--sidebar-border`.
 
-`apps/web/src/lib/__tests__/tokens-contrast.test.ts` recomputes these from the oklch values in both schemes: every text token on each surface it sits on (foreground/muted-foreground on background, card and muted; link, destructive, success and warning on background/card; each `*-foreground` on its fill) and the chip text on its `/10` tint must be at least 4.5:1, and `--ring` / `--primary` must stand 3:1 off the background and card (WCAG 1.4.11).
+`apps/web/src/lib/__tests__/tokens-contrast.test.ts` recomputes every pairing in [`contrast.md`](contrast.md) from the oklch values in both schemes (translucent `/NN` tints composited over the surface under them) and asserts each at its chosen level: AAA 7:1, AA 4.5:1, or 3:1 for non-text (WCAG 1.4.11). It also pins the component classes the non-text rows assume (input/select borders, the switch track, chart bars, cycle and chip dots).
 
 ## Overlay themes
 
@@ -86,7 +88,7 @@ A conventional neutral dark UI (GitHub / Vercel / Linear style), dark-first with
 1. Edit `design-system/tokens.json`. Never edit a generated file.
 2. Run `bun run tokens` from the repo root.
 3. Commit `tokens.json` **and** all generated files in the same commit. CI runs `bun run tokens && git diff --exit-code`, and `apps/web/src/lib/__tests__/design-tokens.test.ts` fails when a committed CSS file differs from what `render.ts` produces, when the two schemes have different keys, or when a hex value leaks into the palette.
-4. Check contrast: `tokens-contrast.test.ts` must stay green.
+4. Check contrast: `tokens-contrast.test.ts` must stay green. A new text or control color gets a row there and in `contrast.md`.
 5. If the change is breaking (rename, removed key, value drift), bump `meta.version` and call it out in the PR description.
 
 ## Component catalog

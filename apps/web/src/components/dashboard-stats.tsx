@@ -94,7 +94,9 @@ export function FocusChart() {
               d={bar.path}
               className={cn(
                 "transition-opacity group-hover:opacity-80",
-                bar.today ? "fill-primary" : "fill-muted-foreground/55",
+                bar.today
+                  ? "fill-primary"
+                  : "fill-muted-foreground/70 dark:fill-muted-foreground/55",
               )}
             />
           </g>

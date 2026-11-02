@@ -30,7 +30,7 @@ This writes three committed files:
 | `apps/fumadocs/src/app/tokens.generated.css` | The docs site, imported by `apps/fumadocs/src/app/global.css` |
 | `apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts` | Landing-page theme gallery |
 
-Never edit a generated file by hand: change `tokens.json`, run `bun run tokens`, and commit both. CI checks for drift with `bun run tokens && git diff --exit-code`, and a web unit test (`design-tokens.test.ts`) fails if a committed CSS file doesn't match what `tokens.json` renders. A second test (`tokens-contrast.test.ts`) checks the palette's text pairs and status chips against WCAG AA (4.5:1) in both themes.
+Never edit a generated file by hand: change `tokens.json`, run `bun run tokens`, and commit both. CI checks for drift with `bun run tokens && git diff --exit-code`, and a web unit test (`design-tokens.test.ts`) fails if a committed CSS file doesn't match what `tokens.json` renders. A second test (`tokens-contrast.test.ts`) checks every app color pairing (text, status chips, input borders, focus ring, controls, chart marks) in both themes at its chosen WCAG level: AAA (7:1) for body, muted and link text and the dark status tones, AA (4.5:1) for white on the blue and Twitch fills, red and the light status tones, and 3:1 for non-text. `design-system/contrast.md` lists each pairing and why.
 
 Shared overlay geometry and clock formatting (`roundedRectPath`, `roundedRectPerimeter`, `formatClock`, `SQUIRCLE_RADIUS`) live in the workspace package `@dirework/overlay-kit` (`packages/overlay-kit`), used by both the real OBS overlays and the docs mocks. A unit test in the web app keeps `tokens.json` in sync with the Theme Center presets and `SQUIRCLE_RADIUS`.
 
@@ -38,14 +38,15 @@ Shared overlay geometry and clock formatting (`roundedRectPath`, `roundedRectPer
 
 The visual language is a conventional **neutral dark UI**, the kind GitHub, Vercel and
 Linear ship: near-black zinc surfaces with no color cast (background `#0c0c0e`, cards
-`#151518`), off-white text (`#ededef`) and muted gray secondary text (`#a1a1aa`). Light
+`#151518`), off-white text (`#ededef`) and muted gray secondary text (`#b3b3bc`). Light
 mode is fully supported (`#fafafa` page, white cards, the same blue). The console grammar
 stays: panels, mono uppercase labels, LED-style status chips.
 
-- **Accent blue, two forms:** `--primary` (`#236fea` dark / `#1866e0` light) is the fill
-  behind white labels (primary buttons, avatar, checked states); `--link` (`#4f99f9` dark /
-  `#155ed0` light) is the text form (links, icons, active nav, focus ring). No single blue
-  clears 4.5:1 both under white text and as text on near-black, so text always uses `text-link`.
+- **Accent blue, two forms:** `--primary` (`#236fea` dark / `#105fd9` light) is the fill
+  behind white labels (primary buttons, avatar, checked states); `--link` (`#68acff` dark /
+  `#004ebf` light) is the text form (links, icons, active nav, focus ring) and clears 7:1 on
+  every plain surface. No single blue works both under white text and as text on near-black,
+  so text always uses `text-link`.
 - **Secondary accent:** Cornflower (`--cornflower`).
 - **Twitch:** `#9146FF` is reserved for "Sign in / Connect with Twitch" actions only.
 - **Phase colors:** work = emerald `#34C759`, break = blue, long break = cornflower, paused = amber `#FF9F0A`.

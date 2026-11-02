@@ -18,7 +18,7 @@ This file provides guidance for coding agents working on the Dirework codebase.
 - Setup guides → `.env.example`, docs `apps/fumadocs/content/docs/deployment.mdx`
 - Container hosting support and platform guide → `apps/fumadocs/content/docs/self-hosting.mdx` (unsupported; no production image)
 - Contributor setup + branch/PR workflow → `CONTRIBUTING.md`
-- Design system (tokens → generated CSS for app + docs, one spec per component, enforced by `spec-catalog.test.ts`) → `design-system/` (README), docs `apps/fumadocs/content/docs/design-system.mdx`; drift check `bun run tokens && git diff --exit-code`
+- Design system (tokens → generated CSS for app + docs, one spec per component, enforced by `spec-catalog.test.ts`) → `design-system/` (README; color contrast levels per pairing → `design-system/contrast.md`), docs `apps/fumadocs/content/docs/design-system.mdx`; drift check `bun run tokens && git diff --exit-code`
 - Which Cloudflare services to use beyond Workers + D1 (KV, Durable Objects, Queues, Cron, …) → `docs/decisions/0001-cloudflare-services.md`
 - PR review checklist (Codex + humans; free-tier cost rules) → `## Code Review Rules` below
 - Owner to-dos (secrets move, Codex auto-review) + product backlog → `TODO.md`
@@ -782,11 +782,15 @@ Design language: a conventional **neutral dark UI** (GitHub/Vercel/Linear style)
 with a coherent light mode; the console grammar (panels, mono labels, LED chips) stays.
 Montserrat (display, tabular-nums timer digits), IBM Plex Sans (body), IBM Plex Mono
 (labels/tokens/status). Near-black zinc surfaces with no color cast (background
-`#0c0c0e`, cards `#151518`, muted text `#a1a1aa`), one standard blue accent:
-`--primary` (`#236fea` dark / `#1866e0` light) is the FILL behind white labels, and
-`--link` (`#4f99f9` dark / `#155ed0` light) is the TEXT form (links, icons, active nav,
-focus ring). Use `text-link`, never `text-primary`: no blue passes 4.5:1 both under
-white text and as text on near-black. Cornflower is the secondary; Twitch purple is
+`#0c0c0e`, cards `#151518`, muted text `#b3b3bc` dark / `#4f4f57` light), one standard blue accent:
+`--primary` (`#236fea` dark / `#105fd9` light) is the FILL behind white labels, and
+`--link` (`#68acff` dark / `#004ebf` light) is the TEXT form (links, icons, active nav,
+focus ring). Use `text-link`, never `text-primary`: no blue works both under
+white text and as text on near-black. Contrast: body, muted and link text are AAA (7:1) on
+every plain surface in both themes, as are the dark status tones; white on the blue and
+Twitch fills, red and the light status tones are AA (4.5:1, chips ≥ 5:1); input borders,
+the focus ring, switch tracks, chart bars and status dots are ≥ 3:1. Every pairing and its
+level is in `design-system/contrast.md`, asserted by `tokens-contrast.test.ts`. Cornflower is the secondary; Twitch purple is
 reserved for the Twitch sign-in/connect buttons; amber = paused, emerald = live/connected
 (LED-style chips). Palette lives in `design-system/tokens.json`; OBS overlay presets are
 separate and keep their own colors. All animation respects `prefers-reduced-motion`;
@@ -921,8 +925,8 @@ and `apps/fumadocs/src/app/tokens.generated.css` (imported by `global.css`, whic
 the `--color-fd-*` / `--bg-*` / `--txt-*` names). Edit `tokens.json` and run `bun run tokens`;
 never edit a generated file (`design-tokens.test.ts` and the CI drift step fail). The docs twin
 has no radius scale (fumadocs-ui compiles its own `rounded-*` against it); fonts stay
-hand-written in both stylesheets (they wrap next/font variables). Palette AA is asserted by
-`tokens-contrast.test.ts`.
+hand-written in both stylesheets (they wrap next/font variables). Palette contrast (AAA / AA /
+3:1 per pairing, `design-system/contrast.md`) is asserted by `tokens-contrast.test.ts`.
 **Installable app + touch.** `app/manifest.ts` serves `/manifest.webmanifest` (standalone,
 `start_url` `/dashboard`, `DARK_BACKGROUND_HEX`/`LIGHT_BACKGROUND_HEX` = the two
 `--background` tokens as hex) with PNG icons in `public/icons/` (192, 512, maskable 512 —

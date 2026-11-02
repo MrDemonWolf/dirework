@@ -18,7 +18,7 @@ const toneStyles: Record<StatusTone, { chip: string; dot: string }> = {
   alt: { chip: "border-cornflower/30 bg-cornflower/10 text-cornflower", dot: "bg-cornflower" },
   idle: {
     chip: "border-border bg-muted/60 text-muted-foreground",
-    dot: "bg-muted-foreground/60",
+    dot: "bg-muted-foreground/70",
   },
   danger: {
     chip: "border-destructive/30 bg-destructive/10 text-destructive",

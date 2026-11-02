@@ -1,0 +1,93 @@
+# Color contrast
+
+Every text, icon and control color the web app paints, in both themes, with the WCAG level
+chosen for it. `apps/web/src/lib/__tests__/tokens-contrast.test.ts` recomputes each ratio from
+`tokens.json` and fails when a pairing drops below its level, so a palette edit can't quietly
+regress one. The OBS overlays, the bot dock (`color.obs`) and the docs site have their own
+palettes and checks; this file covers the app UI only.
+
+## Levels
+
+| Level | Threshold | WCAG | Used for |
+|---|---|---|---|
+| **AAA** | 7:1 | 1.4.6 Contrast (Enhanced) | Text, wherever reaching it keeps the neutral-dark / one-blue look |
+| **AA** | 4.5:1 | 1.4.3 Contrast (Minimum) | Text where a 7:1 color would change the look: white on the blue and Twitch fills, the light-mode status tones, red |
+| **UI** | 3:1 | 1.4.11 Non-text Contrast | Input and select borders, focus ring, checked and unchecked controls, chart marks, status dots |
+
+AA is the floor for every text pairing. Ratios below are against the surface the color
+actually sits on; a `/NN` tint is composited over the surface under it, the way the browser
+draws it.
+
+## Text
+
+| Pairing | Dark | Light | Level (dark / light) |
+|---|---|---|---|
+| Body text on background / card / popover / muted | 16.7 / 15.6 / 15.0 / 14.4 | 17.0 / 17.7 / 17.7 / 16.0 | AAA / AAA |
+| Secondary button, highlighted menu item | 12.5, 12.9 | 13.1, 15.3 | AAA / AAA |
+| Section summary (`foreground/80`), inactive tab (`foreground/75`, light) | 10.2 | 9.4, 7.4 | AAA / AAA |
+| Muted text on background | 9.4 | 7.8 | AAA / AAA |
+| Muted text on card / popover | 8.8 / 8.4 | 8.1 / 8.1 | AAA / AAA |
+| Muted text on muted / accent / secondary | 8.1 / 7.2 / 7.6 | 7.4 / 7.0 / 7.1 | AAA / AAA |
+| Idle status chip, input placeholder, save bar hint | 8.4, 7.6, 9.3 | 7.7, 7.0, 7.9 | AAA / AAA |
+| Muted text in a destructive callout | 7.8 | 6.8 | AAA tested at AA |
+| Link on background / card / popover | 8.3 / 7.8 / 7.5 | 7.1 / 7.4 / 7.4 | AAA / AAA |
+| Link on muted | 7.2 | 6.7 | AAA / AA |
+| Link on the `primary/10` tint (active nav, accent chip) | 7.7, 7.1 | 6.1, 6.4 | AAA / AA |
+| White on `--primary` (buttons) | 4.6 | 5.7 | AA / AA |
+| White on `primary/90` (button hover) | 5.4 | 4.8 | AA / AA |
+| White on Twitch purple `#9146FF` / hover | 4.6 / 5.8 | same | AA / AA |
+| Destructive text on card / popover | 5.8 / 5.6 | 6.1 / 6.1 | AA / AA |
+| Danger chip, destructive menu item (`destructive/10`) | 5.0 | 5.2 | AA / AA |
+| Success text, live chip (`success/10`) | 9.0, 7.6 | 6.0, 5.2 | AAA / AA |
+| Warning text, paused/unsaved chip (`warning/10`) | 10.3, 8.5 | 5.9, 5.1 | AAA / AA |
+| Cornflower text, alt chip (`cornflower/10`) | 8.3, 7.1 | 6.3, 5.5 | AAA / AA |
+
+## Non-text (3:1)
+
+| Pairing | Dark | Light |
+|---|---|---|
+| Focus ring (`--ring`) on card | 7.8 | 5.7 |
+| Checked switch / checkbox, done cycle dot, today's chart bar (`--primary`) on card | 4.0 | 5.7 |
+| Input + select border, unchecked switch track, planned cycle dot (`muted-foreground/70`) on card | 4.9 | 3.7 |
+| Idle chip dot (`muted-foreground/70` on the `muted/60` chip) | 4.8 | 3.6 |
+| Focus chart bars (`muted-foreground/55` dark, `/70` light) | 3.5 | 3.7 |
+| Twitch icon on its `twitch/15` tile | 3.4 | 3.8 |
+| `--chart-1…5` on card | ≥ 5.8 | ≥ 3.2 |
+
+## Choices
+
+- **Muted text is AAA in both themes.** Dark `#b3b3bc` (was zinc-400 `#a1a1aa`) and light
+  `#4f4f57` (was `#5f5f68`) clear 7:1 on every surface, including the hover and secondary
+  fills, and still sit well apart from the foreground, so the hierarchy holds.
+- **Links are AAA on every plain surface.** Dark `#68acff` (was `#4f99f9`), light `#004ebf`
+  (was `#155ed0`): a slightly lighter blue on near-black and a deeper royal blue on white,
+  still one accent and not navy. Light-mode links on tints stay AA (6.1+): a 7:1 there would
+  need a near-navy.
+- **Blue fills stay AA.** White on `--primary` needs a much darker blue to reach 7:1, which
+  reads navy and loses the accent. Light `--primary` moved to `#105fd9` (was `#1866e0`) so the
+  `hover:bg-primary/90` state, which failed at 4.42:1, now passes at 4.8.
+- **Status tones are AAA in dark, AA in light.** Emerald, amber and cornflower already pass 7:1
+  on near-black (cornflower moved to `#9babfd` to make its chip AAA). In light, 7:1 versions go
+  muddy (`#00582b` green, `#7b3e00` brown), so they stay AA, each nudged darker so the 11px
+  chip text clears 5:1 on its tint instead of ~4.7.
+- **Red is AA.** A 7:1 red is salmon on dark (`#ff7d76`) and maroon on light (`#a00000`); both
+  read less like "destructive". Light red moved to `#c40e22` for chip margin.
+- **Twitch purple is a brand color** and stays `#9146FF` (white label AA).
+- **Controls.** The dark switch track used `bg-input/80` (1.5:1, invisible against the card);
+  it now uses `muted-foreground/70` in both themes. Planned cycle dots moved from `/40` to
+  `/70`, idle chip dots from `/60` to `/70`, and light chart bars from `/55` (2.4:1) to `/70`.
+
+## Exempt (decorative or disabled)
+
+WCAG does not require contrast for these; they are listed so no one "fixes" them into heavy
+lines.
+
+- `--border`, `--input`, `--hairline` and their `/NN` tints: card edges, rules and outline
+  button frames. Every control they frame is identified by its own label, icon or a
+  3:1 border above.
+- Disabled controls (`opacity-50`, `opacity-60` on a switched-off command table): 1.4.3 exempts
+  inactive components.
+- `aria-hidden` ornaments: the version badge separator (`muted-foreground/50`), the setup
+  progress cells (the "n of 4" text carries the count), the empty-task ring, the color input's
+  divider.
+- Hover-only background tints (`hover:bg-muted/40` and friends): the text on them is checked.

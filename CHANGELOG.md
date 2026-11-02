@@ -176,6 +176,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hover that could never happen.
 
 ### Changed
+- **Higher-contrast app palette (WCAG AAA where it keeps the look).** Body, muted and link
+  text now clear 7:1 (AAA) on every surface in both themes: muted text is a touch lighter on
+  dark (`#b3b3bc`) and darker on light (`#4f4f57`), links are `#68acff` on dark and a deeper
+  `#004ebf` on light. Dark status chips (live, paused, accent, cornflower) are AAA too.
+  White on the blue buttons, red, Twitch purple and the light status colors stay AA, each
+  with more margin (light chips ≥ 5:1); a 7:1 version of those reads navy, maroon or muddy.
+  Fixed along the way: the light primary button's hover state (4.4:1, now 4.8:1), the dark
+  switch's off track (1.5:1, now 4.9:1), the light focus-chart bars (2.4:1, now 3.7:1) and the
+  planned cycle dots, all now ≥ 3:1. `design-system/contrast.md` lists every pairing, its
+  ratio and its level, and `tokens-contrast.test.ts` holds each one there.
 - **Bans wait 5 minutes; timeouts keep tasks.** A timeout no longer removes the viewer's
   tasks. A ban removes them 5 minutes later from the open bot page, unless the viewer chats
   again first (they were unbanned) or a timeout replaces the ban; repeat bans of one viewer
