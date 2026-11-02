@@ -372,7 +372,10 @@ export const LEGACY_TIMER_STYLE_VALUES: Partial<
 /** task_style counterpart of LEGACY_TIMER_STYLE_VALUES. Append, never remove. */
 export const LEGACY_TASK_STYLE_VALUES: Partial<
   Record<keyof typeof TASK_STYLE_COLUMN_DEFAULTS, readonly StyleColumnValue[]>
-> = {};
+> = {
+  // #7f9cff put the "Active" label at 4.9:1 on its own row tint; #a8bcff clears 6.5:1.
+  taskUsernameColor: ["#7f9cff"],
+};
 
 /**
  * The timer overlay style a never-customized instance renders, and the "Default"
@@ -425,7 +428,7 @@ export const DEFAULT_TASK_STYLES = {
     border: { color: "#1b2b52", width: "0px", radius: "12px" },
     fontSize: "24px",
     fontColor: "#eaf2ff",
-    usernameColor: "#7f9cff",
+    usernameColor: "#a8bcff",
     padding: "10px 14px",
     marginBottom: "8px",
     maxWidth: "100%",

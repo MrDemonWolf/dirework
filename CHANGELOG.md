@@ -413,6 +413,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   every page in dark and light, at desktop and phone width, the overlays and bot pages, and
   open menus, dialogs and the live preview, against WCAG 2.2 AA too (target size); it also
   checks every Tab stop shows focus and that reduced motion stops all animation.
+- **Docs site accessibility.** The docs and landing page now pass axe (WCAG 2.0/2.1/2.2 A
+  and AA plus best practices) in both themes at desktop and phone width. Each docs page has
+  one `main` landmark (Fumadocs now renders its own), the table of contents is a named
+  navigation landmark (so its mobile header no longer counts as a second banner), every
+  code block's scroll area is named after the block, the deployment checklists' checkboxes
+  are labelled with their item text, and the GitHub link's name starts with its visible
+  "Open source". Code is highlighted with GitHub's high-contrast themes: dark-mode comments
+  were 3.6:1 and now clear 7:1. A new e2e spec, `85-docs-a11y`, scans the built docs in CI.
+- **Overlay preset readability.** The presets are now contrast-checked with their
+  translucent panels over both a black and a white stream, and nudged to pass: username
+  colors are lighter on dark presets and darker on light ones (Default `#7f9cff` →
+  `#a8bcff`, Ocean Depths `#40dcc8`, Liquid Glass Dark `#a0cdff` with slightly more opaque
+  panels, Cozy Cottage `#6e4800` with text `#4a3015`, Minimal Light `#3f37c9`, Twitch
+  Purple `#c7a2ff`). Task text, the header, the timer digits and the "Started" label meet
+  AAA (7:1); the username, "Active" label, counters and done text meet AA. Liquid Glass
+  Dark's "Active" label had dropped to 4.1:1 over a bright scene.
+- **Bot dock contrast.** The dock's muted grey (`#969696` → `#ababab`) and error red
+  (`#e85e75` → `#f48a9b`) now clear 4.5:1 on every OBS surface they sit on (error lines in
+  Recent commands were 4.3:1); a test holds every dock text pair to AA and the focus ring
+  to 3:1.
 - **Security hardening.**
   - **A limit of 200 open tasks for the whole list.** Every way a task is added (the
     dashboard, `!task`, `!next`, and undoing a removal) checks it inside the database

@@ -112,7 +112,7 @@ changed or added default fails until this spec moves with it.
 | `task.border.radius` | `DEFAULT_TASK_STYLES` | `12px` |
 | `task.fontSize` | `DEFAULT_TASK_STYLES` | `24px` |
 | `task.fontColor` | `DEFAULT_TASK_STYLES` | `#eaf2ff` |
-| `task.usernameColor` | `DEFAULT_TASK_STYLES` | `#7f9cff` |
+| `task.usernameColor` | `DEFAULT_TASK_STYLES` | `#a8bcff` |
 | `task.padding` | `DEFAULT_TASK_STYLES` | `10px 14px` |
 | `task.marginBottom` | `DEFAULT_TASK_STYLES` | `8px` |
 | `task.maxWidth` | `DEFAULT_TASK_STYLES` | `100%` |

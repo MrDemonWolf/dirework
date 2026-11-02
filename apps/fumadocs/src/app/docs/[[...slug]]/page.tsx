@@ -3,10 +3,11 @@
 
 import type { Metadata } from "next";
 
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/docs/page";
+import { DocsBody, DocsDescription, DocsTitle } from "fumadocs-ui/layouts/docs/page";
 import { createRelativeLink } from "fumadocs-ui/mdx";
 import { notFound } from "next/navigation";
 
+import { DocsPage } from "@/components/docs-page";
 import { getPageImage, source } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
 
@@ -19,21 +20,19 @@ export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
   const MDX = page.data.body;
 
   return (
+    // DocsPage renders the <main> landmark itself (around its article), so the page adds
+    // none; ours (components/docs-page.tsx) puts the table of contents in a <nav>.
     <DocsPage toc={page.data.toc} full={page.data.full}>
-      {/* DocsPage renders grid items of the layout, so the main landmark goes
-          inside its article (with the article's flex gap) rather than around it. */}
-      <main className="flex flex-col gap-4">
-        <DocsTitle>{page.data.title}</DocsTitle>
-        <DocsDescription>{page.data.description}</DocsDescription>
-        <DocsBody>
-          <MDX
-            components={getMDXComponents({
-              // this allows you to link to other pages with relative file paths
-              a: createRelativeLink(source, page),
-            })}
-          />
-        </DocsBody>
-      </main>
+      <DocsTitle>{page.data.title}</DocsTitle>
+      <DocsDescription>{page.data.description}</DocsDescription>
+      <DocsBody>
+        <MDX
+          components={getMDXComponents({
+            // this allows you to link to other pages with relative file paths
+            a: createRelativeLink(source, page),
+          })}
+        />
+      </DocsBody>
     </DocsPage>
   );
 }
