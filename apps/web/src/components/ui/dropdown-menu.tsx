@@ -14,8 +14,19 @@ import { cn } from "@/lib/utils";
 export const menuItemRecipe =
   "data-highlighted:bg-accent data-highlighted:text-accent-foreground data-highlighted:**:[svg]:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset gap-2.5 rounded-md px-2.5 py-2 text-sm/none [&_svg:not([class*='size-'])]:size-4 relative flex cursor-default items-center outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 data-[inset]:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0";
 
+/**
+ * Destructive rows (Sign out, Clear done / all, Remove, Reset theme) stay red in every
+ * state, so nothing about them reads as a blue "default" action:
+ * - rest: `text-destructive`;
+ * - highlighted (hover or arrow keys): a `/10` red tint with the deeper (light) / brighter
+ *   (dark) `destructive-strong` label, ≥ 4.5:1 on that tint in both themes — at the old
+ *   dark `/20` tint plain `text-destructive` measured 4.25:1 over the popover;
+ * - keyboard focus: the inset ring is `ring-destructive` instead of the blue `ring-ring`,
+ *   ≥ 3:1 against the tint (WCAG 1.4.11).
+ * tokens-contrast.test.ts pins all three.
+ */
 const destructiveItem =
-  "data-[variant=destructive]:text-destructive data-[variant=destructive]:data-highlighted:bg-destructive/10 dark:data-[variant=destructive]:data-highlighted:bg-destructive/20 data-[variant=destructive]:data-highlighted:text-destructive data-[variant=destructive]:*:[svg]:text-destructive data-[variant=destructive]:data-highlighted:**:[svg]:text-destructive";
+  "data-[variant=destructive]:text-destructive data-[variant=destructive]:*:[svg]:text-destructive data-[variant=destructive]:data-highlighted:bg-destructive/10 data-[variant=destructive]:data-highlighted:text-destructive-strong data-[variant=destructive]:data-highlighted:**:[svg]:text-destructive-strong data-[variant=destructive]:focus-visible:ring-destructive";
 
 function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
   return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />;

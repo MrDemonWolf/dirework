@@ -39,8 +39,12 @@ same way.
 
 ## States
 
-Highlighted (`data-highlighted`, set by hover AND arrow keys) paints `bg-accent`; destructive
-items highlight `bg-destructive/10` (`/20` dark) and stay red. Disabled rows are 50% and
+Highlighted (`data-highlighted`, set by hover AND arrow keys) paints `bg-accent`. Destructive
+items (Sign out, Clear done / Clear all, Remove) stay red in every state: `text-destructive`
+at rest; highlighted, a `bg-destructive/10` tint in both themes with the label and icon in
+`text-destructive-strong` (≥ 4.5:1 on that tint; plain red on the old dark `/20` tint was
+4.25:1); keyboard focus draws the inset ring in `ring-destructive`, never the blue
+`ring-ring`, ≥ 3:1 against the tint. `tokens-contrast.test.ts` measures all three. Disabled rows are 50% and
 ignore the pointer. Open / closed transitions use `data-starting-style` / `data-ending-style`.
 
 ## Accessibility
@@ -51,7 +55,7 @@ ignore the pointer. Open / closed transitions use `data-starting-style` / `data-
 - Arrow keys move, Enter / Space activate, Escape closes and returns focus to the trigger,
   type-ahead jumps to a label.
 - Focus follows the README "Focus" recipe: fill for highlight, `focus-visible:ring-2 ring-inset`
-  only for keyboard focus. The 10px row radius nests inside the popup's `rounded-2xl` + `p-1.5`.
+  only for keyboard focus (`ring-destructive` on destructive rows). The 10px row radius nests inside the popup's `rounded-2xl` + `p-1.5`.
 
 ## Do / Don't
 

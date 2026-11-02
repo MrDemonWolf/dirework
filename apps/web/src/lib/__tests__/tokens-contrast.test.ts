@@ -241,6 +241,43 @@ const PAIRINGS: Pairing[] = [
       level: ["AAA", "AA"] as const,
     },
   ]),
+  // Destructive menu rows (ui/dropdown-menu.tsx `destructiveItem`): highlighted, the label
+  // turns `destructive-strong` on the /10 tint and keyboard focus draws a red inset ring.
+  // Menus sit on --popover (the account menu on --card).
+  ...(["popover", "card"] as const).flatMap((s) => [
+    {
+      use: `highlighted destructive menu row label on ${s}`,
+      fg: "destructive-strong",
+      on: [s, "destructive/10"],
+      level: "AA" as const,
+    },
+    {
+      use: `destructive menu row focus ring on ${s}`,
+      fg: "destructive",
+      on: [s, "destructive/10"],
+      level: "UI" as const,
+    },
+  ]),
+  // Destructive button hover (ui/button.tsx): dark /30, light /20 tint.
+  {
+    use: "destructive button hover label (dark /30)",
+    fg: "destructive-strong",
+    on: ["card", "destructive/30"],
+    level: ["AA", null],
+  },
+  {
+    use: "destructive button hover label (light /20)",
+    fg: "destructive-strong",
+    on: ["card", "destructive/20"],
+    level: [null, "AA"],
+  },
+  // Red keyboard focus border of destructive icon buttons (`destructiveIconButton`).
+  ...(["background", "card"] as const).map((s) => ({
+    use: `destructive focus border on ${s}`,
+    fg: "destructive",
+    on: [s],
+    level: "UI" as const,
+  })),
   // Non-text (1.4.11).
   ...(["background", "card", "popover"] as const).map((s) => ({
     use: `focus ring on ${s}`,
@@ -248,6 +285,12 @@ const PAIRINGS: Pairing[] = [
     on: [s],
     level: "UI" as const,
   })),
+  {
+    use: "menu row focus ring on a highlighted row",
+    fg: "ring",
+    on: ["popover", "accent"],
+    level: "UI",
+  },
   {
     use: "checked switch / checkbox / today bar on card",
     fg: "primary",
