@@ -4,7 +4,8 @@ Every text, icon and control color the web app paints, in both themes, with the 
 chosen for it. `apps/web/src/lib/__tests__/tokens-contrast.test.ts` recomputes each ratio from
 `tokens.json` and fails when a pairing drops below its level, so a palette edit can't quietly
 regress one. The OBS overlays, the bot dock (`color.obs`) and the docs site have their own
-palettes and checks; this file covers the app UI only.
+palettes and checks (`theme-contrast.test.ts` for the overlay presets, `obs-contrast.test.ts` for
+the dock, the e2e spec `85-docs-a11y` for the docs); this file covers the app UI only.
 
 ## Levels
 
