@@ -1072,11 +1072,22 @@ lease, and the dashboard chip reads "Bot offline" / "Bot connected"),
 spec passes when run twice in a row, because CI retries run immediately against the same
 database. Two projects: `chromium` runs all but `90-mobile`; `mobile` (Pixel 7) runs only
 `90-mobile` (no horizontal scroll, hamburger nav). `80-a11y` scans with axe-core against
-WCAG 2.0/2.1 A and AA, fails on serious/critical violations, attaches the full JSON, and
-runs under reduced motion (the entrance fade otherwise skews measured contrast); no page
+WCAG 2.0/2.1/2.2 A and AA (2.2 adds `target-size`), fails on serious/critical violations,
+lists moderate/minor ones as `axe (non-blocking)` annotations, attaches the full JSON, and
+runs under reduced motion (the entrance fade otherwise skews measured contrast). It covers,
+in BOTH themes (`pinTheme` sets next-themes' localStorage key): the landing, every dashboard,
+Theme Center and Bot settings page, the overlays and bot widget (over a dark scene, as OBS
+shows them) and the dock; the open states — account menu opened from the keyboard (its
+item focused), Task board options, a row's ⋯ menu, the Clear all confirm, Theme options,
+the unsaved-changes guard, the side live preview; every page plus the open hamburger nav at
+Pixel 7 width (inside the `chromium` project); that every Tab stop on the dashboard, Theme
+Center and Bot overview shows a focus indicator (outline or ring; ring colors are held to ≥
+3:1 by `tokens-contrast.test.ts`); and that reduced motion leaves no animation running.
+`/setup` is scanned (both themes) in `00-first-run`, the only spec that sees it. No page
 skips a rule (the Bot settings usage lines that once measured 4.37:1 are full
 `text-muted-foreground` now). Shared
-helpers in `tests/helpers.ts`: `signIn`, `confirmDialog`, `revealSecretUrl`. Specs use roles
+helpers in `tests/helpers.ts`: `signIn`, `confirmDialog`, `revealSecretUrl`, `pinTheme`,
+`expectNoSeriousViolations(page, name, { theme })`. Specs use roles
 and labels, never CSS classes. Runs in `verify.yml` after the smoke check, so a PR and a
 deploy are gated the same way; the Playwright report uploads on failure.
 verify's `run-e2e` input (default `true`) skips the suite, never the build: docs deploys pass

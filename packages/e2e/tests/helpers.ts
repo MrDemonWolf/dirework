@@ -3,33 +3,64 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { API_ORIGIN, DEV_LOGIN_SECRET } from "../src/env";
 
-/** WCAG 2.0 and 2.1, levels A and AA — the rule tags axe maps to those success criteria. */
-const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
+/**
+ * WCAG 2.0, 2.1 and 2.2, levels A and AA — the rule tags axe maps to those success criteria.
+ * 2.2 AA adds `target-size` (2.5.8, 24×24 CSS px or the spacing exception).
+ */
+const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
+
+export type Theme = "dark" | "light";
+
+/**
+ * Pin the app theme for every page this context loads, the way a visitor's choice is kept:
+ * next-themes' `theme` key in localStorage, which the inline head script applies before paint.
+ */
+export async function pinTheme(page: Page, theme: Theme): Promise<void> {
+  await page.addInitScript((value) => {
+    try {
+      localStorage.setItem("theme", value);
+    } catch {}
+  }, theme);
+}
 
 /**
  * Scan the current page and fail on any serious or critical violation. The full axe result
  * (every violation, pass, and incomplete check) is attached to the test report, so a failure
- * can be read in CI without rerunning the scan. Used by 80-a11y and the specs whose screens
- * need seeded state (27-bot-page-handoff).
+ * can be read in CI without rerunning the scan; moderate and minor findings are listed as
+ * annotations so they stay visible without failing the run. `theme` is the
+ * palette the page must show before the scan (default dark, the app default). Used by
+ * 80-a11y and the specs whose screens need seeded state (00-first-run, 27-bot-page-handoff).
  */
-export async function expectNoSeriousViolations(page: Page, name: string): Promise<void> {
+export async function expectNoSeriousViolations(
+  page: Page,
+  name: string,
+  { theme = "dark" }: { theme?: Theme | "none" } = {},
+): Promise<void> {
   // The theme class is applied by a script after the HTML streams in; until then the page
   // shows the light palette, and a scan during that window measures the wrong colors.
-  await page.waitForFunction(() => document.documentElement.classList.contains("dark"));
+  // Overlays and the bot widget are transparent and theme-free (`none`).
+  if (theme !== "none") {
+    await page.waitForFunction((t) => document.documentElement.classList.contains(t), theme);
+  }
   const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
   await test.info().attach(`axe-${name}.json`, {
     body: JSON.stringify(results, null, 2),
     contentType: "application/json",
   });
 
+  const summarize = (violation: (typeof results.violations)[number]) =>
+    `${violation.id} (${violation.impact}): ${violation.help} — ${violation.nodes
+      .map((node) => node.target.join(" "))
+      .join(", ")}`;
+  for (const violation of results.violations) {
+    if (violation.impact === "serious" || violation.impact === "critical") continue;
+    const line = `${name}: ${summarize(violation)}`;
+    test.info().annotations.push({ type: "axe (non-blocking)", description: line });
+  }
+
   const blocking = results.violations
     .filter((violation) => violation.impact === "serious" || violation.impact === "critical")
-    .map(
-      (violation) =>
-        `${violation.id} (${violation.impact}): ${violation.help} — ${violation.nodes
-          .map((node) => node.target.join(" "))
-          .join(", ")}`,
-    );
+    .map(summarize);
   expect(blocking, `axe violations on ${name}`).toEqual([]);
 }
 
