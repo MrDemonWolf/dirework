@@ -399,6 +399,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   lucide-react 1.x pin, and Dependabot now bumps the fumadocs packages together.
 
 ### Fixed
+- **Destructive menu items look intentional and pass contrast.** Sign out, Clear done,
+  Clear all and Remove stay red in every state: highlighting one (hover or arrow keys) shows a
+  light red tint with a deeper (light theme) or brighter (dark theme) red label, at least
+  4.5:1 in both themes (the dark highlight measured 4.25:1 before), and keyboard focus draws
+  a red ring instead of a blue one on a red row. Destructive buttons (Disconnect, the confirm
+  dialogs' red action) keep their label readable on hover and show a full red focus border.
+  New token: `destructive-strong`.
+- **Tab panels show keyboard focus.** The Theme Center editors and the dashboard's OBS
+  source tabs are Tab stops; they now draw a blue focus outline instead of nothing.
+- **Accessibility tests cover both themes, phones and open menus.** The axe suite now scans
+  every page in dark and light, at desktop and phone width, the overlays and bot pages, and
+  open menus, dialogs and the live preview, against WCAG 2.2 AA too (target size); it also
+  checks every Tab stop shows focus and that reduced motion stops all animation.
 - **Security hardening.**
   - **A limit of 200 open tasks for the whole list.** Every way a task is added (the
     dashboard, `!task`, `!next`, and undoing a removal) checks it inside the database

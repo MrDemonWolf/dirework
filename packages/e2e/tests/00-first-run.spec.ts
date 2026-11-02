@@ -1,7 +1,7 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
 
 import { WEB_ORIGIN } from "../src/env";
-import { signIn } from "./helpers";
+import { expectNoSeriousViolations, pinTheme, signIn } from "./helpers";
 
 const CLAIM_HEADING = "This DireWork is all yours";
 
@@ -32,6 +32,14 @@ test("an unclaimed instance sends every visitor to the claim page", async ({ pag
   await expect(page).toHaveURL(`${WEB_ORIGIN}/setup`);
   await expect(page.getByRole("heading", { name: CLAIM_HEADING })).toBeVisible();
   await expect(page.getByRole("button", { name: "Claim with Twitch" })).toBeVisible();
+
+  // The only run that can see the claim page, so its accessibility scan lives here (80-a11y
+  // covers every other page), in both themes.
+  await expectNoSeriousViolations(page, "setup-dark");
+  await pinTheme(page, "light");
+  await page.reload();
+  await expect(page.getByRole("heading", { name: CLAIM_HEADING })).toBeVisible();
+  await expectNoSeriousViolations(page, "setup-light", { theme: "light" });
 
   // A sign-in that bounces back with `?error=` shows its notice, and the query is dropped so
   // a refresh doesn't show it again. (`instance_claimed` can't land here: once claimed, this
