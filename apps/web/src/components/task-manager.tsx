@@ -12,7 +12,7 @@ import { Check, ChevronDown, Focus, MoreHorizontal, Pause, Play, Trash2 } from "
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button, destructiveIconButton } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -684,7 +684,10 @@ function TaskRowControls({
         disabled={removing}
         focusableWhenDisabled
         aria-label={`Remove "${task.text}"`}
-        className="relative text-destructive after:absolute after:-inset-2 hover:bg-destructive/10 hover:text-destructive pointer-coarse:hidden"
+        className={cn(
+          "relative after:absolute after:-inset-2 pointer-coarse:hidden",
+          destructiveIconButton,
+        )}
       >
         <Trash2 className="size-3" />
       </Button>
