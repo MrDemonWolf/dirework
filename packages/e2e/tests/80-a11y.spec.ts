@@ -68,51 +68,129 @@ async function ensureTask(page: Page): Promise<string> {
 }
 
 /**
- * Every Tab stop on the page must show a focus indicator: an outline, a box-shadow ring, or
- * a border that changes when it gains focus (WCAG 2.4.7). Ring/outline colors are held to
- * ≥ 3:1 against the surfaces they sit on by tokens-contrast.test.ts (1.4.11).
+ * Inspect the focused element: does focusing it paint an indicator it does not have at rest?
+ * Runs in the page. It snapshots the element and its two nearest ancestors (a wrapper that
+ * draws a `focus-within` ring) while focused, blurs, snapshots again, then restores focus
+ * (keyboard modality is kept, so `:focus-visible` comes back and the next Tab continues from
+ * here). An indicator counts only when it is actually painted: an outline with a width and
+ * a non-transparent color, or a box-shadow layer with a non-transparent color and a blur,
+ * spread or offset — a `ring-0` shadow (`0px 0px 0px 0px`) or a transparent one is nothing.
  */
-async function expectVisibleFocusOnEveryStop(page: Page, name: string, maxStops = 120) {
+const inspectFocus = async () => {
+  const el = document.activeElement as HTMLElement | null;
+  if (!el || el === document.body) return null;
+  const frames = () =>
+    new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    );
+  const alpha = (color: string) => {
+    if (!color || color === "transparent") return 0;
+    const slash = /\/\s*([\d.]+)(%?)\s*\)$/.exec(color);
+    if (slash) return Number(slash[1]) / (slash[2] ? 100 : 1);
+    const rgba = /^rgba\(([^)]+)\)$/.exec(color);
+    if (rgba) return Number(rgba[1]?.split(",")[3] ?? 1);
+    return 1;
+  };
+  const COLOR = /(?:rgba?|hsla?|oklch|oklab|lab|lch|color)\([^)]*\)|#[\da-f]{3,8}\b|transparent/i;
+  const paintedShadows = (value: string) =>
+    value === "none" || !value
+      ? []
+      : value
+          .split(/,(?![^(]*\))/)
+          .map((layer) => layer.trim())
+          .filter((layer) => {
+            const color = COLOR.exec(layer)?.[0] ?? "currentcolor";
+            const [x = 0, y = 0, blur = 0, spread = 0] = (
+              layer.replace(color, "").match(/-?[\d.]+px/g) ?? []
+            ).map(Number.parseFloat);
+            return alpha(color) > 0 && (blur > 0 || spread > 0 || x !== 0 || y !== 0);
+          });
+  const snap = (node: HTMLElement) => {
+    const style = getComputedStyle(node);
+    return {
+      outline:
+        style.outlineStyle !== "none" &&
+        Number.parseFloat(style.outlineWidth) > 0 &&
+        alpha(style.outlineColor) > 0
+          ? `${style.outlineStyle} ${style.outlineWidth} ${style.outlineColor}`
+          : "",
+      shadow: paintedShadows(style.boxShadow).join(" | "),
+      border:
+        Number.parseFloat(style.borderTopWidth) > 0 && alpha(style.borderTopColor) > 0
+          ? style.borderTopColor
+          : "",
+    };
+  };
+  const chain = [el, el.parentElement, el.parentElement?.parentElement].filter(
+    (node): node is HTMLElement => node instanceof HTMLElement && node !== document.body,
+  );
+  await frames();
+  const focused = chain.map(snap);
+  el.blur();
+  await frames();
+  const rest = chain.map(snap);
+  el.focus({ preventScroll: true });
+  await frames();
+  const visible = focused.some((f, i) => {
+    const r = rest[i];
+    return (
+      (f.outline !== "" && f.outline !== r?.outline) ||
+      (f.shadow !== "" && f.shadow !== r?.shadow) ||
+      (f.border !== "" && f.border !== r?.border)
+    );
+  });
+  const describe = `${el.tagName.toLowerCase()}[${
+    el.getAttribute("aria-label") ?? el.textContent?.trim().slice(0, 40) ?? ""
+  }]`;
+  const id = `${describe}@${Math.round(el.getBoundingClientRect().top + window.scrollY)}`;
+  return { id, describe, visible };
+};
+
+/** Tab through the page and return every stop that showed no focus indicator. */
+async function stopsWithoutFocusIndicator(page: Page, maxStops = 120) {
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.locator("body").focus();
   const missing: string[] = [];
   const seen = new Set<string>();
   for (let i = 0; i < maxStops; i += 1) {
     await page.keyboard.press("Tab");
-    const stop = await page.evaluate(() => {
-      const el = document.activeElement as HTMLElement | null;
-      if (!el || el === document.body) return null;
-      const focused = getComputedStyle(el);
-      const describe = `${el.tagName.toLowerCase()}[${
-        el.getAttribute("aria-label") ?? el.textContent?.trim().slice(0, 40) ?? ""
-      }]`;
-      const id = `${describe}@${Math.round(el.getBoundingClientRect().top + window.scrollY)}`;
-      const outline =
-        focused.outlineStyle !== "none" && Number.parseFloat(focused.outlineWidth) > 0;
-      const ring = focused.boxShadow !== "none" && focused.boxShadow !== "";
-      // An inner element that draws the ring for a visually hidden control (switch, radio).
-      const within = [...(el.parentElement?.querySelectorAll("*") ?? [])].some((node) => {
-        if (node === el) return false;
-        const style = getComputedStyle(node);
-        return (
-          (style.outlineStyle !== "none" && Number.parseFloat(style.outlineWidth) > 0) ||
-          (style.boxShadow !== "none" && style.boxShadow.includes("0px 0px 0px"))
-        );
-      });
-      const parent = el.parentElement ? getComputedStyle(el.parentElement) : null;
-      const parentRing =
-        parent !== null &&
-        ((parent.outlineStyle !== "none" && Number.parseFloat(parent.outlineWidth) > 0) ||
-          (parent.boxShadow !== "none" && parent.boxShadow !== ""));
-      return { id, describe, visible: outline || ring || parentRing || within };
-    });
-    if (!stop) break;
-    if (seen.has(stop.id)) break;
+    const stop = await page.evaluate(inspectFocus);
+    if (!stop || seen.has(stop.id)) break;
     seen.add(stop.id);
     if (!stop.visible) missing.push(stop.describe);
   }
-  expect(seen.size, `${name}: Tab reached no controls`).toBeGreaterThan(0);
+  return { reached: seen.size, missing };
+}
+
+/**
+ * Every Tab stop on the page must show a focus indicator (WCAG 2.4.7). Ring/outline colors
+ * are held to ≥ 3:1 against the surfaces they sit on by tokens-contrast.test.ts (1.4.11).
+ */
+async function expectVisibleFocusOnEveryStop(page: Page, name: string) {
+  const { reached, missing } = await stopsWithoutFocusIndicator(page);
+  expect(reached, `${name}: Tab reached no controls`).toBeGreaterThan(0);
   expect(missing, `${name}: focused controls without a visible indicator`).toEqual([]);
+}
+
+type OverlayKind = "timer" | "tasks" | "widget";
+
+/**
+ * Wait until an overlay or the bot widget has rendered from its first payload. Before that
+ * (and for a dead token) they render nothing, while <body> already holds the layout's inline
+ * style and Next's scripts, so "body has text" is not a signal.
+ */
+async function waitForOverlay(page: Page, kind: OverlayKind, timeout = 10_000) {
+  if (kind === "timer") {
+    await expect(page.getByRole("img", { name: "Timer progress ring" })).toBeVisible({ timeout });
+    await expect(page.getByText(/^\d{1,2}:\d{2}(:\d{2})?$/).first()).toBeVisible({ timeout });
+  } else if (kind === "tasks") {
+    await expect(
+      page.locator("[data-task-row]").or(page.getByText("No tasks yet")).first(),
+    ).toBeVisible({ timeout });
+  } else {
+    await expect(page.getByRole("main", { name: "DireWork bot widget" })).toBeAttached({ timeout });
+    await expect(page.getByRole("status")).toHaveText(/^DireWork bot: \S/, { timeout });
+  }
 }
 
 test("the home page has no serious accessibility violations, in either theme", async ({ page }) => {
@@ -203,15 +281,14 @@ for (const theme of THEMES) {
       const t = await tokens(page);
       // Overlays and the widget are transparent; OBS composites them over the scene. Scan
       // them over a dark scene, the way they are seen, instead of the browser's white canvas.
-      for (const [path, name] of [
-        [`/overlay/t/${t.timer}`, "timer-overlay"],
-        [`/overlay/l/${t.tasks}`, "tasks-overlay"],
-        [`/bot/${t.bot}`, "bot-widget"],
+      for (const [path, name, kind] of [
+        [`/overlay/t/${t.timer}`, "timer-overlay", "timer"],
+        [`/overlay/l/${t.tasks}`, "tasks-overlay", "tasks"],
+        [`/bot/${t.bot}`, "bot-widget", "widget"],
       ] as const) {
         await page.goto(path);
         await page.addStyleTag({ content: "html{background:#18181b!important}" });
-        // Each renders nothing until its first payload; then text (the widget's is sr-only).
-        await page.waitForFunction(() => (document.body.textContent ?? "").trim().length > 0);
+        await waitForOverlay(page, kind);
         await expectNoSeriousViolations(page, `${name}-${theme}`, { theme: "none" });
       }
       await page.goto(`/bot/${t.bot}?view=dock`);
@@ -250,6 +327,39 @@ test.describe("phone width", () => {
 test.describe("keyboard focus", () => {
   test.beforeEach(async ({ page }) => {
     await signIn(page);
+  });
+
+  test("the focus check rejects an invisible ring and accepts a real one", async ({ page }) => {
+    // `ring-0` (a 0px shadow), a transparent ring and a focus style that only matches the
+    // rest style must all count as no indicator; a 2px ring and an outline count.
+    await page.setContent(`
+      <style>
+        button { border: 0; outline: none; box-shadow: 0 0 0 0 rgb(0 0 0); }
+        #transparent:focus-visible { box-shadow: 0 0 0 2px transparent; }
+        #always { box-shadow: 0 0 0 2px rgb(255 0 0); }
+        #ring:focus-visible { box-shadow: 0 0 0 2px rgb(0 0 255); }
+        #outline:focus-visible { outline: 2px solid rgb(0 0 255); }
+      </style>
+      <button id="ring0">ring-0</button>
+      <button id="transparent">transparent</button>
+      <button id="always">always</button>
+      <button id="ring">ring</button>
+      <button id="outline">outline</button>`);
+    const { reached, missing } = await stopsWithoutFocusIndicator(page);
+    expect(reached).toBe(5);
+    expect(missing).toEqual(["button[ring-0]", "button[transparent]", "button[always]"]);
+  });
+
+  test("the overlay wait does not pass on an overlay that rendered nothing", async ({ page }) => {
+    // A dead token renders nothing, like an overlay whose first payload never arrived, yet
+    // <body> still has text (the layout's inline style, Next's scripts).
+    await page.goto("/overlay/t/not-a-real-token");
+    expect(
+      await page.evaluate(() => (document.body.textContent ?? "").trim().length),
+    ).toBeGreaterThan(0);
+    await expect(waitForOverlay(page, "timer", 3_000)).rejects.toThrow();
+    await page.goto("/overlay/l/not-a-real-token");
+    await expect(waitForOverlay(page, "tasks", 3_000)).rejects.toThrow();
   });
 
   for (const { path, heading, name } of PAGES.slice(0, 3)) {
