@@ -59,7 +59,8 @@ viewers see them. Entirely client-side; it never polls or calls the API.
 
 - Timer / Tasks and the backdrop swatches are `fieldset`s of `aria-pressed` buttons ("Preview
   timer" / "Preview tasks"; "Dark backdrop" …), not radiogroups, which would promise arrow
-  keys they lack.
+  keys they lack. The selected swatch wears `ring-2 ring-ring` at rest, so keyboard focus is
+  a separate 2px `outline-ring` offset 2px (a focus ring would not change a selected swatch).
 - Play/Pause and Close-up carry `aria-pressed`.
 - The canvas `figcaption` says what is on screen (the scene, or which close-up).
 - On coarse pointers the toggles, swatches, Play, Close-up and Show/Hide are at least 44px.

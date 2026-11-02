@@ -108,7 +108,9 @@ function BackdropToggle({ value, onChange }: { value: Backdrop; onChange: (v: Ba
           title={b.label}
           onClick={() => onChange(b.id)}
           className={cn(
-            "size-6 cursor-pointer overflow-hidden rounded-md border transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none pointer-coarse:size-11",
+            // Selected wears the ring at rest, so keyboard focus is a separate offset outline
+            // (a focus ring on the selected swatch changed nothing).
+            "size-6 cursor-pointer overflow-hidden rounded-md border outline-none transition-colors focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:size-11",
             b.swatch,
             value === b.id
               ? "border-primary ring-2 ring-ring"
