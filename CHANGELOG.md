@@ -399,6 +399,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   lucide-react 1.x pin, and Dependabot now bumps the fumadocs packages together.
 
 ### Fixed
+- **`bun run dev` no longer fails with "Cannot deserialize secret without password"** (#225).
+  Local dev now encrypts its saved state with a fixed local password when `ALCHEMY_PASSWORD`
+  is unset; deploys still require the real one. Troubleshooting covers clearing
+  `packages/infra/.alchemy` after changing the password.
+- **`bun run dev` no longer crashes with a miniflare `ERR_VALIDATION` on the rate limiters.**
+  Alchemy 0.94 leaves out the `namespace_id` the local emulator requires, so local dev now
+  runs without the four rate-limit bindings (the limiter fails open, as designed); deploys
+  still attach all four.
 - **Destructive menu items look intentional and pass contrast.** Sign out, Clear done,
   Clear all and Remove stay red in every state: highlighting one (hover or arrow keys) shows a
   light red tint with a deeper (light theme) or brighter (dark theme) red label, at least

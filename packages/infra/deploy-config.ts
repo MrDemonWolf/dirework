@@ -55,6 +55,28 @@ export function resolveDevLoginSecret(
 }
 
 /**
+ * Fixed password for Alchemy's LOCAL state only. `bun run dev` keeps state in
+ * packages/infra/.alchemy and encrypts the secrets it records (PROXY_SECRET,
+ * the Twitch keys) with ALCHEMY_PASSWORD; with none set, a later run fails with
+ * "Cannot deserialize secret without password" (#225). The values it guards are
+ * dev-only and the files never leave the machine, so a constant is enough.
+ */
+export const LOCAL_DEV_ALCHEMY_PASSWORD = "dirework-local-dev-state-not-a-real-secret";
+
+/**
+ * Password Alchemy encrypts state secrets with: ALCHEMY_PASSWORD when set (always,
+ * for deploys: productionEnvironmentErrors requires it), else the fixed local one.
+ */
+export function resolveAlchemyPassword(env: DeployEnvironment, isDevelopment: boolean): string {
+  const pinned = env.ALCHEMY_PASSWORD?.trim();
+  if (pinned) return pinned;
+  if (!isDevelopment) {
+    throw new Error("ALCHEMY_PASSWORD is required for production deploys");
+  }
+  return LOCAL_DEV_ALCHEMY_PASSWORD;
+}
+
+/**
  * Shared secret bound to BOTH workers: the web worker HMACs the browser's IP
  * with it when proxying to the api worker, which trusts the forwarded IP for
  * rate-limit keying only when the HMAC verifies (packages/api/src/proxy-identity.ts).

@@ -13,6 +13,7 @@ import {
   COMPATIBILITY_DATE,
   getDevLoginSettings,
   resolveDevLoginSecret,
+  resolveAlchemyPassword,
   resolveProxySecret,
   isCiRun,
   isDevelopmentRun,
@@ -51,6 +52,7 @@ const proxySecret = alchemy.secret(resolveProxySecret(process.env, isDevelopment
 // auth) falls back to the default filesystem state store, which persists fine
 // across local runs.
 const app = await alchemy("dirework", {
+  password: resolveAlchemyPassword(process.env, isDevelopment),
   // Deploy/destroy share one stage everywhere so a local destroy finds a CI
   // deploy's state; local dev keeps Alchemy's per-user default.
   ...(isDevelopment ? {} : { stage: resolveDeployStage(process.env) }),
@@ -117,6 +119,19 @@ const overlayRateLimit = RateLimit({
   simple: { limit: 120, period: 60 },
 });
 
+// Local dev runs without them: alchemy 0.94 builds the miniflare options for a
+// ratelimit binding without its namespace_id, which miniflare 4.20260708 requires,
+// so `bun run dev` crashed with ERR_VALIDATION. The limiter fails open when a
+// binding is absent (apps/server/src/lib/rate-limit.ts), so dev just isn't
+// rate limited; deploys always attach all four (the smoke check requires it).
+// Drop the dev skip once Alchemy passes namespace_id through.
+const rateLimitBindings = {
+  RL_AUTH: authRateLimit,
+  RL_BOT: botRateLimit,
+  RL_TOKEN: tokenVerifyRateLimit,
+  RL_OVERLAY: overlayRateLimit,
+};
+
 // Invocation logs and traces persist full URLs containing bearer tokens or
 // OAuth codes. Collect only the app's redacted console JSON on both workers.
 const observability = {
@@ -141,10 +156,8 @@ export const server = await Worker("server", {
   url: true,
   bindings: {
     DB: db,
-    RL_AUTH: authRateLimit,
-    RL_BOT: botRateLimit,
-    RL_TOKEN: tokenVerifyRateLimit,
-    RL_OVERLAY: overlayRateLimit,
+    // Typed as always present; in local dev the object is empty (see rateLimitBindings).
+    ...(isDevelopment ? ({} as typeof rateLimitBindings) : rateLimitBindings),
     CORS_ORIGIN: alchemy.env.CORS_ORIGIN!,
     BETTER_AUTH_SECRET: alchemy.secret.env.BETTER_AUTH_SECRET!,
     BETTER_AUTH_URL: alchemy.env.BETTER_AUTH_URL!,
