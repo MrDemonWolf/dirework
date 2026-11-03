@@ -25,6 +25,11 @@ Don't have Bun yet? Install it from [bun.sh](https://bun.sh). Update Node.js via
   Give it a minute — later starts are much faster.
 - **Port already in use:** DireWork uses port **3000** (API), **3001** (web app), and
   **4000** (docs). See [Port already in use](#port-already-in-use) below.
+- **"Cannot deserialize secret" or a decryption error:** local dev encrypts its saved state
+  with `ALCHEMY_PASSWORD` when you set one, and with a fixed local password when you
+  don't. If you add, change or remove `ALCHEMY_PASSWORD`, the state saved under the old
+  one can't be read. Delete `packages/infra/.alchemy` (local state only; your deployed
+  instance is not affected) and run `bun run dev` again.
 
 ## Authentication issues
 

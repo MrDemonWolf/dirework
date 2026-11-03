@@ -311,7 +311,10 @@ outage can't make the worker look dead; `/ready` pings D1 and returns 503 when i
 that did not attach (`missingRateLimitBindings` in `apps/server/src/lib/rate-limit.ts` — a
 property check on the env, never a `limit()` call). The status stays 200 either way: the
 limiter fails open by design and readiness must not flap, so the post-deploy smoke check is
-what requires `ok`.
+what requires `ok`. Local `bun run dev` attaches none of them (alchemy 0.94's miniflare mapping
+drops `namespace_id`, which miniflare requires), so dev reports `missing:…` and isn't rate
+limited; it also encrypts local Alchemy state with a fixed password when `ALCHEMY_PASSWORD` is
+unset (`resolveAlchemyPassword` in `packages/infra/deploy-config.ts`, #225).
 
 ## Monorepo Structure
 

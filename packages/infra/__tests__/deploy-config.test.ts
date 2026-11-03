@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   assertProductionEnvironment,
   getDevLoginSettings,
+  LOCAL_DEV_ALCHEMY_PASSWORD,
+  resolveAlchemyPassword,
   resolveDevLoginSecret,
   resolveProxySecret,
   isCiRun,
@@ -190,6 +192,24 @@ describe("resolveDevLoginSecret", () => {
     const b = resolveDevLoginSecret({}, "true");
     expect(a).toHaveLength(36);
     expect(a).not.toBe(b);
+  });
+});
+
+describe("resolveAlchemyPassword", () => {
+  it("uses ALCHEMY_PASSWORD in any mode", () => {
+    expect(resolveAlchemyPassword({ ALCHEMY_PASSWORD: " pinned " }, false)).toBe("pinned");
+    expect(resolveAlchemyPassword({ ALCHEMY_PASSWORD: "pinned" }, true)).toBe("pinned");
+  });
+
+  it("falls back to the same fixed password on every local dev run", () => {
+    expect(resolveAlchemyPassword({}, true)).toBe(LOCAL_DEV_ALCHEMY_PASSWORD);
+    expect(resolveAlchemyPassword({ ALCHEMY_PASSWORD: "  " }, true)).toBe(
+      resolveAlchemyPassword({}, true),
+    );
+  });
+
+  it("refuses to invent one for a production deploy", () => {
+    expect(() => resolveAlchemyPassword({}, false)).toThrow("ALCHEMY_PASSWORD is required");
   });
 });
 
