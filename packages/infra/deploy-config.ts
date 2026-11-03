@@ -77,6 +77,22 @@ export function resolveAlchemyPassword(env: DeployEnvironment, isDevelopment: bo
 }
 
 /**
+ * The api worker's rate-limit bindings for this run: all of them for a deploy, none
+ * for local dev. alchemy 0.94 builds miniflare's ratelimit options without the
+ * namespace_id miniflare 4.20260708 requires, so `bun run dev` crashed with
+ * ERR_VALIDATION. The limiter fails open when a binding is absent
+ * (apps/server/src/lib/rate-limit.ts), so dev just isn't rate limited. Typed as the
+ * full set so the worker's Env keeps them. Drop the dev skip once Alchemy passes
+ * namespace_id through.
+ */
+export function rateLimitBindingsFor<T extends Record<string, unknown>>(
+  bindings: T,
+  isDevelopment: boolean,
+): T {
+  return isDevelopment ? ({} as T) : bindings;
+}
+
+/**
  * Shared secret bound to BOTH workers: the web worker HMACs the browser's IP
  * with it when proxying to the api worker, which trusts the forwarded IP for
  * rate-limit keying only when the HMAC verifies (packages/api/src/proxy-identity.ts).

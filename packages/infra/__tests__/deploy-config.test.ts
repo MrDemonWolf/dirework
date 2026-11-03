@@ -1,9 +1,12 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
   assertProductionEnvironment,
   getDevLoginSettings,
   LOCAL_DEV_ALCHEMY_PASSWORD,
+  rateLimitBindingsFor,
   resolveAlchemyPassword,
   resolveDevLoginSecret,
   resolveProxySecret,
@@ -192,6 +195,36 @@ describe("resolveDevLoginSecret", () => {
     const b = resolveDevLoginSecret({}, "true");
     expect(a).toHaveLength(36);
     expect(a).not.toBe(b);
+  });
+});
+
+describe("rateLimitBindingsFor", () => {
+  const bindings = {
+    RL_AUTH: { id: 1 },
+    RL_BOT: { id: 2 },
+    RL_TOKEN: { id: 3 },
+    RL_OVERLAY: { id: 4 },
+  };
+
+  it("attaches every rate limiter to a deploy", () => {
+    expect(rateLimitBindingsFor(bindings, false)).toBe(bindings);
+  });
+
+  it("attaches none in local dev, where alchemy 0.94 can't hand them to miniflare", () => {
+    expect(rateLimitBindingsFor(bindings, true)).toEqual({});
+  });
+});
+
+describe("alchemy.run.ts", () => {
+  const source = readFileSync(resolve(import.meta.dirname, "../alchemy.run.ts"), "utf8");
+
+  it("binds the rate limiters only through rateLimitBindingsFor", () => {
+    expect(source).toContain("...rateLimitBindingsFor(rateLimitBindings, isDevelopment)");
+    expect(source.match(/RL_(AUTH|BOT|TOKEN|OVERLAY):/g)).toHaveLength(4);
+  });
+
+  it("always passes an explicit Alchemy state password", () => {
+    expect(source).toContain("password: resolveAlchemyPassword(process.env, isDevelopment)");
   });
 });
 
