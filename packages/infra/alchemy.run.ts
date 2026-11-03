@@ -13,6 +13,7 @@ import {
   COMPATIBILITY_DATE,
   getDevLoginSettings,
   resolveDevLoginSecret,
+  rateLimitBindingsFor,
   resolveAlchemyPassword,
   resolveProxySecret,
   isCiRun,
@@ -119,12 +120,8 @@ const overlayRateLimit = RateLimit({
   simple: { limit: 120, period: 60 },
 });
 
-// Local dev runs without them: alchemy 0.94 builds the miniflare options for a
-// ratelimit binding without its namespace_id, which miniflare 4.20260708 requires,
-// so `bun run dev` crashed with ERR_VALIDATION. The limiter fails open when a
-// binding is absent (apps/server/src/lib/rate-limit.ts), so dev just isn't
-// rate limited; deploys always attach all four (the smoke check requires it).
-// Drop the dev skip once Alchemy passes namespace_id through.
+// Local dev attaches none of them (rateLimitBindingsFor explains why); deploys
+// always attach all four, and the smoke check requires it.
 const rateLimitBindings = {
   RL_AUTH: authRateLimit,
   RL_BOT: botRateLimit,
@@ -156,8 +153,7 @@ export const server = await Worker("server", {
   url: true,
   bindings: {
     DB: db,
-    // Typed as always present; in local dev the object is empty (see rateLimitBindings).
-    ...(isDevelopment ? ({} as typeof rateLimitBindings) : rateLimitBindings),
+    ...rateLimitBindingsFor(rateLimitBindings, isDevelopment),
     CORS_ORIGIN: alchemy.env.CORS_ORIGIN!,
     BETTER_AUTH_SECRET: alchemy.secret.env.BETTER_AUTH_SECRET!,
     BETTER_AUTH_URL: alchemy.env.BETTER_AUTH_URL!,
