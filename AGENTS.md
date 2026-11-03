@@ -21,7 +21,7 @@ This file provides guidance for coding agents working on the Dirework codebase.
 - Design system (tokens → generated CSS for app + docs, one spec per component, enforced by `spec-catalog.test.ts`) → `design-system/` (README; color contrast levels per pairing → `design-system/contrast.md`), docs `apps/fumadocs/content/docs/design-system.mdx`; drift check `bun run tokens && git diff --exit-code`
 - Which Cloudflare services to use beyond Workers + D1 (KV, Durable Objects, Queues, Cron, …) → `docs/decisions/0001-cloudflare-services.md`
 - PR review checklist (Codex + humans; free-tier cost rules) → `## Code Review Rules` below
-- Owner to-dos (secrets move, Codex auto-review) + product backlog → `TODO.md`
+- Owner to-dos (Codex auto-review) + product backlog → `TODO.md`
 
 ## Project Overview
 
@@ -1215,9 +1215,10 @@ components (`apps/web/src/components/icons/`, `apps/fumadocs/src/components/icon
   **Deploy runs under Node via the lockfile-pinned local `tsx`
   (`node ./node_modules/.bin/tsx`) — Bun segfaults on the Alchemy program** (same lesson
   as Wolfathon), and `npx -y` would fetch an unpinned tsx at deploy time.
-  The deploy job runs in the `production` GitHub environment, and the deploy secrets
-  belong there (environment secrets, not repository secrets) so only that job can read
-  them. Secrets: `CLOUDFLARE_API_TOKEN`, `ALCHEMY_PASSWORD`, `ALCHEMY_STATE_TOKEN` (**shared
+  The deploy job runs in the `production` GitHub environment. Its secrets may be
+  environment or repository secrets (an environment secret wins); this instance keeps them
+  at repository level by the owner's choice, so don't propose moving them.
+  Secrets: `CLOUDFLARE_API_TOKEN`, `ALCHEMY_PASSWORD`, `ALCHEMY_STATE_TOKEN` (**shared
   fleet token** — auths the shared account-wide `alchemy-state` store worker; the shared
   token is what makes sharing safe, a per-app token against it is the "token is invalid"
   clash), `BETTER_AUTH_SECRET`, `PROXY_SECRET` (min 32 chars; signs the forwarded client
