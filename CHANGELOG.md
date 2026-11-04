@@ -176,6 +176,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hover that could never happen.
 
 ### Changed
+- **AAA link text on app and docs surfaces.** A slightly darker light-mode blue (`#004abb`)
+  and lighter dark-mode blue (`#6bb0ff`) bring links to at least 7:1 on page, card, muted,
+  and inline-code backgrounds. Primary button fills keep their existing colors.
 - **Higher-contrast app palette (WCAG AAA where it keeps the look).** Body, muted and link
   text now clear 7:1 (AAA) on every surface in both themes: muted text is a touch lighter on
   dark (`#b3b3bc`) and darker on light (`#4f4f57`), links are `#68acff` on dark and a deeper

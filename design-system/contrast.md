@@ -5,7 +5,8 @@ chosen for it. `apps/web/src/lib/__tests__/tokens-contrast.test.ts` recomputes e
 `tokens.json` and fails when a pairing drops below its level, so a palette edit can't quietly
 regress one. The OBS overlays, the bot dock (`color.obs`) and the docs site have their own
 palettes and checks (`theme-contrast.test.ts` for the overlay presets, `obs-contrast.test.ts` for
-the dock, the e2e spec `85-docs-a11y` for the docs); this file covers the app UI only.
+the dock, the e2e spec `85-docs-a11y` for the docs); this file covers the app UI and the
+shared link token on docs inline-code backgrounds.
 
 ## Levels
 
@@ -31,9 +32,10 @@ draws it.
 | Muted text on muted / accent / secondary | 8.1 / 7.2 / 7.6 | 7.4 / 7.0 / 7.1 | AAA / AAA |
 | Idle status chip, input placeholder, save bar hint | 8.4, 7.6, 9.3 | 7.7, 7.0, 7.9 | AAA / AAA |
 | Muted text in a destructive callout | 7.8 | 6.8 | AAA tested at AA |
-| Link on background / card / popover | 8.3 / 7.8 / 7.5 | 7.1 / 7.4 / 7.4 | AAA / AAA |
-| Link on muted | 7.2 | 6.7 | AAA / AA |
-| Link on the `primary/10` tint (active nav, accent chip) | 7.7, 7.1 | 6.1, 6.4 | AAA / AA |
+| Link on background / card / popover | 8.61 / 8.03 / 7.72 | 7.46 / 7.79 / 7.79 | AAA / AAA |
+| Link on muted | 7.41 | 7.03 | AAA / AAA |
+| Link on docs inline code (`muted/70` over background / card) | 7.82 / 7.60 | 7.16 / 7.26 | AAA / AAA |
+| Link on the `primary/10` tint (active nav, accent chip) | 7.98, 7.35 | 6.46, 6.73 | AAA / AA |
 | White on `--primary` (buttons) | 4.6 | 5.7 | AA / AA |
 | White on `primary/90` (button hover) | 5.4 | 4.8 | AA / AA |
 | White on Twitch purple `#9146FF` / hover | 4.6 / 5.8 | same | AA / AA |
@@ -60,10 +62,12 @@ draws it.
 - **Muted text is AAA in both themes.** Dark `#b3b3bc` (was zinc-400 `#a1a1aa`) and light
   `#4f4f57` (was `#5f5f68`) clear 7:1 on every surface, including the hover and secondary
   fills, and still sit well apart from the foreground, so the hierarchy holds.
-- **Links are AAA on every plain surface.** Dark `#68acff` (was `#4f99f9`), light `#004ebf`
-  (was `#155ed0`): a slightly lighter blue on near-black and a deeper royal blue on white,
-  still one accent and not navy. Light-mode links on tints stay AA (6.1+): a 7:1 there would
-  need a near-navy.
+- **Links are AAA on every plain surface and docs inline code.** Dark `#6bb0ff` (was
+  `#68acff`), light `#004abb` (was `#004ebf`): a slightly lighter blue on near-black and a
+  slightly darker blue on white, with the same oklch hue and chroma. The light muted surface
+  now clears 7:1, as does the docs' `muted/70` inline-code background over the page or a card.
+  Light-mode links on primary tints stay AA (6.46+). Blue fills and focus rings keep their
+  existing values.
 - **Blue fills stay AA.** White on `--primary` needs a much darker blue to reach 7:1, which
   reads navy and loses the accent. Light `--primary` moved to `#105fd9` (was `#1866e0`) so the
   `hover:bg-primary/90` state, which failed at 4.42:1, now passes at 4.8.
