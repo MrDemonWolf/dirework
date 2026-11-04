@@ -412,7 +412,12 @@ test.describe("keyboard focus", () => {
     // text color), not the blue ring.
     const reset = page.getByRole("button", { name: "Reset Tasks overlay URL" });
     await reset.focus();
-    const colors = await reset.evaluate((el) => {
+    // Button's `transition-all` still runs under reduced motion (index.css cuts it to
+    // 0.01ms, not off), and a transition only advances on an animation frame: a read in
+    // the same task as focus() sees its start value, the transparent border interpolated
+    // to `oklab(0 0 0 / 0)`. Let the element's transitions finish before reading.
+    const colors = await reset.evaluate(async (el) => {
+      await Promise.all(el.getAnimations().map((animation) => animation.finished));
       const s = getComputedStyle(el);
       return { border: s.borderTopColor, text: s.color, visible: el.matches(":focus-visible") };
     });
