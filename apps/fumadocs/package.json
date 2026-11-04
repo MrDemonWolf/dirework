@@ -28,7 +28,7 @@
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "postcss": "^8.5.25",
+    "postcss": "^8.5.32",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
     "wrangler": "catalog:"
