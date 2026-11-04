@@ -793,8 +793,8 @@ Montserrat (display, tabular-nums timer digits), IBM Plex Sans (body), IBM Plex 
 (labels/tokens/status). Near-black zinc surfaces with no color cast (background
 `#0c0c0e`, cards `#151518`, muted text `#b3b3bc` dark / `#4f4f57` light), one standard blue accent:
 `--primary` (`#236fea` dark / `#105fd9` light) is the FILL behind white labels, and
-`--link` (`#68acff` dark / `#004ebf` light) is the TEXT form (links, icons, active nav,
-focus ring). Use `text-link`, never `text-primary`: no blue works both under
+`--link` (`#6bb0ff` dark / `#004abb` light) is the TEXT form (links, icons, active nav);
+focus rings use `--ring`. Use `text-link`, never `text-primary`: no blue works both under
 white text and as text on near-black. Contrast: body, muted and link text are AAA (7:1) on
 every plain surface in both themes, as are the dark status tones; white on the blue and
 Twitch fills, red and the light status tones are AA (4.5:1, chips ≥ 5:1); input borders,

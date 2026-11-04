@@ -66,14 +66,14 @@ A conventional neutral dark UI (GitHub / Vercel / Linear style), dark-first with
 | `--foreground` | `#ededef` | `#18181b` |
 | `--muted-foreground` | `#b3b3bc` | `#4f4f57` |
 | `--primary` (fill, white label) | `#236fea` | `#105fd9` |
-| `--link` (accent as text; dark `--ring`) | `#68acff` | `#004ebf` |
+| `--link` (accent as text) | `#6bb0ff` | `#004abb` |
 | `--success` | `#41ce90` | `#007343` |
 | `--warning` | `#f7b83d` | `#945500` |
 | `--destructive` | `#f75d59` | `#c40e22` |
 | `--cornflower` | `#9babfd` | `#4b53c2` |
 | `--border` / `--input` / `--hairline` | text at 12% / 20% / 8% | text at 14% / 24% / 10% |
 
-- **Two blues, on purpose.** No single blue clears 4.5:1 both under a white label and as text on near-black, so `--primary` is the fill (buttons, avatar, checked states; white `primary-foreground`) and `--link` is the lighter text form (links, icons, active nav, chips, focus ring). Write `text-link`, never `text-primary`.
+- **Two blues, on purpose.** No single blue clears 4.5:1 both under a white label and as text on near-black, so `--primary` is the fill (buttons, avatar, checked states; white `primary-foreground`) and `--link` is the text form (links, icons, active nav, chips). Focus rings use `--ring`. Write `text-link`, never `text-primary`.
 - **AAA where it keeps the look, AA everywhere.** Body, muted and link text clear 7:1 on every plain surface in both themes; dark status tones too. White on the blue and Twitch fills, red, and the light status tones stay AA (4.5:1), because their 7:1 versions read navy, salmon, maroon or muddy. Controls, the focus ring and chart marks clear 3:1. `contrast.md` lists every pairing, its ratio and why it sits at its level.
 - **Borders are translucent text color**, so they read on every surface: `--input` is heavier than `--border`; `--hairline` is the decorative rule the docs use for `--color-fd-border` and `--sidebar-border`.
 

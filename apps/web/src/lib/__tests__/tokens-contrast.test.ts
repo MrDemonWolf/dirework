@@ -182,14 +182,19 @@ const PAIRINGS: Pairing[] = [
     on: ["card", "destructive/10"],
     level: "AA",
   },
-  // Link: the accent as text. AAA on the plain surfaces; light keeps AA on tints and muted.
-  ...(["background", "card", "popover"] as const).map((s) => ({
+  // Link: AAA on plain surfaces and docs inline code; light keeps AA on primary tints.
+  ...SURFACES.map((s) => ({
     use: `link on ${s}`,
     fg: "link",
     on: [s],
     level: "AAA" as const,
   })),
-  { use: "link on muted", fg: "link", on: ["muted"], level: ["AAA", "AA"] },
+  ...(["background", "card"] as const).map((s) => ({
+    use: `link on docs inline code over ${s} (muted/70)`,
+    fg: "link",
+    on: [s, "muted/70"],
+    level: "AAA" as const,
+  })),
   {
     use: "active nav (primary/10 tint)",
     fg: "link",
