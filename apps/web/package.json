@@ -42,7 +42,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",
     "@tailwindcss/postcss": "catalog:",
-    "@tanstack/react-query-devtools": "^5.101.4",
+    "@tanstack/react-query-devtools": "^5.105.0",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
