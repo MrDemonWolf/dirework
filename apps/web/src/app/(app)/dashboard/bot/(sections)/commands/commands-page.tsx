@@ -12,6 +12,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 
 import { type AliasRow, aliasesByTarget, aliasesToRows, rowsToAliases } from "@/lib/alias-rows";
+import { applyConfigResult, botSettingsSaved } from "@/lib/config-cache";
 import { metaCommands, taskCommands, timerCommands } from "@/lib/command-rows";
 import {
   type CommandGroup,
@@ -97,7 +98,7 @@ function CommandGroupCard({
  * Alias rows are seeded in STATE from the config this mounts with (streamed by the (sections)
  * layout; `BotSection` mounts this only once it has data): the saved aliases land in the
  * server HTML. A
- * refetch (after Save, or a switch flip) re-renders with new props but touches no state, so
+ * config update (Save or a switch flip merging its answer into the cache) re-renders with new props but touches no state, so
  * alias edits in progress survive it.
  */
 function CommandsEditor({ config }: { config: BotConfigData }) {
@@ -109,9 +110,9 @@ function CommandsEditor({ config }: { config: BotConfigData }) {
 
   const save = useMutation({
     ...trpc.config.updateBotSettings.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
-    },
+    // The answer is the stored bot config: merged into config.get, never re-read.
+    onSuccess: (saved, sent) =>
+      applyConfigResult(queryClient, trpc.config.get.queryKey(), botSettingsSaved(saved, sent)),
     onError: (err) => {
       toast.error(`Couldn't save aliases: ${formatMutationError(err)}`);
     },

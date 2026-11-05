@@ -24,6 +24,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { DASHBOARD_TIMER_QUERY_OPTS } from "@/lib/poll-intervals";
 import { formatSessionSummary } from "@/lib/session-summary";
+import { applyConfigResult, timerConfigSaved } from "@/lib/config-cache";
 import { applyTimerResult } from "@/lib/timer-cache";
 import { type TimerState, clockEm, formatClock, resolvePhaseDuration } from "@/lib/timer-utils";
 import { useTimerCountdown } from "@/lib/use-timer-countdown";
@@ -182,11 +183,16 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 
   const updateTimerConfig = useMutation({
     ...trpc.config.updateTimerConfig.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
+    onSuccess: (timerConfig) => {
       // Blur-autosave needs visible confirmation — Styles/Bot get a Save bar,
       // this surface's only feedback is the toast.
       toast.success("Timer settings saved");
+      // The answer is the saved timer config: merged into config.get, never re-read.
+      return applyConfigResult(
+        queryClient,
+        trpc.config.get.queryKey(),
+        timerConfigSaved(timerConfig),
+      );
     },
     onError: (err) => {
       toast.error(`Couldn't save timer settings: ${describeTrpcError(err)}`);
@@ -194,8 +200,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   });
 
   // Fallback seeding for a config that arrives after mount (no hydrated cache).
-  // Seed the fields from the saved config exactly once: later config refetches
-  // (e.g. after a save) must not clobber what the owner is typing.
+  // Seed the fields from the saved config exactly once: later config updates
+  // (e.g. a save's merged answer) must not clobber what the owner is typing.
   useEffect(() => {
     if (!config.data || configLoaded) return;
     const tc = config.data.timerConfig;

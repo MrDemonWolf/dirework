@@ -18,6 +18,7 @@ import type {
   PhaseLabelsConfig,
   ThemePreset,
 } from "@/lib/config-types";
+import { applyConfigResult, stylesSaved } from "@/lib/config-cache";
 import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
 import {
   defaultTimerStyles,
@@ -94,7 +95,7 @@ export default function StylesPage() {
  * has landed, so the data is already in the cache when this first renders, and seeding here
  * puts the saved theme in the server HTML instead of painting (and serving) a frame of
  * defaults that an effect then swaps out — an edit landing during that swap was appended to
- * the saved value. A refetch (the post-save invalidation) re-renders with new props but
+ * the saved value. A config update (the save's answer merged into the cache) re-renders with new props but
  * touches no state, so edits in progress survive it.
  */
 function StylesEditor({ config }: { config: ConfigData }) {
@@ -131,9 +132,9 @@ function StylesEditor({ config }: { config: ConfigData }) {
   // used to be three independent requests that could persist partially.
   const saveStylesMutation = useMutation({
     ...trpc.config.updateStyles.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
-    },
+    // The answer is what the save stored: merged into config.get, never re-read.
+    onSuccess: (saved) =>
+      applyConfigResult(queryClient, trpc.config.get.queryKey(), stylesSaved(saved)),
     onError: (err) => {
       toast.error(`Couldn't save styles: ${formatMutationError(err)}`);
     },

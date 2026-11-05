@@ -24,7 +24,8 @@ export type BotUserData = NonNullable<inferRouterOutputs<AppRouter>["user"]["me"
  * `refetchOnMount: false`: the layout hydrates both queries once per visit, and every
  * sub-page switch mounts its cards' observers afresh. Past `QUERY_FRESH_MS` a mount would
  * refetch, so a page switch would start costing api requests. A query with no data still
- * loads on mount (after a failed stream), and invalidations after a save still refetch.
+ * loads on mount (after a failed stream), and a block or unblock's invalidation still refetches
+ * (a save merges its answer into the cache instead, lib/config-cache.ts).
  */
 const configOptions = () => ({ ...trpc.config.get.queryOptions(), refetchOnMount: false });
 const userOptions = () => ({ ...trpc.user.me.queryOptions(), refetchOnMount: false });

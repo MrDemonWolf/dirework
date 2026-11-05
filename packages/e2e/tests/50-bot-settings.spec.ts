@@ -1,6 +1,39 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page, type Request } from "@playwright/test";
 
 import { confirmDialog, signIn, waitForHydration } from "./helpers";
+
+/** The procedures one dashboard `/rpc` call carries (`/rpc/config.get,user.me` → both). */
+function rpcProcedures(url: string): string[] {
+  const { pathname } = new URL(url);
+  return pathname.startsWith("/rpc/") ? pathname.slice("/rpc/".length).split(",") : [];
+}
+
+/**
+ * Count what one config save costs: the `/rpc` calls that carry `procedure`, and every
+ * `config.get` read that completed after it. The page merges the save's answer into its cache
+ * (lib/config-cache.ts) instead of re-reading the config. Call `settle` once the page shows
+ * the answer.
+ */
+function watchConfigSave(page: Page, procedure: string) {
+  const calls: string[] = [];
+  const reads: Request[] = [];
+  const onRequest = (request: Request) => {
+    const procedures = rpcProcedures(request.url());
+    if (procedures.includes(procedure)) calls.push(request.url());
+    if (procedures.includes("config.get")) reads.push(request);
+  };
+  page.on("request", onRequest);
+  return {
+    async settle() {
+      await page.waitForTimeout(1000);
+      page.off("request", onRequest);
+      return {
+        calls: calls.length,
+        rereads: reads.filter((read) => read.failure() === null).map((read) => read.url()),
+      };
+    },
+  };
+}
 
 test("edits a reply, previews it as chat would show it, saves, and resets it", async ({ page }) => {
   await signIn(page);
@@ -131,8 +164,13 @@ test("a command group switch saves the moment it flips", async ({ page }) => {
   const timer = page.getByRole("switch", { name: "Timer commands" });
   // Put it back afterwards, so a retry starts from the same state.
   const before = await timer.isChecked();
+  // One request: the save's answer lands in the cache, with no config.get re-read.
+  const saving = watchConfigSave(page, "config.updateBotSettings");
   await timer.click();
   await expect(page.getByText(`Timer commands ${before ? "off" : "on"}`)).toBeVisible();
+  await expect(timer).toBeChecked({ checked: !before });
+  await expect(timer).toBeEnabled();
+  expect(await saving.settle()).toEqual({ calls: 1, rereads: [] });
   // No Save bar: the switch is not a draft.
   await expect(page.getByRole("button", { name: "Save changes" })).toHaveCount(0);
 
