@@ -1060,7 +1060,11 @@ existing home and reuse it:
 - **UI primitives** — `apps/web/src/components/ui/` (button, card, alert-dialog, input,
   label, select, tabs, tooltip, switch, slider, dropdown-menu, collapsible, skeleton,
   sonner, callout). Reuse these instead of hand-rolling markup; add a primitive here when a pattern
-  repeats (e.g. a destructive callout) rather than copy-pasting it.
+  repeats (e.g. a destructive callout) rather than copy-pasting it. `ui/button.tsx` also exports
+  the class recipes for controls that aren't a `Button`: `linkVariants` (`prose`: underlined
+  `text-link` inside copy; `quiet`: the Footer Convention) and `focusRing` (the keyboard ring for
+  hand-rolled triggers, chips and links); `link-focus-recipes.test.ts` fails on a hand-typed
+  `focus-visible:ring-2` or prose-link string outside `ui/`.
 - **Shared components** — `confirm-dialog`, `save-bar` (takes `blockedReason` to disable
   Save when the server's input schema would reject the payload), `status-chip`,
   `unsaved-changes-guard`, `auto-scale`, `loader`, `query-error`
@@ -1225,7 +1229,7 @@ shows them) and the dock; the open states — account menu opened from the keybo
 item focused), Task board options, a row's ⋯ menu, the Clear all confirm, Theme options,
 the unsaved-changes guard, the side live preview; every page plus the open hamburger nav at
 Pixel 7 width (inside the `chromium` project); that every Tab stop on the dashboard, Theme
-Center and Bot overview shows a focus indicator (outline or ring; ring colors are held to ≥
+Center and the Bot Overview, Commands and Replies pages shows a focus indicator (outline or ring; ring colors are held to ≥
 3:1 by `tokens-contrast.test.ts`); and that reduced motion leaves no animation running.
 `/setup` is scanned (both themes) in `00-first-run`, the only spec that sees it. No page
 skips a rule (the Bot settings usage lines that once measured 4.37:1 are full
@@ -1530,7 +1534,7 @@ generated files (`apps/web/public/fonts/*`, migration snapshots, `wrangler.jsonc
 
 Both the web app and docs site use the same footer format:
 `© {year} DireWork by MrDemonWolf, Inc.` — both names are links (no underline,
-font-medium, hover highlight). "DireWork" → GitHub repo, "MrDemonWolf, Inc." →
+font-medium, hover highlight; in the web app that is `linkVariants({ variant: "quiet" })`). "DireWork" → GitHub repo, "MrDemonWolf, Inc." →
 mrdemonwolf.com.
 
 - Web app: inline in `apps/web/src/app/(app)/layout.tsx`

@@ -36,6 +36,7 @@ draws it.
 | Link on muted | 7.41 | 7.03 | AAA / AAA |
 | Link on docs inline code (`muted/70` over background / card) | 7.82 / 7.60 | 7.16 / 7.26 | AAA / AAA |
 | Link on the `primary/10` tint (active nav, accent chip) | 7.98, 7.35 | 6.46, 6.73 | AAA / AA |
+| Link in the destructive callout (`destructive/10` over background; sign-in notice) | 7.81 | 6.27 | AAA / AA |
 | White on `--primary` (buttons) | 4.6 | 5.7 | AA / AA |
 | White on `primary/90` (button hover) | 5.4 | 4.8 | AA / AA |
 | White on Twitch purple `#9146FF` / hover | 4.6 / 5.8 | same | AA / AA |
@@ -66,7 +67,7 @@ draws it.
   `#68acff`), light `#004abb` (was `#004ebf`): a slightly lighter blue on near-black and a
   slightly darker blue on white, with the same oklch hue and chroma. The light muted surface
   now clears 7:1, as does the docs' `muted/70` inline-code background over the page or a card.
-  Light-mode links on primary tints stay AA (6.46+). Blue fills and focus rings keep their
+  Light-mode links on primary tints and the destructive callout tint stay AA (6.27+). Blue fills and focus rings keep their
   existing values.
 - **Blue fills stay AA.** White on `--primary` needs a much darker blue to reach 7:1, which
   reads navy and loses the accent. Light `--primary` moved to `#105fd9` (was `#1866e0`) so the

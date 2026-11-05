@@ -9,6 +9,7 @@ import type { LandingLinks } from "@/lib/landing-links";
 import type { SignInError } from "@/lib/sign-in-errors";
 import { DevLoginButton } from "@/components/dev-login-button";
 import { StreamScene } from "@/components/stream-scene";
+import { linkVariants } from "@/components/ui/button";
 import { SignInNotice } from "../sign-in-notice";
 import { ClaimButton } from "./claim-button";
 
@@ -40,9 +41,6 @@ export const AFTER_CLAIM_STEPS = [
   },
 ] as const;
 
-const inlineLink =
-  "font-medium text-foreground underline underline-offset-4 hover:text-link focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
-
 export default function SetupContent({
   links,
   signInError,
@@ -70,7 +68,10 @@ export default function SetupContent({
           <p className="max-w-xl text-lg text-pretty text-muted-foreground">
             The first Twitch account to sign in here becomes the owner, and nobody else can sign in
             after that. If someone else gets there first, reset the database as the{" "}
-            <a href={`${links.deployGuide}${RECOVERY_ANCHOR}`} className={inlineLink}>
+            <a
+              href={`${links.deployGuide}${RECOVERY_ANCHOR}`}
+              className={linkVariants({ variant: "prose" })}
+            >
               deployment guide
             </a>{" "}
             explains.

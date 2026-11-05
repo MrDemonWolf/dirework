@@ -9,7 +9,9 @@
 import { useEffect } from "react";
 
 import type { SignInError } from "@/lib/sign-in-errors";
+import { linkVariants } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
+import { cn } from "@/lib/utils";
 
 export function SignInNotice({ error, deployUrl }: { error: SignInError; deployUrl: string }) {
   useEffect(() => {
@@ -25,7 +27,7 @@ export function SignInNotice({ error, deployUrl }: { error: SignInError; deployU
       {error.cta && (
         <a
           href={deployUrl}
-          className="mt-1.5 block font-medium text-foreground underline underline-offset-4 hover:text-link focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className={cn("mt-1.5 block w-fit", linkVariants({ variant: "prose" }))}
         >
           {error.cta}
         </a>

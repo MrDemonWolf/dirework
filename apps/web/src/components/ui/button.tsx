@@ -58,6 +58,34 @@ const buttonVariants = cva(
 const destructiveIconButton =
   "text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:border-destructive focus-visible:ring-destructive/40";
 
+/**
+ * Keyboard focus for hand-rolled controls that aren't a `Button` (links, collapsible
+ * triggers, chips, checkboxes, nav tabs): a 2px `--ring` ring in place of the browser
+ * outline. `--ring` clears 3:1 on every surface (tokens-contrast.test.ts), and 80-a11y's
+ * Tab walk requires a visible ring or outline on every stop. Add `ring-inset` (full-bleed
+ * rows), a `ring-offset-*` or `rounded-*` beside it at the call site when needed.
+ */
+const focusRing = "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
+
+/**
+ * Inline text links. `prose`: a link inside a sentence or notice, link-blue (`text-link`,
+ * AAA as text; never `text-primary`, the fill) and always underlined, so it is told apart
+ * from the copy by more than color. `quiet`: AGENTS.md's Footer Convention, no underline,
+ * `font-medium`, a hover highlight to `foreground`, for links in muted chrome.
+ */
+const linkVariants = cva(
+  `rounded-sm font-medium transition-colors motion-reduce:transition-none ${focusRing}`,
+  {
+    variants: {
+      variant: {
+        prose: "text-link underline underline-offset-4 hover:decoration-2",
+        quiet: "hover:text-foreground",
+      },
+    },
+    defaultVariants: { variant: "prose" },
+  },
+);
+
 function Button({
   className,
   variant = "default",
@@ -73,4 +101,4 @@ function Button({
   );
 }
 
-export { Button, buttonVariants, destructiveIconButton };
+export { Button, buttonVariants, destructiveIconButton, focusRing, linkVariants };

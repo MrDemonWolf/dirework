@@ -21,7 +21,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { CountBadge } from "@/components/count-badge";
 import { SectionGroup } from "@/components/section-group";
 import { StatusChip } from "@/components/status-chip";
-import { Button } from "@/components/ui/button";
+import { Button, focusRing } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -293,7 +293,7 @@ export function MessageEditor<T extends object>({
                                       onClick={() => insertVariable(field.key, token)}
                                       disabled={atCap}
                                       aria-label={`Insert ${token}`}
-                                      className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-muted-foreground transition-colors pointer-coarse:min-h-11 pointer-coarse:min-w-11 pointer-coarse:px-2 hover:bg-primary/10 hover:text-link focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+                                      className={`rounded bg-muted px-1 py-0.5 font-mono text-xs text-muted-foreground transition-colors pointer-coarse:min-h-11 pointer-coarse:min-w-11 pointer-coarse:px-2 hover:bg-primary/10 hover:text-link disabled:pointer-events-none disabled:opacity-50 ${focusRing}`}
                                     >
                                       {token}
                                     </button>

@@ -6,7 +6,7 @@ import { Loader2, RotateCcw, Save } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { StatusChip } from "@/components/status-chip";
-import { Button } from "@/components/ui/button";
+import { Button, focusRing } from "@/components/ui/button";
 
 /**
  * Shared sticky save bar — rises from the bottom edge when a page has
@@ -94,7 +94,7 @@ function SaveBarPanel({
                 id="save-bar-blocked"
                 type="button"
                 onClick={onBlockedReasonClick}
-                className="line-clamp-2 rounded text-left text-xs text-destructive underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:truncate"
+                className={`line-clamp-2 rounded text-left text-xs text-destructive underline-offset-2 hover:underline sm:truncate ${focusRing}`}
               >
                 {blockedReason}
               </button>

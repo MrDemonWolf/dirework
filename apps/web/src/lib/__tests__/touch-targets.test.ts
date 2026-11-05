@@ -48,7 +48,7 @@ describe("touch targets", () => {
       /<CollapsibleTrigger[^>]*pointer-coarse:min-h-11/,
     );
     expect(read("components/bot-settings/message-editor.tsx")).toMatch(
-      /aria-label=\{`Insert \$\{token\}`\}\s+className="[^"]*pointer-coarse:min-h-11 pointer-coarse:min-w-11/,
+      /aria-label=\{`Insert \$\{token\}`\}\s+className=\{?["`][^"`]*pointer-coarse:min-h-11 pointer-coarse:min-w-11/,
     );
   });
 

@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 
 import Header from "@/components/header";
 import { ThemeColorSync } from "@/components/theme-color-sync";
+import { linkVariants } from "@/components/ui/button";
 import { VersionBadge } from "@/components/version-badge";
 import { headingFontBodyCss } from "@/lib/heading-font";
 import { getServerSession } from "@/lib/server-session";
@@ -81,7 +82,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 href="https://github.com/mrdemonwolf/dirework"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className={linkVariants({ variant: "quiet" })}
               >
                 DireWork
               </a>{" "}
@@ -90,7 +91,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 href="https://www.mrdemonwolf.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className={linkVariants({ variant: "quiet" })}
               >
                 MrDemonWolf, Inc.
               </a>
@@ -107,7 +108,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   href={privacyPolicyUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className={linkVariants({ variant: "quiet" })}
                 >
                   Privacy Policy
                 </a>
@@ -118,7 +119,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   href={termsOfServiceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className={linkVariants({ variant: "quiet" })}
                 >
                   Terms of Service
                 </a>

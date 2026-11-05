@@ -12,6 +12,7 @@ import {
 import { useRovingGrid } from "@/lib/use-roving-grid";
 import { cn } from "@/lib/utils";
 import { OverlayIcon } from "@/components/overlay-icon";
+import { focusRing } from "@/components/ui/button";
 
 /**
  * A radiogroup of icon swatches with the preset gallery's roving tabindex (`useRovingGrid`):
@@ -76,7 +77,8 @@ export function IconPickerRow({
               onClick={() => onChange(icon)}
               className={cn(
                 "flex h-9 items-center justify-center rounded-md border text-muted-foreground transition-colors pointer-coarse:h-11",
-                "hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                "hover:bg-muted hover:text-foreground",
+                focusRing,
                 checked
                   ? "border-link bg-primary/10 text-foreground"
                   : "border-border bg-transparent",
