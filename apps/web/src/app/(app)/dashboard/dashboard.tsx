@@ -74,11 +74,7 @@ function HeaderBand({ user, status }: { user: SessionUser; status: React.ReactNo
   return (
     <PageHeader
       className="mb-8"
-      kicker={
-        <p className="console-label" suppressHydrationWarning>
-          Console — {getDateStr()}
-        </p>
-      }
+      kicker={`Console — ${getDateStr()}`}
       title={greeting.title}
       description={greeting.subline}
       status={status}

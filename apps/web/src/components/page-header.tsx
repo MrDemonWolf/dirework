@@ -32,7 +32,10 @@ export function PageHeader({
   className,
   suppressHydrationWarning,
 }: {
-  /** Above the title (the dashboard's date line). */
+  /**
+   * Above the title, always as a mono `console-label` line (the dashboard's date). Only where it
+   * adds something: never the page's own name, which the h1 already says.
+   */
   kicker?: ReactNode;
   title: ReactNode;
   description?: ReactNode;
@@ -49,7 +52,11 @@ export function PageHeader({
     <div data-slot="page-header" className={cn(BAND_CLASS, className)}>
       <div className={TITLE_ROW_CLASS}>
         <div className="min-w-0">
-          {kicker && <div className="mb-2">{kicker}</div>}
+          {kicker && (
+            <p className="console-label mb-2" suppressHydrationWarning={suppressHydrationWarning}>
+              {kicker}
+            </p>
+          )}
           <h1 className={PAGE_TITLE_CLASS} suppressHydrationWarning={suppressHydrationWarning}>
             {title}
           </h1>

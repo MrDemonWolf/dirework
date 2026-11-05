@@ -195,7 +195,6 @@ function StylesEditor({ config }: { config: ConfigData }) {
       <div>
         <PageHeader
           className="mb-6"
-          kicker={<ConsoleRule label="Theme Center" />}
           title="Theme Center"
           description="Start from a preset, fine-tune it, and check the preview. Nothing reaches OBS until you save."
           actions={

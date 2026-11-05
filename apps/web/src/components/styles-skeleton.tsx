@@ -19,10 +19,9 @@ export function StylesSkeleton() {
   return (
     <div className="container mx-auto max-w-content px-4 py-8" aria-busy="true">
       <LoadingStatus label="Theme Center" />
-      {/* Header band: rule, title + options button, the subtitle on two lines below md */}
+      {/* Header band: title + options button, the subtitle on two lines below md */}
       <PageHeaderSkeleton
         className="mb-6"
-        kicker
         narrowDescriptionLines={2}
         wrapsBelow="md"
         actions={<Skeleton className="size-9" />}
