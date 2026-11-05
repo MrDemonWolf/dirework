@@ -12,7 +12,8 @@ import { Button, focusRing } from "@/components/ui/button";
  * Shared sticky save bar — rises from the bottom edge when a page has
  * unsaved changes. The warn chip carries the LED dirty-state semantics.
  * On a phone it is two rows (status and reason, then full-width Reset and Save), from `sm`
- * up one; pages keep their own conditional bottom padding while visible (pb-32 sm:pb-24).
+ * up one. While it shows, index.css pads the page by `--save-bar-clearance` (its height), so
+ * pages add no bottom padding of their own.
  */
 export function SaveBar({
   visible,

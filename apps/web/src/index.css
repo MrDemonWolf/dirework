@@ -89,6 +89,13 @@
        covering them. Coarse pointers get the 40px button minimum. */
     --save-bar-clearance: 3.5rem;
   }
+  /* While the SaveBar shows, the page grows by its height (the media queries below raise the
+     clearance with it), so the last field and the footer scroll clear of it. The footer pads
+     its own bottom safe area, which the bar's inset padding matches. One rule for every page
+     with a Save bar; pages add no padding of their own. */
+  body:has([data-save-bar]) {
+    padding-bottom: var(--save-bar-clearance);
+  }
   @media (pointer: coarse) {
     html:has([data-save-bar]) {
       --save-bar-clearance: 4.25rem;

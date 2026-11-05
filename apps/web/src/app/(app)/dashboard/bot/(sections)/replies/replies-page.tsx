@@ -27,7 +27,7 @@ import {
 } from "@/lib/message-fields";
 import { previewVars } from "@/lib/template-preview";
 import { useDraft, useSettingsSave } from "@/lib/use-draft";
-import { cn, isDeepEqual } from "@/lib/utils";
+import { isDeepEqual } from "@/lib/utils";
 import { describeFieldIssues } from "@/lib/validation-errors";
 import { MessageEditor } from "@/components/bot-settings/message-editor";
 import { SaveBar } from "@/components/save-bar";
@@ -133,7 +133,7 @@ function RepliesEditor({ config, user }: { config: BotConfigData; user: BotUserD
     !(tab === "task" ? bot.taskCommandsEnabled : bot.timerCommandsEnabled);
 
   return (
-    <div className={cn(hasUnsaved && "pb-32 sm:pb-24")}>
+    <div>
       <UnsavedChangesGuard dirty={hasUnsaved} />
       <SettingsCard
         title="Replies"

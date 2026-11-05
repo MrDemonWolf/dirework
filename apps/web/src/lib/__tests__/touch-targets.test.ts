@@ -87,6 +87,21 @@ describe("touch targets", () => {
     );
   });
 
+  it("clears a visible Save bar with one page-level rule, not per-page padding", () => {
+    // The page grows by the bar's height while it shows, so the last field and the footer
+    // (which pads its own bottom safe area) scroll clear of it on every breakpoint.
+    expect(read("index.css")).toMatch(
+      /body:has\(\[data-save-bar\]\) \{[^}]*padding-bottom: var\(--save-bar-clearance\);/,
+    );
+    for (const page of [
+      "app/(app)/dashboard/styles/styles-page.tsx",
+      "app/(app)/dashboard/bot/(sections)/replies/replies-page.tsx",
+      "app/(app)/dashboard/bot/(sections)/commands/commands-page.tsx",
+    ]) {
+      expect(read(page), page).not.toMatch(/pb-32|sm:pb-24/);
+    }
+  });
+
   it("offsets toasts by the safe-area insets on both breakpoints", async () => {
     const { TOAST_OFFSET, TOAST_MOBILE_OFFSET } = await import("@/components/app-toaster");
     for (const offset of [TOAST_OFFSET, TOAST_MOBILE_OFFSET]) {

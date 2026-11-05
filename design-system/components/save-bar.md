@@ -12,7 +12,9 @@ Shared sticky "unsaved changes" bar for the Theme Center and the Bot settings Co
 offers Reset and Save. On a phone (below `sm`) it is two rows — the status chip and any
 blocked reason (wrapping to two lines), then Reset and Save sharing the width — and one row
 from `sm` up. `index.css` raises `--save-bar-clearance` (toasts) and `scroll-padding-bottom`
-to match the taller phone bar; pages pad `pb-32 sm:pb-24` while it shows.
+to match the taller phone bar, and one `body:has([data-save-bar])` rule pads the page by
+`--save-bar-clearance` while it shows, so the last field and the footer scroll clear of it;
+pages add no bottom padding of their own.
 
 ## Anatomy
 

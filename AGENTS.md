@@ -1090,7 +1090,8 @@ their commands (`TASK_/TIMER_MESSAGE_GROUP_COMMANDS` in `lib/message-fields.ts`,
 by the filter); its Save bar sends only `{ task, timer }` → "Replies saved"), **Moderation**
 (`moderation/`: `BlockedViewersCard`, filter past `BLOCKED_FILTER_THRESHOLD`). Below `sm` the
 `SaveBar` is two rows (status, then full-width Reset / Save); `index.css` raises
-`--save-bar-clearance` to match and pages pad `pb-32 sm:pb-24`.
+`--save-bar-clearance` to match, and one `body:has([data-save-bar])` rule pads the page by
+that clearance while the bar shows (pages add no bottom padding of their own).
 `config.updateBotSettings` takes any non-empty subset (`definedValues`, like `updateStyles`), so
 a page never writes another page's draft. Each page with a draft mounts its own
 `UnsavedChangesGuard`, which also guards the sub-nav links.

@@ -17,7 +17,6 @@ import {
   useCommandGroupSwitch,
 } from "@/lib/use-command-group-switch";
 import { useDraft, useSettingsSave } from "@/lib/use-draft";
-import { cn } from "@/lib/utils";
 import { CommandAliasEditor } from "@/components/bot-settings/command-alias-editor";
 import { CommandTable } from "@/components/bot-settings/command-table";
 import { SaveBar } from "@/components/save-bar";
@@ -145,7 +144,7 @@ function CommandsEditor({ config }: { config: BotConfigData }) {
   };
 
   return (
-    <div className={cn("space-y-6", dirty && "pb-32 sm:pb-24")}>
+    <div className="space-y-6">
       <UnsavedChangesGuard dirty={dirty} />
 
       <CommandGroupCard group="task" enabled={bot.taskCommandsEnabled} aliases={aliases} />

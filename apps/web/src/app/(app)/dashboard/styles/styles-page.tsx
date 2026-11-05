@@ -26,7 +26,6 @@ import {
   themePresets,
 } from "@/lib/theme-presets";
 import { useDraft, useSettingsSave } from "@/lib/use-draft";
-import { cn } from "@/lib/utils";
 import { describeIssues } from "@/lib/validation-errors";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ConsoleRule } from "@/components/console-rule";
@@ -186,9 +185,7 @@ function StylesEditor({ config }: { config: ConfigData }) {
   const handleSave = () => save(payload, payload, blockedReason);
 
   return (
-    <div
-      className={cn("container mx-auto max-w-content px-4 py-8", hasUnsaved && "pb-32 sm:pb-24")}
-    >
+    <div className="container mx-auto max-w-content px-4 py-8">
       <UnsavedChangesGuard dirty={hasUnsaved} />
 
       {/* No entrance animation: the page arrives finished (the route holds the shell for its
