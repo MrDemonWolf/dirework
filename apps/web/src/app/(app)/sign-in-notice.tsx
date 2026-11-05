@@ -27,7 +27,7 @@ export function SignInNotice({ error, deployUrl }: { error: SignInError; deployU
       {error.cta && (
         <a
           href={deployUrl}
-          className={cn("mt-1.5 block w-fit", linkVariants({ variant: "prose" }))}
+          className={cn("mt-1.5 block w-fit", linkVariants({ variant: "proseOnTint" }))}
         >
           {error.cta}
         </a>

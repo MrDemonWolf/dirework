@@ -70,8 +70,10 @@ const focusRing = "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ou
 /**
  * Inline text links. `prose`: a link inside a sentence or notice, link-blue (`text-link`,
  * AAA as text; never `text-primary`, the fill) and always underlined, so it is told apart
- * from the copy by more than color. `quiet`: AGENTS.md's Footer Convention, no underline,
- * `font-medium`, a hover highlight to `foreground`, for links in muted chrome.
+ * from the copy by more than color. `proseOnTint`: the same underlined link in `foreground`,
+ * for a link on a tinted box (the destructive Callout), where `text-link` would drop to AA in
+ * light mode; foreground stays AAA there. `quiet`: AGENTS.md's Footer Convention, no
+ * underline, `font-medium`, a hover highlight to `foreground`, for links in muted chrome.
  */
 const linkVariants = cva(
   `rounded-sm font-medium transition-colors motion-reduce:transition-none ${focusRing}`,
@@ -79,6 +81,7 @@ const linkVariants = cva(
     variants: {
       variant: {
         prose: "text-link underline underline-offset-4 hover:decoration-2",
+        proseOnTint: "text-foreground underline underline-offset-4 hover:decoration-2",
         quiet: "hover:text-foreground",
       },
     },

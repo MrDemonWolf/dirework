@@ -13,7 +13,7 @@ const read = (rel: string) => readFileSync(path.join(srcDir, rel), "utf8");
 
 const { focusRing, linkVariants } = buttonModule as unknown as {
   focusRing?: string;
-  linkVariants?: (props?: { variant?: "prose" | "quiet" }) => string;
+  linkVariants?: (props?: { variant?: "prose" | "proseOnTint" | "quiet" }) => string;
 };
 
 /** Every `.tsx` module under src/ outside ui/, relative to it, with its source. */
@@ -46,10 +46,10 @@ const LINK_PENDING = new Set([
 ]);
 
 const PROSE_SITES = [
-  "app/(app)/setup/setup-content.tsx",
-  "app/(app)/sign-in-notice.tsx",
-  "components/setup-checklist.tsx",
-];
+  ["app/(app)/setup/setup-content.tsx", "prose"],
+  ["app/(app)/sign-in-notice.tsx", "proseOnTint"],
+  ["components/setup-checklist.tsx", "prose"],
+] as const;
 
 const importsFromButton = (source: string, name: string) =>
   new RegExp(`import \\{[^}]*\\b${name}\\b[^}]*\\} from "@/components/ui/button"`).test(source);
@@ -69,6 +69,15 @@ describe("link and focus recipes", () => {
     expect(classes).not.toContain("text-primary");
   });
 
+  it("links on a tint keep foreground text (AAA there), underlined, with the focus ring", () => {
+    // text-link on the destructive Callout's /10 tint is only AA in light mode (6.27:1);
+    // foreground stays AAA (tokens-contrast.test.ts measures both rows).
+    const classes = linkVariants?.({ variant: "proseOnTint" }).split(" ") ?? [];
+    for (const cls of ["text-foreground", "underline", ...(focusRing?.split(" ") ?? [])])
+      expect(classes).toContain(cls);
+    expect(classes).not.toContain("text-link");
+  });
+
   it("quiet links follow the Footer Convention: no underline, font-medium, hover highlight", () => {
     const classes = linkVariants?.({ variant: "quiet" }).split(" ") ?? [];
     for (const cls of ["font-medium", "hover:text-foreground", ...(focusRing?.split(" ") ?? [])])
@@ -76,10 +85,10 @@ describe("link and focus recipes", () => {
     expect(classes).not.toContain("underline");
   });
 
-  it.each(PROSE_SITES)("%s styles its links with linkVariants", (file) => {
+  it.each(PROSE_SITES)("%s styles its links with linkVariants (%s)", (file, variant) => {
     const source = read(file);
     expect(importsFromButton(source, "linkVariants")).toBe(true);
-    expect(source).toContain('linkVariants({ variant: "prose" })');
+    expect(source).toContain(`linkVariants({ variant: "${variant}" })`);
     expect(source).not.toMatch(/\bconst inlineLink\b/);
   });
 

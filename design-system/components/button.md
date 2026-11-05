@@ -47,8 +47,10 @@ The module also exports the two recipes for controls that aren't a `Button`:
   - `prose` (default): `text-link underline underline-offset-4`, a thicker underline on
     hover. Links inside a sentence or notice (setup page, sign-in notice, setup checklist).
     Always underlined, so a link is told apart from its sentence by more than color.
-    `text-link` is AAA on every plain surface; inside the destructive callout it is AAA dark,
-    AA light (`contrast.md`).
+    `text-link` is AAA on every plain surface.
+  - `proseOnTint`: the same underlined link in `text-foreground`, for a link on a tinted box
+    (the sign-in notice's destructive Callout), where `text-link` is only AA in light mode;
+    foreground stays AAA there (`contrast.md`).
   - `quiet`: no underline, `hover:text-foreground`: the AGENTS.md Footer Convention, used by
     the `(app)` footer links.
 - `focusRing`: `focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none`, the
