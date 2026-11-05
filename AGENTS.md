@@ -693,7 +693,13 @@ it (e.g. `0017_drop_task_status_idx` contracted 0015's superseded `task_status_i
   fixed copy via `botOAuthErrorMessage` and never renders the raw query param).
 - Server components check sessions via `lib/server-session.ts` (`getServerSession()` —
   forwards cookies to the api worker). Never import `@dirework/auth` or `@dirework/db`
-  in apps/web.
+  in apps/web. It returns only `ServerSession` = `{ user: { name, image, isOwner } }`,
+  built field by field (`toServerSession`, `isOwner` only from a JSON `true`), never
+  better-auth's get-session body: pages pass the session to client components (`Header`,
+  `UserMenu`, `Dashboard`), whose props are serialized into the RSC payload, and that body
+  carries the raw `session.token` the HttpOnly cookie keeps from scripts, the session id and
+  the placeholder email. A field the UI needs is added to `ServerSession` by name;
+  `server-session.test.ts` fails if a token, id, IP, user agent or email gets through.
 
 ### Overlay System
 
@@ -1346,6 +1352,8 @@ the default app to two workers, one D1 database and the existing rate-limit bind
   currently deployed worker still uses, and never edit an applied migration.
 - Every owner-facing procedure uses `ownerProcedure`; no procedure returns
   `accessToken` / `refreshToken`; the owner's own Twitch tokens are never stored.
+- Pages hand client components only the projected `ServerSession`, never better-auth's
+  session body or its `session.token` (Authentication).
 - No module-level db/auth/state in workers; use the per-request factories.
 - Logs and telemetry never include request bodies, query strings, tokens, error
   messages, or SQL (`logger.ts`, `telemetry.ts`).

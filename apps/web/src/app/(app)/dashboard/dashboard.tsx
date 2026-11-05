@@ -16,7 +16,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
-import type { authClient } from "@/lib/auth-client";
 import {
   FocusChartPlaceholder,
   StatTilesPlaceholder,
@@ -47,6 +46,8 @@ import { scheduleBotPresenceCheck } from "@/lib/bot-presence";
 import { dashboardBotChip } from "@/lib/bot-status";
 import { formatGreeting, pickGreeting } from "@/lib/greetings";
 import { PANEL_HEADER_CLASS, PANEL_TITLE_CLASS } from "@/lib/panel-header";
+// Type-only, like header.tsx: next/headers never reaches the client bundle.
+import type { ServerSession } from "@/lib/server-session";
 import { setupProgress } from "@/lib/setup-steps";
 import { ownerAuthorKey, ownerInProgress } from "@/lib/task-utils";
 import { trpc } from "@/utils/trpc";
@@ -59,7 +60,7 @@ function getDateStr(): string {
     .replace(",", "");
 }
 
-type SessionUser = (typeof authClient.$Infer.Session)["user"];
+type SessionUser = ServerSession["user"];
 
 /**
  * Header band: console kicker + greeting (session only, so it is part of the frame) and the
@@ -302,7 +303,7 @@ function TaskBoard() {
  * Dashboard home: the frame plus one `ProgressiveSection` per data-backed section. `session`
  * comes from the server page; the sections read the streamed queries.
  */
-export default function Dashboard({ session }: { session: typeof authClient.$Infer.Session }) {
+export default function Dashboard({ session }: { session: ServerSession }) {
   const meKey = trpc.user.me.queryKey();
   const timerKey = trpc.timer.get.queryKey();
   // Stats are never polled: they refetch when the timer/task polls see a change.
