@@ -1163,7 +1163,11 @@ the `--color-fd-*` / `--bg-*` / `--txt-*` names), plus `apps/web/src/tokens.gene
 sRGB hex (`oklchToHex` at generation; a translucent token keeps its alpha), for where a CSS
 variable can't reach — the manifest, the root `viewport` theme colors, `lib/theme-color.ts`
 and `global-error.tsx`. It is the only place a background hex may be spelled out
-(`token-bypass.test.ts`). Edit `tokens.json` and run `bun run tokens`;
+(`token-bypass.test.ts`). The share card takes its palette the same way:
+`packages/overlay-kit/src/share-card-colors.generated.ts` (`SHARE_CARD_COLORS`, the dark
+background, card, foreground, muted-foreground, border and link as hex, since next/og can't
+read CSS variables; `share-card.test.ts` allows no other color on the card). The root
+`bun run tokens` also rewrites `apps/web/public/manifest.webmanifest`. Edit `tokens.json` and run `bun run tokens`;
 never edit a generated file (`design-tokens.test.ts` and the CI drift step fail). The docs twin
 has no radius scale (fumadocs-ui compiles its own `rounded-*` against it); fonts stay
 hand-written in both stylesheets (they wrap next/font variables). Palette contrast (AAA / AA /

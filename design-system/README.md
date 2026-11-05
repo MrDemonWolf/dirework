@@ -16,7 +16,7 @@ design-system/
 
 ## Generated outputs
 
-`bun run tokens` (from repo root) regenerates four files. They are committed so consumers never need to run the generator themselves.
+`bun run tokens` (from repo root) regenerates five files (then rewrites `apps/web/public/manifest.webmanifest` from them). They are committed so consumers never need to run the generator themselves.
 
 | Output | Imported by | Holds |
 |---|---|---|
@@ -24,6 +24,7 @@ design-system/
 | `apps/web/src/tokens.generated.ts` | `lib/web-manifest.ts` (→ `public/manifest.webmanifest`), `app/layout.tsx`, `lib/theme-color.ts`, `app/global-error.tsx` | `SCHEME_HEX`: `background`, `foreground`, `muted-foreground` and `input` of both schemes as sRGB hex, converted from oklch at generation (a translucent token keeps its alpha as `#rrggbbaa`), for where a CSS variable can't reach: the manifest, the theme-color tags and the crash page. The only place a background hex may be written (`token-bypass.test.ts`) |
 | `apps/fumadocs/src/app/tokens.generated.css` | `apps/fumadocs/src/app/global.css` | The same as the web CSS, minus the radius (see below), plus an OS-preference dark block for before the theme class is set |
 | `apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts` | Docs landing page | Typed `OVERLAY_THEMES` map powering the theme gallery |
+| `packages/overlay-kit/src/share-card-colors.generated.ts` | `@dirework/overlay-kit/share-card` | `SHARE_CARD_COLORS`: the dark `background`, `card`, `foreground`, `muted-foreground`, `border` and `link` as hex, the only colors the social share card paints (next/og can't read CSS variables) |
 
 Each CSS file has four parts: plain variables on `:root` / `.dark`, an `@theme inline` block that registers the palette with Tailwind (`--color-<key>: var(--<key>)`, so `bg-background` follows the theme class; `--color-twitch` is a literal because it never flips), and an `@theme static` block for tokens Tailwind doesn't ship (`--text-2xs`, `--tracking-label`, `--ease-console`, `--animate-console-rise`, `--container-content`, `--spacing-header`, and the `console-rise` keyframes).
 

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { BRAND, DEMO_SESSION, cycleLabel, formatClock } from "../index";
 import { SHARE_CARD_ALT, SHARE_CARD_SIZE, ShareCard } from "../share-card";
+import { SHARE_CARD_COLORS } from "../share-card-colors.generated";
 
 const packageDir = path.resolve(__dirname, "../..");
 const repoRoot = path.resolve(packageDir, "../..");
@@ -62,6 +63,24 @@ describe("ShareCard", () => {
       "·",
       "Made for Twitch",
     ]);
+  });
+
+  it("paints only the app's dark palette, generated from design-system/tokens.json", () => {
+    // The card shows the neutral dark UI and its blue accent, never a palette of its own (it
+    // was navy until the app moved to neutral surfaces). Satori can't read CSS variables, so
+    // the hex comes from the token generator, which `bun run tokens` keeps in step.
+    expect(SHARE_CARD_COLORS.background).toBe("#0c0c0e");
+    const palette = new Set<string>(Object.values(SHARE_CARD_COLORS));
+    const painted = elements
+      .flatMap((element) => [
+        ...Object.values(element.props),
+        ...Object.values(element.props.style ?? {}),
+      ])
+      .flatMap((value) => String(value).match(/#[0-9a-f]{3,8}\b/gi) ?? [])
+      .map((hex) => hex.toLowerCase());
+    expect(painted.length).toBeGreaterThan(0);
+    expect(painted.filter((hex) => !palette.has(hex))).toEqual([]);
+    expect(String(card.props.style?.background)).toContain(SHARE_CARD_COLORS.background);
   });
 
   // next/og (Satori) throws on a div with several children and no explicit display, which

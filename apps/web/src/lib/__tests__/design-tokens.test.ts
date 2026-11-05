@@ -26,10 +26,13 @@ const tokens = JSON.parse(
 const rendered = renderAll(tokens);
 
 describe("design tokens", () => {
-  it.each([OUTPUTS.web, OUTPUTS.docs, OUTPUTS.webHex])("%s matches tokens.json", (path) => {
-    const committed = readFileSync(join(ROOT, path), "utf8");
-    expect(committed, `${path} is stale — run \`bun run tokens\``).toBe(rendered[path]);
-  });
+  it.each([OUTPUTS.web, OUTPUTS.docs, OUTPUTS.webHex, OUTPUTS.shareCardHex])(
+    "%s matches tokens.json",
+    (path) => {
+      const committed = readFileSync(join(ROOT, path), "utf8");
+      expect(committed, `${path} is stale — run \`bun run tokens\``).toBe(rendered[path]);
+    },
+  );
 
   it("converts oklch tokens to sRGB hex, keeping a translucent token's alpha", () => {
     // The backgrounds design-system/README.md documents, and the dark `--input`.
