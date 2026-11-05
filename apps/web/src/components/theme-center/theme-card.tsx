@@ -30,7 +30,10 @@ export function ThemeCard({
   onApply: () => void;
   /** Lets ThemeBrowser track which card holds the roving tab stop. */
   onFocus?: () => void;
-  /** Roving tabindex: 0 on the focused card, -1 on the rest (set by ThemeBrowser). */
+  /**
+   * Roving tabindex, set by ThemeBrowser: 0 on the gallery's tab stop (the focused card while
+   * focus is in the gallery, else the checked one), -1 on the rest.
+   */
   tabIndex?: number;
 }) {
   const { bg, accent, text } = theme.preview;
