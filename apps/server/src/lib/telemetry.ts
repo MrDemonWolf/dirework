@@ -19,7 +19,9 @@ export type MetricName =
   | "timer.conflict"
   | "db.error"
   | "internal.error"
-  | "upstream.timeout";
+  | "upstream.timeout"
+  /** A stuck overlay or bot page's capped report, labelled `<surface>:<error name>`. */
+  | "client.crash";
 
 export interface MetricEvent {
   type: "metric";

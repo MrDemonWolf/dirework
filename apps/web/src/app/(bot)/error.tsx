@@ -2,21 +2,34 @@
 
 // Error boundary for the /bot/<token> page. Auto-resets so an unattended widget, dock or
 // pinned tab recovers without anyone clicking. The blank widget sits on a stream, so there
-// it paints nothing (only screen readers hear it); the dock shows the notice.
+// it paints nothing (only screen readers hear it); the dock shows the notice. The crash is
+// reported by its name only, with the page's bot token, direct to the api
+// (lib/crash-report.ts): at most once per 10 minutes, since nobody may be watching.
 
 import { useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 
+import { botCrashSurface, createCrashReporter } from "@/lib/crash-report";
 import { parseBotView } from "@/lib/bot-view";
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/status-chip";
+import { publicTrpc } from "@/utils/trpc";
 
 /** The bot is usually unattended, so it restarts on its own. */
 const RESTART_AFTER_MS = 10_000;
 
+/** One reporter per bot page: module scope survives the restarts, so the cap holds. */
+const reportCrash = createCrashReporter((input) => publicTrpc.crash.report.mutate(input));
+
 /** Remounts the bot route after `RESTART_AFTER_MS`; "Restart now" resets immediately. */
-export default function BotError({ reset }: { error: Error; reset: () => void }) {
+export default function BotError({ error, reset }: { error: Error; reset: () => void }) {
   const view = parseBotView(useSearchParams().get("view") ?? undefined);
+  const surface = botCrashSurface(view);
+  const { token } = useParams<{ token?: string }>();
+
+  useEffect(() => {
+    reportCrash(surface, token, error);
+  }, [surface, token, error]);
 
   useEffect(() => {
     const timer = setTimeout(reset, RESTART_AFTER_MS);

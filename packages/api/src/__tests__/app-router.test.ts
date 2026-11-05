@@ -165,6 +165,7 @@ const PUBLIC_PROCEDURES = [
   "bot.heartbeat",
   "bot.ingest",
   "bot.release",
+  "crash.report",
   "overlay.getTaskList",
   "overlay.getTimerState",
   "user.hasOwner",

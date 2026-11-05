@@ -122,7 +122,13 @@ app.use("/trpc/*", (c, next) =>
   trpcServer({
     router: appRouter,
     createContext: (_opts, context) => {
-      return createContext({ context });
+      return createContext({
+        context,
+        // crash.report's one metric line; the label is `<surface>:<error name>`, both held
+        // to closed sets by its input schema.
+        recordClientCrash: (label) =>
+          recordMetric("client.crash", { requestId: getRequestId(c), label }),
+      });
     },
     // The rate limiter charges a request once, so the batch size bounds how
     // many procedures one limiter token can buy.

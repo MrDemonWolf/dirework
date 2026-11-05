@@ -72,7 +72,9 @@ const BUCKET_STRICTNESS: readonly BucketName[] = ["RL_AUTH", "RL_TOKEN", "RL_OVE
 function procedureBucket(procedure: string): BucketName {
   if (procedure.startsWith("overlay.")) return "RL_OVERLAY";
   if (procedure.startsWith("bot.")) return "RL_BOT";
-  // Token-gated / unauthenticated reads (user.hasOwner) and the owner's own calls.
+  // Token-gated / unauthenticated reads (user.hasOwner), the owner's own calls, and
+  // crash.report: a stuck page's report never spends the overlay or bot bucket its
+  // siblings poll and relay through.
   return "RL_TOKEN";
 }
 

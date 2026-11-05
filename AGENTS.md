@@ -20,6 +20,7 @@ This file provides guidance for coding agents working on the Dirework codebase.
 - Contributor setup + branch/PR workflow → `CONTRIBUTING.md`
 - Design system (tokens → generated CSS for app + docs, one spec per component, enforced by `spec-catalog.test.ts`) → `design-system/` (README; color contrast levels per pairing → `design-system/contrast.md`), docs `apps/fumadocs/content/docs/design-system.mdx`; drift check `bun run tokens && git diff --exit-code`
 - Which Cloudflare services to use beyond Workers + D1 (KV, Durable Objects, Queues, Cron, …) → `docs/decisions/0001-cloudflare-services.md`
+- Client observability (no Web Vitals or RUM in the app, never a beacon on `/overlay/*` or `/bot/*`, client errors by `error.name` only, the capped crash report) → `docs/decisions/0003-client-observability.md`
 - PR review checklist (Codex + humans; free-tier cost rules) → `## Code Review Rules` below
 - Owner to-dos (Codex auto-review, the optional docs CDN cache) + product backlog → `TODO.md`
 - Docs screenshots (capture with `bun run screenshots:capture`, lossless WebP via `cwebp`) → `apps/fumadocs/src/assets/screenshots/README.md`
@@ -373,6 +374,21 @@ echoes the URL (and OAuth codes). Wired at: the rate limiter (429s), the tRPC `o
 hook (procedure failures — tRPC errors never reach `app.onError`), the bot OAuth
 token-exchange and account-upsert paths, and the readiness probe. Bot reconnects happen in
 the browser and are deliberately NOT reported back (it would burn free-tier requests).
+**Crash report** (`docs/decisions/0003-client-observability.md`): the `(overlay)` and `(bot)`
+error boundaries each hold ONE module-scope reporter (`createCrashReporter`,
+`apps/web/src/lib/crash-report.ts`) that sends `publicTrpc.crash.report` direct to the api at
+the first crash and then at most once per `CRASH_REPORT_INTERVAL_MS` (10 min) per page —
+a crashed page doesn't poll, so nothing else would carry it. The input is strict: the page's
+own token, a surface from the closed `CRASH_SURFACES` (`overlay_timer`, `overlay_tasks`,
+`bot_widget`, `bot_dock`; zod-free `@dirework/api/crash-report`) and `error.name` held to
+`CRASH_NAME_PATTERN` (telemetry's safe-token class, short enough that `<surface>:<name>`
+stays a whole label; the client sends "Error" for anything else). The procedure checks the
+surface's token (one primary-key read), logs one `client.crash` metric through the
+`recordClientCrash` hook `createContext` takes from the api worker (packages/api never
+imports telemetry), writes nothing, and always answers null. `crash.*` falls in the
+`RL_TOKEN` bucket, so a crash loop never spends the overlay or bot bucket. Cost: 0 requests
+while healthy; ≤144 Worker requests and ≤144 D1 primary-key reads a day per stuck page.
+The dashboard's `(app)/error.tsx` reports nothing (the owner is looking at it).
 
 **`/health` is liveness, `/ready` is readiness.** `/health` has no dependencies, so a D1
 outage can't make the worker look dead; `/ready` pings D1 and returns 503 when it can't.
@@ -427,7 +443,8 @@ from it): defaults and `TRPC_MAX_BATCH_SIZE` from `@dirework/api/config-defaults
 helpers and `MAX_MESSAGE_TEMPLATE_BYTES` from `@dirework/api/chat-text`, command names and
 the alias normalizer from `@dirework/api/chat-commands`, the bot page's fixed error messages
 from `@dirework/api/bot-lease`, the bot OAuth error copy from `@dirework/api/bot-permissions`,
-and field limits from `@dirework/api/style-limits`. Types still come from `config-shared`.
+field limits from `@dirework/api/style-limits`, and the crash report's surfaces and name
+pattern from `@dirework/api/crash-report`. Types still come from `config-shared`.
 Only the Theme Center and Replies pages load zod and `config-shared`, to check a save against
 the server's own input schemas (`updateStylesInput` / `updateBotSettingsInput`; Theme Center
 length fields also use `cssLengthSchema`). Nothing the web app loads may reach the D1 schema
@@ -467,7 +484,7 @@ Web app: `@/` → `apps/web/src/`. Internal packages: `@dirework/api`, `@direwor
 
 ### tRPC / API layer
 
-Routers in `packages/api/src/routers/` (`user`, `task`, `timer`, `config`, `overlay`, `bot`, `stats`).
+Routers in `packages/api/src/routers/` (`user`, `task`, `timer`, `config`, `overlay`, `bot`, `stats`, `crash`).
 Three tiers: `publicProcedure` (overlays + bot page, token-gated),
 `protectedProcedure` (valid session), and **`ownerProcedure`** (session AND
 `user.isOwner`, fails closed with FORBIDDEN). Every dashboard/config/task/timer/
