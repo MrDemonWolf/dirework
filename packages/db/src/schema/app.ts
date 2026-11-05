@@ -5,6 +5,7 @@ import { createId } from "@paralleldrive/cuid2";
 import {
   DEFAULT_TASK_ACCESS,
   PHASE_LABEL_COLUMN_DEFAULTS,
+  SINGLETON_ID,
   TASK_MESSAGE_COLUMN_DEFAULTS,
   TASK_STYLE_COLUMN_DEFAULTS,
   TIMER_CONFIG_DEFAULTS,
@@ -14,8 +15,10 @@ import {
   type TaskAccessLevel,
 } from "../defaults";
 
-// Singleton pattern: one row per table, primary key pinned to "singleton".
-export const SINGLETON_ID = "singleton";
+// Singleton pattern: one row per table, primary key pinned to "singleton". The value lives in
+// the import-free ../defaults (so the browser can read it without this module); re-exported
+// here for every `@dirework/db/schema` caller.
+export { SINGLETON_ID };
 
 export const instanceConfig = sqliteTable("instance_config", {
   id: text("id").primaryKey().default(SINGLETON_ID),

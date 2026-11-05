@@ -1,11 +1,13 @@
 // ── Pure shared config module ────────────────────────────────────────────────
 // NO runtime imports of @dirework/env or @dirework/auth — this module is
 // imported by Vitest (node) and by apps/web, neither of which can resolve
-// cloudflare:workers. The only runtime deps are zod and the (env-free)
-// @dirework/db schema/defaults modules. Type-only imports are erased and
-// therefore safe. Browser-bundled constants and helpers that need neither zod
-// nor the schema live in ./config-defaults, ./chat-text and ./chat-commands
-// (re-exported here).
+// cloudflare:workers. The only runtime deps are zod and the import-free
+// @dirework/db/defaults — never @dirework/db/schema, which would put drizzle-orm
+// and every table in each bundle that imports this module
+// (apps/web/src/lib/__tests__/browser-imports.test.ts). Type-only imports are
+// erased and therefore safe. Browser-bundled constants and helpers that need
+// neither zod nor the schema live in ./config-defaults, ./chat-text and
+// ./chat-commands (re-exported here).
 import { z } from "zod";
 
 import type { BotConfig, TaskStyle, TimerConfig, TimerStyle } from "@dirework/db";
@@ -99,8 +101,12 @@ import {
   DEFAULT_TIMER_STYLES,
 } from "./config-defaults";
 
-/** Singleton-row primary key used by every one-row config table (single source: packages/db schema). */
-export { SINGLETON_ID } from "@dirework/db/schema";
+/**
+ * Singleton-row primary key used by every one-row config table. From the import-free
+ * @dirework/db/defaults, never @dirework/db/schema: this module reaches the browser, and the
+ * schema would bring drizzle-orm and every table with it.
+ */
+export { SINGLETON_ID } from "@dirework/db/defaults";
 
 /** Per-user open (pending+started+active) task cap enforced on the chat ingest path. */
 export const CHAT_OPEN_TASK_CAP = 20;

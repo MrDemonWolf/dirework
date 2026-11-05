@@ -384,7 +384,12 @@ Local env lives in `packages/infra/.env` (+ mirrored `apps/server/.env`,
 Browser-bundled web code imports default values from `@dirework/api/config-defaults`,
 chat byte helpers from `@dirework/api/chat-text`, and command names from
 `@dirework/api/chat-commands` (all zod- and schema-free, so overlays and the bot page don't
-bundle zod); types still come from `config-shared`.
+bundle zod); types still come from `config-shared`. Nothing the web app loads may reach the
+D1 schema (`@dirework/db/schema`, drizzle-orm, cuid2): `config-shared` reads only the
+import-free `@dirework/db/defaults` at runtime (where `SINGLETON_ID` lives). The import walk
+in `apps/web/src/lib/__tests__/browser-imports.test.ts` follows every static value import
+from each route entry (pages, layouts, boundaries, the root providers) and fails with the
+chain when one does.
 
 ## Tech Stack
 
@@ -639,7 +644,8 @@ read-modify-write; blocking deletes the viewer's tasks in the same `db.batch`.
 SQLite idioms: booleans `integer({mode:"boolean"})`, timestamps `integer({mode:"timestamp_ms"})`
 with `unixepoch('subsecond')*1000` defaults, JSON columns `text({mode:"json"}).$type<T>()`
 (commandAliases, scopes), opacities `real`, cuid2 ids. Config rows are singletons
-(`SINGLETON_ID`), lazily provisioned; all columns have defaults. The bot_config `msg_*`
+(`SINGLETON_ID`, defined in the import-free `packages/db/src/defaults.ts` and re-exported by
+the schema), lazily provisioned; all columns have defaults. The bot_config `msg_*`
 column defaults are **frozen** (`*_MESSAGE_COLUMN_DEFAULTS` in `packages/db/src/defaults.ts`):
 the wording the app uses is `DEFAULT_*_MESSAGES`, and `buildBotConfig` reads any stored value
 that equals a frozen or legacy default (`LEGACY_*_MESSAGES`) back as the current default, so
