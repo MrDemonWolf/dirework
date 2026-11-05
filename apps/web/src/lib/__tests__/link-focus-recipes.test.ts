@@ -29,7 +29,6 @@ const callSites = (readdirSync(srcDir, { recursive: true }) as string[])
  * cards). Shrink-only: move each onto `focusRing` once its PR lands.
  */
 const RING_PENDING = new Set([
-  "app/(bot)/bot/[token]/dashboard-bot-link.tsx",
   "components/bot-settings/bot-live-controls.tsx",
   "components/header.tsx",
   "components/version-badge.tsx",
@@ -45,6 +44,7 @@ const LINK_PENDING = new Set([
 const PROSE_SITES = [
   ["app/(app)/setup/setup-content.tsx", "prose"],
   ["app/(app)/sign-in-notice.tsx", "proseOnTint"],
+  ["app/(bot)/bot/[token]/dashboard-bot-link.tsx", "proseOnTint"],
   ["components/setup-checklist.tsx", "prose"],
 ] as const;
 

@@ -1270,9 +1270,9 @@ existing home and reuse it:
   `@dirework/api/config-shared`); never re-type `25*60*1000` etc. The M1/M3/M4 "don't
   duplicate" rules apply to the web component layer too, not only services/config.
 - **Design tokens** — never use arbitrary values for type/tracking/z/widths (or raw
-  `zinc-*`/`slate-*`/`gray-*` classes, or a hex color in an inline `style` prop): use the
+  Tailwind palette classes of any hue — `zinc-*`, `emerald-*`, `red-*` …, or a hex color in an inline `style` prop): use the
   tokens (`text-2xs`, `tracking-label`, `z-(--z-header)`, `max-w-content`, `w-editor`,
-  `h-header`, `bg-console-base` …), or `SCHEME_HEX` from `@/tokens.generated` where only a
+  `h-header`, `bg-obs-window` …), or `SCHEME_HEX` from `@/tokens.generated` where only a
   literal works, or `apps/web/src/lib/__tests__/token-bypass.test.ts` fails. Its allow-list
   only shrinks.
 

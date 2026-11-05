@@ -26,7 +26,7 @@ tokens: [color.scheme, radius]
 
 - `source` is the one file the spec documents; it must exist, and no two specs share one.
 - `tokens` lists the `tokens.json` families the component reads: `color.scheme`,
-  `color.phase`, `color.console`, `color.partner`, `font.size`, `tracking`, `radius`,
+  `color.phase`, `color.obs`, `color.partner`, `font.size`, `tracking`, `radius`,
   `motion`, `layout`, `z`, `overlay` (also `color.brand`, `color.brandDark`,
   `color.semantic`, `font.family`, `font.lineHeight`). `[]` when it reads none.
 - Accessibility names the roles and accessible names the e2e specs (`packages/e2e/tests`)

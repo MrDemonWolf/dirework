@@ -74,7 +74,7 @@ Each generated stylesheet declares the palette as plain CSS variables on `:root`
 | --- | --- | --- |
 | `color.scheme.{light,dark}` | `--background`, `--primary`, `--success`, `--border`, `--hairline`, `--cornflower`, `--chart-*`, `--sidebar-*`… | The UI palette, as oklch values. `{name}` aliases another key (`--chart-2: var(--cornflower)`). |
 | `color.phase` | `--phase-{work,break,long-break,paused}` | Timer phase accents |
-| `color.console` | `--color-console-*` (`bg-console-base`…) | The always-dark bot page notices, app only |
+| `color.obs` | `--color-obs-*` (`bg-obs-window`, `text-obs-green`…) | The bot dock's OBS Yami palette (status LED included), app only; the bot page notices use the scheme tokens in `.dark` |
 | `color.partner` | `--twitch`, `--twitch-hover` (`bg-twitch`) | Twitch purple, for Twitch actions only |
 | `radius` | `--radius` + `--radius-{xs…4xl}` | App only, as offsets from `--radius` (12px) |
 | `font.size`, `font.lineHeight` | `--text-2xs`, `--text-3xs` | Steps Tailwind doesn't ship; the rest are Tailwind's defaults, listed for reference |
