@@ -527,7 +527,8 @@ describe("createBotSession ingest", () => {
     expect(counters.filter((c) => c === "commands")).toHaveLength(3);
   });
 
-  it("still connects and relays built-in commands when an older api omits aliases", async () => {
+  it("still connects and relays built-in commands when an older api omits aliases and commands", async () => {
+    // SESSION carries no `commands` either, so this page falls back to its compiled-in names.
     const { aliases: _omitted, ...legacySession } = SESSION;
     const { ingest, client, callbacks } = setup({ getSession: async () => legacySession });
     await vi.advanceTimersByTimeAsync(0);
@@ -565,6 +566,48 @@ describe("createBotSession ingest", () => {
       input.kind === "message" ? input.message : input.kind,
     );
     expect(relayed).toEqual(["!add a"]);
+  });
+
+  // "!snooze" stands in for a built-in a later deploy adds: no copy of this page knows it.
+  it("relays a built-in command this page was built without when getSession names it", async () => {
+    const { ingest, callbacks } = setup({
+      getSession: async () => ({ ...SESSION, commands: ["task", "snooze"] }),
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    callbacks().onChat?.(chat("!snooze 10"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(ingest.mock.calls.map(([input]) => input.kind === "message" && input.message)).toEqual([
+      "!snooze 10",
+    ]);
+  });
+
+  it("learns built-in commands a later deploy added at the hourly revalidation", async () => {
+    const { getSession, ingest, client, callbacks } = setup({
+      getSession: async () => ({ ...SESSION, commands: ["task", "done"] }),
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    callbacks().onChat?.(chat("!snooze 10"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ingest).not.toHaveBeenCalled();
+
+    // The api was redeployed with !snooze while this page stayed open.
+    getSession.mockResolvedValue({ ...SESSION, commands: ["task", "snooze"] });
+    await vi.advanceTimersByTimeAsync(REVALIDATE_INTERVAL_MS);
+    // Same token and channel: the new names must not churn the socket.
+    expect(client.connect).toHaveBeenCalledTimes(1);
+
+    callbacks().onChat?.(chat("!SNOOZE 10"));
+    // The server's list adds names; it never removes the ones this page was built with.
+    callbacks().onChat?.(chat("!done"));
+    callbacks().onChat?.(chat("!lurk"));
+    await vi.advanceTimersByTimeAsync(0);
+    const relayed = ingest.mock.calls.map(([input]) =>
+      input.kind === "message" ? input.message : input.kind,
+    );
+    expect(relayed).toEqual(["!SNOOZE 10", "!done"]);
   });
 
   it("drops a viewer's commands past the per-viewer limit without a request", async () => {

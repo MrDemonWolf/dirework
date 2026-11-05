@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { provisionSingletonRows } from "@dirework/db/provision";
 import * as schema from "@dirework/db/schema";
 
+import { KNOWN_ALIAS_TARGETS, META_COMMANDS, MODERATION_COMMANDS } from "../chat-commands";
 import {
   DEFAULT_PHASE_LABELS,
   DEFAULT_TASK_MESSAGES,
@@ -1183,6 +1184,55 @@ describe("user.me bot account permissions against real SQLite", () => {
     });
 
     expect((await owner.user.me())?.botAccount).toMatchObject({ missingScopes: [] });
+  });
+});
+
+describe("bot.getSession command names against real SQLite", () => {
+  const token = "b".repeat(32);
+
+  /** A claimed instance with a connected bot whose chat token is fresh (no Twitch refresh). */
+  async function botPage() {
+    const { db } = await createSqliteDb();
+    await provisionSingletonRows(db);
+    await db.update(schema.instanceConfig).set({ botToken: token, channelLogin: "streamer" });
+    await db.insert(schema.user).values({
+      id: "owner",
+      name: "streamer",
+      email: "owner@example.test",
+      twitchId: "1000",
+      displayName: "Streamer",
+      isOwner: true,
+    });
+    await db.insert(schema.botAccount).values({
+      twitchId: "4000",
+      username: "direbot",
+      displayName: "DireBot",
+      accessToken: "chat-access-token",
+      refreshToken: "secret-refresh-token",
+      expiresAt: new Date(Date.now() + 3_600_000),
+    });
+    return appRouter.createCaller({ session: null, db } as unknown as Context);
+  }
+
+  it("returns every built-in name, so an open bot page relays commands a later deploy adds", async () => {
+    const anon = await botPage();
+    // No Helix in a test: the channel login cached on instance_config answers.
+    const helixDown = vi.fn(async () => new Response(null, { status: 503 }));
+    vi.stubGlobal("fetch", helixDown);
+    try {
+      const { commands } = await anon.bot.getSession({ token });
+
+      expect(new Set(commands)).toEqual(
+        new Set([...KNOWN_ALIAS_TARGETS, ...META_COMMANDS, ...MODERATION_COMMANDS]),
+      );
+      // The built-ins added after the bot page's relay filter shipped, which pages loaded
+      // before them dropped until a reload.
+      for (const name of ["mute", "block", "dw", "dwhelp", "start", "pause"]) {
+        expect(commands).toContain(name);
+      }
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 
