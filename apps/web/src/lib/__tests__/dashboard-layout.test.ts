@@ -56,7 +56,9 @@ describe("dashboard layout", () => {
   it("puts the stats strip under the greeting and the focus chart under the timer digits", () => {
     expect(dashboard).toMatch(/<HeaderSection [\s\S]*?<StatTiles \/>[\s\S]*?<TimerConsoleBody \/>/);
     expect(dashboard).toMatch(/<TimerInstrument \/>\s*<ProgressiveSection[\s\S]*?<FocusChart \/>/);
-    expect(skeleton).toMatch(/<StatusClusterPlaceholder \/>\s*<\/div>\s*<StatTilesPlaceholder \/>/);
+    expect(skeleton).toMatch(
+      /status={<StatusClusterPlaceholder \/>}\s*\/>\s*<StatTilesPlaceholder \/>/,
+    );
     // The refresh trigger lives in lib/stats-refresh.ts (tested against a real QueryClient):
     // a newer completion (never the purge-prone done count), the timer's phase identity
     // (never the bare status) and local midnight.

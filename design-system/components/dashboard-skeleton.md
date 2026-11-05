@@ -29,7 +29,8 @@ session is known.
   sources block. The "Now" line exists only with an active task, so it is left out.
 - `TaskBoardPlaceholder`: the task board's one-line header (title bar, counts bar, options
   button), then the form and two task groups across the full width.
-- `DashboardSkeleton`: header band bars plus the status placeholder, the stats strip, then a
+- `DashboardSkeleton`: the header band as [page-header](./page-header.md)'s `PageHeaderSkeleton`
+  (date kicker, the greeting on two lines below `sm`, the subline) plus the status placeholder, the stats strip, then a
   plain grid of the timer hero (`panel-hero` + its placeholder) and the task hero. No
   entrance animation.
 - Internal: `PanelHeaderSkeleton` (the shared `PANEL_HEADER_CLASS` row with a 28px title bar)

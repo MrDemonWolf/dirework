@@ -17,6 +17,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
+import { PAGE_TITLE_CLASS } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
 
 // One <title> through the root layout's "%s | DireWork" template.
@@ -27,7 +28,7 @@ export const metadata: Metadata = {
 export default function NotFound() {
   return (
     <main className="flex min-h-svh flex-col items-center justify-center px-4 py-16 text-center on-overlay:hidden">
-      <h1 className="font-heading text-3xl font-bold tracking-tight">Page not found</h1>
+      <h1 className={PAGE_TITLE_CLASS}>Page not found</h1>
       <p className="mt-3 max-w-md text-pretty text-muted-foreground">
         The link may have a typo, or the page no longer exists.
       </p>

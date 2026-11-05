@@ -21,7 +21,8 @@ the page arrives finished.
 Mirrors the live layout box for box, because React keeps a shown fallback up for about
 300ms and anything that moves when the page lands reads as a second load:
 
-- Header band: eyebrow rule, `h-9` title with the `size-9` options button, subtitle.
+- Header band: [page-header](./page-header.md)'s `PageHeaderSkeleton` (eyebrow line, `h-9` title
+  with the `size-9` options button, the subtitle on two lines below `md`).
 - Preset grid: `grid-cols-2 md:grid-cols-3 xl:grid-cols-6`, six `h-40` cards (ThemeBrowser).
 - Preview + editor in the page's order (`lg:flex-row-reverse`): the preview is a collapsed
   `h-14` bar below lg and the `lg:w-96 lg:h-116` rail at lg; the editor is the

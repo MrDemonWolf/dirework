@@ -29,6 +29,7 @@ import {
   useStatsRefresh,
   useTimeZoneSync,
 } from "@/components/dashboard-stats";
+import { PageHeader } from "@/components/page-header";
 import { ProgressiveSection, SectionPlaceholder } from "@/components/progressive-section";
 import { QueryError } from "@/components/query-error";
 import { ObsPreviewColumn, ObsSources, useObsPreview } from "@/components/obs-sources";
@@ -71,20 +72,18 @@ type SessionUser = ServerSession["user"];
 function HeaderBand({ user, status }: { user: SessionUser; status: React.ReactNode }) {
   const greeting = formatGreeting(pickGreeting(new Date()), user.name);
   return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <p className="console-label mb-2" suppressHydrationWarning>
+    <PageHeader
+      className="mb-8"
+      kicker={
+        <p className="console-label" suppressHydrationWarning>
           Console — {getDateStr()}
         </p>
-        <h1 className="font-heading text-3xl font-bold tracking-tight" suppressHydrationWarning>
-          {greeting.title}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground" suppressHydrationWarning>
-          {greeting.subline}
-        </p>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">{status}</div>
-    </div>
+      }
+      title={greeting.title}
+      description={greeting.subline}
+      status={status}
+      suppressHydrationWarning
+    />
   );
 }
 

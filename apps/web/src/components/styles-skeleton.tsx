@@ -8,6 +8,7 @@
 // Colors section and three collapsed ones). Update it with styles-page.tsx.
 
 import { LoadingStatus } from "@/components/loading-status";
+import { PageHeaderSkeleton } from "@/components/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const PRESETS = ["p1", "p2", "p3", "p4", "p5", "p6"];
@@ -18,17 +19,14 @@ export function StylesSkeleton() {
   return (
     <div className="container mx-auto max-w-content px-4 py-8" aria-busy="true">
       <LoadingStatus label="Theme Center" />
-      {/* Header band: rule, title + options button, two-line subtitle on a phone */}
-      <div className="mb-6">
-        <Skeleton className="h-3 w-28" />
-        <div className="mt-2 flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1 space-y-2">
-            <Skeleton className="h-9 w-52" />
-            <Skeleton className="h-4 w-full max-w-md" />
-          </div>
-          <Skeleton className="size-9 shrink-0" />
-        </div>
-      </div>
+      {/* Header band: rule, title + options button, the subtitle on two lines below md */}
+      <PageHeaderSkeleton
+        className="mb-6"
+        kicker
+        narrowDescriptionLines={2}
+        wrapsBelow="md"
+        actions={<Skeleton className="size-9" />}
+      />
 
       {/* Preset grid: same columns and card height as ThemeBrowser */}
       <div className="mb-6">

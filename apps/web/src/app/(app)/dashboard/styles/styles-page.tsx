@@ -29,6 +29,7 @@ import { useDraft, useSettingsSave } from "@/lib/use-draft";
 import { describeIssues } from "@/lib/validation-errors";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ConsoleRule } from "@/components/console-rule";
+import { PageHeader } from "@/components/page-header";
 import { QueryError } from "@/components/query-error";
 import { SaveBar } from "@/components/save-bar";
 import { StylesSkeleton } from "@/components/styles-skeleton";
@@ -192,17 +193,12 @@ function StylesEditor({ config }: { config: ConfigData }) {
           data, lib/shell-hold.ts) or fills in over its same-shaped skeleton, and a rise-in
           replayed after load read as a second load. */}
       <div>
-        {/* Header band */}
-        <div className="mb-6">
-          <ConsoleRule label="Theme Center" />
-          <div className="mt-2 flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="font-heading text-3xl font-bold tracking-tight">Theme Center</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Start from a preset, fine-tune it, and check the preview. Nothing reaches OBS until
-                you save.
-              </p>
-            </div>
+        <PageHeader
+          className="mb-6"
+          kicker={<ConsoleRule label="Theme Center" />}
+          title="Theme Center"
+          description="Start from a preset, fine-tune it, and check the preview. Nothing reaches OBS until you save."
+          actions={
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={<Button variant="outline" size="icon" aria-label="Theme options" />}
@@ -219,8 +215,8 @@ function StylesEditor({ config }: { config: ConfigData }) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-        </div>
+          }
+        />
 
         {/* Preset gallery */}
         <div className="mb-6">
