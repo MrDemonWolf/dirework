@@ -4,12 +4,14 @@
  *
  * Reads `design-system/tokens.json` and writes:
  *   - apps/web/src/tokens.generated.css          (imported by apps/web/src/index.css)
+ *   - apps/web/src/tokens.generated.ts           (palette hex for the manifest, the
+ *                                                 theme-color tags and global-error.tsx)
  *   - apps/fumadocs/src/app/tokens.generated.css (imported by apps/fumadocs/src/app/global.css)
  *   - apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts (docs theme gallery)
  *
- * apps/web/src/lib/__tests__/design-tokens.test.ts fails CI when a committed CSS file
- * differs from what render.ts produces; theme-palette-sync.test.ts guards the overlay
- * palette against the web app's theme presets and the squircle radius.
+ * apps/web/src/lib/__tests__/design-tokens.test.ts fails CI when a committed CSS file or
+ * the hex module differs from what render.ts produces; theme-palette-sync.test.ts guards
+ * the overlay palette against the web app's theme presets and the squircle radius.
  *
  * Idempotent: re-running produces identical files, so drift shows up with
  * `bun run tokens && git diff --exit-code` (a CI step in verify.yml).

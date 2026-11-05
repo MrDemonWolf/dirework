@@ -16,12 +16,13 @@ design-system/
 
 ## Generated outputs
 
-`bun run tokens` (from repo root) regenerates three files. They are committed so consumers never need to run the generator themselves.
+`bun run tokens` (from repo root) regenerates four files. They are committed so consumers never need to run the generator themselves.
 
 | Output | Imported by | Holds |
 |---|---|---|
 | `apps/web/src/tokens.generated.css` | `apps/web/src/index.css` | Palette (`:root` + `.dark`), `--radius` and the radius scale, phase/partner/z variables, the Tailwind theme registration and the extra type/tracking/motion/layout tokens |
-| `apps/fumadocs/src/app/tokens.generated.css` | `apps/fumadocs/src/app/global.css` | The same, minus the radius (see below), plus an OS-preference dark block for before the theme class is set |
+| `apps/web/src/tokens.generated.ts` | `app/manifest.ts`, `app/layout.tsx`, `lib/theme-color.ts`, `app/global-error.tsx` | `SCHEME_HEX`: `background`, `foreground`, `muted-foreground` and `input` of both schemes as sRGB hex, converted from oklch at generation (a translucent token keeps its alpha as `#rrggbbaa`), for where a CSS variable can't reach: the manifest, the theme-color tags and the crash page. The only place a background hex may be written (`token-bypass.test.ts`) |
+| `apps/fumadocs/src/app/tokens.generated.css` | `apps/fumadocs/src/app/global.css` | The same as the web CSS, minus the radius (see below), plus an OS-preference dark block for before the theme class is set |
 | `apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts` | Docs landing page | Typed `OVERLAY_THEMES` map powering the theme gallery |
 
 Each CSS file has four parts: plain variables on `:root` / `.dark`, an `@theme inline` block that registers the palette with Tailwind (`--color-<key>: var(--<key>)`, so `bg-background` follows the theme class; `--color-twitch` is a literal because it never flips), and an `@theme static` block for tokens Tailwind doesn't ship (`--text-2xs`, `--tracking-label`, `--ease-console`, `--animate-console-rise`, `--container-content`, `--spacing-header`, and the `console-rise` keyframes).
@@ -87,7 +88,7 @@ A conventional neutral dark UI (GitHub / Vercel / Linear style), dark-first with
 
 1. Edit `design-system/tokens.json`. Never edit a generated file.
 2. Run `bun run tokens` from the repo root.
-3. Commit `tokens.json` **and** all generated files in the same commit. CI runs `bun run tokens && git diff --exit-code`, and `apps/web/src/lib/__tests__/design-tokens.test.ts` fails when a committed CSS file differs from what `render.ts` produces, when the two schemes have different keys, or when a hex value leaks into the palette.
+3. Commit `tokens.json` **and** all generated files in the same commit. CI runs `bun run tokens && git diff --exit-code`, and `apps/web/src/lib/__tests__/design-tokens.test.ts` fails when a committed CSS file or the hex module differs from what `render.ts` produces, when the two schemes have different keys, or when a hex value leaks into the palette.
 4. Check contrast: `tokens-contrast.test.ts` must stay green. A new text or control color gets a row there and in `contrast.md`.
 5. If the change is breaking (rename, removed key, value drift), bump `meta.version` and call it out in the PR description.
 

@@ -22,15 +22,16 @@ Regenerate the outputs from the repo root:
 bun run tokens
 ```
 
-This writes three committed files:
+This writes four committed files:
 
 | Output | Consumed by |
 | --- | --- |
 | `apps/web/src/tokens.generated.css` | The web app, imported by `apps/web/src/index.css` |
+| `apps/web/src/tokens.generated.ts` | The web app's manifest, theme-color tags and crash page: `SCHEME_HEX`, a few palette colors as sRGB hex for where a CSS variable can't reach |
 | `apps/fumadocs/src/app/tokens.generated.css` | The docs site, imported by `apps/fumadocs/src/app/global.css` |
 | `apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts` | Landing-page theme gallery |
 
-Never edit a generated file by hand: change `tokens.json`, run `bun run tokens`, and commit both. CI checks for drift with `bun run tokens && git diff --exit-code`, and a web unit test (`design-tokens.test.ts`) fails if a committed CSS file doesn't match what `tokens.json` renders. A second test (`tokens-contrast.test.ts`) checks every app color pairing (text, status chips, input borders, focus ring, controls, chart marks) in both themes at its chosen WCAG level: AAA (7:1) for body, muted and link text and the dark status tones, AA (4.5:1) for white on the blue and Twitch fills, red and the light status tones, and 3:1 for non-text. `design-system/contrast.md` lists each pairing and why.
+Never edit a generated file by hand: change `tokens.json`, run `bun run tokens`, and commit both. CI checks for drift with `bun run tokens && git diff --exit-code`, and a web unit test (`design-tokens.test.ts`) fails if a committed CSS file or the hex module doesn't match what `tokens.json` renders. A second test (`tokens-contrast.test.ts`) checks every app color pairing (text, status chips, input borders, focus ring, controls, chart marks) in both themes at its chosen WCAG level: AAA (7:1) for body, muted and link text and the dark status tones, AA (4.5:1) for white on the blue and Twitch fills, red and the light status tones, and 3:1 for non-text. `design-system/contrast.md` lists each pairing and why.
 
 Shared overlay geometry and clock formatting (`roundedRectPath`, `roundedRectPerimeter`, `formatClock`, `SQUIRCLE_RADIUS`) live in the workspace package `@dirework/overlay-kit` (`packages/overlay-kit`), used by both the real OBS overlays and the docs mocks. A unit test in the web app keeps `tokens.json` in sync with the Theme Center presets and `SQUIRCLE_RADIUS`.
 

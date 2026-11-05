@@ -2,7 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import manifest, { DARK_BACKGROUND_HEX, LIGHT_BACKGROUND_HEX } from "../manifest";
+import { SCHEME_HEX } from "@/tokens.generated";
+
+import manifest from "../manifest";
 
 const webDir = path.resolve(__dirname, "../../..");
 
@@ -31,11 +33,10 @@ describe("web app manifest", () => {
     expect(m.display).toBe("standalone");
   });
 
-  it("uses the dark theme background as hex", () => {
-    expect(DARK_BACKGROUND_HEX).toBe("#0c0c0e");
-    expect(LIGHT_BACKGROUND_HEX).toBe("#fafafa");
-    expect(m.background_color).toBe(DARK_BACKGROUND_HEX);
-    expect(m.theme_color).toBe(DARK_BACKGROUND_HEX);
+  it("uses the dark theme background, as the generated hex", () => {
+    // design-tokens.test.ts holds tokens.generated.ts to tokens.json.
+    expect(m.background_color).toBe(SCHEME_HEX.dark.background);
+    expect(m.theme_color).toBe(SCHEME_HEX.dark.background);
   });
 
   it("ships every icon at the size it declares", () => {

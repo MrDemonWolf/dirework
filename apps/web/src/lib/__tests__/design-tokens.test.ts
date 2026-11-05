@@ -7,15 +7,16 @@ import { describe, expect, it } from "vitest";
 import {
   type DesignTokens,
   OUTPUTS,
+  oklchToHex,
   rem,
   renderAll,
   TAILWIND_TEXT_STEPS,
 } from "../../../../../design-system/scripts/render";
 
 /**
- * design-system/tokens.json generates the token CSS for the app and the docs
- * (design-system/scripts/render.ts). These checks keep the committed files, the
- * two schemes and the reference type scale honest.
+ * design-system/tokens.json generates the token CSS for the app and the docs, and the
+ * app's hex module (design-system/scripts/render.ts). These checks keep the committed
+ * files, the two schemes and the reference type scale honest.
  */
 
 const ROOT = fileURLToPath(new URL("../../../../../", import.meta.url));
@@ -25,9 +26,19 @@ const tokens = JSON.parse(
 const rendered = renderAll(tokens);
 
 describe("design tokens", () => {
-  it.each([OUTPUTS.web, OUTPUTS.docs])("%s matches tokens.json", (path) => {
+  it.each([OUTPUTS.web, OUTPUTS.docs, OUTPUTS.webHex])("%s matches tokens.json", (path) => {
     const committed = readFileSync(join(ROOT, path), "utf8");
     expect(committed, `${path} is stale — run \`bun run tokens\``).toBe(rendered[path]);
+  });
+
+  it("converts oklch tokens to sRGB hex, keeping a translucent token's alpha", () => {
+    // The backgrounds design-system/README.md documents, and the dark `--input`.
+    expect(oklchToHex("oklch(0.155 0.004 286)")).toBe("#0c0c0e");
+    expect(oklchToHex("oklch(0.985 0 0)")).toBe("#fafafa");
+    expect(oklchToHex("oklch(0.947 0.003 286 / 20%)")).toBe("#ededef33");
+    // Out of gamut (the dark `--link`) clips per channel.
+    expect(oklchToHex("oklch(0.75 0.15 256)")).toBe("#6bb0ff");
+    expect(() => oklchToHex("{cornflower}")).toThrow(/not an oklch/);
   });
 
   it("defines the same keys in the light and dark schemes", () => {
