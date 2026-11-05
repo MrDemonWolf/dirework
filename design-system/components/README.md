@@ -52,6 +52,7 @@ on the docs page, in the same PR, or the test fails.
 | Timer overlay | `/overlay/t/[token]` | [timer-ring](./timer-ring.md), [auto-scale](./auto-scale.md), [font-gate](./font-gate.md) |
 | Task overlay | `/overlay/l/[token]` | [task-card](./task-card.md), [overlay-icon](./overlay-icon.md), [font-gate](./font-gate.md) |
 | Error boundaries | `error.tsx` | [callout](./callout.md), [button](./button.md) |
+| Not found (404) | `app/not-found.tsx` | [button](./button.md) (`buttonVariants` on the home link) |
 | Docs landing | `apps/fumadocs` | [chat-bubble](./chat-bubble.md), [theme-swatch](./theme-swatch.md), [timer-overlay-widget](./timer-overlay-widget.md), [task-list-widget](./task-list-widget.md) |
 
 Dialogs and menus reached from any of these: [confirm-dialog](./confirm-dialog.md) (on

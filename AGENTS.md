@@ -850,7 +850,11 @@ While idle the overlay renders a full preview (configured work
 length + full ring) instead of blanking, so streamers can position it during setup.
 Before the first payload lands, and whenever the server answers null (invalid or reset
 token), both overlays render nothing (`lib/overlay-view.ts`), so a stale OBS URL goes
-blank instead of showing a fake 00:00 timer or empty list.
+blank instead of showing a fake 00:00 timer or empty list. A truncated URL (`/overlay/t`,
+no token) matches no route and gets the root 404 (`app/not-found.tsx`) without the
+`(overlay)` layout; `lib/theme-init.ts` still marks it `data-surface="overlay"`, the
+`index.css` base rules keep its canvas and body transparent, and the page hides itself with
+the `on-overlay:` custom variant, so it composites as nothing too (`theme-flash` pins it).
 Recommended OBS source sizes (the dashboard's size chips): 300×300 timer, 700×800 tasks.
 **Task overlay text** has no length cap beyond `MAX_TASK_LEN`: it wraps
 (`overflow-wrap: anywhere`, so URLs and no-space strings break instead of being cut
@@ -1146,6 +1150,10 @@ existing home and reuse it:
   `lib/auth-lapse.ts` (lapse detection, `fetchRpc`, `authLapseLink`, `shouldRetryQuery`; see
   Real-time = polling), `lib/validation-errors.ts` (`formatMutationError`, `describeIssues`).
   Each route group has an `error.tsx` boundary.
+  `app/not-found.tsx` is the themed 404 for every unmatched URL: a static server component
+  (no `headers()`/`cookies()`/session read, so `/_not-found` stays prerendered), one
+  `<title>` through the root template, and a `prefetch={false}` link home (a prefetch of `/`
+  renders the `(app)` layout's session check, an api request).
 - **Lib helpers** — `lib/utils.ts` (`cn`), `timer-utils` (`resolvePhaseDuration`,
   ms-from-state), `task-utils` (`groupTasksByAuthor`), `status-tones`, `config-types`;
   overlay geometry/formatting (`formatClock`, `cycleLabel`) in `@dirework/overlay-kit`, which
@@ -1271,7 +1279,8 @@ bypass with a fixed test secret. One worker and serial specs (single-owner insta
 database). Spec files are numbered and run in order: `00-first-run` sees the fresh database
 (`/` a real 307 to the claim page, then the first dev-login claims the instance and `/setup`
 answers a real 404), then `10-smoke` (incl. an
-inline handler injected into an overlay being refused by the CSP),
+inline handler injected into an overlay being refused by the CSP, and an unknown URL: 404,
+one `<title>`, the heading and a link home, with no CSP violation),
 `15-landing` (the viewer landing: claimed notice + deploy link, docs links, no `/rpc`, the
 finished landing in the first HTML response and no painted skeleton frame on a hard load; the
 owner's `/` a real 307 to `/dashboard`),
@@ -1309,7 +1318,7 @@ database. Two projects: `chromium` runs all but `90-mobile`; `mobile` (Pixel 7) 
 WCAG 2.0/2.1/2.2 A and AA (2.2 adds `target-size`), fails on serious/critical violations,
 lists moderate/minor ones as `axe (non-blocking)` annotations, attaches the full JSON, and
 runs under reduced motion (the entrance fade otherwise skews measured contrast). It covers,
-in BOTH themes (`pinTheme` sets next-themes' localStorage key): the landing, every dashboard,
+in BOTH themes (`pinTheme` sets next-themes' localStorage key): the landing, the 404 page, every dashboard,
 Theme Center and Bot settings page, the overlays and bot widget (over a dark scene, as OBS
 shows them) and the dock; the open states — account menu opened from the keyboard (its
 item focused), Task board options, a row's ⋯ menu, the Clear all confirm, Theme options,

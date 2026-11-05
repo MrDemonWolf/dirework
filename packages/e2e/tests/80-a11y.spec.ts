@@ -203,6 +203,17 @@ test("the home page has no serious accessibility violations, in either theme", a
   }
 });
 
+test("the 404 page has no serious accessibility violations, in either theme", async ({ page }) => {
+  // The root not-found page renders outside the (app) shell, so it brings its own landmark,
+  // heading and link home, drawn in the app theme rather than the OS scheme.
+  for (const theme of THEMES) {
+    await pinTheme(page, theme);
+    await page.goto("/no-such-page");
+    await expect(page.getByRole("heading", { level: 1, name: "Page not found" })).toBeVisible();
+    await expectNoSeriousViolations(page, `not-found-${theme}`, { theme });
+  }
+});
+
 for (const theme of THEMES) {
   test.describe(`signed in, ${theme} theme`, () => {
     test.beforeEach(async ({ page }) => {
