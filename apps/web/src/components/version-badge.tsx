@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { BRAND } from "@dirework/overlay-kit";
 
 import { statusChipClassName } from "@/components/status-chip";
+import { focusRing } from "@/components/ui/button";
 import { scheduleVersionCheck } from "@/lib/version-check";
 
 const REPO = BRAND.links.repo;
@@ -51,7 +52,7 @@ export function VersionBadge({
           target="_blank"
           rel="noopener noreferrer"
           title={`Deployed commit ${sha} — view on GitHub`}
-          className="font-mono transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={`rounded-sm font-mono transition-colors hover:text-foreground ${focusRing}`}
         >
           {sha.slice(0, 7)}
         </a>
@@ -60,7 +61,7 @@ export function VersionBadge({
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className={`${statusChipClassName({ tone: "warn", size: "sm" })} transition-colors hover:bg-warning/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+          className={`${statusChipClassName({ tone: "warn", size: "sm" })} transition-colors hover:bg-warning/20 ${focusRing}`}
         >
           <span
             aria-hidden

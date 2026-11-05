@@ -23,29 +23,24 @@ const callSites = (readdirSync(srcDir, { recursive: true }) as string[])
   .filter((file) => !file.startsWith("components/ui/"))
   .map((file) => ({ file, source: read(file) }));
 
-/**
- * Files that still type the ring by hand because another open PR rewrites the same lines
- * (header/user menu, version badge, the segmented controls, the bot page, the bot settings
- * cards). Shrink-only: move each onto `focusRing` once its PR lands.
- */
-const RING_PENDING = new Set([
-  "components/bot-settings/bot-live-controls.tsx",
-  "components/header.tsx",
-  "components/version-badge.tsx",
-]);
-
-/** Prose links that still carry their own class string, for the same reason. Shrink-only. */
-const LINK_PENDING = new Set([
-  "app/(app)/dashboard/bot/(sections)/commands/commands-page.tsx",
-  "app/(app)/dashboard/bot/(sections)/replies/replies-page.tsx",
-  "components/bot-settings/bot-live-controls.tsx",
-]);
-
 const PROSE_SITES = [
+  ["app/(app)/dashboard/bot/(sections)/commands/commands-page.tsx", "prose"],
+  // Inside the info Callout's muted/40 tint: foreground stays AAA there.
+  ["app/(app)/dashboard/bot/(sections)/replies/replies-page.tsx", "proseOnTint"],
   ["app/(app)/setup/setup-content.tsx", "prose"],
   ["app/(app)/sign-in-notice.tsx", "proseOnTint"],
   ["app/(bot)/bot/[token]/dashboard-bot-link.tsx", "proseOnTint"],
+  // "Manage" sits on the card (prose); "Reconnect the bot" in the destructive Callout.
+  ["components/bot-settings/bot-live-controls.tsx", "prose"],
+  ["components/bot-settings/bot-live-controls.tsx", "proseOnTint"],
   ["components/setup-checklist.tsx", "prose"],
+] as const;
+
+/** Hand-rolled controls that must take their ring from `focusRing`. */
+const RING_SITES = [
+  "components/bot-settings/bot-live-controls.tsx",
+  "components/header.tsx",
+  "components/version-badge.tsx",
 ] as const;
 
 const importsFromButton = (source: string, name: string) =>
@@ -96,30 +91,24 @@ describe("link and focus recipes", () => {
     expect(layout).not.toContain("focus-visible:ring-2");
   });
 
-  it("no prose-link class string outside ui/ (beyond the pending files)", () => {
+  it.each(RING_SITES)("%s takes its focus ring from focusRing", (file) => {
+    const source = read(file);
+    expect(
+      importsFromButton(source, "focusRing") || importsFromButton(source, "linkVariants"),
+    ).toBe(true);
+  });
+
+  it("no prose-link class string outside ui/", () => {
     const offenders = callSites
-      .filter(({ file }) => !LINK_PENDING.has(file))
-      .filter(({ source }) =>
-        /text-link underline-offset-4 hover:underline|const inlineLink\b/.test(source),
-      )
+      .filter(({ source }) => /text-link underline-offset-4|const inlineLink\b/.test(source))
       .map(({ file }) => file);
     expect(offenders).toEqual([]);
   });
 
-  it("no hand-written focus ring outside ui/ (beyond the pending files)", () => {
+  it("no hand-written focus ring outside ui/", () => {
     const offenders = callSites
-      .filter(({ file }) => !RING_PENDING.has(file))
       .filter(({ source }) => /focus-visible:ring-[12]\b/.test(source))
       .map(({ file }) => file);
     expect(offenders).toEqual([]);
-  });
-
-  it("pending lists only name files that still need them", () => {
-    for (const file of RING_PENDING)
-      expect(read(file), `${file} no longer needs RING_PENDING`).toMatch(/focus-visible:ring-2\b/);
-    for (const file of LINK_PENDING)
-      expect(read(file), `${file} no longer needs LINK_PENDING`).toContain(
-        "text-link underline-offset-4 hover:underline",
-      );
   });
 });

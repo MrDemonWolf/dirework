@@ -21,6 +21,7 @@ import { CommandAliasEditor } from "@/components/bot-settings/command-alias-edit
 import { CommandTable } from "@/components/bot-settings/command-table";
 import { SaveBar } from "@/components/save-bar";
 import { SettingsCard } from "@/components/bot-settings/settings-card";
+import { linkVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
@@ -168,7 +169,7 @@ function CommandsEditor({ config }: { config: BotConfigData }) {
             <Link
               href="/dashboard/bot/replies"
               prefetch={false}
-              className="font-medium text-link underline-offset-4 hover:underline"
+              className={linkVariants({ variant: "prose" })}
             >
               Replies
             </Link>
