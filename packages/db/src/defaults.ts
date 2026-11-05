@@ -9,6 +9,14 @@
 // *_MESSAGE_COLUMN_DEFAULTS / *_STYLE_COLUMN_DEFAULTS, and what the app uses
 // (DEFAULT_*_MESSAGES / DEFAULT_*_STYLES) can change freely.
 
+/**
+ * Primary key of every one-row config table: one row per table, pinned to "singleton".
+ * Defined here, not in the schema, so a browser import of @dirework/api/config-shared
+ * (which re-exports it) never pulls drizzle-orm and every table into the bundle. The
+ * schema re-exports it, so `@dirework/db/schema` callers are unchanged.
+ */
+export const SINGLETON_ID = "singleton";
+
 /** Every timer state-machine status — single source for status literals. */
 export const TIMER_STATUSES = [
   "idle",
