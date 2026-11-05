@@ -5,16 +5,16 @@
 // so a prefetch never spends an api request.
 
 import { BotSectionNav } from "@/components/bot-settings/bot-section-nav";
+import { PageHeader } from "@/components/page-header";
 
 export default function BotSettingsLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="container mx-auto max-w-content px-4 pt-8 pb-8">
-      <div className="mb-5">
-        <h1 className="font-heading text-3xl font-bold tracking-tight">Bot settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Run the chat bot, choose its commands and replies, and moderate who can use them.
-        </p>
-      </div>
+      <PageHeader
+        className="mb-5"
+        title="Bot settings"
+        description="Run the chat bot, choose its commands and replies, and moderate who can use them."
+      />
       <BotSectionNav />
       {children}
     </div>

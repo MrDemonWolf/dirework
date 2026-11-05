@@ -321,3 +321,57 @@ test("Theme Center: a slow config.get paints its skeleton at the deadline, then 
 
   await context.clearCookies({ name: DELAY_COOKIE });
 });
+
+// A client navigation shows the route's loading.tsx skeleton until the page lands; its header
+// band (PageHeaderSkeleton) draws each bar inside the live band's line boxes, so nothing under
+// the header moves when the page replaces it. The band's box is compared, since every block
+// below it hangs off its bottom edge.
+
+/** The header band's box inside the route skeleton, then inside the page that replaced it. */
+async function headerBandShift(page: Page, open: () => Promise<void>, landed: string | RegExp) {
+  const skeletonBand = page.locator('main [aria-busy="true"] [data-slot="page-header"]');
+  await open();
+  await expect(skeletonBand).toBeVisible();
+  const before = (await skeletonBand.boundingBox())!;
+  await expect(page.getByRole("heading", { level: 1, name: landed })).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(skeletonBand).toHaveCount(0);
+  const after = (await page.locator('main [data-slot="page-header"]').first().boundingBox())!;
+  return { top: after.y - before.y, height: after.height - before.height };
+}
+
+for (const width of [1280, 412]) {
+  test(`a client navigation's skeleton header holds the page header's place (${width}px)`, async ({
+    page,
+    context,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    // The greeting is picked from the browser's clock; this one ("Paws for a break, {name}?")
+    // runs to two lines on a phone, which the skeleton draws (most do with a full name).
+    await page.clock.setFixedTime(new Date(2026, 10, 5, 14, 0));
+    const navigateTo = async (label: string) => {
+      if (width < 768) await page.getByRole("button", { name: "Open menu" }).click();
+      await page.getByRole("link", { name: label, exact: true }).first().click();
+    };
+
+    // Theme Center → dashboard: a slow procedure keeps dashboard/loading.tsx up for the
+    // page's first-paint deadline (SECTIONS_READY_MS).
+    await page.goto("/dashboard/styles");
+    await expect(page.getByRole("heading", { level: 1, name: "Theme Center" })).toBeVisible();
+    await context.addCookies([
+      { name: DELAY_COOKIE, value: "stats.summary=2500", url: WEB_ORIGIN },
+    ]);
+    const toDashboard = await headerBandShift(page, () => navigateTo("Dashboard"), /Wolf Streamer/);
+    expect(Math.abs(toDashboard.top), "dashboard band top").toBeLessThanOrEqual(1);
+    expect(Math.abs(toDashboard.height), "dashboard band height").toBeLessThanOrEqual(1);
+    await context.clearCookies({ name: DELAY_COOKIE });
+
+    // Dashboard → Theme Center: the page waits for its whole prefetch behind styles/loading.tsx.
+    await context.addCookies([{ name: DELAY_COOKIE, value: "config.get=1500", url: WEB_ORIGIN }]);
+    const toStyles = await headerBandShift(page, () => navigateTo("Theme Center"), "Theme Center");
+    expect(Math.abs(toStyles.top), "Theme Center band top").toBeLessThanOrEqual(1);
+    expect(Math.abs(toStyles.height), "Theme Center band height").toBeLessThanOrEqual(1);
+    await context.clearCookies({ name: DELAY_COOKIE });
+  });
+}

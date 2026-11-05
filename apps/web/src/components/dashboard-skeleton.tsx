@@ -15,6 +15,7 @@
 import type { ReactNode } from "react";
 
 import { LoadingStatus } from "@/components/loading-status";
+import { PageHeaderSkeleton } from "@/components/page-header";
 import { StatusChipSkeleton } from "@/components/status-chip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PANEL_HEADER_CLASS } from "@/lib/panel-header";
@@ -167,15 +168,14 @@ export function DashboardSkeleton() {
   return (
     <div className="container mx-auto max-w-content px-4 py-8" aria-busy="true">
       <LoadingStatus label="dashboard" />
-      {/* Header band skeleton: greeting + status cluster */}
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div className="space-y-2">
-          <Skeleton className="h-3 w-32" />
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-4 w-48" />
-        </div>
-        <StatusClusterPlaceholder />
-      </div>
+      {/* Header band: date kicker, the greeting (two lines on a phone), its subline, and the
+          status cluster */}
+      <PageHeaderSkeleton
+        className="mb-8"
+        kicker
+        narrowTitleLines={2}
+        status={<StatusClusterPlaceholder />}
+      />
 
       <StatTilesPlaceholder />
 

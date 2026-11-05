@@ -1207,7 +1207,9 @@ existing home and reuse it:
   Save when the server's input schema would reject the payload), `status-chip`,
   `unsaved-changes-guard`, `auto-scale`, `loader`, `query-error`
   (failed first load — never render editors over defaults), `secret-url-row`, `app-toaster`
-  (the one toast host, `(app)` layout only).
+  (the one toast host, `(app)` layout only), `page-header` (`PageHeader` /
+  `PageHeaderSkeleton`: the dashboard pages' header band and the skeletons' copy of it, bars in
+  the live line boxes; `page-header.test.ts` keeps the h1 recipe there).
 - **Specs** — every component has a spec in `design-system/components/` (frontmatter
   `source:` + `tokens:`; README holds the page → components map), and
   `apps/web/src/lib/__tests__/spec-catalog.test.ts` enforces it: a new, renamed or moved
