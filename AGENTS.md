@@ -181,7 +181,10 @@ high to stay within the Cloudflare free-tier request budget.) Every cadence live
 `apps/web/src/lib/poll-intervals.ts`, each with its request count. Dashboard queries stop
 when the tab is hidden and use `dashboardPollInterval`, which slows to 15s after 2 minutes
 without input — an authenticated dashboard request is billed twice (web worker → `/rpc`
-proxy → api worker), so an untouched dashboard must not out-spend the overlays. The
+proxy → api worker), so an untouched dashboard must not out-spend the overlays. On a return
+after `QUERY_FRESH_MS` hidden, every stale dashboard query, `timer.get` included, refetches in
+the same tick, so the return costs ONE `/rpc` batch (never opt one query out of the focus
+refetch: it would follow on its next tick as a second request). The
 dashboard's OBS live preview is the overlay page itself in an iframe, so it stops with the
 tab the same way: its src carries `?preview=1` (`overlayPreviewSrc` / `isOverlayPreview`,
 `lib/overlay-view.ts`), and the overlay pages turn background polling off for it, while an

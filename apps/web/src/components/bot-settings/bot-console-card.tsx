@@ -27,10 +27,14 @@ import { trpc } from "@/utils/trpc";
 export function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
   const queryClient = useQueryClient();
   // Without a bot account the card shows a prompt and ignores this data, so don't spend
-  // the (double-billed, via /rpc) request on it.
+  // the (double-billed, via /rpc) request on it. `refetchOnMount: false`: the URL only
+  // changes on Reset, which invalidates it, so re-entering the Overview past QUERY_FRESH_MS
+  // reuses the cached URL instead of spending another /rpc request. Never streamed by
+  // streamBot: that would put the bot token in every Bot settings page's payload.
   const ingestInfo = useQuery({
     ...trpc.bot.getIngestInfo.queryOptions(),
     enabled: hasBotAccount,
+    refetchOnMount: false,
   });
   const origin = useOrigin();
 
