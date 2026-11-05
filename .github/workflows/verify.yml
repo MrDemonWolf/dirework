@@ -93,6 +93,14 @@ jobs:
         if: ${{ inputs.run-build || inputs.upload-docs }}
         working-directory: packages/infra
         run: node ./node_modules/.bin/tsx bundle-budget.ts
+      # What a browser downloads, per route: the first-load chunks Next listed in
+      # .next/diagnostics/route-bundle-stats.json during build:worker, gzipped and
+      # summed, each route held to its budget (packages/infra/client-budget.ts).
+      # A missing stats file fails the step. The table lands in the job summary.
+      - name: Client JS budget
+        if: ${{ inputs.run-build || inputs.upload-docs }}
+        working-directory: packages/infra
+        run: node ./node_modules/.bin/tsx client-budget.ts
       # A worker can build cleanly and still throw on every request at runtime
       # (Next 16.4 under OpenNext 1.20.9 did, in production). Boot the built
       # bundle in local workerd and request routes that need no api worker.
