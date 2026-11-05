@@ -114,10 +114,17 @@ export function dashboardPollInterval(activeMs: number): () => number | false {
  * Shared by every `timer.get` observer on the dashboard. React Query polls a key
  * at the fastest interval among its observers, so they must stay identical.
  * The countdown ticks locally from targetEndTime; the poll only syncs state.
+ *
+ * Polls stop while the tab is hidden (refetchIntervalInBackground stays false). The focus
+ * refetch is kept on purpose: with the QUERY_FRESH_MS staleTime it fires only on a return
+ * after 30s or more hidden, in the same tick as the other stale dashboard queries
+ * (task.list, user.me, config.get, stats.summary), so httpBatchLink sends them as ONE /rpc
+ * request, and the interval restarts from it. Opting out (as before) left timer.get to
+ * follow on its next tick as a second /rpc request: 2 Worker requests more per such return.
+ * Net cost of the focus refetch: 0 requests added, up to 2 saved per return.
  */
 export const DASHBOARD_TIMER_QUERY_OPTS = {
   refetchInterval: dashboardPollInterval(DASHBOARD_TIMER_POLL_MS),
-  refetchOnWindowFocus: false,
 } as const;
 
 /**

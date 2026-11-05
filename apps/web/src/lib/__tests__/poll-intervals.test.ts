@@ -141,6 +141,91 @@ describe("OVERLAY_POLL_QUERY_OPTS", () => {
   });
 });
 
+describe("DASHBOARD_TIMER_QUERY_OPTS", () => {
+  // timer.get rides the focus refetch with the other stale dashboard queries: one /rpc batch
+  // on a return, instead of the batch plus timer.get on its own at the next interval tick.
+  // Driven through a real QueryClient with the app's staleTime, as the browser runs it.
+  let queryClient: QueryClient;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    environmentManager.setIsServer(() => false);
+    queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: QUERY_FRESH_MS } } });
+    queryClient.mount();
+  });
+
+  afterEach(() => {
+    queryClient.unmount();
+    queryClient.clear();
+    focusManager.setFocused(undefined);
+    environmentManager.setIsServer(() => isServer);
+    vi.useRealTimers();
+  });
+
+  /** The timer console's poll plus a dashboard query on the default options (task.list etc.). */
+  async function mountDashboard() {
+    const fetches = { timer: [] as number[], other: [] as number[] };
+    const timer = new QueryObserver(queryClient, {
+      queryKey: ["timer", "get"],
+      queryFn: async () => fetches.timer.push(Date.now()),
+      ...DASHBOARD_TIMER_QUERY_OPTS,
+    });
+    const other = new QueryObserver(queryClient, {
+      queryKey: ["user", "me"],
+      queryFn: async () => fetches.other.push(Date.now()),
+    });
+    const unsubscribe = [timer.subscribe(() => {}), other.subscribe(() => {})];
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetches.timer).toHaveLength(1);
+    expect(fetches.other).toHaveLength(1);
+    return {
+      fetches,
+      unsubscribe: () => {
+        for (const off of unsubscribe) off();
+      },
+    };
+  }
+
+  it("keeps the focus refetch (no refetchOnWindowFocus opt-out)", () => {
+    expect(DASHBOARD_TIMER_QUERY_OPTS).not.toHaveProperty("refetchOnWindowFocus");
+    expect(DASHBOARD_TIMER_QUERY_OPTS).not.toHaveProperty("refetchIntervalInBackground");
+  });
+
+  it("stops polling while hidden and refetches with the other stale queries on return", async () => {
+    const { fetches, unsubscribe } = await mountDashboard();
+
+    focusManager.setFocused(false);
+    await vi.advanceTimersByTimeAsync(QUERY_FRESH_MS + DASHBOARD_TIMER_POLL_MS);
+    expect(fetches.timer).toHaveLength(1);
+
+    // Shown again: both refetch in the same tick, so httpBatchLink sends them as one request.
+    focusManager.setFocused(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetches.timer).toHaveLength(2);
+    expect(fetches.other).toHaveLength(2);
+    expect(fetches.timer[1]).toBe(fetches.other[1]);
+
+    // The focus fetch restarts the interval: the next poll is a full interval later, not
+    // an extra request right behind the batch.
+    await vi.advanceTimersByTimeAsync(DASHBOARD_TIMER_POLL_MS - 1);
+    expect(fetches.timer).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetches.timer).toHaveLength(3);
+    unsubscribe();
+  });
+
+  it("adds no focus fetch for a return within QUERY_FRESH_MS", async () => {
+    const { fetches, unsubscribe } = await mountDashboard();
+    focusManager.setFocused(false);
+    await vi.advanceTimersByTimeAsync(QUERY_FRESH_MS / 2);
+    focusManager.setFocused(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetches.timer).toHaveLength(1);
+    expect(fetches.other).toHaveLength(1);
+    unsubscribe();
+  });
+});
+
 describe("BOT_HEARTBEAT_MS", () => {
   it("is 2 minutes, at most half the 5-minute bot lease, so one lost check-in never drops the bot", () => {
     // 30 requests and 30 D1 writes an hour per open bot page: the owner-approved budget.

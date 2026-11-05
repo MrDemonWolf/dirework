@@ -18,7 +18,7 @@ The "Run the bot" card on the Bot settings Overview (`/dashboard/bot`, `(section
 
 | Prop | Type | Notes |
 |---|---|---|
-| `hasBotAccount` | `boolean` | Gates the `bot.getIngestInfo` query (`enabled`), so no request is spent without an account |
+| `hasBotAccount` | `boolean` | Gates the `bot.getIngestInfo` query (`enabled`), so no request is spent without an account. The query sets `refetchOnMount: false`: re-entering the Overview reuses the cached URL; Reset and disconnect invalidate it |
 
 Reset calls `bot.regenerateBotToken`; the returned `chatToken` (`revoked` / `unconfirmed` / `no-account`) picks one of three fixed toasts, never Twitch's text.
 
@@ -41,3 +41,4 @@ Reset calls `bot.regenerateBotToken`; the returned `chatToken` (`revoked` / `unc
 - **Do** keep reset toasts as fixed copy keyed on `chatToken`.
 - **Don't** enable `getIngestInfo` without a bot account; every dashboard request is billed twice.
 - **Don't** put the token in toasts or logs.
+- **Don't** stream `getIngestInfo` in `streamBot`: the token would ride every Bot settings page's payload.

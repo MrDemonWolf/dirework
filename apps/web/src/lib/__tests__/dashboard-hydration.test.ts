@@ -74,6 +74,17 @@ describe("dashboard SSR hydration", () => {
     expect(read("components/bot-settings/bot-section-nav.tsx")).toContain("prefetch={false}");
   });
 
+  it("never refetches the bot page URL on a remount of the Run the bot card", () => {
+    // Re-entering the Overview past QUERY_FRESH_MS would otherwise spend 2 Worker requests
+    // (and getIngestInfo's provisioning batch); Reset invalidates it explicitly.
+    const card = read("components/bot-settings/bot-console-card.tsx");
+    expect(card).toMatch(
+      /\.\.\.trpc\.bot\.getIngestInfo\.queryOptions\(\),\s*enabled: hasBotAccount,\s*refetchOnMount: false,/,
+    );
+    // Not streamed: the bot token would ride every Bot settings page's payload (owner's call).
+    expect(read("lib/server-query.ts")).not.toContain("getIngestInfo");
+  });
+
   it("keeps hydrated data fresh on mount via the client default staleTime", () => {
     expect(read("utils/trpc.ts")).toContain("staleTime: QUERY_FRESH_MS");
   });
