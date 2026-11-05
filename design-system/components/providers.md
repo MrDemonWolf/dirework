@@ -9,23 +9,20 @@ tokens: []
 
 Root client providers, mounted once by `app/layout.tsx` around every route: the theme
 (`ThemeProvider`, next-themes), React Query (`QueryClientProvider` with the shared
-`getQueryClient()`, so tRPC hooks and this provider share one cache), React Query devtools
-(nothing in production builds), and the global toast host (`Toaster`). Non-visual apart from
-the toasts.
+`getQueryClient()`, so tRPC hooks and this provider share one cache) and React Query devtools
+(nothing in production builds). Non-visual. The toast host is not here: the `(app)` layout
+mounts `AppToaster` (`app-toaster.tsx`), so the OBS overlays and the bot page never load it.
 
 ## Anatomy
 
 `ThemeProvider` (`attribute="class"`, `defaultTheme="dark"`, `enableSystem`,
-`disableTransitionOnChange`) wraps `QueryClientProvider` (children + devtools) and the
-`Toaster` (`richColors`, safe-area offsets).
+`disableTransitionOnChange`) wraps `QueryClientProvider` (children + devtools).
 
 ## Props and variants
 
 | Export | Notes |
 |---|---|
 | `default Providers({ children })` | The wrapper |
-| `TOAST_OFFSET` | Desktop toast offsets: 24px plus `env(safe-area-inset-*)` on bottom/left/right |
-| `TOAST_MOBILE_OFFSET` | Mobile toast offsets: `1rem` plus the safe-area insets |
 
 ## States
 
@@ -33,12 +30,11 @@ None. Not applicable: renders no UI of its own.
 
 ## Accessibility
 
-Not applicable directly. Toasts it hosts are announced by Sonner; the dark default matches
-the dark-first design language.
+Not applicable directly. The dark default matches the dark-first design language.
 
 ## Do / Don't
 
-- **Do** add app-wide context providers here, once.
-- **Do** keep toasts clear of the notch and home indicator via the offset constants.
+- **Do** add context providers every route needs here, once.
 - **Don't** create a second `QueryClient`; use `getQueryClient()`.
-- **Don't** mount another `Toaster` elsewhere.
+- **Don't** mount a `Toaster` here: every route, the OBS overlays included, would load sonner.
+  It belongs to `AppToaster`.

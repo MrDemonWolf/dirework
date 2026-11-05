@@ -1,10 +1,14 @@
+// The fallback styles come from config-types, not lib/theme-presets (the same objects): the
+// preset table, and lib/utils' tailwind-merge through its isDeepEqual, would load with every
+// OBS overlay.
 import {
   DEFAULT_PHASE_LABELS,
+  DEFAULT_TASK_STYLES,
+  DEFAULT_TIMER_STYLES,
   type PhaseLabelsConfig,
   type TaskStylesConfig,
   type TimerStylesConfig,
 } from "@/lib/config-types";
-import { defaultTaskStyles, defaultTimerStyles } from "@/lib/theme-presets";
 import { type PhaseDurations, type TimerState, resolvePhaseDuration } from "@/lib/timer-utils";
 
 export { ACTIVE_ROW_TINT_PERCENT, taskStatusLabel } from "@dirework/overlay-kit";
@@ -151,7 +155,7 @@ export function timerOverlayView(payload: TimerOverlayPayload | null | undefined
   const state = (payload.timerState as TimerState | null) ?? IDLE_TIMER_STATE;
   const { timerConfig } = payload;
   const config = {
-    ...(payload.timerStyles ?? defaultTimerStyles),
+    ...(payload.timerStyles ?? DEFAULT_TIMER_STYLES),
     labels: timerConfig?.labels ?? DEFAULT_PHASE_LABELS,
     showHours: timerConfig?.showHours ?? false,
   };
@@ -179,7 +183,7 @@ export function taskOverlayView<TTask, TCounts>(
 ) {
   if (!payload) return null;
   return {
-    config: payload.taskStyles ?? defaultTaskStyles,
+    config: payload.taskStyles ?? DEFAULT_TASK_STYLES,
     tasks: payload.tasks,
     counts: payload.counts,
   };

@@ -9,19 +9,22 @@ import { apiOrigin } from "@/lib/api-origin";
 import { authLapseLink, fetchRpc, shouldRetryQuery } from "@/lib/auth-lapse";
 import { withRequestTimeout } from "@/lib/fetch-timeout";
 import { QUERY_FRESH_MS } from "@/lib/poll-intervals";
-import { toastMutationAuthLapse, toastQueryError } from "@/lib/query-error-toast";
+import { reportMutationError, reportQueryError } from "@/lib/query-error-reporter";
 
 function makeQueryClient(): QueryClient {
   return new QueryClient({
     queryCache: new QueryCache({
-      // Toasts with a retry action; queries marked meta.silent (OBS overlay
-      // polling) never toast, so nothing is composited onto the stream. Not on
-      // the server: a failed SSR prefetch just falls back to the client fetch,
-      // and sonner's toast store is module state that no render would drain.
-      onError: isServer ? undefined : toastQueryError,
+      // The registered reporter: on the (app) routes, AppToaster's toast with a
+      // retry action; on the OBS overlays and the bot page, none, so they never
+      // load sonner. Queries marked meta.silent (overlay polling) never report,
+      // so nothing is composited onto the stream. Not on the server: a failed SSR
+      // prefetch just falls back to the client fetch, and sonner's toast store is
+      // module state that no render would drain.
+      onError: isServer ? undefined : reportQueryError,
     }),
-    // A write refused because the sign-in lapsed raises the same reload toast.
-    mutationCache: new MutationCache({ onError: isServer ? undefined : toastMutationAuthLapse }),
+    // A write refused because the sign-in lapsed raises the same reload toast, through the
+    // same registry, so a token page (no AppToaster) loads no sonner for it either.
+    mutationCache: new MutationCache({ onError: isServer ? undefined : reportMutationError }),
     defaultOptions: {
       queries: {
         // A client default, not per-query: several observers share one key

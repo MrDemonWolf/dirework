@@ -16,7 +16,7 @@ vi.hoisted(() => {
 });
 
 const toastError = vi.hoisted(() => vi.fn());
-vi.mock("sonner", () => ({ toast: { error: toastError } }));
+vi.mock("sonner", () => ({ toast: { error: toastError }, Toaster: () => null }));
 
 type Answer = "ok" | "unauthorized" | "server-error" | "offline" | "access-redirect";
 
@@ -80,11 +80,13 @@ function stubNetwork() {
 }
 
 /**
- * utils/trpc.ts as a fresh page load gets it: every app module evaluates anew, so the browser
- * QueryClient and any page-level state start from nothing.
+ * utils/trpc.ts as a fresh dashboard load gets it: every app module evaluates anew, so the
+ * browser QueryClient and any page-level state start from nothing, and the (app) layout's
+ * AppToaster registers the toasts (lib/query-error-reporter.ts) as its module loads.
  */
 async function loadBrowserClient() {
   vi.resetModules();
+  await import("@/components/app-toaster");
   const { getQueryClient, trpc } = await import("@/utils/trpc");
   const polls = await import("@/lib/poll-intervals");
   return { queryClient: getQueryClient(), trpc, polls };

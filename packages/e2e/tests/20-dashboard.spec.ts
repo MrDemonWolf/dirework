@@ -373,3 +373,32 @@ test("the header toggle switches the theme and the browser bar follows", async (
   await expect(html).toHaveClass(/\bdark\b/);
   for (const meta of await metas.all()) await expect(meta).toHaveAttribute("content", "#0c0c0e");
 });
+
+/** Sonner's live region: AppToaster (components/app-toaster.tsx), mounted by the (app) layout. */
+const TOAST_HOST = { name: /^Notifications/, includeHidden: true } as const;
+
+test("the toast host is on the dashboard and not on an OBS overlay", async ({ page, context }) => {
+  await expect(page.getByRole("region", TOAST_HOST)).toHaveCount(1);
+
+  // The overlays show no toasts, so they load no sonner (browser-imports.test.ts in
+  // apps/web pins the imports); the region would be in the server HTML if they did.
+  await page.getByRole("tab", { name: "Tasks" }).click();
+  const overlay = await context.newPage();
+  await overlay.goto(await revealSecretUrl(page, "Tasks overlay"));
+  await expect(overlay.getByRole("region", TOAST_HOST)).toHaveCount(0);
+});
+
+test("a poll that can't reach the API raises one toast with a retry", async ({ page }) => {
+  // AppToaster registers the query-error toast as its module loads, never lazily, so the
+  // toast needs nothing from the network. The next timer poll fails, then its retries.
+  test.setTimeout(45_000);
+  await page.route("**/rpc/**", (route) => route.abort());
+  const toasts = page.getByRole("region", TOAST_HOST);
+  const unreachable = toasts.getByText(
+    "Can't reach the DireWork API. Check your connection and try again.",
+  );
+  await expect(unreachable).toBeVisible({ timeout: 25_000 });
+  // Every failing query shares the one toast id, so the polls never stack a second one.
+  await expect(unreachable).toHaveCount(1);
+  await expect(toasts.getByRole("button", { name: "retry" })).toBeVisible();
+});
