@@ -46,6 +46,7 @@ import {
   type BotSession,
 } from "@/lib/bot-session";
 import { pageLeaseId, releaseBotLease } from "@/lib/bot-lease-release";
+import { deployReloader } from "@/lib/deploy-reload";
 import {
   BOT_TERMINAL_HEADINGS,
   botPageTitle,
@@ -152,15 +153,26 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
 
     if (generation > 0) pushActivity("info", "reconnecting — requested from the dock");
 
+    // After a deploy the page reloads once the new build is live (lib/deploy-reload.ts), on
+    // an answer it already gets (getSession, the 2-minute heartbeat) and only between
+    // commands: nothing relaying, no ban cleanup waiting, no reply queued, no dock click in
+    // flight. The reload's pagehide hands the lease straight to the reloaded page.
+    const afterCheckIn = <T,>(answer: T): T => {
+      void deployReloader()?.check(
+        () => sessionRef.current?.idle() === true && !commandBusyRef.current,
+      );
+      return answer;
+    };
+
     const session = createBotSession({
       token,
       // One id per page load, not per mount: the dock's Reconnect and the (bot) error
       // boundary's restart each start a new session here, renewing the lease the last one held.
       instanceId: pageLeaseId(),
       api: {
-        getSession: (input) => publicTrpc.bot.getSession.mutate(input),
+        getSession: (input) => publicTrpc.bot.getSession.mutate(input).then(afterCheckIn),
         ingest: (input) => publicTrpc.bot.ingest.mutate(input),
-        heartbeat: (input) => publicTrpc.bot.heartbeat.mutate(input),
+        heartbeat: (input) => publicTrpc.bot.heartbeat.mutate(input).then(afterCheckIn),
         release: (input) => releaseBotLease(input),
       },
       createClient: (callbacks) => new TwitchIrcClient(callbacks),

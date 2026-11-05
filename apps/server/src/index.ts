@@ -1,3 +1,4 @@
+import { BUILD_ID_HEADER } from "@dirework/api/build-id";
 import { TRPC_MAX_BATCH_SIZE } from "@dirework/api/config-shared";
 import { createContext } from "@dirework/api/context";
 import { appRouter } from "@dirework/api/routers/index";
@@ -9,6 +10,7 @@ import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 import { botOAuth } from "./routes/bot-oauth";
+import { buildIdHeader } from "./lib/build-id";
 import { getRequestId, requestLogger } from "./lib/logger";
 import { missingRateLimitBindings, rateLimiter } from "./lib/rate-limit";
 import { requireJsonMutations } from "./lib/require-json";
@@ -26,6 +28,10 @@ const MAX_BODY_BYTES = 128 * 1024;
 const app = new Hono();
 
 app.use(requestLogger());
+// Every answer names the deploy it came from, so an OBS overlay or bot page left open across a
+// deploy reloads itself once (apps/web/src/lib/deploy-reload.ts). Outermost, so rate-limited
+// and error answers carry it too.
+app.use(buildIdHeader(env.BUILD_ID));
 // This origin serves credentials, OAuth redirects, and user state. Never let a
 // browser, intermediary, or edge cache retain those responses.
 app.use(async (c, next) => {
@@ -69,6 +75,8 @@ app.use(
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true,
+    // The token pages read the build id cross-origin (publicTrpc goes direct to this worker).
+    exposeHeaders: [BUILD_ID_HEADER],
     // Overlays poll with preflighted POSTs; caching the preflight (7200s is
     // Chromium's cap) keeps it from adding a Worker request to most polls.
     maxAge: 7200,

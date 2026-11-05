@@ -41,6 +41,17 @@ export const DASHBOARD_IDLE_POLL_MS = 15_000;
 export const VERSION_CHECK_MS = 5 * 60_000;
 
 /**
+ * A token page's reload after a deploy (lib/deploy-reload.ts): no poll of its own. Only while
+ * an answer the page already gets (an overlay poll, the bot's getSession or heartbeat) carries
+ * an api build id other than the page's own, it asks `/version.json` (a free static asset, no
+ * Worker request) whether the web worker serves that build yet, at most once per this, so a
+ * few checks in the minutes between the api and the web deploy. Then one reload per page per
+ * deploy: the page's HTML (1 web Worker request) plus, on the bot page, its release,
+ * getSession and heartbeat (3 api requests, as on any reload).
+ */
+export const DEPLOY_CONFIRM_MIN_MS = 60_000;
+
+/**
  * The bot page's chat-lease check-in (`bot.heartbeat`), live or in standby: one Worker
  * request and one D1 write (the renewal) per open bot page every 2 minutes, so 30 an hour
  * and at most 720 a day for a page left open around the clock. Well under the 5-minute lease

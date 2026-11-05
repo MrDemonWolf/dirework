@@ -1481,3 +1481,50 @@ describe("createBotSession chat lease (one bot page at a time)", () => {
     expect(phases(other.events)).toEqual(["standby"]);
   });
 });
+
+describe("idle (the reload-after-deploy gate)", () => {
+  it("is idle only with no command in flight, no ban cleanup pending and no reply queued", async () => {
+    const { session, ingest, callbacks } = setup({
+      getSession: async () => ({ ...SESSION, broadcasterId: "1000" }),
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(session.idle()).toBe(true);
+
+    // A relayed chat command, until its ingest answers.
+    let answer: (value: { replies: string[] }) => void = () => {};
+    ingest.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)));
+    callbacks().onChat?.(chat("!task a"));
+    expect(session.idle()).toBe(false);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(session.idle()).toBe(false);
+    answer({ replies: [] });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(session.idle()).toBe(true);
+
+    // A dock click, until it answers.
+    ingest.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)));
+    const click = session.runCommand("!timer pause");
+    expect(session.idle()).toBe(false);
+    await vi.advanceTimersByTimeAsync(0);
+    answer({ replies: [] });
+    await click;
+    expect(session.idle()).toBe(true);
+
+    // A ban whose cleanup is still waiting out its grace period.
+    callbacks().onClearChat?.(ban("spammer"));
+    expect(session.idle()).toBe(false);
+    await vi.advanceTimersByTimeAsync(BAN_CLEANUP_DELAY_MS);
+    expect(session.idle()).toBe(true);
+  });
+
+  it("is not idle while the IRC client still holds replies to send", async () => {
+    const { session, client } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+    let queued = 2;
+    // The real TwitchIrcClient reports its rate-limited send queue.
+    (client as BotIrcClient).pendingSends = () => queued;
+    expect(session.idle()).toBe(false);
+    queued = 0;
+    expect(session.idle()).toBe(true);
+  });
+});

@@ -12,6 +12,7 @@ import { BOT_LEASE_TTL_MS } from "@dirework/api/bot-lease";
 import {
   BOT_HEARTBEAT_MS,
   DASHBOARD_IDLE_AFTER_MS,
+  DEPLOY_CONFIRM_MIN_MS,
   DASHBOARD_IDLE_POLL_MS,
   DASHBOARD_TASKS_POLL_MS,
   DASHBOARD_TIMER_POLL_MS,
@@ -250,5 +251,11 @@ describe("VERSION_CHECK_MS", () => {
   // only. A deploy only needs noticing within minutes, so this never gets faster.
   it("checks for a new deploy no more than every 5 minutes", () => {
     expect(VERSION_CHECK_MS).toBeGreaterThanOrEqual(5 * 60_000);
+  });
+});
+
+describe("DEPLOY_CONFIRM_MIN_MS", () => {
+  it("asks /version.json at most once a minute while a deploy is pending", () => {
+    expect(DEPLOY_CONFIRM_MIN_MS).toBeGreaterThanOrEqual(60_000);
   });
 });

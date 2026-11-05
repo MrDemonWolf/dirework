@@ -16,6 +16,7 @@ import {
   resolveDevLoginSecret,
   rateLimitBindingsFor,
   resolveAlchemyPassword,
+  resolveBuildId,
   resolveProxySecret,
   isCiRun,
   isDevelopmentRun,
@@ -169,6 +170,9 @@ export const server = await Worker("server", {
     DEV_LOGIN: devLogin.server,
     // Per-run secret the dev-login endpoint requires; "" outside local dev.
     DEV_LOGIN_SECRET: devLoginSecret,
+    // The commit this deploy runs, stamped on every answer (x-dirework-build) so an OBS
+    // overlay or bot page left open across a deploy reloads itself once.
+    BUILD_ID: resolveBuildId(),
   },
   dev: {
     port: 3000,

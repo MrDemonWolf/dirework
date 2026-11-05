@@ -4,6 +4,7 @@ import { createTRPCClient, httpBatchLink } from "@trpc/client";
 
 import { TRPC_MAX_BATCH_SIZE } from "@dirework/api/config-defaults";
 import { apiOrigin } from "@/lib/api-origin";
+import { deployReloader } from "@/lib/deploy-reload";
 import { withRequestTimeout } from "@/lib/fetch-timeout";
 
 /**
@@ -16,14 +17,23 @@ import { withRequestTimeout } from "@/lib/fetch-timeout";
  * Every request is time-boxed: the bot page relays chat through a serial
  * queue, so one hung ingest would otherwise stall every later command. A
  * timeout rejects the call, the queue moves on, and the command is dropped.
+ *
+ * Every answer's build id (`x-dirework-build`) goes to the page's deploy reloader
+ * (lib/deploy-reload.ts), which the overlays and the bot page consult to reload
+ * once after a deploy: no request of its own.
  */
 export const publicTrpc = createTRPCClient<AppRouter>({
   links: [
     httpBatchLink({
       url: `${apiOrigin()}/trpc`,
       maxItems: TRPC_MAX_BATCH_SIZE,
-      fetch(url, options) {
-        return fetch(url, { ...options, signal: withRequestTimeout(options?.signal) });
+      async fetch(url, options) {
+        const response = await fetch(url, {
+          ...options,
+          signal: withRequestTimeout(options?.signal),
+        });
+        deployReloader()?.noteResponse(response);
+        return response;
       },
     }),
   ],

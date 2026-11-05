@@ -399,6 +399,11 @@ export class TwitchIrcClient {
     this.disposed = true;
   }
 
+  /** Replies queued but not yet written to the socket. */
+  pendingSends(): number {
+    return this.sendQueue.length;
+  }
+
   /** Queue a chat message; sent as PRIVMSG under the rolling rate limiter. */
   say(text: string): void {
     const trimmed = sanitizeIrcMessage(text);

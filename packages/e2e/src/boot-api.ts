@@ -45,6 +45,8 @@ const config = {
     DOCS_URL: "",
     DEV_LOGIN: "true",
     DEV_LOGIN_SECRET,
+    // No build id: the token pages' reload-after-deploy stays off under test.
+    BUILD_ID: "",
   },
 };
 

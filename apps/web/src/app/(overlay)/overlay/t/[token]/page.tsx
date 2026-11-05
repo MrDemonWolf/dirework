@@ -3,8 +3,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useSearchParams } from "next/navigation";
 
-import { isOverlayPreview, timerOverlayView } from "@/lib/overlay-view";
+import { isOverlayPreview, isTimerCountingDown, timerOverlayView } from "@/lib/overlay-view";
 import { OVERLAY_POLL_QUERY_OPTS } from "@/lib/poll-intervals";
+import { useReloadAfterDeploy } from "@/lib/use-reload-after-deploy";
 import { AutoScale } from "@/components/auto-scale";
 import { FontGate } from "@/components/font-gate";
 import { TimerDisplay } from "@/components/timer-display";
@@ -19,7 +20,7 @@ export default function TimerOverlayPage() {
   // proxy hop for high-frequency overlay traffic. React Query keeps the last
   // successful payload across failed refetches, so transient errors don't
   // blank the OBS source.
-  const { data } = useQuery({
+  const { data, dataUpdatedAt } = useQuery({
     queryKey: ["overlay", "timerState", token],
     queryFn: () => publicTrpc.overlay.getTimerState.mutate({ token }),
     enabled: Boolean(token),
@@ -33,6 +34,8 @@ export default function TimerOverlayPage() {
   // Nothing until the first payload lands, and nothing for an invalid or reset
   // token (null) — a stale URL goes blank instead of showing a fake 00:00.
   const view = timerOverlayView(data);
+  // A source left open across a deploy reloads once the new build is live, never mid-countdown.
+  useReloadAfterDeploy(dataUpdatedAt, !view || !isTimerCountingDown(view.state.status));
   if (!view) return null;
 
   return (

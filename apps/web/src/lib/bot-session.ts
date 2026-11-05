@@ -163,6 +163,8 @@ export interface BotIrcClient {
   disconnect(): void;
   dispose(): void;
   say(text: string): void;
+  /** Replies queued but not yet written (the rate limiter holds them). */
+  pendingSends?(): number;
 }
 
 export interface BotSessionEvents {
@@ -222,6 +224,12 @@ export interface BotSession {
   takeOver(): void;
   /** The page is closing: give the lease up if this session holds it. */
   release(): void;
+  /**
+   * Nothing in flight: no chat command or dock click waiting on `bot.ingest`, no ban cleanup
+   * waiting out its grace period, no reply queued for Twitch. A reload now loses nothing
+   * (lib/deploy-reload.ts reloads the page after a deploy only then).
+   */
+  idle(): boolean;
 }
 
 /**
@@ -489,6 +497,8 @@ export function createBotSession({
   // once per backlog episode (until the queue fully drains), so a flood of
   // chat doesn't also flood the activity log.
   let pendingIngests = 0;
+  // Dock clicks queued or in flight (they share the queue but not the chat backlog cap).
+  let commandsInFlight = 0;
   let overflowLogged = false;
   const ingest = async (
     input: BotIngestInput,
@@ -871,6 +881,7 @@ export function createBotSession({
     };
     events.onActivity("chat", `dock: ${line}`);
     // Same queue as chat, so a click and a chat command never interleave.
+    commandsInFlight += 1;
     return runSerially(async (): Promise<DockCommandResult> => {
       if (inactive()) return { ok: false, reason: "not-ready" };
       try {
@@ -892,6 +903,8 @@ export function createBotSession({
         events.onActivity("error", `couldn't send ${line} to DireWork`);
         return { ok: false, reason: "failed" };
       }
+    }).finally(() => {
+      commandsInFlight -= 1;
     });
   }
 
@@ -909,6 +922,14 @@ export function createBotSession({
   return {
     runCommand,
     takeOver,
+    idle() {
+      return (
+        pendingIngests === 0 &&
+        commandsInFlight === 0 &&
+        pendingBans.size === 0 &&
+        (client.pendingSends?.() ?? 0) === 0
+      );
+    },
     release() {
       if (inactive() || !holdsLease) return;
       holdsLease = false;
