@@ -1,4 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { apiOrigin } from "../api-origin";
 import { releaseBotLease } from "../bot-lease-release";
@@ -37,5 +40,48 @@ describe("releaseBotLease", () => {
       }) as unknown as typeof fetch),
     ).not.toThrow();
     await Promise.resolve();
+  });
+});
+
+describe("pageLeaseId", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** A fresh copy of the module, the way a new page load evaluates it. */
+  async function loadPage() {
+    vi.resetModules();
+    return import("../bot-lease-release");
+  }
+
+  it("mints one id per page load, on first use, and hands it to every later session", async () => {
+    const mint = vi.spyOn(crypto, "randomUUID");
+    const page = await loadPage();
+    // Loading the module mints nothing: the server render loads it too, and a Worker isolate
+    // (one per many requests) must never hold a page's id.
+    expect(mint).not.toHaveBeenCalled();
+
+    const id = page.pageLeaseId();
+    expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    // The dock's Reconnect and the (bot) error boundary's restart start their sessions in the
+    // same page load: same id, so they renew the lease instead of standing by for it.
+    expect(page.pageLeaseId()).toBe(id);
+    expect(mint).toHaveBeenCalledTimes(1);
+
+    // A reload is a new page load with its own id (the old one went with its pagehide release).
+    expect((await loadPage()).pageLeaseId()).not.toBe(id);
+  });
+
+  it("is where BotConsole's sessions get their id: one call, never an id minted per mount", () => {
+    const source = readFileSync(
+      path.join(__dirname, "../../app/(bot)/bot/[token]/bot-console.tsx"),
+      "utf8",
+    );
+    // The error boundary's restart remounts the console and runs its session effect again: an
+    // id minted per mount would stand by for the crashed session's lease for minutes. One call
+    // site, in the session's options, keeps it out of render (and so off the server).
+    expect(source.split("pageLeaseId()")).toHaveLength(2);
+    expect(source).toContain("instanceId: pageLeaseId(),");
+    expect(source).not.toContain("randomUUID");
   });
 });

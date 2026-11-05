@@ -44,7 +44,7 @@ import {
   type BotPhase,
   type BotSession,
 } from "@/lib/bot-session";
-import { releaseBotLease } from "@/lib/bot-lease-release";
+import { pageLeaseId, releaseBotLease } from "@/lib/bot-lease-release";
 import { botPageTitle, type BotActivityLine, type BotView } from "@/lib/bot-view";
 import { TwitchIrcClient, type IrcStatus } from "@/lib/irc-client";
 import { publicTrpc } from "@/utils/trpc";
@@ -130,9 +130,6 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
     ok: boolean;
   } | null>(null);
   const sessionRef = useRef<BotSession | null>(null);
-  // This page load's chat-lease id: minted once in the browser and kept across the dock's
-  // Reconnect, so a restarted session renews its own lease instead of standing by for it.
-  const instanceIdRef = useRef("");
   // Synchronous in-flight guard: state lags a double click by a render.
   const commandBusyRef = useRef(false);
 
@@ -166,10 +163,11 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
 
     if (generation > 0) pushActivity("info", "reconnecting — requested from the dock");
 
-    instanceIdRef.current ||= crypto.randomUUID();
     const session = createBotSession({
       token,
-      instanceId: instanceIdRef.current,
+      // One id per page load, not per mount: the dock's Reconnect and the (bot) error
+      // boundary's restart each start a new session here, renewing the lease the last one held.
+      instanceId: pageLeaseId(),
       api: {
         getSession: (input) => publicTrpc.bot.getSession.mutate(input),
         ingest: (input) => publicTrpc.bot.ingest.mutate(input),
@@ -208,7 +206,8 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
     const onPageHide = () => session.release();
     window.addEventListener("pagehide", onPageHide);
     // Disposing closes the IRC socket and timers, so a token change or unmount never leaves
-    // a second bot relaying the same chat. The lease is kept: Reconnect reuses this page's id.
+    // a second bot relaying the same chat. The lease is kept: the next session (Reconnect, or
+    // the error boundary's restart) claims it again under this page load's id.
     return () => {
       window.removeEventListener("pagehide", onPageHide);
       sessionRef.current = null;

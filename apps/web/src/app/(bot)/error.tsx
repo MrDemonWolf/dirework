@@ -2,9 +2,12 @@
 
 // Error boundary for the /bot/<token> page. Auto-resets so an unattended widget, dock or
 // pinned tab recovers without anyone clicking. The blank widget sits on a stream, so there
-// it paints nothing (only screen readers hear it); the dock shows the notice. The crash is
-// reported by its name only, with the page's bot token, direct to the api
-// (lib/crash-report.ts): at most once per 10 minutes, since nobody may be watching.
+// it paints nothing (only screen readers hear it); the dock shows the notice. The reset
+// remounts the console, which claims the chat lease again under this page load's id
+// (pageLeaseId), so the bot goes straight back on chat instead of standing by for the lease
+// its crashed session still holds. The crash is reported by its name only, with the page's
+// bot token, direct to the api (lib/crash-report.ts): at most once per 10 minutes, since
+// nobody may be watching.
 
 import { useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";

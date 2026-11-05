@@ -73,6 +73,16 @@ function trpcBatch(data: unknown): string {
   return JSON.stringify([{ result: { data } }]);
 }
 
+/** What getSession answers for a connected bot (the owner's id included). */
+const CONNECTED_SESSION = {
+  channelName: "devstreamer",
+  botUsername: "direbot",
+  chatToken: "e2e-not-a-real-token",
+  aliases: [],
+  muted: false,
+  broadcasterId: "1000",
+};
+
 test("a dock button sends its chat line to bot.ingest as the broadcaster and shows the reply", async ({
   page,
 }) => {
@@ -92,14 +102,7 @@ test("a dock button sends its chat line to bot.ingest as the broadcaster and sho
   await page.route(/\/trpc\/bot\.getSession\b/, (route) =>
     route.fulfill({
       headers: cors(route.request().headers().origin),
-      body: trpcBatch({
-        channelName: "devstreamer",
-        botUsername: "direbot",
-        chatToken: "e2e-not-a-real-token",
-        aliases: [],
-        muted: false,
-        broadcasterId: "1000",
-      }),
+      body: trpcBatch(CONNECTED_SESSION),
     }),
   );
   const ingested: unknown[] = [];
@@ -154,14 +157,7 @@ async function stubConnectedBot(context: BrowserContext) {
         "access-control-allow-origin": route.request().headers().origin ?? "*",
         "content-type": "application/json",
       },
-      body: trpcBatch({
-        channelName: "devstreamer",
-        botUsername: "direbot",
-        chatToken: "e2e-not-a-real-token",
-        aliases: [],
-        muted: false,
-        broadcasterId: "1000",
-      }),
+      body: trpcBatch(CONNECTED_SESSION),
     }),
   );
 }
@@ -230,6 +226,57 @@ test("a second bot page stands by, and Take over moves the chat to it", async ({
   expect(await checkInAsNewPage(page, token)).toBe(false);
   await second.close();
   await expect.poll(() => checkInAsNewPage(page, token)).toBe(true);
+  await clearBotLease(page);
+});
+
+test("a bot page that crashes restarts still holding the chat, not standing by", async ({
+  page,
+}) => {
+  await signIn(page);
+  const token = await botToken(page);
+  await clearBotLease(page);
+  await page.routeWebSocket(/irc-ws\.chat\.twitch\.tv/, () => undefined);
+  // The first getSession names the bot with an object the dock can't render, so the console
+  // crashes into the (bot) error boundary right after it claimed the chat on the real api.
+  // Every later one is a connected bot's.
+  let sessions = 0;
+  await page.route(/\/trpc\/bot\.getSession\b/, (route) => {
+    sessions += 1;
+    return route.fulfill({
+      headers: {
+        "access-control-allow-origin": route.request().headers().origin ?? "*",
+        "content-type": "application/json",
+      },
+      body: trpcBatch({
+        ...CONNECTED_SESSION,
+        botUsername: sessions === 1 ? { crash: true } : CONNECTED_SESSION.botUsername,
+      }),
+    });
+  });
+  const leaseIds: unknown[] = [];
+  page.on("request", (request) => {
+    if (!/\/trpc\/bot\.heartbeat\b/.test(request.url())) return;
+    leaseIds.push(
+      (request.postDataJSON() as Record<string, { instanceId?: unknown }>)["0"]?.instanceId,
+    );
+  });
+
+  await page.goto(`/bot/${token}?view=dock`);
+  await expect(page.getByRole("heading", { name: "Bot crashed" })).toBeVisible();
+  // The crashed console still holds the lease: unmounting keeps it, only pagehide gives it up.
+  expect(await checkInAsNewPage(page, token)).toBe(false);
+
+  // The same reset the boundary runs on its own after 10 s: the console mounts again.
+  await page.getByRole("button", { name: "Restart now" }).click();
+  const dock = page.getByRole("main", { name: "DireWork bot dock" });
+  await expect(dock).toBeVisible();
+  // Straight back on chat, not standing by for the lease it held a moment ago.
+  await expect(dock.getByRole("status")).not.toHaveText(/^(Starting|Standby)$/);
+  await expect(dock.getByRole("button", { name: "Pause", exact: true })).toBeEnabled();
+  // One lease id per page load: the restarted session renewed the crashed one's lease.
+  expect(leaseIds.length).toBeGreaterThanOrEqual(2);
+  expect(new Set(leaseIds)).toEqual(new Set([leaseIds[0]]));
+  expect(leaseIds[0]).toMatch(/^[0-9a-f-]{36}$/);
   await clearBotLease(page);
 });
 
