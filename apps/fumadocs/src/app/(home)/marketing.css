@@ -21,37 +21,37 @@
 .marketing-text-link:hover { text-decoration: underline; }
 .marketing-hero-copy > .marketing-hero-fine { font-size: 14px; line-height: 1.6; margin-top: 18px; }
 .marketing-scene-wrap { position: relative; width: min(100%, 780px); margin-inline: auto; }
-.marketing-scene { --scene-text: #ededef; position: relative; color: var(--scene-text); border: 1px solid #2e2e33; border-radius: 14px; background: #111113; box-shadow: 0 26px 60px -25px #00000080; }
-.marketing-scene-bar { border-bottom: 1px solid #2e2e33; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; font: 12px var(--font-mono); letter-spacing: .07em; }
+.marketing-scene { position: relative; color: var(--foreground); border: 1px solid var(--border); border-radius: 14px; background: var(--background); box-shadow: 0 26px 60px -25px color-mix(in srgb, var(--background) 50%, transparent); }
+.marketing-scene-bar { border-bottom: 1px solid var(--border); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; font: 12px var(--font-mono); letter-spacing: .07em; }
 .marketing-scene-bar > span { display: inline-flex; align-items: center; gap: 8px; }
-.marketing-scene-bar svg { color: #4f99f9; }
-.marketing-scene-example { color: #a1a1aa; }
-.marketing-scene-canvas { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 24px; padding: 32px 26px 26px; background-image: linear-gradient(#ffffff04 1px, transparent 1px), linear-gradient(90deg, #ffffff04 1px, transparent 1px); background-size: 26px 26px; border-radius: 0 0 14px 14px; }
-.marketing-scene-notes .marketing-label { color: #a1a1aa; }
+.marketing-scene-bar svg { color: var(--link); }
+.marketing-scene-example { color: var(--muted-foreground); }
+.marketing-scene-canvas { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 24px; padding: 32px 26px 26px; background-image: linear-gradient(color-mix(in srgb, var(--foreground) 1.6%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--foreground) 1.6%, transparent) 1px, transparent 1px); background-size: 26px 26px; border-radius: 0 0 14px 14px; }
+.marketing-scene-notes .marketing-label { color: var(--muted-foreground); }
 .marketing-scene-notes p { font-family: var(--font-display); font-weight: 700; font-size: clamp(21px, 2vw, 27px); line-height: 1.35; letter-spacing: -.025em; margin-top: 18px; }
-.marketing-scene-rule { display: block; height: 2px; width: 32px; background: #4f99f9; margin-block: 22px; }
-.marketing-scene-note { color: #a1a1aa; display: block; max-width: 170px; font-size: 13px; line-height: 1.6; }
-.marketing-timer { width: 100%; max-width: 200px; justify-self: end; border: 3px solid #4f99f9; border-right-color: #2a2a2f; display: flex; flex-direction: column; align-items: center; justify-content: center; aspect-ratio: 1; border-radius: 26%; background: #18181b; padding: 15px 10px; box-shadow: 0 0 0 7px #4f99f90a; }
-.marketing-timer .marketing-label { color: #8ee5bb; display: flex; align-items: center; gap: 6px; }
+.marketing-scene-rule { display: block; height: 2px; width: 32px; background: var(--link); margin-block: 22px; }
+.marketing-scene-note { color: var(--muted-foreground); display: block; max-width: 170px; font-size: 13px; line-height: 1.6; }
+.marketing-timer { width: 100%; max-width: 200px; justify-self: end; border: 3px solid var(--link); border-right-color: var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; aspect-ratio: 1; border-radius: 26%; background: var(--card); padding: 15px 10px; box-shadow: 0 0 0 7px color-mix(in srgb, var(--link) 4%, transparent); }
+.marketing-timer .marketing-label { color: var(--success); display: flex; align-items: center; gap: 6px; }
 .marketing-timer-clock { font-family: var(--font-display); font-size: clamp(30px, 4vw, 53px); font-weight: 700; letter-spacing: -.04em; font-variant-numeric: tabular-nums; margin-block: 10px; }
 .marketing-cycle { display: flex; gap: 7px; }
-.marketing-cycle span { width: 6px; height: 6px; border-radius: 50%; border: 1px solid #71717a; }
-.marketing-cycle .is-done { background: #71717a; border-color: #71717a; }
-.marketing-cycle .is-current { background: #4f99f9; border-color: #4f99f9; box-shadow: 0 0 0 2px #4f99f94d; }
-.marketing-timer-caption { font-size: 12px; margin-top: 13px; color: #a1a1aa; }
+.marketing-cycle span { width: 6px; height: 6px; border-radius: 50%; border: 1px solid var(--muted-foreground); }
+.marketing-cycle .is-done { background: var(--muted-foreground); border-color: var(--muted-foreground); }
+.marketing-cycle .is-current { background: var(--link); border-color: var(--link); box-shadow: 0 0 0 2px color-mix(in srgb, var(--link) 30%, transparent); }
+.marketing-timer-caption { font-size: 12px; margin-top: 13px; color: var(--muted-foreground); }
 .marketing-scene-tasks { grid-column: 1 / -1; }
-.marketing-scene-task-heading { display: flex; justify-content: space-between; font: 12px var(--font-mono); letter-spacing: .06em; color: #a1a1aa; padding-bottom: 10px; }
-.marketing-scene-task { display: flex; align-items: center; gap: 12px; background: #18181b; border: 1px solid #2a2a2f; padding: 10px 14px; border-radius: 7px; margin-top: 6px; }
-.marketing-task-check { width: 19px; height: 19px; border: 1px solid #71717a; border-radius: 5px; display: grid; place-items: center; flex-shrink: 0; }
-.marketing-task-author { display: block; font: 12px/1.3 var(--font-mono); color: #4f99f9; }
+.marketing-scene-task-heading { display: flex; justify-content: space-between; font: 12px var(--font-mono); letter-spacing: .06em; color: var(--muted-foreground); padding-bottom: 10px; }
+.marketing-scene-task { display: flex; align-items: center; gap: 12px; background: var(--card); border: 1px solid var(--border); padding: 10px 14px; border-radius: 7px; margin-top: 6px; }
+.marketing-task-check { width: 19px; height: 19px; border: 1px solid var(--muted-foreground); border-radius: 5px; display: grid; place-items: center; flex-shrink: 0; }
+.marketing-task-author { display: block; font: 12px/1.3 var(--font-mono); color: var(--link); }
 .marketing-scene-task p { font-size: 14px; line-height: 1.4; margin-top: 3px; }
-.marketing-scene-task.is-active { border-color: #4f99f9; box-shadow: inset 3px 0 0 #4f99f9; }
-.marketing-task-label { margin-left: auto; padding-left: 8px; font: 700 11px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: #4f99f9; white-space: nowrap; }
-.marketing-scene-task.is-done p { text-decoration: line-through; color: #a1a1aa; }
-.marketing-scene-task.is-done .marketing-task-check { color: #8ee5bb; border-color: #8ee5bb; }
-.marketing-scene-caption { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 15px 18px; border-top: 1px solid #2e2e33; color: #d4d4d8; font-size: 12px; }
-.marketing-scene-caption strong { color: #4f99f9; font-weight: 500; }
-.marketing-scene-added { display: inline-flex; gap: 4px; align-items: center; color: #8ee5bb; margin-left: auto; }
+.marketing-scene-task.is-active { border-color: var(--link); box-shadow: inset 3px 0 0 var(--link); }
+.marketing-task-label { margin-left: auto; padding-left: 8px; font: 700 11px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--link); white-space: nowrap; }
+.marketing-scene-task.is-done p { text-decoration: line-through; color: var(--muted-foreground); }
+.marketing-scene-task.is-done .marketing-task-check { color: var(--success); border-color: var(--success); }
+.marketing-scene-caption { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 15px 18px; border-top: 1px solid var(--border); color: var(--foreground); font-size: 12px; }
+.marketing-scene-caption strong { color: var(--link); font-weight: 500; }
+.marketing-scene-added { display: inline-flex; gap: 4px; align-items: center; color: var(--success); margin-left: auto; }
 .marketing-proof-strip { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 22px; padding-block: 24px; border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); color: var(--txt-2); font-size: 14px; }
 .marketing-proof-strip > :is(span, a) { display: inline-flex; gap: 9px; align-items: center; }
 .marketing-proof-strip svg { color: var(--brand-600); }

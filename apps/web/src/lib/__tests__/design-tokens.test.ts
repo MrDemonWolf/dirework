@@ -92,4 +92,25 @@ describe("design tokens", () => {
     // the next rule.
     expect(docsCss).not.toMatch(/,[ \t]*\n[ \t]*\n/);
   });
+
+  it("keeps the docs hero scene and chip colors on generated tokens", () => {
+    const page = readFileSync(join(ROOT, "apps/fumadocs/src/app/(home)/page.tsx"), "utf8");
+    const marketing = readFileSync(
+      join(ROOT, "apps/fumadocs/src/app/(home)/marketing.css"),
+      "utf8",
+    );
+    const docs = readFileSync(join(ROOT, "apps/fumadocs/src/app/global.css"), "utf8");
+    const scene = marketing.slice(
+      marketing.indexOf(".marketing-scene {"),
+      marketing.indexOf(".marketing-proof-strip {"),
+    );
+
+    expect(page).toContain('className="marketing-scene dark"');
+    expect(scene).not.toMatch(/#[\da-f]{3,8}\b/i);
+    for (const name of ["chip-live-fg", "chip-warn-fg", "chat-user-1", "chat-user-3"]) {
+      const values = docs.match(new RegExp(`--${name}:\\s*([^;]+);`, "g"));
+      expect(values?.length).toBe(2);
+      for (const value of values ?? []) expect(value).toContain("var(--");
+    }
+  });
 });
