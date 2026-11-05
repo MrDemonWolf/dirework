@@ -18,6 +18,17 @@ Report vulnerabilities privately through [GitHub Security Advisories](https://gi
 
 The maintainers will acknowledge the report, reproduce and assess it, coordinate a fix, and publish details after affected operators have had a reasonable opportunity to update. Please avoid accessing data that is not yours or disrupting a live instance while testing.
 
+## Web Content Security Policy
+
+The web CSP in `apps/web/next.config.ts` keeps `'unsafe-inline'` in `script-src`
+because Next.js emits inline bootstrap and RSC payload scripts, and
+`apps/web/src/lib/theme-init.ts` runs before paint. Nonces would need a
+per-request proxy or middleware on every render, adding Worker CPU on the free
+tier; script hashes would change with each build. `script-src-attr 'none'`
+already blocks inline event-handler attributes. Revisit this when Next.js/OpenNext
+supports nonce or hash CSP without a per-request proxy, or if the app adds
+user-generated HTML.
+
 ## Operator responsibilities
 
 Each DireWork deployment is independently operated. Production operators should:

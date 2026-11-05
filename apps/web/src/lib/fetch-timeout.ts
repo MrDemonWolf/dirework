@@ -16,9 +16,9 @@ function timeoutSignal(ms: number): AbortSignal {
 }
 
 /**
- * Combine signals so the result aborts as soon as any input does, carrying
- * that input's reason. Uses AbortSignal.any where available (older Safari and
- * some embedded browsers — OBS's CEF included — may lack it).
+ * Combine signals with AbortSignal.any when available. Older Safari (before 17.4)
+ * and older embedded Chromium/CEF browsers lack it; the fallback handles already
+ * aborted inputs, then forwards the first abort reason and removes its listeners.
  */
 export function anySignal(signals: AbortSignal[]): AbortSignal {
   if (typeof AbortSignal.any === "function") return AbortSignal.any(signals);
