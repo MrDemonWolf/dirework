@@ -14,7 +14,7 @@ import type { AccountLinks } from "@/lib/landing-links";
 import type { ServerSession } from "@/lib/server-session";
 import { cn } from "@/lib/utils";
 import { closeOnRouteChange, type MobileMenuState, onEscape } from "@/lib/mobile-menu";
-import { Button } from "@/components/ui/button";
+import { Button, focusRing } from "@/components/ui/button";
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
 
@@ -129,7 +129,8 @@ export default function Header({
                     href={item.href}
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
-                      "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                      "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                      focusRing,
                       isActive
                         ? "bg-primary/10 text-link"
                         : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
@@ -189,7 +190,8 @@ export default function Header({
                   onClick={() => setMenuOpen(false)}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                    "flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    focusRing,
                     isActive
                       ? "bg-primary/10 text-link"
                       : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",

@@ -31,6 +31,7 @@ import { isDeepEqual } from "@/lib/utils";
 import { describeFieldIssues } from "@/lib/validation-errors";
 import { MessageEditor } from "@/components/bot-settings/message-editor";
 import { SaveBar } from "@/components/save-bar";
+import { linkVariants } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { SettingsCard } from "@/components/bot-settings/settings-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -160,7 +161,7 @@ function RepliesEditor({ config, user }: { config: BotConfigData; user: BotUserD
                   <Link
                     href="/dashboard/bot/commands"
                     prefetch={false}
-                    className="font-medium text-link underline-offset-4 hover:underline"
+                    className={linkVariants({ variant: "proseOnTint" })}
                   >
                     Commands
                   </Link>

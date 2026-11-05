@@ -25,6 +25,7 @@ import {
   useTaskAccess,
 } from "@/lib/use-task-access";
 import { StatusChip } from "@/components/status-chip";
+import { linkVariants } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { SettingsCard } from "@/components/bot-settings/settings-card";
 import { Label } from "@/components/ui/label";
@@ -155,10 +156,7 @@ function TaskAccessRow({
         <Callout variant="destructive" title="Reconnect the bot to allow follower checks">
           The bot account was connected before DireWork could check follows, so viewers can&apos;t
           add tasks yet.{" "}
-          <a
-            href="/api/bot/authorize"
-            className="font-medium text-link underline-offset-4 hover:underline"
-          >
+          <a href="/api/bot/authorize" className={linkVariants({ variant: "proseOnTint" })}>
             Reconnect the bot
           </a>{" "}
           with the same account, and make sure it&apos;s a mod in your chat.
@@ -242,7 +240,7 @@ export function BotLiveControls({
             <Link
               href="/dashboard/bot/moderation"
               prefetch={false}
-              className="inline-flex min-h-11 items-center rounded-sm px-1 text-sm font-medium text-link underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className={`${linkVariants({ variant: "prose" })} inline-flex min-h-11 items-center px-1 text-sm`}
             >
               Manage
             </Link>
