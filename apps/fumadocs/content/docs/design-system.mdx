@@ -97,7 +97,7 @@ The docs stylesheet (`apps/fumadocs/src/app/global.css`) maps the generated pale
 | Fonts | `--font-display` / `--font-body` / `--font-mono` | Montserrat / Plex Sans / Plex Mono |
 | Radius | `--dw-radius-control` | `9px` — pills, chips, kickers, buttons |
 
-Fonts stay hand-written in both stylesheets because they wrap the `next/font` variables. The docs copy carries no radius scale: fumadocs-ui compiles its own `rounded-*` utilities against the docs theme, so overriding it would restyle every fumadocs component.
+The console classes (`panel`, `panel-hero`, `panel-inset`, `console-label`, `console-rule`, `bg-grain`) are generated into both files from one body, so the app and the docs cannot drift; the docs edge them with the lighter `--hairline`. Fonts stay hand-written in both stylesheets because they wrap the `next/font` variables. The docs copy carries no radius scale: fumadocs-ui compiles its own `rounded-*` utilities against the docs theme, so overriding it would restyle every fumadocs component.
 
 ## The `dw-*` utility layer
 

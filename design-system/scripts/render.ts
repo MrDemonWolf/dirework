@@ -253,6 +253,100 @@ function themeStaticDecls(tokens: DesignTokens): string[] {
   return lines;
 }
 
+/** A console panel's radius: the web scale's variable, or the literal rem on the docs twin. */
+function consoleRadius(tokens: DesignTokens, target: CssTarget, step: "xl" | "2xl"): string {
+  return target === "web" ? `var(--radius-${step})` : rem(tokens.radius[step]);
+}
+
+/**
+ * The console grammar both sites share (panels, the labeled rule, the mono label, the
+ * grain). One body for both, so they can't drift; only two things differ per target:
+ * the edge is the app's functional `--border` but the docs' lighter `--hairline`, and the
+ * docs twin has no radius scale (see TARGET_NOTES), so it takes the literal rem. The app
+ * wraps the rules in `@layer utilities` like the rest of its own classes; the docs keep
+ * them unlayered, as global.css always had them. Order matters: `.bg-grain` comes before the
+ * panels, whose `background` shorthand resets its image, as the app always had it (the docs
+ * never pair them). `.bg-checker` is NOT here: the app's is a
+ * light checkerboard, the docs' a dark one, on purpose.
+ */
+export function renderConsoleClasses(tokens: DesignTokens, target: CssTarget): string[] {
+  const edge = target === "web" ? "var(--border)" : "var(--hairline)";
+  const rules: [string, string[]][] = [
+    [
+      ".console-label",
+      [
+        "font-family: var(--font-mono);",
+        "font-size: 0.75rem;",
+        "font-weight: 500;",
+        "letter-spacing: 0.12em;",
+        "text-transform: uppercase;",
+        "color: var(--muted-foreground);",
+      ],
+    ],
+    [
+      ".bg-grain",
+      [
+        `background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");`,
+      ],
+    ],
+    [
+      ".panel",
+      [
+        `border-radius: ${consoleRadius(tokens, target, "2xl")};`,
+        `border: 1px solid ${edge};`,
+        "background: var(--card);",
+      ],
+    ],
+    [
+      ".dark .panel",
+      [
+        "box-shadow:",
+        "  inset 0 1px 0 0 oklch(1 0 0 / 0.05),",
+        "  0 1px 2px 0 oklch(0 0 0 / 0.25);",
+      ],
+    ],
+    [
+      ".panel-hero",
+      [
+        "position: relative;",
+        `border-radius: ${consoleRadius(tokens, target, "2xl")};`,
+        `border: 1px solid ${edge};`,
+        "background: linear-gradient(",
+        "  to bottom,",
+        "  var(--card),",
+        "  color-mix(in oklab, var(--card) 72%, var(--background))",
+        ");",
+        "overflow: hidden;",
+      ],
+    ],
+    [
+      ".dark .panel-hero",
+      [
+        "box-shadow:",
+        "  inset 0 1px 0 0 oklch(1 0 0 / 0.06),",
+        "  0 8px 24px -12px oklch(0 0 0 / 0.5);",
+      ],
+    ],
+    [
+      ".panel-inset",
+      [
+        `border-radius: ${consoleRadius(tokens, target, "xl")};`,
+        `border: 1px solid ${edge};`,
+        "background: color-mix(in oklab, var(--background) 82%, var(--card));",
+      ],
+    ],
+    [".dark .panel-inset", ["box-shadow: inset 0 1px 3px 0 oklch(0 0 0 / 0.35);"]],
+    [".console-rule", ["display: flex;", "align-items: center;", "gap: 0.75rem;"]],
+    [".console-rule::after", ['content: "";', "height: 1px;", "flex: 1;", `background: ${edge};`]],
+  ];
+  const indent = target === "web" ? "  " : "";
+  const body = rules.flatMap(([selector, lines], i) => [
+    ...(i === 0 ? [] : [""]),
+    ...block(selector, lines, indent),
+  ]);
+  return target === "web" ? ["@layer utilities {", ...body, "}"] : body;
+}
+
 const TARGET_NOTES: Record<CssTarget, string[]> = {
   web: ["Imported by apps/web/src/index.css."],
   docs: [
@@ -290,6 +384,11 @@ export function renderTokensCss(tokens: DesignTokens, options: { target: CssTarg
     ...block("@theme inline", themeInlineDecls(tokens, target)),
     "",
     ...block("@theme static", themeStaticDecls(tokens)),
+    "",
+    "/* Console grammar shared with the " +
+      (target === "web" ? "docs" : "app") +
+      " (renderConsoleClasses). */",
+    ...renderConsoleClasses(tokens, target),
     "",
   );
   // Blank lines inside blocks must not carry the indent.

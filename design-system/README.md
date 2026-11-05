@@ -20,9 +20,9 @@ design-system/
 
 | Output | Imported by | Holds |
 |---|---|---|
-| `apps/web/src/tokens.generated.css` | `apps/web/src/index.css` | Palette (`:root` + `.dark`), `--radius` and the radius scale, phase/partner/z variables, the Tailwind theme registration and the extra type/tracking/motion/layout tokens |
+| `apps/web/src/tokens.generated.css` | `apps/web/src/index.css` | Palette (`:root` + `.dark`), `--radius` and the radius scale, phase/partner/z variables, the Tailwind theme registration and the extra type/tracking/motion/layout tokens, and the shared console classes (`.panel`, `.panel-hero`, `.panel-inset`, `.console-label`, `.console-rule`, `.bg-grain`) in `@layer utilities` |
 | `apps/web/src/tokens.generated.ts` | `lib/web-manifest.ts` (→ `public/manifest.webmanifest`), `app/layout.tsx`, `lib/theme-color.ts`, `app/global-error.tsx` | `SCHEME_HEX`: `background`, `foreground`, `muted-foreground` and `input` of both schemes as sRGB hex, converted from oklch at generation (a translucent token keeps its alpha as `#rrggbbaa`), for where a CSS variable can't reach: the manifest, the theme-color tags and the crash page. The only place a background hex may be written (`token-bypass.test.ts`) |
-| `apps/fumadocs/src/app/tokens.generated.css` | `apps/fumadocs/src/app/global.css` | The same as the web CSS, minus the radius (see below), plus an OS-preference dark block for before the theme class is set |
+| `apps/fumadocs/src/app/tokens.generated.css` | `apps/fumadocs/src/app/global.css` | The same as the web CSS, minus the radius (see below), plus an OS-preference dark block for before the theme class is set; the console classes are unlayered, edged with `--hairline` and use literal rem radii |
 | `apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts` | Docs landing page | Typed `OVERLAY_THEMES` map powering the theme gallery |
 | `packages/overlay-kit/src/share-card-colors.generated.ts` | `@dirework/overlay-kit/share-card` | `SHARE_CARD_COLORS`: the dark `background`, `card`, `foreground`, `muted-foreground`, `border` and `link` as hex, the only colors the social share card paints (next/og can't read CSS variables) |
 

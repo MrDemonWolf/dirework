@@ -94,8 +94,11 @@ describe("Theme Center preview session", () => {
     }
   });
 
-  it("defines every backdrop class in index.css", () => {
-    const css = readFileSync(fileURLToPath(new URL("../../index.css", import.meta.url)), "utf8");
+  it("defines every backdrop class in index.css or the generated tokens it imports", () => {
+    // .bg-grain is generated (renderConsoleClasses in design-system/scripts/render.ts).
+    const css = ["../../index.css", "../../tokens.generated.css"]
+      .map((file) => readFileSync(fileURLToPath(new URL(file, import.meta.url)), "utf8"))
+      .join("\n");
     const classes = new Set(
       PREVIEW_BACKDROPS.flatMap((b) => [...b.className.split(" "), b.swatch]),
     );
