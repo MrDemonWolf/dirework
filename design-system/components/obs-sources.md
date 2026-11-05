@@ -20,7 +20,9 @@ URL row at a time instead of two look-alike rows in two panels.
   - `SecretUrlRow` with Show / Copy / Reset (label "Timer overlay" / "Tasks overlay"; the
     reset confirm says an OBS source on the old URL goes blank).
   - "Add the URL as a browser source in OBS" beside the size chip: `300 × 300` for the timer,
-    `700 × 800` for the tasks (a mono pill whose tooltip explains the size).
+    `700 × 800` for the tasks (a mono pill whose tooltip explains the size; `sourceSizeLabel`
+    of `TIMER_SOURCE_FALLBACK` / `TASKS_SOURCE` in `lib/preview-session.ts`, which the setup
+    checklist's steps also read).
   - A ghost `xs` "Live preview" toggle (`aria-pressed`, eye / eye-off icon).
   - Below `lg`, while the toggle is on, a `panel-inset bg-grain` stage at the overlay's aspect
     ratio (`1 / 1`, `7 / 8`) holding the overlay page in an `iframe`.

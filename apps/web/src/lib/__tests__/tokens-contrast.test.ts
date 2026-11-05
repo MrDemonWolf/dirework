@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 
 import { segmentedItem, segmentedTrack, UnsavedDot } from "@/components/ui/tabs";
 
+import { composite, contrastRatio, parseHex, type Rgb } from "./helpers/wcag";
+
 /**
  * WCAG contrast for every text, icon and control colour the web app paints, in both schemes,
  * computed from the oklch values in design-system/tokens.json. Each pairing carries the level
@@ -22,7 +24,6 @@ import { segmentedItem, segmentedTrack, UnsavedDot } from "@/components/ui/tabs"
  * contrast.md instead.
  */
 
-type Rgb = [number, number, number];
 type Scheme = "light" | "dark";
 type Level = "AAA" | "AA" | "UI";
 
@@ -62,27 +63,6 @@ function parseOklch(value: string): { rgb: Rgb; alpha: number } {
   return { rgb: linear.map(encode) as Rgb, alpha: m[4] === undefined ? 1 : Number(m[4]) / 100 };
 }
 
-function parseHex(value: string): Rgb {
-  const m = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(value);
-  if (!m) throw new Error(`not a #rrggbb literal: ${value}`);
-  return [m[1], m[2], m[3]].map((x) => Number.parseInt(x ?? "0", 16) / 255) as Rgb;
-}
-
-function luminance([r, g, b]: Rgb): number {
-  const lin = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-}
-
-function contrast(fg: Rgb, bg: Rgb): number {
-  const [hi, lo] = [luminance(fg), luminance(bg)].sort((x, y) => y - x) as [number, number];
-  return (hi + 0.05) / (lo + 0.05);
-}
-
-/** `top` at `alpha` over an opaque `bottom`, in sRGB. */
-function composite(top: Rgb, alpha: number, bottom: Rgb): Rgb {
-  return top.map((c, i) => c * alpha + (bottom[i] ?? 0) * (1 - alpha)) as Rgb;
-}
-
 /** Resolve `token` / `token/NN` in a scheme, compositing anything translucent over `under`. */
 function paint(scheme: Scheme, expr: string, under?: Rgb): Rgb {
   const [name = "", pct] = expr.split("/");
@@ -111,7 +91,7 @@ function paint(scheme: Scheme, expr: string, under?: Rgb): Rgb {
 function ratio(scheme: Scheme, fg: string, on: readonly string[]): number {
   const bg = on.reduce<Rgb | undefined>((acc, layer) => paint(scheme, layer, acc), undefined);
   if (!bg) throw new Error("empty surface stack");
-  return contrast(paint(scheme, fg, bg), bg);
+  return contrastRatio(paint(scheme, fg, bg), bg);
 }
 
 type Pairing = {
@@ -441,14 +421,9 @@ describe("component classes the pairings assume", () => {
   });
 });
 
-// The helpers above must agree with published reference ratios, or every assertion is moot.
+// The shared math is held to the WCAG reference ratios in wcag.test.ts; this checks that
+// `paint` composites a translucent token over the surface under it.
 describe("contrast math", () => {
-  it("matches the WCAG reference values", () => {
-    expect(contrast([0, 0, 0], [1, 1, 1])).toBeCloseTo(21, 5);
-    expect(contrast(parseHex("#767676"), [1, 1, 1])).toBeCloseTo(4.54, 2);
-    expect(contrast(parseHex("#595959"), [1, 1, 1])).toBeCloseTo(7.0, 1);
-  });
-
   it("composites translucent layers over what is under them", () => {
     expect(ratio("dark", "foreground/0", ["card"])).toBeCloseTo(1, 5);
   });

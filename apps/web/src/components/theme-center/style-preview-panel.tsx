@@ -20,6 +20,7 @@ import {
   STREAM_CANVAS,
   TASKS_SOURCE,
   previewSceneLayout,
+  sourceSizeLabel,
   timerSourceSize,
   type SceneSource,
   type Size,
@@ -336,7 +337,7 @@ export function StylePreviewPanel({
             )}
             {/* The selected source's size, and the canvas it sits on. */}
             <span className="console-label tabular-nums">
-              {selectedSize.width} × {selectedSize.height}
+              {sourceSizeLabel(selectedSize)}
               {!closeUp && ` in ${STREAM_CANVAS.height}p`}
             </span>
             <Button

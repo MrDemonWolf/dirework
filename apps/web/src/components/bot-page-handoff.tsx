@@ -8,7 +8,7 @@
 // hydration use the default, so they always match. No requests of its own: the caller passes
 // the token it already loaded.
 
-import { type ReactNode, useCallback, useId, useState, useSyncExternalStore } from "react";
+import { type ReactNode, useId } from "react";
 import { Radio } from "@base-ui/react/radio";
 import { RadioGroup } from "@base-ui/react/radio-group";
 import { EyeOff, PanelRight } from "lucide-react";
@@ -21,8 +21,8 @@ import {
   writeBotView,
   type BotRunMode,
 } from "@/lib/bot-run-modes";
-import { browserStorage, noSubscribe } from "@/lib/browser-storage";
 import { botPagePath, type BotView } from "@/lib/bot-view";
+import { useStoredChoice } from "@/lib/use-stored-choice";
 import { cn } from "@/lib/utils";
 import { SecretUrlRow } from "@/components/secret-url-row";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,18 +35,8 @@ const ICONS: Record<BotView, ReactNode> = {
 
 /** The owner's pick: a click wins at once; otherwise the stored pick, else the widget. */
 function useBotView(): [BotView, (view: BotView) => void] {
-  const [choice, setChoice] = useState<BotView | null>(null);
-  // Read on the client only (null during SSR and hydration); never re-read after a click.
-  const stored = useSyncExternalStore(
-    noSubscribe,
-    () => readBotView(browserStorage()),
-    () => null,
-  );
-  const setView = useCallback((view: BotView) => {
-    setChoice(view);
-    writeBotView(browserStorage(), view);
-  }, []);
-  return [choice ?? stored ?? DEFAULT_BOT_VIEW, setView];
+  const [choice, setView] = useStoredChoice(readBotView, writeBotView);
+  return [choice ?? DEFAULT_BOT_VIEW, setView];
 }
 
 export function BotPageHandoff({

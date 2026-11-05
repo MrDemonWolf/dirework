@@ -6,6 +6,7 @@
 import type { SetupStep } from "@dirework/api/routers/input-schemas";
 
 import { readPref, writePref, type PrefStorage } from "@/lib/browser-storage";
+import { TASKS_SOURCE, TIMER_SOURCE_FALLBACK, sourceSizeLabel } from "@/lib/preview-session";
 
 /** The slice of `user.me` the checklist reads. */
 export interface SetupSource {
@@ -48,14 +49,14 @@ export const SETUP_STEPS = [
     kind: "confirmed",
     title: "Add the timer overlay",
     why: "Viewers see the focus timer you run from this dashboard.",
-    action: "Copy the timer overlay URL into a new OBS browser source, 300 × 300.",
+    action: `Copy the timer overlay URL into a new OBS browser source, ${sourceSizeLabel(TIMER_SOURCE_FALLBACK)}.`,
   },
   {
     id: "tasksOverlay",
     kind: "confirmed",
     title: "Add the tasks overlay",
     why: "Viewers see your tasks and the ones chat adds with !task.",
-    action: "Copy the tasks overlay URL into a new OBS browser source, 700 × 800.",
+    action: `Copy the tasks overlay URL into a new OBS browser source, ${sourceSizeLabel(TASKS_SOURCE)}.`,
   },
 ] as const satisfies readonly SetupStepDef[];
 
@@ -135,9 +136,12 @@ export function shouldRefreshMeAfterConfirm({
 /** localStorage key for "Finish later": "1" = collapsed, "0" = open, absent = default. */
 export const SETUP_COLLAPSED_KEY = "dirework.setup-collapsed";
 
-/** The stored "Finish later" choice, or null when absent or storage is unavailable. */
-export function readSetupCollapsed(storage: PrefStorage | null): string | null {
-  return readPref(storage, SETUP_COLLAPSED_KEY);
+/** The stored "Finish later" choice, or null when absent, unknown or storage is unavailable. */
+export function readSetupCollapsed(storage: PrefStorage | null): boolean | null {
+  const stored = readPref(storage, SETUP_COLLAPSED_KEY);
+  if (stored === "1") return true;
+  if (stored === "0") return false;
+  return null;
 }
 
 /**
@@ -162,11 +166,9 @@ export function captureAllDoneAtLoad(
 }
 
 /**
- * Whether the card is collapsed: the owner's stored choice wins; with none, it stays open
- * until every step is done.
+ * Whether the card is collapsed: the owner's choice (this visit's click, else the stored
+ * one) wins; with none, it stays open until every step is done.
  */
-export function isSetupCollapsed(stored: string | null, allDone: boolean): boolean {
-  if (stored === "1") return true;
-  if (stored === "0") return false;
-  return allDone;
+export function isSetupCollapsed(choice: boolean | null, allDone: boolean): boolean {
+  return choice ?? allDone;
 }

@@ -6,7 +6,9 @@ chosen for it. `apps/web/src/lib/__tests__/tokens-contrast.test.ts` recomputes e
 regress one. The OBS overlays, the bot dock (`color.obs`) and the docs site have their own
 palettes and checks (`theme-contrast.test.ts` for the overlay presets, `obs-contrast.test.ts` for
 the dock, the e2e spec `85-docs-a11y` for the docs); this file covers the app UI and the
-shared link token on docs inline-code backgrounds.
+shared link token on docs inline-code backgrounds. The three unit suites share one copy of the
+WCAG math (`apps/web/src/lib/__tests__/helpers/wcag.ts`, held to the reference ratios by
+`wcag.test.ts`).
 
 ## Levels
 

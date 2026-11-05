@@ -43,8 +43,8 @@ Tone follows `budget.over`: `text-destructive` when over, otherwise `text-muted-
 ## Do / Don't
 
 - **Do** compute `budget` with the shared helpers (`messageBudget`, `phaseLabelBudget` in
-  `lib/message-budget.ts`, `aliasBudget` in `lib/alias-rows.ts`), which read the same caps
-  as the server schemas.
+  `lib/message-budget.ts`, `aliasBudget` in `lib/alias-rows.ts`, all built on its `budget`),
+  which read the same caps as the server schemas.
 - **Do** block Save (`SaveBar`'s `blockedReason`) while any budget is over.
 - **Don't** count chat text in characters (`.length`); emoji and accents take several bytes.
 - **Don't** leave `aria-describedby` pointing at the id while it renders nothing.

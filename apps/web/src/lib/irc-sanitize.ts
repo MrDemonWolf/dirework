@@ -1,3 +1,4 @@
+import { TWITCH_LOGIN_PATTERN } from "@dirework/api/chat-commands";
 import { hasControlCharacters, replaceControlCharacters } from "@dirework/api/chat-text";
 
 interface IrcCredentialFields {
@@ -6,13 +7,18 @@ interface IrcCredentialFields {
   chatToken: string;
 }
 
-const TWITCH_LOGIN_PATTERN = /^[a-z0-9_]{1,25}$/i;
+/**
+ * The shared Twitch login rule, case-insensitive: IRC credentials arrive display-cased. Test
+ * the raw value against this copy, never a lowercased one: U+212A KELVIN SIGN lowercases to
+ * an ASCII "k", so lowercase-then-test would pass a non-ASCII login into the NICK frame.
+ */
+const IRC_LOGIN_PATTERN = new RegExp(TWITCH_LOGIN_PATTERN.source, "i");
 
 /** Ensure no credential can break out of the raw PASS, NICK, or JOIN frame. */
 export function hasSafeIrcCredentials(credentials: IrcCredentialFields): boolean {
   return (
-    TWITCH_LOGIN_PATTERN.test(credentials.botUsername) &&
-    TWITCH_LOGIN_PATTERN.test(credentials.channelName) &&
+    IRC_LOGIN_PATTERN.test(credentials.botUsername) &&
+    IRC_LOGIN_PATTERN.test(credentials.channelName) &&
     credentials.chatToken.length > 0 &&
     credentials.chatToken.length <= 4096 &&
     !hasControlCharacters(credentials.chatToken)

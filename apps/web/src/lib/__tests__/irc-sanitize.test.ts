@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { hasSafeIrcCredentials, sanitizeIrcMessage } from "../irc-sanitize";
@@ -39,5 +42,22 @@ describe("hasSafeIrcCredentials", () => {
     { ...valid, chatToken: "x".repeat(4097) },
   ])("rejects a credential that could escape or abuse an IRC frame %#", (credentials) => {
     expect(hasSafeIrcCredentials(credentials)).toBe(false);
+  });
+
+  it("accepts a mixed-case login, as Twitch sends display-cased names", () => {
+    expect(hasSafeIrcCredentials({ ...valid, botUsername: "Bot_User" })).toBe(true);
+  });
+
+  it("rejects a login with U+212A KELVIN SIGN, which lowercases to an ASCII k", () => {
+    // The pattern is tested case-insensitively, never after lowercasing: "\u212A".toLowerCase()
+    // is "k", so lowercase-then-test would let a non-ASCII byte into the NICK frame.
+    expect(hasSafeIrcCredentials({ ...valid, botUsername: "\u212Aelvin" })).toBe(false);
+    expect(hasSafeIrcCredentials({ ...valid, channelName: "\u212Aelvin" })).toBe(false);
+  });
+
+  it("reuses the shared Twitch login rule instead of a second copy", () => {
+    const source = readFileSync(path.resolve(import.meta.dirname, "../irc-sanitize.ts"), "utf8");
+    expect(source).toContain("TWITCH_LOGIN_PATTERN.source");
+    expect(source).not.toMatch(/\/\^\[a-z0-9_\]/);
   });
 });

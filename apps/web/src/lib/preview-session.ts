@@ -47,6 +47,11 @@ export const TASKS_SOURCE: Size = { width: 700, height: 800 };
 /** The recommended timer browser source, used when its dimensions are not plain lengths. */
 export const TIMER_SOURCE_FALLBACK: Size = { width: 300, height: 300 };
 
+/** A source size the way OBS writes it, "300 × 300": the size chip, readout and checklist. */
+export function sourceSizeLabel(size: Size): string {
+  return `${size.width} × ${size.height}`;
+}
+
 /** Gap between a source and the canvas edge: where streamers usually park an overlay. */
 const SCENE_INSET = 48;
 
