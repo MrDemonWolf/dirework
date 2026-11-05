@@ -18,7 +18,7 @@ const dropdownMenu = read("ui/dropdown-menu.tsx");
 const select = read("ui/select.tsx");
 const tooltip = read("ui/tooltip.tsx");
 const taskManager = read("task-manager.tsx");
-const userMenu = read("user-menu.tsx");
+const accountMenu = read("account-menu.tsx");
 const header = read("header.tsx");
 const tabs = read("ui/tabs.tsx");
 const messageEditor = read("bot-settings/message-editor.tsx");
@@ -130,7 +130,7 @@ describe("menu interaction consistency", () => {
   it("never repaints a popup's surface at a call site", () => {
     // Every menu used to pass `bg-card`, so dark mode had menus on --card beside select lists
     // and tooltips on --popover. A call site sets width and alignment, never the fill.
-    expect(popupCallSites.map(({ file }) => file)).toContain("components/user-menu.tsx");
+    expect(popupCallSites.map(({ file }) => file)).toContain("components/account-menu.tsx");
     const repainted = popupCallSites
       .filter(({ tag }) => /\bbg-/.test(tag))
       .map(({ file, tag }) => `${file}: ${tag}`);
@@ -142,12 +142,12 @@ describe("menu interaction consistency", () => {
   });
 
   it("does not repeat the avatar inside the account menu", () => {
-    expect(userMenu).not.toContain("h-9 w-9");
+    expect(accountMenu).not.toContain("h-9 w-9");
   });
 
   it("leaves the dashboard links to the header instead of repeating them in the account menu", () => {
     for (const href of ['"/dashboard"', '"/dashboard/styles"', '"/dashboard/bot"']) {
-      expect(userMenu).not.toContain(href);
+      expect(accountMenu).not.toContain(href);
       expect(header).toContain(href);
     }
   });

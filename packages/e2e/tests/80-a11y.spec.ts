@@ -234,10 +234,13 @@ for (const theme of THEMES) {
       await openPage(page, "/dashboard", /Wolf Streamer/);
       const task = await ensureTask(page);
 
-      // Account menu opened from the keyboard, so its item has keyboard focus (focus ring).
+      // Account menu opened from the keyboard, so its first item has keyboard focus (focus
+      // ring): the Docs link, then Report a problem, a separator and the neutral Sign out.
       await page.getByRole("button", { name: /Account menu/ }).focus();
       await page.keyboard.press("ArrowDown");
-      await expect(page.getByRole("menuitem", { name: "Sign out" })).toBeFocused();
+      await expect(page.getByRole("menuitem", { name: /^Docs/ })).toBeFocused();
+      await expect(page.getByRole("menuitem", { name: /^Report a problem/ })).toBeVisible();
+      await expect(page.getByRole("menuitem", { name: "Sign out" })).toBeVisible();
       await expectNoSeriousViolations(page, `user-menu-${theme}`, { theme });
       await page.keyboard.press("Escape");
 

@@ -7,7 +7,7 @@ tokens: [color.scheme, radius]
 
 ## Purpose
 
-Base UI `Menu` styled as a frosted popup. Used by `UserMenu` (the header account menu), the
+Base UI `Menu` styled as a frosted popup. Used by `AccountMenu` (the header account menu), the
 Theme Center menus, the Task Board options menu and each task row's ⋯ menu. It also owns
 the two recipes the other popups import: `menuItemRecipe`, so every menu and list row in
 the app highlights the same way, and `popupSurfaceRecipe`, so every menu, Select list and
@@ -45,7 +45,7 @@ tooltip sits on the same surface.
 ## States
 
 Highlighted (`data-highlighted`, set by hover AND arrow keys) paints `bg-accent`. Destructive
-items (Sign out, Clear done / Clear all, Remove) stay red in every state: `text-destructive`
+items (Clear done / Clear all, Remove, Reset theme) stay red in every state: `text-destructive`
 at rest; highlighted, a `bg-destructive/10` tint in both themes with the label and icon in
 `text-destructive-strong` (≥ 4.5:1 on that tint; plain red on the old dark `/20` tint was
 4.25:1); keyboard focus draws the inset ring in `ring-destructive`, never the blue
@@ -57,6 +57,9 @@ ignore the pointer. Open / closed transitions use `data-starting-style` / `data-
 - Trigger is a button with `aria-haspopup="menu"`; items are `role="menuitem"` (checkbox and
   radio variants `menuitemcheckbox` / `menuitemradio`). e2e opens the account menu via
   `getByRole("button", { name: /^Account menu/ })` and clicks `getByRole("menuitem", { name: "Sign out" })`.
+- A link row is a `DropdownMenuItem` with `render={<a href … />}`: still a `menuitem`, and
+  Enter is left to the browser's native link activation (Base UI's button hook skips it on
+  an `<a href>`), so it opens once.
 - Arrow keys move, Enter / Space activate, Escape closes and returns focus to the trigger,
   type-ahead jumps to a label.
 - Focus follows the README "Focus" recipe: fill for highlight, `focus-visible:ring-2 ring-inset`
@@ -64,7 +67,8 @@ ignore the pointer. Open / closed transitions use `data-starting-style` / `data-
 
 ## Do / Don't
 
-- **Do** use `variant="destructive"` for Sign out style actions that end something.
+- **Do** use `variant="destructive"` for actions that delete or clear something; Sign out
+  is neutral (it deletes nothing).
 - **Do** import `menuItemRecipe` for any new list row instead of copying it.
 - **Do** start a new popup's classes with `popupSurfaceRecipe` and add only its geometry.
 - **Don't** pass a `bg-*` class to `DropdownMenuContent` (or `SelectContent`,

@@ -27,7 +27,7 @@ export const popupSurfaceRecipe =
   "transition-[opacity,scale] duration-150 ease-(--motion-ease) data-starting-style:opacity-0 data-starting-style:scale-[0.98] data-ending-style:opacity-0 data-ending-style:scale-[0.98] origin-(--transform-origin) border border-border/50 bg-popover text-popover-foreground shadow-lg backdrop-blur-2xl";
 
 /**
- * Destructive rows (Sign out, Clear done / all, Remove, Reset theme) stay red in every
+ * Destructive rows (Clear done / all, Remove, Reset theme) stay red in every
  * state, so nothing about them reads as a blue "default" action:
  * - rest: `text-destructive`;
  * - highlighted (hover or arrow keys): a `/10` red tint with the deeper (light) / brighter
