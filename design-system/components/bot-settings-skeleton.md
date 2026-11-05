@@ -25,14 +25,14 @@ pending, so the card placeholder and the in-card placeholder can't drift.
 
 ## Anatomy
 
-- Card placeholders render the real `Card.panel` with the card's real (static) title and
+- Card placeholders render the real [settings-card](./settings-card.md) with the card's real (static) title and
   description, and `Skeleton` blocks for the data: status chips, switches, the description
   lines a row's copy runs to (`TextLines`: one bar per line box, a different count below `sm`
   where copy wraps), URL rows, buttons. Each is wrapped in `SectionPlaceholder`
   (`data-placeholder`, `aria-hidden`).
 - The Commands placeholder renders the real, static `CommandTable`s with `aliases={null}`, so
   only the alias cells (and each group's switch and on/off copy) are skeletons.
-- `BotSettingsSkeleton`: an `aria-busy` wrapper; two `Card.panel` blocks side by side at `lg`,
+- `BotSettingsSkeleton`: an `aria-busy` wrapper; two heading-free panels on the `SettingsCard` frame classes side by side at `lg`,
   then one full-width panel.
 
 ## Props and variants

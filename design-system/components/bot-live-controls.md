@@ -11,7 +11,7 @@ The "Live controls" card on the Bot settings Overview (`/dashboard/bot`, `(secti
 
 ## Anatomy
 
-- `Card.panel` header: `CardTitle` (h2) "Live controls", description "Each control takes effect as soon as you change it."
+- [settings-card](./settings-card.md) "Live controls", description "Each control takes effect as soon as you change it."
 - A hairline-divided list of rows; each row is a label (and, for mute, a small `StatusChip`), a one-line sentence under it, and the control at the right edge.
 - Rows: "Mute bot" (`config.setBotMuted`), "Task commands" and "Timer commands" (`useCommandGroupSwitch` from `lib/use-command-group-switch.ts`, which sends only that flag to `config.updateBotSettings`), "Who can add tasks" (a `Select`, `w-36`, of Everyone / Followers / Subscribers / VIPs and mods via `useTaskAccess` in `lib/use-task-access.ts`, which sends only `taskAccess`; at Followers with a bot that lacks the follower scope, a destructive `Callout` "Reconnect the bot to allow follower checks" links to `/api/bot/authorize`), "Blocked viewers" ("n of 200 blocked" + a "Manage" link to `/dashboard/bot/moderation`, no prefetch).
 

@@ -23,14 +23,7 @@ import { formatMutationError } from "@/lib/validation-errors";
 import { CommandAliasEditor } from "@/components/bot-settings/command-alias-editor";
 import { CommandTable } from "@/components/bot-settings/command-table";
 import { SaveBar } from "@/components/save-bar";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { SettingsCard } from "@/components/bot-settings/settings-card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
@@ -77,16 +70,12 @@ function CommandGroupCard({
   const switchId = `${group}-commands-toggle`;
   const rows = (group === "task" ? taskCommands : timerCommands).filter((row) => !row.alwaysOn);
   return (
-    <Card className="panel">
-      <CardHeader className="border-b border-border/40 px-5">
-        <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
-          {label}
-        </CardTitle>
-        <CardDescription>
-          {toggle.checked ? GROUP_COPY[group].description : GROUP_COPY[group].off}
-        </CardDescription>
-        <CardAction className="flex items-center">
-          {/* The card title names the switch; the description under it says what on/off means. */}
+    <SettingsCard
+      title={label}
+      description={toggle.checked ? GROUP_COPY[group].description : GROUP_COPY[group].off}
+      action={
+        // The card title names the switch; the description under it says what on/off means.
+        <>
           <Label htmlFor={switchId} className="sr-only">
             {label}
           </Label>
@@ -96,17 +85,11 @@ function CommandGroupCard({
             disabled={toggle.pending}
             onCheckedChange={toggle.onCheckedChange}
           />
-        </CardAction>
-      </CardHeader>
-      <CardContent className="px-5">
-        <CommandTable
-          caption={label}
-          commands={rows}
-          aliases={aliases}
-          disabled={!toggle.checked}
-        />
-      </CardContent>
-    </Card>
+        </>
+      }
+    >
+      <CommandTable caption={label} commands={rows} aliases={aliases} disabled={!toggle.checked} />
+    </SettingsCard>
   );
 }
 
@@ -175,26 +158,18 @@ function CommandsEditor({ config }: { config: BotConfigData }) {
       <CommandGroupCard group="task" enabled={bot.taskCommandsEnabled} aliases={aliases} />
       <CommandGroupCard group="timer" enabled={bot.timerCommandsEnabled} aliases={aliases} />
 
-      <Card className="panel">
-        <CardHeader className="border-b border-border/40 px-5">
-          <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
-            Always on
-          </CardTitle>
-          <CardDescription>
-            Help for viewers. These answer even while Task commands are off.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-5">
-          <CommandTable caption="Always-on commands" commands={metaCommands} aliases={aliases} />
-        </CardContent>
-      </Card>
+      <SettingsCard
+        title="Always on"
+        description="Help for viewers. These answer even while Task commands are off."
+      >
+        <CommandTable caption="Always-on commands" commands={metaCommands} aliases={aliases} />
+      </SettingsCard>
 
-      <Card className="panel">
-        <CardHeader className="border-b border-border/40 px-5">
-          <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
-            Aliases
-          </CardTitle>
-          <CardDescription>
+      <SettingsCard
+        title="Aliases"
+        contentClassName="space-y-4"
+        description={
+          <>
             Extra names for a command, like <code className="font-mono">!t</code> for{" "}
             <code className="font-mono">!task</code>. They show in the tables above as you type. To
             change what a command says, see{" "}
@@ -206,15 +181,14 @@ function CommandsEditor({ config }: { config: BotConfigData }) {
               Replies
             </Link>
             .
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 px-5">
-          <CommandAliasEditor rows={rows} onChange={setRows} />
-          <p className="text-xs text-muted-foreground">
-            An open bot page picks up new aliases within an hour, or right away when you reload it.
-          </p>
-        </CardContent>
-      </Card>
+          </>
+        }
+      >
+        <CommandAliasEditor rows={rows} onChange={setRows} />
+        <p className="text-xs text-muted-foreground">
+          An open bot page picks up new aliases within an hour, or right away when you reload it.
+        </p>
+      </SettingsCard>
 
       <SaveBar
         visible={dirty}

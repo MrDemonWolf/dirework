@@ -11,7 +11,7 @@ The main card of the Bot settings Moderation page (`/dashboard/bot/moderation`):
 
 ## Anatomy
 
-- A `Card.panel` "Blocked viewers". The page (`moderation-page.tsx`) owns the two-column grid at `lg` (card + `18rem` legend) and the `CommandReference` "Mod commands in chat" of `moderationCommands` (under the card on small screens).
+- A [settings-card](./settings-card.md) "Blocked viewers". The page (`moderation-page.tsx`) owns the two-column grid at `lg` (card + `18rem` legend) and the `CommandReference` "Mod commands in chat" of `moderationCommands` (under the card on small screens).
 - Card body: the "Twitch username" field and an outline "Block viewer" button wrapped in `ConfirmDialog`, with a hint line under the field ("Block list is full. Unblock someone first." / "Letters, numbers and underscores only").
 - Then the "Block list" section: an `h3`, the count as "n of 200", a "Filter blocked viewers" search field once the list holds more than `BLOCKED_FILTER_THRESHOLD` (8) names, and a hairline-divided list of logins (mono), each with a ghost "Unblock" button.
 

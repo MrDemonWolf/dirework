@@ -955,7 +955,9 @@ bot-section-nav.tsx`, sections from `lib/bot-sections.ts`, `aria-current="page"`
 streamed `config.get,user.me` batch, waited on for at most `SECTIONS_READY_MS`) into a
 `HydrationBoundary` (Progressive sections, above). Each card of a page is a `BotSection`
 (`(sections)/bot-data.tsx`) that names the queries it reads and gets them through
-`useBotConfig()` / `useBotUser()`: Overview = `user` (the arrangement, account and console
+`useBotConfig()` / `useBotUser()`; every card and its placeholder draws the one `SettingsCard`
+frame (`components/bot-settings/settings-card.tsx`, title in `PANEL_TITLE_CLASS`; pinned by
+`bot-settings-layout.test.ts`): Overview = `user` (the arrangement, account and console
 cards) with the live controls a nested `config` section; Commands and Moderation's Blocked
 viewers = `config` only (Moderation's static mod-command legend sits outside the boundary);
 Replies = both. Their observers set `refetchOnMount: false` (a sub-page switch mounts them

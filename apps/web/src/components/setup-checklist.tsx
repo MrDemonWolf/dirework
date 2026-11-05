@@ -16,6 +16,7 @@ import type { SetupStep } from "@dirework/api/routers/input-schemas";
 
 import { cn } from "@/lib/utils";
 import { overlayPath } from "@/lib/overlay-view";
+import { PANEL_TITLE_CLASS } from "@/lib/panel-header";
 import {
   captureAllDoneAtLoad,
   SETUP_STEPS,
@@ -343,7 +344,7 @@ export function SetupChecklist({
             id={`${baseId}-title`}
             ref={headingRef}
             tabIndex={-1}
-            className="font-heading text-lg font-semibold tracking-tight outline-none"
+            className={cn(PANEL_TITLE_CLASS, "outline-none")}
           >
             Set up streaming
           </h2>

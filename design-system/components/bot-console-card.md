@@ -11,7 +11,7 @@ The "Run the bot" card on the Bot settings Overview (`/dashboard/bot`, `(section
 
 ## Anatomy
 
-- `Card.panel` header: `CardTitle` (h2) "Run the bot", `CardAction` `StatusChip`, description warning that the URL is a secret and that the bot runs only while its widget or dock is open.
+- [settings-card](./settings-card.md) "Run the bot", action `StatusChip`, description warning that the URL is a secret and that the bot runs only while its widget or dock is open.
 - Body (account connected, data loaded): `{botUsername} chats in #{channelName}` (mono), then `BotPageHandoff` with `reset` (Reset on the row; one token, so the confirm is "Reset both bot page URLs?") and `renderAction`: an outline "Open widget" / "Open dock" button (`<a target="_blank">`) for the chosen view.
 
 ## Props and variants
