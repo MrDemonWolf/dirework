@@ -1135,10 +1135,14 @@ lockstep needs a Dependabot group (or a hand bump). `@trpc/*` is pinned exactly 
 catalog and grouped as `trpc` in `.github/dependabot.yml` — `@trpc/client` requires an
 exact matching `@trpc/server`, and a lone bump leaves a nested, skewed copy.
 
-`@opennextjs/cloudflare` is pinned exactly (apps/web) and must move with `next`: Next
-16.4 reads `.next/server/preview-props.json` at runtime, which OpenNext only bundles from
-1.20.12 (under 1.20.9 every request threw `Unexpected loadManifest(...)` in production;
-`smoke:worker` now catches that class). OpenNext ≥1.20.10 pulls `@opennextjs/aws` →
+`@opennextjs/cloudflare` (apps/web) and `next` (apps/web and apps/fumadocs) are pinned
+exactly and move together: Next 16.4 reads `.next/server/preview-props.json` at runtime,
+which OpenNext only bundles from 1.20.12 (under 1.20.9 every request threw
+`Unexpected loadManifest(...)` in production; `smoke:worker` now catches that class), and
+OpenNext 1.20.16 requires Next ≥16.4.5 (the Nov 3 security release). Bun only warns on an
+unmet peer, so `packages/infra/__tests__/next-opennext.test.ts` holds the pair in bun.lock:
+one `next` copy, the exact version both apps pin, inside the `next` peer range of the
+resolved adapter and its `@opennextjs/aws`. OpenNext ≥1.20.10 pulls `@opennextjs/aws` →
 `@node-minify/core@9.0.2`, which pins `glob@10.3.3` (GHSA-5j98-mcp5-4vw2, high). That
 advisory is ONLY the glob CLI's `-c/--cmd` shell injection; node-minify uses glob as a
 library at build time and never runs its CLI, so `audit:dependencies` ignores exactly
