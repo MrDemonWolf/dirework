@@ -2,11 +2,15 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-// What the browser must never download (AGENTS.md "Browser-bundled web code"): the D1
-// schema, which drags drizzle-orm, every table, cuid2/@noble/hashes and a Buffer polyfill
-// into the chunk that imports it. One value import was enough to ship it to every route:
-// config-shared re-exported SINGLETON_ID from the schema, and the root providers import
-// config-shared.
+// What the browser must not download (AGENTS.md "Browser-bundled web code"):
+// - the D1 schema, which drags drizzle-orm, every table, cuid2/@noble/hashes and a Buffer
+//   polyfill into the chunk that imports it. Never, on any page;
+// - zod, and config-shared, which builds its zod schemas as it loads. Only the two pages
+//   that validate a save with the server's own input schema load them (ZOD_PAGES).
+// One value import was enough to ship all of it to every route: the root providers
+// imported TRPC_MAX_BATCH_SIZE from config-shared, which re-exported SINGLETON_ID from the
+// schema. Browser code reads constants and helpers from the zod-free modules instead
+// (config-defaults, chat-text, chat-commands, bot-lease, bot-permissions, style-limits).
 //
 // The walk follows every static value import from each route entry, through the workspace
 // packages' source (resolved through their `exports` maps), so a new import that reaches a
@@ -261,6 +265,23 @@ function isDbSchema(node: string): boolean {
   );
 }
 
+const CONFIG_SHARED = path.join(repoRoot, "packages/api/src/config-shared.ts");
+
+/** zod, or config-shared (which builds its zod schemas at module scope). */
+function isZodOrConfigShared(node: string): boolean {
+  return node === "npm:zod" || node === CONFIG_SHARED;
+}
+
+/**
+ * The pages that check a save against the server's own input schema before sending it
+ * (Theme Center: `updateStylesInput`, Replies: `updateBotSettingsInput`), so they load zod
+ * by design. The DB schema stays out of them too.
+ */
+const ZOD_PAGES = [
+  "app/(app)/dashboard/styles/page.tsx",
+  "app/(app)/dashboard/bot/(sections)/replies/page.tsx",
+];
+
 function filesUnder(dir: string): string[] {
   return readdirSync(dir).flatMap((entry) => {
     const full = path.join(dir, entry);
@@ -319,7 +340,7 @@ describe("staticImports", () => {
 });
 
 describe("browser import graph", () => {
-  it("covers the root, landing, setup, dashboard, overlay and bot entries", () => {
+  it("covers the root, landing, setup, dashboard, Bot settings, overlay and bot entries", () => {
     expect(ENTRIES).toEqual(
       expect.arrayContaining([
         "app/layout.tsx",
@@ -327,11 +348,17 @@ describe("browser import graph", () => {
         "app/(app)/page.tsx",
         "app/(app)/setup/page.tsx",
         "app/(app)/dashboard/page.tsx",
+        "app/(app)/dashboard/bot/(sections)/layout.tsx",
+        "app/(app)/dashboard/bot/(sections)/page.tsx",
+        "app/(app)/dashboard/bot/(sections)/commands/page.tsx",
+        "app/(app)/dashboard/bot/(sections)/moderation/page.tsx",
         "app/(overlay)/overlay/t/[token]/page.tsx",
         "app/(overlay)/overlay/l/[token]/page.tsx",
         "app/(bot)/bot/[token]/page.tsx",
         "components/providers.tsx",
         "utils/trpc.ts",
+        // A renamed page must not leave its exemption behind.
+        ...ZOD_PAGES,
       ]),
     );
   });
@@ -347,4 +374,18 @@ describe("browser import graph", () => {
   it.each(ENTRIES)("%s reaches no DB schema", (entry) => {
     expect(forbiddenChains(path.join(webSrc, entry), isDbSchema)).toEqual([]);
   });
+
+  // Also proves the walker sees zod. A page that stops loading it leaves ZOD_PAGES.
+  it.each(ZOD_PAGES)("%s loads zod, for its Save-time check", (entry) => {
+    expect(forbiddenChains(path.join(webSrc, entry), isZodOrConfigShared)).toContainEqual(
+      expect.stringMatching(/ → zod$/),
+    );
+  });
+
+  it.each(ENTRIES.filter((entry) => !ZOD_PAGES.includes(entry)))(
+    "%s reaches neither zod nor config-shared",
+    (entry) => {
+      expect(forbiddenChains(path.join(webSrc, entry), isZodOrConfigShared)).toEqual([]);
+    },
+  );
 });

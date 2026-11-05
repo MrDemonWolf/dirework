@@ -1,4 +1,4 @@
-// ── Bot account scopes, "Who can add tasks", and ban cleanup timing ───────────
+// ── Bot account scopes and OAuth errors, "Who can add tasks", ban cleanup timing ──
 // Zod-free and schema-free: the bot page, the dashboard and the api worker all read these.
 
 import {
@@ -34,6 +34,37 @@ export const BOT_SCOPES = [
   "user:write:chat",
   FOLLOWER_CHECK_SCOPE,
 ] as const;
+
+// The bot OAuth callback redirects to `/dashboard/bot?bot=error&reason=<code>`.
+// The dashboard maps the code to fixed copy and never renders the raw query
+// param, so a crafted link can't put attacker-written text in an error toast.
+export const BOT_OAUTH_ERROR_MESSAGES = {
+  access_denied: "Twitch authorization was cancelled.",
+  missing_params: "Twitch didn't return an authorization code.",
+  authorization_failed:
+    "Twitch refused the authorization request. Check the app's Client ID and redirect URL.",
+  invalid_state: "The OAuth state was invalid.",
+  state_mismatch: "The OAuth request expired.",
+  session_mismatch: "Your session expired or changed during sign-in.",
+  token_unavailable: "Twitch's token service didn't respond.",
+  token_exchange_failed: "Twitch rejected the token exchange. Check the app's redirect URL.",
+  invalid_token_response: "Twitch returned an invalid token response.",
+  user_unavailable: "Twitch's user service didn't respond.",
+  user_lookup_failed: "Couldn't look up the bot account on Twitch.",
+  invalid_user_response: "Twitch returned no valid user data.",
+  db_error: "The bot account couldn't be saved.",
+} as const;
+
+export type BotOAuthErrorCode = keyof typeof BOT_OAUTH_ERROR_MESSAGES;
+
+/** Fixed toast copy for a `?reason=` code; unknown or missing codes get a generic message. */
+export function botOAuthErrorMessage(code: string | null | undefined): string {
+  const detail =
+    code && Object.hasOwn(BOT_OAUTH_ERROR_MESSAGES, code)
+      ? BOT_OAUTH_ERROR_MESSAGES[code as BotOAuthErrorCode]
+      : "Something went wrong.";
+  return `Couldn't connect the bot account. ${detail} Try again.`;
+}
 
 /**
  * How long the bot page waits after a permanent ban before removing the viewer's tasks. The

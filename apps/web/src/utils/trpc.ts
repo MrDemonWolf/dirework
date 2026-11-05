@@ -4,7 +4,7 @@ import { isServer, QueryCache, QueryClient } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 
-import { TRPC_MAX_BATCH_SIZE } from "@dirework/api/config-shared";
+import { TRPC_MAX_BATCH_SIZE } from "@dirework/api/config-defaults";
 import { apiOrigin } from "@/lib/api-origin";
 import { withRequestTimeout } from "@/lib/fetch-timeout";
 import { QUERY_FRESH_MS } from "@/lib/poll-intervals";

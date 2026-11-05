@@ -14,8 +14,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-import { FOLLOWER_CHECK_SCOPE } from "@dirework/api/bot-permissions";
-import { botOAuthErrorMessage } from "@dirework/api/config-shared";
+import { botOAuthErrorMessage, FOLLOWER_CHECK_SCOPE } from "@dirework/api/bot-permissions";
 
 import { describeTrpcError } from "@/lib/trpc-errors";
 import { BotAccountCard } from "@/components/bot-settings/bot-account-card";

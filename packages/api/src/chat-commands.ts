@@ -1,10 +1,12 @@
-// ── Chat command names (zod-free, schema-free) ──────────────────────────────
+// ── Chat command names and aliases (zod-free, schema-free) ──────────────────
 // Kept out of config-shared so the browser bot page can decide which chat lines
-// are Dirework commands without bundling zod and the Drizzle schema.
-// Re-exported by config-shared; the server's chat resolver (bot/commands.ts)
-// parses through the same helpers, so a bot page and the server built together
-// never disagree on what counts as a command. A page left open across a deploy
-// learns the newer server's names from bot.getSession (BUILTIN_COMMAND_NAMES).
+// are Dirework commands, and the alias editor can check its rows, without
+// bundling zod and the Drizzle schema. Re-exported by config-shared; the
+// server's chat resolver (bot/commands.ts) and the alias input schema parse
+// through the same helpers, so a bot page and the server built together never
+// disagree on what counts as a command or a valid alias. A page left open
+// across a deploy learns the newer server's names from bot.getSession
+// (BUILTIN_COMMAND_NAMES).
 
 // Canonical bot command names an alias may target — stored WITHOUT the leading
 // "!". The chat resolver, the tRPC input schema, and the dashboard editor all
@@ -84,6 +86,91 @@ export const ALIAS_MAX_LENGTH = 25;
 /** Strip any leading "!", trim, lowercase, take the first token → canonical alias/target. */
 export function normalizeAliasToken(raw: string): string {
   return raw.trim().replace(/^!+/, "").trim().toLowerCase().split(/\s+/)[0] ?? "";
+}
+
+/**
+ * True when an alias or target is more than one word ("!timer start"). Aliases
+ * map one command name to another and carry no arguments, so normalizing would
+ * silently drop everything after the first word.
+ */
+export function aliasTokenHasWhitespace(raw: string): boolean {
+  return /\s/.test(raw.trim().replace(/^!+/, "").trim());
+}
+
+export type AliasIssueReason =
+  | "empty"
+  | "too-long"
+  | "multi-word"
+  | "shadows-builtin"
+  | "duplicate"
+  | "recursive"
+  | "unknown-target";
+export interface AliasIssue {
+  key: string;
+  reason: AliasIssueReason;
+  /** Position of the offending entry in the input, so an editor can flag its row. */
+  index: number;
+}
+
+/**
+ * Normalize raw aliases (keys/values with or without "!") into canonical form
+ * and collect validation issues. Reused by the router input schema AND the
+ * dashboard editor so client and server validate identically. Rejects empty
+ * tokens, keys or targets over ALIAS_MAX_LENGTH, multi-word keys/targets, keys that would replace a built-in command,
+ * duplicate keys (after normalization), self-recursion, and targets that are
+ * not real commands. Accepts entries as well as a record so the editor can
+ * pass its rows without collapsing duplicates first.
+ */
+export function normalizeAliases(
+  raw: Record<string, string> | Iterable<readonly [string, string]>,
+): {
+  aliases: Record<string, string>;
+  issues: AliasIssue[];
+} {
+  const entries: Iterable<readonly [string, string]> =
+    Symbol.iterator in raw ? raw : Object.entries(raw);
+  // A Map, not `key in {}`: inherited names like "constructor" must not read as
+  // duplicates, and "__proto__" must not be assigned to the prototype.
+  const aliases = new Map<string, string>();
+  const issues: AliasIssue[] = [];
+  const known = new Set<string>(KNOWN_ALIAS_TARGETS);
+
+  let index = -1;
+  for (const [rawKey, rawValue] of entries) {
+    index += 1;
+    const key = normalizeAliasToken(rawKey);
+    const target = normalizeAliasToken(rawValue);
+    if (!key || !target) {
+      issues.push({ key: rawKey || "(empty)", reason: "empty", index });
+      continue;
+    }
+    if (key.length > ALIAS_MAX_LENGTH || target.length > ALIAS_MAX_LENGTH) {
+      issues.push({ key, reason: "too-long", index });
+      continue;
+    }
+    if (aliasTokenHasWhitespace(rawKey) || aliasTokenHasWhitespace(rawValue)) {
+      issues.push({ key, reason: "multi-word", index });
+      continue;
+    }
+    if (isBuiltinCommandName(key)) {
+      issues.push({ key, reason: "shadows-builtin", index });
+      continue;
+    }
+    if (aliases.has(key)) {
+      issues.push({ key, reason: "duplicate", index });
+      continue;
+    }
+    if (key === target) {
+      issues.push({ key, reason: "recursive", index });
+      continue;
+    }
+    if (!known.has(target)) {
+      issues.push({ key, reason: "unknown-target", index });
+      continue;
+    }
+    aliases.set(key, target);
+  }
+  return { aliases: Object.fromEntries(aliases), issues };
 }
 
 /**

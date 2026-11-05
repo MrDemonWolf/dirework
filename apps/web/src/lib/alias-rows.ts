@@ -4,7 +4,7 @@ import {
   KNOWN_ALIAS_TARGETS,
   normalizeAliases,
   normalizeAliasToken,
-} from "@dirework/api/config-shared";
+} from "@dirework/api/chat-commands";
 
 import type { MessageBudget } from "./message-budget";
 
