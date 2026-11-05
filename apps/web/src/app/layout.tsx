@@ -42,6 +42,10 @@ export function generateMetadata(): Metadata {
 
   return {
     metadataBase: new URL(base),
+    icons: {
+      icon: { url: "/icons/icon.svg", type: "image/svg+xml", sizes: "any" },
+      apple: { url: "/icons/apple-icon.png", sizes: "180x180" },
+    },
     title: {
       default: "DireWork",
       template: "%s | DireWork",

@@ -1125,9 +1125,11 @@ hand-written in both stylesheets (they wrap next/font variables). Palette contra
 **Installable app + touch.** `app/manifest.ts` serves `/manifest.webmanifest` (standalone,
 `start_url` `/dashboard`, background and theme color = `SCHEME_HEX.dark.background`, the dark
 `--background` as generated hex) with PNG icons in `public/icons/` (192, 512, maskable 512 —
-logo inside the inner 80% on the dark background) plus `app/apple-icon.png` (180×180,
-opaque); `icon.svg` stays the favicon. Only the `(app)` layout links the manifest and the
-`appleWebApp` tags, so overlay and bot loads never fetch it. The root `viewport` export sets
+logo inside the inner 80% on the dark background) plus `public/icons/apple-icon.png` (180×180,
+opaque). The favicon is `public/icons/icon.svg`; root metadata declares both static icons,
+and the `/icons/*` asset rule caches them for a day. Only the `(app)` layout links the
+manifest and the `appleWebApp` tags, so overlay and bot loads never fetch it. The root
+`viewport` export sets
 `viewportFit: "cover"`, `colorScheme`, and per-scheme `themeColor` (the SSR fallback;
 `components/theme-color-sync.tsx`, mounted by `(app)`, rewrites the tags from next-themes'
 `resolvedTheme` via `lib/theme-color.ts`); the header, main, footer, save bar, and toasts
