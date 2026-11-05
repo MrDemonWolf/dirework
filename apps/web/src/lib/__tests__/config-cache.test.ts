@@ -198,8 +198,6 @@ describe("the config writes", () => {
   const sites: [string, RegExp][] = [
     ["components/timer-controls.tsx", /timerConfigSaved\(/],
     ["lib/use-draft.ts", /merge\(saved, sent\)/],
-    ["app/(app)/dashboard/bot/(sections)/replies/replies-page.tsx", /botSettingsSaved\(/],
-    ["app/(app)/dashboard/bot/(sections)/commands/commands-page.tsx", /botSettingsSaved\(/],
     // The instant settings hand their merge to useInstantSetting, which applies it.
     ["lib/use-instant-setting.ts", /merge\(saved, sent\)/],
   ];
@@ -226,6 +224,8 @@ describe("the config writes", () => {
   // which applies it.
   const editors: [string, RegExp][] = [
     ["app/(app)/dashboard/styles/styles-page.tsx", /merge: stylesSaved/],
+    ["app/(app)/dashboard/bot/(sections)/replies/replies-page.tsx", /merge: botSettingsSaved/],
+    ["app/(app)/dashboard/bot/(sections)/commands/commands-page.tsx", /merge: botSettingsSaved/],
   ];
 
   it.each(editors)("%s saves through useSettingsSave with its merge", (file, merge) => {

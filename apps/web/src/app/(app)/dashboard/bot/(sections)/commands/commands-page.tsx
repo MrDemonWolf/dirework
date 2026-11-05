@@ -6,21 +6,18 @@
 // meta commands get a table of their own. The alias editor has this page's only Save bar,
 // which sends the aliases alone (`config.updateBotSettings` takes any subset).
 
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { toast } from "sonner";
 
 import { type AliasRow, aliasesByTarget, aliasesToRows, rowsToAliases } from "@/lib/alias-rows";
-import { applyConfigResult, botSettingsSaved } from "@/lib/config-cache";
+import { botSettingsSaved } from "@/lib/config-cache";
 import { metaCommands, taskCommands, timerCommands } from "@/lib/command-rows";
 import {
   type CommandGroup,
   COMMAND_GROUP_LABEL,
   useCommandGroupSwitch,
 } from "@/lib/use-command-group-switch";
+import { useDraft, useSettingsSave } from "@/lib/use-draft";
 import { cn } from "@/lib/utils";
-import { toastMutationError } from "@/lib/validation-errors";
 import { CommandAliasEditor } from "@/components/bot-settings/command-alias-editor";
 import { CommandTable } from "@/components/bot-settings/command-table";
 import { SaveBar } from "@/components/save-bar";
@@ -95,25 +92,39 @@ function CommandGroupCard({
 }
 
 /**
- * Alias rows are seeded in STATE from the config this mounts with (streamed by the (sections)
+ * Dirty compares each row's key and value only: a row's id is a client handle (saved rows get
+ * `alias-saved-N`, new ones `alias-row-N`), so a row removed and typed back in is no change.
+ */
+function sameAliasRows(a: AliasRow[], b: AliasRow[]): boolean {
+  return (
+    a.length === b.length && a.every((row, i) => row.key === b[i]?.key && row.value === b[i]?.value)
+  );
+}
+
+/**
+ * Alias rows (`useDraft`) are seeded in STATE from the config this mounts with (streamed by the (sections)
  * layout; `BotSection` mounts this only once it has data): the saved aliases land in the
  * server HTML. A
  * config update (Save or a switch flip merging its answer into the cache) re-renders with new props but touches no state, so
  * alias edits in progress survive it.
  */
 function CommandsEditor({ config }: { config: BotConfigData }) {
-  const queryClient = useQueryClient();
   const bot = config.botConfig;
 
-  const [rows, setRows] = useState<AliasRow[]>(() => aliasesToRows(bot.commandAliases ?? {}));
-  const [savedRows, setSavedRows] = useState<AliasRow[]>(rows);
+  const {
+    draft: rows,
+    setDraft: setRows,
+    dirty,
+    reset,
+    commit,
+  } = useDraft<AliasRow[]>(() => aliasesToRows(bot.commandAliases ?? {}), sameAliasRows);
 
-  const save = useMutation({
-    ...trpc.config.updateBotSettings.mutationOptions(),
-    // The answer is the stored bot config: merged into config.get, never re-read.
-    onSuccess: (saved, sent) =>
-      applyConfigResult(queryClient, trpc.config.get.queryKey(), botSettingsSaved(saved, sent)),
-    onError: toastMutationError("save aliases"),
+  // The answer is the stored bot config: only the aliases are merged into config.get.
+  const { save, saving } = useSettingsSave({
+    noun: "aliases",
+    mutationOptions: trpc.config.updateBotSettings.mutationOptions(),
+    merge: botSettingsSaved,
+    commit,
   });
 
   // The same shared validator the server runs; the editor flags each rejected row.
@@ -122,25 +133,8 @@ function CommandsEditor({ config }: { config: BotConfigData }) {
   // The tables show what the draft would save, as it is typed.
   const aliases = aliasesByTarget(result.aliases);
 
-  const dirty =
-    rows.length !== savedRows.length ||
-    rows.some((row, i) => row.key !== savedRows[i]?.key || row.value !== savedRows[i]?.value);
-
-  const handleSave = async () => {
-    if (blockedReason) {
-      toast.error(`Couldn't save aliases: ${blockedReason}`);
-      return;
-    }
-    try {
-      // Edits made while the request is in flight stay dirty.
-      const submitted = rows;
-      await save.mutateAsync({ commandAliases: result.aliases });
-      setSavedRows(submitted);
-      toast.success("Aliases saved");
-    } catch {
-      // onError already toasted; the Save bar keeps offering a retry.
-    }
-  };
+  // The rows it sent are the snapshot: edits made while the request is in flight stay dirty.
+  const handleSave = () => save({ commandAliases: result.aliases }, rows, blockedReason);
 
   const focusFirstBadAlias = () => {
     const first = result.issues[0];
@@ -191,9 +185,9 @@ function CommandsEditor({ config }: { config: BotConfigData }) {
 
       <SaveBar
         visible={dirty}
-        saving={save.isPending}
+        saving={saving}
         onSave={handleSave}
-        onReset={() => setRows(savedRows)}
+        onReset={reset}
         label="Unsaved aliases"
         blockedReason={blockedReason}
         onBlockedReasonClick={blockedReason ? focusFirstBadAlias : undefined}
