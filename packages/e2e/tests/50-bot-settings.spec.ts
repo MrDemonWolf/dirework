@@ -72,6 +72,36 @@ test("edits a reply, previews it as chat would show it, saves, and resets it", a
   await expect(page.getByText("Replies saved")).toBeVisible();
 });
 
+test("an edit made while a save is in flight stays unsaved", async ({ page, context }) => {
+  await signIn(page);
+  await page.goto("/dashboard/bot/replies");
+  await waitForHydration(page);
+
+  const stamp = `${test.info().retry}-${Date.now()}`;
+  await page.getByRole("button", { name: /^Adding/ }).click();
+  const field = page.getByLabel("Task added", { exact: true });
+  await field.fill(`Sent with the save [${stamp}]`);
+
+  // Hold the save at the api, so the next edit lands while the request is in flight. The
+  // cookie rides the /rpc proxy to the e2e api worker (src/api-entry.ts).
+  await context.addCookies([
+    { name: DELAY_COOKIE, value: "config.updateBotSettings=1500", url: WEB_ORIGIN },
+  ]);
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await field.fill(`Typed during the save [${stamp}]`);
+  await expect(page.getByText("Replies saved")).toBeVisible();
+  await context.clearCookies({ name: DELAY_COOKIE });
+
+  // The save committed what it sent, so the later edit still differs from it.
+  await expect(page.getByRole("button", { name: "Save changes" })).toBeVisible();
+  await expect(field).toHaveValue(`Typed during the save [${stamp}]`);
+
+  // Back to stock, and saved, so the database ends where it started.
+  await page.getByRole("button", { name: "Reset to default" }).click();
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByRole("button", { name: "Save changes" })).toHaveCount(0);
+});
+
 test("the Save bar's reason clears a filter hiding the reply it names", async ({ page }) => {
   await signIn(page);
   await page.goto("/dashboard/bot/replies");

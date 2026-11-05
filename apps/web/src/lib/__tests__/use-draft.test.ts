@@ -124,11 +124,23 @@ describe("runSettingsSave", () => {
 });
 
 describe("editors on the shared save contract", () => {
-  it("Theme Center uses useDraft and useSettingsSave, never its own snapshot state", () => {
-    const page = read("app/(app)/dashboard/styles/styles-page.tsx");
-    expect(page).toMatch(/useDraft(<\w+>)?\(/);
+  const editors = [
+    "app/(app)/dashboard/styles/styles-page.tsx",
+    "app/(app)/dashboard/bot/(sections)/replies/replies-page.tsx",
+    "app/(app)/dashboard/bot/(sections)/commands/commands-page.tsx",
+  ];
+
+  it.each(editors)("%s uses useDraft and useSettingsSave, never its own snapshot", (file) => {
+    const page = read(file);
+    expect(page).toMatch(/useDraft(<[\w[\]]+>)?\(/);
     expect(page).toContain("useSettingsSave(");
-    expect(page).not.toMatch(/useState<\w*StylesConfig>|setSaved\w*\(/);
+    expect(page).not.toMatch(/useState<\w*(StylesConfig|RepliesDraft|AliasRow\[\])>|setSaved\w*\(/);
+    expect(page).not.toContain("useMutation(");
     expect(page).not.toContain("invalidateQueries");
+  });
+
+  it("Commands keeps a key/value compare (alias row ids are client handles)", () => {
+    const page = read("app/(app)/dashboard/bot/(sections)/commands/commands-page.tsx");
+    expect(page).toMatch(/useDraft<AliasRow\[\]>\([\s\S]*?sameAliasRows\)/);
   });
 });

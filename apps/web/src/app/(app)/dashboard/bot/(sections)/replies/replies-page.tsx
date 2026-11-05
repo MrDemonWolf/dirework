@@ -6,13 +6,11 @@
 // subset), so it never touches the aliases or the command switches.
 
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { toast } from "sonner";
 
 import { updateBotSettingsInput } from "@dirework/api/routers/input-schemas";
 
-import { applyConfigResult, botSettingsSaved } from "@/lib/config-cache";
+import { botSettingsSaved } from "@/lib/config-cache";
 import type { TaskMessagesConfig, TimerMessagesConfig } from "@/lib/config-types";
 import { DEFAULT_TASK_MESSAGES, DEFAULT_TIMER_MESSAGES } from "@/lib/config-types";
 import {
@@ -28,8 +26,9 @@ import {
   timerMessageFields,
 } from "@/lib/message-fields";
 import { previewVars } from "@/lib/template-preview";
-import { cn } from "@/lib/utils";
-import { describeFieldIssues, toastMutationError } from "@/lib/validation-errors";
+import { useDraft, useSettingsSave } from "@/lib/use-draft";
+import { cn, isDeepEqual } from "@/lib/utils";
+import { describeFieldIssues } from "@/lib/validation-errors";
 import { MessageEditor } from "@/components/bot-settings/message-editor";
 import { SaveBar } from "@/components/save-bar";
 import { Callout } from "@/components/ui/callout";
@@ -52,13 +51,6 @@ interface RepliesDraft {
   timer: TimerMessagesConfig;
 }
 
-/** Cheap slice compare for the per-set dirty dots. */
-function sameReplies<T extends object>(a: T, b: T): boolean {
-  const keys = Object.keys(a) as (keyof T)[];
-  if (keys.length !== Object.keys(b).length) return false;
-  return keys.every((key) => a[key] === b[key]);
-}
-
 /** The editor reads `config.get` (the replies) and `user.me` (previews speak as the bot). */
 export default function RepliesPage() {
   return (
@@ -75,32 +67,29 @@ function Replies() {
 const SET_LABEL: Record<BotMessageTab, string> = { task: "Task replies", timer: "Timer replies" };
 
 /**
- * Draft and saved are seeded in STATE from the config this mounts with (streamed by the
- * (sections) layout; `BotSection` mounts this only once it has data): the saved values land
- * in the server HTML
- * and no frame of defaults is painted first. A refetch re-renders with new props but touches
- * no state, so edits in progress survive it.
+ * Draft and saved (`useDraft`) are seeded in STATE from the config this mounts with (streamed
+ * by the (sections) layout; `BotSection` mounts this only once it has data): the saved values
+ * land in the server HTML and no frame of defaults is painted first. A config update re-renders
+ * with new props but touches no state, so edits in progress survive it.
  */
 function RepliesEditor({ config, user }: { config: BotConfigData; user: BotUserData }) {
-  const queryClient = useQueryClient();
   const bot = config.botConfig;
 
-  const [draft, setDraft] = useState<RepliesDraft>(() => ({
+  const { draft, setDraft, saved, reset, commit } = useDraft<RepliesDraft>(() => ({
     task: bot.task ?? DEFAULT_TASK_MESSAGES,
     timer: bot.timer ?? DEFAULT_TIMER_MESSAGES,
   }));
-  const [saved, setSaved] = useState<RepliesDraft>(draft);
   // Controlled, so the Save bar's blocked reason can switch to the set holding the bad field.
   const [set, setSet] = useState<BotMessageTab>("task");
   // Each set's filter, held here so the Save bar's link can clear one hiding its field.
   const [filters, setFilters] = useState<Record<BotMessageTab, string>>({ task: "", timer: "" });
 
-  const save = useMutation({
-    ...trpc.config.updateBotSettings.mutationOptions(),
-    // The answer is the stored bot config: merged into config.get, never re-read.
-    onSuccess: (saved, sent) =>
-      applyConfigResult(queryClient, trpc.config.get.queryKey(), botSettingsSaved(saved, sent)),
-    onError: toastMutationError("save replies"),
+  // The answer is the stored bot config: only the replies are merged into config.get.
+  const { save, saving } = useSettingsSave({
+    noun: "replies",
+    mutationOptions: trpc.config.updateBotSettings.mutationOptions(),
+    merge: botSettingsSaved,
+    commit,
   });
 
   // The server's own input schema over the exact payload: a field it would reject blocks
@@ -124,25 +113,13 @@ function RepliesEditor({ config, user }: { config: BotConfigData; user: BotUserD
     });
   };
 
-  const handleSave = async () => {
-    if (blockedReason) {
-      toast.error(`Couldn't save replies: ${blockedReason}`);
-      return;
-    }
-    try {
-      // Edits made while the request is in flight stay dirty.
-      const submitted = draft;
-      await save.mutateAsync(payload);
-      setSaved(submitted);
-      toast.success("Replies saved");
-    } catch {
-      // onError already toasted; nothing persisted, so the Save bar keeps offering a retry.
-    }
-  };
+  // The draft it sent is the snapshot: edits made while the request is in flight stay dirty.
+  const handleSave = () => save(payload, draft, blockedReason);
 
+  // Per set, for the tabs' dirty dots.
   const dirty: Record<BotMessageTab, boolean> = {
-    task: !sameReplies(draft.task, saved.task),
-    timer: !sameReplies(draft.timer, saved.timer),
+    task: !isDeepEqual(draft.task, saved.task),
+    timer: !isDeepEqual(draft.timer, saved.timer),
   };
   const hasUnsaved = dirty.task || dirty.timer;
 
@@ -226,9 +203,9 @@ function RepliesEditor({ config, user }: { config: BotConfigData; user: BotUserD
 
       <SaveBar
         visible={hasUnsaved}
-        saving={save.isPending}
+        saving={saving}
         onSave={handleSave}
-        onReset={() => setDraft(saved)}
+        onReset={reset}
         label="Unsaved replies"
         blockedReason={blockedReason}
         onBlockedReasonClick={blockedReason ? focusBlockedField : undefined}
