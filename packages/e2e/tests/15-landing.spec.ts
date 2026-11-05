@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
 
 import { WEB_ORIGIN } from "../src/env";
+import { recordSkeletonFrames, setApiDelay, signIn, skeletonFrames } from "./helpers";
 
 // The home page of a claimed instance (00-first-run claimed it) as a signed-out visitor sees
-// it: a static viewer landing that points at deploying your own copy.
+// it: a static viewer landing that points at deploying your own copy. The last test is the
+// owner's view: no landing at all, a redirect to the dashboard.
 
 test("a refused sign-in shows the claimed notice with a link to deploy your own", async ({
   page,
@@ -47,4 +49,44 @@ test("the landing page makes no tRPC requests", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await page.waitForLoadState("networkidle");
   expect(rpc).toEqual([]);
+});
+
+test("the first HTML response already holds the finished landing", async ({ page }) => {
+  // No loading.tsx wraps / (AGENTS.md "Shell hold"), so nothing streams until the page's
+  // ownership and session checks answer, and the landing is written straight into <main>.
+  // With one, <main> held the skeleton and the landing came after the shell in a hidden
+  // segment, for React to swap in.
+  const res = await page.request.get("/", { maxRedirects: 0 });
+  expect(res.status()).toBe(200);
+  const main = (await res.text()).match(/<main\b[^>]*>([\s\S]*?)<\/main>/)?.[1] ?? "";
+  expect(main).toMatch(/<h1\b/);
+  expect(main).not.toContain('data-slot="skeleton"');
+});
+
+test("a hard load paints the finished landing, never the loading skeleton", async ({ page }) => {
+  // The ownership check (`user.hasOwner`) is slowed so it answers well after the (app)
+  // layout's session check (in production it trailed by 80-100ms; on localhost the two land
+  // within a frame of each other, too close for a paint in between). A loading boundary would
+  // stream its skeleton in that gap; with none, the first paint waits for the whole page.
+  await setApiDelay(page, "user.hasOwner=1500");
+  try {
+    await recordSkeletonFrames(page);
+    await page.goto("/");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await page.waitForTimeout(500);
+    expect(await skeletonFrames(page), "frames that showed the loading skeleton").toEqual([]);
+  } finally {
+    await setApiDelay(page, null);
+  }
+});
+
+test("the owner's / is a real redirect to the dashboard", async ({ page }) => {
+  // The page decides before anything streams, so redirect() is an HTTP 307 and the browser
+  // loads /dashboard directly (which paints finished). Behind a streamed loading skeleton it
+  // was a 200 that redirected client-side, into the dashboard's own loading state: two
+  // loading states on the way in.
+  await signIn(page);
+  const res = await page.request.get("/", { maxRedirects: 0 });
+  expect(res.status()).toBe(307);
+  expect(res.headers().location).toMatch(/\/dashboard$/);
 });

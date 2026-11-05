@@ -5,6 +5,12 @@ import { getInstanceOwned, getServerSession } from "@/lib/server-session";
 import { resolveSignInError } from "@/lib/sign-in-errors";
 import { ViewerLanding } from "./viewer-landing";
 
+/**
+ * No loading.tsx wraps this page or /setup (shell-hold.test.ts pins it), so nothing streams
+ * until these checks answer: the owner and an unclaimed instance get a real 307, and a visitor
+ * gets the finished landing in one paint. A client navigation here keeps the previous page
+ * until this one is ready.
+ */
 export default async function Home({
   searchParams,
 }: {

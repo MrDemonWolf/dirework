@@ -1,10 +1,24 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { createShellHold } from "@/lib/shell-hold";
 
 const read = (rel: string) => readFileSync(path.join(__dirname, "../..", rel), "utf8");
+
+const APP_DIR = path.join(__dirname, "../../app");
+
+/**
+ * The loading.tsx files that wrap a page in `dir` (relative to src/app): Next puts a Suspense
+ * boundary around every segment that has one, from the root down to the page's own folder.
+ */
+function loadingBoundariesAround(dir: string): string[] {
+  const segments = dir.split("/");
+  return segments
+    .map((_, depth) => [...segments.slice(0, depth), "loading.tsx"].join("/"))
+    .concat(`${dir}/loading.tsx`)
+    .filter((file) => existsSync(path.join(APP_DIR, file)));
+}
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -93,5 +107,32 @@ describe("shell hold wiring", () => {
     const layout = read("app/(app)/dashboard/bot/(sections)/layout.tsx");
     const body = layout.slice(layout.indexOf("export default async function"));
     expect(body.match(/await [^;]+/)?.[0]).toBe("await holdShellFor(loadBot())");
+  });
+});
+
+describe("loading boundaries", () => {
+  // A loading.tsx above / or /setup streams its skeleton before the page's ownership and
+  // session checks answer, so their redirect() can only run client-side behind it: the owner's
+  // / painted that skeleton, then the dashboard's own, and a visitor's landing arrived at least
+  // 300ms after the skeleton. With none, nothing streams until the page decides: a real 307
+  // (owner to /dashboard, unclaimed to /setup) or the finished page in one paint.
+  it.each([
+    ["/", "(app)"],
+    ["/setup", "(app)/setup"],
+  ])("no loading.tsx wraps %s", (_route, dir) => {
+    expect(loadingBoundariesAround(dir)).toEqual([]);
+  });
+
+  // The dashboard routes keep theirs: a client navigation shows it the instant a link is
+  // clicked, and a hard load holds the shell (above), so it never paints there.
+  it.each([
+    ["/dashboard", "(app)/dashboard/loading.tsx"],
+    ["/dashboard/styles", "(app)/dashboard/styles/loading.tsx"],
+    // Entering Bot settings: below its heading and sub-nav (bot/layout.tsx).
+    ["/dashboard/bot", "(app)/dashboard/bot/loading.tsx"],
+    // Switching between its sub-pages.
+    ["/dashboard/bot/*", "(app)/dashboard/bot/(sections)/loading.tsx"],
+  ])("%s keeps its own loading.tsx", (_route, file) => {
+    expect(existsSync(path.join(APP_DIR, file))).toBe(true);
   });
 });
