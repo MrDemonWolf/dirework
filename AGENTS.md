@@ -937,6 +937,17 @@ failed CI whenever the runner couldn't reach Google (`Can't resolve
 the only thing that talks to Google Fonts, run by hand; `packages/fonts`' test forbids
 `next/font/google` in either app and checks every `src` path resolves to a committed file.
 
+**Token pages load no toast host and no presets.** The OBS overlays and the bot page show
+no toasts and no Theme Center. The one sonner `Toaster` is `components/app-toaster.tsx`,
+mounted only by the `(app)` layout. `utils/trpc.ts`'s QueryCache and MutationCache hand a
+failure to whatever `lib/query-error-reporter.ts` holds, which `app-toaster.tsx` sets to
+`toastQueryError` / `toastMutationAuthLapse` as its module loads (never lazily: "Can't reach the DireWork API" must
+show when the network is down), so a token page registers none and loads no sonner.
+`lib/overlay-view.ts` takes its fallback styles from `lib/config-types`, never
+`lib/theme-presets` (the preset table, plus `lib/utils`' tailwind-merge and clsx through its
+`isDeepEqual`). `browser-imports.test.ts` ("what the token pages load") walks the static
+imports of both overlays and the bot page, the root layout and providers included, and pins it.
+
 ### Theme Center & Frontend
 
 Design language: a conventional **neutral dark UI** (GitHub/Vercel/Linear style), dark-first
@@ -1173,7 +1184,8 @@ existing home and reuse it:
 - **Shared components** — `confirm-dialog`, `save-bar` (takes `blockedReason` to disable
   Save when the server's input schema would reject the payload), `status-chip`,
   `unsaved-changes-guard`, `auto-scale`, `loader`, `query-error`
-  (failed first load — never render editors over defaults), `secret-url-row`.
+  (failed first load — never render editors over defaults), `secret-url-row`, `app-toaster`
+  (the one toast host, `(app)` layout only).
 - **Specs** — every component has a spec in `design-system/components/` (frontmatter
   `source:` + `tokens:`; README holds the page → components map), and
   `apps/web/src/lib/__tests__/spec-catalog.test.ts` enforces it: a new, renamed or moved

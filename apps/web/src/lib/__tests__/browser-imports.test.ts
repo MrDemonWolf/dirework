@@ -389,3 +389,80 @@ describe("browser import graph", () => {
     },
   );
 });
+
+// ── What the token pages load ───────────────────────────────────────────────
+//
+// The OBS overlays and the bot page (the token pages an OBS source, Moblin or a dock keeps open
+// all stream) show no toasts and no Theme Center, so they must not load the toast host or the
+// preset table: sonner, the query-error toast, the six presets and, through the presets'
+// isDeepEqual, lib/utils' tailwind-merge and clsx. Every route renders the root layout and the
+// root providers, so their imports count for each token page. The (app) shell is the control:
+// the same walk reaches the toast host from there.
+
+const src = (file: string) => path.join(webSrc, file);
+
+const ROOT_ENTRIES = ["app/layout.tsx", "components/providers.tsx", "utils/trpc.ts"];
+const OVERLAY_ENTRIES = ENTRIES.filter((entry) => entry.startsWith("app/(overlay)/"));
+const BOT_ENTRIES = ENTRIES.filter((entry) => entry.startsWith("app/(bot)/"));
+const TOKEN_PAGE_ENTRIES = [...ROOT_ENTRIES, ...OVERLAY_ENTRIES, ...BOT_ENTRIES];
+
+/** The toast host: sonner, its Toaster, and the query-error toast it registers. */
+const TOAST_HOST = [
+  "npm:sonner",
+  src("components/ui/sonner.tsx"),
+  src("components/app-toaster.tsx"),
+  src("lib/query-error-toast.ts"),
+];
+const THEME_PRESETS = src("lib/theme-presets.ts");
+/** lib/utils' `cn`, which the presets' isDeepEqual pulled in with it. */
+const CLASS_MERGING = [src("lib/utils.ts"), "npm:tailwind-merge", "npm:clsx"];
+
+const oneOf = (modules: string[]) => (node: string) => modules.includes(node);
+
+describe("what the token pages load", () => {
+  it("covers both overlays and the bot page, with their group layouts", () => {
+    expect(TOKEN_PAGE_ENTRIES).toEqual(
+      expect.arrayContaining([
+        "app/(overlay)/layout.tsx",
+        "app/(overlay)/overlay/t/[token]/page.tsx",
+        "app/(overlay)/overlay/l/[token]/page.tsx",
+        "app/(bot)/layout.tsx",
+        "app/(bot)/bot/[token]/page.tsx",
+      ]),
+    );
+  });
+
+  it.each(TOKEN_PAGE_ENTRIES)("%s loads no toast host and no presets", (entry) => {
+    expect(forbiddenChains(src(entry), oneOf([...TOAST_HOST, THEME_PRESETS]))).toEqual([]);
+  });
+
+  // The bot dock's buttons use `cn`, so only the overlays (and what every route loads) are held
+  // to this.
+  it.each([...ROOT_ENTRIES, ...OVERLAY_ENTRIES])("%s loads no tailwind-merge or clsx", (entry) => {
+    expect(forbiddenChains(src(entry), oneOf(CLASS_MERGING))).toEqual([]);
+  });
+
+  it("follows the edges it checks: the (app) shell reaches the toast host and the overlay its defaults", () => {
+    expect(forbiddenChains(src("app/(app)/layout.tsx"), oneOf(TOAST_HOST))).toHaveLength(
+      TOAST_HOST.length,
+    );
+    const defaults = [
+      src("lib/overlay-view.ts"),
+      path.join(repoRoot, "packages/api/src/config-defaults.ts"),
+    ];
+    expect(
+      forbiddenChains(src("app/(overlay)/overlay/t/[token]/page.tsx"), oneOf(defaults)),
+    ).toHaveLength(defaults.length);
+  });
+});
+
+describe("the toast host", () => {
+  it("is mounted once, by the (app) layout", () => {
+    const mounts = filesUnder(webSrc)
+      .filter((file) => /\.tsx$/.test(file) && !file.includes(`${path.sep}__tests__${path.sep}`))
+      .filter((file) => readFileSync(file, "utf8").includes("<Toaster"))
+      .map(rel);
+    expect(mounts).toEqual(["components/app-toaster.tsx"]);
+    expect(readFileSync(src("app/(app)/layout.tsx"), "utf8")).toContain("<AppToaster />");
+  });
+});

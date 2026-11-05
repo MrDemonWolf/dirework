@@ -1,9 +1,10 @@
-// Shell for the signed-in app and public landing pages: skip link, header, and the shared
-// footer (AGENTS.md "Footer Convention"). Overlays and the bot console live in other route
-// groups and don't get this chrome.
+// Shell for the signed-in app and public landing pages: skip link, header, the shared
+// footer (AGENTS.md "Footer Convention") and the toast host. Overlays and the bot console
+// live in other route groups and don't get this chrome.
 
 import type { Metadata } from "next";
 
+import { AppToaster } from "@/components/app-toaster";
 import Header from "@/components/header";
 import { ThemeColorSync } from "@/components/theme-color-sync";
 import { linkVariants } from "@/components/ui/button";
@@ -131,6 +132,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           )}
         </footer>
       </div>
+      {/* The one toast host: here, not in the root providers, so the OBS overlays and the bot
+          page never load it; after the grid, so its live region doesn't become a grid row. */}
+      <AppToaster />
     </>
   );
 }

@@ -7,9 +7,10 @@ tokens: [color.scheme, radius]
 
 ## Purpose
 
-The app-wide toast host. `Providers` (`providers.tsx`) mounts one `Toaster`; code raises
-toasts with `toast()` from `sonner` (save confirmations, mutation errors via
-`lib/query-error-toast.ts`, the task Undo action).
+The toast stack primitive. `AppToaster` (`app-toaster.tsx`), which only the `(app)` layout
+mounts, renders the one `Toaster`; code on those pages raises toasts with `toast()` from
+`sonner` (save confirmations, failed queries via `lib/query-error-toast.ts`, the task Undo
+action).
 
 ## Anatomy
 
@@ -42,5 +43,6 @@ icon spins; the global reduced-motion gate covers it.
 
 - **Do** use a shared toast id for repeated errors (`describeTrpcError` does) so they don't stack.
 - **Do** keep toast text to one short sentence.
-- **Don't** mount a second `Toaster`.
-- **Don't** toast on overlay polls; overlay queries are `meta: { silent: true }`.
+- **Don't** mount a second `Toaster`; `AppToaster` is the one.
+- **Don't** toast on overlay polls; overlay queries are `meta: { silent: true }`, and the
+  overlays don't load sonner at all.

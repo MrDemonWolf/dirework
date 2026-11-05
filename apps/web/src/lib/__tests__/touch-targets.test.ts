@@ -77,7 +77,7 @@ describe("touch targets", () => {
   });
 
   it("lifts toasts above a visible Save bar on both breakpoints", async () => {
-    const { TOAST_OFFSET, TOAST_MOBILE_OFFSET } = await import("@/components/providers");
+    const { TOAST_OFFSET, TOAST_MOBILE_OFFSET } = await import("@/components/app-toaster");
     for (const offset of [TOAST_OFFSET, TOAST_MOBILE_OFFSET]) {
       expect(offset.bottom).toContain("var(--save-bar-clearance, 0px)");
     }
@@ -88,14 +88,14 @@ describe("touch targets", () => {
   });
 
   it("offsets toasts by the safe-area insets on both breakpoints", async () => {
-    const { TOAST_OFFSET, TOAST_MOBILE_OFFSET } = await import("@/components/providers");
+    const { TOAST_OFFSET, TOAST_MOBILE_OFFSET } = await import("@/components/app-toaster");
     for (const offset of [TOAST_OFFSET, TOAST_MOBILE_OFFSET]) {
       expect(offset.bottom).toContain("env(safe-area-inset-bottom");
       expect(offset.left).toContain("env(safe-area-inset-left");
       expect(offset.right).toContain("env(safe-area-inset-right");
     }
-    const providers = read("components/providers.tsx");
-    expect(providers).toContain("offset={TOAST_OFFSET} mobileOffset={TOAST_MOBILE_OFFSET}");
+    const toaster = read("components/app-toaster.tsx");
+    expect(toaster).toContain("offset={TOAST_OFFSET} mobileOffset={TOAST_MOBILE_OFFSET}");
   });
 
   it("defines the can-hover variant on a hover media query", () => {
