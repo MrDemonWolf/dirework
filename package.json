@@ -81,7 +81,7 @@
     "@biomejs/biome": "catalog:",
     "@cloudflare/workers-types": "catalog:",
     "brace-expansion": "2.1.7",
-    "path-to-regexp": "8.4.2",
+    "path-to-regexp": "9.0.0",
     "@dirework/config": "workspace:*",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "^5.0.4",
