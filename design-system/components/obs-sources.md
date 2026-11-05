@@ -49,7 +49,9 @@ into OBS" or `Couldn't reset the URL: ...`).
   it on, switching tabs swaps the overlay shown (inline, or in the side column from `lg`).
 - Preview off (default): no iframe exists. On: exactly one iframe exists, inline below `lg`
   or in the side column from `lg` (resizing across `lg` moves it). It is a live overlay that
-  polls the api on the overlay cadence, so it stays opt-in.
+  polls the api on the overlay cadence, so it stays opt-in. Its src is the overlay path plus
+  `?preview=1` (`overlayPreviewSrc`, `lib/overlay-view.ts`), so the overlay page skips its
+  polls while the dashboard tab is hidden; an OBS source polls in the background.
 - Reset pending: only that tab's Reset is disabled and spinning; the new URL reveals and
   flashes (`SecretUrlRow`).
 
@@ -70,6 +72,8 @@ into OBS" or `Couldn't reset the URL: ...`).
 
 - **Do** keep the preview iframe conditional on its toggle; a hidden one would still poll.
   Never render both stages and hide one with CSS: that is two polling overlays.
+- **Do** load the stage through `overlayPreviewSrc`, and **don't** put `?preview=1` on the URL
+  row: the row is what OBS gets, and an OBS source must keep polling in the background.
 - **Do** keep the setup checklist's own URL handoffs separate (Show / Copy only); resetting
   lives here.
 - **Don't** fetch here; `user.me` already rides the dashboard's one batch.

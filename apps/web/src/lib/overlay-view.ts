@@ -127,6 +127,24 @@ export function overlayPath(kind: "timer" | "tasks", token: string | null | unde
   return `/overlay/${kind === "timer" ? "t" : "l"}/${token}`;
 }
 
+/** The query flag that marks an overlay page as the dashboard's live preview. */
+const PREVIEW_PARAM = "preview";
+
+/**
+ * The dashboard live preview's iframe src for an overlay path: the same page with
+ * `?preview=1`, which the overlay page reads back (`isOverlayPreview`) to stop polling while
+ * the dashboard tab is hidden. Never the URL handed to OBS: an OBS source must keep polling
+ * in the background, so it loads the plain path.
+ */
+export function overlayPreviewSrc(path: string): string {
+  return `${path}?${PREVIEW_PARAM}=1`;
+}
+
+/** Whether an overlay page was loaded as the dashboard's live preview (`?preview=1`). */
+export function isOverlayPreview(search: Pick<URLSearchParams, "get">): boolean {
+  return search.get(PREVIEW_PARAM) === "1";
+}
+
 /** A valid instance whose timer has never run (no state row yet). */
 const IDLE_TIMER_STATE: TimerState = {
   status: "idle",

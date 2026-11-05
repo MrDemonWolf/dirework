@@ -8,7 +8,8 @@
 // right-hand column (`ObsPreviewColumn`) and the other columns narrow to make room; below
 // `lg` it stays inline under the URL row. Either way exactly one preview iframe exists, and
 // only while the switch is on: a preview is a live overlay that polls the api on the overlay
-// cadence for as long as it is shown.
+// cadence for as long as it is shown. It loads the overlay with `?preview=1`
+// (`overlayPreviewSrc`), so unlike an OBS source it stops polling while the tab is hidden.
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -20,7 +21,7 @@ import { ConsoleRule } from "@/components/console-rule";
 import { SecretUrlRow } from "@/components/secret-url-row";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { overlayPath } from "@/lib/overlay-view";
+import { overlayPath, overlayPreviewSrc } from "@/lib/overlay-view";
 import { type Size, TASKS_SOURCE, TIMER_SOURCE_FALLBACK } from "@/lib/preview-session";
 import { describeTrpcError } from "@/lib/trpc-errors";
 import { LG_MEDIA_QUERY, useMediaQuery } from "@/lib/use-media-query";
@@ -103,8 +104,12 @@ function SizeChip({ size, hint }: { size: string; hint: string }) {
   );
 }
 
-/** The overlay page in a stage at its OBS source's aspect ratio (1 / 1, 7 / 8). */
-function PreviewStage({ kind, src }: { kind: OverlayKind; src: string }) {
+/**
+ * The overlay page in a stage at its OBS source's aspect ratio (1 / 1, 7 / 8), loaded as a
+ * preview (`?preview=1`) so it stops polling while the dashboard tab is hidden. `path` is the
+ * plain overlay path, the one the URL row hands to OBS.
+ */
+function PreviewStage({ kind, path }: { kind: OverlayKind; path: string }) {
   const { tab, source } = SOURCES.find((s) => s.kind === kind) ?? SOURCES[0];
   return (
     <div
@@ -112,7 +117,7 @@ function PreviewStage({ kind, src }: { kind: OverlayKind; src: string }) {
       style={{ aspectRatio: `${source.width} / ${source.height}` }}
     >
       <iframe
-        src={src}
+        src={overlayPreviewSrc(path)}
         title={`${tab} overlay preview`}
         className="pointer-events-none absolute inset-0 h-full w-full"
         style={{ border: "none", background: "transparent" }}
@@ -201,7 +206,7 @@ export function ObsSources({ state }: { state: ObsPreviewState }) {
                 <span className="sr-only"> of the {kind} overlay</span>
               </Button>
               {/* Below lg only; from lg the console renders ObsPreviewColumn instead. */}
-              {preview && !side && src && <PreviewStage kind={kind} src={src} />}
+              {preview && !side && src && <PreviewStage kind={kind} path={src} />}
             </TabsContent>
           );
         })}
@@ -236,7 +241,7 @@ export function ObsPreviewColumn({ state }: { state: ObsPreviewState }) {
           <X />
         </Button>
       </div>
-      {src && <PreviewStage kind={state.tab} src={src} />}
+      {src && <PreviewStage kind={state.tab} path={src} />}
     </aside>
   );
 }

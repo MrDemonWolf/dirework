@@ -158,7 +158,11 @@ high to stay within the Cloudflare free-tier request budget.) Every cadence live
 `apps/web/src/lib/poll-intervals.ts`, each with its request count. Dashboard queries stop
 when the tab is hidden and use `dashboardPollInterval`, which slows to 15s after 2 minutes
 without input — an authenticated dashboard request is billed twice (web worker → `/rpc`
-proxy → api worker), so an untouched dashboard must not out-spend the overlays. The footer's
+proxy → api worker), so an untouched dashboard must not out-spend the overlays. The
+dashboard's OBS live preview is the overlay page itself in an iframe, so it stops with the
+tab the same way: its src carries `?preview=1` (`overlayPreviewSrc` / `isOverlayPreview`,
+`lib/overlay-view.ts`), and the overlay pages turn background polling off for it, while an
+OBS source (the plain URL) keeps polling in the background. The footer's
 new-deploy check (`VersionBadge` → `lib/version-check.ts`, React-free, fake-timer tested)
 runs only in the signed-in owner's tab (the `(app)` layout passes `checkForUpdates` from its
 session; viewers on `/` and `/setup` get a static badge) and only while that tab is visible:
@@ -736,8 +740,12 @@ it (e.g. `0017_drop_task_status_idx` contracted 0015's superseded `task_status_i
 
 Public routes `/overlay/t/[token]` (timer) and `/overlay/l/[token]` (tasks), transparent
 for OBS. Poll `publicTrpc.overlay.getTimerState` / `getTaskList` (POST mutations, token
-in the body) every 5s (`refetchIntervalInBackground: true`, `meta: { silent: true }` so a
-failed poll never toasts onto the stream); timer display re-renders locally once per
+in the body) every 5s with the shared `OVERLAY_POLL_QUERY_OPTS` (`poll-intervals.ts`:
+`refetchIntervalInBackground: true`, `meta: { silent: true }` so a failed poll never toasts
+onto the stream), then `refetchIntervalInBackground: !preview`: the dashboard's live
+preview loads the page with `?preview=1`, so it skips its polls while the dashboard tab is
+hidden (one focus refetch on return once the payload is past `QUERY_FRESH_MS`); OBS loads
+the plain URL and is unchanged. Timer display re-renders locally once per
 displayed second from `targetEndTime` (a `setTimeout` chain aligned to the countdown's own
 second boundary via `msUntilNextSecond`), and the ring uses a matching 1s linear
 `stroke-dashoffset` transition. React Query keeps the last payload on failed refetches so
@@ -856,7 +864,8 @@ when the owner has no focus), `TimerSettings` behind the "Edit session settings"
 (its collapsed summary is `formatSessionSummary` in `lib/session-summary.ts`, from the SAVED
 config with `TIMER_CONFIG_DEFAULTS` fallbacks) and `ObsSources` (`components/obs-sources.tsx`):
 both overlay URLs in one block, a "Timer" / "Tasks" tab each (URL row with Show/Copy/Reset,
-the 300×300 / 700×800 size chip, a "Live preview" toggle whose iframe only exists while on;
+the 300×300 / 700×800 size chip, a "Live preview" toggle whose iframe only exists while on
+and loads the overlay with `?preview=1`, so it stops polling while the tab is hidden;
 only the selected tab is mounted). The tab and the preview switch live in the console
 (`useObsPreview`): below `lg` the preview is inline under the URL row; from `lg` it opens as
 the console's third column (`ObsPreviewColumn`: overlay name + "Close live preview") and
@@ -1380,7 +1389,8 @@ the default app to two workers, one D1 database and the existing rate-limit bind
 
 - No new polling, and no faster interval for an existing poll. Every cadence lives in
   `apps/web/src/lib/poll-intervals.ts`; a change there needs a stated request-budget
-  reason. Dashboard queries must keep stopping when the tab is hidden. The approved
+  reason. Dashboard queries, and the OBS live preview's iframe (`?preview=1`), must keep
+  stopping when the tab is hidden; only an OBS source polls in the background. The approved
   bot-page cadences are the lease heartbeat (`BOT_HEARTBEAT_MS`, 2 min): one Worker request
   and one D1 write per open bot page, 30/hour, ≤720/day for a page open around the clock
   (standby pages: the request, no write); the chat-token revalidation

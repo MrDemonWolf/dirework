@@ -433,12 +433,14 @@ Cloudflare account and reset at 00:00 UTC. Rough hourly usage:
 | Timer + task overlays (open in OBS)       | every 5s each, even in the background       | ~1.4k         |
 | Dashboard tab (visible, in use)           | timer 2s + tasks 3s, each counted twice     | ~6k           |
 | Dashboard tab (visible, untouched 2+ min) | timer + tasks every 15s, each counted twice | ~1k           |
+| Dashboard live preview (switched on)      | one overlay every 5s, paused while hidden   | ~720          |
 | Each open bot page (widget or dock)       | lease check-in every 2 min, plus commands   | 30 + commands |
 
 Dashboard requests count twice because the web worker proxies `/rpc` to the api
 worker, and both invocations are billed. Dashboard polling slows to every 15 seconds
 once nobody has clicked, typed, scrolled, or moved the pointer over it for two minutes,
-and pauses entirely while its tab is hidden or minimized; overlays keep polling.
+and pauses entirely while its tab is hidden or minimized, live preview included; the
+overlays open in OBS keep polling.
 
 So a six-hour stream with only the overlays running uses about 9k requests, and with
 the dashboard left open but untouched about 14k. Actively using the dashboard the

@@ -1,16 +1,18 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 
-import { taskOverlayView } from "@/lib/overlay-view";
-import { OVERLAY_POLL_MS } from "@/lib/poll-intervals";
+import { isOverlayPreview, taskOverlayView } from "@/lib/overlay-view";
+import { OVERLAY_POLL_QUERY_OPTS } from "@/lib/poll-intervals";
 import { FontGate } from "@/components/font-gate";
 import { TaskListDisplay } from "@/components/task-list-display";
 import { publicTrpc } from "@/utils/trpc";
 
 export default function TaskListOverlayPage() {
   const { token } = useParams<{ token: string }>();
+  // The dashboard's live preview loads this page with `?preview=1`; OBS loads the plain URL.
+  const preview = isOverlayPreview(useSearchParams());
 
   // Polls the api worker directly (token auth, no cookies) — see timer
   // overlay for rationale. Last successful payload is kept across failed
@@ -19,10 +21,10 @@ export default function TaskListOverlayPage() {
     queryKey: ["overlay", "taskList", token],
     queryFn: () => publicTrpc.overlay.getTaskList.mutate({ token }),
     enabled: Boolean(token),
-    refetchInterval: OVERLAY_POLL_MS,
-    refetchIntervalInBackground: true,
-    // Unattended OBS source: a failed poll must never toast onto the stream.
-    meta: { silent: true },
+    // An OBS source polls in the background too; the preview stops while its
+    // dashboard tab is hidden.
+    ...OVERLAY_POLL_QUERY_OPTS,
+    refetchIntervalInBackground: !preview,
   });
 
   // Nothing until the first payload lands, and nothing for an invalid or reset
