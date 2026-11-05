@@ -1,14 +1,15 @@
 import type { AppRouter } from "@dirework/api/routers/index";
 
-import { isServer, QueryCache, QueryClient } from "@tanstack/react-query";
+import { isServer, MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 
 import { TRPC_MAX_BATCH_SIZE } from "@dirework/api/config-shared";
 import { apiOrigin } from "@/lib/api-origin";
+import { authLapseLink, fetchRpc, shouldRetryQuery } from "@/lib/auth-lapse";
 import { withRequestTimeout } from "@/lib/fetch-timeout";
 import { QUERY_FRESH_MS } from "@/lib/poll-intervals";
-import { toastQueryError } from "@/lib/query-error-toast";
+import { toastMutationAuthLapse, toastQueryError } from "@/lib/query-error-toast";
 
 function makeQueryClient(): QueryClient {
   return new QueryClient({
@@ -19,14 +20,23 @@ function makeQueryClient(): QueryClient {
       // and sonner's toast store is module state that no render would drain.
       onError: isServer ? undefined : toastQueryError,
     }),
+    // A write refused because the sign-in lapsed raises the same reload toast.
+    mutationCache: new MutationCache({ onError: isServer ? undefined : toastMutationAuthLapse }),
     defaultOptions: {
-      // A client default, not per-query: several observers share one key
-      // (user.me and task.list each have several) and React
-      // Query applies each observer's own staleTime, so a per-query value would
-      // have to be repeated everywhere. It only stops hydrated SSR data from
-      // being refetched on mount; polls and invalidations ignore it, so the
-      // request budget is unchanged.
-      queries: { staleTime: QUERY_FRESH_MS },
+      queries: {
+        // A client default, not per-query: several observers share one key
+        // (user.me and task.list each have several) and React
+        // Query applies each observer's own staleTime, so a per-query value would
+        // have to be repeated everywhere. It only stops hydrated SSR data from
+        // being refetched on mount; polls and invalidations ignore it, so the
+        // request budget is unchanged.
+        staleTime: QUERY_FRESH_MS,
+        // The browser never retries a 4xx (a refused poll used to go out four times
+        // a cycle) and retries a network failure or 5xx twice (lib/auth-lapse.ts).
+        // The server never retries: a failed prefetch falls back to the client
+        // fetch, and prefetchQuery takes this default over its own `retry: false`.
+        retry: isServer ? false : shouldRetryQuery,
+      },
     },
   });
 }
@@ -52,20 +62,15 @@ export function getQueryClient(): QueryClient {
  * session never reaches the api worker directly — the request MUST stay
  * same-origin. (Sibling workers under <account>.workers.dev are same-site; the
  * api's /trpc JSON-only guard, not SameSite, is the CSRF boundary.)
+ *
+ * When the owner's sign-in lapses (a refused session, or an edge sign-in wall's
+ * redirect, which `fetchRpc` never follows), `authLapseLink` stops the dashboard
+ * polls and answers later reads without sending them: lib/auth-lapse.ts.
  */
 const trpcClient = createTRPCClient<AppRouter>({
   links: [
-    httpBatchLink({
-      url: "/rpc",
-      maxItems: TRPC_MAX_BATCH_SIZE,
-      fetch(url, options) {
-        return fetch(url, {
-          ...options,
-          credentials: "include",
-          signal: withRequestTimeout(options?.signal),
-        });
-      },
-    }),
+    authLapseLink(),
+    httpBatchLink({ url: "/rpc", maxItems: TRPC_MAX_BATCH_SIZE, fetch: fetchRpc }),
   ],
 });
 

@@ -1,3 +1,5 @@
+import { isAuthLapsed } from "@/lib/auth-lapse";
+
 /**
  * Polling cadences. Every poll is a Worker request against the Cloudflare
  * free-tier daily budget, so retune these here, never inline, and keep each
@@ -8,8 +10,10 @@
  * DASHBOARD_IDLE_POLL_MS while the tab is visible but nobody has touched it
  * for DASHBOARD_IDLE_AFTER_MS. A dashboard request is billed twice (the web
  * worker proxies /rpc to the api worker), so a dashboard left open on a second
- * monitor used to cost more than both overlays combined. The footer's version
- * check also skips hidden tabs; the bot page's cadences run while it is open.
+ * monitor used to cost more than both overlays combined. Once the owner's
+ * sign-in lapses (lib/auth-lapse.ts), dashboard polls stop for good: every one
+ * would be refused until the page reloads. The footer's version check also
+ * skips hidden tabs; the bot page's cadences run while it is open.
  */
 /**
  * 5s, not 3s: both OBS overlays poll all stream long, even in the background, so
@@ -93,12 +97,13 @@ export function idleAwareInterval(activeMs: number, now: number, lastActivity: n
 /**
  * A React Query `refetchInterval` function: `activeMs` while the owner is
  * interacting, DASHBOARD_IDLE_POLL_MS after DASHBOARD_IDLE_AFTER_MS without
- * input. Re-evaluated after every fetch, so the first poll after the owner
- * comes back can lag by up to one idle interval; their own actions invalidate
- * the queries immediately.
+ * input, and `false` (no more polls) once the sign-in has lapsed. Re-evaluated
+ * after every fetch, so the first poll after the owner comes back can lag by up
+ * to one idle interval; their own actions invalidate the queries immediately.
  */
-export function dashboardPollInterval(activeMs: number): () => number {
+export function dashboardPollInterval(activeMs: number): () => number | false {
   return () => {
+    if (isAuthLapsed()) return false;
     trackActivity();
     return idleAwareInterval(activeMs, Date.now(), lastActivityAt);
   };

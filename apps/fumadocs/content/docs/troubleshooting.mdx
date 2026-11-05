@@ -54,6 +54,15 @@ For production, add the same two paths on your workers.dev domain
 - Your Twitch redirect URLs must be on that same origin — a mismatch sends you in a loop.
 - Make sure your Twitch application's **Client Type** is set to **Confidential**.
 
+### "Your sign-in expired" on an open dashboard
+
+The dashboard's sign-in ended while the page was open: you signed out in another tab, the
+session was revoked, or the Cloudflare Access session in front of the dashboard ran out. The
+dashboard stops refreshing so it doesn't spend requests that can only be refused, and the
+timer and task list it shows stop updating. Click **Reload** on the message (or reload the
+page) and sign in again. Your OBS overlays and the bot page don't use this sign-in, so they
+keep working the whole time.
+
 ### "This DireWork already belongs to a different Twitch account"
 
 The instance was already claimed — the first Twitch account to sign in owns it, and every
