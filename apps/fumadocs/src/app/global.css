@@ -65,11 +65,11 @@
 
   /* Status-chip + chat-username text colors, flipped per theme so they clear
      WCAG AA on both the near-white (light) and near-black (dark) chip fills. */
-  --chip-live-fg: #1F7A38;
-  --chip-warn-fg: #9A5B00;
-  --chat-user-1: #1F7A38;          /* green  — chat preview, 1st speaker */
+  --chip-live-fg: var(--success);
+  --chip-warn-fg: var(--warning);
+  --chat-user-1: var(--success);   /* green  — chat preview, 1st speaker */
   --chat-user-2: var(--link);      /* blue   — chat preview, 2nd speaker */
-  --chat-user-3: #9A5B00;          /* amber  — chat preview, 3rd speaker */
+  --chat-user-3: var(--warning);   /* amber  — chat preview, 3rd speaker */
 
   --bg-base:    var(--background);
   --bg-surface: var(--muted);
@@ -97,10 +97,10 @@
   --shiki-dark-bg: #151518;
 
   /* On the near-black chip fills the bright saturated hues read fine. */
-  --chip-live-fg: #34C759;
-  --chip-warn-fg: #FF9F0A;
-  --chat-user-1: #34C759;
-  --chat-user-3: #FF9F0A;
+  --chip-live-fg: var(--phase-work);
+  --chip-warn-fg: var(--phase-paused);
+  --chat-user-1: var(--phase-work);
+  --chat-user-3: var(--phase-paused);
 }
 
 /* No class yet (before next-themes hydrates): follow the OS preference. The

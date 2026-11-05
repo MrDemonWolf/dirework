@@ -31,7 +31,7 @@ Each CSS file has four parts: plain variables on `:root` / `.dark`, an `@theme i
 
 **Fonts stay hand-written** in `index.css` and `global.css`: they wrap the `next/font` variables, and the two apps use different variable names and fallback stacks. `font.family` in `tokens.json` lists the typeface names only.
 
-`global.css` maps the generated palette onto the names the docs surfaces read (`--color-fd-*`, `--bg-*`, `--txt-*`, `--color-twitch`, `--color-live`) and keeps the docs-only values by hand (`--brand-*` literals, chip/chat text colors, shiki, `--color-fd-overlay`, `--dw-radius-control`).
+`global.css` maps the generated palette onto the names the docs surfaces read (`--color-fd-*`, `--bg-*`, `--txt-*`, `--color-twitch`, `--color-live`) and keeps the docs-only values by hand (chip/chat token aliases, shiki, `--color-fd-overlay`, `--dw-radius-control`).
 
 Shared overlay geometry (squircle path/perimeter, `SQUIRCLE_RADIUS`, MM:SS clock formatting) lives in the pure workspace package `packages/overlay-kit` (`@dirework/overlay-kit`), used by both the real overlays (apps/web) and the docs mocks.
 

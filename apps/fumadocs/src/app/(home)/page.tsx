@@ -55,7 +55,7 @@ const FINISHED_FROM_CHAT = DEMO_SESSION.chat.find(
 function StreamScene() {
   return (
     <figure
-      className="marketing-scene"
+      className="marketing-scene dark"
       aria-label="Example stream with a focus timer and viewer tasks"
     >
       <div className="marketing-scene-bar">
