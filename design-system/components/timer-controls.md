@@ -81,6 +81,9 @@ not unsaved field edits. Failures toast `Couldn't <action> the timer: ...`.
 
 - **Do** keep the countdown inside `TimerInstrument` (`useTimerCountdown`); ticking in the
   provider re-renders every consumer.
+- **Do** keep `suppressHydrationWarning` on the digits and the rail fill: both read the clock,
+  so a hard load mid-session can hydrate a different second than the server rendered, and a
+  text mismatch makes React client-render the whole console (AGENTS.md "Hydration Safety").
 - **Do** confirm Stop via `ConfirmDialog`; it discards the run.
 - **Do** keep the transport and settings rows inside a 320px phone (`90-mobile.spec.ts`).
 - **Don't** add a second `timer.get` poll; reuse the shared options.

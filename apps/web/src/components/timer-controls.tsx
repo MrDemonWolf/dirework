@@ -370,9 +370,11 @@ export function TimerInstrument() {
             background: `radial-gradient(closest-side, color-mix(in oklab, ${phaseColor} 14%, transparent), transparent)`,
           }}
         />
+        {/* suppressHydrationWarning: reads Date.now(), so the client's second can differ. */}
         <span
           className="timer-digits font-heading font-semibold tracking-tight whitespace-nowrap tabular-nums"
           style={{ "--clock-em": clockEm(displayTime).toFixed(2) } as CSSProperties}
+          suppressHydrationWarning
         >
           {displayTime}
         </span>
@@ -385,9 +387,11 @@ export function TimerInstrument() {
         )}
         role="presentation"
       >
+        {/* suppressHydrationWarning: the same Date.now() countdown sets this width. */}
         <div
           className="h-full rounded-full transition-[width] duration-1000 ease-linear"
           style={{ width: `${progressPct}%`, background: phaseColor }}
+          suppressHydrationWarning
         />
       </div>
       {/* While idle the dots preview the planned run (all hollow). */}
