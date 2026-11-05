@@ -992,6 +992,16 @@ room. One iframe at most either way. A transport click is ONE `/rpc` request: `t
 cancels any `timer.get` still in flight, then writes that answer into the cache, never a
 re-read; a null answer (nothing changed, so the console was stale) re-reads once. `onSuccess`
 returns that promise, so the button stays pending until the console shows the new phase.
+**Config saves merge, never re-read.** Every `config.*` write answers with what it stored
+(`updateTimerConfig` the timer config, `updateStyles` both style sets plus the timer config,
+`updateBotSettings` the bot config row, `setBotMuted` `{ muted }`), and `applyConfigResult`
+(`lib/config-cache.ts`, the one home for it) cancels any `config.get` still in flight, then
+merges the answer with that procedure's merge (`timerConfigSaved`, `stylesSaved`,
+`botSettingsSaved`, `botMutedSaved`); with nothing cached it reads once instead. So a save is
+ONE `/rpc` request. `botSettingsSaved` takes only the fields the save sent, so a live switch's
+answer can't put back a mute or block that reached the cache after it left. Block / unblock
+answer with the login only and still invalidate `config.get`, as task writes invalidate
+`task.list` (the server computes more than they return).
 The task board (`task-manager.tsx`) takes the full width.
 Its add form is `AddTaskForm`, which owns the draft and `task.create`, so a keystroke renders
 only the form, never the rows; its one prop is the board's input ref, which the empty state's

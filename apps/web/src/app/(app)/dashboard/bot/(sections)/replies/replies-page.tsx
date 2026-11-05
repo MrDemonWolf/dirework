@@ -12,6 +12,7 @@ import { toast } from "sonner";
 
 import { updateBotSettingsInput } from "@dirework/api/routers/input-schemas";
 
+import { applyConfigResult, botSettingsSaved } from "@/lib/config-cache";
 import type { TaskMessagesConfig, TimerMessagesConfig } from "@/lib/config-types";
 import { DEFAULT_TASK_MESSAGES, DEFAULT_TIMER_MESSAGES } from "@/lib/config-types";
 import {
@@ -96,9 +97,9 @@ function RepliesEditor({ config, user }: { config: BotConfigData; user: BotUserD
 
   const save = useMutation({
     ...trpc.config.updateBotSettings.mutationOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
-    },
+    // The answer is the stored bot config: merged into config.get, never re-read.
+    onSuccess: (saved, sent) =>
+      applyConfigResult(queryClient, trpc.config.get.queryKey(), botSettingsSaved(saved, sent)),
     onError: (err) => {
       toast.error(`Couldn't save replies: ${formatMutationError(err)}`);
     },

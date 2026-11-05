@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { MAX_BLOCKED_VIEWERS } from "@dirework/api/chat-commands";
 
 import { botMuteStatus } from "@/lib/bot-status";
+import { applyConfigResult, botMutedSaved } from "@/lib/config-cache";
 import { describeTrpcError } from "@/lib/trpc-errors";
 import {
   type CommandGroup,
@@ -195,11 +196,12 @@ export function BotLiveControls({
   const queryClient = useQueryClient();
   const setBotMuted = useMutation({
     ...trpc.config.setBotMuted.mutationOptions(),
-    // Returning the refetch keeps the mutation pending until config.get has the new value,
-    // so the optimistic switch below never flickers back.
-    onSuccess: ({ muted: next }) => {
-      toast.success(next ? "Bot muted" : "Bot unmuted");
-      return queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
+    // The answer is merged into config.get (lib/config-cache.ts, no re-read). Returning the
+    // merge keeps the mutation pending until the cache has the new value, so the optimistic
+    // switch below never flickers back.
+    onSuccess: (saved) => {
+      toast.success(saved.muted ? "Bot muted" : "Bot unmuted");
+      return applyConfigResult(queryClient, trpc.config.get.queryKey(), botMutedSaved(saved));
     },
     onError: (err) => {
       toast.error(`Couldn't change the mute switch: ${describeTrpcError(err)}`);

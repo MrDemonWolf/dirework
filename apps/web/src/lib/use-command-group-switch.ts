@@ -7,6 +7,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { applyConfigResult, botSettingsSaved } from "@/lib/config-cache";
 import { formatMutationError } from "@/lib/validation-errors";
 import { trpc } from "@/utils/trpc";
 
@@ -19,15 +20,15 @@ export const COMMAND_GROUP_LABEL: Record<CommandGroup, string> = {
 
 /**
  * `enabled` is the live `config.get` value. While the save is in flight the switch shows the
- * value asked for and is disabled; the mutation waits for the refetch, so it never flickers.
+ * value asked for and is disabled; the mutation waits until its answer is merged into
+ * `config.get` (lib/config-cache.ts, no re-read), so it never flickers.
  */
 export function useCommandGroupSwitch(group: CommandGroup, enabled: boolean) {
   const queryClient = useQueryClient();
   const save = useMutation({
     ...trpc.config.updateBotSettings.mutationOptions(),
-    onSuccess: () => {
-      return queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
-    },
+    onSuccess: (saved, sent) =>
+      applyConfigResult(queryClient, trpc.config.get.queryKey(), botSettingsSaved(saved, sent)),
     onError: (err) => {
       toast.error(
         `Couldn't switch ${COMMAND_GROUP_LABEL[group].toLowerCase()}: ${formatMutationError(err)}`,

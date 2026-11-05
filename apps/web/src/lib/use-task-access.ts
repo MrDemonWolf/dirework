@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import { TASK_ACCESS_LEVELS, type TaskAccessLevel } from "@dirework/api/bot-permissions";
 
+import { applyConfigResult, botSettingsSaved } from "@/lib/config-cache";
 import { formatMutationError } from "@/lib/validation-errors";
 import { trpc } from "@/utils/trpc";
 
@@ -35,13 +36,15 @@ export function isTaskAccessLevel(value: unknown): value is TaskAccessLevel {
 
 /**
  * `level` is the live `config.get` value. While the save is in flight the picker shows the
- * level asked for and is disabled; the mutation waits for the refetch, so it never flickers.
+ * level asked for and is disabled; the mutation waits until its answer is merged into
+ * `config.get` (lib/config-cache.ts, no re-read), so it never flickers.
  */
 export function useTaskAccess(level: TaskAccessLevel) {
   const queryClient = useQueryClient();
   const save = useMutation({
     ...trpc.config.updateBotSettings.mutationOptions(),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() }),
+    onSuccess: (saved, sent) =>
+      applyConfigResult(queryClient, trpc.config.get.queryKey(), botSettingsSaved(saved, sent)),
     onError: (err) => {
       toast.error(`Couldn't change who can add tasks: ${formatMutationError(err)}`);
     },
