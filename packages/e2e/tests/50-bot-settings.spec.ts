@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Request } from "@playwright/test";
 
+import { DELAY_COOKIE, WEB_ORIGIN } from "../src/env";
 import { confirmDialog, signIn, waitForHydration } from "./helpers";
 
 /** The procedures one dashboard `/rpc` call carries (`/rpc/config.get,user.me` → both). */
@@ -180,6 +181,35 @@ test("a command group switch saves the moment it flips", async ({ page }) => {
   await timer.click();
   await expect(timer).toBeChecked({ checked: before });
   await expect(timer).toBeEnabled();
+});
+
+test("a switch's toast still shows when the page is left mid-save", async ({ page, context }) => {
+  await signIn(page);
+  // Slow only the save, so the Overview unmounts while it is in flight.
+  await context.addCookies([
+    { name: DELAY_COOKIE, value: "config.updateBotSettings=1500", url: WEB_ORIGIN },
+  ]);
+  await page.goto("/dashboard/bot");
+  await waitForHydration(page);
+
+  const overviewSwitch = page.getByRole("switch", { name: "Task commands" });
+  const before = await overviewSwitch.isChecked();
+  await overviewSwitch.click();
+  await page
+    .getByRole("navigation", { name: "Bot settings sections" })
+    .getByRole("link", { name: "Commands" })
+    .click();
+  await expect(page).toHaveURL(/\/dashboard\/bot\/commands$/);
+  // useInstantSetting raises the toast from the mutation's own onSuccess, which outlives the
+  // Overview; a per-call mutate(…, { onSuccess }) toast was dropped on unmount.
+  await expect(page.getByText(`Task commands ${before ? "off" : "on"}`)).toBeVisible();
+
+  // Put it back from the Commands page, so a retry starts from the same state.
+  const commandsSwitch = page.getByRole("switch", { name: "Task commands" });
+  await expect(commandsSwitch).toBeChecked({ checked: !before });
+  await commandsSwitch.click();
+  await expect(commandsSwitch).toBeChecked({ checked: before });
+  await expect(commandsSwitch).toBeEnabled();
 });
 
 test("Replies group headers name their commands, and the filter finds a reply by command", async ({

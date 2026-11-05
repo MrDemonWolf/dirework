@@ -1022,7 +1022,11 @@ returns that promise, so the button stays pending until the console shows the ne
 merges the answer with that procedure's merge (`timerConfigSaved`, `stylesSaved`,
 `botSettingsSaved`, `botMutedSaved`); with nothing cached it reads once instead. So a save is
 ONE `/rpc` request. `botSettingsSaved` takes only the fields the save sent, so a live switch's
-answer can't put back a mute or block that reached the cache after it left. Block / unblock
+answer can't put back a mute or block that reached the cache after it left. The instant
+settings (mute, the Task/Timer switches, "Who can add tasks") share `useInstantSetting`
+(`lib/use-instant-setting.ts`): the value asked for while pending (`instantValue`), and both
+toasts from the mutation's own callbacks, so leaving the page mid-save keeps the toast (a
+per-call `mutate(…, { onSuccess })` is dropped on unmount). Block / unblock
 answer with the login only and still invalidate `config.get`, as task writes invalidate
 `task.list` (the server computes more than they return).
 The task board (`task-manager.tsx`) takes the full width.
@@ -1075,7 +1079,7 @@ afresh; past `QUERY_FRESH_MS` a mount would refetch), and a query that failed sh
 the loading boundary, so it never reaches the api, and a sub-page switch is one web-worker
 RSC request (no api).
 Pages: **Overview** (`(sections)/page.tsx`: `BotLiveControls` — mute, Task/Timer switches via
-`lib/use-command-group-switch.ts`, which saves ONE flag on flip, and "n of 200 blocked ·
+`lib/use-command-group-switch.ts`, which saves ONE flag on flip through `useInstantSetting`, and "n of 200 blocked ·
 Manage"; `BotConsoleCard` "Run the bot"; `BotAccountCard`, first while no account is
 connected; handles the bot OAuth `?bot=` return), **Commands** (`commands/`: per group a card
 with its instant switch over a `CommandTable` — command, usage, Everyone/Mods, aliases live
