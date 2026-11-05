@@ -328,7 +328,7 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
             >
               <MoreHorizontal className="size-4" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-48 bg-card" align="end">
+            <DropdownMenuContent className="w-48" align="end">
               <DropdownMenuItem
                 variant="destructive"
                 disabled={doneCount === 0 || clearDone.isPending}
@@ -706,7 +706,7 @@ function TaskRowControls({
         >
           <MoreHorizontal className="size-3.5 pointer-coarse:size-5" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-64 bg-card" align="end">
+        <DropdownMenuContent className="w-64" align="end">
           {actions.map(({ action }) => {
             const ui = STATUS_ACTION_UI[action];
             const Icon = ui.icon;

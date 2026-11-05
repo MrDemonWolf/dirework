@@ -56,7 +56,8 @@ const ALLOWED: Record<string, string[]> = {
   ],
   "components/theme-center/theme-card.tsx": ["border-[1.5px]"],
   // shadcn/ui primitives: transition property lists, motion start scale and
-  // component-internal geometry, kept as upstream ships them.
+  // component-internal geometry, kept as upstream ships them. The popup motion is typed
+  // once, in dropdown-menu.tsx's `popupSurfaceRecipe`, which select and tooltip import.
   "components/ui/alert-dialog.tsx": [
     "backdrop-blur-[2px]",
     "max-w-[calc(100%-2rem)]",
@@ -65,11 +66,9 @@ const ALLOWED: Record<string, string[]> = {
   ],
   "components/ui/card.tsx": ["grid-cols-[1fr_auto]", "grid-rows-[auto_auto]"],
   "components/ui/dropdown-menu.tsx": ["scale-[0.98]", "transition-[opacity,scale]"],
-  "components/ui/select.tsx": ["scale-[0.98]", "transition-[opacity,scale]"],
   "components/ui/slider.tsx": ["transition-[color,box-shadow]"],
   "components/ui/switch.tsx": ["h-[18.4px]", "translate-x-[calc(100%-2px)]"],
   "components/ui/tabs.tsx": ["h-[calc(100%-1px)]"],
-  "components/ui/tooltip.tsx": ["scale-[0.98]", "transition-[opacity,scale]"],
 };
 
 /** An arbitrary value in utility position; variants (data, group-data, has …) are skipped. */

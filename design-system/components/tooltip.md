@@ -12,9 +12,11 @@ the dashboard, `TaskManager`, `TimerControls`, `SecretUrlRow` and `MessageEditor
 
 ## Anatomy
 
-- **Content**: portaled, positioned popup; `rounded-lg`, `border-border/50`, `bg-popover`,
-  `text-popover-foreground`, `px-3 py-1.5`, `text-xs`, `shadow-md`, `backdrop-blur-2xl`.
-  Fades and scales from 98% (150ms).
+- **Content**: portaled, positioned popup on `popupSurfaceRecipe` from `dropdown-menu.tsx`
+  (the menus' `bg-popover` / `text-popover-foreground` surface, `border-border/50`,
+  `backdrop-blur-2xl`; fades and scales from 98%, 150ms). It keeps its own smaller
+  `rounded-lg`, `px-3 py-1.5`, `text-xs` and a lighter `shadow-md` in place of the recipe's
+  `shadow-lg`.
 - **Arrow**: `fill-popover` with a `border/50` stroke, pointing at the trigger.
 
 ## Props and variants
@@ -44,5 +46,7 @@ global reduced-motion gate.
 
 - **Do** keep tooltip text to a short phrase.
 - **Do** use it to explain a disabled control's reason when there is no room inline.
+- **Don't** pass a `bg-*` class to `TooltipContent`; it shares the menus' surface
+  (`menu-consistency.test.ts`).
 - **Don't** put links, buttons or other interactive content inside a tooltip.
 - **Don't** repeat the visible label verbatim.

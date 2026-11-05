@@ -88,7 +88,7 @@ export default function UserMenu({ session }: { session: ServerSession | null })
         <span className="hidden text-xs font-medium sm:inline">{session.user.name}</span>
         <ChevronDown className="size-3.5 text-muted-foreground" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56 bg-card" align="end">
+      <DropdownMenuContent className="w-56" align="end">
         <DropdownMenuItem
           variant="destructive"
           onClick={() => {

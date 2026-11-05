@@ -254,7 +254,7 @@ function SectionMenu({
       >
         <MoreHorizontal />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48 bg-card">
+      <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuItem disabled={!canReset} onClick={onReset}>
           <RotateCcw className="size-3.5" />
           Reset section

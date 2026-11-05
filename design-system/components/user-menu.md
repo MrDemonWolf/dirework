@@ -16,7 +16,8 @@ layout's server session, so the right control is in the server HTML with no load
 - Signed out: a `bg-twitch` `Button` with `TwitchIcon` and "Sign in". Hidden on `/`, which has
   its own quiet owner sign-in.
 - Signed in: a round trigger (avatar image or a CSS-drawn initial on `bg-primary`, the name
-  from `sm` up, a chevron) opening a `DropdownMenu` (`w-56 bg-card`, aligned end):
+  from `sm` up, a chevron) opening a `DropdownMenu` (`w-56`, aligned end, on the shared
+  popup surface):
   A single destructive Sign out item. The dashboard links live in the header nav, not here.
 
 ## Props and variants

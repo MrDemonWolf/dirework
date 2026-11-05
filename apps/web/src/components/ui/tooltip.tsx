@@ -1,5 +1,6 @@
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 
+import { popupSurfaceRecipe } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 function TooltipProvider({ ...props }: TooltipPrimitive.Provider.Props) {
@@ -33,10 +34,8 @@ function TooltipContent({
       >
         <TooltipPrimitive.Popup
           data-slot="tooltip-content"
-          className={cn(
-            "transition-[opacity,scale] duration-150 ease-(--motion-ease) data-starting-style:opacity-0 data-starting-style:scale-[0.98] data-ending-style:opacity-0 data-ending-style:scale-[0.98] origin-(--transform-origin) border border-border/50 bg-popover text-popover-foreground rounded-lg px-3 py-1.5 text-xs shadow-md backdrop-blur-2xl",
-            className,
-          )}
+          // The menus' surface; a tooltip keeps its smaller radius, padding and shadow.
+          className={cn(popupSurfaceRecipe, "rounded-lg px-3 py-1.5 text-xs shadow-md", className)}
           {...props}
         >
           {children}

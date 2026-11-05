@@ -1,7 +1,7 @@
 import type * as React from "react";
 import { Select as SelectPrimitive } from "@base-ui/react/select";
 
-import { menuItemRecipe } from "@/components/ui/dropdown-menu";
+import { menuItemRecipe, popupSurfaceRecipe } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react";
 
@@ -83,7 +83,8 @@ function SelectContent({
           data-slot="select-content"
           data-align-trigger={alignItemWithTrigger}
           className={cn(
-            "transition-[opacity,scale] duration-150 ease-(--motion-ease) data-starting-style:opacity-0 data-starting-style:scale-[0.98] data-ending-style:opacity-0 data-ending-style:scale-[0.98] origin-(--transform-origin) bg-popover text-popover-foreground border border-border/50 min-w-36 rounded-2xl p-1 shadow-lg backdrop-blur-2xl relative isolate z-50 max-h-(--available-height) w-(--anchor-width) overflow-x-hidden overflow-y-auto data-[align-trigger=true]:transition-none",
+            popupSurfaceRecipe,
+            "min-w-36 rounded-2xl p-1 relative isolate z-50 max-h-(--available-height) w-(--anchor-width) overflow-x-hidden overflow-y-auto data-[align-trigger=true]:transition-none",
             className,
           )}
           {...props}

@@ -15,6 +15,18 @@ export const menuItemRecipe =
   "data-highlighted:bg-accent data-highlighted:text-accent-foreground data-highlighted:**:[svg]:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset gap-2.5 rounded-md px-2.5 py-2 text-sm/none [&_svg:not([class*='size-'])]:size-4 relative flex cursor-default items-center outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 data-[inset]:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0";
 
 /**
+ * Shared surface for every popup (menus, the Select list, tooltips): the `--popover` fill and
+ * text that dialogs and toasts use too, a hairline border, a raised shadow, and the 150ms fade
+ * and scale from 98% on Base UI's starting/ending styles. Each popup starts its `cn()` with
+ * this and adds only its geometry (radius, padding, size; the tooltip also steps down to
+ * `shadow-md`). Call sites never pass a fill: tokens-contrast.test.ts measures the menu rows
+ * on --popover, and menu-consistency.test.ts fails on a repainted call site. The tooltip
+ * arrow (`fill-popover`) and the Select scroll arrows (`bg-popover`) match this fill.
+ */
+export const popupSurfaceRecipe =
+  "transition-[opacity,scale] duration-150 ease-(--motion-ease) data-starting-style:opacity-0 data-starting-style:scale-[0.98] data-ending-style:opacity-0 data-ending-style:scale-[0.98] origin-(--transform-origin) border border-border/50 bg-popover text-popover-foreground shadow-lg backdrop-blur-2xl";
+
+/**
  * Destructive rows (Sign out, Clear done / all, Remove, Reset theme) stay red in every
  * state, so nothing about them reads as a blue "default" action:
  * - rest: `text-destructive`;
@@ -61,7 +73,8 @@ function DropdownMenuContent({
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"
           className={cn(
-            "transition-[opacity,scale] duration-150 ease-(--motion-ease) data-starting-style:opacity-0 data-starting-style:scale-[0.98] data-ending-style:opacity-0 data-ending-style:scale-[0.98] origin-(--transform-origin) border border-border/50 bg-popover text-popover-foreground min-w-32 rounded-2xl p-1.5 shadow-lg backdrop-blur-2xl z-50 max-h-(--available-height) w-(--anchor-width) overflow-x-hidden overflow-y-auto outline-none data-closed:overflow-hidden",
+            popupSurfaceRecipe,
+            "min-w-32 rounded-2xl p-1.5 z-50 max-h-(--available-height) w-(--anchor-width) overflow-x-hidden overflow-y-auto outline-none data-closed:overflow-hidden",
             className,
           )}
           {...props}
@@ -112,6 +125,8 @@ function DropdownMenuItem({
   );
 }
 
+// A submenu's popup is a `DropdownMenuContent` with `side="right"`: the same Portal,
+// Positioner and Popup parts, on the same surface.
 function DropdownMenuSub({ ...props }: MenuPrimitive.SubmenuRoot.Props) {
   return <MenuPrimitive.SubmenuRoot data-slot="dropdown-menu-sub" {...props} />;
 }
@@ -138,30 +153,6 @@ function DropdownMenuSubTrigger({
       {children}
       <ChevronRightIcon className="ml-auto" />
     </MenuPrimitive.SubmenuTrigger>
-  );
-}
-
-function DropdownMenuSubContent({
-  align = "start",
-  alignOffset = -3,
-  side = "right",
-  sideOffset = 0,
-  className,
-  ...props
-}: React.ComponentProps<typeof DropdownMenuContent>) {
-  return (
-    <DropdownMenuContent
-      data-slot="dropdown-menu-sub-content"
-      className={cn(
-        "transition-[opacity,scale] duration-150 ease-(--motion-ease) data-starting-style:opacity-0 data-starting-style:scale-[0.98] data-ending-style:opacity-0 data-ending-style:scale-[0.98] origin-(--transform-origin) border border-border/50 bg-popover text-popover-foreground min-w-24 rounded-2xl p-1.5 shadow-lg backdrop-blur-2xl w-auto",
-        className,
-      )}
-      align={align}
-      alignOffset={alignOffset}
-      side={side}
-      sideOffset={sideOffset}
-      {...props}
-    />
   );
 }
 
@@ -253,5 +244,4 @@ export {
   DropdownMenuShortcut,
   DropdownMenuSub,
   DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
 };
