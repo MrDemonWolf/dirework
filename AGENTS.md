@@ -1003,7 +1003,13 @@ in the workspace catalog.
 ### Hydration Safety
 
 Mounted-state pattern for client-only values (next-themes); controlled props on Base UI
-Switch placeholders pre-mount; `suppressHydrationWarning` on time-of-day greeting.
+Switch placeholders pre-mount; `suppressHydrationWarning` on clock-derived text: the
+time-of-day greeting and date, the footer year, and the dashboard countdown
+(`TimerInstrument`'s digits and rail fill). A hard load mid-session hydrates the countdown
+at a different second than the Worker rendered it, and that text mismatch (React #418)
+would make React discard the whole timer console's server HTML and client-render it; with
+the flag the server's digits stay until the displayed second next changes
+(`hydration.spec.ts` runs the browser clock 2s ahead to pin it).
 The theme is applied before first paint by a static inline script in the root layout's
 `<head>` (`lib/theme-init.ts`, kept in sync with the next-themes props in
 `providers.tsx`), and `html` carries the theme background and `color-scheme`, so a

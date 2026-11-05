@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 import { expectNoHydrationErrors, signIn, waitForHydration, watchHydration } from "./helpers";
 
@@ -79,6 +79,50 @@ test("the dashboard hydrates even when React's streamed reveal is held back", as
   await page.goto("/dashboard");
   await expectNoHydrationErrors(page);
   await expect(page.getByRole("textbox", { name: "New task text" })).toHaveCount(1);
+});
+
+/** A timer transport call through the dashboard's own `/rpc` proxy (session cookie, JSON). */
+async function timerAction(page: Page, action: "start" | "reset"): Promise<void> {
+  const res = await page.request.post(`/rpc/timer.${action}`, {
+    headers: { "content-type": "application/json" },
+    data: {},
+  });
+  expect(res.ok(), `timer.${action} answered ${res.status()}`).toBe(true);
+}
+
+/** The timer's phase, read like the dashboard poll (`timer.get` advances an overdue phase). */
+async function timerStatus(page: Page): Promise<string | undefined> {
+  const res = await page.request.get("/rpc/timer.get");
+  expect(res.ok(), `timer.get answered ${res.status()}`).toBe(true);
+  const body = (await res.json()) as { result: { data: { status: string } | null } };
+  return body.result.data?.status;
+}
+
+// A hard load mid-session renders the countdown from the Worker's clock, and the browser
+// hydrates it from its own clock a moment later. A different displayed second must not fail
+// hydration (React #418, a text mismatch), which throws away the whole timer console's server
+// HTML and client-renders it. The browser clock runs 2s ahead, so the seconds always differ.
+test("the dashboard hydrates a running countdown when the browser clock differs", async ({
+  page,
+}) => {
+  // Start opens a short "starting" countdown (5s by default) before the work phase.
+  test.setTimeout(60_000);
+  await timerAction(page, "start");
+  try {
+    await expect.poll(() => timerStatus(page), { timeout: 20_000 }).toBe("work");
+    await page.addInitScript(() => {
+      const realNow = Date.now;
+      Date.now = () => realNow() + 2_000;
+    });
+    watchHydration(page);
+    await page.goto("/dashboard");
+    await expectNoHydrationErrors(page);
+    // Stop exists only mid-run, so the page did render the running session.
+    await expect(page.getByRole("button", { name: "Stop timer" })).toBeVisible();
+  } finally {
+    // Later specs, and an immediate retry, expect an idle timer.
+    await timerAction(page, "reset");
+  }
 });
 
 test("a hard load needs no client fetch before the first poll", async ({ page }) => {
