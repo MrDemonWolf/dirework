@@ -493,7 +493,7 @@ on September 4, 2026.
 The Verify workflow checks both Workers right after the build:
 
 - **Size** (`packages/infra/bundle-budget.ts`): fails past 64 MiB uncompressed, and past
-  2560 KiB gzip. That second number is DireWork's own budget, not a Cloudflare limit: it
+  1600 KiB gzip. That second number is DireWork's own budget, not a Cloudflare limit: it
   keeps the bundles, and with them the startup cost, from growing unnoticed.
 - **Startup** (`packages/infra/startup-check.ts`): profiles each Worker's startup locally
   with `wrangler check startup`, adds the time to the run's summary, and fails above

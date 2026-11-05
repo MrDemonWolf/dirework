@@ -2,7 +2,7 @@
 // scripts/render-og.ts), not an `opengraph-image` route: next/og's renderer (resvg and yoga
 // wasm, a bundled font, Satori) would otherwise ride in every Worker isolate for a card no
 // request ever renders.
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
@@ -64,6 +64,19 @@ describe("social share card", () => {
     const { scripts } = JSON.parse(readFileSync(path.join(webDir, "package.json"), "utf8"));
     expect(scripts.build).toMatch(/^bun run render-og && /);
     expect(scripts["build:worker"]).toMatch(/^bun run render-og && /);
+  });
+
+  it("leaves no og-only build workaround behind", () => {
+    // next/og's wasm imports and its .bin font once needed a specifier rewrite, an esbuild
+    // ".bin" loader in Alchemy's bundle and a wrangler Data rule in the smoke config. With
+    // next/og out of the Worker they only hide a regression, so none may come back.
+    const { scripts } = JSON.parse(readFileSync(path.join(webDir, "package.json"), "utf8"));
+    expect(scripts["build:worker"]).not.toMatch(/fix-duplicate-wasm-specifiers/);
+    expect(existsSync(path.join(webDir, "scripts/fix-duplicate-wasm-specifiers.mjs"))).toBe(false);
+    const alchemy = readFileSync(path.join(webDir, "../../packages/infra/alchemy.run.ts"), "utf8");
+    expect(alchemy).not.toMatch(/"\.bin"/);
+    const smoke = readFileSync(path.join(webDir, "scripts/smoke-worker.mjs"), "utf8");
+    expect(smoke).not.toMatch(/\*\*\/\*\.bin|type: "Data"/);
   });
 
   it("is cached like the other unhashed public files", () => {

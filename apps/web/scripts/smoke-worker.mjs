@@ -106,11 +106,6 @@ export function buildSmokeConfig({ webDir, compatibilityDate }) {
     compatibility_date: compatibilityDate,
     compatibility_flags: WEB_COMPATIBILITY_FLAGS,
     assets: { directory: path.join(webDir, ".open-next/assets"), binding: "ASSETS" },
-    // next/og's compiled default font (Geist-Regular.ttf.bin); Alchemy's bundle
-    // config adds the same ".bin" binary loader. No route imports next/og since the
-    // share card became a static file (scripts/render-og.ts); kept until the og-only
-    // workarounds are removed together.
-    rules: [{ type: "Data", globs: ["**/*.bin"], fallthrough: true }],
     // wrangler's esbuild pass keeps function names by default, wrapping them in a
     // `__name(fn, "fn")` helper. next-themes ships its anti-flash script as
     // `fn.toString()`, so that helper call leaked into the page and threw
