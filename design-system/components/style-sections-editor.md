@@ -34,7 +34,7 @@ to the list, not by new markup.
 | Prop | Type | Notes |
 |---|---|---|
 | `styles` | `T` | The draft style object being edited |
-| `onChange` | `(styles: T) => void` | Receives the whole object; edits go through `setAtPath` |
+| `onChange` | `Dispatch<SetStateAction<T>>` | The page's draft setter. Every edit is an updater (`prev => setAtPath(prev, path, value)`), so no row closes over `styles` and an unchanged row keeps its cached element |
 | `fields` | `readonly StyleField<T>[]` | `TIMER_STYLE_FIELDS` or `TASK_STYLE_FIELDS` |
 | `defaults` | `T` | The Default theme, which "Reset section" restores |
 | `idPrefix` | `string` | Input ids are `{idPrefix}-{path with dots as dashes}` (`timer-style-ring-width`) |

@@ -30,7 +30,7 @@ Stacked `SectionGroup`s built from `FieldRow` rows:
 | Prop | Type | Notes |
 |---|---|---|
 | `styles` | `TaskStylesConfig` | Controlled |
-| `onChange` | `(styles: TaskStylesConfig) => void` | Emits the whole object; nested objects (e.g. `body.padding`) are spread by the editor |
+| `onChange` | `Dispatch<SetStateAction<TaskStylesConfig>>` | The page's state setter; every edit is an updater on the current draft, and nested objects (e.g. `body.padding`) are copied by the editor |
 
 ## States
 

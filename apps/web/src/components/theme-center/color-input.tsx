@@ -2,7 +2,7 @@
 
 // Theme Center color field: a native swatch picker and a hex text input in one bordered field.
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { inputFrameClassName } from "@/components/ui/input";
@@ -45,10 +45,15 @@ export function ColorInput({
   // see why it didn't take (WCAG 3.3.1).
   const [draft, setDraft] = useState(value);
   const [invalid, setInvalid] = useState(false);
-  useEffect(() => {
+  // A value set from outside the text box (the swatch, a preset, a reset) replaces the
+  // draft and clears the error. Adjusted during render, so React re-renders before
+  // committing: one commit per change, not a commit and then an effect's second render.
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
     setDraft(value);
     setInvalid(false);
-  }, [value]);
+  }
 
   const handleTextChange = (v: string) => {
     setDraft(v);

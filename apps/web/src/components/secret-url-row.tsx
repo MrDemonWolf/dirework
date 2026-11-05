@@ -4,7 +4,7 @@
 // settings page. The token in the path is the only credential for that public page, so the
 // URL stays hidden until explicitly revealed.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Copy, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
@@ -40,22 +40,30 @@ export function SecretUrlRow({
 }) {
   const origin = useOrigin();
   const [revealed, setRevealed] = useState(false);
-  const [flash, setFlash] = useState(false);
-  const prevPath = useRef(path);
+  // The reset URL whose ring is showing, or null. Keyed by path, so a second reset inside
+  // the window restarts the flash.
+  const [flashPath, setFlashPath] = useState<string | null>(null);
+  const [prevPath, setPrevPath] = useState(path);
 
   // A changed token used to be invisible behind the mask — regen looked
-  // broken. Now the row reveals the fresh URL and flashes to prove it changed.
-  useEffect(() => {
-    if (prevPath.current === path) return;
-    const hadPath = prevPath.current !== null;
-    prevPath.current = path;
+  // broken. Now the row reveals the fresh URL and flashes to prove it changed. Adjusted
+  // during render, so the new URL commits already revealed (no extra render from an effect).
+  if (path !== prevPath) {
+    setPrevPath(path);
     // The first load (null → path) is not a reset.
-    if (!hadPath || path === null) return;
-    setRevealed(true);
-    setFlash(true);
-    const timer = setTimeout(() => setFlash(false), 1600);
+    if (prevPath !== null && path !== null) {
+      setRevealed(true);
+      setFlashPath(path);
+    }
+  }
+
+  // The effect only ends the flash.
+  useEffect(() => {
+    if (flashPath === null) return;
+    const timer = setTimeout(() => setFlashPath(null), 1600);
     return () => clearTimeout(timer);
-  }, [path]);
+  }, [flashPath]);
+  const flash = flashPath !== null;
 
   const ready = path !== null;
   const shown = revealed && ready;

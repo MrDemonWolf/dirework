@@ -35,7 +35,10 @@ page, so the URL stays hidden until explicitly revealed.
 - **Loading** (`path` null): masked, all actions disabled.
 - **Masked** / **shown**.
 - **Just reset:** when `path` changes after the first load, the row reveals the new URL and
-  flashes `ring-success` for 1.6s, so a regenerate is visibly different.
+  flashes `ring-success` for 1.6s, so a regenerate is visibly different. The change is
+  noticed during render (the previous `path` is kept in state), so the new URL commits
+  already revealed; the only effect is the timer that ends the flash, and a second reset
+  inside the window restarts it.
 - Copy success/failure toasts ("Copied to clipboard" / a fallback hint).
 
 ## Accessibility
