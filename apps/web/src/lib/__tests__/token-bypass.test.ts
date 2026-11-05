@@ -45,7 +45,7 @@ const ALLOWED: Record<string, string[]> = {
   "app/(app)/dashboard/bot/(sections)/moderation/moderation-page.tsx": [
     "grid-cols-[minmax(0,1fr)_18rem]",
   ],
-  "components/timer-controls.tsx": ["grid-cols-[6.75rem_4.5rem_auto]", "transition-[width]"],
+  "components/timer-controls.tsx": ["grid-cols-[6.75rem_4.5rem_auto]"],
   "components/mode-toggle.tsx": ["translate-x-[calc(100%-2px)]"],
   "components/user-menu.tsx": ["content-[attr(data-initial)]"],
   // Elevation and LED glows: multi-layer shadows with no shadow token scale.

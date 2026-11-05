@@ -100,8 +100,10 @@ function CycleDots({ current, total }: { current: number; total: number }) {
 /**
  * Shared by the console pieces. The `*Min` / `cycles` / `longBreakInterval` values are
  * the local, possibly unsaved field values (seeded once from the saved config);
- * `saveConfig` persists a partial timer config. The transport handles are narrowed to
- * `mutate` + `isPending` so consumers can't depend on the rest of the mutation object.
+ * `saveConfig` persists a partial timer config. The transport handles carry only a
+ * mutation's `mutate` + `isPending`: both are stable across renders, unlike the
+ * `useMutation` result object, so the compiled value stays put until something it shows
+ * changes (timer-context.test.ts pins it).
  */
 interface TimerContextValue {
   cycles: number;
@@ -207,6 +209,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     setConfigLoaded(true);
   }, [config.data, configLoaded]);
 
+  // `mutate` is stable; the mutation object is new on every render, so closing over it would
+  // give saveConfig (and the context value) a new identity on every render.
+  const { mutate: saveTimerConfig } = updateTimerConfig;
   const saveConfig = (overrides: Partial<typeof TIMER_CONFIG_DEFAULTS>) => {
     // Skip no-op blurs — tabbing through the fields shouldn't fire saves.
     const tc = config.data?.timerConfig;
@@ -216,7 +221,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     ) {
       return;
     }
-    updateTimerConfig.mutate(overrides);
+    saveTimerConfig(overrides);
   };
 
   // Every action answers with the timer as it stands after the write (timer.get's shape; null
@@ -261,6 +266,13 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     onError: mutationError("stop"),
   });
 
+  // The context gets each action's stable members, never the mutation object itself.
+  const { mutate: startMutate, isPending: startPending } = start;
+  const { mutate: pauseMutate, isPending: pausePending } = pause;
+  const { mutate: resumeMutate, isPending: resumePending } = resume;
+  const { mutate: skipMutate, isPending: skipPending } = skip;
+  const { mutate: resetMutate, isPending: resetPending } = reset;
+
   const state = (timer.data as TimerState | undefined) ?? null;
   const status = state?.status ?? "idle";
   const isIdle = status === "idle" || status === "finished";
@@ -300,11 +312,11 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         totalDuration,
         state,
         configLabels,
-        start,
-        pause,
-        resume,
-        skip,
-        reset,
+        start: { mutate: startMutate, isPending: startPending },
+        pause: { mutate: pauseMutate, isPending: pausePending },
+        resume: { mutate: resumeMutate, isPending: resumePending },
+        skip: { mutate: skipMutate, isPending: skipPending },
+        reset: { mutate: resetMutate, isPending: resetPending },
       }}
     >
       {children}
@@ -386,7 +398,10 @@ export function TimerInstrument() {
           {displayTime}
         </span>
       </div>
-      {/* Phase rail — progress through the current phase */}
+      {/* Phase rail — progress through the current phase. The fill spans the track and slides
+          in from the left (translateX, compositor-only), so the 1 s glide retargeted each
+          tick never lays the page out; the track's overflow-hidden clips it and keeps the
+          rounded leading edge. */}
       <div
         className={cn(
           "h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-muted",
@@ -394,10 +409,11 @@ export function TimerInstrument() {
         )}
         role="presentation"
       >
-        {/* suppressHydrationWarning: the same Date.now() countdown sets this width. */}
+        {/* suppressHydrationWarning: the same Date.now() countdown sets this offset. */}
         <div
-          className="h-full rounded-full transition-[width] duration-1000 ease-linear"
-          style={{ width: `${progressPct}%`, background: phaseColor }}
+          data-slot="phase-rail-fill"
+          className="h-full w-full rounded-full transition-transform duration-1000 ease-linear"
+          style={{ transform: `translateX(${progressPct - 100}%)`, background: phaseColor }}
           suppressHydrationWarning
         />
       </div>
