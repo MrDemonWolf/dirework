@@ -22,7 +22,10 @@ cached `task.list`, rendered by the dashboard), `TimerSettings` and `ObsSources`
   for anything missing). Each mutation answers with the timer as it stands after the write,
   and `applyTimerResult` (`lib/timer-cache.ts`) writes that answer into the `timer.get` cache
   after cancelling any read still in flight: one request per click, no re-read (a null
-  answer, nothing changed, re-reads once).
+  answer, nothing changed, re-reads once). The context value carries only each mutation's
+  stable `mutate` + `isPending` (never the `useMutation` object, which is new every render),
+  so a blur autosave or an OBS tab / preview toggle doesn't re-render the four consumers
+  (`timer-context.test.ts` compiles the provider and checks its memo guards).
 - `TimerPhaseChip`: a `StatusChip` with the streamer's phase label (keyed, `chip-swap`) and
   the `sr-only` live status line, beside the console heading. A long custom label ends in an
   ellipsis (the chip never outgrows the header row) with the full text as its `title`.
@@ -30,7 +33,9 @@ cached `task.list`, rendered by the dashboard), `TimerSettings` and `ObsSources`
   `H:MM:SS` from an hour up) sized by `.timer-digits` (index.css): the `text-7xl` /
   `lg:text-8xl` sizes, capped at `96cqi / --clock-em` of the instrument's `@container`
   (`clockEm` in `lib/timer-utils.ts`), so `24:00:00` fits a 320px phone; over a
-  phase-tinted radial glow (`TIMER_PHASE_COLOR`, 14%); a `h-1.5` phase rail; cycle dots (or a
+  phase-tinted radial glow (`TIMER_PHASE_COLOR`, 14%); a `h-1.5` phase rail (a full-width fill
+  slid in with `translateX(progress - 100%)` and a 1 s linear `transition-transform`, clipped
+  by the `overflow-hidden` track: compositor-only, never a width animation); cycle dots (or a
   `01/12` mono counter above 10 cycles). While idle the dots preview the planned run, every
   dot hollow (`border-muted-foreground/70`, 3:1 on the card), or "12 pomos" above 10.
 - `TimerTransport`: `[Start] [Skip] | [Stop]`. One primary `h-12` button, then, only while a

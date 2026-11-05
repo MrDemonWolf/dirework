@@ -100,6 +100,18 @@ test("starts a session, shows it ticking on the timer overlay, and stops it", as
   await expect(page.getByRole("img", { name: "Pomodoro 1 of 4" })).toBeVisible();
   await expect(page.getByText(FRESH_WORK_DIGITS)).toBeVisible();
 
+  // The phase rail glides on the compositor: each second retargets a transform transition,
+  // never a width one (which would lay the page out again on every frame of the session).
+  const railTransitions = () =>
+    page.locator('[data-slot="phase-rail-fill"]').evaluate((fill) =>
+      fill
+        .getAnimations()
+        .filter((animation): animation is CSSTransition => animation instanceof CSSTransition)
+        .map((transition) => transition.transitionProperty),
+    );
+  await expect.poll(railTransitions).toContain("transform");
+  expect(await railTransitions()).not.toContain("width");
+
   // The overlay polls the api directly with its token and counts down locally between polls.
   const overlayUrl = await revealSecretUrl(page, "Timer overlay");
   const overlay = await context.newPage();
