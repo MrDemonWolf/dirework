@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { CRASH_NAME_MAX_LENGTH, CRASH_SURFACES, crashLabel } from "@dirework/api/crash-report";
+
 import { buildErrorEvent, buildMetric } from "../telemetry";
 
 describe("buildMetric", () => {
@@ -25,6 +27,22 @@ describe("buildMetric", () => {
 
   it("drops an over-long label", () => {
     expect(buildMetric("db.error", { label: "a".repeat(200) }).label).toBeUndefined();
+  });
+
+  it("logs a client crash as surface and error name only, even at the longest name", () => {
+    for (const surface of CRASH_SURFACES) {
+      const label = crashLabel(surface, "N".repeat(CRASH_NAME_MAX_LENGTH));
+      const event = buildMetric("client.crash", { requestId: "r1", label });
+      // Kept whole (a dropped label would leave the line with no surface), and nothing else:
+      // the event's fields are the closed set, with no message, stack or URL.
+      expect(event).toEqual({
+        type: "metric",
+        metric: "client.crash",
+        requestId: "r1",
+        label,
+        count: 1,
+      });
+    }
   });
 
   it("omits requestId entirely when absent", () => {

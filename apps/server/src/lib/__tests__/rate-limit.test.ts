@@ -45,6 +45,14 @@ describe("selectBucket", () => {
     expect(selectBucket("/trpc/")).toBe("RL_TOKEN");
   });
 
+  it("charges a crash report to the token bucket, never the overlay or bot one", () => {
+    // A page stuck in a crash loop must not spend the bucket its sibling overlay polls or
+    // the bot relays chat through.
+    expect(selectBucket("/trpc/crash.report")).toBe("RL_TOKEN");
+    expect(selectBucket("/trpc/overlay.getTimerState,crash.report")).toBe("RL_TOKEN");
+    expect(selectBucket("/trpc/bot.heartbeat,crash.report")).toBe("RL_TOKEN");
+  });
+
   it("charges a mixed batch to its strictest procedure's bucket", () => {
     // A token-gated read riding along with overlay or bot calls must not escape
     // into their more generous buckets (the old substring match let it).
