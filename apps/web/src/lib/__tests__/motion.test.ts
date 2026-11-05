@@ -2,6 +2,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { popupSurfaceRecipe } from "@/components/ui/dropdown-menu";
+
 // Source-level contract for the motion system in index.css: every keyframe is
 // actually used, reduced-motion still neutralises everything, and popups use
 // Base UI's starting/ending-style transitions rather than tw-animate's
@@ -67,10 +69,15 @@ describe("motion system", () => {
   });
 
   it("transitions popup scale through the `scale` property Tailwind v4 sets", () => {
+    // Menus, the select list and tooltips share one popup recipe, so the transition lives in
+    // that string; menu-consistency.test.ts pins that each popup starts from it.
+    expect(typeof popupSurfaceRecipe).toBe("string");
+    const recipe = String(popupSurfaceRecipe).split(" ");
+    expect(recipe).toContain("transition-[opacity,scale]");
+    expect(recipe).toContain("data-starting-style:opacity-0");
     for (const file of ["ui/dropdown-menu.tsx", "ui/select.tsx", "ui/tooltip.tsx"]) {
       const source = readFileSync(path.join(componentsDir, file), "utf8");
-      expect(source).toContain("transition-[opacity,scale]");
-      expect(source).toContain("data-starting-style:opacity-0");
+      expect(source).toMatch(/cn\(\s*popupSurfaceRecipe,/);
     }
   });
 });

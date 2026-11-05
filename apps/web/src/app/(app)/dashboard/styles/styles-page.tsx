@@ -211,7 +211,7 @@ function StylesEditor({ config }: { config: ConfigData }) {
               >
                 <MoreHorizontal />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 bg-card">
+              <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem
                   disabled={activeThemeId === DEFAULT_PRESET.id}
                   onClick={() => setConfirmDefault(true)}

@@ -8,15 +8,19 @@ tokens: [color.scheme, radius]
 ## Purpose
 
 Base UI `Menu` styled as a frosted popup. Used by `UserMenu` (the header account menu), the
-Theme Center section menus and the Task Board options menu. It also owns `menuItemRecipe`,
-the one row recipe `Select` imports, so every menu and list row in the app highlights the
-same way.
+Theme Center menus, the Task Board options menu and each task row's ⋯ menu. It also owns
+the two recipes the other popups import: `menuItemRecipe`, so every menu and list row in
+the app highlights the same way, and `popupSurfaceRecipe`, so every menu, Select list and
+tooltip sits on the same surface.
 
 ## Anatomy
 
-- **Content**: portaled, positioned popup; `rounded-2xl`, `border-border/50`, `bg-popover`,
-  `p-1.5`, `shadow-lg`, `backdrop-blur-2xl`, min width `min-w-32`, width follows the anchor,
-  scrolls within `--available-height`. Fades and scales from 98% (150ms).
+- **Surface** (`popupSurfaceRecipe`): `bg-popover` / `text-popover-foreground` (the fill
+  dialogs and toasts use too), `border-border/50`, `shadow-lg`, `backdrop-blur-2xl`; fades
+  and scales from 98% (150ms) from the side it opens on. Every popup, menus included, sits
+  on it; a call site sets width and alignment, never a fill.
+- **Content**: portaled, positioned popup on that surface; `rounded-2xl`, `p-1.5`, min width
+  `min-w-32`, width follows the anchor, scrolls within `--available-height`.
 - **Item** (`menuItemRecipe`): `rounded-md` row, `px-2.5 py-2`, `text-sm/none`, `gap-2.5`,
   `size-4` icons. `inset` items pad left `pl-8` to align with checkbox/radio rows.
 - **Label**: `text-xs text-muted-foreground`. **Separator**: 1px `bg-border`, bleeds to the popup edge.
@@ -33,9 +37,10 @@ same way.
 | `DropdownMenuItem` | `variant?: "default" \| "destructive"` (default `"default"`), `inset?: boolean` |
 | `DropdownMenuLabel` | `inset?: boolean` |
 | `DropdownMenuCheckboxItem`, `DropdownMenuRadioGroup`, `DropdownMenuRadioItem` | `checked` / `value` |
-| `DropdownMenuSub`, `DropdownMenuSubTrigger` (`inset`), `DropdownMenuSubContent` | Sub content defaults: `side` `"right"`, `alignOffset` `-3`, `sideOffset` `0` |
+| `DropdownMenuSub`, `DropdownMenuSubTrigger` (`inset`) | A submenu's popup is a `DropdownMenuContent` with `side="right"` |
 | `DropdownMenuSeparator`, `DropdownMenuShortcut` | Static |
 | `menuItemRecipe` | Exported class string, reused by `SelectItem` |
+| `popupSurfaceRecipe` | Exported class string, the start of `SelectContent`'s and `TooltipContent`'s classes |
 
 ## States
 
@@ -44,7 +49,7 @@ items (Sign out, Clear done / Clear all, Remove) stay red in every state: `text-
 at rest; highlighted, a `bg-destructive/10` tint in both themes with the label and icon in
 `text-destructive-strong` (≥ 4.5:1 on that tint; plain red on the old dark `/20` tint was
 4.25:1); keyboard focus draws the inset ring in `ring-destructive`, never the blue
-`ring-ring`, ≥ 3:1 against the tint. `tokens-contrast.test.ts` measures all three. Disabled rows are 50% and
+`ring-ring`, ≥ 3:1 against the tint. `tokens-contrast.test.ts` measures all three, on `--popover`. Disabled rows are 50% and
 ignore the pointer. Open / closed transitions use `data-starting-style` / `data-ending-style`.
 
 ## Accessibility
@@ -61,5 +66,8 @@ ignore the pointer. Open / closed transitions use `data-starting-style` / `data-
 
 - **Do** use `variant="destructive"` for Sign out style actions that end something.
 - **Do** import `menuItemRecipe` for any new list row instead of copying it.
+- **Do** start a new popup's classes with `popupSurfaceRecipe` and add only its geometry.
+- **Don't** pass a `bg-*` class to `DropdownMenuContent` (or `SelectContent`,
+  `TooltipContent`); `menu-consistency.test.ts` fails on a call site that repaints the surface.
 - **Don't** use `focus:` outlines on rows; they also fire on click and read as a boxed hover.
 - **Don't** put form inputs inside a menu; use a popover or a page section.

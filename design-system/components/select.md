@@ -8,7 +8,8 @@ tokens: [color.scheme, radius]
 ## Purpose
 
 Base UI `Select` styled to match the dropdown menu. Used by `FontSelect` in the Theme Center
-(overlay font pickers).
+(overlay font pickers) and by the "Who can add tasks" picker in Bot settings
+(`BotLiveControls`).
 
 ## Anatomy
 
@@ -17,8 +18,10 @@ Base UI `Select` styled to match the dropdown menu. Used by `FontSelect` in the 
   left, muted `ChevronDownIcon` on the right. Default size matches `Input`: `text-base`
   (`md:text-sm`), `h-9` (`md:h-8`), `pointer-coarse:min-h-11`; `sm` is `h-7`, `text-xs`.
   Placeholder in `text-muted-foreground`.
-- **Content**: portaled popup, `rounded-2xl`, `border-border/50`, `bg-popover`, `p-1`,
-  `shadow-lg`, `backdrop-blur-2xl`, min width `min-w-36`; scroll arrows top and bottom.
+- **Content**: portaled popup on `popupSurfaceRecipe` from `dropdown-menu.tsx` (the menus'
+  `bg-popover` surface, `border-border/50`, `shadow-lg`, `backdrop-blur-2xl`, the 150ms fade
+  and scale), plus its own `rounded-2xl`, `p-1` and min width `min-w-36`; scroll arrows top
+  and bottom on the same `bg-popover`.
 - **Item**: `menuItemRecipe` from `dropdown-menu.tsx`, check indicator at `right-2`,
   selected item `font-medium`.
 - **Label**: `text-xs text-muted-foreground`. **Separator**: 1px `bg-border`.
@@ -50,7 +53,9 @@ Trigger: hover (`bg-input/50` dark), focus-visible (ring border plus `ring-1 rin
 
 ## Do / Don't
 
-- **Do** keep item rows on `menuItemRecipe`; `menu-consistency.test.ts` checks the import.
+- **Do** keep item rows on `menuItemRecipe` and the list on `popupSurfaceRecipe`;
+  `menu-consistency.test.ts` checks both imports.
 - **Do** use it for a fixed list of five or more options; use `Tabs` or a radio group for two to four.
-- **Don't** copy the recipe string into this file or add `focus:` outlines.
+- **Don't** copy either recipe string into this file, pass a `bg-*` class to `SelectContent`, or
+  add `focus:` outlines.
 - **Don't** use it for actions; that is a `DropdownMenu`.
