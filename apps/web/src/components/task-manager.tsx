@@ -5,7 +5,7 @@
 // OBS sources). Polls `task.list` via the authed /rpc proxy; all writes
 // go through owner-only task.* procedures, which share service code with the chat commands.
 
-import { useEffect, useRef, useState } from "react";
+import { type Ref, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import { Check, ChevronDown, Focus, MoreHorizontal, Pause, Play, Trash2 } from "lucide-react";
@@ -45,6 +45,11 @@ import { trpc } from "@/utils/trpc";
 /** How long the "Task removed" toast offers Undo. */
 const UNDO_TOAST_MS = 5000;
 
+/** A task mutation's `onError`: one toast naming the action that failed, and why. */
+const mutationError = (action: string) => (err: unknown) => {
+  toast.error(`Couldn't ${action}: ${describeTrpcError(err)}`);
+};
+
 interface TaskManagerProps {
   /** The owner's Twitch id; tasks authored under it are the "Host" group, pinned first. */
   userTwitchId: string;
@@ -57,7 +62,6 @@ interface TaskManagerProps {
  */
 export function TaskManager({ userTwitchId }: TaskManagerProps) {
   const queryClient = useQueryClient();
-  const [newTask, setNewTask] = useState("");
   // Which bulk clear is waiting on its confirm (opened from the board options menu).
   const [confirmClear, setConfirmClear] = useState<"done" | "all" | null>(null);
   // Author groups the owner folded away. Component state only: a reload opens them all.
@@ -81,19 +85,6 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: trpc.task.list.queryKey() });
   };
-
-  const mutationError = (action: string) => (err: unknown) => {
-    toast.error(`Couldn't ${action}: ${describeTrpcError(err)}`);
-  };
-
-  const createTask = useMutation({
-    ...trpc.task.create.mutationOptions(),
-    onSuccess: () => {
-      setNewTask("");
-      invalidate();
-    },
-    onError: mutationError("add the task"),
-  });
 
   const markDone = useMutation({
     ...trpc.task.markDone.mutationOptions(),
@@ -170,12 +161,6 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
     onSuccess: invalidate,
     onError: mutationError("clear done tasks"),
   });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTask.trim()) return;
-    createTask.mutate({ text: newTask.trim() });
-  };
 
   const taskList = tasks.data?.tasks ?? [];
 
@@ -366,25 +351,7 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
 
       {/* Body: add form + grouped list */}
       <div className="flex-1 space-y-4 px-5 py-5">
-        <form onSubmit={handleSubmit} className="flex gap-2">
-          <Input
-            ref={addInputRef}
-            value={newTask}
-            onChange={(e) => setNewTask(e.target.value)}
-            placeholder="Add a task..."
-            maxLength={MAX_TASK_LEN}
-            disabled={createTask.isPending}
-            aria-label="New task text"
-            className="h-10 md:h-10"
-          />
-          <Button
-            type="submit"
-            disabled={!newTask.trim() || createTask.isPending}
-            className="h-10 px-4 md:h-10"
-          >
-            Add
-          </Button>
-        </form>
+        <AddTaskForm inputRef={addInputRef} />
 
         <div ref={listRef} className="max-h-100 space-y-3 overflow-y-auto">
           {!tasks.data && tasks.isError ? (
@@ -596,6 +563,54 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * The board's add form. It owns the draft text, the create mutation and the submit, so a
+ * keystroke renders only this form, never the board and its rows (`task-board-structure.test.ts`
+ * pins it). The input's ref is the board's: the empty board's "Add a task" button and the
+ * focus restore after the list empties both focus the input.
+ */
+function AddTaskForm({ inputRef }: { inputRef: Ref<HTMLInputElement> }) {
+  const queryClient = useQueryClient();
+  const [newTask, setNewTask] = useState("");
+
+  const createTask = useMutation({
+    ...trpc.task.create.mutationOptions(),
+    onSuccess: () => {
+      setNewTask("");
+      queryClient.invalidateQueries({ queryKey: trpc.task.list.queryKey() });
+    },
+    onError: mutationError("add the task"),
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTask.trim()) return;
+    createTask.mutate({ text: newTask.trim() });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex gap-2">
+      <Input
+        ref={inputRef}
+        value={newTask}
+        onChange={(e) => setNewTask(e.target.value)}
+        placeholder="Add a task..."
+        maxLength={MAX_TASK_LEN}
+        disabled={createTask.isPending}
+        aria-label="New task text"
+        className="h-10 md:h-10"
+      />
+      <Button
+        type="submit"
+        disabled={!newTask.trim() || createTask.isPending}
+        className="h-10 px-4 md:h-10"
+      >
+        Add
+      </Button>
+    </form>
   );
 }
 
