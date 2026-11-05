@@ -5,7 +5,12 @@ import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { OVERLAY_SURFACE, THEME_INIT_SCRIPT, THEME_STORAGE_KEY } from "../theme-init";
+import {
+  isTransparentSurface,
+  OVERLAY_SURFACE,
+  THEME_INIT_SCRIPT,
+  THEME_STORAGE_KEY,
+} from "../theme-init";
 
 const read = (rel: string) => readFileSync(path.join(__dirname, rel), "utf8");
 
@@ -149,6 +154,25 @@ describe("THEME_INIT_SCRIPT", () => {
     expect(run({ pathname: "/bot/abc", search: "?view=x&view=dock" }).surface).toBe(
       OVERLAY_SURFACE,
     );
+  });
+
+  it.each([
+    ["/overlay/t/abc", ""],
+    ["/overlay/", ""],
+    ["/overlay", ""],
+    ["/dashboard", ""],
+    ["/bot/abc", ""],
+    ["/bot/abc", "?view=source"],
+    ["/bot/abc", "?view=dock"],
+    ["/bot/abc", "?view=%20Dock%20"],
+    ["/bot/abc", "?view=dock&view=x"],
+    ["/bot/abc", "?view=x&view=dock"],
+    ["/bot", ""],
+    ["/", "?view=widget"],
+  ])("isTransparentSurface(%s, %s) agrees with the inline script", (pathname, search) => {
+    // global-error.tsx re-marks <html> with this when it renders on the client (no script runs).
+    const marked = run({ pathname, search }).surface === OVERLAY_SURFACE;
+    expect(isTransparentSurface(pathname, search)).toBe(marked);
   });
 
   it.each([
