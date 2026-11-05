@@ -171,6 +171,62 @@ export async function expectNoHydrationErrors(page: Page): Promise<void> {
   expect(pageProblems.get(page) ?? [], "page errors or hydration warnings").toEqual([]);
 }
 
+/** Name of the function an init script calls in the page to report a CSP violation. */
+const CSP_REPORTER = "__e2eCspViolation";
+const cspReports = new WeakMap<Page, string[]>();
+
+/**
+ * Start collecting every Content-Security-Policy violation the page reports, in each of its
+ * frames (the live preview's overlay iframe too) and across navigations: an init script hands
+ * each `securitypolicyviolation` event to the test through an exposed function. Call it before
+ * `page.goto`; `expectNoCspViolations` asserts there were none.
+ *
+ * One known report is prevented rather than filtered. While zod is still bundled into every
+ * page, it checks once per page whether it may compile parsers by calling `Function("")`. The
+ * policy has no 'unsafe-eval', so the call throws and zod parses without compiling, as it always
+ * does under this policy, but the browser still reports a refused eval. zod's own `jitless`
+ * setting skips that check. It is set before any page script runs, so any other refused eval
+ * still fails (and if zod ever stops reading it, every watched page fails on a refused eval).
+ */
+export async function watchCsp(page: Page): Promise<void> {
+  if (cspReports.has(page)) return;
+  const reports: string[] = [];
+  cspReports.set(page, reports);
+  await page.exposeFunction(CSP_REPORTER, (line: string) => {
+    reports.push(line);
+  });
+  await page.addInitScript((reporter) => {
+    // zod adopts an existing `globalThis.__zod_globalConfig` as its config object.
+    const zodHost = globalThis as { __zod_globalConfig?: { jitless?: boolean } };
+    zodHost.__zod_globalConfig ??= { jitless: true };
+    document.addEventListener("securitypolicyviolation", (event) => {
+      const report = (window as unknown as Record<string, ((line: string) => void) | undefined>)[
+        reporter
+      ];
+      // blockedURI is the refused URL, or "inline" / "eval" for code.
+      report?.(`${event.effectiveDirective} refused ${event.blockedURI} on ${location.pathname}`);
+    });
+  }, CSP_REPORTER);
+}
+
+/** The violations `watchCsp` has collected on the page so far, oldest first. */
+export function cspViolations(page: Page): string[] {
+  const reports = cspReports.get(page);
+  if (!reports) throw new Error("call watchCsp(page) before loading the page");
+  return [...reports];
+}
+
+/**
+ * Assert the page has refused nothing since `watchCsp`: no inline handler or script, style,
+ * font, image, frame or connection outside the policy.
+ */
+export async function expectNoCspViolations(page: Page): Promise<void> {
+  // The browser reports a violation from a queued task, and the report reaches the test
+  // asynchronously: one timer round trip through the page lets a pending one land first.
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 0)));
+  expect(cspViolations(page), "Content-Security-Policy violations").toEqual([]);
+}
+
 /** Press the named button in the open confirm dialog (ConfirmDialog renders an alertdialog). */
 export async function confirmDialog(page: Page, label: string): Promise<void> {
   await page.getByRole("alertdialog").getByRole("button", { name: label, exact: true }).click();

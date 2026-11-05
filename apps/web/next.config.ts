@@ -32,6 +32,10 @@ const commitSha = (() => {
 const cspDirectives = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",
+  // Inline event-handler attributes (`<img onerror=…>`, the classic injected payload) never
+  // run. Neither the app nor Next renders one; inline <script> elements still fall back to
+  // script-src above.
+  "script-src-attr 'none'",
   "style-src 'self' 'unsafe-inline'",
   // Twitch profile images (better-auth stores the CDN URL on the session user).
   "img-src 'self' data: blob: https://static-cdn.jtvnw.net",

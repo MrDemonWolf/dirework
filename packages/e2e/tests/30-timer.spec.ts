@@ -1,7 +1,7 @@
 import { DEFAULT_PHASE_LABELS, DEFAULT_TIMER_STYLES } from "@dirework/api/config-defaults";
 import { expect, test, type Page } from "@playwright/test";
 
-import { confirmDialog, revealSecretUrl, signIn } from "./helpers";
+import { confirmDialog, expectNoCspViolations, revealSecretUrl, signIn, watchCsp } from "./helpers";
 
 /** Digits of a work phase that has just begun: 25:00 counting down through 24:xx. */
 const FRESH_WORK_DIGITS = /^2[45]:[0-5]\d$/;
@@ -14,6 +14,7 @@ test("starts a session, shows it ticking on the timer overlay, and stops it", as
   // overlay is a second page: more than the default 30s budget.
   test.setTimeout(60_000);
   await signIn(page);
+  await watchCsp(page);
   await page.goto("/dashboard");
 
   // Idempotent: a retry, or an earlier run that stopped partway, can leave a session
@@ -41,6 +42,7 @@ test("starts a session, shows it ticking on the timer overlay, and stops it", as
   // The overlay polls the api directly with its token and counts down locally between polls.
   const overlayUrl = await revealSecretUrl(page, "Timer overlay");
   const overlay = await context.newPage();
+  await watchCsp(overlay);
   await overlay.goto(overlayUrl);
   await expect(overlay.getByText(DEFAULT_PHASE_LABELS.work)).toBeVisible();
   const digits = overlay.getByText(FRESH_WORK_DIGITS);
@@ -52,11 +54,13 @@ test("starts a session, shows it ticking on the timer overlay, and stops it", as
   expect(sample).toMatch(FRESH_WORK_DIGITS);
   await overlay.waitForTimeout(1500);
   await expect(digits).not.toHaveText(sample);
+  await expectNoCspViolations(overlay);
   await overlay.close();
 
   await stop.click();
   await confirmDialog(page, "Stop timer");
   await expect(start).toBeVisible();
+  await expectNoCspViolations(page);
 });
 
 /**

@@ -2,10 +2,12 @@ import { expect, test } from "@playwright/test";
 
 import {
   confirmDialog,
+  expectNoCspViolations,
   expectNoHydrationErrors,
   revealSecretUrl,
   signIn,
   taskRow,
+  watchCsp,
   watchHydration,
 } from "./helpers";
 
@@ -15,10 +17,17 @@ test.describe.configure({ mode: "serial" });
 test.beforeEach(async ({ page }) => {
   await signIn(page);
   watchHydration(page);
+  await watchCsp(page);
   await page.goto("/dashboard");
   // The streamed dashboard must hydrate, not be thrown away and client-rendered (which
   // briefly left two copies of every control in the DOM).
   await expectNoHydrationErrors(page);
+});
+
+// Nothing a test opened (menus, dialogs, toasts, the live preview's overlay frames) may trip
+// the CSP.
+test.afterEach(async ({ page }) => {
+  await expectNoCspViolations(page);
 });
 
 test("signs in through the dev bypass and greets the owner", async ({ page }) => {
@@ -37,8 +46,10 @@ test("adds a task, shows it on the tasks overlay, and marks it done", async ({ p
   await page.getByRole("tab", { name: "Tasks" }).click();
   const overlayUrl = await revealSecretUrl(page, "Tasks overlay");
   const overlay = await context.newPage();
+  await watchCsp(overlay);
   await overlay.goto(overlayUrl);
   await expect(overlay.getByText(text)).toBeVisible();
+  await expectNoCspViolations(overlay);
   await overlay.close();
 
   await page.getByLabel(`Mark "${text}" as done`).click();

@@ -13,6 +13,13 @@ describe("web security header contract", () => {
     expect(nextConfig).toContain("poweredByHeader: false");
   });
 
+  it("refuses inline event-handler attributes", () => {
+    // Next's inline <script> elements still need script-src 'unsafe-inline', but nothing the
+    // app renders uses an on…= attribute, so the classic injected `<img onerror=…>` payload
+    // is refused on every route. e2e watchCsp checks that no page trips it.
+    expect(nextConfig).toContain(`"script-src-attr 'none'"`);
+  });
+
   it("lets the page load its own install manifest", () => {
     // app/manifest.ts is served same-origin; without manifest-src the CSP's default-src
     // would still allow it, but an explicit 'self' keeps it from silently widening.
