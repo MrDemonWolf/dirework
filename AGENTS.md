@@ -1193,6 +1193,15 @@ components (`apps/web/src/components/icons/`, `apps/fumadocs/src/components/icon
   drizzle tables and `index.ts` needs the D1 binding. Every package's thresholds sit about
   five points under the measured values (`bun run test:coverage` in the package prints
   them); raise them when coverage rises, never lower them to go green.
+  Right after the Worker budget, `packages/infra/client-budget.ts` holds each route's
+  first-load client JS (KiB gzip -9) to its entry in `CLIENT_JS_BUDGETS_KIB`, grouped as token
+  pages, public pages and dashboard, each about 3% over the size printed when it was set. It
+  reads `apps/web/.next/diagnostics/route-bundle-stats.json`, which Next writes on every
+  Turbopack build (undocumented, so a missing or reshaped file fails the step), gzips each
+  listed chunk once and sums per route. A route without a budget, or a budget without a route,
+  fails too; the table goes to the job summary. Its scan for `ZodError` / `drizzle:Name` in the
+  token pages' and the landing's chunks only reports until `ENFORCE_FORBIDDEN_MARKERS` is on:
+  zod and the D1 schema still reach every route through `config-shared`.
 - `.github/workflows/codeql.yml` — CodeQL JavaScript/TypeScript analysis plus a separate
   GitHub Actions (workflow) analysis job, both with the `security-extended` query suite on
   pushes, PRs, and a weekly schedule.
@@ -1362,6 +1371,9 @@ the default app to two workers, one D1 database and the existing rate-limit bind
   route handler would add a Worker hop per render.
 - Bug fixes come with a test that fails without the fix; SQL-dependent behavior is
   tested against real SQLite (`createSqliteDb`), not mocks.
+- Each route's first-load client JS stays within its `CLIENT_JS_BUDGETS_KIB` entry
+  (`packages/infra/client-budget.ts`). Raising one needs a stated reason in the PR; a PR
+  that shrinks a route lowers its budget to about 3% over the new size.
 
 **Not worth flagging:** formatting and import order (Biome enforces them), and
 generated files (`apps/web/public/fonts/*`, migration snapshots, `wrangler.jsonc`).
