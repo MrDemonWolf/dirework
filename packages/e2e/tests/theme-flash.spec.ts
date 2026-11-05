@@ -102,6 +102,28 @@ test("overlays keep a transparent canvas for OBS", async ({ page }) => {
   expect(background).toBe("rgba(0, 0, 0, 0)");
 });
 
+test("a 404 under /overlay/ composites as nothing", async ({ page }) => {
+  // A truncated OBS URL (no token) matches no route, so it gets the root 404 page without the
+  // (overlay) layout's transparent override. On a light OS Next's built-in 404 painted the
+  // body white; on a dark one, black. Either way OBS showed an opaque frame with text on it.
+  await page.emulateMedia({ colorScheme: "light" });
+  const res = await page.goto("/overlay/t");
+  expect(res?.status()).toBe(404);
+  const paint = await page.evaluate(() => ({
+    surface: document.documentElement.dataset.surface,
+    html: getComputedStyle(document.documentElement).backgroundColor,
+    body: getComputedStyle(document.body).backgroundColor,
+    // biome-ignore lint/performance/useDomNodeTextContent: rendered text only; the hidden 404 copy, scripts and styles must not count
+    text: document.body.innerText.trim(),
+  }));
+  expect(paint).toEqual({
+    surface: "overlay",
+    html: "rgba(0, 0, 0, 0)",
+    body: "rgba(0, 0, 0, 0)",
+    text: "",
+  });
+});
+
 test("an overlay's canvas is transparent before its body arrives", async ({ page }) => {
   // The (overlay) layout's own transparent override lives in <body>; with only the head
   // painted, the canvas must already be transparent or OBS shows a navy frame.

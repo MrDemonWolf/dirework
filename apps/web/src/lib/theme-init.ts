@@ -19,6 +19,8 @@
 // so index.css never paints their canvas: the OBS overlays and the bot page's blank widget
 // (`/bot/<token>` without `?view=dock`, read like `parseBotView`). Their layouts'
 // transparent overrides live in <body> and arrive after the head has already painted.
+// index.css's `on-overlay:` variant reads the same mark, so the root 404 page hides itself
+// on a truncated overlay URL.
 //
 // A plain string (not fn.toString()) so a minifier or the React Compiler can never rewrite
 // it into something that no longer runs standalone.

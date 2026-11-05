@@ -72,3 +72,27 @@ test("the CSP refuses an inline event handler injected into an overlay", async (
     .poll(() => cspViolations(page))
     .toEqual([expect.stringMatching(/^script-src-attr refused inline on \/overlay\/l\//)]);
 });
+
+test("an unknown URL gets the app's own 404: one title, a heading and a way home", async ({
+  page,
+  request,
+}) => {
+  const res = await request.get("/no-such-page");
+  expect(res.status()).toBe(404);
+  // Next's built-in 404 renders its own <title> after the layout's, so the tab read just
+  // "DireWork". The raw HTML must carry exactly one, from app/not-found.tsx's metadata.
+  const titles = [...(await res.text()).matchAll(/<title[^>]*>([^<]*)<\/title>/g)].map(
+    (match) => match[1],
+  );
+  expect(titles).toEqual(["Page not found | DireWork"]);
+
+  await watchCsp(page);
+  await page.goto("/no-such-page");
+  await expect(page.getByRole("heading", { level: 1, name: "Page not found" })).toBeVisible();
+  await expectNoCspViolations(page);
+  const home = page.getByRole("link", { name: "Back to home" });
+  await expect(home).toHaveAttribute("href", "/");
+  await home.click();
+  await expect(page).toHaveURL(`${WEB_ORIGIN}/`);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+});

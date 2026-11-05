@@ -10,6 +10,11 @@
    so touch screens of any width keep them visible; the built-in `pointer-coarse:` variant
    sizes up touch targets. */
 @custom-variant can-hover (@media (hover: hover));
+/* The transparent OBS surfaces: the overlays and the bot widget, which lib/theme-init.ts marks
+   data-surface="overlay" on <html> before first paint. A page that can render there without
+   its own transparent layout (app/not-found.tsx, for a truncated overlay URL) hides its
+   content with `on-overlay:hidden`. */
+@custom-variant on-overlay (&:where(html[data-surface="overlay"] *));
 
 /*
  * ── Neutral dark palette ────────────────────────────────────────────────────
@@ -52,7 +57,8 @@
      flashing white. The class comes from the <head> script in lib/theme-init.ts. OBS
      overlays are marked data-surface="overlay" by that same script before any paint, so
      their canvas (and body) stays transparent from the first frame — the (overlay)
-     layout's own transparent override sits in <body> and would arrive too late. */
+     layout's own transparent override sits in <body> and would arrive too late. A 404
+     under /overlay/ never gets that layout at all, so these rules alone keep it clear. */
   html {
     color-scheme: light;
   }
