@@ -1,47 +1,36 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { isStale } from "@/lib/version";
+import { scheduleVersionCheck } from "@/lib/version-check";
 
 const REPO = "https://github.com/mrdemonwolf/dirework";
-// Single streamer, one tab — a 5-min poll is well within the free-tier budget
-// and catches a fresh deploy within a few minutes.
-const POLL_MS = 5 * 60 * 1000;
 
 /**
  * Footer deploy readout: `· <short sha>`, linked to the commit on GitHub. Every
  * deploy is one commit, so the SHA is the version that matters (there is no
- * separate version number). Polls /api/version for the SHA the web worker is
- * *currently* serving; when it no longer matches the SHA baked into this tab, a
- * newer deploy shipped and this tab is stale — offers a Reload.
+ * separate version number).
+ *
+ * With `checkForUpdates` (the (app) layout sets it for the signed-in owner only),
+ * it asks /api/version for the SHA the web worker is *currently* serving, every
+ * VERSION_CHECK_MS while the tab is visible (lib/version-check.ts). Once that no
+ * longer matches the SHA baked into this tab, a newer deploy shipped and this tab
+ * is stale: it offers a Reload and stops checking. Without it (viewers on / and
+ * /setup) the badge is static and makes no request.
  */
-export function VersionBadge({ sha }: { sha?: string }) {
+export function VersionBadge({
+  sha,
+  checkForUpdates = false,
+}: {
+  sha?: string;
+  checkForUpdates?: boolean;
+}) {
   const [stale, setStale] = useState(false);
 
-  const check = useCallback(async () => {
-    try {
-      const res = await fetch("/api/version", { cache: "no-store" });
-      if (!res.ok) return;
-      const { sha: live } = (await res.json()) as { sha?: string };
-      if (isStale(sha, live)) setStale(true);
-    } catch {
-      // Offline / transient — leave the current state, try again next tick.
-    }
-  }, [sha]);
-
   useEffect(() => {
-    if (!sha || sha === "dev") return;
-    const timer = setInterval(check, POLL_MS);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") check();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [sha, check]);
+    if (!checkForUpdates || !sha || sha === "dev") return;
+    return scheduleVersionCheck({ sha, onStale: () => setStale(true) });
+  }, [sha, checkForUpdates]);
 
   if (!sha) return null;
 

@@ -95,8 +95,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 MrDemonWolf, Inc.
               </a>
             </span>
-            {/* Renders its own leading separator, so nothing dangles when there is no SHA. */}
-            <VersionBadge sha={commitSha} />
+            {/* Renders its own leading separator, so nothing dangles when there is no SHA.
+                Only the signed-in owner's tab checks for a newer deploy (one Worker request
+                per check, VERSION_CHECK_MS); viewers on / and /setup get the static SHA. */}
+            <VersionBadge sha={commitSha} checkForUpdates={session?.user?.isOwner === true} />
           </div>
           {showLegalLinks && (
             <div className="mt-2 flex items-center justify-center gap-3">

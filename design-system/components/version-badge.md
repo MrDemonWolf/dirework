@@ -8,9 +8,11 @@ tokens: [color.scheme, font.size, tracking, radius]
 ## Purpose
 
 Footer deploy readout in the `(app)` layout: `· <short sha>`, linked to the commit on GitHub.
-Every deploy is one commit, so the SHA is the version. It polls `/api/version` every 5 minutes
-(and when the tab becomes visible) and, when the live SHA differs from the one baked into the
-tab, offers a reload.
+Every deploy is one commit, so the SHA is the version. In the signed-in owner's tab it checks
+`/api/version` every `VERSION_CHECK_MS` (5 minutes, `lib/poll-intervals.ts`) while the tab is
+visible, through `lib/version-check.ts`. A return to the tab checks only once 5 minutes have
+passed since the last check. When the live SHA differs from the one baked into the tab, it
+offers a reload and stops checking. Viewers on `/` and `/setup` get the static readout.
 
 ## Anatomy
 
@@ -24,12 +26,14 @@ tab, offers a reload.
 
 | Prop | Type | Notes |
 |---|---|---|
-| `sha` | `string \| undefined` | Build SHA; renders nothing when missing, never polls for `dev` |
+| `sha` | `string \| undefined` | Build SHA; renders nothing when missing, never checks for `dev` |
+| `checkForUpdates` | `boolean` (default `false`) | Look for a newer deploy; the layout sets it for the signed-in owner only |
 
 ## States
 
-Current (link only), stale (link plus reload button), dev (plain text, no poll). Network
-errors keep the current state.
+Current (link only), stale (link plus reload button; checking has stopped), dev (plain text,
+no checks), static (`checkForUpdates` off: no requests at all). Network errors keep the
+current state, and the next check runs on the cadence.
 
 ## Accessibility
 
@@ -40,5 +44,8 @@ errors keep the current state.
 
 ## Do / Don't
 
-- **Do** keep the 5-minute cadence; it is one request per tab, well inside the free tier.
+- **Do** keep the cadence in `VERSION_CHECK_MS`: one Worker request per check, at most 12 an
+  hour, and none from a hidden tab.
+- **Don't** check from a viewer's page or schedule a timer in the component; the scheduling
+  lives in `lib/version-check.ts`, tested with fake timers.
 - **Don't** reload automatically; the streamer may have unsaved edits.

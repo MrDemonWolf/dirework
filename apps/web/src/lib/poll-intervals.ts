@@ -1,13 +1,15 @@
 /**
  * Polling cadences. Every poll is a Worker request against the Cloudflare
- * free-tier daily budget, so retune these here, never inline.
+ * free-tier daily budget, so retune these here, never inline, and keep each
+ * one's request count in its comment.
  *
  * Overlays poll even in the background (OBS sources are never "visible");
  * dashboard queries stop when the tab is hidden, and slow to
  * DASHBOARD_IDLE_POLL_MS while the tab is visible but nobody has touched it
  * for DASHBOARD_IDLE_AFTER_MS. A dashboard request is billed twice (the web
  * worker proxies /rpc to the api worker), so a dashboard left open on a second
- * monitor used to cost more than both overlays combined.
+ * monitor used to cost more than both overlays combined. The footer's version
+ * check also skips hidden tabs; the bot page's cadences run while it is open.
  */
 /**
  * 5s, not 3s: both OBS overlays poll all stream long, even in the background, so
@@ -24,6 +26,16 @@ export const DASHBOARD_IDLE_AFTER_MS = 2 * 60_000;
 export const DASHBOARD_IDLE_POLL_MS = 15_000;
 
 /**
+ * The footer's new-deploy check (VersionBadge → lib/version-check.ts): one web-Worker request
+ * (`/api/version`, no-store) per check. Only the signed-in owner's tab checks, only while it
+ * is visible, and never sooner than this after the previous check (a return to the tab
+ * included), so at most 12 an hour, ~96 for an 8-hour stream. A hidden tab, a stale tab and a
+ * viewer's tab (/ and /setup) cost nothing. Never faster: a deploy only needs noticing within
+ * minutes.
+ */
+export const VERSION_CHECK_MS = 5 * 60_000;
+
+/**
  * The bot page's chat-lease check-in (`bot.heartbeat`), live or in standby: one Worker
  * request and one D1 write (the renewal) per open bot page every 2 minutes, so 30 an hour
  * and at most 720 a day for a page left open around the clock. Well under the 5-minute lease
@@ -31,6 +43,22 @@ export const DASHBOARD_IDLE_POLL_MS = 15_000;
  * bot; never longer than half that lease.
  */
 export const BOT_HEARTBEAT_MS = 2 * 60_000;
+
+/**
+ * The bot page's chat-token check (`bot.getSession({ revalidate: true })`, which also asks
+ * Twitch's /oauth2/validate; it reconnects only when the token rotated): one Worker request
+ * an hour per running page, so 24 a day for a page open around the clock. A page in standby
+ * skips it.
+ */
+export const REVALIDATE_INTERVAL_MS = 60 * 60_000;
+
+/**
+ * A bot page with no bot account connected yet (phase `not-configured`) re-runs
+ * `bot.getSession` this often, so it goes live on its own once the streamer connects one:
+ * 60 Worker requests an hour (plus their D1 reads), at most 1,440 a day for a page parked in
+ * OBS around the clock. The page's "checking every minute" line is built from it.
+ */
+export const NOT_CONFIGURED_POLL_MS = 60_000;
 
 /**
  * A payload younger than this is reused on mount/tab-focus instead of refetched (hydrated
