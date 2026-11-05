@@ -19,6 +19,11 @@ test("resetting the timer overlay URL blanks the old overlay and the new URL wor
   await oldOverlay.goto(oldUrl);
   await expect(oldOverlay.getByText(CLOCK_DIGITS)).toBeVisible();
 
+  // Mask the row again: the reset has to reveal the new URL on its own.
+  const show = page.getByRole("button", { name: "Show Timer overlay URL" });
+  await show.click();
+  await expect(show).toHaveAttribute("aria-pressed", "false");
+
   await page.getByRole("button", { name: "Reset Timer overlay URL" }).click();
   await confirmDialog(page, "Reset URL");
   await expect(page.getByText("New overlay URL ready — paste it into OBS")).toBeVisible();
@@ -29,10 +34,12 @@ test("resetting the timer overlay URL blanks the old overlay and the new URL wor
   await expect(oldOverlay.getByText(CLOCK_DIGITS)).toHaveCount(0, { timeout: 15_000 });
   await oldOverlay.close();
 
-  // The row stays revealed and swaps to the new URL once the dashboard has refetched it.
+  // Once the dashboard has refetched the token, the row reveals the new URL by itself (the
+  // textbox is only named while shown), so a reset is never hidden behind the mask.
   const urlField = page.getByRole("textbox", { name: "Timer overlay URL", exact: true });
   await expect(urlField).not.toHaveValue(oldUrl);
-  const newUrl = await revealSecretUrl(page, "Timer overlay");
+  await expect(show).toHaveAttribute("aria-pressed", "true");
+  const newUrl = await urlField.inputValue();
   expect(newUrl).not.toBe(oldUrl);
 
   const newOverlay = await context.newPage();
