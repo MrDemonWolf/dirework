@@ -296,7 +296,7 @@ describe("workflow supply-chain controls", () => {
     expect(deploy).toMatch(/\n {2}verify:\n {4}needs: guard\n/);
   });
 
-  it("checks both Worker bundles against the free-plan budget before the runtime smoke check", () => {
+  it("checks both Worker bundles' size before the runtime smoke check", () => {
     const verify = readWorkflow("verify.yml");
     const budgetStep = verify.indexOf("- name: Worker bundle budget");
     // After the bundles exist, before the slower boot check spends time on an oversized one.
@@ -305,6 +305,18 @@ describe("workflow supply-chain controls", () => {
     // Same gate as the build steps, run under Node via the lockfile-pinned tsx.
     expect(verify.slice(budgetStep)).toMatch(
       /^- name: Worker bundle budget\n\s+if: \$\{\{ inputs\.run-build \|\| inputs\.upload-docs \}\}\n\s+working-directory: packages\/infra\n\s+run: node \.\/node_modules\/\.bin\/tsx bundle-budget\.ts\n/,
+    );
+  });
+
+  it("profiles both Workers' startup after the Worker build, before the runtime smoke check", () => {
+    const verify = readWorkflow("verify.yml");
+    const startupStep = verify.indexOf("- name: Worker startup time");
+    // It profiles the OpenNext output, so only once build:worker has written it.
+    expect(startupStep).toBeGreaterThan(verify.indexOf("bun run build:worker"));
+    expect(startupStep).toBeLessThan(verify.indexOf("bun run smoke:worker"));
+    // Same gate as the build steps, run under Node via the lockfile-pinned tsx.
+    expect(verify.slice(startupStep)).toMatch(
+      /^- name: Worker startup time\n\s+if: \$\{\{ inputs\.run-build \|\| inputs\.upload-docs \}\}\n\s+working-directory: packages\/infra\n\s+run: node \.\/node_modules\/\.bin\/tsx startup-check\.ts\n/,
     );
   });
 

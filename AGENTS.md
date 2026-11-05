@@ -1255,10 +1255,17 @@ components (`apps/web/src/components/icons/`, `apps/fumadocs/src/components/icon
   page): a bundle can build and still throw on every request (Next 16.4 under OpenNext
   1.20.9 did, in production — `Unexpected loadManifest(...preview-props.json)`). Between
   `build:worker` and `smoke:worker`, `packages/infra/bundle-budget.ts` checks both Worker
-  bundles against `WORKER_BUDGET_KIB` (2560 KiB gzip; the free plan rejects a script over
-  3072 KiB compressed, and that rejection would come after the D1 migrations applied): api
-  = gzip of the dry-run `apps/server/dist/index.js`, web = `wrangler deploy --dry-run` over
-  the OpenNext output with the smoke config plus Alchemy's `minify: true`. Coverage measures every `src/` file
+  bundles against Cloudflare's real limit, `UNCOMPRESSED_LIMIT_KIB` (64 MiB uncompressed on
+  every plan, wrangler's `Total Upload`; Cloudflare dropped its compressed-size check on
+  2026-09-04, so gzip is for reference only, and a refused upload would come after the D1
+  migrations applied), and against `WORKER_BUDGET_KIB` (2560 KiB gzip), our own growth
+  ratchet and cold-start proxy, not a platform limit: api = the dry-run
+  `apps/server/dist/index.js`, web = `wrangler deploy --dry-run` over the OpenNext output
+  with the smoke config plus Alchemy's `minify: true`. Then `packages/infra/startup-check.ts`
+  bundles both the same way and profiles each with `wrangler check startup` (local workerd,
+  no secrets): Cloudflare refuses a Worker whose global scope takes over 1 s of CPU to start
+  (error 10021). It writes the times to the job summary and fails only above
+  `STARTUP_FAIL_MS` (500 ms), so runner noise can't fail it. Coverage measures every `src/` file
   (`coverage.include`), not just imported ones — except `packages/db`, which measures only
   its two pure modules (`defaults.ts`, `provision.ts`): the schema files are declarative
   drizzle tables and `index.ts` needs the D1 binding. Every package's thresholds sit about
@@ -1426,7 +1433,10 @@ the default app to two workers, one D1 database and the existing rate-limit bind
   `publicTrpc`, never through the web proxy.
 - Writes on hot paths only when they change something (guarded UPDATEs, `NOT EXISTS`).
 - Both Worker bundles stay under `WORKER_BUDGET_KIB` (`packages/infra/bundle-budget.ts`,
-  2560 KiB gzip against the free plan's 3072 KiB cap); raising it needs a stated reason.
+  2560 KiB gzip), a growth ratchet and cold-start proxy (Cloudflare's own size limit is
+  64 MiB uncompressed), and under `STARTUP_FAIL_MS` (`packages/infra/startup-check.ts`,
+  500 ms of local startup CPU, half Cloudflare's 1 s limit); raising either needs a stated
+  reason.
 
 **Invariants that must not regress:**
 
