@@ -430,7 +430,7 @@ packages/db        → Drizzle ORM schema + createDb() (drizzle-orm/d1) + migrat
 packages/env       → cloudflare:workers bindings (server), t3-env (web)
 packages/infra     → Alchemy IaC (both workers + D1)
 packages/fonts     → self-hosted UI woff2 files (Montserrat, IBM Plex Sans/Mono) both apps load via next/font/local; no code
-packages/overlay-kit → pure overlay geometry (squircle path), clock formatting, task status/tint rules, `BRAND` copy and `DEMO_SESSION` demo data, shared by web overlays and docs mocks; zero runtime deps. Subpath `./share-card` (`ShareCard`, its only JSX, `react` peer) is the one OG card both apps render
+packages/overlay-kit → pure overlay geometry (squircle path), clock formatting, task status/tint rules, `BRAND` copy, the `BRAND_MARK` logo geometry (web header, docs `BrandMark`, share card; `brand-mark.test.ts` holds both favicons to it) and `DEMO_SESSION` demo data, shared by web overlays and docs mocks; zero runtime deps. Subpath `./share-card` (`ShareCard`, its only JSX, `react` peer) is the one OG card both apps render
 packages/e2e       → Playwright browser tests: both workers in local workerd over a fresh local D1 (CI gate)
 packages/config    → Shared TypeScript configuration
 ```

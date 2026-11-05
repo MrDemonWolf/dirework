@@ -13,7 +13,7 @@
  * cached the card by URL can show the old one until its cache expires.
  */
 
-import { BRAND, DEMO_SESSION, cycleLabel, formatClock } from "./index";
+import { BRAND, BRAND_MARK, DEMO_SESSION, cycleLabel, formatClock } from "./index";
 
 /** The standard 1.91:1 Open Graph card size, emitted as og:image width/height. */
 export const SHARE_CARD_SIZE = { width: 1200, height: 630 } as const;
@@ -33,7 +33,7 @@ const CYCLE = cycleLabel(DEMO_SESSION.cycle.current, DEMO_SESSION.cycle.total);
  * The card, drawn for `next/og` (Satori): inline styles only, every multi-child div needs an
  * explicit `display: "flex"`, and colors are literal hex because CSS variables and the apps'
  * stylesheets are not available there. No hooks: Satori calls it as a plain function. The
- * wolf-and-clock mark matches the web header logo and the docs `BrandMark`.
+ * wolf-and-clock mark is `BRAND_MARK`, as in the web header logo and the docs `BrandMark`.
  */
 export function ShareCard() {
   return (
@@ -54,25 +54,26 @@ export function ShareCard() {
         <svg
           width="46"
           height="46"
-          viewBox="0 0 64 64"
+          viewBox={BRAND_MARK.viewBox}
           fill="none"
           stroke={ACCENT}
-          strokeWidth="3"
+          strokeWidth={BRAND_MARK.strokeWidth}
           strokeLinecap="round"
           strokeLinejoin="round"
           // Not a <title>: Satori draws an SVG's <title> as visible text over the mark.
           role="img"
           aria-label="DireWork logo"
         >
-          <path d="M14 30L20 8l10 18" />
-          <path d="M50 30L44 8l-10 18" />
-          <path d="M12 30c-1 10 4 18 12 22l8 6 8-6c8-4 13-12 12-22" />
-          <circle cx="23" cy="36" r="2.5" fill={ACCENT} />
-          <circle cx="41" cy="36" r="2.5" fill={ACCENT} />
-          <path d="M28 46l4 4 4-4" />
-          <circle cx="32" cy="24" r="7" strokeWidth="2.5" />
-          <line x1="32" y1="24" x2="32" y2="19" strokeWidth="2.5" />
-          <line x1="32" y1="24" x2="36" y2="24" strokeWidth="2.5" />
+          {BRAND_MARK.paths.map((d) => (
+            <path key={d} d={d} />
+          ))}
+          {BRAND_MARK.eyes.map((eye) => (
+            <circle key={eye.cx} {...eye} fill={ACCENT} stroke="none" />
+          ))}
+          <circle {...BRAND_MARK.clock.face} strokeWidth={BRAND_MARK.clock.strokeWidth} />
+          {BRAND_MARK.clock.hands.map((hand) => (
+            <line key={hand.y2} {...hand} strokeWidth={BRAND_MARK.clock.strokeWidth} />
+          ))}
         </svg>
         <div style={{ fontSize: 34, fontWeight: 800, color: TEXT }}>{BRAND.name}</div>
       </div>

@@ -20,7 +20,7 @@ API's `ownerProcedure` authorizes.
 - Inner row: `h-header max-w-content`, `px-3` with tighter gaps and a `text-base` wordmark
   below `sm` (`px-4` and `text-lg` from `sm`), so the logo, theme switch, avatar and menu
   button fit a 320px phone with slack to spare (text renders wider on Linux than macOS).
-- Left: logo link (inline SVG titled "DireWork logo" + wordmark; `/dashboard` for the owner,
+- Left: logo link (inline SVG of `BRAND_MARK` from `@dirework/overlay-kit`, titled "DireWork logo", + wordmark; `/dashboard` for the owner,
   whose home it is, `/` for everyone else) and, when signed in, the
   desktop `<nav>` (`md:flex`): Dashboard, Theme Center, Bot. Each icon pulses
   (`animate-led-pulse`) while its navigation is pending (`useLinkStatus`).
