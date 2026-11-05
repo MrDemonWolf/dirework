@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_PHASE_LABELS } from "../config-types";
 import {
   fitStaticList,
+  isOverlayPreview,
   overlayPath,
+  overlayPreviewSrc,
   taskOverlayView,
   taskStatusLabel,
   timerOverlayView,
@@ -96,6 +98,27 @@ describe("overlayPath", () => {
     expect(overlayPath("timer", null)).toBeNull();
     expect(overlayPath("tasks", undefined)).toBeNull();
     expect(overlayPath("timer", "")).toBeNull();
+  });
+});
+
+describe("overlayPreviewSrc / isOverlayPreview", () => {
+  /** The query the overlay page sees for an iframe or OBS source loading `href`. */
+  const searchOf = (href: string) => new URL(href, "https://dirework.example").searchParams;
+
+  it("flags the dashboard preview's src, which the overlay page reads back", () => {
+    for (const kind of ["timer", "tasks"] as const) {
+      const path = overlayPath(kind, "abc") ?? "";
+      expect(overlayPreviewSrc(path)).toBe(`${path}?preview=1`);
+      expect(isOverlayPreview(searchOf(overlayPreviewSrc(path)))).toBe(true);
+      // An OBS source loads the plain URL.
+      expect(isOverlayPreview(searchOf(path))).toBe(false);
+    }
+  });
+
+  it("treats any other value as an OBS source", () => {
+    for (const query of ["?preview=0", "?preview=", "?preview=true", "?Preview=1", "?view=1"]) {
+      expect(isOverlayPreview(searchOf(`/overlay/l/abc${query}`)), query).toBe(false);
+    }
   });
 });
 

@@ -1,10 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 
-import { timerOverlayView } from "@/lib/overlay-view";
-import { OVERLAY_POLL_MS } from "@/lib/poll-intervals";
+import { isOverlayPreview, timerOverlayView } from "@/lib/overlay-view";
+import { OVERLAY_POLL_QUERY_OPTS } from "@/lib/poll-intervals";
 import { AutoScale } from "@/components/auto-scale";
 import { FontGate } from "@/components/font-gate";
 import { TimerDisplay } from "@/components/timer-display";
@@ -12,6 +12,8 @@ import { publicTrpc } from "@/utils/trpc";
 
 export default function TimerOverlayPage() {
   const { token } = useParams<{ token: string }>();
+  // The dashboard's live preview loads this page with `?preview=1`; OBS loads the plain URL.
+  const preview = isOverlayPreview(useSearchParams());
 
   // Polls the api worker directly (token auth, no cookies) — no same-origin
   // proxy hop for high-frequency overlay traffic. React Query keeps the last
@@ -22,11 +24,10 @@ export default function TimerOverlayPage() {
     queryFn: () => publicTrpc.overlay.getTimerState.mutate({ token }),
     enabled: Boolean(token),
     // The countdown ticks locally inside TimerDisplay from targetEndTime; the
-    // poll only picks up phase changes and style edits.
-    refetchInterval: OVERLAY_POLL_MS,
-    refetchIntervalInBackground: true,
-    // Unattended OBS source: a failed poll must never toast onto the stream.
-    meta: { silent: true },
+    // poll only picks up phase changes and style edits. An OBS source polls in
+    // the background too; the preview stops while its dashboard tab is hidden.
+    ...OVERLAY_POLL_QUERY_OPTS,
+    refetchIntervalInBackground: !preview,
   });
 
   // Nothing until the first payload lands, and nothing for an invalid or reset

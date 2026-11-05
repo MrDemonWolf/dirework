@@ -14,6 +14,11 @@ import {
 // One owner, one task list: these build on each other, so they run in order.
 test.describe.configure({ mode: "serial" });
 
+/** The overlay cadence (OVERLAY_POLL_MS, apps/web/src/lib/poll-intervals.ts). */
+const OVERLAY_POLL_MS = 5_000;
+/** Any timer digits; while idle the overlay previews the full work length (25:00). */
+const CLOCK_DIGITS = /^\d{2}:\d{2}$/;
+
 test.beforeEach(async ({ page }) => {
   await signIn(page);
   watchHydration(page);
@@ -215,6 +220,64 @@ test("Live preview opens as the timer card's right-hand column on a wide screen"
   const tasksToggle = page.getByRole("button", { name: "Live preview of the tasks overlay" });
   await expect(tasksToggle).toHaveAttribute("aria-pressed", "false");
   await expect(tasksToggle).toBeFocused();
+});
+
+test("the live preview stops polling while the dashboard tab is hidden; an OBS source does not", async ({
+  page,
+  context,
+}) => {
+  // Two overlay pages watched for more than a full poll interval each.
+  test.setTimeout(60_000);
+  const isTimerPoll = (request: { url(): string }) =>
+    request.url().includes("overlay.getTimerState");
+  // How a background tab looks to a page, and to an iframe in it: hidden, then a
+  // visibilitychange (React Query's focus manager reads both).
+  const setHidden = (hidden: boolean) => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => (hidden ? "hidden" : "visible"),
+    });
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => hidden });
+    document.dispatchEvent(new Event("visibilitychange", { bubbles: true }));
+  };
+
+  // OBS gets the plain URL from the row.
+  const obsUrl = new URL(await revealSecretUrl(page, "Timer overlay"), page.url());
+  expect(obsUrl.search).toBe("");
+  const obs = await context.newPage();
+  await obs.goto(obsUrl.href);
+  await expect(obs.getByText(CLOCK_DIGITS)).toBeVisible();
+
+  // The preview loads the same overlay page, flagged as a preview.
+  await page.getByRole("button", { name: "Live preview of the timer overlay" }).click();
+  const stage = page.locator('iframe[title="Timer overlay preview"]');
+  await expect(stage).toHaveAttribute("src", `${obsUrl.pathname}?preview=1`);
+  await expect(
+    page.frameLocator('iframe[title="Timer overlay preview"]').getByText(CLOCK_DIGITS),
+  ).toBeVisible();
+  const preview = await (await stage.elementHandle())?.contentFrame();
+  if (!preview) throw new Error("the preview iframe has no frame");
+
+  await preview.evaluate(setHidden, true);
+  await obs.evaluate(setHidden, true);
+  // Let a poll that was already on the wire report before counting.
+  await page.waitForTimeout(500);
+  const polls = { preview: 0, obs: 0 };
+  page.on("request", (request) => {
+    if (isTimerPoll(request)) polls.preview += 1;
+  });
+  obs.on("request", (request) => {
+    if (isTimerPoll(request)) polls.obs += 1;
+  });
+  await page.waitForTimeout(OVERLAY_POLL_MS + 1_500);
+  expect(polls.obs, "an OBS source keeps polling in the background").toBeGreaterThanOrEqual(1);
+  expect(polls.preview, "a hidden preview must not poll").toBe(0);
+
+  // Shown again, the preview is back on the overlay cadence.
+  const resumed = page.waitForRequest(isTimerPoll, { timeout: OVERLAY_POLL_MS + 3_000 });
+  await preview.evaluate(setHidden, false);
+  await resumed;
+  await obs.close();
 });
 
 test("on a 320px phone a long active task wraps in full across the row", async ({ page }) => {

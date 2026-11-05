@@ -3,7 +3,8 @@
  * free-tier daily budget, so retune these here, never inline, and keep each
  * one's request count in its comment.
  *
- * Overlays poll even in the background (OBS sources are never "visible");
+ * Overlays poll even in the background (OBS sources are never "visible"),
+ * except the dashboard's live preview of one (OVERLAY_POLL_QUERY_OPTS);
  * dashboard queries stop when the tab is hidden, and slow to
  * DASHBOARD_IDLE_POLL_MS while the tab is visible but nobody has touched it
  * for DASHBOARD_IDLE_AFTER_MS. A dashboard request is billed twice (the web
@@ -112,4 +113,20 @@ export function dashboardPollInterval(activeMs: number): () => number {
 export const DASHBOARD_TIMER_QUERY_OPTS = {
   refetchInterval: dashboardPollInterval(DASHBOARD_TIMER_POLL_MS),
   refetchOnWindowFocus: false,
+} as const;
+
+/**
+ * Shared by both OBS overlay pages: every OVERLAY_POLL_MS, in the background too (an OBS
+ * source is never "visible"), and silent (a failed poll must never toast onto the stream;
+ * the last good payload stays up). The dashboard's live preview loads the same pages with
+ * `?preview=1`, and they set `refetchIntervalInBackground: !preview` after spreading these:
+ * a preview polls on this cadence only while its dashboard tab is visible, skips every tick
+ * while it is hidden, and refetches once on return if the payload is older than
+ * QUERY_FRESH_MS. That saves up to 720 api requests an hour (plus their D1 reads) per
+ * hidden dashboard tab left with the preview on; OBS sources load the plain URL, unchanged.
+ */
+export const OVERLAY_POLL_QUERY_OPTS = {
+  refetchInterval: OVERLAY_POLL_MS,
+  refetchIntervalInBackground: true,
+  meta: { silent: true },
 } as const;
