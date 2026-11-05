@@ -1,3 +1,7 @@
+// A relative import, not a workspace dependency: overlay-kit's "." entry is plain,
+// import-free TypeScript, so tsx runs it as is and infra gains no package edge.
+import { BRAND } from "../overlay-kit/src/index";
+
 const REQUIRED_DEPLOY_VALUES = [
   "CLOUDFLARE_API_TOKEN",
   "ALCHEMY_PASSWORD",
@@ -25,6 +29,13 @@ export const COMPATIBILITY_DATE = "2026-04-24";
  * always used so existing state carries over unchanged.
  */
 export const DEPLOY_STAGE = "runner";
+
+/**
+ * Both workers' DOCS_URL when the operator leaves it unset: the public docs site
+ * (`BRAND.links.docs`). The api worker's !dwhelp reply and the web landing's docs links
+ * read it; apps/web's landing-links.ts falls back to the same value.
+ */
+export const DEFAULT_DOCS_URL = BRAND.links.docs;
 
 export function resolveDeployStage(env: DeployEnvironment): string {
   return env.ALCHEMY_STAGE?.trim() || DEPLOY_STAGE;

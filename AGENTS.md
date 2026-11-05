@@ -430,7 +430,7 @@ packages/db        → Drizzle ORM schema + createDb() (drizzle-orm/d1) + migrat
 packages/env       → cloudflare:workers bindings (server), t3-env (web)
 packages/infra     → Alchemy IaC (both workers + D1)
 packages/fonts     → self-hosted UI woff2 files (Montserrat, IBM Plex Sans/Mono) both apps load via next/font/local; no code
-packages/overlay-kit → pure overlay geometry (squircle path), clock formatting, task status/tint rules, `BRAND` copy, the `BRAND_MARK` logo geometry (web header, docs `BrandMark`, share card; `brand-mark.test.ts` holds both favicons to it) and `DEMO_SESSION` demo data, shared by web overlays and docs mocks; zero runtime deps. Subpath `./share-card` (`ShareCard`, its only JSX, `react` peer) is the one OG card both apps render
+packages/overlay-kit → pure overlay geometry (squircle path), clock formatting, task status/tint rules, `BRAND` copy plus the project URLs and owner (`BRAND.links` repo/docs/support, `BRAND.owner`; `project-urls.test.ts` keeps them from being re-typed in either app or infra), the `BRAND_MARK` logo geometry (web header, docs `BrandMark`, share card; `brand-mark.test.ts` holds both favicons to it) and `DEMO_SESSION` demo data, shared by web overlays and docs mocks; zero runtime deps. Subpath `./share-card` (`ShareCard`, its only JSX, `react` peer) is the one OG card both apps render
 packages/e2e       → Playwright browser tests: both workers in local workerd over a fresh local D1 (CI gate)
 packages/config    → Shared TypeScript configuration
 ```
@@ -1739,7 +1739,8 @@ generated files (`apps/web/public/fonts/*`, migration snapshots, `wrangler.jsonc
 Both the web app and docs site use the same footer format:
 `© {year} DireWork by MrDemonWolf, Inc.` — both names are links (no underline,
 font-medium, hover highlight; in the web app that is `linkVariants({ variant: "quiet" })`). "DireWork" → GitHub repo, "MrDemonWolf, Inc." →
-mrdemonwolf.com.
+mrdemonwolf.com. Both read the URLs and the owner name from `BRAND.links.repo` /
+`BRAND.owner` (`@dirework/overlay-kit`), never a literal.
 
 - Web app: inline in `apps/web/src/app/(app)/layout.tsx`
 - Docs: shared `Footer` component in `apps/fumadocs/src/components/footer.tsx`

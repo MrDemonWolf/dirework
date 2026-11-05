@@ -11,6 +11,7 @@ import { config } from "dotenv";
 import {
   assertProductionEnvironment,
   COMPATIBILITY_DATE,
+  DEFAULT_DOCS_URL,
   getDevLoginSettings,
   resolveDevLoginSecret,
   rateLimitBindingsFor,
@@ -161,7 +162,7 @@ export const server = await Worker("server", {
     TWITCH_CLIENT_SECRET: alchemy.secret.env.TWITCH_CLIENT_SECRET!,
     // Verifies the web worker's forwarded client IP (rate-limit keying).
     PROXY_SECRET: proxySecret,
-    DOCS_URL: process.env.DOCS_URL || "https://dirework.mrdemonwolf.dev",
+    DOCS_URL: process.env.DOCS_URL || DEFAULT_DOCS_URL,
     // Local Alchemy dev only. Production validation rejects either bypass flag,
     // and getDevLoginSettings independently forces this binding off unless the
     // current command explicitly includes --dev.
@@ -214,7 +215,7 @@ export const web = await Nextjs("web", {
     TERMS_OF_SERVICE_URL: process.env.TERMS_OF_SERVICE_URL || "",
     // The viewer landing page's "Deploy your own" / "Read the docs" links (same value the
     // api worker's !dwhelp reply uses).
-    DOCS_URL: process.env.DOCS_URL || "https://dirework.mrdemonwolf.dev",
+    DOCS_URL: process.env.DOCS_URL || DEFAULT_DOCS_URL,
     // Runtime-only (never NEXT_PUBLIC_): signs the browser IP the proxy
     // forwards to the api worker — see packages/api/src/proxy-identity.ts.
     PROXY_SECRET: proxySecret,

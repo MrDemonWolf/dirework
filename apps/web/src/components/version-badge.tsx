@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 
+import { BRAND } from "@dirework/overlay-kit";
+
 import { statusChipClassName } from "@/components/status-chip";
 import { scheduleVersionCheck } from "@/lib/version-check";
 
-const REPO = "https://github.com/mrdemonwolf/dirework";
+const REPO = BRAND.links.repo;
 
 /**
  * Footer deploy readout: `· <short sha>`, linked to the commit on GitHub. Every

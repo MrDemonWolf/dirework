@@ -3,6 +3,8 @@
 // shared with the web app's footer in apps/web/src/app/(app)/layout.tsx.
 
 import Link from "next/link";
+
+import { BRAND } from "@dirework/overlay-kit";
 import { BrandMark } from "@/lib/layout.shared";
 
 /** Footer nav columns: `[label, href]` pairs. External URLs go through next/link too. */
@@ -26,8 +28,8 @@ const groups = [
   {
     title: "Community",
     links: [
-      ["GitHub", "https://github.com/mrdemonwolf/dirework"],
-      ["Discord", "https://mrdwolf.net/discord"],
+      ["GitHub", BRAND.links.repo],
+      ["Discord", BRAND.links.support],
       ["Troubleshooting", "/docs/troubleshooting"],
     ],
   },
@@ -81,7 +83,7 @@ export function Footer() {
           <div className="leading-relaxed">
             &copy; {year}{" "}
             <a
-              href="https://github.com/mrdemonwolf/dirework"
+              href={BRAND.links.repo}
               target="_blank"
               rel="noopener noreferrer"
               className="font-medium transition-colors hover:text-fd-foreground"
@@ -90,12 +92,12 @@ export function Footer() {
             </a>{" "}
             by{" "}
             <a
-              href="https://www.mrdemonwolf.com"
+              href={BRAND.owner.url}
               target="_blank"
               rel="noopener noreferrer"
               className="font-medium transition-colors hover:text-fd-foreground"
             >
-              MrDemonWolf, Inc.
+              {BRAND.owner.name}
             </a>
           </div>
           <div className="flex flex-wrap items-center gap-x-6">

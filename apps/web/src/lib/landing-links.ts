@@ -2,13 +2,15 @@
 // menu. Pure, so the URL building is unit-tested; the server components pass in the web
 // worker's DOCS_URL binding (packages/infra/alchemy.run.ts).
 
-/** The public docs site, used when the operator leaves DOCS_URL unset (same as the api worker). */
-export const DEFAULT_DOCS_URL = "https://dirework.mrdemonwolf.dev";
+import { BRAND } from "@dirework/overlay-kit";
 
-export const REPO_URL = "https://github.com/mrdemonwolf/dirework";
+/** The public docs site, used when the operator leaves DOCS_URL unset (same as the api worker). */
+export const DEFAULT_DOCS_URL = BRAND.links.docs;
+
+export const REPO_URL = BRAND.links.repo;
 
 /** MrDemonWolf's Discord — the README's Contact channel. */
-export const SUPPORT_URL = "https://mrdwolf.net/discord";
+export const SUPPORT_URL = BRAND.links.support;
 
 export interface LandingLinks {
   docs: string;

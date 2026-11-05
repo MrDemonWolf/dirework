@@ -1,8 +1,10 @@
 import type { MetadataRoute } from "next";
 
+import { BRAND } from "@dirework/overlay-kit";
+
 import { source } from "@/lib/source";
 
-const BASE = "https://dirework.mrdemonwolf.dev";
+const BASE = BRAND.links.docs;
 
 // Static export → emit sitemap.xml at build for the GitHub Pages site.
 export const dynamic = "force-static";

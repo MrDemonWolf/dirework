@@ -4,6 +4,8 @@
 
 import type { Metadata } from "next";
 
+import { BRAND } from "@dirework/overlay-kit";
+
 import { AppToaster } from "@/components/app-toaster";
 import Header from "@/components/header";
 import Providers from "@/components/providers";
@@ -86,7 +88,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <span>
               &copy; {new Date().getFullYear()}{" "}
               <a
-                href="https://github.com/mrdemonwolf/dirework"
+                href={BRAND.links.repo}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={linkVariants({ variant: "quiet" })}
@@ -95,12 +97,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </a>{" "}
               by{" "}
               <a
-                href="https://www.mrdemonwolf.com"
+                href={BRAND.owner.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={linkVariants({ variant: "quiet" })}
               >
-                MrDemonWolf, Inc.
+                {BRAND.owner.name}
               </a>
             </span>
             {/* Renders its own leading separator, so nothing dangles when there is no SHA.
