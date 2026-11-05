@@ -3,8 +3,11 @@
 
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 
+import { BRAND_MARK } from "@dirework/overlay-kit";
+
 /**
- * Inline brand mark — the DireWork wolf-and-clock (wolf + Pomodoro) plus wordmark. Colored by
+ * Inline brand mark — the DireWork wolf-and-clock (`BRAND_MARK` from @dirework/overlay-kit,
+ * shared with the web header and the share card) plus wordmark. Colored by
  * the `--brand-500` / `--txt-1` tokens so it follows the light/dark theme; the SVG is
  * decorative (the adjacent wordmark or the wrapping link's label names it).
  */
@@ -14,24 +17,25 @@ export function BrandMark() {
       <svg
         width="26"
         height="26"
-        viewBox="0 0 64 64"
+        viewBox={BRAND_MARK.viewBox}
         fill="none"
         stroke="var(--brand-500)"
-        strokeWidth={3}
+        strokeWidth={BRAND_MARK.strokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
         aria-hidden="true"
         style={{ flexShrink: 0 }}
       >
-        <path d="M14 30L20 8l10 18" />
-        <path d="M50 30L44 8l-10 18" />
-        <path d="M12 30c-1 10 4 18 12 22l8 6 8-6c8-4 13-12 12-22" />
-        <circle cx="23" cy="36" r="2.5" fill="var(--brand-500)" stroke="none" />
-        <circle cx="41" cy="36" r="2.5" fill="var(--brand-500)" stroke="none" />
-        <path d="M28 46l4 4 4-4" />
-        <circle cx="32" cy="24" r="7" strokeWidth={2.5} />
-        <line x1="32" y1="24" x2="32" y2="19" strokeWidth={2.5} />
-        <line x1="32" y1="24" x2="36" y2="24" strokeWidth={2.5} />
+        {BRAND_MARK.paths.map((d) => (
+          <path key={d} d={d} />
+        ))}
+        {BRAND_MARK.eyes.map((eye) => (
+          <circle key={eye.cx} {...eye} fill="var(--brand-500)" stroke="none" />
+        ))}
+        <circle {...BRAND_MARK.clock.face} strokeWidth={BRAND_MARK.clock.strokeWidth} />
+        {BRAND_MARK.clock.hands.map((hand) => (
+          <line key={hand.y2} {...hand} strokeWidth={BRAND_MARK.clock.strokeWidth} />
+        ))}
       </svg>
       <span
         className="dw-display"

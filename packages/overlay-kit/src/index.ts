@@ -174,6 +174,39 @@ export const BRAND = {
     "Run Pomodoro sessions, show shared tasks, and let viewers join from chat. One DireWork per channel, on your own Cloudflare account.",
 } as const;
 
+/**
+ * The wolf-and-clock logo mark as data (wolf ears, head and nose strokes, two filled eyes, a
+ * clock face with two hands), on a 64×64 box. The web header, the docs `BrandMark` and the
+ * share card render it, each with its own color and accessibility attributes; the two static
+ * favicons (apps/web/public/icons/icon.svg, apps/fumadocs/src/app/icon.svg) can't import it,
+ * so brand-mark.test.ts holds them to it. Draw the paths and clock with round caps and joins,
+ * the paths at `strokeWidth` and the clock at `clock.strokeWidth`; the eyes are fill only.
+ */
+export const BRAND_MARK = {
+  viewBox: "0 0 64 64",
+  strokeWidth: 3,
+  /** Left ear, right ear, head outline, nose. */
+  paths: [
+    "M14 30L20 8l10 18",
+    "M50 30L44 8l-10 18",
+    "M12 30c-1 10 4 18 12 22l8 6 8-6c8-4 13-12 12-22",
+    "M28 46l4 4 4-4",
+  ],
+  eyes: [
+    { cx: 23, cy: 36, r: 2.5 },
+    { cx: 41, cy: 36, r: 2.5 },
+  ],
+  clock: {
+    strokeWidth: 2.5,
+    face: { cx: 32, cy: 24, r: 7 },
+    /** Hour hand (up), minute hand (right). */
+    hands: [
+      { x1: 32, y1: 24, x2: 32, y2: 19 },
+      { x1: 32, y1: 24, x2: 36, y2: 24 },
+    ],
+  },
+} as const;
+
 // ── Demo session ─────────────────────────────────────────────────────────────
 // One fictional co-working session that every mock renders — the docs hero
 // scene and overlay previews, the share cards, the web landing — so the
