@@ -13,6 +13,18 @@ const webDir = path.resolve(__dirname, "../../..");
 describe("web app manifest", () => {
   const m = manifest();
 
+  it("serves both site icons as static assets declared in root metadata", () => {
+    expect(existsSync(path.join(webDir, "src/app/icon.svg"))).toBe(false);
+    expect(existsSync(path.join(webDir, "src/app/apple-icon.png"))).toBe(false);
+    expect(existsSync(path.join(webDir, "public/icons/icon.svg"))).toBe(true);
+    expect(existsSync(path.join(webDir, "public/icons/apple-icon.png"))).toBe(true);
+    const rootLayout = readFileSync(path.join(webDir, "src/app/layout.tsx"), "utf8");
+    expect(rootLayout).toContain(
+      'icon: { url: "/icons/icon.svg", type: "image/svg+xml", sizes: "any" }',
+    );
+    expect(rootLayout).toContain('apple: { url: "/icons/apple-icon.png", sizes: "180x180" }');
+  });
+
   it("opens the dashboard as a standalone app scoped to the whole origin", () => {
     expect(m.name).toBe("DireWork");
     expect(m.short_name).toBe("DireWork");
@@ -49,7 +61,7 @@ describe("web app manifest", () => {
   });
 
   it("ships an opaque 180x180 apple-touch-icon", () => {
-    const apple = path.join(webDir, "src/app/apple-icon.png");
+    const apple = path.join(webDir, "public/icons/apple-icon.png");
     expect(pngSize(apple)).toEqual({ width: 180, height: 180 });
     expect(pngHasNoAlpha(apple)).toBe(true);
   });

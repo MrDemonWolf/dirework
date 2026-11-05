@@ -23,6 +23,8 @@ export const SMOKE_ROUTES = [
   "/bot/smoke",
   "/manifest.webmanifest",
   "/og.png",
+  "/icons/icon.svg",
+  "/icons/apple-icon.png",
 ];
 
 /** The deploy check must come from the static asset, with a usable SHA. */
@@ -183,6 +185,13 @@ async function main() {
       else if (route === "/manifest.webmanifest")
         failures.push(...(await checkManifestResponse(res)));
       else if (route === "/og.png") failures.push(...(await checkOgImageResponse(res)));
+      else if (route.startsWith("/icons/")) {
+        const expectedType = route.endsWith(".svg") ? "image/svg+xml" : "image/png";
+        if (!res.headers.get("content-type")?.includes(expectedType))
+          failures.push(`${route} has wrong content-type`);
+        if (res.headers.has("x-nextjs-cache"))
+          failures.push(`${route} was served by the Next metadata route`);
+      }
     }
   } catch (error) {
     failures.push(error instanceof Error ? error.message : String(error));
