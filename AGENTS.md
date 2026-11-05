@@ -1562,9 +1562,10 @@ components (`apps/web/src/components/icons/`, `apps/fumadocs/src/components/icon
   reads `apps/web/.next/diagnostics/route-bundle-stats.json`, which Next writes on every
   Turbopack build (undocumented, so a missing or reshaped file fails the step), gzips each
   listed chunk once and sums per route. A route without a budget, or a budget without a route,
-  fails too; the table goes to the job summary. Its scan for `ZodError` / `drizzle:Name` in the
-  token pages' and the landing's chunks only reports until `ENFORCE_FORBIDDEN_MARKERS` is on:
-  zod and the D1 schema still reach every route through `config-shared`.
+  fails too; the table goes to the job summary. A `ZodError` / `drizzle:Name` in the token
+  pages' or the landing's chunks fails it as well (`ENFORCE_FORBIDDEN_MARKERS`, on since zod
+  and the D1 schema left the browser bundles); the dashboard isn't scanned, since Theme Center
+  and Replies validate with the save schemas.
 - `.github/workflows/codeql.yml` — CodeQL JavaScript/TypeScript analysis plus a separate
   GitHub Actions (workflow) analysis job, both with the `security-extended` query suite on
   pushes, PRs, and a weekly schedule.
