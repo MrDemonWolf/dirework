@@ -16,6 +16,16 @@
  */
 export const SQUIRCLE_RADIUS = 0.22;
 
+/** Strength (%) of the username-color tint behind the active task row. */
+export const ACTIVE_ROW_TINT_PERCENT = 10;
+
+/** Visible status at the end of a task row; only the focus row gets a tint. */
+export function taskStatusLabel(status: string): "Active" | "Started" | null {
+  if (status === "active") return "Active";
+  if (status === "started") return "Started";
+  return null;
+}
+
 /** Clamp a corner radius so it never exceeds half of either side. */
 function clampRadius(w: number, h: number, r: number): number {
   return Math.max(0, Math.min(r, w / 2, h / 2));

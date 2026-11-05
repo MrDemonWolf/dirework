@@ -44,7 +44,7 @@ It reads the streamer's saved task style, not the UI tokens.
 - **Started row** (a parked `started` task, up to two per author beside the focus): the
   same label slot reads **Started**, same color, size and floor, but the row gets **no
   tint**, so the one focus row still stands out. `taskStatusLabel(status)`
-  (`lib/overlay-view.ts`) picks the label; one element renders both, so they never drift
+  (`@dirework/overlay-kit`, re-exported by `lib/overlay-view.ts`) picks the label; one element renders both, so they never drift
   apart. The server already orders each author's rows focus → started → rest.
 - **"+N more" footer** (scroll off): only whole rows show. A row that doesn't fit is
   hidden, never drawn half cut; every row after it is hidden too; an author header shows

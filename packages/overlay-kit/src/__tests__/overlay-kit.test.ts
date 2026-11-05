@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   BRAND,
+  ACTIVE_ROW_TINT_PERCENT,
   DEMO_SESSION,
   SQUIRCLE_RADIUS,
   cssLengthToPx,
@@ -10,7 +11,18 @@ import {
   quoteFontFamily,
   roundedRectPath,
   roundedRectPerimeter,
+  taskStatusLabel,
 } from "../index";
+
+describe("taskStatusLabel", () => {
+  it("marks only active and started tasks", () => {
+    expect(ACTIVE_ROW_TINT_PERCENT).toBe(10);
+    expect(taskStatusLabel("active")).toBe("Active");
+    expect(taskStatusLabel("started")).toBe("Started");
+    expect(taskStatusLabel("pending")).toBeNull();
+    expect(taskStatusLabel("done")).toBeNull();
+  });
+});
 
 describe("SQUIRCLE_RADIUS", () => {
   it("is the canonical 22% squircle fraction", () => {

@@ -7,14 +7,19 @@
  * per theme by OverlayThemePreview.
  */
 
-import { DEMO_SESSION, type DemoTask } from "@dirework/overlay-kit";
+import {
+  ACTIVE_ROW_TINT_PERCENT,
+  DEMO_SESSION,
+  taskStatusLabel,
+  type DemoTask,
+} from "@dirework/overlay-kit";
 
 import {
   OVERLAY_THEMES,
   DEFAULT_OVERLAY_THEME,
   type OverlayTheme,
 } from "./overlay-themes.generated";
-import { authorPalette, hexToRgba } from "./theme-util";
+import { hexToRgba } from "./theme-util";
 
 type Group = { author: string; tasks: DemoTask[] };
 
@@ -78,9 +83,6 @@ export function TaskListWidget({
     >
       {GROUPS.map((g, gi) => {
         const done = g.tasks.filter((t) => t.status === "done").length;
-        // Palette picks AA-safe name colors for light vs dark theme backgrounds; it has
-        // three entries, so groups cycle through them.
-        const authorColor = authorPalette(theme.bg)[gi % 3];
         return (
           <div key={g.author} style={{ marginBottom: gi === GROUPS.length - 1 ? 0 : 10 }}>
             <div
@@ -97,7 +99,7 @@ export function TaskListWidget({
                 fontWeight: 700,
               }}
             >
-              <span style={{ color: authorColor }}>{g.author}</span>
+              <span style={{ color: theme.username }}>{g.author}</span>
               <span style={{ color: hexToRgba(theme.text, 0.55), fontSize: 14 }}>
                 {done}/{g.tasks.length}
               </span>
@@ -113,6 +115,7 @@ export function TaskListWidget({
               {g.tasks.map((t, i) => {
                 const isDone = t.status === "done";
                 const isActive = t.status === "active";
+                const statusLabel = taskStatusLabel(t.status);
                 return (
                   <div
                     key={t.text}
@@ -121,9 +124,9 @@ export function TaskListWidget({
                       alignItems: "flex-start",
                       background: isDone
                         ? hexToRgba(theme.text, 0.04)
-                        : hexToRgba(theme.text, isActive ? 0.12 : 0.08),
-                      // Accent edge marks the task the viewer is working on right now.
-                      boxShadow: isActive ? `inset 3px 0 0 ${theme.accent}` : undefined,
+                        : isActive
+                          ? `color-mix(in srgb, ${theme.username} ${ACTIVE_ROW_TINT_PERCENT}%, transparent)`
+                          : "transparent",
                       borderRadius: 10,
                       padding: "9px 12px",
                       marginBottom: i === g.tasks.length - 1 ? 0 : 4,
@@ -140,22 +143,21 @@ export function TaskListWidget({
                     >
                       {t.text}
                     </span>
-                    {/* A parked `started` task: a label in the author color, like the overlay (no edge, no tint). */}
-                    {t.status === "started" && (
+                    {statusLabel && (
                       <span
                         style={{
                           marginLeft: "auto",
                           paddingLeft: 10,
                           alignSelf: "center",
-                          color: authorColor,
-                          fontSize: 11,
+                          color: theme.username,
+                          fontSize: 14,
                           fontWeight: 700,
                           letterSpacing: "0.1em",
                           textTransform: "uppercase",
                           whiteSpace: "nowrap",
                         }}
                       >
-                        Started
+                        {statusLabel}
                       </span>
                     )}
                   </div>
