@@ -79,15 +79,6 @@ function timeStamp(): string {
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
 }
 
-/** `HH:MM:SS`; hours keep growing past 99 rather than wrapping into days. */
-function formatUptime(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
-}
-
 /**
  * The bot page. Wires `createBotSession` (state machine in lib/bot-session.ts) to React state;
  * it talks to the api worker directly via `publicTrpc` (token in the POST body, no cookies),
@@ -112,7 +103,6 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
   // The latest error the session logged (Twitch refusing a reply, a dropped command…), kept
   // so the status can say "Chat error" (the dock's header, the widget's tab title).
   const [chatErrorState, setChatErrorState] = useState<ChatErrorState | null>(null);
-  const [nowTick, setNowTick] = useState(0);
   // The newest error line, kept apart from the 20-line feed so the dock can show it after
   // it scrolls out.
   const [lastError, setLastError] = useState<{ time: string; text: string } | null>(null);
@@ -143,17 +133,6 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
   // A reply-cleared chat error goes away at the end of its window: one timeout per deadline,
   // re-armed whenever the state changes, and nothing armed while no error can expire.
   useEffect(() => watchChatErrorExpiry(chatErrorState, setChatErrorState), [chatErrorState]);
-
-  // 1s ticker for the dock's uptime — coarse, safe under background throttling. The widget
-  // shows no uptime, so it never ticks (a page left open all stream, maybe on a phone,
-  // shouldn't re-render every second).
-  const tickerNeeded = view === "dock";
-  useEffect(() => {
-    if (!tickerNeeded) return;
-    setNowTick(Date.now());
-    const timer = setInterval(() => setNowTick(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [tickerNeeded]);
 
   useEffect(() => {
     if (!token) return;
@@ -325,7 +304,8 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
       muted={muted}
       channelName={channelName}
       botUsername={botUsername}
-      uptime={connectedAt && nowTick && !standby ? formatUptime(nowTick - connectedAt) : "—"}
+      // The dock's uptime clock ticks in its own leaf (DockUptime), never here.
+      connectedAt={standby ? null : connectedAt}
       counters={counters}
       activity={activity}
       lastError={lastError}

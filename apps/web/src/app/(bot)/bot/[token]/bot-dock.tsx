@@ -13,7 +13,7 @@
  */
 
 import { RotateCw } from "lucide-react";
-import { type ReactNode, useRef } from "react";
+import { type ReactNode, useRef, useSyncExternalStore } from "react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
@@ -23,7 +23,7 @@ import {
   type DockControls,
 } from "@/lib/bot-dock-commands";
 import type { BotActivityKind, BotPhase } from "@/lib/bot-session";
-import { recentCommandLines, type BotActivityLine } from "@/lib/bot-view";
+import { formatUptime, recentCommandLines, type BotActivityLine } from "@/lib/bot-view";
 
 /** Command lines (and replies) the dock lists. */
 const RECENT_LIMIT = 20;
@@ -64,6 +64,27 @@ function Section({
   );
 }
 
+/** A 1s clock store: subscribed only while a DockUptime is mounted. */
+function subscribeSecond(onTick: () => void): () => void {
+  const timer = setInterval(onTick, 1000);
+  return () => clearInterval(timer);
+}
+/** The current second: stable within a second, as useSyncExternalStore requires. */
+const currentSecond = () => Math.floor(Date.now() / 1000);
+/** The server render (and hydration) shows no clock, so the HTML never carries a stale time. */
+const noSecond = () => null;
+
+/**
+ * The dock's uptime, the page's only 1s clock. A leaf, mounted only while uptime shows (an
+ * IRC connect happened and the page isn't on standby), so a tick re-renders this text alone,
+ * never BotConsole or the rest of the dock, and nothing ticks in standby, boot, the terminal
+ * notice or the widget.
+ */
+function DockUptime({ since }: { since: number }) {
+  const second = useSyncExternalStore(subscribeSecond, currentSecond, noSecond);
+  return second === null ? "—" : formatUptime(second * 1000 - since);
+}
+
 export function BotDock({
   ledClass,
   statusText,
@@ -71,7 +92,7 @@ export function BotDock({
   muted,
   channelName,
   botUsername,
-  uptime,
+  connectedAt,
   counters,
   activity,
   lastError,
@@ -89,7 +110,8 @@ export function BotDock({
   muted: boolean;
   channelName: string;
   botUsername: string;
-  uptime: string;
+  /** The first IRC connect of this page load, or null when uptime doesn't show (standby). */
+  connectedAt: number | null;
   counters: { seen: number; commands: number; replies: number };
   activity: readonly BotActivityLine[];
   lastError: { time: string; text: string } | null;
@@ -187,7 +209,7 @@ export function BotDock({
           [
             ["Channel", channelName ? `#${channelName}` : "—"],
             ["Bot", botUsername || "—"],
-            ["Uptime", uptime],
+            ["Uptime", connectedAt === null ? "—" : <DockUptime since={connectedAt} />],
             ["Seen / cmds", `${counters.seen} / ${counters.commands}`],
           ] as const
         ).map(([term, value]) => (

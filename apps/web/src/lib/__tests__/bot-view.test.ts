@@ -4,6 +4,7 @@ import {
   BOT_TERMINAL_HEADINGS,
   botPagePath,
   botPageTitle,
+  formatUptime,
   isTerminalBotPhase,
   parseBotView,
   recentCommandLines,
@@ -85,5 +86,15 @@ describe("isTerminalBotPhase", () => {
     const terminal = phases.filter(isTerminalBotPhase);
     expect(terminal).toEqual(["invalid", "revoked", "reauth"]);
     expect(Object.keys(BOT_TERMINAL_HEADINGS).sort()).toEqual([...terminal].sort());
+  });
+});
+
+describe("formatUptime", () => {
+  it("is HH:MM:SS, floors partial seconds, and grows past 99 hours instead of wrapping", () => {
+    expect(formatUptime(0)).toBe("00:00:00");
+    expect(formatUptime(-5_000)).toBe("00:00:00");
+    expect(formatUptime(61_999)).toBe("00:01:01");
+    expect(formatUptime((3 * 3600 + 4 * 60 + 5) * 1000)).toBe("03:04:05");
+    expect(formatUptime(100 * 3600 * 1000)).toBe("100:00:00");
   });
 });

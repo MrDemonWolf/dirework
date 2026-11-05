@@ -43,6 +43,13 @@ export function isTerminalBotPhase(phase: BotPhase): phase is BotTerminalPhase {
   return phase === "invalid" || phase === "revoked" || phase === "reauth";
 }
 
+/** The dock's uptime, `HH:MM:SS`; hours keep growing past 99 rather than wrapping into days. */
+export function formatUptime(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+  return `${pad2(Math.floor(total / 3600))}:${pad2(Math.floor((total % 3600) / 60))}:${pad2(total % 60)}`;
+}
+
 export interface BotActivityLine {
   id: number;
   time: string;
