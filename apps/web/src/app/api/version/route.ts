@@ -1,8 +1,6 @@
-// Reports the commit SHA of the *currently deployed* web worker. An open
-// dashboard tab holds the SHA baked into its JS at load time; polling this and
-// finding a different SHA means a newer deploy is live and the tab is stale.
-// force-dynamic + no-store so it always reflects the running worker, not a
-// cached response from the previous deploy.
+// Reports the *currently deployed* web worker's commit for smoke and uptime
+// checks. Owner tabs use the free static /version.json asset for their polling.
+// force-dynamic + no-store keeps this probe tied to the running worker.
 export const dynamic = "force-dynamic";
 
 export function GET() {

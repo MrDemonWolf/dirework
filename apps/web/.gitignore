@@ -58,6 +58,7 @@ dev-dist
 .dev.vars*
 
 .open-next
+/public/version.json
 
 # The share card, rendered by scripts/render-og.ts at the start of every build
 /public/og.png

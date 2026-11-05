@@ -17,12 +17,29 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 /** Routes that must answer 200 from the bundle alone (no api, no D1). */
 export const SMOKE_ROUTES = [
   "/api/version",
+  "/version.json",
   "/overlay/t/smoke",
   "/overlay/l/smoke",
   "/bot/smoke",
   "/manifest.webmanifest",
   "/og.png",
 ];
+
+/** The deploy check must come from the static asset, with a usable SHA. */
+export async function checkVersionResponse(res) {
+  const failures = [];
+  if (res.headers.has("x-nextjs-cache")) failures.push("version asset ran through Next");
+  if (res.headers.get("cache-control") !== "no-cache")
+    failures.push("version asset must revalidate");
+  try {
+    const body = await res.json();
+    if (typeof body.sha !== "string" || body.sha.length === 0)
+      failures.push("version asset has no SHA");
+  } catch {
+    failures.push("version asset body is not JSON");
+  }
+  return failures;
+}
 
 /**
  * Extra checks for the install manifest (app/manifest.ts): a browser ignores a manifest
@@ -162,6 +179,7 @@ async function main() {
       const res = await fetch(`${base}${route}`, { signal: AbortSignal.timeout(30_000) });
       console.log(`${res.status} ${route}`);
       if (res.status !== 200) failures.push(`${route} answered ${res.status}`);
+      else if (route === "/version.json") failures.push(...(await checkVersionResponse(res)));
       else if (route === "/manifest.webmanifest")
         failures.push(...(await checkManifestResponse(res)));
       else if (route === "/og.png") failures.push(...(await checkOgImageResponse(res)));

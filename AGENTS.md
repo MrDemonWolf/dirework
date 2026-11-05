@@ -189,9 +189,9 @@ OBS source (the plain URL) keeps polling in the background. The footer's
 new-deploy check (`VersionBadge` → `lib/version-check.ts`, React-free, fake-timer tested)
 runs only in the signed-in owner's tab (the `(app)` layout passes `checkForUpdates` from its
 session; viewers on `/` and `/setup` get a static badge) and only while that tab is visible:
-one no-store `/api/version` request per `VERSION_CHECK_MS` (5 min, ≤12/hour), a return to the
-tab checks only once that much has passed since the last check, and checking stops once the
-tab is stale (the Reload chip shows).
+one static `/version.json` revalidation per `VERSION_CHECK_MS` (5 min, ≤12/hour, 0 Worker
+requests). A return to the tab checks only once that much has passed since the last check,
+and checking stops once the tab is stale (the Reload chip shows).
 **A lapsed sign-in stops the dashboard** (`lib/auth-lapse.ts`): when an `/rpc` call comes
 back UNAUTHORIZED or FORBIDDEN (signed out in another tab, a revoked session), or an edge
 sign-in wall such as Cloudflare Access answers with a redirect (the `/rpc` fetch,
@@ -1419,12 +1419,13 @@ components (`apps/web/src/components/icons/`, `apps/fumadocs/src/components/icon
   still runs but only emits a `::warning::` annotation (`continue-on-error`) — an
   advisory published today must never block a revert or hotfix. A test in
   `packages/infra/__tests__/workflow-security.test.ts` pins this split.
-  The web app is built with `build:worker` (OpenNext build + wasm fix + static-assets cache
-  population) — the exact script Alchemy runs at deploy — so that pipeline fails here,
-  not after migrations are applied. Then `smoke:worker` (`apps/web/scripts/smoke-worker.mjs`)
+  The web app is built with `build:worker` (static version.json + OpenNext build + wasm fix +
+  static-assets cache population) — the exact script Alchemy runs at deploy — so that
+  pipeline fails here, not after migrations are applied. Then `smoke:worker`
+  (`apps/web/scripts/smoke-worker.mjs`)
   boots that bundle in local workerd with Alchemy's compatibility date and flags and
-  requires 200 from routes that need no api (`/api/version`, both overlays, the bot
-  page): a bundle can build and still throw on every request (Next 16.4 under OpenNext
+  requires 200 from routes that need no api (`/api/version`, `/version.json`, both overlays,
+  the bot page): a bundle can build and still throw on every request (Next 16.4 under OpenNext
   1.20.9 did, in production — `Unexpected loadManifest(...preview-props.json)`). Between
   `build:worker` and `smoke:worker`, `packages/infra/bundle-budget.ts` checks both Worker
   bundles against Cloudflare's real limit, `UNCOMPRESSED_LIMIT_KIB` (64 MiB uncompressed on
