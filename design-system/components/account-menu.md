@@ -48,7 +48,7 @@ failed chunk load after a deploy reloads the page), signs out, and refreshes the
   matches `/^Docs/` and `/^Report a problem/`; it clicks `menuitem` "Sign out".
 - The initial is drawn with CSS (`before:content-[attr(data-initial)]`), not a text node, so
   the visible label never mismatches the `aria-label` (WCAG 2.5.3).
-- Keyboard focus: `focus-visible:ring-2 ring-ring` on the trigger; rows use `menuItemRecipe`.
+- Keyboard focus: `focusRing` (`ui/button.tsx`) on the trigger; rows use `menuItemRecipe`.
 
 ## Do / Don't
 
