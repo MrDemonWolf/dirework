@@ -286,6 +286,11 @@ describe("resolveBuildId", () => {
     expect(resolveBuildId(() => "413ff22\n")).toBe("413ff22");
   });
 
+  it("runs git rev-parse by default, so a deploy from a checkout stamps its own commit", () => {
+    // Deploys run from a git checkout (CI's actions/checkout), so this resolves a real sha.
+    expect(resolveBuildId()).toMatch(/^[0-9a-f]{7,40}$/);
+  });
+
   it('is "dev" without git, which the api never sends', () => {
     expect(
       resolveBuildId(() => {
