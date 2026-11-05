@@ -16,8 +16,8 @@
  *
  * Fails when a route is over its budget, when a route has no budget, or when a
  * budget names a route the build no longer has. With ENFORCE_FORBIDDEN_MARKERS
- * on, it also fails when zod or the D1 schema shows up in a token page's or the
- * landing's chunks.
+ * on (it is), it also fails when zod or the D1 schema shows up in a token page's
+ * or the landing's chunks.
  *
  * The pure parts are unit-tested; main() runs only when this file is the
  * entrypoint.
@@ -43,24 +43,24 @@ export type ClientBudgets = Readonly<Record<string, Readonly<Record<string, numb
 export const CLIENT_JS_BUDGETS_KIB = {
   // OBS browser sources and the bot page, loaded on the streaming PC.
   "token pages": {
-    "/overlay/t/[token]": 182,
-    "/overlay/l/[token]": 186,
-    "/bot/[token]": 234,
+    "/overlay/t/[token]": 183,
+    "/overlay/l/[token]": 188,
+    "/bot/[token]": 193,
   },
   // A viewer's first look, the claim page and the 404.
   "public pages": {
-    "/": 215,
-    "/setup": 215,
-    "/_not-found": 170,
+    "/": 212,
+    "/setup": 212,
+    "/_not-found": 147,
   },
   // Owner only.
   dashboard: {
-    "/dashboard": 332,
-    "/dashboard/styles": 385,
-    "/dashboard/bot": 332,
-    "/dashboard/bot/commands": 323,
-    "/dashboard/bot/moderation": 320,
-    "/dashboard/bot/replies": 362,
+    "/dashboard": 335,
+    "/dashboard/styles": 388,
+    "/dashboard/bot": 338,
+    "/dashboard/bot/commands": 330,
+    "/dashboard/bot/moderation": 326,
+    "/dashboard/bot/replies": 368,
   },
 } as const satisfies ClientBudgets;
 
@@ -82,13 +82,12 @@ export const FORBIDDEN_MARKER_ROUTES: readonly string[] = [
 ];
 
 /**
- * Off for now, so the marker scan only reports: utils/trpc.ts value-imports
- * @dirework/api/config-shared, which puts zod and the D1 schema in the root
- * layout chunk of every route.
- * TODO(W2-3): turn this on in the PR that moves the browser-used helpers out of
- * config-shared, so the token pages and the landing stay free of both.
+ * On: zod and the D1 schema left the browser bundles when the browser-used helpers moved
+ * out of `@dirework/api/config-shared` into zod-free modules (#260), so a marker in a token
+ * page's or the landing's chunks fails the step. Turning it off would let a stray
+ * config-shared value import put both back in every route's root layout chunk unnoticed.
  */
-export const ENFORCE_FORBIDDEN_MARKERS = false;
+export const ENFORCE_FORBIDDEN_MARKERS = true;
 
 /** The fields this check reads from one row of route-bundle-stats.json. */
 export interface RouteBundleStat {

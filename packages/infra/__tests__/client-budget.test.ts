@@ -148,7 +148,11 @@ describe("checkClientBudget", () => {
         expect.stringContaining(`${route} ships ${marker} (.next/static/chunks/${chunk})`),
       ]);
 
-      // Off (today's setting until zod leaves the browser bundles): reported, not failed.
+      // The default enforces: zod and the D1 schema left the browser bundles (#260), so a
+      // stray config-shared import can't put them back without a red run.
+      expect(checkClientBudget({ webDir, budgets: BUDGETS }).errors).toEqual(enforced.errors);
+
+      // Off: reported, not failed.
       const reported = checkClientBudget({ webDir, budgets: BUDGETS, enforceMarkers: false });
       expect(reported.errors).toEqual([]);
       expect(reported.notes).toEqual([expect.stringContaining(`${route} ships ${marker}`)]);
@@ -269,6 +273,14 @@ describe("CLIENT_JS_BUDGETS_KIB", () => {
     for (const kib of Object.values(CLIENT_JS_BUDGETS_KIB).flatMap((g) => Object.values(g))) {
       expect(Number.isInteger(kib) && kib > 0).toBe(true);
     }
+  });
+
+  it("holds /bot/[token] under the widget's size, with the dock view loaded only for ?view=dock", () => {
+    // The dock view and its notices load through next/dynamic only for ?view=dock (#297), so
+    // the widget's first load is well under the other token pages' room plus the dock's
+    // ~33 KiB. A budget back near the old 234 KiB would let the dock slip back in.
+    const tokenPages = CLIENT_JS_BUDGETS_KIB["token pages"];
+    expect(tokenPages["/bot/[token]"]).toBeLessThan(tokenPages["/overlay/l/[token]"] + 15);
   });
 
   it("scans only budgeted routes for forbidden markers: every token page and the landing", () => {
