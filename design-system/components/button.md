@@ -31,12 +31,31 @@ exported for links styled as buttons (`<Link className={buttonVariants(...)}>`).
 | `secondary` | `bg-secondary` | Low-emphasis filled |
 | `ghost` | No fill until hover (`bg-muted`) | Toolbars, icon buttons, menus |
 | `destructive` | `bg-destructive/10` (`/15` dark), `text-destructive`; hover deepens the tint and the label turns `text-destructive-strong` (AA on it); focus-visible is a full `border-destructive` | Remove / reset / disconnect |
-| `link` | `text-primary`, underline on hover | Inline text action |
+| `link` | `text-link`, underline on hover | Inline text action on a button element |
 
 Red icon-only actions on a `ghost` or `outline` button (overlay/bot URL Reset, alias delete,
 task row Remove, timer Stop) add the exported `destructiveIconButton` class string: red icon,
 `/10` red hover tint, and keyboard focus as `border-destructive` + `ring-destructive/40`
 (replacing the blue `ring` through `cn`). `destructive-focus.test.ts` pins it.
+
+### Links and focus recipes
+
+The module also exports the two recipes for controls that aren't a `Button`:
+
+- `linkVariants({ variant })` for inline `<a>` / `<Link>` text, both with `font-medium` and
+  the focus ring:
+  - `prose` (default): `text-link underline underline-offset-4`, a thicker underline on
+    hover. Links inside a sentence or notice (setup page, sign-in notice, setup checklist).
+    Always underlined, so a link is told apart from its sentence by more than color.
+    `text-link` is AAA on every plain surface; inside the destructive callout it is AAA dark,
+    AA light (`contrast.md`).
+  - `quiet`: no underline, `hover:text-foreground`: the AGENTS.md Footer Convention, used by
+    the `(app)` footer links.
+- `focusRing`: `focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none`, the
+  keyboard focus for hand-rolled triggers, chips, checkboxes and nav tabs (README "Focus").
+
+`link-focus-recipes.test.ts` pins both and fails on a hand-written ring or prose-link string
+outside `ui/`.
 
 | `size` | Box | Touch minimum (`pointer-coarse`) |
 |---|---|---|

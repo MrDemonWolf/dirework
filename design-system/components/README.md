@@ -88,7 +88,7 @@ Hover and keyboard focus are separate signals: hover (and arrow-key highlight) p
 | Surface | Recipe |
 |---|---|
 | Menu and list items (dropdown items, select options) | `data-highlighted:bg-accent` fill + `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset` (shared as `menuItemRecipe` in `apps/web/src/components/ui/dropdown-menu.tsx`) |
-| Standalone controls and links | `focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none` |
+| Standalone controls and links | `focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none`, shared as `focusRing` in `apps/web/src/components/ui/button.tsx` (add `ring-inset` on full-bleed rows); text links take `linkVariants`, which includes it |
 | Filled cards (a ring that must clear the fill) | the standalone recipe + `ring-offset-2 ring-offset-background` |
 
-The inset ring keeps a menu row's focus indicator inside its 10px radius, which nests inside the popup's `rounded-2xl` padding. Button, input, tabs, section-group and theme-card still carry their own focus styles and migrate to these recipes in a later pass.
+The inset ring keeps a menu row's focus indicator inside its 10px radius, which nests inside the popup's `rounded-2xl` padding. Button, input and tabs still carry their own focus styles. Every other hand-rolled control imports `focusRing` instead of typing the classes; `link-focus-recipes.test.ts` fails on a new `focus-visible:ring-2` outside `ui/` (its shrink-only pending list names the files still waiting on another change).

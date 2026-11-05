@@ -10,6 +10,7 @@ import { usePathname } from "next/navigation";
 
 import { activeBotSection, BOT_SECTIONS } from "@/lib/bot-sections";
 import { cn } from "@/lib/utils";
+import { focusRing } from "@/components/ui/button";
 
 export function BotSectionNav() {
   const active = activeBotSection(usePathname());
@@ -29,7 +30,8 @@ export function BotSectionNav() {
                 prefetch={false}
                 aria-current={current ? "page" : undefined}
                 className={cn(
-                  "inline-flex min-h-11 items-center border-b-2 px-3 text-sm font-medium transition-colors focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none motion-reduce:transition-none",
+                  "inline-flex min-h-11 items-center border-b-2 px-3 text-sm font-medium transition-colors focus-visible:rounded-sm motion-reduce:transition-none",
+                  focusRing,
                   current
                     ? "border-primary text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground",

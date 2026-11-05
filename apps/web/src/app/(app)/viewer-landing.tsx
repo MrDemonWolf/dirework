@@ -13,7 +13,7 @@ import { taskCommands } from "@/lib/command-rows";
 import type { LandingLinks } from "@/lib/landing-links";
 import type { SignInError } from "@/lib/sign-in-errors";
 import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants, focusRing } from "@/components/ui/button";
 import { DevLoginButton } from "@/components/dev-login-button";
 import { StatusChip } from "@/components/status-chip";
 import { StreamScene } from "@/components/stream-scene";
@@ -45,8 +45,10 @@ const PRODUCT = [
   },
 ] as const;
 
-const linkClass =
-  "inline-flex min-h-8 items-center gap-1.5 rounded-sm text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
+const linkClass = cn(
+  "inline-flex min-h-8 items-center gap-1.5 rounded-sm text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline",
+  focusRing,
+);
 
 export function ViewerLanding({
   links,

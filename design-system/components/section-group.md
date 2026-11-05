@@ -43,7 +43,7 @@ the trigger styling and chevron rotation never drift. Used by `timer-style-edito
 
 - Open / closed (`data-panel-open` drives the chevron rotation and hides the `summary`).
 - Hover: the trigger fills `bg-muted/40` and the title brightens to `text-foreground`.
-- Focus: keyboard-only `focus-visible:ring-2 ring-ring`.
+- Focus: keyboard-only `focusRing` (`focus-visible:ring-2 ring-ring`, from `ui/button.tsx`).
 
 ## Accessibility
 

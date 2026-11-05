@@ -362,7 +362,9 @@ test.describe("keyboard focus", () => {
     await expect(waitForOverlay(page, "tasks", 3_000)).rejects.toThrow();
   });
 
-  for (const { path, heading, name } of PAGES.slice(0, 3)) {
+  // Dashboard, Theme Center and the Bot settings Overview, Commands and Replies pages (the
+  // last two hold the cross-page prose links); the footer's quiet links are on every one.
+  for (const { path, heading, name } of PAGES.slice(0, 5)) {
     test(`every Tab stop on ${path} shows a focus indicator`, async ({ page }) => {
       await openPage(page, path, heading);
       await expectVisibleFocusOnEveryStop(page, name);

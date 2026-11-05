@@ -12,7 +12,7 @@ import { Check, ChevronDown, Focus, MoreHorizontal, Pause, Play, Trash2 } from "
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
-import { Button, destructiveIconButton } from "@/components/ui/button";
+import { Button, destructiveIconButton, focusRing } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -450,7 +450,12 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
                   className="overflow-hidden rounded-xl border border-border/40 bg-muted/20"
                 >
                   {/* Author header (folds the group) — Twitch color only ever tints the dot */}
-                  <CollapsibleTrigger className="group/author flex min-h-11 w-full cursor-pointer items-center gap-2.5 bg-muted/40 px-3 py-2 text-left transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset">
+                  <CollapsibleTrigger
+                    className={cn(
+                      "group/author flex min-h-11 w-full cursor-pointer items-center gap-2.5 bg-muted/40 px-3 py-2 text-left transition-colors hover:bg-muted/60 focus-visible:ring-inset",
+                      focusRing,
+                    )}
+                  >
                     <ChevronDown
                       aria-hidden
                       className="size-3.5 shrink-0 -rotate-90 text-muted-foreground transition-transform group-data-[panel-open]/author:rotate-0"
@@ -510,7 +515,8 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
                               }
                               className={cn(
                                 // after:-inset-2.5 = 45px effective touch target on a 20px control
-                                "relative flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors after:absolute after:-inset-2.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                                "relative flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors after:absolute after:-inset-2.5",
+                                focusRing,
                                 isDone
                                   ? "border-primary bg-primary text-primary-foreground"
                                   : "border-muted-foreground hover:border-primary aria-disabled:cursor-not-allowed aria-disabled:hover:border-muted-foreground",

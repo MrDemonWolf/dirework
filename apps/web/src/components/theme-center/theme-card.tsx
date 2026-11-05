@@ -6,6 +6,7 @@ import { Check } from "lucide-react";
 
 import type { ThemePreset } from "@/lib/config-types";
 import { cn } from "@/lib/utils";
+import { focusRing } from "@/components/ui/button";
 
 /** ~75%-full ring: r=19 → circumference 2π·19 ≈ 119.4 (offset by 25% below). */
 const RING_R = 19;
@@ -49,7 +50,8 @@ export function ThemeCard({
       onFocus={onFocus}
       title={`${theme.name} — ${theme.description}`}
       className={cn(
-        "group relative flex w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-xl border text-left transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none",
+        "group relative flex w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-xl border text-left transition-all focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        focusRing,
         isActive
           ? "border-primary ring-2 ring-primary/30"
           : "border-border hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md",

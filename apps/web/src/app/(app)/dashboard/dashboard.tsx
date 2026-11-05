@@ -35,6 +35,7 @@ import { ObsPreviewColumn, ObsSources, useObsPreview } from "@/components/obs-so
 import { SetupChecklist, SetupReopenButton, useSetupCollapsed } from "@/components/setup-checklist";
 import { StatusChip } from "@/components/status-chip";
 import { TaskManager } from "@/components/task-manager";
+import { focusRing } from "@/components/ui/button";
 import {
   TimerInstrument,
   TimerPhaseChip,
@@ -188,7 +189,7 @@ function HeaderSection({ user }: { user: SessionUser }) {
               href={"/dashboard/bot" as const}
               aria-label={`${botChip.label}, open Bot settings`}
               // A compact chip, so on touch screens the link itself gets the 44px hit area.
-              className="inline-flex items-center rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11"
+              className={`inline-flex items-center rounded-full outline-none transition-opacity hover:opacity-80 pointer-coarse:min-h-11 ${focusRing}`}
             >
               <StatusChip tone={botChip.tone} label={botChip.label} />
             </Link>

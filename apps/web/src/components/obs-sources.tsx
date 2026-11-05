@@ -16,7 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, EyeOff, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { Button, focusRing } from "@/components/ui/button";
 import { ConsoleRule } from "@/components/console-rule";
 import { SecretUrlRow } from "@/components/secret-url-row";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -93,7 +93,7 @@ function SizeChip({ size, hint }: { size: string; hint: string }) {
           <button
             type="button"
             aria-label={`Recommended size ${size}: ${hint}`}
-            className="shrink-0 cursor-default rounded-full border border-border/60 bg-background/60 px-2 py-0.5 font-mono text-xs text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className={`shrink-0 cursor-default rounded-full border border-border/60 bg-background/60 px-2 py-0.5 font-mono text-xs text-muted-foreground ${focusRing}`}
           >
             {size}
           </button>

@@ -38,7 +38,7 @@ import { BotPageHandoff, BotPageHandoffSkeleton } from "@/components/bot-page-ha
 import { QueryError } from "@/components/query-error";
 import { SecretUrlRow } from "@/components/secret-url-row";
 import { StatusChip, type StatusTone } from "@/components/status-chip";
-import { Button } from "@/components/ui/button";
+import { Button, focusRing, linkVariants } from "@/components/ui/button";
 import { trpc } from "@/utils/trpc";
 
 /** The `user.me` fields the checklist reads (overlay tokens build the URLs it hands off). */
@@ -374,7 +374,10 @@ export function SetupChecklist({
                   aria-expanded={open}
                   aria-controls={panelId}
                   onClick={() => setOpenStep(open ? null : step.id)}
-                  className="flex w-full cursor-pointer items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
+                  className={cn(
+                    "flex w-full cursor-pointer items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:ring-inset",
+                    focusRing,
+                  )}
                 >
                   <StepMarker index={index} done={state !== "todo"} open={open} />
                   {/* Title and chip share a wrapping row: on a phone the chip drops under
@@ -425,7 +428,7 @@ export function SetupChecklist({
             Optional:{" "}
             <Link
               href={"/dashboard/styles" as const}
-              className="font-medium text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground"
+              className={linkVariants({ variant: "prose" })}
             >
               personalize the overlays
             </Link>{" "}

@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { focusRing } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export function SectionGroup({
@@ -55,7 +56,12 @@ export function SectionGroup({
       className={cn("panel-inset overflow-hidden", className)}
     >
       <div className="flex items-center">
-        <CollapsibleTrigger className="group/section flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 px-3 py-2.5 text-left pointer-coarse:min-h-11 transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+        <CollapsibleTrigger
+          className={cn(
+            "group/section flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 px-3 py-2.5 text-left pointer-coarse:min-h-11 transition-colors hover:bg-muted/40",
+            focusRing,
+          )}
+        >
           <span className="flex min-w-0 items-center gap-2">
             {icon}
             <span className="flex min-w-0 flex-col gap-1">
