@@ -51,6 +51,33 @@ describe("bot widget", () => {
     expect(console).toMatch(/dynamic\(\s*\(\) =>\s*import\("\.\/bot-dock-view"\)/);
   });
 
+  it("never ticks for a chat error: one deadline timer clears it", () => {
+    const console = read("bot/[token]/bot-console.tsx");
+    // The 1s interval (the dock's uptime) never depends on the error state; the clear window
+    // is one timeout per deadline (bot-chat-error.test.ts drives it with fake timers).
+    const ticker = console.slice(console.indexOf("const tickerNeeded"));
+    expect(ticker.slice(0, ticker.indexOf(";"))).not.toContain("chatErrorState");
+    expect(console).toContain("watchChatErrorExpiry(chatErrorState, setChatErrorState)");
+    expect(console).toContain("shownChatError(chatErrorState)");
+    expect(console).not.toContain("currentChatError");
+  });
+
+  it("keeps dock-only state out of the widget's renders", () => {
+    const console = read("bot/[token]/bot-console.tsx");
+    // A chat line, an activity line and the last error re-render only the dock; the widget
+    // still tracks the chat error, which its status and tab title read.
+    expect(console).toMatch(/onCounter: \(counter\) => \{\s*if \(!dockRef\.current\) return;/);
+    const push = console.slice(console.indexOf("const pushActivity"));
+    const body = push.slice(0, push.indexOf("\n    };\n"));
+    expect(body.indexOf("setChatErrorState")).toBeLessThan(
+      body.indexOf("if (!dockRef.current) return;"),
+    );
+    expect(body.indexOf("if (!dockRef.current) return;")).toBeLessThan(body.indexOf("setActivity"));
+    expect(body.indexOf("if (!dockRef.current) return;")).toBeLessThan(
+      body.indexOf("setLastError"),
+    );
+  });
+
   it("puts the live state in the tab title", () => {
     expect(read("bot/[token]/bot-console.tsx")).toContain("document.title = botPageTitle(");
   });

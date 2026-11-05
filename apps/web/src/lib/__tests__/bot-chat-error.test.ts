@@ -1,14 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   type ChatErrorState,
+  chatErrorDeadline,
   currentChatError,
   noteChatConnected,
   noteChatError,
   noteChatReply,
   noteIngestHealthy,
   noteSessionRefreshed,
+  pruneChatErrors,
   REPLY_CLEAR_GRACE_MS,
+  shownChatError,
+  watchChatErrorExpiry,
 } from "../bot-chat-error";
 import {
   BOT_LOGIN_REFRESH_FAILED_MESSAGE,
@@ -151,5 +155,117 @@ describe("bot page chat error", () => {
     const cleared = noteChatReply(noteChatError(null, BANNED, 1_000), 2_000);
     const state = noteChatError(cleared, WENT_SILENT, 2_000 + REPLY_CLEAR_GRACE_MS);
     expect(currentChatError(state, 2_000 + REPLY_CLEAR_GRACE_MS)).toBe(WENT_SILENT);
+  });
+});
+
+describe("chat error expiry", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("has no deadline before a reply, then the earliest reply-cleared window's end", () => {
+    let state: ChatErrorState | null = noteChatError(null, BANNED, 1_000);
+    expect(chatErrorDeadline(null)).toBeNull();
+    expect(chatErrorDeadline(state)).toBeNull();
+    state = noteChatReply(state, 2_000);
+    expect(chatErrorDeadline(state)).toBe(2_000 + REPLY_CLEAR_GRACE_MS);
+    // A connection error stamped by a later reply ends later; the earliest wins.
+    state = noteChatReply(noteChatError(state, WENT_SILENT, 3_000), 4_000);
+    expect(chatErrorDeadline(state)).toBe(2_000 + REPLY_CLEAR_GRACE_MS);
+    // Ingest and login errors never clear on a reply, so they set no deadline.
+    expect(chatErrorDeadline(noteChatError(null, INGEST_DROPPED_MESSAGE, 1_000))).toBeNull();
+  });
+
+  it("prunes an expired entry, keeps the rest, and ends at null", () => {
+    const stamped = noteChatReply(noteChatError(null, BANNED, 1_000), 2_000);
+    const end = 2_000 + REPLY_CLEAR_GRACE_MS;
+    expect(pruneChatErrors(stamped, end - 1)).toBe(stamped);
+    expect(pruneChatErrors(stamped, end)).toBeNull();
+    expect(pruneChatErrors(null, end)).toBeNull();
+
+    const mixed = noteChatError(stamped, INGEST_DROPPED_MESSAGE, 2_500);
+    const pruned = pruneChatErrors(mixed, end);
+    expect(pruned?.rejection).toBeNull();
+    expect(shownChatError(pruned)).toBe(INGEST_DROPPED_MESSAGE);
+    // An unstamped entry never expires.
+    const waiting = noteChatError(null, BANNED, 1_000);
+    expect(pruneChatErrors(waiting, 10_000_000)).toBe(waiting);
+  });
+
+  it("shows from the state alone what currentChatError shows at any time inside the window", () => {
+    const state = noteChatReply(noteChatError(null, WENT_SILENT, 1_000), 2_000);
+    expect(shownChatError(state)).toBe(currentChatError(state, 2_000));
+    expect(shownChatError(null)).toBeNull();
+  });
+
+  /** Drives the page's loop: the state, one expiry watch per state, as BotConsole's effect does. */
+  function drive(initial: ChatErrorState | null) {
+    let state = initial;
+    let cancel = () => {};
+    const rearm = () => {
+      cancel();
+      cancel = watchChatErrorExpiry(state, (update) => {
+        const next = update(state);
+        if (next !== state) {
+          state = next;
+          rearm();
+        }
+      });
+    };
+    rearm();
+    return {
+      get state() {
+        return state;
+      },
+      set(next: ChatErrorState | null) {
+        state = next;
+        rearm();
+      },
+      dispose: () => cancel(),
+    };
+  }
+
+  it("clears a reply-cleared error on one timer at its deadline, then arms nothing", () => {
+    vi.useFakeTimers({ now: 1_000 });
+    const page = drive(noteChatError(null, BANNED, 1_000));
+    // No reply yet: nothing can expire, so nothing is armed.
+    expect(vi.getTimerCount()).toBe(0);
+
+    vi.setSystemTime(2_000);
+    page.set(noteChatReply(page.state, 2_000));
+    expect(vi.getTimerCount()).toBe(1);
+
+    vi.advanceTimersByTime(REPLY_CLEAR_GRACE_MS - 1);
+    expect(shownChatError(page.state)).toBe(BANNED);
+    vi.advanceTimersByTime(1);
+    expect(page.state).toBeNull();
+    // No ticker left behind: the widget stops re-rendering once the error clears.
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("re-arms for a later error's own window", () => {
+    vi.useFakeTimers({ now: 1_000 });
+    const page = drive(noteChatReply(noteChatError(null, BANNED, 1_000), 1_000));
+    vi.setSystemTime(5_000);
+    page.set(noteChatReply(noteChatError(page.state, WENT_SILENT, 5_000), 6_000));
+    expect(vi.getTimerCount()).toBe(1);
+
+    vi.advanceTimersByTime(1_000 + REPLY_CLEAR_GRACE_MS - 5_000);
+    // The rejection's window ended; the connection error's has not.
+    expect(page.state?.rejection).toBeNull();
+    expect(shownChatError(page.state)).toBe(WENT_SILENT);
+    expect(vi.getTimerCount()).toBe(1);
+
+    vi.advanceTimersByTime(5_000);
+    expect(page.state).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("cancels its timer on cleanup", () => {
+    vi.useFakeTimers({ now: 1_000 });
+    const page = drive(noteChatReply(noteChatError(null, BANNED, 1_000), 1_000));
+    expect(vi.getTimerCount()).toBe(1);
+    page.dispose();
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
