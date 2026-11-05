@@ -49,7 +49,7 @@ const ALLOWED: Record<string, string[]> = {
   "components/mode-toggle.tsx": ["translate-x-[calc(100%-2px)]"],
   "components/account-menu.tsx": ["content-[attr(data-initial)]"],
   // Elevation and LED glows: multi-layer shadows with no shadow token scale.
-  "app/(bot)/bot/[token]/bot-console.tsx": [
+  "app/(bot)/bot/[token]/bot-dock-view.tsx": [
     "shadow-[0_0_12px_2px_rgba(239,68,68,0.55)]",
     "shadow-[0_0_12px_2px_rgba(251,191,36,0.5)]",
     "shadow-[0_0_12px_2px_rgba(52,211,153,0.55)]",

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BOT_TERMINAL_HEADINGS,
   botPagePath,
   botPageTitle,
+  isTerminalBotPhase,
   parseBotView,
   recentCommandLines,
   type BotActivityLine,
@@ -66,5 +68,22 @@ describe("recentCommandLines", () => {
     expect(recentCommandLines(activity, 3).map((l) => l.id)).toEqual([6, 5, 3]);
     expect(recentCommandLines(activity, 0)).toEqual([]);
     expect(recentCommandLines([], 5)).toEqual([]);
+  });
+});
+
+describe("isTerminalBotPhase", () => {
+  it("is true only for the phases that wait on the owner, each with a heading", () => {
+    const phases = [
+      "boot",
+      "live",
+      "standby",
+      "not-configured",
+      "invalid",
+      "revoked",
+      "reauth",
+    ] as const;
+    const terminal = phases.filter(isTerminalBotPhase);
+    expect(terminal).toEqual(["invalid", "revoked", "reauth"]);
+    expect(Object.keys(BOT_TERMINAL_HEADINGS).sort()).toEqual([...terminal].sort());
   });
 });

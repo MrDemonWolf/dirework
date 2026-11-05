@@ -6,7 +6,7 @@ import { contrastRatio, parseHex } from "./helpers/wcag";
 
 /**
  * Contrast of the bot dock's OBS Yami palette (`color.obs` in design-system/tokens.json),
- * pair by pair as `bot-dock.tsx` and `bot-console.tsx` use it. The dock is a real UI (an
+ * pair by pair as `bot-dock.tsx` and `bot-dock-view.tsx` use it. The dock is a real UI (an
  * OBS custom browser dock), so text is held to WCAG AA (4.5:1) and the focus outline, a
  * non-text indicator, to 3:1 against every surface it can sit on. Disabled buttons are
  * exempt (WCAG 1.4.3 excludes inactive controls).
