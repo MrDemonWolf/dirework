@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { statusChipClassName } from "@/components/status-chip";
 import { scheduleVersionCheck } from "@/lib/version-check";
 
 const REPO = "https://github.com/mrdemonwolf/dirework";
@@ -57,7 +58,7 @@ export function VersionBadge({
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="inline-flex items-center gap-1.5 rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 font-mono text-2xs font-medium tracking-chip text-warning uppercase transition-colors hover:bg-warning/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={`${statusChipClassName({ tone: "warn", size: "sm" })} transition-colors hover:bg-warning/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
         >
           <span
             aria-hidden
