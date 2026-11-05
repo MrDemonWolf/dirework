@@ -1,10 +1,35 @@
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { expect, type Page, type Route, test, type WebSocketRoute } from "@playwright/test";
 import { BETTER_AUTH_SECRET, DEV_LOGIN_SECRET, PROXY_SECRET } from "../src/env";
 import { clearBotLease, signIn, waitForHydration } from "../tests/helpers";
 
-const images = path.resolve(import.meta.dirname, "../../../apps/fumadocs/public/screenshots");
+// The docs import the screenshots from here, so each ships once, content-hashed. Never
+// public/: that would publish a second, unreferenced copy (docs-images.test.ts).
+const images = path.resolve(import.meta.dirname, "../../../apps/fumadocs/src/assets/screenshots");
 const chatToken = "synthetic-wolf-chat-token";
+
+/**
+ * Lossless WebP: pixel-exact, so small UI text stays sharp, at less than half the PNG's size.
+ * Needs libwebp's `cwebp` (`brew install webp`, `apt install webp`).
+ */
+function toWebp(png: string, name: string) {
+  try {
+    execFileSync("cwebp", [
+      "-quiet",
+      "-lossless",
+      "-z",
+      "9",
+      png,
+      "-o",
+      path.join(images, `${name}.webp`),
+    ]);
+  } catch (error) {
+    throw new Error("cwebp failed; install libwebp (brew install webp, apt install webp)", {
+      cause: error,
+    });
+  }
+}
 
 async function capture(page: Page, name: string) {
   await page.evaluate(() => document.fonts.ready);
@@ -20,7 +45,10 @@ async function capture(page: Page, name: string) {
   for (const input of await page.locator("input:visible").all()) {
     expect(await input.inputValue()).not.toMatch(/\/(?:overlay\/[tl]|bot)\/[A-Za-z0-9_-]{20,}/);
   }
-  await page.screenshot({ path: path.join(images, `${name}.png`) });
+  // The PNG stays with the run's output (packages/e2e/test-results); only the WebP is kept.
+  const png = test.info().outputPath(`${name}.png`);
+  await page.screenshot({ path: png });
+  toWebp(png, name);
 }
 
 test("capture synthetic Wolf example screens without a real Twitch connection", async ({

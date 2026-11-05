@@ -21,7 +21,8 @@ This file provides guidance for coding agents working on the Dirework codebase.
 - Design system (tokens → generated CSS for app + docs, one spec per component, enforced by `spec-catalog.test.ts`) → `design-system/` (README; color contrast levels per pairing → `design-system/contrast.md`), docs `apps/fumadocs/content/docs/design-system.mdx`; drift check `bun run tokens && git diff --exit-code`
 - Which Cloudflare services to use beyond Workers + D1 (KV, Durable Objects, Queues, Cron, …) → `docs/decisions/0001-cloudflare-services.md`
 - PR review checklist (Codex + humans; free-tier cost rules) → `## Code Review Rules` below
-- Owner to-dos (Codex auto-review) + product backlog → `TODO.md`
+- Owner to-dos (Codex auto-review, the optional docs CDN cache) + product backlog → `TODO.md`
+- Docs screenshots (capture with `bun run screenshots:capture`, lossless WebP via `cwebp`) → `apps/fumadocs/src/assets/screenshots/README.md`
 
 ## Project Overview
 
@@ -380,7 +381,11 @@ bundle zod); types still come from `config-shared`.
 - **Drizzle ORM** on **Cloudflare D1** (`drizzle-orm/d1`, drizzle-kit `d1-http`)
 - **Tailwind CSS v4** + shadcn/ui (base-lyra) + Lucide icons
 - **Alchemy** infrastructure-as-code; **GitHub Actions** CI/CD
-- **Fumadocs** with its built-in static search (ZBSearch, fumadocs-core's successor to Orama). Docs a11y
+- **Fumadocs** with its built-in static search (ZBSearch, fumadocs-core's successor to Orama). The
+  dialog's chunks load after hydration (fumadocs' `preload`); the ~1.4 MB index loads when the
+  dialog first opens (`components/search.tsx`), never on a page view. Screenshots are lossless WebP
+  imported from `src/assets/screenshots` (never `public/`), held by
+  `packages/infra/__tests__/docs-images.test.ts`. Docs a11y
   glue: `components/docs-page.tsx` (TOC slots in named `<nav>`s; Fumadocs renders `<main>`),
   `lib/rehype-a11y.ts` (code-block region names, task-list checkbox labels), GitHub
   high-contrast shiki themes in `source.config.ts`
@@ -1105,8 +1110,11 @@ moves the chat, the old page's next relay drops it to standby, closing the holde
 lease, and the dashboard chip reads "Bot offline" / "Bot connected"),
 `60-token-reset` (the old overlay URL blanks), `70-sign-out`, `80-a11y`, `85-docs-a11y` (axe,
 zero violations of WCAG 2.0/2.1/2.2 A+AA and best practices, over the docs static export
-`apps/fumadocs/out` that verify.yml builds first, served by the spec itself; dark + light,
-desktop + phone; skips locally without the export), `90-mobile`. Every
+`apps/fumadocs/out` that verify.yml builds first; dark + light, desktop + phone; skips locally
+without the export), `86-docs-search` (opening docs search requests the index before a key is
+typed, and the first query reads it from the HTTP cache: one download), `90-mobile`. Both docs
+specs serve the export with `tests/docs-export.ts`, which sends GitHub Pages' `max-age=600`
+and counts the requests that reach it. Every
 spec passes when run twice in a row, because CI retries run immediately against the same
 database. Two projects: `chromium` runs all but `90-mobile`; `mobile` (Pixel 7) runs only
 `90-mobile` (no horizontal scroll, hamburger nav). `80-a11y` scans with axe-core against

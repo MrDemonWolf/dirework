@@ -22,10 +22,10 @@ import {
   cycleLabel,
   formatClock,
 } from "@dirework/overlay-kit";
+import dashboardScreenshot from "@/assets/screenshots/dashboard.webp";
 import { GithubIcon } from "@/components/icons/github-icon";
 import { ChatCommandWidget } from "./_widgets/ChatCommandWidget";
 import { OverlayThemePreview } from "./_widgets/OverlayThemePreview";
-import dashboardScreenshot from "../../../public/screenshots/dashboard.png";
 import "./marketing.css";
 
 const GITHUB = "https://github.com/mrdemonwolf/dirework";

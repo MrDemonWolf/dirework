@@ -23,6 +23,7 @@ Open http://localhost:4000.
 | `src/app/(home)/`             | Landing page and its widgets                     |
 | `src/app/docs/`               | Docs layout and page route                       |
 | `src/app/api/search/route.ts` | Static search index (ZBSearch)                   |
+| `src/assets/screenshots/`     | App screenshots (lossless WebP, imported)        |
 | `src/lib/source.ts`           | Content source adapter (`loader()`)              |
 | `src/lib/layout.shared.tsx`   | Shared nav options for the home and docs layouts |
 | `source.config.ts`            | Fumadocs MDX config (frontmatter schema)         |
