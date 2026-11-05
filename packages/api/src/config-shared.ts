@@ -79,6 +79,7 @@ export {
   TASK_LINES_MIN,
   clampTaskLines,
   TIMER_CONFIG_DEFAULTS,
+  TIMER_FIELD_LIMITS,
   TRPC_MAX_BATCH_SIZE,
 } from "./config-defaults";
 export { BOT_REAUTH_REQUIRED_MESSAGE } from "./bot-lease";
@@ -134,6 +135,7 @@ export {
   isDireworkCommandLine,
   KNOWN_ALIAS_TARGETS,
   MAX_BLOCKED_VIEWERS,
+  MAX_COMMAND_ALIASES,
   META_COMMANDS,
   MODERATION_COMMANDS,
   normalizeAliases,

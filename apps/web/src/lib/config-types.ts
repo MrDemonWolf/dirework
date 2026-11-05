@@ -25,6 +25,7 @@ export {
   DEFAULT_TIMER_MESSAGES,
   DEFAULT_TIMER_STYLES,
   TIMER_CONFIG_DEFAULTS,
+  TIMER_FIELD_LIMITS,
   MAX_TASK_LEN,
 } from "@dirework/api/config-defaults";
 

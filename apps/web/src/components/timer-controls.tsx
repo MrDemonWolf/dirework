@@ -32,6 +32,7 @@ import { TIMER_TONES, TIMER_PHASE_COLOR, toTimerStatus } from "@/lib/status-tone
 import {
   DEFAULT_PHASE_LABELS,
   TIMER_CONFIG_DEFAULTS,
+  TIMER_FIELD_LIMITS,
   type PhaseLabelsConfig,
   type TimerStatus,
 } from "@/lib/config-types";
@@ -543,8 +544,9 @@ export function TimerTransport() {
  * Timer duration/cycle fields behind the "Edit session settings" disclosure, whose
  * collapsed summary reads the SAVED config (`formatSessionSummary`). Each field autosaves
  * on blur (clamped to its range, no-op blurs skipped by `saveConfig`) and is disabled while
- * a run is in progress. The min/max bounds are the UI's own and tighter than
- * `updateTimerConfigInput`, which stays the authority.
+ * a run is in progress. The min/max bounds are `TIMER_FIELD_LIMITS` (zod-free, beside
+ * TIMER_CONFIG_DEFAULTS): the UI's own and tighter than `updateTimerConfigInput`, which stays
+ * the authority.
  */
 export function TimerSettings() {
   const {
@@ -569,8 +571,8 @@ export function TimerSettings() {
       label: "Focus",
       unit: "min",
       tooltip: "Duration of each focus session in minutes",
-      min: 1,
-      max: 120,
+      min: TIMER_FIELD_LIMITS.workDuration.min,
+      max: TIMER_FIELD_LIMITS.workDuration.max,
       value: workMin,
       set: setWorkMin,
       save: (v: number) => saveConfig({ workDuration: minutesToMs(v) }),
@@ -580,8 +582,8 @@ export function TimerSettings() {
       label: "Break",
       unit: "min",
       tooltip: "Duration of short breaks between focus sessions",
-      min: 1,
-      max: 60,
+      min: TIMER_FIELD_LIMITS.breakDuration.min,
+      max: TIMER_FIELD_LIMITS.breakDuration.max,
       value: breakMin,
       set: setBreakMin,
       save: (v: number) => saveConfig({ breakDuration: minutesToMs(v) }),
@@ -591,8 +593,8 @@ export function TimerSettings() {
       label: "Long break",
       unit: "min",
       tooltip: "Duration of the long break in minutes",
-      min: 1,
-      max: 60,
+      min: TIMER_FIELD_LIMITS.longBreakDuration.min,
+      max: TIMER_FIELD_LIMITS.longBreakDuration.max,
       value: longBreakMin,
       set: setLongBreakMin,
       save: (v: number) => saveConfig({ longBreakDuration: minutesToMs(v) }),
@@ -602,8 +604,8 @@ export function TimerSettings() {
       label: "Every",
       unit: "pomos",
       tooltip: "Take a long break after this many focus sessions",
-      min: 2,
-      max: 20,
+      min: TIMER_FIELD_LIMITS.longBreakInterval.min,
+      max: TIMER_FIELD_LIMITS.longBreakInterval.max,
       value: longBreakInterval,
       set: setLongBreakInterval,
       save: (v: number) => saveConfig({ longBreakInterval: v }),
@@ -613,8 +615,8 @@ export function TimerSettings() {
       label: "Pomos",
       unit: null,
       tooltip: "Total number of focus sessions (pomodoros) in this run",
-      min: 1,
-      max: 99,
+      min: TIMER_FIELD_LIMITS.defaultCycles.min,
+      max: TIMER_FIELD_LIMITS.defaultCycles.max,
       value: cycles,
       set: setCycles,
       save: (v: number) => saveConfig({ defaultCycles: v }),

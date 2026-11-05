@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 // The REAL router input schema (env-free module) — no hand-copied mirror.
 import { commandAliasesInput as commandAliasesSchema } from "../input-schemas";
 import { normalizeAliases } from "../../config-shared";
+import { MAX_COMMAND_ALIASES } from "../../chat-commands";
 
 describe("commandAliasesInput validation", () => {
   it("accepts valid aliases", () => {
@@ -33,23 +34,25 @@ describe("commandAliasesInput validation", () => {
     ).toThrow();
   });
 
-  it("rejects more than 50 aliases", () => {
+  // Built from the zod-free constant the alias editor also reads, so the schema and the
+  // editor's Add button can't drift apart.
+  it("rejects more than MAX_COMMAND_ALIASES aliases", () => {
     const aliases: Record<string, string> = {};
-    for (let i = 0; i < 51; i++) {
+    for (let i = 0; i <= MAX_COMMAND_ALIASES; i++) {
       aliases[`alias${i}`] = "task";
     }
     expect(() => commandAliasesSchema.parse({ commandAliases: aliases })).toThrow(
-      "Maximum of 50 command aliases allowed",
+      `Maximum of ${MAX_COMMAND_ALIASES} command aliases allowed`,
     );
   });
 
-  it("accepts exactly 50 aliases", () => {
+  it("accepts exactly MAX_COMMAND_ALIASES aliases", () => {
     const aliases: Record<string, string> = {};
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < MAX_COMMAND_ALIASES; i++) {
       aliases[`alias${i}`] = "task";
     }
     const result = commandAliasesSchema.parse({ commandAliases: aliases });
-    expect(Object.keys(result.commandAliases)).toHaveLength(50);
+    expect(Object.keys(result.commandAliases)).toHaveLength(MAX_COMMAND_ALIASES);
   });
 
   it("accepts an alias of exactly ALIAS_MAX_LENGTH (25) characters", () => {

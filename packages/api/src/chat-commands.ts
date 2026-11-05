@@ -83,6 +83,12 @@ export function isBuiltinCommandName(token: string): boolean {
  */
 export const ALIAS_MAX_LENGTH = 25;
 
+/**
+ * Most command aliases one instance stores. `commandAliasesInput` rejects more, and the
+ * dashboard's alias editor stops its Add button here.
+ */
+export const MAX_COMMAND_ALIASES = 50;
+
 /** Strip any leading "!", trim, lowercase, take the first token → canonical alias/target. */
 export function normalizeAliasToken(raw: string): string {
   return raw.trim().replace(/^!+/, "").trim().toLowerCase().split(/\s+/)[0] ?? "";
