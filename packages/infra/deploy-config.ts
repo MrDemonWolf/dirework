@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 // A relative import, not a workspace dependency: overlay-kit's "." entry is plain,
 // import-free TypeScript, so tsx runs it as is and infra gains no package edge.
 import { BRAND } from "../overlay-kit/src/index";
@@ -14,6 +15,22 @@ const REQUIRED_DEPLOY_VALUES = [
 ] as const;
 
 export type DeployEnvironment = Record<string, string | undefined>;
+
+/**
+ * The api worker's build id: the same `git rev-parse --short HEAD` the web build bakes into
+ * NEXT_PUBLIC_COMMIT_SHA (apps/web/next.config.ts) and `/version.json`, so a token page can
+ * tell whether the api it talks to runs its own build. "dev" without git, which the api never
+ * sends (`isBuildId`).
+ */
+export function resolveBuildId(
+  revParse: () => string = () => execSync("git rev-parse --short HEAD").toString(),
+): string {
+  try {
+    return revParse().trim() || "dev";
+  } catch {
+    return "dev";
+  }
+}
 
 /**
  * Workers compatibility date for BOTH workers. Pinned so an Alchemy/miniflare

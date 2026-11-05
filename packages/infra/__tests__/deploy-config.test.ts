@@ -10,6 +10,7 @@ import {
   LOCAL_DEV_ALCHEMY_PASSWORD,
   rateLimitBindingsFor,
   resolveAlchemyPassword,
+  resolveBuildId,
   resolveDevLoginSecret,
   resolveProxySecret,
   isCiRun,
@@ -228,6 +229,10 @@ describe("alchemy.run.ts", () => {
   it("always passes an explicit Alchemy state password", () => {
     expect(source).toContain("password: resolveAlchemyPassword(process.env, isDevelopment)");
   });
+
+  it("binds the api worker's build id from resolveBuildId", () => {
+    expect(source).toContain("BUILD_ID: resolveBuildId(),");
+  });
 });
 
 describe("resolveAlchemyPassword", () => {
@@ -273,5 +278,28 @@ describe("DEFAULT_DOCS_URL", () => {
     expect(program.match(/DOCS_URL: process\.env\.DOCS_URL \|\| DEFAULT_DOCS_URL,/g)).toHaveLength(
       2,
     );
+  });
+});
+
+describe("resolveBuildId", () => {
+  it("is the short commit sha, the same one the web build bakes in", () => {
+    expect(resolveBuildId(() => "413ff22\n")).toBe("413ff22");
+  });
+
+  it('is "dev" without git, which the api never sends', () => {
+    expect(
+      resolveBuildId(() => {
+        throw new Error("not a git repository");
+      }),
+    ).toBe("dev");
+    expect(resolveBuildId(() => "")).toBe("dev");
+  });
+
+  it("matches next.config.ts's NEXT_PUBLIC_COMMIT_SHA command", () => {
+    const nextConfig = readFileSync(
+      resolve(import.meta.dirname, "../../../apps/web/next.config.ts"),
+      "utf8",
+    );
+    expect(nextConfig).toContain('execSync("git rev-parse --short HEAD")');
   });
 });

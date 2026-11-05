@@ -195,6 +195,25 @@ session; viewers on `/` and `/setup` get a static badge) and only while that tab
 one static `/version.json` revalidation per `VERSION_CHECK_MS` (5 min, ≤12/hour, 0 Worker
 requests). A return to the tab checks only once that much has passed since the last check,
 and checking stops once the tab is stale (the Reload chip shows).
+**Token pages reload once after a deploy** (`lib/deploy-reload.ts`, React-free, unit-tested):
+an overlay or bot page stays open across deploys, so it could keep running code the api no
+longer matches. The api worker stamps its `BUILD_ID` binding (the deploy's short git sha,
+`resolveBuildId` in `packages/infra/deploy-config.ts`, the same command as
+`NEXT_PUBLIC_COMMIT_SHA`) on every response as `x-dirework-build` (`buildIdHeader`,
+`apps/server/src/lib/build-id.ts`; CORS exposes it; `@dirework/api/build-id`), and
+`publicTrpc`'s fetch (`utils/public-trpc.ts`) hands each answer to `deployReloader().noteResponse` — no request of its
+own. While that id differs from the page's own build, the page asks `/version.json` (static,
+0 Worker requests) at most once per `DEPLOY_CONFIRM_MIN_MS` (1 min) whether the web worker
+serves it yet (Alchemy deploys the api first and builds the web after it, so an earlier
+reload would only fetch the old page), then reloads once when its caller says it is safe:
+the timer overlay off a running countdown (`isTimerCountingDown`), the task overlay any time
+(`useReloadAfterDeploy` on each poll's `dataUpdatedAt`), the bot page after getSession or a
+heartbeat while `session.idle()` (no ingest, dock click, pending ban cleanup or queued reply)
+— its pagehide release hands the lease to the reloaded page. sessionStorage
+(`dirework.reloaded-for-build`) records the build it reloaded for, so a page never loops;
+blocked storage, a "dev" build or no header (local dev, e2e: `BUILD_ID: ""`) turns it off.
+Cost per open page per deploy: one web HTML request, plus release + getSession + heartbeat on
+the bot page.
 **A lapsed sign-in stops the dashboard** (`lib/auth-lapse.ts`): when an `/rpc` call comes
 back UNAUTHORIZED or FORBIDDEN (signed out in another tab, a revoked session), or an edge
 sign-in wall such as Cloudflare Access answers with a redirect (the `/rpc` fetch,

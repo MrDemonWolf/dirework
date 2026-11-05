@@ -149,6 +149,15 @@ export interface TimerOverlayPayload {
   timerConfig: (PhaseDurations & { labels: PhaseLabelsConfig; showHours: boolean }) | null;
 }
 
+/**
+ * A phase is counting down on stream (starting, work, break, long break): reloading the
+ * overlay now would blank a live clock for a moment, so the reload after a deploy waits for
+ * idle, paused or finished.
+ */
+export function isTimerCountingDown(status: string): boolean {
+  return status === "starting" || status === "work" || status === "break" || status === "longBreak";
+}
+
 export function timerOverlayView(payload: TimerOverlayPayload | null | undefined) {
   if (!payload) return null;
 
