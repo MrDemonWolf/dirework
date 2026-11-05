@@ -54,8 +54,8 @@ Static and data-free. It has no loading, error or empty states of its own.
 ## Accessibility
 
 Card placeholders are `aria-hidden` (via `SectionPlaceholder`) and hold no focusable element:
-the Aliases placeholder's "Replies" is plain text, not a link. `BotSettingsSkeleton` carries
-no headings or text a screen reader would announce as content.
+the Aliases placeholder's "Replies" is plain text, not a link. `BotSettingsSkeleton` has
+`aria-busy="true"` and announces `Loading Bot settings…` through `LoadingStatus`.
 
 ## Do / Don't
 

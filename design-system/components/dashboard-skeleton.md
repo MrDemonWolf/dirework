@@ -46,9 +46,10 @@ Static and data-free.
 
 ## Accessibility
 
-Decorative. In the live dashboard each section placeholder sits in a `SectionPlaceholder`
-(`aria-hidden`); the skeleton shimmer stops under the global reduced-motion gate. It renders
-no headings or real text (the live page's static headings stay outside the placeholders).
+The whole-page skeleton has `aria-busy="true"` and announces `Loading dashboard…` through
+`LoadingStatus`. In the live dashboard each section placeholder sits in a
+`SectionPlaceholder` (`aria-hidden`); the skeleton shimmer stops under the global
+reduced-motion gate. The decorative blocks render no headings or real text.
 
 ## Do / Don't
 

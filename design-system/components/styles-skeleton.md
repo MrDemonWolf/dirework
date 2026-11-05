@@ -40,7 +40,9 @@ Static. The shimmer comes from `Skeleton` and stops under reduced motion.
 
 ## Accessibility
 
-Decorative blocks with no text and nothing to focus.
+The whole-page skeleton has `aria-busy="true"` and announces `Loading Theme Center…` through
+`LoadingStatus`. Its blocks are decorative and have nothing to focus. When rendered inside
+the progressive `SectionPlaceholder`, that wrapper is `aria-hidden`.
 
 ## Do / Don't
 
