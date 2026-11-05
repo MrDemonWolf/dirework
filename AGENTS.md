@@ -1049,7 +1049,13 @@ are thin wrappers over `theme-center/style-sections-editor.tsx`, which renders
 `TIMER_STYLE_FIELDS` / `TASK_STYLE_FIELDS` from `lib/style-sections.ts`: every style leaf
 path has exactly one field and one section (Colors · Typography · Layout · Opacity; Colors
 opens first) plus a `group` (fieldset legend). `style-sections.test.ts` holds both lists to
-`leafPaths(DEFAULT_*_STYLES)`, so a new style key must get a field. Rows are
+`leafPaths(DEFAULT_*_STYLES)`, so a new style key must get a field. Every edit is an
+updater: `onChange` is the page's `useState` setter (`Dispatch<SetStateAction<T>>`), a row
+sends `prev => setAtPath(prev, path, value)` and a section reset `prev => resetSection(…)`,
+and each section menu gets its id plus the stable `setPendingReset`. So no row or menu
+callback closes over the draft, and the compiler reuses each unchanged row's control element
+and each section menu: an edit re-renders only the controls whose value, hint or disabled
+state changed (`style-sections-editor.test.ts` pins the updaters). Rows are
 `theme-center/field-row.tsx`: label (plus an optional one-line `hint` from the field list)
 on the left, every control in ONE fixed `w-44` column right after it — a color is one
 bordered field (swatch square + hex), a length one mono field showing its own unit (no
@@ -1211,7 +1217,9 @@ round-trip, aliases), `apps/web/src/lib/__tests__/` (timer-utils, task-utils, th
 config-types, rate-limiter, irc-client, irc-sanitize, server-session, trpc-errors,
 api-origin, auth-proxy, bot-session, alias-rows, demo-session, auth-lapse, and trpc-client:
 the real `/rpc` client and QueryClient over a stubbed `fetch` with fake timers, counting what a
-lapsed dashboard sends), `apps/server/src/lib/__tests__/` (logger
+lapsed dashboard sends; derived-state runs the React Compiler's `validateNoSetStateInEffects`
+over components that adjust state during render instead of copying a prop in an effect,
+`ColorInput` and `SecretUrlRow` so far), `apps/server/src/lib/__tests__/` (logger
 redaction), `packages/auth/src/__tests__/has-owner.test.ts`,
 `packages/auth/src/__tests__/create-auth.test.ts` (drives the REAL `createAuth()`: owner
 claim, linking refused, owner tokens dropped, openid-only scope, disabled paths plus a

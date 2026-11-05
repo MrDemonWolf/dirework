@@ -26,7 +26,7 @@ Stacked `SectionGroup`s built from `FieldRow` rows:
 | Prop | Type | Notes |
 |---|---|---|
 | `styles` | `TimerStylesConfig` | Controlled |
-| `onChange` | `(styles: TimerStylesConfig) => void` | Emits the whole object (one section shallow-merged per edit) |
+| `onChange` | `Dispatch<SetStateAction<TimerStylesConfig>>` | The page's state setter; every edit is an updater on the current draft |
 
 ## States
 

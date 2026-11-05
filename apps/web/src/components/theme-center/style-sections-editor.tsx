@@ -5,8 +5,12 @@
 // part they style (Header, Progress ring…), each group a fieldset so a row's short label
 // ("Background") is read with its part; on a wide editor the groups flow into two columns.
 // Each section's menu resets it to the Default theme.
+//
+// Every edit is an updater on the page's draft (`onChange` is its state setter), so no row
+// or menu callback closes over `styles`: the React Compiler reuses each unchanged row's
+// control element and each section menu across an edit, so only the changed row re-renders.
 
-import { useState } from "react";
+import { type Dispatch, type SetStateAction, useState } from "react";
 import { MoreHorizontal, RotateCcw } from "lucide-react";
 
 import type { OverlayIcon as OverlayIconId } from "@dirework/api/style-limits";
@@ -43,12 +47,13 @@ function FieldControl<T>({
 }: {
   field: StyleField<T>;
   styles: T;
-  onChange: (styles: T) => void;
+  onChange: Dispatch<SetStateAction<T>>;
   idPrefix: string;
 }) {
   const id = `${idPrefix}-${field.path.replaceAll(".", "-")}`;
   const value = getAtPath(styles, field.path);
-  const set = (next: unknown) => onChange(setAtPath(styles, field.path, next));
+  // Applied to the draft as React holds it, never to the `styles` this row rendered with.
+  const set = (next: unknown) => onChange((prev) => setAtPath(prev, field.path, next));
   const disabled = field.disabled?.(styles) ?? false;
   const hint = (typeof field.hint === "function" ? field.hint(styles) : field.hint) ?? undefined;
 
@@ -150,7 +155,8 @@ export function StyleSectionsEditor<T>({
   overlayName,
 }: {
   styles: T;
-  onChange: (styles: T) => void;
+  /** The page's draft setter: every edit is an updater, `(prev) => next`. */
+  onChange: Dispatch<SetStateAction<T>>;
   fields: readonly StyleField<T>[];
   /** The Default theme's values, which "Reset section" restores. */
   defaults: T;
@@ -159,7 +165,8 @@ export function StyleSectionsEditor<T>({
   /** "timer" or "task list", for the reset confirmation. */
   overlayName: string;
 }) {
-  const [pendingReset, setPendingReset] = useState<(typeof STYLE_SECTIONS)[number] | null>(null);
+  const [pendingReset, setPendingReset] = useState<StyleSection | null>(null);
+  const pending = STYLE_SECTIONS.find((section) => section.id === pendingReset);
 
   return (
     <div className="space-y-3">
@@ -173,9 +180,10 @@ export function StyleSectionsEditor<T>({
             defaultOpen={section.id === "colors"}
             menu={
               <SectionMenu
+                section={section.id}
                 title={section.title}
                 canReset={canReset}
-                onReset={() => setPendingReset(section)}
+                onReset={setPendingReset}
               />
             }
           >
@@ -212,19 +220,19 @@ export function StyleSectionsEditor<T>({
 
       {/* Resetting replaces edits, so it confirms first; it only changes the draft. */}
       <ConfirmDialog
-        open={pendingReset !== null}
+        open={pending !== undefined}
         onOpenChange={(open) => {
           if (!open) setPendingReset(null);
         }}
-        title={pendingReset ? `Reset ${pendingReset.title.toLowerCase()}?` : ""}
+        title={pending ? `Reset ${pending.title.toLowerCase()}?` : ""}
         description={
-          pendingReset
-            ? `Every ${pendingReset.noun} in the ${overlayName} style goes back to the Default theme. Nothing reaches your stream until you save.`
+          pending
+            ? `Every ${pending.noun} in the ${overlayName} style goes back to the Default theme. Nothing reaches your stream until you save.`
             : ""
         }
         confirmLabel="Reset section"
         onConfirm={() => {
-          if (pendingReset) onChange(resetSection(styles, defaults, fields, pendingReset.id));
+          if (pendingReset) onChange((prev) => resetSection(prev, defaults, fields, pendingReset));
         }}
       />
     </div>
@@ -232,13 +240,16 @@ export function StyleSectionsEditor<T>({
 }
 
 function SectionMenu({
+  section,
   title,
   canReset,
   onReset,
 }: {
+  section: StyleSection;
   title: string;
   canReset: boolean;
-  onReset: () => void;
+  /** Asks to reset `section`: the editor's state setter, the same function every render. */
+  onReset: (section: StyleSection) => void;
 }) {
   return (
     <DropdownMenu>
@@ -255,7 +266,7 @@ function SectionMenu({
         <MoreHorizontal />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem disabled={!canReset} onClick={onReset}>
+        <DropdownMenuItem disabled={!canReset} onClick={() => onReset(section)}>
           <RotateCcw className="size-3.5" />
           Reset section
         </DropdownMenuItem>

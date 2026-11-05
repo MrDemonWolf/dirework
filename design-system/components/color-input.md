@@ -29,6 +29,7 @@ Theme Center color field: a native swatch picker and a hex text input in one bor
 ## States
 
 - **Typing**: a local draft; only a full `#rrggbb` propagates, so a half-typed `#0` never reaches the live preview.
+- **Value set from outside** (the swatch, a preset, a reset): replaces the draft and clears the error in the same render (adjusted during render from the previous `value`, never copied in an effect).
 - **Blur with `#rgb`**: expanded to `#rrggbb` and committed.
 - **Blur with anything else**: kept and flagged "Not applied. Use a hex color like #1a2b3c (current: …)"; the whole field takes the destructive border.
 - **Non-hex stored value** (any color the server allowlist takes): the swatch shows black; the text field shows the stored value.
