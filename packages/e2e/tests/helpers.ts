@@ -86,6 +86,51 @@ export async function clearBotLease(page: Page): Promise<void> {
 }
 
 /**
+ * Slow named tRPC procedures on every request the e2e api worker serves, in the `e2e-delay`
+ * cookie's format (`user.hasOwner=1500`), or stop with `null` (its test-only `/__e2e/delay`
+ * knob, src/api-entry.ts). For a server call that forwards no cookie, which the cookie can't
+ * reach: the `user.hasOwner` check on `/` and `/setup`. The delay outlives the test, so a
+ * spec that sets one clears it in a `finally`.
+ */
+export async function setApiDelay(page: Page, delays: string | null): Promise<void> {
+  const res = await page.request.fetch(`${API_ORIGIN}/__e2e/delay`, {
+    method: delays === null ? "DELETE" : "PUT",
+    data: delays ?? undefined,
+  });
+  expect(res.status(), "set the api delay").toBe(204);
+}
+
+/**
+ * From the page's next load on, note the time of every painted frame (in the document's first
+ * 3s) that showed a loading skeleton block inside <main>; `skeletonFrames` reads them back.
+ * The check runs in a task queued from each frame's rAF, so it sees the DOM as that frame
+ * painted it, React's streamed reveal (another rAF callback of the same frame) included.
+ * Streamed segments sit in hidden containers until revealed, so only a rendered (non-zero
+ * box) skeleton counts: what a visitor would see.
+ */
+export async function recordSkeletonFrames(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const seen: number[] = [];
+    (window as unknown as { __skeletonFrames: number[] }).__skeletonFrames = seen;
+    const afterPaint = () => {
+      const blocks = document.querySelectorAll('main [data-slot="skeleton"]');
+      if ([...blocks].some((block) => block.getClientRects().length > 0)) {
+        seen.push(Math.round(performance.now()));
+      }
+      if (performance.now() < 3000) requestAnimationFrame(() => setTimeout(afterPaint, 0));
+    };
+    requestAnimationFrame(() => setTimeout(afterPaint, 0));
+  });
+}
+
+/** The frames `recordSkeletonFrames` saw painting a skeleton on the current document. */
+export function skeletonFrames(page: Page): Promise<number[]> {
+  return page.evaluate(
+    () => (window as unknown as { __skeletonFrames: number[] }).__skeletonFrames,
+  );
+}
+
+/**
  * Mint an owner session through the DEV_LOGIN bypass. The request goes through the web
  * origin's /api/auth proxy, so the session cookie lands on the web origin exactly like a
  * real sign-in; `page.request` shares the page's cookie jar. On the fresh e2e database the
