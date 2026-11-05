@@ -14,11 +14,14 @@ markers and similar states. Used by the dashboard, `timer-controls`,
 
 ## Anatomy
 
-- Pill (`rounded-full`) with a tone-tinted border (`/30`) and fill (`/10`).
+- Pill (`rounded-full`) with a tone-tinted border (`/30`) and fill (`/10`). The shared
+  `statusChipClassName({ tone, size })` recipe is used by the readout and the Version Badge's
+  reload button; it pins `leading-4`, making the default chip 26px tall and `sm` 22px.
 - Leading dot `size-1.5`, `aria-hidden`, solid tone color; optional `animate-led-pulse`.
 - Label: `font-mono text-2xs font-medium tracking-chip uppercase`, in a `truncate` span. The
   chip is `max-w-full shrink-0`: neighbours truncate before it does, and a label longer than
   the whole row ends in an ellipsis; pass `title` with the full text when a label may be cut.
+- `StatusChipSkeleton({ size, className })` draws the matching 26px or 22px pill placeholder.
 
 ## Props and variants
 
@@ -27,7 +30,7 @@ markers and similar states. Used by the dashboard, `timer-controls`,
 | `tone` | `StatusTone` | `"idle"` | See tones below |
 | `label` | `string` | required | Visible text (rendered uppercase) |
 | `pulse` | `boolean` | `false` | Dot pulses; only while time is actually elapsing |
-| `size` | `"default" \| "sm"` | `"default"` | `px-2.5 py-1` vs `px-2 py-0.5` |
+| `size` | `"default" \| "sm"` | `"default"` | 26px (`px-2.5 py-1`) vs 22px (`px-2 py-0.5`) |
 | `dot` | `"solid" \| "half"` | `"solid"` | `half`: a `size-2` ring in the label color, its left half filled (◐); the task board's quieter "Started" chip. No pulse |
 | `title` | `string` | none | Full label on hover, for a label that may be cut |
 | `className` | `string` | none | Merged last |
@@ -68,4 +71,4 @@ Static except for the optional pulse. Callers that swap the tone remount it with
 - **Do** pick the tone from its meaning, using `TIMER_TONES` for timer phases.
 - **Do** keep labels to one or two words.
 - **Don't** pulse a frozen state (paused, idle, finished).
-- **Don't** make it clickable; it is a readout, not a button.
+- **Don't** make the readout clickable; use the class recipe for a real button when an action needs this appearance.

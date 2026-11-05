@@ -19,8 +19,8 @@ offers a reload and stops checking. Viewers on `/` and `/setup` get the static r
 - A muted `·` separator (`aria-hidden`).
 - The 7-character SHA in mono, linked to `github.com/mrdemonwolf/dirework/commit/<sha>` (new
   tab), or plain `dev` for local builds.
-- When stale: a warning-toned chip button "New version — Reload" with a pulsing dot, styled
-  like `StatusChip` (`text-2xs tracking-chip`).
+- When stale: a warning-toned chip button "New version — Reload" with a pulsing dot, using
+  `statusChipClassName({ tone: "warn", size: "sm" })` for the same 22px pill as `StatusChip`.
 
 ## Props and variants
 

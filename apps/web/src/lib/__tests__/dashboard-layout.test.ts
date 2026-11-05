@@ -38,7 +38,7 @@ describe("dashboard layout", () => {
     expect(dashboard.match(/<TimerPhaseChip \/>/g)).toHaveLength(1);
     expect(dashboard).toContain("queryKeys={[meKey]}");
     const cluster = skeleton.match(/export function StatusClusterPlaceholder[\s\S]*?\n}\n/)?.[0];
-    expect(cluster?.match(/<ChipSkeleton /g)).toHaveLength(1);
+    expect(cluster?.match(/<StatusChipSkeleton /g)).toHaveLength(1);
   });
 
   it("gives the bot chip link a 44px touch target", () => {

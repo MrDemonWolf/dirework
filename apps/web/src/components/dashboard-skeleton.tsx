@@ -14,14 +14,10 @@
 
 import type { ReactNode } from "react";
 
+import { StatusChipSkeleton } from "@/components/status-chip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PANEL_HEADER_CLASS } from "@/lib/panel-header";
 import { statCellClass } from "@/lib/stats-view";
-
-/** A status chip (`StatusChip`: 27px tall). */
-function ChipSkeleton({ className }: { className: string }) {
-  return <Skeleton className={`h-6.75 rounded-full ${className}`} />;
-}
 
 /** A panel's one-line header: the `h2` (28px line) and, on the right, its live state. */
 function PanelHeaderSkeleton({ children }: { children: ReactNode }) {
@@ -66,7 +62,7 @@ export function StatusClusterPlaceholder() {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <div className="inline-flex items-center pointer-coarse:min-h-11">
-        <ChipSkeleton className="w-36" />
+        <StatusChipSkeleton className="w-36" />
       </div>
     </div>
   );
@@ -118,7 +114,7 @@ export function TimerConsoleBodyPlaceholder() {
   return (
     <>
       <PanelHeaderSkeleton>
-        <ChipSkeleton className="w-21.5" />
+        <StatusChipSkeleton className="w-21.5" />
       </PanelHeaderSkeleton>
       <div className="timer-console-grid grid">
         <div className="flex min-w-0 flex-col items-center justify-center gap-8 px-5 py-8">

@@ -16,6 +16,7 @@ import { metaCommands, taskCommands, timerCommands } from "@/lib/command-rows";
 import { BotPageHandoffSkeleton } from "@/components/bot-page-handoff";
 import { CommandTable } from "@/components/bot-settings/command-table";
 import { SectionPlaceholder } from "@/components/progressive-section";
+import { StatusChipSkeleton } from "@/components/status-chip";
 import {
   Card,
   CardAction,
@@ -38,11 +39,6 @@ export function BotConsoleBodySkeleton() {
       <BotPageHandoffSkeleton withAction />
     </>
   );
-}
-
-/** A status chip: default (`h-6.75`) or `sm` (`h-5.5`). */
-function ChipSkeleton({ className }: { className: string }) {
-  return <Skeleton className={`rounded-full ${className}`} />;
 }
 
 /** The card frame every Bot settings card shares, with its real (static) title. */
@@ -126,7 +122,7 @@ function ControlRowSkeleton({
       <div className="min-w-0 flex-1 space-y-0.5">
         <div className={`flex items-center gap-2 ${chip ? "h-6" : "h-5"}`}>
           <Skeleton className="h-4 w-24" />
-          {chip && <ChipSkeleton className="h-5.5 w-18" />}
+          {chip && <StatusChipSkeleton size="sm" className="w-18" />}
         </div>
         <TextLines lines={lines} narrow={narrow} />
       </div>
@@ -172,7 +168,7 @@ function BotAccountPlaceholder() {
       <PlaceholderCard
         title="Bot account"
         description="The Twitch account that talks in your chat"
-        action={<ChipSkeleton className="h-7 w-26" />}
+        action={<StatusChipSkeleton className="w-26" />}
       >
         <div className="flex items-center gap-3">
           <Skeleton className="size-10 shrink-0 rounded-lg" />
@@ -194,7 +190,7 @@ function BotConsolePlaceholder() {
     <SectionPlaceholder name="bot-console">
       <PlaceholderCard
         title="Run the bot"
-        action={<ChipSkeleton className="h-7 w-24" />}
+        action={<StatusChipSkeleton className="w-24" />}
         description={
           <>
             The bot runs inside a browser page. Its URL is a secret: treat it like a stream key.

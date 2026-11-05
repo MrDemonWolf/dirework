@@ -3,6 +3,7 @@
 // LED-style status chip used across the app (timer state, bot connection, unsaved changes).
 
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * Semantic tones: live = connected/running (emerald), warn = paused/unsaved (amber),
@@ -25,6 +26,30 @@ const toneStyles: Record<StatusTone, { chip: string; dot: string }> = {
     dot: "bg-destructive",
   },
 };
+
+export function statusChipClassName({
+  tone = "idle",
+  size = "default",
+}: {
+  tone?: StatusTone;
+  size?: "default" | "sm";
+}) {
+  return cn(
+    "inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-full border font-mono text-2xs leading-4 font-medium tracking-chip uppercase",
+    size === "sm" ? "px-2 py-0.5" : "px-2.5 py-1",
+    toneStyles[tone].chip,
+  );
+}
+
+export function StatusChipSkeleton({
+  size = "default",
+  className,
+}: {
+  size?: "default" | "sm";
+  className?: string;
+}) {
+  return <Skeleton className={cn("rounded-full", size === "sm" ? "h-5.5" : "h-6.5", className)} />;
+}
 
 /**
  * LED-style status chip — small indicator dot + mono uppercase label.
@@ -54,15 +79,7 @@ export function StatusChip({
   // Never shrinks below its label in a row (neighbours truncate first), but never grows wider
   // than its row either (max-w-full): a long label then ends in an ellipsis.
   return (
-    <span
-      title={title}
-      className={cn(
-        "inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-full border font-mono text-2xs font-medium tracking-chip uppercase",
-        size === "sm" ? "px-2 py-0.5" : "px-2.5 py-1",
-        styles.chip,
-        className,
-      )}
-    >
+    <span title={title} className={cn(statusChipClassName({ tone, size }), className)}>
       {dot === "half" ? (
         // A half-lit LED (◐): under way but not the one in focus.
         <span
