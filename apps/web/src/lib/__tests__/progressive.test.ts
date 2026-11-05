@@ -151,3 +151,21 @@ describe("dashboard wiring", () => {
     expect(dashboard).not.toContain("stagger-reveal");
   });
 });
+
+describe("Theme Center wiring", () => {
+  it("holds the shell for the streamed config's deadline, never for the whole fetch", () => {
+    const page = read("app/(app)/dashboard/styles/page.tsx");
+    expect(page).toContain("holdShellFor(loadStyles())");
+    expect(page).toMatch(/await requireSession\(\);\s*return streamStyles\(\);/);
+    expect(page).not.toMatch(/prefetch\w*\(/);
+  });
+
+  it("puts the whole page in ONE section over config.get, with the StylesSkeleton placeholder", () => {
+    const page = read("app/(app)/dashboard/styles/page.tsx");
+    expect(page).toMatch(/<StylesSection>\s*<StylesPage \/>\s*<\/StylesSection>/);
+    const section = read("app/(app)/dashboard/styles/styles-section.tsx");
+    expect(section.match(/<ProgressiveSection\b/g)).toHaveLength(1);
+    expect(section).toContain("queryKeys={[trpc.config.get.queryKey()]}");
+    expect(section).toMatch(/<SectionPlaceholder name="styles">\s*<StylesSkeleton \/>/);
+  });
+});

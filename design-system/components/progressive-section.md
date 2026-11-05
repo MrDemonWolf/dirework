@@ -12,9 +12,11 @@ greeting, panels) is static, and each section renders as soon as its own queries
 The page streams every query from ONE server batch (`streamQueries` in
 `lib/server-query.ts`) and holds its first paint for at most `SECTIONS_READY_MS` (800ms,
 `lib/progressive.ts`), so a fast load paints complete and only a section whose data is
-slower shows its placeholder, then fills in on its own. Used by `/dashboard` and Bot settings
+slower shows its placeholder, then fills in on its own. Used by `/dashboard`, Bot settings
 (`/dashboard/bot/*`, through `BotSection` in `(sections)/bot-data.tsx`, which adds the
-section's failed-load retry); any page can opt in the same way.
+section's failed-load retry) and the Theme Center (`/dashboard/styles`: one section around
+the whole page, `StylesSection` in `styles/styles-section.tsx`, with `StylesSkeleton` as its
+placeholder); any page can opt in the same way.
 
 ## Anatomy
 

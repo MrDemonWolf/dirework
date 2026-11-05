@@ -1,9 +1,11 @@
-// Loading placeholder for the Theme Center, shown by the route's loading.tsx the moment a
-// client-side navigation starts (a hard load streams the page finished instead, see
-// lib/shell-hold.ts). React keeps a shown fallback up for at least ~300ms, so its blocks
-// mirror the live layout box for box: header band, the 2 / 3 / 6-column preset grid, then the
-// preview (a collapsed sticky bar below lg, the 24rem rail at lg) beside the editor (rule, tab
-// strip, the open Colors section and three collapsed ones). Update it with styles-page.tsx.
+// Loading placeholder for the Theme Center. Shown by the route's loading.tsx the moment a
+// client-side navigation starts, and as the page's progressive placeholder
+// (dashboard/styles/styles-section.tsx) when `config.get` misses the first-paint deadline
+// (lib/progressive.ts); a fast hard load streams the page finished instead (lib/shell-hold.ts).
+// React keeps a shown fallback up for at least ~300ms, so its blocks mirror the live layout
+// box for box: header band, the 2 / 3 / 6-column preset grid, then the preview (a collapsed
+// sticky bar below lg, the 24rem rail at lg) beside the editor (rule, tab strip, the open
+// Colors section and three collapsed ones). Update it with styles-page.tsx.
 
 import { Skeleton } from "@/components/ui/skeleton";
 
