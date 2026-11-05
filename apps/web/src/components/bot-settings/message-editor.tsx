@@ -24,6 +24,7 @@ import { StatusChip } from "@/components/status-chip";
 import { Button, focusRing } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { UnsavedDot } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 /** True when a template uses one placeholder more often than the server accepts. */
@@ -203,10 +204,7 @@ export function MessageEditor<T extends object>({
                   {invalid ? (
                     <StatusChip tone="danger" size="sm" label="Fix" />
                   ) : unsaved ? (
-                    <>
-                      <span aria-hidden className="size-1.5 rounded-full bg-warning" />
-                      <span className="sr-only">(unsaved changes)</span>
-                    </>
+                    <UnsavedDot />
                   ) : null}
                   <CountBadge count={groupFields.length} />
                 </>

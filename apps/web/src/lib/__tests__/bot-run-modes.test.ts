@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { segmentedItem } from "@/components/ui/tabs";
 import {
   BOT_RUN_MODES,
   BOT_VIEW_KEY,
@@ -100,7 +101,9 @@ describe("BotPageHandoff source contract", () => {
   it("is a labelled radiogroup with 44px options on coarse pointers", () => {
     expect(source).toContain('from "@base-ui/react/radio-group"');
     expect(source).toMatch(/<RadioGroup\s+aria-labelledby=/);
-    expect(source).toMatch(/<Radio\.Root[\s\S]*?pointer-coarse:min-h-11/);
+    // Each option is a segment of the shared recipe, which carries the 44px touch floor.
+    expect(source).toMatch(/<Radio\.Root[\s\S]*?cn\(\s*segmentedItem\b/);
+    expect(segmentedItem.split(/\s+/)).toContain("pointer-coarse:min-h-11");
   });
 
   it("shows one URL row, with a visible label, remounted per view", () => {

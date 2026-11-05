@@ -166,13 +166,8 @@ function RepliesEditor({ config, user }: { config: BotConfigData; user: BotUserD
         <Tabs value={set} onValueChange={(next) => setSet(next as BotMessageTab)}>
           <TabsList className="h-9 w-full gap-1 sm:w-auto">
             {(["task", "timer"] as const).map((tab) => (
-              <TabsTrigger
-                key={tab}
-                value={tab}
-                aria-label={dirty[tab] ? `${SET_LABEL[tab]} (unsaved changes)` : undefined}
-              >
+              <TabsTrigger key={tab} value={tab} dirty={dirty[tab]}>
                 {SET_LABEL[tab]}
-                {dirty[tab] && <span aria-hidden className="size-1.5 rounded-full bg-warning" />}
               </TabsTrigger>
             ))}
           </TabsList>
