@@ -2,35 +2,22 @@ import { expect, test } from "@playwright/test";
 
 import { DEFAULT_TIMER_STYLES } from "@dirework/api/config-defaults";
 
-import { confirmDialog, signIn, waitForHydration } from "./helpers";
+import {
+  confirmDialog,
+  recordSkeletonFrames,
+  signIn,
+  skeletonFrames,
+  waitForHydration,
+} from "./helpers";
 
 test("a hard load paints the finished page, never the loading skeleton", async ({ page }) => {
   await signIn(page);
-  // After every frame from the first one on, note whether a skeleton block was on screen inside
-  // <main>. The check runs in a task queued from the frame's rAF, so it sees the DOM as that
-  // frame painted it (React reveals streamed content in a later rAF callback of the same
-  // frame). Streamed segments sit in hidden containers until revealed, so only a rendered
-  // (non-zero box) skeleton counts: that is what the owner would see.
-  await page.addInitScript(() => {
-    const seen: number[] = [];
-    (window as unknown as { __skeletonFrames: number[] }).__skeletonFrames = seen;
-    const afterPaint = () => {
-      const blocks = document.querySelectorAll('main [data-slot="skeleton"]');
-      if ([...blocks].some((block) => block.getClientRects().length > 0)) {
-        seen.push(Math.round(performance.now()));
-      }
-      if (performance.now() < 3000) requestAnimationFrame(() => setTimeout(afterPaint, 0));
-    };
-    requestAnimationFrame(() => setTimeout(afterPaint, 0));
-  });
+  await recordSkeletonFrames(page);
   await page.goto("/dashboard/styles");
   await waitForHydration(page);
   await expect(page.getByRole("radiogroup", { name: "Theme presets" })).toBeVisible();
   await page.waitForTimeout(500);
-  const frames = await page.evaluate(
-    () => (window as unknown as { __skeletonFrames: number[] }).__skeletonFrames,
-  );
-  expect(frames, "frames that showed the loading skeleton").toEqual([]);
+  expect(await skeletonFrames(page), "frames that showed the loading skeleton").toEqual([]);
 });
 
 test("fits a 390px phone, with the preview one tap away above the editors", async ({ page }) => {
