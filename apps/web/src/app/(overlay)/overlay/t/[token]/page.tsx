@@ -8,7 +8,7 @@ import { OVERLAY_POLL_QUERY_OPTS } from "@/lib/poll-intervals";
 import { AutoScale } from "@/components/auto-scale";
 import { FontGate } from "@/components/font-gate";
 import { TimerDisplay } from "@/components/timer-display";
-import { publicTrpc } from "@/utils/trpc";
+import { publicTrpc } from "@/utils/public-trpc";
 
 export default function TimerOverlayPage() {
   const { token } = useParams<{ token: string }>();

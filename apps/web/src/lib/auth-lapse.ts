@@ -85,7 +85,7 @@ export function isClientError(err: unknown): boolean {
 export const QUERY_RETRIES = 2;
 
 /**
- * The browser's React Query `retry` (utils/trpc.ts). React Query asks with how many attempts
+ * The browser's React Query `retry` (utils/query-client.ts). React Query asks with how many attempts
  * have failed so far, minus one (0 after the first), so a network failure or a 5xx is tried
  * three times in all, 1 s and then 2 s apart, and a 4xx or a lapsed sign-in once.
  */

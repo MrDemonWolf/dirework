@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useParams, usePathname } from "next/navigation";
 
 import { createCrashReporter, overlayCrashSurface } from "@/lib/crash-report";
-import { publicTrpc } from "@/utils/trpc";
+import { publicTrpc } from "@/utils/public-trpc";
 
 /** How long a crashed overlay stays blank before it re-mounts and polls again. */
 const RECOVER_AFTER_MS = 10_000;

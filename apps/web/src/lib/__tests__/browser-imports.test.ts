@@ -299,9 +299,12 @@ const ENTRIES = [
     .filter((file) => ROUTE_FILE.test(path.basename(file)))
     .map(rel)
     .sort(),
-  // The root client providers and the tRPC clients they share with every page.
+  // The client providers and the tRPC clients the pages share.
   "components/providers.tsx",
+  "components/overlay-query-provider.tsx",
+  "utils/query-client.ts",
   "utils/trpc.ts",
+  "utils/public-trpc.ts",
 ];
 
 describe("staticImports", () => {
@@ -395,13 +398,14 @@ describe("browser import graph", () => {
 // The OBS overlays and the bot page (the token pages an OBS source, Moblin or a dock keeps open
 // all stream) show no toasts and no Theme Center, so they must not load the toast host or the
 // preset table: sonner, the query-error toast, the six presets and, through the presets'
-// isDeepEqual, lib/utils' tailwind-merge and clsx. Every route renders the root layout and the
-// root providers, so their imports count for each token page. The (app) shell is the control:
-// the same walk reaches the toast host from there.
+// isDeepEqual, lib/utils' tailwind-merge and clsx. Every route renders the root layout, so its
+// imports count for each token page (the client providers are mounted by the group layouts,
+// which are entries of their own). The (app) shell is the control: the same walk reaches the
+// toast host from there.
 
 const src = (file: string) => path.join(webSrc, file);
 
-const ROOT_ENTRIES = ["app/layout.tsx", "components/providers.tsx", "utils/trpc.ts"];
+const ROOT_ENTRIES = ["app/layout.tsx"];
 const OVERLAY_ENTRIES = ENTRIES.filter((entry) => entry.startsWith("app/(overlay)/"));
 const BOT_ENTRIES = ENTRIES.filter((entry) => entry.startsWith("app/(bot)/"));
 const TOKEN_PAGE_ENTRIES = [...ROOT_ENTRIES, ...OVERLAY_ENTRIES, ...BOT_ENTRIES];
@@ -464,5 +468,54 @@ describe("the toast host", () => {
       .map(rel);
     expect(mounts).toEqual(["components/app-toaster.tsx"]);
     expect(readFileSync(src("app/(app)/layout.tsx"), "utf8")).toContain("<AppToaster />");
+  });
+});
+
+// ── Providers only where they're used ───────────────────────────────────────
+//
+// The root layout mounts no client providers. The (app) layout mounts the theme and React
+// Query (the dashboard uses both), the (overlay) layout only a QueryClientProvider (the
+// overlays poll with useQuery but never read the theme; the head script still sets the class),
+// and the (bot) layout neither: the bot page calls the plain publicTrpc client and pins the
+// dark tokens. So a token page loads no next-themes, the bot page no React Query, and neither
+// the /rpc options proxy or the devtools.
+
+const THEME_RUNTIME = ["npm:next-themes", src("components/theme-provider.tsx")];
+const REACT_QUERY = ["npm:@tanstack/react-query", "npm:@tanstack/react-query-devtools"];
+const RPC_OPTIONS_PROXY = [
+  "npm:@trpc/tanstack-react-query",
+  "npm:@tanstack/react-query-devtools",
+  src("utils/trpc.ts"),
+];
+
+describe("providers only where they're used", () => {
+  it.each(["app/layout.tsx", ...OVERLAY_ENTRIES, ...BOT_ENTRIES])(
+    "%s loads no theme provider",
+    (entry) => {
+      expect(forbiddenChains(src(entry), oneOf(THEME_RUNTIME))).toEqual([]);
+    },
+  );
+
+  it.each(["app/layout.tsx", ...BOT_ENTRIES])("%s loads no React Query", (entry) => {
+    expect(forbiddenChains(src(entry), oneOf(REACT_QUERY))).toEqual([]);
+  });
+
+  it.each(OVERLAY_ENTRIES)("%s loads no /rpc options proxy or devtools", (entry) => {
+    expect(forbiddenChains(src(entry), oneOf(RPC_OPTIONS_PROXY))).toEqual([]);
+  });
+
+  it("follows the edges it checks: the (app) shell reaches the theme provider and React Query", () => {
+    expect(forbiddenChains(src("app/(app)/layout.tsx"), oneOf(THEME_RUNTIME))).toHaveLength(
+      THEME_RUNTIME.length,
+    );
+    expect(forbiddenChains(src("app/(app)/layout.tsx"), oneOf(REACT_QUERY))).toHaveLength(
+      REACT_QUERY.length,
+    );
+    expect(
+      forbiddenChains(
+        src("app/(overlay)/overlay/t/[token]/page.tsx"),
+        oneOf(["npm:@tanstack/react-query"]),
+      ),
+    ).toHaveLength(1);
   });
 });

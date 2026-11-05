@@ -47,7 +47,7 @@ import {
 import { pageLeaseId, releaseBotLease } from "@/lib/bot-lease-release";
 import { botPageTitle, type BotActivityLine, type BotView } from "@/lib/bot-view";
 import { TwitchIrcClient, type IrcStatus } from "@/lib/irc-client";
-import { publicTrpc } from "@/utils/trpc";
+import { publicTrpc } from "@/utils/public-trpc";
 
 import { BotDock } from "./bot-dock";
 import { DashboardBotLink } from "./dashboard-bot-link";

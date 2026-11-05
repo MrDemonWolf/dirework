@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 
 import { AppToaster } from "@/components/app-toaster";
 import Header from "@/components/header";
+import Providers from "@/components/providers";
 import { ThemeColorSync } from "@/components/theme-color-sync";
 import { linkVariants } from "@/components/ui/button";
 import { VersionBadge } from "@/components/version-badge";
@@ -45,8 +46,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // The account menu's two outbound links: this deploy's docs and the repo's issue form.
   const { docs, reportProblem } = landingLinks(process.env.DOCS_URL);
 
+  // The theme and React Query providers live here, not in the root layout, so the OBS
+  // overlays and the bot page never load next-themes (components/providers.tsx).
   return (
-    <>
+    <Providers>
       {/* The heading face (preloaded) is published from this layout, not the root, so OBS
           overlays never fetch it; `--font-heading` in index.css falls back to the body face
           wherever the variable is absent. It goes on <body> rather than this wrapper because
@@ -132,9 +135,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           )}
         </footer>
       </div>
-      {/* The one toast host: here, not in the root providers, so the OBS overlays and the bot
+      {/* The one toast host: here, not in Providers, so the OBS overlays and the bot
           page never load it; after the grid, so its live region doesn't become a grid row. */}
       <AppToaster />
-    </>
+    </Providers>
   );
 }

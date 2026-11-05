@@ -466,7 +466,7 @@ length fields also use `cssLengthSchema`). Nothing the web app loads may reach t
 (`@dirework/db/schema`, drizzle-orm, cuid2): `config-shared` reads only the import-free
 `@dirework/db/defaults` at runtime (where `SINGLETON_ID` lives). The import walk in
 `apps/web/src/lib/__tests__/browser-imports.test.ts` follows every static value import from
-each route entry (pages, layouts, boundaries, the root providers) and fails with the chain
+each route entry (pages, layouts, boundaries, the client providers) and fails with the chain
 when one breaks either rule; its `ZOD_PAGES` lists the two exceptions.
 
 ## Tech Stack
@@ -942,14 +942,23 @@ the only thing that talks to Google Fonts, run by hand; `packages/fonts`' test f
 
 **Token pages load no toast host and no presets.** The OBS overlays and the bot page show
 no toasts and no Theme Center. The one sonner `Toaster` is `components/app-toaster.tsx`,
-mounted only by the `(app)` layout. `utils/trpc.ts`'s QueryCache and MutationCache hand a
+mounted only by the `(app)` layout. `utils/query-client.ts`'s QueryCache and MutationCache hand a
 failure to whatever `lib/query-error-reporter.ts` holds, which `app-toaster.tsx` sets to
 `toastQueryError` / `toastMutationAuthLapse` as its module loads (never lazily: "Can't reach the DireWork API" must
 show when the network is down), so a token page registers none and loads no sonner.
 `lib/overlay-view.ts` takes its fallback styles from `lib/config-types`, never
 `lib/theme-presets` (the preset table, plus `lib/utils`' tailwind-merge and clsx through its
 `isDeepEqual`). `browser-imports.test.ts` ("what the token pages load") walks the static
-imports of both overlays and the bot page, the root layout and providers included, and pins it.
+imports of both overlays and the bot page, the root layout included, and pins it.
+**Providers only where they're used.** The root layout mounts no client providers (only the
+static theme-init `<head>` script). The `(app)` layout mounts `components/providers.tsx`
+(next-themes through the store bridge, React Query, devtools), the `(overlay)` layout only
+`OverlayQueryProvider` (React Query; overlays never read the theme), and the `(bot)` layout
+none: the bot page calls the plain `publicTrpc` (`utils/public-trpc.ts`), never React Query.
+The shared QueryClient lives in `utils/query-client.ts`, the dashboard's `/rpc` options proxy
+in `utils/trpc.ts` (which no token page imports). `browser-imports.test.ts` ("providers only
+where they're used") pins it: no next-themes on a token page, no React Query on the bot page,
+no options proxy or devtools on an overlay.
 
 ### Theme Center & Frontend
 
@@ -1255,7 +1264,7 @@ the flag the server's digits stay until the displayed second next changes
 (`hydration.spec.ts` runs the browser clock 2s ahead to pin it).
 The theme is applied before first paint by a static inline script in the root layout's
 `<head>` (`lib/theme-init.ts`, kept in sync with the next-themes props in
-`providers.tsx`), and `html` carries the theme background and `color-scheme`, so a
+`providers.tsx`, which only the `(app)` layout mounts), and `html` carries the theme background and `color-scheme`, so a
 streamed dark page never paints white first. Pre-mount theme placeholders (the header
 `ModeToggle`) style themselves with `dark:` classes off that class rather than guessing.
 `TimerProvider` seeds its editable minutes lazily (`useState(() => …)`) from the hydrated

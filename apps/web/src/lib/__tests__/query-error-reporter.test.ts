@@ -1,4 +1,4 @@
-// The browser QueryClient (utils/trpc.ts) hands a failed query to whatever reporter
+// The browser QueryClient (utils/query-client.ts) hands a failed query to whatever reporter
 // lib/query-error-reporter.ts holds. AppToaster (components/app-toaster.tsx), which only the
 // (app) layout mounts, registers the toast as its module loads; the OBS overlays and the bot page
 // never load it, so a failed query there reports nowhere and sonner stays out of their bundles.
@@ -8,7 +8,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { API_UNREACHABLE_MESSAGE, API_UNREACHABLE_TOAST_ID } from "../trpc-errors";
 
-// React Query decides browser or server once, as it loads (`typeof window`), and utils/trpc.ts
+// React Query decides browser or server once, as it loads (`typeof window`), and utils/query-client.ts
 // reads that answer: give this file a browser `window` before anything imports them.
 vi.hoisted(() => {
   Object.defineProperty(globalThis, "window", { value: new EventTarget(), configurable: true });
@@ -17,10 +17,10 @@ vi.hoisted(() => {
 const toastError = vi.hoisted(() => vi.fn());
 vi.mock("sonner", () => ({ toast: { error: toastError }, Toaster: () => null }));
 
-/** utils/trpc.ts as a fresh page load gets it, with no reporter registered yet. */
+/** utils/query-client.ts as a fresh page load gets it, with no reporter registered yet. */
 async function loadPage(): Promise<QueryClient> {
   vi.resetModules();
-  const { getQueryClient } = await import("@/utils/trpc");
+  const { getQueryClient } = await import("@/utils/query-client");
   return getQueryClient();
 }
 
@@ -36,10 +36,10 @@ function failingQuery(meta?: { silent: boolean }) {
 
 let client: QueryClient | undefined;
 
-// The first import transforms utils/trpc.ts's whole graph (tRPC, the api's config modules),
+// The first import transforms utils/query-client.ts's whole graph (React Query, the api's modules),
 // which can outlast a test's 5s; the imports after each vi.resetModules() reuse that work.
 beforeAll(async () => {
-  await import("@/utils/trpc");
+  await import("@/utils/query-client");
 }, 30_000);
 
 afterEach(() => {
