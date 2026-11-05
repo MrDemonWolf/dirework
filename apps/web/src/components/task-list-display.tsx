@@ -166,16 +166,19 @@ function StaticList({ children, config }: { children: React.ReactNode; config: T
     const rowEls = groupEls.map((groupEl) =>
       Array.from(groupEl.querySelectorAll<HTMLElement>("[data-task-row]")),
     );
+    // Every box is read before applyStaticListFit writes: a read after its style writes
+    // would force another style recalc.
+    const footerBoxHeight = footer.offsetHeight;
     const fit = fitStaticList(
       groupEls.map((groupEl, g) => ({
         bottom: groupEl.offsetTop + groupEl.offsetHeight,
         rowBottoms: (rowEls[g] ?? []).map((row) => row.offsetTop + row.offsetHeight),
       })),
       area.clientHeight,
-      footer.offsetHeight,
+      footerBoxHeight,
     );
     applyStaticListFit(groupEls, rowEls, fit, radius);
-    setFooterHeight(footer.offsetHeight);
+    setFooterHeight(footerBoxHeight);
     setHidden(fit.hidden);
   }, [radius]);
 

@@ -787,8 +787,11 @@ squircle inner width narrowing in the corner bands, the panel with the ring off 
 to draw — `ringFitsFrame`, the same rule `ProgressRing` skips by) returns
 per-line scales ≤ 1 that commit before paint. Lines never wrap; below `MIN_FIT_SCALE` (0.5)
 a line is cut with an ellipsis (a frame too short for the stack even at that floor lets it
-overflow vertically rather than shrink to nothing). It re-fits only when an input changes
-(the clock's length, not each tick), a web font finishes loading, or the frame's layout size
+overflow vertically rather than shrink to nothing). A mount measures once: the fit seeds
+the frame size it measured, and `observeFrameSize`'s synchronous first report (that same
+box) is skipped. It re-fits only when an input changes (the clock's length, not each tick),
+a web font finishes loading after the fit measured (`watchFontLoads`: every `loadingdone`,
+and `fonts.ready` only if a font was still loading at the fit), or the frame's layout size
 or the viewport changes (`observeFrameSize`: one ResizeObserver on the frame plus a window
 `resize` listener, so `vw`/`%` dimensions and `vw`/`vh` font sizes refit when the OBS source
 resizes) — no per-frame or per-tick work.
@@ -813,7 +816,8 @@ for older rows. With scrolling off, `StaticList` shows whole rows only (`fitStat
 `lib/overlay-view.ts`): a row that doesn't fit and every row after it are hidden, a group
 with no row showing is hidden header and all, and a group cut part way is clipped at its
 last shown row; it hides with `visibility` / `clip-path` written straight to the DOM (no
-layout change, so no ResizeObserver loop) and measures after each render (a poll that
+layout change, so no ResizeObserver loop), reads every box before it writes any (a read
+after the writes forces another style recalc), and measures after each render (a poll that
 brought new data) and on resize, never per tick. Each author's rows arrive focus → started
 → rest (server order); the focus (`active`) row gets the username-color tint and an
 "Active" label, a parked `started` row only a "Started" label (no tint), both chosen by
