@@ -5,7 +5,7 @@
 // custom browser dock (Docks → Custom Browser Docks) or a pinned browser tab. Both views run
 // the same bot session: the layout changes, the requests do not.
 
-import type { BotActivityKind } from "@/lib/bot-session";
+import type { BotActivityKind, BotPhase } from "@/lib/bot-session";
 
 export type BotView = "widget" | "dock";
 
@@ -27,6 +27,20 @@ export function botPagePath(token: string, view: BotView = "widget"): string {
 /** The tab title: the page's only visible state when it is the blank widget. */
 export function botPageTitle(status: string): string {
   return `DireWork bot · ${status}`;
+}
+
+/** The phases that stop the bot until the owner acts. */
+export type BotTerminalPhase = Extract<BotPhase, "invalid" | "revoked" | "reauth">;
+
+/** What stopped the bot, for each terminal phase: the widget's alert and the dock's notice. */
+export const BOT_TERMINAL_HEADINGS: Record<BotTerminalPhase, string> = {
+  invalid: "Invalid bot page URL",
+  revoked: "Bot page URL reset",
+  reauth: "Bot login expired",
+};
+
+export function isTerminalBotPhase(phase: BotPhase): phase is BotTerminalPhase {
+  return phase === "invalid" || phase === "revoked" || phase === "reauth";
 }
 
 export interface BotActivityLine {

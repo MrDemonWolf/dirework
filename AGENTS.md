@@ -280,7 +280,9 @@ browser source or Moblin browser widget scene; its state goes only to `document.
 live region, and even the terminal phases (`revoked`, `reauth`, `invalid`) and the `(bot)`
 error boundary stay off the stream (sr-only `role="alert"`; the dock and Dashboard → Bot
 show them). `?view=dock` is the visible control panel for an OBS custom browser dock or a
-pinned tab (`bot-dock.tsx`, a centered `max-w-md` column on the OBS grey: LED, mute state,
+pinned tab (`bot-dock.tsx`, inside `bot-dock-view.tsx` with the terminal notice, which
+`bot-console.tsx` loads through `next/dynamic` (SSR on) only for the dock, so the widget never
+downloads the dock UI; a centered `max-w-md` column on the OBS grey: LED, mute state,
 last error, recent commands, Reconnect, command buttons; the title bar plus Mute/Unmute and
 Reconnect are a `sticky top-0` strip, so a ~400×200 or 240-wide dock never scrolls them away) over the SAME session — no poll;
 Reconnect re-creates the session (one `getSession`, like a reload). The dock wears OBS Studio's Yami dark palette (`color.obs` tokens → `*-obs-*`

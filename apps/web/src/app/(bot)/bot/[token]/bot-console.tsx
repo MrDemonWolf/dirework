@@ -20,9 +20,9 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 
-import { StatusChip, type StatusTone } from "@/components/status-chip";
 import {
   type ChatErrorState,
   currentChatError,
@@ -45,32 +45,29 @@ import {
   type BotSession,
 } from "@/lib/bot-session";
 import { pageLeaseId, releaseBotLease } from "@/lib/bot-lease-release";
-import { botPageTitle, type BotActivityLine, type BotView } from "@/lib/bot-view";
+import {
+  BOT_TERMINAL_HEADINGS,
+  botPageTitle,
+  isTerminalBotPhase,
+  type BotActivityLine,
+  type BotView,
+} from "@/lib/bot-view";
 import { TwitchIrcClient, type IrcStatus } from "@/lib/irc-client";
 import { publicTrpc } from "@/utils/public-trpc";
 
-import { BotDock } from "./bot-dock";
-import { DashboardBotLink } from "./dashboard-bot-link";
+import type { BotDockLed } from "./bot-dock-view";
+
+/**
+ * The dock panel and the terminal notice, loaded only when `view === "dock"` renders it: the
+ * blank widget never downloads the dock, its dialogs or StatusChip. Server-rendered (SSR on),
+ * so the dock paints from the server and its chunk comes with the page, never mid-stream.
+ */
+const BotDockView = dynamic(() => import("./bot-dock-view").then((m) => m.BotDockView));
 
 /** Lines kept in the activity feed (the dock's recent commands). */
 const MAX_ACTIVITY = 20;
 
 type ActivityLine = BotActivityLine;
-
-const LED_CLASS: Record<"green" | "amber" | "red" | "off", string> = {
-  off: "bg-obs-muted",
-  green: "bg-emerald-400 shadow-[0_0_12px_2px_rgba(52,211,153,0.55)]",
-  amber:
-    "bg-amber-400 shadow-[0_0_12px_2px_rgba(251,191,36,0.5)] animate-pulse motion-reduce:animate-none",
-  red: "bg-red-500 shadow-[0_0_12px_2px_rgba(239,68,68,0.55)]",
-};
-
-/** What stopped the bot, for each phase that needs the owner. */
-const TERMINAL_HEADINGS: Record<"invalid" | "revoked" | "reauth", string> = {
-  invalid: "Invalid bot page URL",
-  revoked: "Bot page URL reset",
-  reauth: "Bot login expired",
-};
 
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
@@ -96,7 +93,7 @@ function formatUptime(ms: number): string {
  * never through the web proxy. `view="widget"` (the default) paints nothing: it sits on a
  * stream, so its state goes only to the tab title and a screen-reader live region — even the
  * terminal phases (`invalid`, `revoked`, `reauth`), which the dock and Bot settings show.
- * `view="dock"` is the visible control panel (`bot-dock.tsx`), whose terminal phases are a
+ * `view="dock"` is the visible control panel (`bot-dock-view.tsx`), whose terminal phases are a
  * full-screen notice. The session, and so every request, is the same in both.
  */
 export function BotConsole({ view = "widget" }: { view?: BotView }) {
@@ -230,7 +227,6 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
     }
   };
 
-  const terminal = phase === "invalid" || phase === "revoked" || phase === "reauth";
   // Standby: another bot page holds the chat, so this one is off IRC on purpose.
   const standby = phase === "standby";
   const connected = phase === "live" && ircStatus === "connected";
@@ -240,19 +236,7 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
   // tick) re-evaluates the clear window every second without a timer of its own.
   const chatError = connected && !showMuted ? currentChatError(chatErrorState, nowTick) : null;
 
-  const tone: StatusTone = standby
-    ? "idle"
-    : phase === "boot" || phase === "not-configured"
-      ? "warn"
-      : ircStatus === "connected"
-        ? showMuted || chatError
-          ? "warn"
-          : "live"
-        : ircStatus === "closed"
-          ? "danger"
-          : "warn";
-
-  const statusText = terminal
+  const statusText = isTerminalBotPhase(phase)
     ? "Action needed"
     : standby
       ? "Standby"
@@ -287,8 +271,8 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
     // the state; a terminal phase is an alert, so a reader hears the bot stop.
     return (
       <main aria-label="DireWork bot widget" className="sr-only">
-        {terminal ? (
-          <p role="alert">{`DireWork bot: ${TERMINAL_HEADINGS[phase]}. Open the dock or Dashboard → Bot to fix it.`}</p>
+        {isTerminalBotPhase(phase) ? (
+          <p role="alert">{`DireWork bot: ${BOT_TERMINAL_HEADINGS[phase]}. Open the dock or Dashboard → Bot to fix it.`}</p>
         ) : (
           <p role="status">{`DireWork bot: ${statusText}`}</p>
         )}
@@ -296,74 +280,55 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
     );
   }
 
-  if (terminal) {
-    return (
-      // role="alert": a live page that drops here unmounts the dock's role="status"
-      // header, so without it a screen reader in a pinned tab hears nothing.
-      <main role="alert" className="bot-notice">
-        <StatusChip tone="danger" label="Action needed" />
-        <h1 className="font-mono text-xl font-semibold">{TERMINAL_HEADINGS[phase]}</h1>
-        {phase === "revoked" ? (
-          <p>
-            This URL was reset. Copy the new one from <DashboardBotLink /> and paste it into your
-            OBS dock or tab.
-          </p>
-        ) : phase === "reauth" ? (
-          <p>
-            Twitch no longer accepts the bot account&apos;s login. Reconnect it in{" "}
-            <DashboardBotLink />, then refresh this page (OBS: right-click the dock → Refresh).
-          </p>
-        ) : (
-          <p>
-            This isn&apos;t a valid bot page URL. Copy the current one from <DashboardBotLink />.
-          </p>
-        )}
-      </main>
-    );
-  }
-
   // Not-configured, muted and a chat error wait on a person, not on the bot — a steady LED,
   // so none of them reads as "Connecting". Standby is neither a fault nor a wait: a grey LED.
-  const led = standby ? "off" : tone === "live" ? "green" : tone === "danger" ? "red" : "amber";
-  const ledClass = `${LED_CLASS[led]}${phase === "not-configured" || showMuted || chatError ? " animate-none" : ""}`;
+  const led: BotDockLed = standby
+    ? "off"
+    : phase === "boot" || phase === "not-configured"
+      ? "amber"
+      : ircStatus === "connected"
+        ? showMuted || chatError
+          ? "amber"
+          : "green"
+        : ircStatus === "closed"
+          ? "red"
+          : "amber";
 
-  // The page is transparent (the widget's layout): the dock's grey fills a wide tab too.
   return (
-    <div className="min-h-dvh bg-obs-window">
-      <BotDock
-        ledClass={ledClass}
-        statusText={statusText}
-        phase={phase}
-        muted={muted}
-        channelName={channelName}
-        botUsername={botUsername}
-        uptime={connectedAt && nowTick && !standby ? formatUptime(nowTick - connectedAt) : "—"}
-        counters={counters}
-        activity={activity}
-        lastError={lastError}
-        // A manual restart costs one getSession, like a page reload; disabled while the bot
-        // is already starting or connecting, so repeated clicks can't stack requests.
-        reconnectDisabled={
-          phase === "boot" || ircStatus === "connecting" || ircStatus === "reconnecting"
-        }
-        onReconnect={() => {
-          setPhase("boot");
-          setIrcStatus("idle");
-          setCommandsReady(false);
-          setGeneration((g) => g + 1);
-        }}
-        controls={dockControls({
-          ready: phase === "live" && commandsReady,
-          muted,
-          busy: pendingCommand !== null,
-          standby,
-        })}
-        // One getSession + one forced heartbeat; the dock shows "Starting" until it lands.
-        onTakeOver={() => sessionRef.current?.takeOver()}
-        onCommand={(id) => void runDockCommand(id)}
-        pending={pendingCommand}
-        result={commandResult}
-      />
-    </div>
+    <BotDockView
+      led={led}
+      steadyLed={phase === "not-configured" || showMuted || chatError !== null}
+      statusText={statusText}
+      phase={phase}
+      muted={muted}
+      channelName={channelName}
+      botUsername={botUsername}
+      uptime={connectedAt && nowTick && !standby ? formatUptime(nowTick - connectedAt) : "—"}
+      counters={counters}
+      activity={activity}
+      lastError={lastError}
+      // A manual restart costs one getSession, like a page reload; disabled while the bot
+      // is already starting or connecting, so repeated clicks can't stack requests.
+      reconnectDisabled={
+        phase === "boot" || ircStatus === "connecting" || ircStatus === "reconnecting"
+      }
+      onReconnect={() => {
+        setPhase("boot");
+        setIrcStatus("idle");
+        setCommandsReady(false);
+        setGeneration((g) => g + 1);
+      }}
+      controls={dockControls({
+        ready: phase === "live" && commandsReady,
+        muted,
+        busy: pendingCommand !== null,
+        standby,
+      })}
+      // One getSession + one forced heartbeat; the dock shows "Starting" until it lands.
+      onTakeOver={() => sessionRef.current?.takeOver()}
+      onCommand={(id) => void runDockCommand(id)}
+      pending={pendingCommand}
+      result={commandResult}
+    />
   );
 }

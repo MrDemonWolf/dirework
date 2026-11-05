@@ -13,7 +13,7 @@ describe("bot widget", () => {
   it("paints no background in the bot layout; the dock paints its own", () => {
     // The widget's canvas is left unpainted by the <head> script (theme-init.test.ts).
     expect(read("layout.tsx")).not.toMatch(/className="[^"]*\bbg-|<style/);
-    expect(read("bot/[token]/bot-console.tsx")).toContain(
+    expect(read("bot/[token]/bot-dock-view.tsx")).toContain(
       '<div className="min-h-dvh bg-obs-window">',
     );
   });
@@ -25,10 +25,30 @@ describe("bot widget", () => {
     expect(block).toContain('className="sr-only"');
     expect(block).toContain('role="alert"');
     expect(block).toContain('role="status"');
-    // It returns before the terminal notice, which paints a full screen.
-    expect(console.indexOf('if (view === "widget")')).toBeLessThan(
-      console.indexOf('className="bot-notice"'),
+    // It returns before the dock view, whose terminal notice paints a full screen.
+    expect(console).not.toContain("bot-notice");
+    expect(console.indexOf('if (view === "widget")')).toBeLessThan(console.indexOf("<BotDockView"));
+    expect(read("bot/[token]/bot-dock-view.tsx")).toContain('className="bot-notice"');
+  });
+
+  it("loads the dock's UI only for ?view=dock", () => {
+    // The blank widget never renders the dock, its dialogs or the terminal notice, so
+    // bot-console.tsx value-imports none of them: the dock view is a next/dynamic chunk
+    // (server-rendered, so ?view=dock still paints from the server).
+    const console = read("bot/[token]/bot-console.tsx");
+    const valueImports = [...console.matchAll(/^import (?!type\b)[^;]*?from "([^"]+)";/gm)].map(
+      (m) => m[1],
     );
+    for (const dockOnly of [
+      "./bot-dock",
+      "./bot-dock-view",
+      "./dashboard-bot-link",
+      "@/components/status-chip",
+      "@/components/confirm-dialog",
+    ]) {
+      expect(valueImports).not.toContain(dockOnly);
+    }
+    expect(console).toMatch(/dynamic\(\s*\(\) =>\s*import\("\.\/bot-dock-view"\)/);
   });
 
   it("puts the live state in the tab title", () => {
