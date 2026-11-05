@@ -330,7 +330,7 @@ packages/db        → Drizzle ORM schema + createDb() (drizzle-orm/d1) + migrat
 packages/env       → cloudflare:workers bindings (server), t3-env (web)
 packages/infra     → Alchemy IaC (both workers + D1)
 packages/fonts     → self-hosted UI woff2 files (Montserrat, IBM Plex Sans/Mono) both apps load via next/font/local; no code
-packages/overlay-kit → pure overlay geometry (squircle path) + clock formatting + `BRAND` copy + `DEMO_SESSION` demo data, shared by web overlays, docs mocks and both OG cards; zero runtime deps
+packages/overlay-kit → pure overlay geometry (squircle path) + clock formatting + `BRAND` copy + `DEMO_SESSION` demo data, shared by web overlays and docs mocks; zero runtime deps. Subpath `./share-card` (`ShareCard`, its only JSX, `react` peer) is the one OG card both apps render
 packages/e2e       → Playwright browser tests: both workers in local workerd over a fresh local D1 (CI gate)
 packages/config    → Shared TypeScript configuration
 ```
@@ -978,7 +978,11 @@ existing home and reuse it:
   overlay geometry/formatting (`formatClock`, `cycleLabel`) in `@dirework/overlay-kit`, which
   also holds `BRAND` (the one tagline/description for metadata, docs hero, share cards) and
   `DEMO_SESSION` (the example session every mock and card renders; its bot replies are held
-  to the real defaults by `apps/web/src/lib/__tests__/demo-session.test.ts`).
+  to the real defaults by `apps/web/src/lib/__tests__/demo-session.test.ts`). The share card
+  is `ShareCard` from `@dirework/overlay-kit/share-card`: both apps' `opengraph-image.tsx`
+  are `new ImageResponse(<ShareCard />, size)` plus their metadata exports, never a copy
+  (`share-card.test.ts` pins both routes and keeps the `.` entry import-free, so it stays
+  dependency-free).
 - **Constants** — timer/config defaults come from `@dirework/db/defaults` (re-exported via
   `@dirework/api/config-shared`); never re-type `25*60*1000` etc. The M1/M3/M4 "don't
   duplicate" rules apply to the web component layer too, not only services/config.

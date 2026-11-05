@@ -5,6 +5,9 @@
   "exports": {
     ".": {
       "default": "./src/index.ts"
+    },
+    "./share-card": {
+      "default": "./src/share-card.tsx"
     }
   },
   "scripts": {
@@ -12,8 +15,12 @@
     "check-types": "tsc --noEmit",
     "test:coverage": "vitest run --coverage"
   },
+  "peerDependencies": {
+    "react": "catalog:"
+  },
   "devDependencies": {
     "@dirework/config": "workspace:*",
+    "@types/react": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

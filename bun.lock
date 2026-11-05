@@ -213,8 +213,12 @@
       "name": "@dirework/overlay-kit",
       "devDependencies": {
         "@dirework/config": "workspace:*",
+        "@types/react": "catalog:",
         "typescript": "catalog:",
         "vitest": "catalog:",
+      },
+      "peerDependencies": {
+        "react": "catalog:",
       },
     },
   },
