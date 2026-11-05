@@ -1048,8 +1048,10 @@ settings (mute, the Task/Timer switches, "Who can add tasks") share `useInstantS
 (`lib/use-instant-setting.ts`): the value asked for while pending (`instantValue`), and both
 toasts from the mutation's own callbacks, so leaving the page mid-save keeps the toast (a
 per-call `mutate(…, { onSuccess })` is dropped on unmount). Block / unblock
-answer with the login only and still invalidate `config.get`, as task writes invalidate
-`task.list` (the server computes more than they return).
+answer with the login only, which fully determines the list change, so they merge too
+(`viewerBlocked` appends it lowercase unless listed or at `MAX_BLOCKED_VIEWERS`, as the
+server's guarded UPDATE does; `viewerUnblocked` filters it out). Blocking also deletes the
+viewer's tasks, so it invalidates `task.list` (inactive on Moderation: no request).
 The task board (`task-manager.tsx`) takes the full width.
 Its add form is `AddTaskForm`, which owns the draft and `task.create`, so a keystroke renders
 only the form, never the rows; its one prop is the board's input ref, which the empty state's

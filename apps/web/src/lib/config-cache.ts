@@ -5,12 +5,14 @@
 // ~9 D1 rows `config.get`'s provisioning batch and reads touch) for what the answer already said,
 // and the instant switches stayed disabled until that read came back. This is the one home for
 // those merges: every save path calls `applyConfigResult` with the merge for its procedure.
-// Block and unblock still re-read, since their answer is only the login, not the list.
+// Block and unblock answer only the login, but the list change is fully determined by it (the
+// server appends or filters it out, and refuses a duplicate or a full list), so they patch it.
 // React-free, so it is tested against a real QueryClient.
 
 import type { DataTag, QueryClient, QueryKey } from "@tanstack/react-query";
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 
+import { MAX_BLOCKED_VIEWERS } from "@dirework/api/chat-commands";
 import type { AppRouter } from "@dirework/api/routers/index";
 
 type ConfigOutputs = inferRouterOutputs<AppRouter>["config"];
@@ -85,4 +87,34 @@ export function botSettingsSaved(
 /** `config.setBotMuted` answers with the mute flag alone. */
 export function botMutedSaved({ muted }: ConfigOutputs["setBotMuted"]): ConfigMerge {
   return (config) => ({ ...config, botConfig: { ...config.botConfig, muted } });
+}
+
+/** Replace the cached block list; the same object back when nothing changed. */
+function withBlockedViewers(config: ConfigData, next: string[] | null): ConfigData {
+  return next === null
+    ? config
+    : { ...config, botConfig: { ...config.botConfig, blockedViewers: next } };
+}
+
+/**
+ * `config.blockViewer` answers with the login it added. The server's guarded UPDATE appends it
+ * (`json_insert … '$[#]'`) and refuses a duplicate or a list at `MAX_BLOCKED_VIEWERS`, so the
+ * cache does the same: append it, lowercase, unless it is already listed or the list is full.
+ */
+export function viewerBlocked({ login }: ConfigOutputs["blockViewer"]): ConfigMerge {
+  const name = login.toLowerCase();
+  return (config) => {
+    const list = config.botConfig.blockedViewers;
+    const skip = list.includes(name) || list.length >= MAX_BLOCKED_VIEWERS;
+    return withBlockedViewers(config, skip ? null : [...list, name]);
+  };
+}
+
+/** `config.unblockViewer` answers with the login it removed; the rest keep their order. */
+export function viewerUnblocked({ login }: ConfigOutputs["unblockViewer"]): ConfigMerge {
+  const name = login.toLowerCase();
+  return (config) => {
+    const list = config.botConfig.blockedViewers;
+    return withBlockedViewers(config, list.includes(name) ? list.filter((v) => v !== name) : null);
+  };
 }
