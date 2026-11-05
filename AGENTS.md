@@ -1062,7 +1062,8 @@ existing home and reuse it:
   sonner, callout). Reuse these instead of hand-rolling markup; add a primitive here when a pattern
   repeats (e.g. a destructive callout) rather than copy-pasting it. `ui/button.tsx` also exports
   the class recipes for controls that aren't a `Button`: `linkVariants` (`prose`: underlined
-  `text-link` inside copy; `quiet`: the Footer Convention) and `focusRing` (the keyboard ring for
+  `text-link` inside copy; `proseOnTint`: underlined `foreground` on a tinted callout, AAA where
+  `text-link` is not; `quiet`: the Footer Convention) and `focusRing` (the keyboard ring for
   hand-rolled triggers, chips and links); `link-focus-recipes.test.ts` fails on a hand-typed
   `focus-visible:ring-2` or prose-link string outside `ui/`.
 - **Shared components** — `confirm-dialog`, `save-bar` (takes `blockedReason` to disable

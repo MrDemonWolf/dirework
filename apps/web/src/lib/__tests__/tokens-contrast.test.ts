@@ -196,12 +196,12 @@ const PAIRINGS: Pairing[] = [
     level: "AAA" as const,
   })),
   {
-    // sign-in-notice.tsx: the prose link (linkVariants) inside the destructive Callout. Like
-    // the primary tints, light mode stays AA on the tint (AAA on every plain surface).
-    use: "link in a destructive callout (destructive/10 tint)",
-    fg: "link",
+    // sign-in-notice.tsx: the link inside the destructive Callout is linkVariants'
+    // `proseOnTint` (foreground + underline), since text-link is only AA on this tint in light.
+    use: "link in a destructive callout (foreground on destructive/10)",
+    fg: "foreground",
     on: ["background", "destructive/10"],
-    level: ["AAA", "AA"],
+    level: "AAA",
   },
   {
     use: "active nav (primary/10 tint)",
