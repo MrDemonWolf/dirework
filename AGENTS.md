@@ -169,6 +169,24 @@ session; viewers on `/` and `/setup` get a static badge) and only while that tab
 one no-store `/api/version` request per `VERSION_CHECK_MS` (5 min, ≤12/hour), a return to the
 tab checks only once that much has passed since the last check, and checking stops once the
 tab is stale (the Reload chip shows).
+**A lapsed sign-in stops the dashboard** (`lib/auth-lapse.ts`): when an `/rpc` call comes
+back UNAUTHORIZED or FORBIDDEN (signed out in another tab, a revoked session), or an edge
+sign-in wall such as Cloudflare Access answers with a redirect (the `/rpc` fetch,
+`fetchRpc`, uses `redirect: "manual"`, so it surfaces as an opaque redirect →
+`AuthLapsedError` instead of a cross-origin CORS failure that read as "can't reach the
+API"), `authLapseLink` (the `/rpc` client's first link) marks the page lapsed BEFORE React
+Query handles the failure: React Query re-reads every observer's `refetchInterval` while
+recording the error, ahead of the cache's `onError`, so marking there would let one more
+poll out per query. From then on `dashboardPollInterval` returns `false`, reads are answered
+locally (no request), writes still go out (a draft can be saved after signing in elsewhere),
+and ONE persistent sonner toast (`AUTH_LAPSED_TOAST_ID`, "Your sign-in expired", Reload)
+replaces the per-poll error toasts; the QueryCache and MutationCache handlers raise it. The
+lapse lasts until the reload, which passes the edge wall and `requireSession` again. The
+browser's default query `retry` is `shouldRetryQuery`: never a 4xx (`data.httpStatus`, or the
+response status of a non-tRPC answer such as the rate limiter's 429), two retries for a
+network failure or 5xx; the server's QueryClient keeps `retry: false` (setting a default
+would make `prefetchQuery` retry). A refused poll used to go out 4 times a cycle, forever
+(≈2,500 Worker requests an hour per signed-out tab); now it is one request.
 
 **Twitch bot = browser page.** `/bot/<token>` (token-gated, `instanceConfig.botToken`)
 holds the IRC WebSocket (`wss://irc-ws.chat.twitch.tv`) via `apps/web/src/lib/irc-client.ts`,
@@ -1027,9 +1045,13 @@ existing home and reuse it:
   `apps/web/src/lib/__tests__/spec-catalog.test.ts` enforces it: a new, renamed or moved
   component, or a changed overlay default, fails until its spec moves with it.
 - **Error handling** — `lib/trpc-errors.ts` (`describeTrpcError`: transport failures get
-  one fixed "can't reach the API" message and a shared toast id), `lib/query-error-toast.ts`
-  (the global QueryCache handler; honours `meta.silent`), `lib/validation-errors.ts`
-  (`formatMutationError`, `describeIssues`). Each route group has an `error.tsx` boundary.
+  one fixed "can't reach the API" message and a shared toast id; a lapsed sign-in reads
+  "Your sign-in expired"), `lib/query-error-toast.ts` (the global QueryCache handler; honours
+  `meta.silent`; a server error's toast id is its query hash, so a sustained 5xx replaces its
+  toast; `toastAuthLapsed` / `toastMutationAuthLapse` for a lapsed sign-in),
+  `lib/auth-lapse.ts` (lapse detection, `fetchRpc`, `authLapseLink`, `shouldRetryQuery`; see
+  Real-time = polling), `lib/validation-errors.ts` (`formatMutationError`, `describeIssues`).
+  Each route group has an `error.tsx` boundary.
 - **Lib helpers** — `lib/utils.ts` (`cn`), `timer-utils` (`resolvePhaseDuration`,
   ms-from-state), `task-utils` (`groupTasksByAuthor`), `status-tones`, `config-types`;
   overlay geometry/formatting (`formatClock`, `cycleLabel`) in `@dirework/overlay-kit`, which
@@ -1106,7 +1128,9 @@ Key suites: `packages/api/src/services/__tests__/` (tokens, timer-service, task-
 twitch-auth), `packages/api/src/routers/__tests__/` (timer-logic, config build/flatten/
 round-trip, aliases), `apps/web/src/lib/__tests__/` (timer-utils, task-utils, theme-presets,
 config-types, rate-limiter, irc-client, irc-sanitize, server-session, trpc-errors,
-api-origin, auth-proxy, bot-session, alias-rows, demo-session), `apps/server/src/lib/__tests__/` (logger
+api-origin, auth-proxy, bot-session, alias-rows, demo-session, auth-lapse, and trpc-client:
+the real `/rpc` client and QueryClient over a stubbed `fetch` with fake timers, counting what a
+lapsed dashboard sends), `apps/server/src/lib/__tests__/` (logger
 redaction), `packages/auth/src/__tests__/has-owner.test.ts`,
 `packages/auth/src/__tests__/create-auth.test.ts` (drives the REAL `createAuth()`: owner
 claim, linking refused, owner tokens dropped, openid-only scope, disabled paths plus a
@@ -1152,7 +1176,9 @@ button click sends one `bot.ingest` as the broadcaster, with getSession/ingest s
 IRC socket held by `routeWebSocket`; on the REAL lease, a second page stands by, Take over
 moves the chat, the old page's next relay drops it to standby, closing the holder frees the
 lease, and the dashboard chip reads "Bot offline" / "Bot connected"),
-`60-token-reset` (the old overlay URL blanks), `70-sign-out`, `80-a11y`, `85-docs-a11y` (axe,
+`60-token-reset` (the old overlay URL blanks), `70-sign-out` (sign-out locks the dashboard;
+an open dashboard whose session cookie is cleared sends no `/rpc` request for 30 s and shows
+exactly one "Your sign-in expired" toast whose Reload lands on `/`), `80-a11y`, `85-docs-a11y` (axe,
 zero violations of WCAG 2.0/2.1/2.2 A+AA and best practices, over the docs static export
 `apps/fumadocs/out` that verify.yml builds first, served by the spec itself; dark + light,
 desktop + phone; skips locally without the export), `90-mobile`. Every

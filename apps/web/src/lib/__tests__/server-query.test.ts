@@ -167,6 +167,18 @@ describe("awaited prefetches", () => {
     const state = await prefetchStyles();
     expect(state.queries).toEqual([]);
   });
+
+  it("never retries a failed prefetch: the render moves on and the client fetches it", async () => {
+    // The browser's QueryClient retries a 5xx or a network failure (utils/trpc.ts); the
+    // server's must not, or a failing procedure would hold the render 3 s and send 2 more
+    // batches.
+    const fetchMock = serveApi({ failing: ["config.get"] });
+    const started = Date.now();
+    const state = await prefetchStyles();
+    expect(state.queries).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
 });
 
 describe("streamBot", () => {
