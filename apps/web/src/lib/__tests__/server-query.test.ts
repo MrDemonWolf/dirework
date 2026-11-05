@@ -195,7 +195,7 @@ describe("streamStyles", () => {
     // batches.
     const fetchMock = serveApi({ failing: ["config.get"] });
     const started = Date.now();
-    const state = await prefetchStyles();
+    const state = await streamStyles();
     expect(state.queries).toEqual([]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(Date.now() - started).toBeLessThan(1000);
