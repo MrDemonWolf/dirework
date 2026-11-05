@@ -13,14 +13,15 @@ This file provides guidance for coding agents working on the Dirework codebase.
 - Security policy and production operator checklist → `SECURITY.md`
 - Documentation map → `docs/README.md`
 - Local synthetic D1 export/restore drill → `packages/e2e/src/recovery-check.ts` (`bun run recovery:check`)
-- Production readiness evidence and remaining operator steps → `docs/production-readiness.md`
+- Production readiness evidence, remaining operator steps, and the Workers CPU baseline (with the GraphQL query to re-measure it) → `docs/production-readiness.md`
 - Database schemas → `packages/db/src/schema/` (index.ts, auth.ts, app.ts)
 - Setup guides → `.env.example`, docs `apps/fumadocs/content/docs/deployment.mdx`
 - Container hosting support and platform guide → `apps/fumadocs/content/docs/self-hosting.mdx` (unsupported; no production image)
 - Contributor setup + branch/PR workflow → `CONTRIBUTING.md`
 - Design system (tokens → generated CSS for app + docs, one spec per component, enforced by `spec-catalog.test.ts`) → `design-system/` (README; color contrast levels per pairing → `design-system/contrast.md`), docs `apps/fumadocs/content/docs/design-system.mdx`; drift check `bun run tokens && git diff --exit-code`
 - Which Cloudflare services to use beyond Workers + D1 (KV, Durable Objects, Queues, Cron, …) → `docs/decisions/0001-cloudflare-services.md`
-- Client observability (no Web Vitals or RUM in the app, never a beacon on `/overlay/*` or `/bot/*`, client errors by `error.name` only, the capped crash report) → `docs/decisions/0003-client-observability.md`
+- Rendering and caching (no Cache Components or Partial Prefetching on OpenNext yet, the read-only static-assets incremental cache, which pages the back/forward cache keeps) → `docs/decisions/0002-rendering-and-caching.md`
+- Client observability (no Web Vitals or RUM in the app, Web Analytics optional for the docs only, never a beacon on `/overlay/*` or `/bot/*`, client errors by `error.name` only, the capped crash report) → `docs/decisions/0003-client-observability.md`
 - PR review checklist (Codex + humans; free-tier cost rules) → `## Code Review Rules` below
 - Owner to-dos (Codex auto-review, the optional docs CDN cache) + product backlog → `TODO.md`
 - Docs screenshots (capture with `bun run screenshots:capture`, lossless WebP via `cwebp`) → `apps/fumadocs/src/assets/screenshots/README.md`
@@ -115,7 +116,10 @@ parallel with the `(app)` layout just like a page) opt in, each loader waiting a
 painted frame shows a skeleton on a fast load. The hold narrows the window rather than
 removing the fallback: React still writes it into the shell and reveals the page from a
 hidden segment right behind it, so a browser that paints in between (seen only on a
-CPU-starved machine) still shows it for the 300ms reveal throttle.
+CPU-starved machine) still shows it for the 300ms reveal throttle. Not a PPR static shell:
+Cache Components and Partial Prefetching stay off while OpenNext can't serve them, and a static
+shell would paint its Suspense fallbacks first (`docs/decisions/0002-rendering-and-caching.md`,
+pinned by `rendering-and-caching.test.ts`).
 **No loading boundary on `/` and `/setup`.** There is deliberately no `loading.tsx` directly
 in `app/(app)/` (it would wrap both), so nothing streams until the page's ownership and session
 checks answer: a hard load renders complete or answers a real 307 (owner → `/dashboard`,
@@ -378,6 +382,9 @@ echoes the URL (and OAuth codes). Wired at: the rate limiter (429s), the tRPC `o
 hook (procedure failures — tRPC errors never reach `app.onError`), the bot OAuth
 token-exchange and account-upsert paths, and the readiness probe. Bot reconnects happen in
 the browser and are deliberately NOT reported back (it would burn free-tier requests).
+Apart from the crash report below, the browser reports nothing: no Web Vitals or RUM, never
+a beacon on `/overlay/*` or `/bot/*` (their paths are bearer tokens), and a client error only
+ever by `error.name`.
 **Crash report** (`docs/decisions/0003-client-observability.md`): the `(overlay)` and `(bot)`
 error boundaries each hold ONE module-scope reporter (`createCrashReporter`,
 `apps/web/src/lib/crash-report.ts`) that sends `publicTrpc.crash.report` direct to the api at
