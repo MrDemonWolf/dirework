@@ -10,7 +10,8 @@
 // registers its data here synchronously, before the layout's own await settles; the layout
 // then waits for it, and the page is complete when the shell is written: no fallback, no
 // throttle. A client navigation never runs the (app) layout, so its loading.tsx skeleton
-// still shows the instant a link is clicked.
+// still shows the instant a link is clicked. `/` and `/setup` need no hold: no loading.tsx
+// wraps them, so they render complete or answer a real redirect (shell-hold.test.ts).
 
 import { cache } from "react";
 

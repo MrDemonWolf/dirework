@@ -17,7 +17,8 @@ export const metadata: Metadata = {
 /**
  * Owner session -> /dashboard; already claimed -> 404; otherwise render the claim screen.
  * `getInstanceOwned` fails closed (reports "owned" when the api can't be reached), so an api
- * outage 404s this page rather than offering a claim the server would refuse anyway.
+ * outage 404s this page rather than offering a claim the server would refuse anyway. No
+ * loading.tsx wraps it (see ../page.tsx), so the 307 and the 404 are real status codes.
  */
 export default async function SetupPage({
   searchParams,

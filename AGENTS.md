@@ -98,7 +98,23 @@ still shows instantly. `/dashboard/styles` (on its whole prefetch), `/dashboard`
 layout, on `loadBot`: a layout renders in parallel with the `(app)` layout just like a page)
 opt in; `shell-hold.test.ts` and
 `progressive.test.ts` pin the wiring, and `40-theme-center` / `22-progressive` assert no
-painted frame shows a skeleton on a fast load.
+painted frame shows a skeleton on a fast load. The hold narrows the window rather than
+removing the fallback: React still writes it into the shell and reveals the page from a
+hidden segment right behind it, so a browser that paints in between (seen only on a
+CPU-starved machine) still shows it for the 300ms reveal throttle.
+**No loading boundary on `/` and `/setup`.** There is deliberately no `loading.tsx` directly
+in `app/(app)/` (it would wrap both), so nothing streams until the page's ownership and session
+checks answer: a hard load renders complete or answers a real 307 (owner → `/dashboard`,
+unclaimed → `/setup`; a claimed `/setup` is a real 404), and a client navigation to them
+keeps the previous page until the new one is ready. With one, the skeleton streamed first,
+the redirect could only run client-side behind it (an owner's `/` painted that skeleton, then
+the dashboard's own) and a visitor's landing waited out the reveal throttle; a shell hold only
+narrowed that. The cost is TTFB: `/` answers once both checks are back (`user.hasOwner` trails
+get-session by ~100ms in production), then paints once. `shell-hold.test.ts` pins the missing
+boundary and every dashboard route's own; `15-landing` asserts the finished `<main>` in the
+first HTML response, no painted skeleton frame (with `user.hasOwner` slowed through the e2e
+api's `/__e2e/delay`: on localhost it answers within a frame of the session) and the owner's
+307; `00-first-run` the unclaimed 307, the claimed 404 and the owner's 307 from `/setup`.
 **Progressive sections** (`/dashboard`, Bot settings; any page can opt in). `streamQueries(start)` starts the
 page's batch and waits for it only until every query settles or `SECTIONS_READY_MS` (800ms,
 `lib/progressive.ts`) passes, then dehydrates successes as data and the queries still in
@@ -658,7 +674,8 @@ it (e.g. `0017_drop_task_status_idx` contracted 0015's superseded `task_status_i
   as it does the bot OAuth `/?error=not_authenticated|not_owner` redirects;
   `instance_claimed` also carries a `cta` linking to the deploy guide).
   `/` (`app/(app)/page.tsx`) sends the owner to `/dashboard` and an unclaimed instance to
-  `/setup`, so only non-owners ever see it: it renders `viewer-landing.tsx`, a static
+  `/setup` (real 307s: no loading boundary wraps `/` or `/setup`, see "No loading boundary on
+  `/` and `/setup`"), so only non-owners ever see it: it renders `viewer-landing.tsx`, a static
   server component (no queries, no polling; `viewer-landing.test.ts` pins it and the e2e
   spec `15-landing` asserts zero `/rpc` requests) built from `BRAND`, `DEMO_SESSION`
   (`components/stream-scene.tsx`) and the shared command rows (`lib/command-rows.ts`, also
@@ -666,7 +683,8 @@ it (e.g. `0017_drop_task_status_idx` contracted 0015's superseded `task_status_i
   resolved copy to the `sign-in-notice.tsx` island, which only strips the query via
   `history.replaceState`; `owner-sign-in.tsx` holds the one "Sign in with Twitch" button
   (the header's signed-out button hides on `/` and `/setup`). Docs links come from the web
-  worker's `DOCS_URL` binding (`lib/landing-links.ts`). `/setup` (unclaimed only) is built
+  worker's `DOCS_URL` binding (`lib/landing-links.ts`). `/setup` (unclaimed only; a real 404
+  once claimed) is built
   the same way: a static server component (`setup/setup-content.tsx`, pinned by
   `setup-page.test.ts`) with the `claim-button.tsx` island ("Claim with Twitch", error
   callback `/setup`), the same `?error=` notice, and `<StreamScene compact>` (overlays, no
@@ -1082,13 +1100,18 @@ api worker from source and the web worker from its built bundle (`bun run build:
 apps/web first), both in local workerd on 127.0.0.1:3000/3001 over a fresh local D1 with every
 migration applied (`src/boot-api.ts`, `src/boot-web.ts`; the api runs behind `src/api-entry.ts`, the
 real app plus test-only knobs production never has: the `e2e-delay` cookie that slows named
-procedures, a `/__e2e/requests` tally, and `/__e2e/bot-account` (POST seeds a fake connected
+procedures, `/__e2e/delay` (PUT the same list to slow them on every request, DELETE to stop;
+`setApiDelay`, for server calls that forward no cookie, like `user.hasOwner`), a
+`/__e2e/requests` tally, and `/__e2e/bot-account` (POST seeds a fake connected
 bot account, DELETE removes it; `setBotAccount` in `tests/helpers.ts`)), signed in through the `DEV_LOGIN`
 bypass with a fixed test secret. One worker and serial specs (single-owner instance, one
 database). Spec files are numbered and run in order: `00-first-run` sees the fresh database
-(the claim page, then the first dev-login claims the instance), then `10-smoke` (incl. an
+(`/` a real 307 to the claim page, then the first dev-login claims the instance and `/setup`
+answers a real 404), then `10-smoke` (incl. an
 inline handler injected into an overlay being refused by the CSP),
-`15-landing` (the viewer landing: claimed notice + deploy link, docs links, no `/rpc`),
+`15-landing` (the viewer landing: claimed notice + deploy link, docs links, no `/rpc`, the
+finished landing in the first HTML response and no painted skeleton frame on a hard load; the
+owner's `/` a real 307 to `/dashboard`),
 `20-dashboard` (incl. the stats strip counting a finished task without a reload), `22-progressive` (a fast hard load of `/dashboard` or `/dashboard/bot`
 paints no placeholder at the same request cost, even with every procedure slowed to a
 production-like 300ms; a slowed procedure shows only the placeholders

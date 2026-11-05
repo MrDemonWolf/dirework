@@ -27,7 +27,8 @@ export const WEB_ORIGIN = `http://localhost:${WEB_PORT}`;
 export const API_HEALTH_URL = `http://127.0.0.1:${API_PORT}/ready`;
 /**
  * The web probe is the claim page, not `/api/version`: `/setup` renders only once the web
- * worker can reach the api (`getInstanceOwned` fails closed to "owned", which 404s it), so
+ * worker can reach the api (until then its session check fails, a 500, or `getInstanceOwned`
+ * fails closed to "owned", a 404; no loading.tsx streams a 200 ahead of either), so
  * Playwright waits until the whole web → api hop is warm. On the fresh e2e database that is
  * the only answer short of a cold-start failure; `00-first-run` then sees the real state.
  */

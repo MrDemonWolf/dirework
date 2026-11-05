@@ -8,8 +8,7 @@ tokens: [color.scheme, radius]
 ## Purpose
 
 Loading placeholder block. Composed into the route skeletons (`DashboardSkeleton`,
-`StylesSkeleton`, `BotSettingsSkeleton`), the `(app)/loading.tsx` fallback and the task list
-loading rows in `TaskManager`.
+`StylesSkeleton`, `BotSettingsSkeleton`) and the task list loading rows in `TaskManager`.
 
 ## Anatomy
 
@@ -37,3 +36,4 @@ Animated while mounted. The global reduced-motion gate stops the sweep, leaving 
 - **Do** match the real content's size and radius.
 - **Don't** add `animate-pulse` or a second animation on top.
 - **Don't** render skeletons for content that loads from the server render; use them only for client fetches and `loading.tsx`.
+- **Don't** give `/` or `/setup` a `loading.tsx`: a boundary there streams before the page decides, so its redirects turn client-side and a visitor sees the skeleton before the page (AGENTS.md, "No loading boundary on `/` and `/setup`").

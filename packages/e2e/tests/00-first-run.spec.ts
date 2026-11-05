@@ -19,14 +19,18 @@ test("an unclaimed instance sends every visitor to the claim page", async ({ pag
   // Signing in below claims the instance. A retry of this test after that has nothing left
   // to check: the claim page is gone, and nothing short of a new database brings it back. On
   // the first attempt the database is fresh, so a missing claim page is a real regression
-  // and must fail rather than skip. The body is checked, not the status: the (app) route
-  // group streams its loading shell first, so a notFound() thrown later in the page still
-  // arrives with status 200.
+  // and must fail rather than skip.
   const claimPage = await servesClaimPage(request);
   if (test.info().retry > 0) {
     test.skip(!claimPage, "the instance is already claimed (a retry after the claim)");
   }
   expect(claimPage, "a fresh instance must serve the claim page").toBe(true);
+
+  // No loading.tsx wraps / or /setup, so nothing streams before the page decides: / answers
+  // a real 307 to the claim page instead of a 200 that redirects client-side later.
+  const home = await request.get("/", { maxRedirects: 0 });
+  expect(home.status()).toBe(307);
+  expect(home.headers().location).toMatch(/\/setup$/);
 
   await page.goto("/");
   await expect(page).toHaveURL(`${WEB_ORIGIN}/setup`);
@@ -64,10 +68,16 @@ test("the first sign-in claims the instance and turns the claim page off", async
   // same owner again, so everything below holds on a second attempt too.
   await signIn(page);
 
-  // Signed out (the `request` fixture has its own cookie jar), the claim page no longer exists.
+  // Signed out (the `request` fixture has its own cookie jar), the claim page no longer exists:
+  // a real 404, since nothing streams before the page decides.
   expect(await servesClaimPage(request)).toBe(false);
+  expect((await request.get("/setup")).status()).toBe(404);
 
-  // The owner lands on the dashboard, both from the claim page and from the home page.
+  // The owner lands on the dashboard, both from the claim page and from the home page. The
+  // claim page's redirect is a real 307 (15-landing checks the home page's).
+  const setup = await page.request.get("/setup", { maxRedirects: 0 });
+  expect(setup.status()).toBe(307);
+  expect(setup.headers().location).toMatch(/\/dashboard$/);
   await page.goto("/setup");
   await expect(page).toHaveURL(`${WEB_ORIGIN}/dashboard`);
   await page.goto("/");
