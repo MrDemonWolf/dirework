@@ -67,6 +67,9 @@ const nextConfig: NextConfig = {
   typedRoutes: true,
   reactCompiler: true,
   poweredByHeader: false,
+  // Match QUERY_FRESH_MS (30 s); the window starts when the page is fetched.
+  // staleTimes is still experimental in Next 16.4; re-check on each Next bump.
+  experimental: { staleTimes: { dynamic: 30 } },
   env: {
     NEXT_PUBLIC_COMMIT_SHA: commitSha,
   },

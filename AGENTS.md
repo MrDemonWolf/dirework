@@ -84,6 +84,9 @@ cadence changes. `getServerSession` is wrapped in React `cache()`, so the `(app)
 (which passes the session to `Header`/`UserMenu` as a prop — no client `useSession`) and the
 page share one get-session fetch. A dashboard hard load costs 2 api requests (get-session +
 the batch) and no web-worker `/rpc` hops before the first poll.
+`next.config.ts` sets experimental `staleTimes.dynamic` to the same 30s, so a return to a
+visited dynamic section within 30s of its fetch can reuse the server payload; re-check
+this experimental Next behavior on each version bump.
 **Shell hold (no skeleton on a hard load).** A route's `loading.tsx` is a Suspense boundary,
 and on a hard load the `(app)` layout's shell is ready one round trip before the page's
 prefetch, so the shell streamed the skeleton and React's SSR reveal throttle then held the
