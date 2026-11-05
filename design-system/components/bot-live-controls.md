@@ -13,6 +13,7 @@ The "Live controls" card on the Bot settings Overview (`/dashboard/bot`, `(secti
 
 - [settings-card](./settings-card.md) "Live controls", description "Each control takes effect as soon as you change it."
 - A hairline-divided list of rows; each row is a label (and, for mute, a small `StatusChip`), a one-line sentence under it, and the control at the right edge.
+- Every control saves through `useInstantSetting` (`lib/use-instant-setting.ts`): one request per change, the value asked for shown (and the control disabled) while it is in flight, and the success / failure toast raised by the mutation itself, so it still shows if the owner leaves the page mid-save.
 - Rows: "Mute bot" (`config.setBotMuted`), "Task commands" and "Timer commands" (`useCommandGroupSwitch` from `lib/use-command-group-switch.ts`, which sends only that flag to `config.updateBotSettings`), "Who can add tasks" (a `Select`, `w-36`, of Everyone / Followers / Subscribers / VIPs and mods via `useTaskAccess` in `lib/use-task-access.ts`, which sends only `taskAccess`; at Followers with a bot that lacks the follower scope, a destructive `Callout` "Reconnect the bot to allow follower checks" links to `/api/bot/authorize`), "Blocked viewers" ("n of 200 blocked" + a "Manage" link to `/dashboard/bot/moderation`, no prefetch).
 
 ## Props and variants
@@ -30,7 +31,7 @@ The "Live controls" card on the Bot settings Overview (`/dashboard/bot`, `(secti
 
 - **Mute chip**: `idle` "Off" without a bot account, `warn` "Muted" (pulsing once an account exists), `accent` "Unmuted". It never says the bot is live: that depends on its bot page being open.
 - **Group rows**: the sentence follows the switch ("Viewers add and finish their tasks from chat." / "The bot ignores task commands. !dw help still answers.").
-- **Saving**: optimistic — the switch shows the requested value and stays disabled until `config.get` refetches (the mutation returns the invalidate promise, so it never flickers back).
+- **Saving**: optimistic — the switch shows the requested value and stays disabled until the save's answer is merged into `config.get` (the mutation returns the merge, no re-read, so it never flickers back).
 - **Result**: toasts "Bot muted" / "Bot unmuted", "Task commands on" / "… off", or "Couldn't …: reason".
 
 ## Accessibility

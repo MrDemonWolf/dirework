@@ -200,15 +200,25 @@ describe("the config writes", () => {
     ["app/(app)/dashboard/styles/styles-page.tsx", /stylesSaved\(/],
     ["app/(app)/dashboard/bot/(sections)/replies/replies-page.tsx", /botSettingsSaved\(/],
     ["app/(app)/dashboard/bot/(sections)/commands/commands-page.tsx", /botSettingsSaved\(/],
-    ["lib/use-command-group-switch.ts", /botSettingsSaved\(/],
-    ["lib/use-task-access.ts", /botSettingsSaved\(/],
-    ["components/bot-settings/bot-live-controls.tsx", /botMutedSaved\(/],
+    // The instant settings hand their merge to useInstantSetting, which applies it.
+    ["lib/use-instant-setting.ts", /merge\(saved, sent\)/],
   ];
 
   it.each(sites)("%s merges its answer and never re-reads config.get", (file, merge) => {
     const code = read(file);
     expect(code).toMatch(merge);
     expect(code).toContain("applyConfigResult(");
+    expect(code).not.toMatch(/invalidateQueries\(\{\s*queryKey: trpc\.config\.get\.queryKey\(\)/);
+  });
+
+  it.each([
+    ["lib/use-command-group-switch.ts", "merge: botSettingsSaved"],
+    ["lib/use-task-access.ts", "merge: botSettingsSaved"],
+    ["components/bot-settings/bot-live-controls.tsx", "merge: botMutedSaved"],
+  ])("%s saves as an instant setting with its merge", (file, merge) => {
+    const code = read(file);
+    expect(code).toContain("useInstantSetting(");
+    expect(code).toContain(merge);
     expect(code).not.toMatch(/invalidateQueries\(\{\s*queryKey: trpc\.config\.get\.queryKey\(\)/);
   });
 

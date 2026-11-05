@@ -4,11 +4,8 @@
 // like the mute switch, it is something a streamer reaches for mid-stream. Sends only that
 // one flag (`config.updateBotSettings` takes any subset), so it never writes a page's draft.
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-
-import { applyConfigResult, botSettingsSaved } from "@/lib/config-cache";
-import { toastMutationError } from "@/lib/validation-errors";
+import { botSettingsSaved } from "@/lib/config-cache";
+import { useInstantSetting } from "@/lib/use-instant-setting";
 import { trpc } from "@/utils/trpc";
 
 export type CommandGroup = "task" | "timer";
@@ -20,32 +17,26 @@ export const COMMAND_GROUP_LABEL: Record<CommandGroup, string> = {
 
 /**
  * `enabled` is the live `config.get` value. While the save is in flight the switch shows the
- * value asked for and is disabled; the mutation waits until its answer is merged into
- * `config.get` (lib/config-cache.ts, no re-read), so it never flickers.
+ * value asked for and is disabled (lib/use-instant-setting.ts).
  */
 export function useCommandGroupSwitch(group: CommandGroup, enabled: boolean) {
-  const queryClient = useQueryClient();
-  const save = useMutation({
-    ...trpc.config.updateBotSettings.mutationOptions(),
-    onSuccess: (saved, sent) =>
-      applyConfigResult(queryClient, trpc.config.get.queryKey(), botSettingsSaved(saved, sent)),
-    onError: toastMutationError(`switch ${COMMAND_GROUP_LABEL[group].toLowerCase()}`),
+  const key = group === "task" ? "taskCommandsEnabled" : "timerCommandsEnabled";
+  const label = COMMAND_GROUP_LABEL[group];
+  const setting = useInstantSetting({
+    mutationOptions: trpc.config.updateBotSettings.mutationOptions(),
+    merge: botSettingsSaved,
+    live: enabled,
+    pick: (sent) => sent[key],
+    errorAction: `switch ${label.toLowerCase()}`,
+    successText: (sent) => `${label} ${sent[key] ? "on" : "off"}`,
   });
 
-  const key = group === "task" ? "taskCommandsEnabled" : "timerCommandsEnabled";
-  const checked = save.isPending ? (save.variables[key] ?? enabled) : enabled;
-
   return {
-    checked,
-    pending: save.isPending,
+    checked: setting.value,
+    pending: setting.pending,
     onCheckedChange: (next: boolean) =>
-      save.mutate(
+      setting.set(
         group === "task" ? { taskCommandsEnabled: next } : { timerCommandsEnabled: next },
-        {
-          onSuccess: () => {
-            toast.success(`${COMMAND_GROUP_LABEL[group]} ${next ? "on" : "off"}`);
-          },
-        },
       ),
   };
 }

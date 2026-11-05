@@ -5,15 +5,13 @@
 // control saves the moment it changes (no Save bar). The mute chip reports the switch (Off, Muted, Unmuted),
 // never that the bot is running: that depends on its bot page being open.
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { toast } from "sonner";
 
 import { MAX_BLOCKED_VIEWERS } from "@dirework/api/chat-commands";
 
 import { botMuteStatus } from "@/lib/bot-status";
-import { applyConfigResult, botMutedSaved } from "@/lib/config-cache";
-import { toastMutationError } from "@/lib/validation-errors";
+import { botMutedSaved } from "@/lib/config-cache";
+import { useInstantSetting } from "@/lib/use-instant-setting";
 import {
   type CommandGroup,
   COMMAND_GROUP_LABEL,
@@ -193,21 +191,16 @@ export function BotLiveControls({
   hasBotAccount: boolean;
   followerCheckNeedsReconnect: boolean;
 }) {
-  const queryClient = useQueryClient();
-  const setBotMuted = useMutation({
-    ...trpc.config.setBotMuted.mutationOptions(),
-    // The answer is merged into config.get (lib/config-cache.ts, no re-read). Returning the
-    // merge keeps the mutation pending until the cache has the new value, so the optimistic
-    // switch below never flickers back.
-    onSuccess: (saved) => {
-      toast.success(saved.muted ? "Bot muted" : "Bot unmuted");
-      return applyConfigResult(queryClient, trpc.config.get.queryKey(), botMutedSaved(saved));
-    },
-    onError: toastMutationError("change the mute switch"),
+  // Saved the moment it flips; shows the value asked for while the save is in flight.
+  const mute = useInstantSetting({
+    mutationOptions: trpc.config.setBotMuted.mutationOptions(),
+    merge: botMutedSaved,
+    live: muted,
+    pick: (sent) => sent.muted,
+    errorAction: "change the mute switch",
+    successText: (sent) => (sent.muted ? "Bot muted" : "Bot unmuted"),
   });
-
-  // Optimistic: while the request is in flight, show what was asked for.
-  const checked = setBotMuted.isPending ? setBotMuted.variables.muted : muted;
+  const checked = mute.value;
   const status = botMuteStatus({ muted: checked, hasBotAccount });
 
   return (
@@ -227,8 +220,8 @@ export function BotLiveControls({
             <Switch
               id="bot-muted-toggle"
               checked={checked}
-              disabled={setBotMuted.isPending}
-              onCheckedChange={(next) => setBotMuted.mutate({ muted: next })}
+              disabled={mute.pending}
+              onCheckedChange={(next) => mute.set({ muted: next })}
             />
           }
         />

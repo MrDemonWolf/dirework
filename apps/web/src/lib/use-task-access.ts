@@ -4,13 +4,10 @@
 // group switches. Sends only `taskAccess` (`config.updateBotSettings` takes any subset), so it
 // never writes a page's draft.
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-
 import { TASK_ACCESS_LEVELS, type TaskAccessLevel } from "@dirework/api/bot-permissions";
 
-import { applyConfigResult, botSettingsSaved } from "@/lib/config-cache";
-import { toastMutationError } from "@/lib/validation-errors";
+import { botSettingsSaved } from "@/lib/config-cache";
+import { useInstantSetting } from "@/lib/use-instant-setting";
 import { trpc } from "@/utils/trpc";
 
 export { TASK_ACCESS_LEVELS, type TaskAccessLevel };
@@ -36,33 +33,24 @@ export function isTaskAccessLevel(value: unknown): value is TaskAccessLevel {
 
 /**
  * `level` is the live `config.get` value. While the save is in flight the picker shows the
- * level asked for and is disabled; the mutation waits until its answer is merged into
- * `config.get` (lib/config-cache.ts, no re-read), so it never flickers.
+ * level asked for and is disabled (lib/use-instant-setting.ts).
  */
 export function useTaskAccess(level: TaskAccessLevel) {
-  const queryClient = useQueryClient();
-  const save = useMutation({
-    ...trpc.config.updateBotSettings.mutationOptions(),
-    onSuccess: (saved, sent) =>
-      applyConfigResult(queryClient, trpc.config.get.queryKey(), botSettingsSaved(saved, sent)),
-    onError: toastMutationError("change who can add tasks"),
+  const setting = useInstantSetting({
+    mutationOptions: trpc.config.updateBotSettings.mutationOptions(),
+    merge: botSettingsSaved,
+    live: level,
+    pick: (sent) => sent.taskAccess,
+    errorAction: "change who can add tasks",
+    successText: (sent) => `Who can add tasks: ${TASK_ACCESS_LABEL[sent.taskAccess ?? level]}`,
   });
 
-  const value = save.isPending ? (save.variables.taskAccess ?? level) : level;
-
   return {
-    value,
-    pending: save.isPending,
+    value: setting.value,
+    pending: setting.pending,
     onChange: (next: unknown) => {
-      if (!isTaskAccessLevel(next) || next === value) return;
-      save.mutate(
-        { taskAccess: next },
-        {
-          onSuccess: () => {
-            toast.success(`Who can add tasks: ${TASK_ACCESS_LABEL[next]}`);
-          },
-        },
-      );
+      if (!isTaskAccessLevel(next) || next === setting.value) return;
+      setting.set({ taskAccess: next });
     },
   };
 }
