@@ -55,7 +55,7 @@
     "clean": "turbo run clean && rm -rf .turbo",
     "dev:web": "turbo run dev:bare -F web",
     "db:generate": "turbo run db:generate -F @dirework/db",
-    "tokens": "bun design-system/scripts/generate.ts",
+    "tokens": "bun design-system/scripts/generate.ts && bun run --cwd apps/web manifest",
     "deploy": "bun run --cwd packages/infra deploy",
     "destroy": "bun run --cwd packages/infra destroy"
   },

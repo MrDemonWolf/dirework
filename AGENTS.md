@@ -1169,7 +1169,12 @@ has no radius scale (fumadocs-ui compiles its own `rounded-*` against it); fonts
 hand-written in both stylesheets (they wrap next/font variables). Palette contrast (AAA / AA /
 3:1 per pairing, `design-system/contrast.md`) is asserted by `tokens-contrast.test.ts`; it,
 `theme-contrast` and `obs-contrast` share the WCAG math in `lib/__tests__/helpers/wcag.ts`.
-**Installable app + touch.** `app/manifest.ts` serves `/manifest.webmanifest` (standalone,
+**Installable app + touch.** `/manifest.webmanifest` is a committed static asset
+(`public/manifest.webmanifest`, `_headers`: 1 day + SWR + nosniff), written by
+`bun run manifest` (`apps/web/scripts/write-manifest.ts`; the root `bun run tokens` runs it
+too, so the token drift check covers it) from `lib/web-manifest.ts`, the source, which
+`manifest.test.ts` holds it to — never a Next metadata route, which the Worker would answer
+with max-age=0 on every fetch (standalone,
 `start_url` `/dashboard`, background and theme color = `SCHEME_HEX.dark.background`, the dark
 `--background` as generated hex) with PNG icons in `public/icons/` (192, 512, maskable 512 —
 logo inside the inner 80% on the dark background) plus `public/icons/apple-icon.png` (180×180,

@@ -15,7 +15,7 @@ import { landingLinks } from "@/lib/landing-links";
 import { getServerSession } from "@/lib/server-session";
 import { shellReleased } from "@/lib/shell-hold";
 
-// The install manifest (app/manifest.ts) and the iOS home-screen tags live here, not in the
+// The install manifest (public/manifest.webmanifest) and the iOS home-screen tags live here, not in the
 // root layout, so an OBS overlay or the bot console never fetches the manifest.
 export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",

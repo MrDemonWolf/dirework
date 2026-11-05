@@ -21,7 +21,7 @@ describe("web security header contract", () => {
   });
 
   it("lets the page load its own install manifest", () => {
-    // app/manifest.ts is served same-origin; without manifest-src the CSP's default-src
+    // public/manifest.webmanifest is served same-origin; without manifest-src the CSP's default-src
     // would still allow it, but an explicit 'self' keeps it from silently widening.
     expect(nextConfig).toContain(`"manifest-src 'self'"`);
   });
