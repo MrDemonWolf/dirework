@@ -30,6 +30,7 @@ import { AutoScale } from "@/components/auto-scale";
 import { Button } from "@/components/ui/button";
 import { ConsoleRule } from "@/components/console-rule";
 import { StatusChip } from "@/components/status-chip";
+import { segmentedItem, segmentedTrack } from "@/components/ui/tabs";
 import { TimerDisplay } from "@/components/timer-display";
 import { TaskListDisplay } from "@/components/task-list-display";
 
@@ -57,7 +58,10 @@ const targets: { id: PreviewTarget; label: string; name: string }[] = [
   { id: "tasks", label: "Tasks", name: "Preview tasks" },
 ];
 
-/** Which overlay the canvas shows: two aria-pressed buttons styled as a segmented control. */
+/**
+ * Which overlay the canvas shows: two aria-pressed buttons on the shared segmented recipe, so
+ * the pressed one looks like the selected tab in the editor beside it.
+ */
 function TargetToggle({
   value,
   onChange,
@@ -68,7 +72,7 @@ function TargetToggle({
   return (
     <fieldset
       aria-label="Overlay to preview"
-      className="inline-flex shrink-0 items-center gap-0.5 rounded-lg border-0 bg-muted p-0.5"
+      className={cn(segmentedTrack, "inline-flex shrink-0 items-center gap-0.5 border-0")}
     >
       {targets.map((t) => (
         <button
@@ -78,10 +82,8 @@ function TargetToggle({
           aria-label={t.name}
           onClick={() => onChange(t.id)}
           className={cn(
-            "cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none pointer-coarse:min-h-11 pointer-coarse:px-4",
-            value === t.id
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
+            segmentedItem,
+            "cursor-pointer px-3 py-0.5 text-xs font-medium pointer-coarse:px-4",
           )}
         >
           {t.label}

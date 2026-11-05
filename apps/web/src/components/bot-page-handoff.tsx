@@ -23,8 +23,10 @@ import {
 } from "@/lib/bot-run-modes";
 import { browserStorage, noSubscribe } from "@/lib/browser-storage";
 import { botPagePath, type BotView } from "@/lib/bot-view";
+import { cn } from "@/lib/utils";
 import { SecretUrlRow } from "@/components/secret-url-row";
 import { Skeleton } from "@/components/ui/skeleton";
+import { segmentedItem, segmentedTrack } from "@/components/ui/tabs";
 
 const ICONS: Record<BotView, ReactNode> = {
   widget: <EyeOff aria-hidden className="size-4" />,
@@ -70,11 +72,13 @@ export function BotPageHandoff({
         <p id={`${baseId}-question`} className="text-sm font-medium">
           How will you run the bot?
         </p>
+        {/* On the shared segmented recipe: the checked option looks like a selected tab, and
+            its hint stays muted (AA on the wash, tokens-contrast.test.ts). */}
         <RadioGroup
           aria-labelledby={`${baseId}-question`}
           value={view}
           onValueChange={(value) => setView(value as BotView)}
-          className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1"
+          className={cn(segmentedTrack, "grid grid-cols-2 gap-1")}
         >
           {BOT_RUN_MODES.map((option) => (
             <Radio.Root
@@ -82,7 +86,10 @@ export function BotPageHandoff({
               value={option.view}
               aria-labelledby={`${baseId}-${option.view}-title`}
               aria-describedby={`${baseId}-${option.view}-hint`}
-              className="group flex min-w-0 cursor-pointer flex-col gap-1 rounded-lg border border-transparent px-3 py-2.5 text-left text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11 data-checked:border-input data-checked:bg-background data-checked:text-foreground motion-reduce:transition-none"
+              className={cn(
+                segmentedItem,
+                "group flex min-w-0 cursor-pointer flex-col gap-1 px-3 py-2.5 text-left",
+              )}
             >
               <span className="flex items-center gap-2">
                 <span className="text-muted-foreground group-data-checked:text-link">

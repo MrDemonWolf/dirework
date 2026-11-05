@@ -17,8 +17,10 @@ viewers see them. Entirely client-side; it never polls or calls the API.
 - Header row: `ConsoleRule` "Preview" (an `h2`) with the dirty chip ("Previewing unsaved
   changes" / "Matches the saved theme"; "Unsaved" / "Saved" below lg), and below lg a
   **Show / Hide** button (`aria-expanded`, `aria-controls` the body).
-- Controls row: the Timer / Tasks source toggle and the backdrop swatches (dark, light,
-  bright, checkerboard).
+- Controls row: the Timer / Tasks source toggle, a `fieldset` on the shared segmented recipe
+  (`segmentedTrack` / `segmentedItem` from `ui/tabs.tsx`, so the pressed source wears the same
+  selected look as the editor's tabs beside it: `border-primary` edge, `primary/10` wash,
+  `link` label), and the backdrop swatches (dark, light, bright, checkerboard).
 - Canvas (`figure`, sr-only `figcaption`): nothing but the overlays.
   - **Scene** (default): a 16:9 frame holding a 1920 × 1080 logical canvas
     (`STREAM_CANVAS`), scaled down as a whole with `AutoScale`. Both overlays sit at their
@@ -70,6 +72,8 @@ viewers see them. Entirely client-side; it never polls or calls the API.
 ## Do / Don't
 
 - **Do** render the real overlay components, so the preview matches OBS.
+- **Do** keep the source toggle on the segmented recipe; e2e `40-theme-center` checks it
+  paints the same as the selected tab in both themes.
 - **Do** keep every control outside the canvas; nothing may cover an overlay.
 - **Do** keep literal backdrop colors in the `preview-scene-*` classes only; they simulate the
   scene behind the overlay, not app chrome.

@@ -290,7 +290,7 @@ guard disables every button while one is in flight); while muted only Unmute is 
 no `broadcasterId` (an older api worker) the buttons stay off. A closed OBS dock destroys the page (stops the
 bot); a tabbed one keeps running. The setup checklist's bot step and Bot settings' "Run the bot"
 card hand the URL out through ONE component, `components/bot-page-handoff.tsx`: a "How will
-you run the bot?" segmented radiogroup (Base UI `radio-group`; "Widget" / "Dock / browser
+you run the bot?" segmented radiogroup (Base UI `radio-group` on the shared segmented recipe; "Widget" / "Dock / browser
 tab", copy and steps in the pure `lib/bot-run-modes.ts`), then a single `SecretUrlRow` for the
 chosen view under a visible "Widget URL" / "Dock URL" label (keyed on the view, so a switch
 never reads as a reset), and that view's steps — never two look-alike masked rows. The pick is
@@ -926,7 +926,16 @@ Twitch fills, red and the light status tones are AA (4.5:1, chips ≥ 5:1); inpu
 the focus ring, switch tracks, chart bars and status dots are ≥ 3:1. Every pairing and its
 level is in `design-system/contrast.md`, asserted by `tokens-contrast.test.ts`. Cornflower is the secondary; Twitch purple is
 reserved for the Twitch sign-in/connect buttons; amber = paused, emerald = live/connected
-(LED-style chips). Palette lives in `design-system/tokens.json`; OBS overlay presets are
+(LED-style chips). **One selected look:** every segmented control (the tab lists, the Theme
+Center's Timer / Tasks preview toggle, the bot page handoff's Widget / Dock radios) is built
+on `segmentedTrack` / `segmentedItem` from `components/ui/tabs.tsx` — a neutral `bg-muted`
+track, and the selected segment in the blue accent in BOTH themes (`border-primary` edge,
+`primary/10` wash, `link` label; no `dark:` override), keyed on `data-active` /
+`aria-pressed` / `data-checked`. Not a solid `--primary` fill: the amber unsaved dot sits on
+the selected tab and is 1.03:1 on light `--primary`. A pending edit is always `UnsavedDot`
+(same file; `TabsTrigger`'s `dirty` renders it). `menu-consistency.test.ts` pins both, and
+e2e `40-theme-center` / `27-bot-page-handoff` compare the computed looks.
+Palette lives in `design-system/tokens.json`; OBS overlay presets are
 separate and keep their own colors. All animation respects `prefers-reduced-motion`;
 inputs ≥16px on touch (iOS zoom). Destructive actions (token regenerate, disconnect,
 clear, stop) always confirm via the AlertDialog primitive. Editors with dirty state use
@@ -1044,7 +1053,8 @@ with the icon pickers): arrows move focus only (`nextGridIndex` in `lib/grid-nav
 columns read from the live grid), and the tab stop is derived, never synced in an effect: the
 focused item while focus is inside the group, else the checked one, so Tab re-enters on the
 checked radio. Tabs "Timer style" / "Task style" / "Phase labels";
-`TabsTrigger` takes `dirty` (amber dot + sr-only "(unsaved changes)"). The two style editors
+`TabsTrigger` takes `dirty` (`UnsavedDot`: amber dot + sr-only "(unsaved changes)", the same
+marker the Replies tabs and reply group headers show). The two style editors
 are thin wrappers over `theme-center/style-sections-editor.tsx`, which renders
 `TIMER_STYLE_FIELDS` / `TASK_STYLE_FIELDS` from `lib/style-sections.ts`: every style leaf
 path has exactly one field and one section (Colors · Typography · Layout · Opacity; Colors
@@ -1117,7 +1127,9 @@ existing home and reuse it:
   `text-link` inside copy; `proseOnTint`: underlined `foreground` on a tinted callout, AAA where
   `text-link` is not; `quiet`: the Footer Convention) and `focusRing` (the keyboard ring for
   hand-rolled triggers, chips and links); `link-focus-recipes.test.ts` fails on a hand-typed
-  `focus-visible:ring-2` or prose-link string outside `ui/`.
+  `focus-visible:ring-2` or prose-link string outside `ui/`. Shared recipes live beside
+  their primitive: `menuItemRecipe` (dropdown-menu), `segmentedTrack` / `segmentedItem` and
+  `UnsavedDot` (tabs).
 - **Shared components** — `confirm-dialog`, `save-bar` (takes `blockedReason` to disable
   Save when the server's input schema would reject the payload), `status-chip`,
   `unsaved-changes-guard`, `auto-scale`, `loader`, `query-error`

@@ -17,10 +17,13 @@ two look-alike masked rows.
 ## Anatomy
 
 - A visible question, "How will you run the bot?", labelling a segmented `RadioGroup` (Base
-  UI `radio-group` + `radio`) on a `bg-muted` track: two options, each an icon, a title
+  UI `radio-group` + `radio`) on the shared segmented recipe (`segmentedTrack` /
+  `segmentedItem` from `ui/tabs.tsx`): two options, each an icon, a title
   ("Widget" / "Dock / browser tab") and a sub-label ("OBS browser source or Moblin widget ·
   invisible on stream" / "Controls and status · OBS custom browser dock or a pinned tab"). The
-  checked option is lifted (`bg-background`, `border-input`, `text-link` icon).
+  checked option wears the app's one selected look, the same as a selected tab: a
+  `border-primary` edge, a `primary/10` wash, and a `text-link` title and icon. Its sub-label
+  stays `text-muted-foreground` (AA on the wash).
 - The chosen URL: a visible label ("Widget URL" / "Dock URL") over one `SecretUrlRow`
   labelled "Widget" / "Dock", keyed on the view so a switch mounts a fresh masked row.
 - `renderAction` slot under the row (the card's "Open widget" / "Open dock" button).
@@ -56,6 +59,8 @@ two look-alike masked rows.
 ## Do / Don't
 
 - **Do** keep the copy in `lib/bot-run-modes.ts` (pure, unit-tested).
+- **Do** keep the options on the segmented recipe; e2e `27-bot-page-handoff` checks the checked
+  option paints the same as the dashboard's selected OBS sources tab.
 - **Do** pass the token the caller already loaded; the handoff makes no requests.
 - **Don't** show both URLs at once again.
 - **Don't** add Reset in the checklist; resetting stays on the card.

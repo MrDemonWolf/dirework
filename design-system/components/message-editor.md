@@ -12,7 +12,7 @@ ONE generic chat reply-template editor for both the task and timer message sets,
 ## Anatomy
 
 - Toolbar: search input ("Filter N messages…") with a search icon, and a ghost "Reset all" button behind `ConfirmDialog`.
-- One `aria-label`led `<section>` per field group, holding a `SectionGroup` whose title names the group and, in mono, the commands that send its replies (`groupCommands`, from `TASK_/TIMER_MESSAGE_GROUP_COMMANDS` in `lib/message-fields.ts`), with a `CountBadge` in `trailing`. Groups are closed by default; a group opens itself while it holds an invalid field (and can't be closed then, since Save is blocked on it), while the filter has text, and, until the owner toggles it, while it holds an unsaved edit (differs from `saved`).
+- One `aria-label`led `<section>` per field group, holding a `SectionGroup` whose title names the group and, in mono, the commands that send its replies (`groupCommands`, from `TASK_/TIMER_MESSAGE_GROUP_COMMANDS` in `lib/message-fields.ts`), with a `CountBadge` in `trailing`, after a "Fix" `StatusChip` while the group holds an invalid field, or else the shared `UnsavedDot` (from `ui/tabs.tsx`) while it holds an unsaved edit. Groups are closed by default; a group opens itself while it holds an invalid field (and can't be closed then, since Save is blocked on it), while the filter has text, and, until the owner toggles it, while it holds an unsaved edit (differs from `saved`).
 - Per field: label + "Reset to default" (only when the value differs from `defaults`), input, `ByteBudget`, a preview line (`{speaker}: {reply}`), and variable chips (`{user}`, `{task}`, …) with tooltips.
 - Empty-filter line `No messages match "…"`.
 
@@ -42,7 +42,7 @@ ONE generic chat reply-template editor for both the task and timer message sets,
 - Inputs are labelled by the field label; e2e pins `getByLabel("Task added")`, the preview text rendered by the bot's own `interpolate`, and the "Reset to default" button (gone once the value matches stock).
 - Inputs are `aria-describedby` the preview (prefixed with sr-only "Preview:") and, near the cap, the byte budget.
 - Chips are real buttons named `Insert {token}`; inserting refocuses the input with the caret after the token. On coarse pointers they are at least 44px (`pointer-coarse:min-h-11 min-w-11`).
-- Filter input `aria-label="Filter messages"`; each group is an `aria-label`led `<section>` wrapping a `SectionGroup` disclosure (a real button with `aria-expanded`).
+- Filter input `aria-label="Filter messages"`; each group is an `aria-label`led `<section>` wrapping a `SectionGroup` disclosure (a real button with `aria-expanded`). A group with an unsaved edit says so in that button's name ("… (unsaved changes) …", from `UnsavedDot`'s sr-only text), the same words its Replies tab gets; e2e `50-bot-settings` pins both.
 - "Reset all" confirms ("Reset every message to its default?").
 
 ## Do / Don't
@@ -50,5 +50,6 @@ ONE generic chat reply-template editor for both the task and timer message sets,
 - **Do** preview with `interpolate` + `previewVarsFor`, so byte fitting matches what chat gets.
 - **Do** bound templates in UTF-8 bytes, never characters.
 - **Don't** build a second editor for another message set; pass new `fields`.
+- **Don't** hand-draw an unsaved marker; use `UnsavedDot`.
 - **Don't** persist from here; reset and edit are draft-only.
 - **Don't** lock the fields when the group is switched off; the Replies page says so in a callout instead.

@@ -49,6 +49,11 @@ stays: panels, mono uppercase labels, LED-style status chips.
   surface and inline-code background. Focus rings use `--ring`.
   No single blue works both under white text and as text on near-black,
   so text always uses `text-link`.
+- **Selected:** every segmented control (the tab lists, the Theme Center's preview toggle,
+  the bot page handoff) marks its selected segment one way in both themes: a `--primary`
+  edge, a `primary/10` wash and a `--link` label on a neutral `bg-muted` track
+  (`segmentedTrack` / `segmentedItem` in `ui/tabs.tsx`). Pending edits wear the amber
+  `UnsavedDot` from the same file.
 - **Secondary accent:** Cornflower (`--cornflower`).
 - **Twitch:** `#9146FF` is reserved for "Sign in / Connect with Twitch" actions only.
 - **Phase colors:** work = emerald `#34C759`, break = blue, long break = cornflower, paused = amber `#FF9F0A`.

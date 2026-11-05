@@ -26,7 +26,7 @@ draws it.
 |---|---|---|---|
 | Body text on background / card / popover / muted | 16.7 / 15.6 / 15.0 / 14.4 | 17.0 / 17.7 / 17.7 / 16.0 | AAA / AAA |
 | Secondary button, highlighted menu item | 12.5, 12.9 | 13.1, 15.3 | AAA / AAA |
-| Section summary (`foreground/80`), inactive tab (`foreground/75`, light) | 10.2 | 9.4, 7.4 | AAA / AAA |
+| Section summary (`foreground/80`) | 10.2 | 9.4 | AAA / AAA |
 | Muted text on background | 9.4 | 7.8 | AAA / AAA |
 | Muted text on card / popover | 8.8 / 8.4 | 8.1 / 8.1 | AAA / AAA |
 | Muted text on muted / accent / secondary | 8.1 / 7.2 / 7.6 | 7.4 / 7.0 / 7.1 | AAA / AAA |
@@ -37,6 +37,8 @@ draws it.
 | Link on docs inline code (`muted/70` over background / card) | 7.82 / 7.60 | 7.16 / 7.26 | AAA / AAA |
 | Link on the `primary/10` tint (active nav, accent chip) | 7.98, 7.35 | 6.46, 6.73 | AAA / AA |
 | Link in the destructive callout (`foreground` on `destructive/10` over background; sign-in notice, `linkVariants` `proseOnTint`) | 15.17 | 14.28 | AAA / AAA |
+| Selected segment label (`link` on the `primary/10` wash over the `muted` track: tabs, preview toggle, bot page handoff) | 6.74 | 6.11 | AA / AA |
+| Muted hint on the selected segment (bot page handoff) | 7.4 | 6.4 | AAA tested at AA / AA |
 | White on `--primary` (buttons) | 4.6 | 5.7 | AA / AA |
 | White on `primary/90` (button hover) | 5.4 | 4.8 | AA / AA |
 | White on Twitch purple `#9146FF` / hover | 4.6 / 5.8 | same | AA / AA |
@@ -52,6 +54,8 @@ draws it.
 |---|---|---|
 | Focus ring (`--ring`) on card | 7.8 | 5.7 |
 | Checked switch / checkbox, done cycle dot, today's chart bar (`--primary`) on card | 4.0 | 5.7 |
+| Selected segment edge (`--primary`) on the `muted` track / on its own `primary/10` wash | 3.7 / 3.3 | 5.2 / 4.5 |
+| Unsaved dot (`--warning`) on an idle tab / the selected tab / a reply group header | 9.5 / 8.6 / 10.9 | 5.3 / 4.6 / 5.7 |
 | Input + select border, unchecked switch track, planned cycle dot (`muted-foreground/70`) on card | 4.9 | 3.7 |
 | Idle chip dot (`muted-foreground/70` on the `muted/60` chip) | 4.8 | 3.6 |
 | Focus chart bars (`muted-foreground/55` dark, `/70` light) | 3.5 | 3.7 |
@@ -80,6 +84,15 @@ draws it.
 - **Red is AA.** A 7:1 red is salmon on dark (`#ff7d76`) and maroon on light (`#a00000`); both
   read less like "destructive". Light red moved to `#c40e22` for chip margin.
 - **Twitch purple is a brand color** and stays `#9146FF` (white label AA).
+- **Segmented controls share one selected look.** The tabs drew their selected segment
+  lighter than the track in dark (`bg-input/30`) while the Theme Center's preview toggle and
+  the bot page handoff drew theirs darker (`bg-background`), so one screen showed two opposite
+  "selected" looks. All of them now take `segmentedItem` (`ui/tabs.tsx`): the blue accent in
+  both themes, a `border-primary` edge, a `primary/10` wash and a `link` label. The edge is
+  what makes the state readable without color: the wash alone is about 1.1:1 against the
+  track, and in dark the link and muted labels are nearly the same lightness. A solid
+  `--primary` fill with a white label (AA) was ruled out: the amber unsaved dot sits on the
+  selected tab, and `--warning` on light `--primary` is 1.03:1.
 - **Controls.** The dark switch track used `bg-input/80` (1.5:1, invisible against the card);
   it now uses `muted-foreground/70` in both themes. Planned cycle dots moved from `/40` to
   `/70`, idle chip dots from `/60` to `/70`, and light chart bars from `/55` (2.4:1) to `/70`.

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { signIn, waitForHydration } from "./helpers";
+import { confirmDialog, signIn, waitForHydration } from "./helpers";
 
 test("edits a reply, previews it as chat would show it, saves, and resets it", async ({ page }) => {
   await signIn(page);
@@ -158,6 +158,29 @@ test("Replies group headers name their commands, and the filter finds a reply by
 
   await page.getByRole("tab", { name: "Timer replies" }).click();
   await expect(page.getByRole("button", { name: /^Status\s*!timer/ })).toBeVisible();
+});
+
+test("an edited reply marks its tab and its group as unsaved", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/dashboard/bot/replies");
+  await waitForHydration(page);
+
+  await expect(page.getByRole("tab", { name: "Task replies", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /^Adding\s*!task/ }).click();
+  const field = page.getByLabel("Task added", { exact: true });
+  await field.fill(`${await field.inputValue()} (edited)`);
+
+  // The tab and the group header say it the same way (TabsTrigger's dirty prop, UnsavedDot).
+  await expect(page.getByRole("tab", { name: "Task replies (unsaved changes)" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Timer replies", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /^Adding\s*!task.*\(unsaved changes\)/ }),
+  ).toBeVisible();
+
+  // Discard it, so the saved replies are what later specs see.
+  await page.getByRole("button", { name: "Reset", exact: true }).click();
+  await confirmDialog(page, "Discard changes");
+  await expect(page.getByRole("tab", { name: "Task replies", exact: true })).toBeVisible();
 });
 
 test("an alias shows in the command table as it is typed, and saves on its own", async ({

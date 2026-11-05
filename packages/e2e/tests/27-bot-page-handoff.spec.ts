@@ -4,6 +4,7 @@ import {
   confirmDialog,
   expectNoSeriousViolations,
   revealSecretUrl,
+  segmentLook,
   setBotAccount,
   signIn,
 } from "./helpers";
@@ -51,6 +52,10 @@ test("the checklist's bot step shows one named URL for the chosen view", async (
   await expect(widget).toBeChecked();
   await expect(widget).toHaveAccessibleDescription(/invisible on stream/);
   await expect(dock).not.toBeChecked();
+  // The same selected look as the dashboard's other segmented control, the OBS sources tabs.
+  expect(await segmentLook(widget)).toEqual(
+    await segmentLook(page.getByRole("tab", { name: "Timer", exact: true })),
+  );
 
   // One URL row, labelled on screen, never two look-alikes.
   await expect(card.getByText("Widget URL", { exact: true })).toBeVisible();

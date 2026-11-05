@@ -1,6 +1,10 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+
+import { segmentedItem, segmentedTrack, UnsavedDot } from "@/components/ui/tabs";
 
 /**
  * WCAG contrast for every text, icon and control colour the web app paints, in both schemes,
@@ -150,13 +154,7 @@ const PAIRINGS: Pairing[] = [
     on: ["card"],
     level: "AAA",
   },
-  {
-    use: "inactive tab (light text-foreground/75)",
-    fg: "foreground/75",
-    on: ["muted"],
-    level: [null, "AAA"],
-  },
-  // Muted text: AAA on every surface in both schemes.
+  // Muted text: AAA on every surface in both schemes (idle segments: muted on the muted track).
   ...[...SURFACES, "secondary", "accent"].map((s) => ({
     use: `muted text on ${s}`,
     fg: "muted-foreground",
@@ -225,6 +223,22 @@ const PAIRINGS: Pairing[] = [
   },
   { use: "Twitch button (brand purple)", fg: "white", on: ["twitch"], level: "AA" },
   { use: "Twitch button hover", fg: "white", on: ["twitch-hover"], level: "AA" },
+  // Segmented controls (ui/tabs.tsx `segmentedTrack` / `segmentedItem`: the tab lists, the
+  // Theme Center's preview toggle, the bot page handoff). The track is `bg-muted`; an idle
+  // segment keeps the muted label (muted text on muted, above); the selected one wears a
+  // `primary/10` wash with a `link` label, in both themes. The handoff's hint stays muted on it.
+  {
+    use: "selected segment label (link on the primary/10 wash)",
+    fg: "link",
+    on: ["muted", "primary/10"],
+    level: "AA",
+  },
+  {
+    use: "selected handoff option's hint",
+    fg: "muted-foreground",
+    on: ["muted", "primary/10"],
+    level: "AA",
+  },
   // Status tones. Dark: success/warning/cornflower AAA. Light and destructive: AA.
   ...(["background", "card", "popover"] as const).map((s) => ({
     use: `destructive text on ${s}`,
@@ -310,6 +324,30 @@ const PAIRINGS: Pairing[] = [
     level: "UI",
   },
   { use: "checked control on background", fg: "primary", on: ["background"], level: "UI" },
+  // The selected segment's `border-primary` edge: the state reads without its blue label.
+  { use: "selected segment edge on the track", fg: "primary", on: ["muted"], level: "UI" },
+  {
+    use: "selected segment edge on its own wash",
+    fg: "primary",
+    on: ["muted", "primary/10"],
+    level: "UI",
+  },
+  // The unsaved dot (`UnsavedDot`, `bg-warning`) wherever it is drawn: an idle tab, the
+  // selected tab (the one being edited) and a reply group header (`.panel-inset`, 82%
+  // background over card).
+  { use: "unsaved dot on an idle tab", fg: "warning", on: ["muted"], level: "UI" },
+  {
+    use: "unsaved dot on the selected tab",
+    fg: "warning",
+    on: ["muted", "primary/10"],
+    level: "UI",
+  },
+  {
+    use: "unsaved dot on a reply group header",
+    fg: "warning",
+    on: ["card", "background/82"],
+    level: "UI",
+  },
   { use: "input + select border on card", fg: "muted-foreground/70", on: ["card"], level: "UI" },
   {
     use: "input + select border on background",
@@ -382,6 +420,20 @@ describe("component classes the pairings assume", () => {
     ["timer-controls.tsx", "border border-muted-foreground/70 bg-transparent"],
   ])("%s uses %s", (path, cls) => {
     expect(source(path)).toContain(cls);
+  });
+
+  it("the segmented recipes and the unsaved dot paint what the pairings measure", () => {
+    const classes = (recipe: string) => recipe.split(/\s+/);
+    expect(classes(segmentedTrack)).toContain("bg-muted");
+    expect(classes(segmentedItem)).toEqual(
+      expect.arrayContaining([
+        "text-muted-foreground",
+        "data-active:border-primary",
+        "data-active:bg-primary/10",
+        "data-active:text-link",
+      ]),
+    );
+    expect(renderToStaticMarkup(createElement(UnsavedDot))).toMatch(/class="[^"]*\bbg-warning\b/);
   });
 
   it("the switch track keeps one unchecked tint in both schemes", () => {

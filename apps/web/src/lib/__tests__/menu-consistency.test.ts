@@ -1,12 +1,16 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { popupSurfaceRecipe } from "@/components/ui/dropdown-menu";
+import { segmentedItem, segmentedTrack, UnsavedDot } from "@/components/ui/tabs";
 
-// Source-level contract for the shared menu recipes (the row interaction and the popup
-// surface): these are class strings, so the regression is a file that drifts back to the
-// boxed hover outline, the coloured task-row edge bar, or a popup on a surface of its own.
+// Source-level contract for the shared interaction recipes: the menu/list row, the popup
+// surface, the segmented control and the unsaved-changes dot. These are class strings, so the
+// regression is a file that drifts back to the boxed hover outline, the coloured task-row edge
+// bar, a popup on a surface of its own, its own "selected" look or its own copy of the dot.
 const srcDir = path.join(__dirname, "../..");
 const read = (rel: string) => readFileSync(path.join(srcDir, "components", rel), "utf8");
 
@@ -16,6 +20,30 @@ const tooltip = read("ui/tooltip.tsx");
 const taskManager = read("task-manager.tsx");
 const userMenu = read("user-menu.tsx");
 const header = read("header.tsx");
+const tabs = read("ui/tabs.tsx");
+const messageEditor = read("bot-settings/message-editor.tsx");
+const repliesPage = readFileSync(
+  path.join(srcDir, "app/(app)/dashboard/bot/(sections)/replies/replies-page.tsx"),
+  "utf8",
+);
+
+/** Every module under apps/web/src (tests excluded), relative to it. */
+function sourceFiles(dir = srcDir): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const full = path.join(dir, name);
+    if (statSync(full).isDirectory()) return name === "__tests__" ? [] : sourceFiles(full);
+    return /\.tsx?$/.test(name) ? [path.relative(srcDir, full).split(path.sep).join("/")] : [];
+  });
+}
+
+/** The names a module imports from `from`, in any order. */
+function importsFrom(source: string, from: string): string[] {
+  const match = new RegExp(`import \\{([^}]*)\\} from "${from}"`).exec(source);
+  return (match?.[1] ?? "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
 
 /** Whether `source` imports `name` from the dropdown-menu primitive. */
 const importsFromDropdownMenu = (source: string, name: string) =>
@@ -127,5 +155,73 @@ describe("menu interaction consistency", () => {
   it("wires the mobile nav to its toggle", () => {
     expect(header).toContain('aria-controls="mobile-nav"');
     expect(header).toContain('id="mobile-nav"');
+  });
+});
+
+describe("unsaved-changes dot", () => {
+  it("is written once: only ui/tabs.tsx says (unsaved changes)", () => {
+    const holders = sourceFiles().filter((file) =>
+      readFileSync(path.join(srcDir, file), "utf8").includes("(unsaved changes)"),
+    );
+    expect(holders).toEqual(["components/ui/tabs.tsx"]);
+  });
+
+  it("flags a Replies tab through TabsTrigger's dirty prop, not a label and dot of its own", () => {
+    expect(repliesPage).toMatch(/<TabsTrigger[^>]*\sdirty=\{dirty\[tab\]\}/);
+    expect(repliesPage).not.toMatch(/<TabsTrigger[^>]*\saria-label=/);
+  });
+
+  it("marks an unsaved reply group with UnsavedDot", () => {
+    expect(importsFrom(messageEditor, "@/components/ui/tabs")).toContain("UnsavedDot");
+    expect(messageEditor).toContain("<UnsavedDot />");
+  });
+
+  it("is an amber dot hidden from screen readers, plus the words they read", () => {
+    const html = renderToStaticMarkup(createElement(UnsavedDot));
+    expect(html).toMatch(/<span aria-hidden="true" data-slot="unsaved-dot" class="[^"]*bg-warning/);
+    expect(html).toContain('<span class="sr-only">(unsaved changes)</span>');
+  });
+});
+
+describe("segmented controls", () => {
+  const classes = (recipe: string) => recipe.split(/\s+/);
+
+  it("mark every selected state one way, in both themes: the blue accent on a neutral track", () => {
+    expect(classes(segmentedTrack)).toContain("bg-muted");
+    expect(classes(segmentedItem)).toContain("text-muted-foreground");
+    // Keyed on each control's own state: a Base UI Tab, a toggle button, a Base UI Radio.
+    for (const state of ["data-active:", "aria-pressed:", "data-checked:"]) {
+      for (const look of ["border-primary", "bg-primary/10", "text-link"]) {
+        expect(classes(segmentedItem), `${state}${look}`).toContain(`${state}${look}`);
+      }
+    }
+    // A dark-only selected style is how the tabs drew lighter than their track while the
+    // preview toggle and the bot page handoff drew darker than theirs.
+    expect(segmentedItem).not.toContain("dark:");
+    expect(tabs).not.toMatch(/dark:(?:[\w-]+:)*(?:data-active|aria-pressed|data-checked):/);
+  });
+
+  it("builds the Tabs list and triggers from the recipes", () => {
+    expect(tabs).toMatch(/default: segmentedTrack\b/);
+    expect(tabs).toMatch(/cn\(\s*segmentedItem\b/);
+  });
+
+  it.each([
+    ["theme-center/style-preview-panel.tsx", "TargetToggle"],
+    ["bot-page-handoff.tsx", "the Widget / Dock radios"],
+  ])("%s (%s) uses the recipes, not a selected look of its own", (file) => {
+    const source = read(file);
+    expect(importsFrom(source, "@/components/ui/tabs")).toEqual(
+      expect.arrayContaining(["segmentedItem", "segmentedTrack"]),
+    );
+    expect(source).toMatch(/cn\(\s*segmentedTrack\b/);
+    expect(source).toMatch(/cn\(\s*segmentedItem\b/);
+    for (const own of [
+      "bg-background text-foreground shadow-sm",
+      "data-checked:bg-background",
+      "data-checked:border-input",
+    ]) {
+      expect(source).not.toContain(own);
+    }
   });
 });

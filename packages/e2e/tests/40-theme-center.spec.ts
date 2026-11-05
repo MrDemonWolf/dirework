@@ -4,7 +4,9 @@ import { DEFAULT_TIMER_STYLES } from "@dirework/api/config-defaults";
 
 import {
   confirmDialog,
+  pinTheme,
   recordSkeletonFrames,
+  segmentLook,
   signIn,
   skeletonFrames,
   waitForHydration,
@@ -174,6 +176,37 @@ test("previews either overlay over a chosen backdrop and says when edits are uns
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByText("Styles saved")).toBeVisible();
   await expect(page.getByText("Matches the saved theme")).toBeVisible();
+});
+
+test.describe("segmented controls", () => {
+  // No color transitions to catch mid-way (the recipe drops them under reduced motion).
+  test.use({ reducedMotion: "reduce" });
+
+  test("the selected tab and the selected preview toggle look the same, in both themes", async ({
+    page,
+  }) => {
+    await signIn(page);
+    for (const theme of ["dark", "light"] as const) {
+      await pinTheme(page, theme);
+      await page.goto("/dashboard/styles");
+      await waitForHydration(page);
+      await page.mouse.move(0, 0);
+
+      const tab = page.getByRole("tab", { name: "Timer style" });
+      const toggle = page.getByRole("button", { name: "Preview timer" });
+      await expect(tab).toHaveAttribute("aria-selected", "true");
+      await expect(toggle).toHaveAttribute("aria-pressed", "true");
+      const selected = await segmentLook(tab);
+      expect(await segmentLook(toggle), `${theme}: Preview timer vs the Timer style tab`).toEqual(
+        selected,
+      );
+      // And selected is not the idle look.
+      expect(
+        await segmentLook(page.getByRole("button", { name: "Preview tasks" })),
+        `${theme}: the idle Preview tasks`,
+      ).not.toEqual(selected);
+    }
+  });
 });
 
 test("keeps each label beside its control and nudges lengths with the arrow keys", async ({

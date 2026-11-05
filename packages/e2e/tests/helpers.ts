@@ -278,6 +278,21 @@ export async function confirmDialog(page: Page, label: string): Promise<void> {
 }
 
 /**
+ * A segmented-control segment's painted fill, edge and label colors, as computed. Controls
+ * built on the shared recipe (`segmentedItem` in ui/tabs.tsx) report the same look in the
+ * same state, whatever element or state attribute each one keys on. Measure with the pointer
+ * off the segment: hover changes an idle label.
+ */
+export async function segmentLook(
+  segment: Locator,
+): Promise<{ fill: string; edge: string; label: string }> {
+  return segment.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { fill: style.backgroundColor, edge: style.borderTopColor, label: style.color };
+  });
+}
+
+/**
  * A task board row by its text. The text alone is ambiguous: the timer console's "Now" line
  * repeats the owner's active task.
  */
