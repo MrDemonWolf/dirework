@@ -355,10 +355,12 @@ for (const width of [1280, 412]) {
       await page.getByRole("link", { name: label, exact: true }).first().click();
     };
 
-    // Theme Center → dashboard: a slow procedure keeps dashboard/loading.tsx up for the
-    // page's first-paint deadline (SECTIONS_READY_MS).
-    await page.goto("/dashboard/styles");
-    await expect(page.getByRole("heading", { level: 1, name: "Theme Center" })).toBeVisible();
+    // Bot settings → dashboard: a slow procedure keeps dashboard/loading.tsx up for the
+    // page's first-paint deadline (SECTIONS_READY_MS). Neither leg's destination is opened
+    // before it: staleTimes.dynamic (30 s) would reuse a section visited that recently, with
+    // no loading skeleton to measure.
+    await page.goto("/dashboard/bot");
+    await expect(page.getByRole("heading", { level: 1, name: "Bot settings" })).toBeVisible();
     await context.addCookies([
       { name: DELAY_COOKIE, value: "stats.summary=2500", url: WEB_ORIGIN },
     ]);
