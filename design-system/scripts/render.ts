@@ -58,6 +58,7 @@ export const OUTPUTS = {
   webHex: "apps/web/src/tokens.generated.ts",
   docs: "apps/fumadocs/src/app/tokens.generated.css",
   overlayThemes: "apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts",
+  shareCardHex: "packages/overlay-kit/src/share-card-colors.generated.ts",
 } as const;
 
 /**
@@ -361,11 +362,52 @@ export function renderSchemeHexTs(tokens: DesignTokens): string {
   ].join("\n");
 }
 
+/**
+ * The dark `color.scheme` keys the social share card paints (`OUTPUTS.shareCardHex`), by the
+ * name the card uses. next/og (Satori) can't read CSS variables, so the card takes them as hex.
+ */
+const SHARE_CARD_KEYS = {
+  background: "background",
+  surface: "card",
+  text: "foreground",
+  muted: "muted-foreground",
+  border: "border",
+  accent: "link",
+} as const;
+
+/**
+ * Renders the share card's palette module (`OUTPUTS.shareCardHex`) into
+ * @dirework/overlay-kit, which can't import the web app's hex module. Already
+ * Biome-formatted, so design-tokens.test.ts can compare it exactly.
+ */
+export function renderShareCardHexTs(tokens: DesignTokens): string {
+  const entries = Object.entries(SHARE_CARD_KEYS).map(([name, key]) => {
+    const value = tokens.color.scheme.dark[key];
+    if (value === undefined) throw new Error(`color.scheme.dark.${key} missing`);
+    return `  ${tsKey(name)}: "${oklchToHex(value)}",`;
+  });
+  return [
+    `/*\n * ${BANNER_LINES.join("\n * ")}\n */`,
+    "",
+    "/**",
+    " * The social share card's colors (share-card.tsx): the app's dark `color.scheme` as sRGB",
+    " * hex, because next/og can't read CSS variables. `surface` is `--card`, `text`",
+    " * `--foreground`, `muted` `--muted-foreground`, `border` `--border` (translucent, so",
+    " * `#rrggbbaa`) and `accent` `--link`, the blue that reads as text on the dark surfaces.",
+    " */",
+    "export const SHARE_CARD_COLORS = {",
+    ...entries,
+    "} as const;",
+    "",
+  ].join("\n");
+}
+
 /** Every generated file, keyed by its repo-relative path. */
 export function renderAll(tokens: DesignTokens): Record<string, string> {
   return {
     [OUTPUTS.web]: renderTokensCss(tokens, { target: "web" }),
     [OUTPUTS.webHex]: renderSchemeHexTs(tokens),
+    [OUTPUTS.shareCardHex]: renderShareCardHexTs(tokens),
     [OUTPUTS.docs]: renderTokensCss(tokens, { target: "docs" }),
     [OUTPUTS.overlayThemes]: renderOverlayThemesTs(tokens),
   };

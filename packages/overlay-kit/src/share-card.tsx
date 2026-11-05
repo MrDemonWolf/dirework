@@ -14,15 +14,16 @@
  */
 
 import { BRAND, BRAND_MARK, DEMO_SESSION, cycleLabel, formatClock } from "./index";
+import { SHARE_CARD_COLORS } from "./share-card-colors.generated";
 
 /** The standard 1.91:1 Open Graph card size, emitted as og:image width/height. */
 export const SHARE_CARD_SIZE = { width: 1200, height: 630 } as const;
 /** Alt text Next.js emits as `og:image:alt` and `twitter:image:alt`. */
 export const SHARE_CARD_ALT = BRAND.title;
 
-const ACCENT = "#29B6F0";
-const TEXT = "#ffffff";
-const MUTED = "#adbbd3";
+// The app's neutral dark palette and blue accent, as hex from design-system/tokens.json.
+const { background: BACKGROUND, surface: SURFACE, border: BORDER } = SHARE_CARD_COLORS;
+const { accent: ACCENT, text: TEXT, muted: MUTED } = SHARE_CARD_COLORS;
 // Satori wants plain strings, so the copy and demo numbers are computed up front.
 const HEADLINE = `${BRAND.tagline}.`;
 const PHASE = DEMO_SESSION.phaseLabel.toUpperCase();
@@ -31,8 +32,8 @@ const CYCLE = cycleLabel(DEMO_SESSION.cycle.current, DEMO_SESSION.cycle.total);
 
 /**
  * The card, drawn for `next/og` (Satori): inline styles only, every multi-child div needs an
- * explicit `display: "flex"`, and colors are literal hex because CSS variables and the apps'
- * stylesheets are not available there. No hooks: Satori calls it as a plain function. The
+ * explicit `display: "flex"`, and colors are hex (`SHARE_CARD_COLORS`, generated from the
+ * tokens) because CSS variables and the apps' stylesheets are not available there. No hooks: Satori calls it as a plain function. The
  * wolf-and-clock mark is `BRAND_MARK`, as in the web header logo and the docs `BrandMark`.
  */
 export function ShareCard() {
@@ -44,7 +45,8 @@ export function ShareCard() {
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        background: "linear-gradient(135deg, #091533 0%, #0b1b3d 100%)",
+        // The page background, lifting toward the card surface in the far corner.
+        background: `linear-gradient(135deg, ${BACKGROUND} 0%, ${BACKGROUND} 45%, ${SURFACE} 100%)`,
         padding: "68px 72px",
         fontFamily: "sans-serif",
       }}
@@ -123,9 +125,8 @@ export function ShareCard() {
             height: 250,
             flexShrink: 0,
             borderRadius: 56,
-            background: "#10224a",
-            border: "1px solid #24406f",
-            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
+            background: SURFACE,
+            border: `1px solid ${BORDER}`,
           }}
         >
           <div style={{ fontSize: 20, letterSpacing: 3, color: ACCENT, fontWeight: 700 }}>
