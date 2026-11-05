@@ -31,4 +31,14 @@ describe("StatusChip recipe", () => {
       expect(skeleton).not.toContain("function ChipSkeleton(");
     }
   });
+
+  it("renders on the server: no client directive, hooks or handlers", () => {
+    // viewer-landing.tsx and stream-scene.tsx are server components; a "use client" here would
+    // ship the chip (and cn's tailwind-merge) to / and /setup for markup that never changes.
+    const chip = read("components/status-chip.tsx");
+    expect(chip).not.toContain('"use client"');
+    expect(chip).not.toMatch(/\buse[A-Z]\w*\(/);
+    expect(chip).not.toMatch(/\bon[A-Z]\w*=/);
+    expect(read("components/ui/skeleton.tsx")).not.toContain('"use client"');
+  });
 });

@@ -1,6 +1,6 @@
-"use client";
-
 // LED-style status chip used across the app (timer state, bot connection, unsaved changes).
+// No client directive: it is plain markup, so server components (the landing, the stream
+// scene) render it without shipping it, and client components still import it as usual.
 
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
