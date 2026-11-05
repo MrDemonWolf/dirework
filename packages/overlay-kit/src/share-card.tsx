@@ -1,20 +1,21 @@
 /**
- * @dirework/overlay-kit/share-card — the social share card both apps serve as their default
- * `opengraph-image` (apps/web and apps/fumadocs), so its copy, colors and mark change in one
- * place. Each app renders it with `next/og` at build time; no request renders it.
+ * @dirework/overlay-kit/share-card — the social share card both apps serve (apps/web as the
+ * static public/og.png that scripts/render-og.ts renders before each build, apps/fumadocs as its
+ * `opengraph-image`), so its copy, colors and mark change in one place. Each app renders it
+ * with `next/og` at build time; no request renders it.
  *
  * A subpath of its own because it is the package's only JSX: it needs `react` (a peer
  * dependency, for the automatic JSX runtime), while the "." entry that the overlays and docs
  * mocks import stays dependency-free.
  *
- * Next derives the `og:image` URL's `?<hash>` from each route file's own source, not from this
- * module, so a change made only here keeps the old URL, and a social site that cached the card
- * by URL can show the old one until its cache expires.
+ * Neither URL changes when this module does (the web card is a fixed /og.png; Next derives the
+ * docs `og:image` URL's `?<hash>` from the route file's own source), so a social site that
+ * cached the card by URL can show the old one until its cache expires.
  */
 
 import { BRAND, DEMO_SESSION, cycleLabel, formatClock } from "./index";
 
-/** The standard 1.91:1 Open Graph card size; Next.js emits it as og:image width/height. */
+/** The standard 1.91:1 Open Graph card size, emitted as og:image width/height. */
 export const SHARE_CARD_SIZE = { width: 1200, height: 630 } as const;
 /** Alt text Next.js emits as `og:image:alt` and `twitter:image:alt`. */
 export const SHARE_CARD_ALT = BRAND.title;

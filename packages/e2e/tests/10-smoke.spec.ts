@@ -10,6 +10,15 @@ test("the landing page renders and both workers report healthy", async ({ page, 
   await expect(page.getByRole("button", { name: "Sign in with Twitch" })).toBeVisible();
   await expectNoCspViolations(page);
 
+  // The share card is the static public/og.png (scripts/render-og.ts), not a Worker route.
+  for (const name of ['meta[property="og:image"]', 'meta[name="twitter:image"]']) {
+    const url = new URL((await page.locator(name).getAttribute("content")) ?? "", WEB_ORIGIN);
+    expect(url.pathname, name).toBe("/og.png");
+  }
+  const card = await request.get("/og.png");
+  expect(card.status()).toBe(200);
+  expect(card.headers()["content-type"]).toBe("image/png");
+
   const version = await request.get("/api/version");
   expect(version.ok()).toBe(true);
   expect(await version.json()).toHaveProperty("sha");

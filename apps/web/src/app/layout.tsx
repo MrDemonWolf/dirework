@@ -8,6 +8,7 @@ import { BRAND } from "@dirework/overlay-kit";
 import "../index.css";
 import Providers from "@/components/providers";
 import { plexMono, plexSans } from "@/lib/fonts";
+import { OG_IMAGE } from "@/lib/og-image";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-init";
 import { SCHEME_HEX } from "@/tokens.generated";
 
@@ -64,11 +65,14 @@ export function generateMetadata(): Metadata {
       description: BRAND.description,
       type: "website",
       siteName: "DireWork",
+      // A static file rendered at build (scripts/render-og.ts), not an opengraph-image route.
+      images: [OG_IMAGE],
     },
     twitter: {
       card: "summary_large_image",
       title: "DireWork",
       description: BRAND.description,
+      images: [OG_IMAGE],
     },
   };
 }

@@ -14,3 +14,7 @@
 # PWA icons (app/manifest.ts) are not hashed either: same fresh-for-a-day policy.
 /icons/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=2592000
+
+# The social share card (scripts/render-og.ts renders it at build): unhashed, same policy.
+/og.png
+  Cache-Control: public, max-age=86400, stale-while-revalidate=2592000

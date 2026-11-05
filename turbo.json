@@ -6,7 +6,7 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*", "$TURBO_ROOT$/packages/fonts/files/**"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "out/**"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "out/**", "public/og.png"],
       "env": ["NEXT_PUBLIC_BASE_PATH", "NEXT_PUBLIC_SERVER_URL", "SKIP_ENV_VALIDATION"]
     },
     "check-types": {
