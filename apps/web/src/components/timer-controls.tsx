@@ -1,7 +1,8 @@
 "use client";
 
 // Dashboard timer console: `TimerProvider` owns the timer.get poll, the transport
-// mutations and the locally edited timer config; `TimerPhaseChip` (beside the heading),
+// mutations (each writes its answer into the timer.get cache, lib/timer-cache.ts) and the
+// locally edited timer config; `TimerPhaseChip` (beside the heading),
 // `TimerInstrument` (the hero clock),
 // `TimerTransport` (Start / Skip / Stop) and `TimerSettings` (the blur-autosaved durations
 // behind the "Edit session settings" disclosure) read it through context.
@@ -9,6 +10,7 @@
 import { createContext, Fragment, useContext, useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { inferOutput } from "@trpc/tanstack-react-query";
 import { Info, Pause, Play, SkipForward, Square } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,6 +24,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { DASHBOARD_TIMER_QUERY_OPTS } from "@/lib/poll-intervals";
 import { formatSessionSummary } from "@/lib/session-summary";
+import { applyTimerResult } from "@/lib/timer-cache";
 import { type TimerState, clockEm, formatClock, resolvePhaseDuration } from "@/lib/timer-utils";
 import { useTimerCountdown } from "@/lib/use-timer-countdown";
 import { TIMER_TONES, TIMER_PHASE_COLOR, toTimerStatus } from "@/lib/status-tones";
@@ -216,9 +219,13 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     updateTimerConfig.mutate(overrides);
   };
 
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: trpc.timer.get.queryKey() });
-  };
+  // Every action answers with the timer as it stands after the write (timer.get's shape; null
+  // when nothing changed), so the answer goes into the cache instead of a timer.get re-read:
+  // one request per click, and the transport flips with the answer. Returning the promise
+  // keeps the button pending until the cache holds it.
+  const timerKey = trpc.timer.get.queryKey();
+  const applyResult = (row: inferOutput<typeof trpc.timer.get>) =>
+    applyTimerResult(queryClient, timerKey, row);
 
   const mutationError = (action: string) => (err: unknown) => {
     toast.error(`Couldn't ${action} the timer: ${describeTrpcError(err)}`);
@@ -226,31 +233,31 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 
   const start = useMutation({
     ...trpc.timer.start.mutationOptions(),
-    onSuccess: invalidate,
+    onSuccess: applyResult,
     onError: mutationError("start"),
   });
 
   const pause = useMutation({
     ...trpc.timer.pause.mutationOptions(),
-    onSuccess: invalidate,
+    onSuccess: applyResult,
     onError: mutationError("pause"),
   });
 
   const resume = useMutation({
     ...trpc.timer.resume.mutationOptions(),
-    onSuccess: invalidate,
+    onSuccess: applyResult,
     onError: mutationError("resume"),
   });
 
   const skip = useMutation({
     ...trpc.timer.skip.mutationOptions(),
-    onSuccess: invalidate,
+    onSuccess: applyResult,
     onError: mutationError("skip"),
   });
 
   const reset = useMutation({
     ...trpc.timer.reset.mutationOptions(),
-    onSuccess: invalidate,
+    onSuccess: applyResult,
     onError: mutationError("stop"),
   });
 

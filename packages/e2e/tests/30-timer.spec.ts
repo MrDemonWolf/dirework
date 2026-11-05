@@ -1,10 +1,62 @@
 import { DEFAULT_PHASE_LABELS, DEFAULT_TIMER_STYLES } from "@dirework/api/config-defaults";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Request, type Response } from "@playwright/test";
 
-import { confirmDialog, expectNoCspViolations, revealSecretUrl, signIn, watchCsp } from "./helpers";
+import {
+  confirmDialog,
+  expectNoCspViolations,
+  revealSecretUrl,
+  signIn,
+  waitForHydration,
+  watchCsp,
+} from "./helpers";
 
 /** Digits of a work phase that has just begun: 25:00 counting down through 24:xx. */
 const FRESH_WORK_DIGITS = /^2[45]:[0-5]\d$/;
+
+/** The procedures one dashboard `/rpc` call carries (`/rpc/task.list,timer.get` → both). */
+function rpcProcedures(url: string): string[] {
+  const { pathname } = new URL(url);
+  return pathname.startsWith("/rpc/") ? pathname.slice("/rpc/".length).split(",") : [];
+}
+
+/**
+ * Count what one timer action costs the dashboard: the `/rpc` calls that carry `procedure`,
+ * then, after its answer, the `timer.get` reads that completed and the `stats.summary`
+ * refetches. The console writes the answer into its cache (lib/timer-cache.ts) instead of
+ * re-reading the timer; a poll the answer finds in flight is aborted (so it never completes),
+ * and writing the answer restarts the 2s poll interval, so a re-read shows in the second
+ * after the answer. Call `settle` once the console shows the answer.
+ */
+function watchTimerAction(page: Page, procedure: string) {
+  const calls: string[] = [];
+  const reads: Request[] = [];
+  const statsFetches: string[] = [];
+  let answered = false;
+  const onRequest = (request: Request) => {
+    const procedures = rpcProcedures(request.url());
+    if (procedures.includes(procedure)) calls.push(request.url());
+    if (!answered) return;
+    if (procedures.includes("timer.get")) reads.push(request);
+    if (procedures.includes("stats.summary")) statsFetches.push(request.url());
+  };
+  const onResponse = (response: Response) => {
+    if (rpcProcedures(response.url()).includes(procedure)) answered = true;
+  };
+  page.on("request", onRequest);
+  page.on("response", onResponse);
+  return {
+    async settle() {
+      await page.waitForTimeout(1000);
+      page.off("request", onRequest);
+      page.off("response", onResponse);
+      return {
+        calls: calls.length,
+        rereads: reads.filter((read) => read.failure() === null).map((read) => read.url()),
+        statsFetches: statsFetches.length,
+      };
+    },
+  };
+}
 
 test("starts a session, shows it ticking on the timer overlay, and stops it", async ({
   page,
@@ -16,6 +68,9 @@ test("starts a session, shows it ticking on the timer overlay, and stops it", as
   await signIn(page);
   await watchCsp(page);
   await page.goto("/dashboard");
+  // The buttons are in the server HTML: wait for React, so the clicks below reach it directly
+  // and the dashboard's stats refresh is already subscribed to the timer query.
+  await waitForHydration(page);
 
   // Idempotent: a retry, or an earlier run that stopped partway, can leave a session
   // running, and the Start button only exists while the timer is idle.
@@ -28,7 +83,13 @@ test("starts a session, shows it ticking on the timer overlay, and stops it", as
     await expect(start).toBeVisible();
   }
 
+  // One request per click: the answer alone turns Start into Pause, with no timer.get re-read.
+  // (Its stats refetch is checked at Stop instead: on a fresh database the timer has no row
+  // until this Start, and the first phase the stats refresh sees only sets its baseline.)
+  const starting = watchTimerAction(page, "timer.start");
   await start.click();
+  await expect(page.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
+  expect(await starting.settle()).toMatchObject({ calls: 1, rereads: [] });
 
   // The live region announces the phase; it reads the work phase once the starting
   // countdown has run out and the dashboard poll has picked the change up.
@@ -57,9 +118,13 @@ test("starts a session, shows it ticking on the timer overlay, and stops it", as
   await expectNoCspViolations(overlay);
   await overlay.close();
 
+  // Stop is one request too, and the stats strip still refetches once for the work time it
+  // credited: the refresh watches the timer query, which the answer itself updates.
+  const stopping = watchTimerAction(page, "timer.reset");
   await stop.click();
   await confirmDialog(page, "Stop timer");
   await expect(start).toBeVisible();
+  expect(await stopping.settle()).toEqual({ calls: 1, rereads: [], statsFetches: 1 });
   await expectNoCspViolations(page);
 });
 

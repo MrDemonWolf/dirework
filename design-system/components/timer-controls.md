@@ -19,7 +19,10 @@ cached `task.list`, rendered by the dashboard), `TimerSettings` and `ObsSources`
 - `TimerProvider` owns the `timer.get` poll (`DASHBOARD_TIMER_QUERY_OPTS`), seeds the editable fields once from `config.get`, holds the
   start / pause / resume / skip / reset mutations, and formats the settings summary from the
   SAVED config (`formatSessionSummary` in `lib/session-summary.ts`, `TIMER_CONFIG_DEFAULTS`
-  for anything missing).
+  for anything missing). Each mutation answers with the timer as it stands after the write,
+  and `applyTimerResult` (`lib/timer-cache.ts`) writes that answer into the `timer.get` cache
+  after cancelling any read still in flight: one request per click, no re-read (a null
+  answer, nothing changed, re-reads once).
 - `TimerPhaseChip`: a `StatusChip` with the streamer's phase label (keyed, `chip-swap`) and
   the `sr-only` live status line, beside the console heading. A long custom label ends in an
   ellipsis (the chip never outgrows the header row) with the full text as its `title`.
@@ -57,7 +60,9 @@ primary, long break / finished = cornflower, paused = warning, idle = muted.
 ## States
 
 Idle (work length shown, rail hidden, hollow dots), starting, work, break, long break, paused
-(amber, no pulse), finished. Pending mutations disable their button but keep it focusable.
+(amber, no pulse), finished. Pending mutations disable their button but keep it focusable; a
+transport action stays pending until its answer is in the cache, so the primary button turns
+from Start to Pause with the answer and never shows its old label enabled.
 Settings autosave on blur (clamped and rounded, no-op blurs skipped, "Timer settings saved"
 toast) and are disabled while a run is in progress. The folded summary shows the saved values,
 not unsaved field edits. Failures toast `Couldn't <action> the timer: ...`.
@@ -87,4 +92,6 @@ not unsaved field edits. Failures toast `Couldn't <action> the timer: ...`.
 - **Do** confirm Stop via `ConfirmDialog`; it discards the run.
 - **Do** keep the transport and settings rows inside a 320px phone (`90-mobile.spec.ts`).
 - **Don't** add a second `timer.get` poll; reuse the shared options.
+- **Don't** invalidate `timer.get` after a transport action: its answer is the new state, so
+  write it with `applyTimerResult` (a re-read costs 2 more Worker requests per click).
 - **Don't** treat the UI bounds as validation; `updateTimerConfigInput` is the authority.

@@ -529,7 +529,8 @@ batch); it rides `streamDashboard`'s one batch and is never polled — the dashb
 `useStatsRefresh` (`lib/stats-refresh.ts`: a QueryCache subscription to the timer and task-list
 queries only, not an observer; it stores its watermark before invalidating, so one change is
 one refetch) invalidates it when the timer
-poll sees another phase (`timerPhaseKey`: status, cycle, total and phase end, so work → work of
+query sees another phase, from a poll or a timer action's answer written into the cache
+(`timerPhaseKey`: status, cycle, total and phase end, so work → work of
 the next cycle counts) or `task.list` shows a newer completion (`latestCompletion`: the
 newest `completedAt`, monotonic, unlike `counts.done`, which the purge can hold level), plus
 once just after each local midnight (`scheduleDayRollover`, one timer a day). `user.setTimeZone` (guarded UPDATE, `is not`) is sent once by `useTimeZoneSync` when
@@ -894,7 +895,13 @@ only the selected tab is mounted). The tab and the preview switch live in the co
 (`useObsPreview`): below `lg` the preview is inline under the URL row; from `lg` it opens as
 the console's third column (`ObsPreviewColumn`: overlay name + "Close live preview") and
 `.timer-console-grid` (index.css) slides instrument | controls from 3/5 · 2/5 over to make
-room. One iframe at most either way. The task board (`task-manager.tsx`) takes the full width.
+room. One iframe at most either way. A transport click is ONE `/rpc` request: `timer.start` /
+`pause` / `resume` / `skip` / `reset` answer with the timer row as it stands after the write
+(`timer.get`'s type, checked at compile time), and `applyTimerResult` (`lib/timer-cache.ts`)
+cancels any `timer.get` still in flight, then writes that answer into the cache, never a
+re-read; a null answer (nothing changed, so the console was stale) re-reads once. `onSuccess`
+returns that promise, so the button stays pending until the console shows the new phase.
+The task board (`task-manager.tsx`) takes the full width.
 The setup checklist's URL handoffs stay separate (Show/Copy only). Rows are `min-h-11`: checkbox, then
 the task text (full wrap, no clamp, `wrap-anywhere`, `dir="auto"`) and a meta line
 (`data-slot="task-row-meta"`: status chip slot + `TaskRowControls`)
@@ -1169,7 +1176,9 @@ of the sections or cards that read it, from the same one batch; a Bot settings s
 costs no api request), `25-setup-checklist` (confirm/revert a step, Finish later), `27-bot-page-handoff` (seeds a
 bot account, then removes it: the widget / dock choice in the checklist and the Run the bot
 card, one named URL row, arrow keys, the remembered pick, Open/Reset for the chosen view, axe
-on the connected Overview, phone width), `30-timer` (Pomodoro start/stop and the ticking timer overlay; phase labels
+on the connected Overview, phone width), `30-timer` (Pomodoro start/stop, each one `/rpc`
+request with no `timer.get` re-read after its answer and Stop's stats refetch still firing, and
+the ticking timer overlay; phase labels
 come from `@dirework/api/config-defaults`), `40-theme-center`, `50-bot-settings`,
 `55-bot-dock` (`/bot/<token>?view=dock` renders the dock; the default view is the blank widget; a
 button click sends one `bot.ingest` as the broadcaster, with getSession/ingest stubbed and the
