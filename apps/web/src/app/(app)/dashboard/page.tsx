@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { HydrationBoundary } from "@tanstack/react-query";
 
-import { requireSession } from "@/lib/auth-guard";
+import { loadAsOwner } from "@/lib/auth-guard";
 import { streamDashboard } from "@/lib/server-query";
 import { holdShellFor } from "@/lib/shell-hold";
 import Dashboard from "./dashboard";
@@ -10,14 +10,15 @@ import Dashboard from "./dashboard";
 export const metadata: Metadata = { title: "Dashboard" };
 
 /**
- * Session first (a signed-out visitor is redirected without spending a batch), then ONE
- * streamed batch for every section, waited on for at most `SECTIONS_READY_MS`
- * (lib/progressive.ts): everything that arrives by then is in the first paint, and only a
- * section whose data is later shows its placeholder and fills in on its own.
+ * The owner session and ONE streamed batch for every section, started together when the
+ * request carries a session cookie and session first when it doesn't, so a signed-out visitor
+ * never spends a batch (`loadAsOwner`, lib/auth-guard.ts). The batch is waited on for at most
+ * `SECTIONS_READY_MS` (lib/progressive.ts): everything that arrives by then is in the first
+ * paint, and only a section whose data is later shows its placeholder and fills in on its own.
  */
 async function loadDashboard() {
-  const session = await requireSession();
-  return { session, state: await streamDashboard() };
+  const { session, data: state } = await loadAsOwner(streamDashboard);
+  return { session, state };
 }
 
 /**

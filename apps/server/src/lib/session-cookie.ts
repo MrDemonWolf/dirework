@@ -9,13 +9,11 @@
  * — so the signature can be checked with no I/O: only a cookie better-auth
  * itself issued can earn a per-session key. Everything else falls back to the
  * (trusted) client IP.
+ *
+ * The cookie names and the header reader are the web worker's too (@dirework/api/session-cookie).
  */
 
-/** `__Secure-` when served over https (production), bare on http dev. */
-export const SESSION_COOKIE_NAMES = [
-  "__Secure-better-auth.session_token",
-  "better-auth.session_token",
-] as const;
+import { readCookie, SESSION_COOKIE_NAMES } from "@dirework/api/session-cookie";
 
 const HMAC = { name: "HMAC", hash: "SHA-256" } as const;
 /** better-call's signature: base64 of a 32-byte HMAC, always 44 chars ending "=". */
@@ -23,17 +21,6 @@ const SIGNATURE_LENGTH = 44;
 /** A real cookie is ~80 bytes; bound the work an attacker can make us do. */
 const MAX_COOKIE_VALUE_LENGTH = 512;
 const encoder = new TextEncoder();
-
-/** Read one cookie from a Cookie header (first match wins). */
-export function readCookie(cookieHeader: string | null, name: string): string | null {
-  if (!cookieHeader) return null;
-  for (const part of cookieHeader.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1) continue;
-    if (part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim();
-  }
-  return null;
-}
 
 async function verifySignedValue(raw: string, secret: string): Promise<string | null> {
   if (raw.length > MAX_COOKIE_VALUE_LENGTH) return null;

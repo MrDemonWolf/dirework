@@ -138,7 +138,7 @@ describe("dashboard wiring", () => {
 
   it("holds the shell for the streamed batch's deadline, never for the full batch", () => {
     expect(page).toContain("holdShellFor(loadDashboard())");
-    expect(page).toContain("await streamDashboard()");
+    expect(page).toContain("loadAsOwner(streamDashboard)");
     expect(page).not.toMatch(/await prefetch/);
   });
 
@@ -156,7 +156,7 @@ describe("Theme Center wiring", () => {
   it("holds the shell for the streamed config's deadline, never for the whole fetch", () => {
     const page = read("app/(app)/dashboard/styles/page.tsx");
     expect(page).toContain("holdShellFor(loadStyles())");
-    expect(page).toMatch(/await requireSession\(\);\s*return streamStyles\(\);/);
+    expect(page).toContain("loadAsOwner(streamStyles)");
     expect(page).not.toMatch(/prefetch\w*\(/);
   });
 

@@ -66,10 +66,16 @@ token-authenticated traffic (overlay polling, bot page) goes DIRECT to the api w
 `publicTrpc` (no cookies) to avoid double-hop request burn on the free tier.
 
 **SSR prefetch + hydration.** `/dashboard`, `/dashboard/styles` and `/dashboard/bot/*` render
-with their data: each page runs `requireSession()` first (a signed-out visitor never spends a
-batch) — for Bot settings the shared `bot/(sections)/layout.tsx` does it, ONCE on entering the
-section, since a layout is kept across its own pages' navigations and every procedure those
-pages call is owner-only — then `streamDashboard` / `streamStyles` / `streamBot` (`lib/server-query.ts`),
+with their data: each page loads through `loadAsOwner(start)` (`lib/auth-guard.ts`) — for Bot
+settings the shared `bot/(sections)/layout.tsx` does it, ONCE on entering the section, since a
+layout is kept across its own pages' navigations and every procedure those pages call is
+owner-only. It is ordered by the request's better-auth session cookie (`SESSION_COOKIE_NAMES`,
+zod-free `@dirework/api/session-cookie`, the one list both workers import): without one,
+`requireSession()` runs first and a cookie-less visitor never spends a batch; with one, the
+session check and the batch start together (one api round trip less per owner load), the
+session's redirect or error still wins, and a stale cookie may spend one UNAUTHORIZED batch
+(`auth-guard.test.ts` pins both orders). The batch is `streamDashboard` / `streamStyles` /
+`streamBot` (`lib/server-query.ts`),
 which use a per-call `createServerTrpc(queryClient)` (`lib/server-trpc.ts`, no module state)
 to issue every query in one tick — `httpBatchStreamLink` folds them into ONE GET straight to
 the api worker's `/trpc` (cookie + signed client IP, 5s `INTERNAL_FETCH_TIMEOUT_MS`; never via
@@ -84,8 +90,10 @@ The client `QueryClient` defaults `staleTime` to `QUERY_FRESH_MS` (30s, `poll-in
 so hydrated data isn't refetched on mount; polls and invalidations ignore staleness, so no
 cadence changes. `getServerSession` is wrapped in React `cache()`, so the `(app)` layout
 (which passes the session to `Header`/`UserMenu` as a prop — no client `useSession`) and the
-page share one get-session fetch. A dashboard hard load costs 2 api requests (get-session +
-the batch) and no web-worker `/rpc` hops before the first poll.
+page share one get-session fetch, and a request with no session cookie skips that fetch
+altogether (`getServerSession` answers null itself: there is no session to look up). A
+dashboard hard load costs 2 api requests (get-session + the batch, issued together) and no
+web-worker `/rpc` hops before the first poll.
 `next.config.ts` sets experimental `staleTimes.dynamic` to the same 30s, so a return to a
 visited dynamic section within 30s of its fetch can reuse the server payload; re-check
 this experimental Next behavior on each version bump.
@@ -114,8 +122,9 @@ unclaimed → `/setup`; a claimed `/setup` is a real 404), and a client navigati
 keeps the previous page until the new one is ready. With one, the skeleton streamed first,
 the redirect could only run client-side behind it (an owner's `/` painted that skeleton, then
 the dashboard's own) and a visitor's landing waited out the reveal throttle; a shell hold only
-narrowed that. The cost is TTFB: `/` answers once both checks are back (`user.hasOwner` trails
-get-session by ~100ms in production), then paints once. `shell-hold.test.ts` pins the missing
+narrowed that. The cost is TTFB: `/` answers once both checks are back, then paints once; for a
+visitor with no session cookie the session check is free (no get-session fetch), so it waits
+on `user.hasOwner` alone. `shell-hold.test.ts` pins the missing
 boundary and every dashboard route's own; `15-landing` asserts the finished `<main>` in the
 first HTML response, no painted skeleton frame (with `user.hasOwner` slowed through the e2e
 api's `/__e2e/delay`: on localhost it answers within a frame of the session) and the owner's
@@ -771,7 +780,8 @@ it (e.g. `0017_drop_task_status_idx` contracted 0015's superseded `task_status_i
   `authorization_failed`; error reasons surfaced as `?bot=error&reason=…` toasts — the dashboard maps the code to
   fixed copy via `botOAuthErrorMessage` and never renders the raw query param).
 - Server components check sessions via `lib/server-session.ts` (`getServerSession()` —
-  forwards cookies to the api worker). Never import `@dirework/auth` or `@dirework/db`
+  forwards cookies to the api worker; null without a fetch when the request carries no
+  better-auth session cookie). Never import `@dirework/auth` or `@dirework/db`
   in apps/web. It returns only `ServerSession` = `{ user: { name, image, isOwner } }`,
   built field by field (`toServerSession`, `isOwner` only from a JSON `true`), never
   better-auth's get-session body: pages pass the session to client components (`Header`,
@@ -951,7 +961,7 @@ pins them.
 h1 and the sticky `<nav aria-label="Bot settings sections">` (`components/bot-settings/
 bot-section-nav.tsx`, sections from `lib/bot-sections.ts`, `aria-current="page"`, links
 `prefetch={false}`) paint with the page. Below `bot/loading.tsx`, the route group's
-`(sections)/layout.tsx` holds the shell on `loadBot` (`requireSession()` + `streamBot()`, ONE
+`(sections)/layout.tsx` holds the shell on `loadBot` (`loadAsOwner(streamBot)`, ONE
 streamed `config.get,user.me` batch, waited on for at most `SECTIONS_READY_MS`) into a
 `HydrationBoundary` (Progressive sections, above). Each card of a page is a `BotSection`
 (`(sections)/bot-data.tsx`) that names the queries it reads and gets them through
