@@ -65,6 +65,23 @@ export const DEFAULT_TASK_STYLES: TaskStylesConfig = DB_DEFAULT_TASK_STYLES;
 export const TIMER_CONFIG_DEFAULTS = DB_TIMER_CONFIG_DEFAULTS;
 
 /**
+ * The dashboard's "Edit session settings" ranges: durations in whole minutes
+ * (`unit: "min"`), the rest plain counts. They are the editor's own and tighter
+ * than `updateTimerConfigInput` (1s to 24h per phase, 1–99 counts), which stays
+ * the authority; a test holds every bound inside that schema. TimerSettings
+ * reads these for its inputs' min/max and its blur clamp.
+ */
+export const TIMER_FIELD_LIMITS = {
+  workDuration: { min: 1, max: 120, unit: "min" },
+  breakDuration: { min: 1, max: 60, unit: "min" },
+  longBreakDuration: { min: 1, max: 60, unit: "min" },
+  longBreakInterval: { min: 2, max: 20, unit: "count" },
+  defaultCycles: { min: 1, max: 99, unit: "count" },
+} as const satisfies Partial<
+  Record<keyof typeof DB_TIMER_CONFIG_DEFAULTS, { min: number; max: number; unit: "min" | "count" }>
+>;
+
+/**
  * The task overlay's "Lines per task" range. Long task text wraps (there is no
  * length cap beyond MAX_TASK_LEN) and is cut with an ellipsis after this many
  * lines. The save schema takes only this range; a row saved under the old 1–100

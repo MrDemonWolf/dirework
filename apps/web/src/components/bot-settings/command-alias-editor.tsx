@@ -5,6 +5,7 @@
 // via `rowsToAliases` (lib/alias-rows.ts), which also drops rows left entirely blank.
 
 import { Plus, Trash2 } from "lucide-react";
+import { MAX_COMMAND_ALIASES } from "@dirework/api/chat-commands";
 
 import {
   ALIAS_INPUT_MAX_LENGTH,
@@ -25,7 +26,7 @@ import { Label } from "@/components/ui/label";
  * Controlled editor for the command-alias rows. Validates on every render with the same shared
  * validator the server runs and flags each rejected row inline, against the field at fault —
  * both fields, each with its own message, when the alias and the command are both wrong.
- * `maxRows` (default 50) mirrors the cap in the server's `commandAliasesInput` schema, and both
+ * `maxRows` defaults to MAX_COMMAND_ALIASES, the cap `commandAliasesInput` reads, and both
  * inputs stop at ALIAS_MAX_LENGTH characters plus a typed "!" (`ALIAS_INPUT_MAX_LENGTH`), with a
  * character counter from 80% of it. Either form ("!t" or "t") is accepted; the "!" is stripped
  * when the rows are normalized.
@@ -33,7 +34,7 @@ import { Label } from "@/components/ui/label";
 export function CommandAliasEditor({
   rows,
   onChange,
-  maxRows = 50,
+  maxRows = MAX_COMMAND_ALIASES,
 }: {
   rows: AliasRow[];
   onChange: (rows: AliasRow[]) => void;

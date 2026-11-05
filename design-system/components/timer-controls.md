@@ -45,7 +45,7 @@ cached `task.list`, rendered by the dashboard), `TimerSettings` and `ObsSources`
   reads `FOCUS 25m · BREAK 5m · LONG 15m · EVERY 4` (each pair kept on one line). While a run
   is in progress it shows a "Locked" chip and "Stop the timer to change these." Five label /
   number input / unit rows (Focus 1-120 min, Break 1-60 min, Long break 1-60 min, Every 2-20
-  pomos, Pomos 1-99): a flex row below `sm` (the label wraps, the unit slot is fixed), a
+  pomos, Pomos 1-99, from `TIMER_FIELD_LIMITS` in `@dirework/api/config-defaults`): a flex row below `sm` (the label wraps, the unit slot is fixed), a
   `6.75rem 4.5rem auto` grid from `sm`.
 
 ## Props and variants

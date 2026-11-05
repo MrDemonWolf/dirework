@@ -663,7 +663,10 @@ optional `%` / `vw`·`vh` ranges, up to 4 shorthand values; rem/em = 16px, never
 lines, scroll), the bullet/tick `OVERLAY_ICONS` (lucide ids stored in the old
 `*_char` columns; `overlayIconSchema`), and the phase label caps
 (`PHASE_LABEL_MAX_GRAPHEMES` 16 via `Intl.Segmenter`, `PHASE_LABEL_MAX_BYTES` 48;
-`phaseLabelSchema`); `ALIAS_MAX_LENGTH` (25, no "!") lives in `chat-commands`. A stored value
+`phaseLabelSchema`); `ALIAS_MAX_LENGTH` (25, no "!") and `MAX_COMMAND_ALIASES` (50) live in
+`chat-commands`; the dashboard timer fields' ranges are `TIMER_FIELD_LIMITS` in `config-defaults`
+(tighter than `updateTimerConfigInput`, which stays the authority; a test holds each bound
+inside it). A stored value
 outside a newer limit is **never migrated, it is clamped on read** in the build* helpers
 (`clampTimerStyles` / `clampTaskStyles`: nearest bound, or the default when the unit is no
 longer accepted; `toOverlayIcon` maps old glyphs; `clampPhaseLabel`; `limitPlaceholderRepeats`;

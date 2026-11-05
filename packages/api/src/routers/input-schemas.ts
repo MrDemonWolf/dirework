@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  MAX_COMMAND_ALIASES,
   MAX_DISPLAY_NAME_LENGTH,
   MAX_TASK_LEN,
   hasControlCharacters,
@@ -163,8 +164,8 @@ export const commandAliasesInput = z.object({
   // chat-commands module).
   commandAliases: z
     .record(z.string().max(50), z.string().max(100))
-    .refine((obj) => Object.keys(obj).length <= 50, {
-      message: "Maximum of 50 command aliases allowed",
+    .refine((obj) => Object.keys(obj).length <= MAX_COMMAND_ALIASES, {
+      message: `Maximum of ${MAX_COMMAND_ALIASES} command aliases allowed`,
     })
     .transform((obj, ctx) => {
       const { aliases, issues } = normalizeAliases(obj);
