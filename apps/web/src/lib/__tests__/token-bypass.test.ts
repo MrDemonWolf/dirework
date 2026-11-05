@@ -8,10 +8,10 @@ import { SCHEME_HEX } from "@/tokens.generated";
 /**
  * Ratchet against utilities that bypass the design tokens: arbitrary values
  * (`<utility>-[<value>]`: pixel font sizes, em tracking, numeric z-index, hex
- * colors), the raw Tailwind gray palettes (zinc, slate, gray, neutral,
- * stone) and hex colors in an inline `style` prop. Type, tracking, z-index,
+ * colors), the raw Tailwind palettes (every hue: the grays and the chromatic
+ * ones like emerald, amber and red) and hex colors in an inline `style` prop. Type, tracking, z-index,
  * widths and colors come from design-system/tokens.json (`text-2xs`,
- * `tracking-label`, `z-(--z-header)`, `max-w-content`, `bg-console-base` …);
+ * `tracking-label`, `z-(--z-header)`, `max-w-content`, `bg-obs-green` …);
  * an inline style that needs a palette color as a literal (the stylesheet may
  * be missing) imports its hex from the generated `@/tokens.generated`.
  *
@@ -48,12 +48,8 @@ const ALLOWED: Record<string, string[]> = {
   "components/timer-controls.tsx": ["grid-cols-[6.75rem_4.5rem_auto]"],
   "components/mode-toggle.tsx": ["translate-x-[calc(100%-2px)]"],
   "components/account-menu.tsx": ["content-[attr(data-initial)]"],
-  // Elevation and LED glows: multi-layer shadows with no shadow token scale.
-  "app/(bot)/bot/[token]/bot-dock-view.tsx": [
-    "shadow-[0_0_12px_2px_rgba(239,68,68,0.55)]",
-    "shadow-[0_0_12px_2px_rgba(251,191,36,0.5)]",
-    "shadow-[0_0_12px_2px_rgba(52,211,153,0.55)]",
-  ],
+  // Elevation and the LED glow's geometry: no shadow token scale (the glow's color is a token).
+  "app/(bot)/bot/[token]/bot-dock-view.tsx": ["shadow-[0_0_12px_2px]"],
   "components/theme-center/theme-card.tsx": ["border-[1.5px]"],
   // shadcn/ui primitives: transition property lists, motion start scale and
   // component-internal geometry, kept as upstream ships them. The popup motion is typed
@@ -73,9 +69,9 @@ const ALLOWED: Record<string, string[]> = {
 
 /** An arbitrary value in utility position; variants (data, group-data, has …) are skipped. */
 const ARBITRARY = /(?<![\w-])(?:[a-z0-9-]+:)*([a-z][a-z0-9-]*-\[[^\]\s"'`]+\])(?!:|\/[\w-]+:)/g;
-/** Raw gray palette classes, with any variant prefix and opacity modifier. */
+/** Raw Tailwind palette classes (every hue), with any variant prefix and opacity modifier. */
 const PALETTE =
-  /(?<![\w-])(?:[a-z0-9-]+:)*([a-z]+-(?:zinc|slate|gray|neutral|stone)-\d{2,3})(?![\w-])/g;
+  /(?<![\w-])(?:[a-z0-9-]+:)*([a-z]+-(?:zinc|slate|gray|neutral|stone|taupe|mauve|mist|olive|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3})(?![\w-])/g;
 /** A hex color: `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa`. */
 const HEX = /#(?:[\da-f]{8}|[\da-f]{6}|[\da-f]{3,4})(?![\w-])/gi;
 
@@ -148,14 +144,16 @@ describe("token bypass ratchet", () => {
     const font = ["text", "[11px]"].join("-");
     const z = ["z", "[60]"].join("-");
     const gray = ["bg", "zinc", "950"].join("-");
+    const led = ["bg", "emerald", "400"].join("-");
+    const ring = ["ring", "red", "500"].join("-");
     const variant = ["data", "[size=sm]"].join("-");
     const named = ["group", "data", "[x]/g:p-2"].join("-");
-    const sample = `cn("${font} ${variant}:${z} ${named} hover:${gray}/80")`;
+    const sample = `cn("${font} ${variant}:${z} ${named} hover:${gray}/80 ${led} focus-visible:${ring}/50")`;
     const hits = [
       ...[...sample.matchAll(ARBITRARY)].map((m) => m[1]),
       ...[...sample.matchAll(PALETTE)].map((m) => m[1]),
     ];
-    expect(hits).toEqual([font, z, gray]);
+    expect(hits).toEqual([font, z, gray, led, ring]);
   });
 
   it("detects hex colors in inline style props, and only there", () => {

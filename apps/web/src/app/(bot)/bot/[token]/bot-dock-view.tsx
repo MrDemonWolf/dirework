@@ -22,12 +22,17 @@ import { DashboardBotLink } from "./dashboard-bot-link";
 /** The dock's status LED: `off` is standby (another page has the chat). */
 export type BotDockLed = "green" | "amber" | "red" | "off";
 
+/**
+ * The LED in OBS's own status colors (`color.obs` green / yellow / red, the dock's text
+ * tones), its glow tinted from the same token, so the LED and the dock's status text never
+ * show two greens. Shadow geometry is the one arbitrary value (no shadow token scale).
+ */
 const LED_CLASS: Record<BotDockLed, string> = {
   off: "bg-obs-muted",
-  green: "bg-emerald-400 shadow-[0_0_12px_2px_rgba(52,211,153,0.55)]",
+  green: "bg-obs-green shadow-[0_0_12px_2px] shadow-obs-green/55",
   amber:
-    "bg-amber-400 shadow-[0_0_12px_2px_rgba(251,191,36,0.5)] animate-pulse motion-reduce:animate-none",
-  red: "bg-red-500 shadow-[0_0_12px_2px_rgba(239,68,68,0.55)]",
+    "bg-obs-yellow shadow-[0_0_12px_2px] shadow-obs-yellow/50 animate-pulse motion-reduce:animate-none",
+  red: "bg-obs-red shadow-[0_0_12px_2px] shadow-obs-red/55",
 };
 
 export type BotDockViewProps = Omit<ComponentProps<typeof BotDock>, "ledClass"> & {
