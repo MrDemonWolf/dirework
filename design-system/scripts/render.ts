@@ -55,9 +55,18 @@ export type CssTarget = "web" | "docs";
 /** Repo-relative paths of every generated file. */
 export const OUTPUTS = {
   web: "apps/web/src/tokens.generated.css",
+  webHex: "apps/web/src/tokens.generated.ts",
   docs: "apps/fumadocs/src/app/tokens.generated.css",
   overlayThemes: "apps/fumadocs/src/app/(home)/_widgets/overlay-themes.generated.ts",
 } as const;
+
+/**
+ * `color.scheme` keys the web app needs as hex (`OUTPUTS.webHex`), where a CSS variable
+ * can't reach: the manifest and theme-color tags take the background, and the crash page
+ * (`global-error.tsx`, which may render without the stylesheet) takes all four. `input` is
+ * the border of a dark outline button (ui/button.tsx).
+ */
+const HEX_KEYS = ["background", "foreground", "muted-foreground", "input"] as const;
 
 /**
  * Type steps Tailwind already ships (tailwindcss/theme.css). tokens.json lists
@@ -116,6 +125,37 @@ export function cssValue(value: string): string {
   if (alias) return `var(--${alias[1]})`;
   if (/^#[0-9a-f]{3,8}$/i.test(value)) return value.toLowerCase();
   return value;
+}
+
+/** A 0–1 channel as two hex digits, clipped to the sRGB gamut. */
+function hexByte(channel: number): string {
+  return Math.round(Math.min(1, Math.max(0, channel)) * 255)
+    .toString(16)
+    .padStart(2, "0");
+}
+
+/**
+ * An `oklch(L C H)` token (alpha as ` / N%`) as sRGB hex: `#rrggbb`, or `#rrggbbaa` when
+ * translucent. OKLab → LMS → linear sRGB with Björn Ottosson's matrices, the same math
+ * tokens-contrast.test.ts measures with; a channel outside the sRGB gamut is clipped.
+ */
+export function oklchToHex(value: string): string {
+  const m = /^oklch\(([\d.]+) ([\d.]+) ([\d.]+)(?: \/ ([\d.]+)%)?\)$/.exec(value);
+  if (!m) throw new Error(`not an oklch() literal: ${value}`);
+  const [L, C, hue] = [Number(m[1]), Number(m[2]), (Number(m[3]) * Math.PI) / 180];
+  const a = C * Math.cos(hue);
+  const b = C * Math.sin(hue);
+  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const mid = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
+  const linear = [
+    4.0767416621 * l - 3.3077115913 * mid + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * mid - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * mid + 1.707614701 * s,
+  ];
+  const encode = (c: number) => (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055);
+  const alpha = m[4] === undefined ? "" : hexByte(Number(m[4]) / 100);
+  return `#${linear.map((c) => hexByte(encode(c))).join("")}${alpha}`;
 }
 
 function block(selector: string, lines: string[], indent = ""): string[] {
@@ -287,10 +327,45 @@ export function renderOverlayThemesTs(tokens: DesignTokens): string {
   ].join("\n");
 }
 
+/** An object key as Biome prints it: bare when it is an identifier, quoted otherwise. */
+function tsKey(name: string): string {
+  return /^[A-Za-z_$][\w$]*$/.test(name) ? name : JSON.stringify(name);
+}
+
+/**
+ * Renders the web app's hex module (`OUTPUTS.webHex`): `HEX_KEYS` of both schemes. The
+ * output is already Biome-formatted, so design-tokens.test.ts can compare it exactly.
+ */
+export function renderSchemeHexTs(tokens: DesignTokens): string {
+  const schemes = (["light", "dark"] as const).flatMap((scheme) => [
+    `  ${scheme}: {`,
+    ...HEX_KEYS.map((key) => {
+      const value = tokens.color.scheme[scheme][key];
+      if (value === undefined) throw new Error(`color.scheme.${scheme}.${key} missing`);
+      return `    ${tsKey(key)}: "${oklchToHex(value)}",`;
+    }),
+    "  },",
+  ]);
+  return [
+    `/*\n * ${BANNER_LINES.join("\n * ")}\n */`,
+    "",
+    "/**",
+    " * `color.scheme` colors as sRGB hex, converted from oklch at generation, for where a CSS",
+    " * variable can't reach: the web app manifest, the theme-color tags and the crash page",
+    " * (`global-error.tsx`). A translucent token keeps its alpha (`#rrggbbaa`).",
+    " */",
+    "export const SCHEME_HEX = {",
+    ...schemes,
+    "} as const;",
+    "",
+  ].join("\n");
+}
+
 /** Every generated file, keyed by its repo-relative path. */
 export function renderAll(tokens: DesignTokens): Record<string, string> {
   return {
     [OUTPUTS.web]: renderTokensCss(tokens, { target: "web" }),
+    [OUTPUTS.webHex]: renderSchemeHexTs(tokens),
     [OUTPUTS.docs]: renderTokensCss(tokens, { target: "docs" }),
     [OUTPUTS.overlayThemes]: renderOverlayThemesTs(tokens),
   };

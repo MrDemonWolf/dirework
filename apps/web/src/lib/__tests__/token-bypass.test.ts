@@ -3,13 +3,17 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import { SCHEME_HEX } from "@/tokens.generated";
+
 /**
  * Ratchet against utilities that bypass the design tokens: arbitrary values
  * (`<utility>-[<value>]`: pixel font sizes, em tracking, numeric z-index, hex
- * colors) and the raw Tailwind gray palettes (zinc, slate, gray, neutral,
- * stone). Type, tracking, z-index, widths and colors come from
- * design-system/tokens.json (`text-2xs`, `tracking-label`, `z-(--z-header)`,
- * `max-w-content`, `bg-console-base` …).
+ * colors), the raw Tailwind gray palettes (zinc, slate, gray, neutral,
+ * stone) and hex colors in an inline `style` prop. Type, tracking, z-index,
+ * widths and colors come from design-system/tokens.json (`text-2xs`,
+ * `tracking-label`, `z-(--z-header)`, `max-w-content`, `bg-console-base` …);
+ * an inline style that needs a palette color as a literal (the stylesheet may
+ * be missing) imports its hex from the generated `@/tokens.generated`.
  *
  * ALLOWED is the exact set that may stay. The test fails both when a new bypass
  * appears and when an allowed one disappears, so the list can only shrink.
@@ -66,6 +70,9 @@ const ALLOWED: Record<string, string[]> = {
   "components/ui/switch.tsx": ["h-[18.4px]", "translate-x-[calc(100%-2px)]"],
   "components/ui/tabs.tsx": ["h-[calc(100%-1px)]"],
   "components/ui/tooltip.tsx": ["scale-[0.98]", "transition-[opacity,scale]"],
+  // The share card (next/og): Satori takes inline styles only, and the card keeps its own
+  // navy palette, like the overlay presets.
+  "app/opengraph-image.tsx": ["#091533", "#0b1b3d", "#10224a", "#24406f"],
 };
 
 /** An arbitrary value in utility position; variants (data, group-data, has …) are skipped. */
@@ -73,14 +80,35 @@ const ARBITRARY = /(?<![\w-])(?:[a-z0-9-]+:)*([a-z][a-z0-9-]*-\[[^\]\s"'`]+\])(?
 /** Raw gray palette classes, with any variant prefix and opacity modifier. */
 const PALETTE =
   /(?<![\w-])(?:[a-z0-9-]+:)*([a-z]+-(?:zinc|slate|gray|neutral|stone)-\d{2,3})(?![\w-])/g;
+/** A hex color: `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa`. */
+const HEX = /#(?:[\da-f]{8}|[\da-f]{6}|[\da-f]{3,4})(?![\w-])/gi;
 
-function sourceFiles(dir: string): string[] {
+/** The `{…}` expression of every inline `style={…}` prop, braces matched. */
+function styleProps(text: string): string[] {
+  const props: string[] = [];
+  for (const m of text.matchAll(/(?<![\w-])style=\{/g)) {
+    const start = m.index + m[0].length - 1;
+    let depth = 0;
+    for (let i = start; i < text.length; i++) {
+      if (text[i] === "{") depth++;
+      else if (text[i] === "}" && --depth === 0) {
+        props.push(text.slice(start, i + 1));
+        break;
+      }
+    }
+  }
+  return props;
+}
+
+function sourceFiles(dir: string, extension = /\.tsx?$/): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
-    if (entry.isDirectory()) return entry.name === "__tests__" ? [] : sourceFiles(path);
-    return /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [path] : [];
+    if (entry.isDirectory()) return entry.name === "__tests__" ? [] : sourceFiles(path, extension);
+    return extension.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [path] : [];
   });
 }
+
+const srcPath = (file: string) => relative(SRC, file).split("\\").join("/");
 
 function scan(): Record<string, string[]> {
   const found: Record<string, string[]> = {};
@@ -93,7 +121,8 @@ function scan(): Record<string, string[]> {
       if (m[1] && !m[1].includes("env(safe-area-inset-")) hits.add(m[1]);
     }
     for (const m of text.matchAll(PALETTE)) if (m[1]) hits.add(m[1]);
-    if (hits.size > 0) found[relative(SRC, file).split("\\").join("/")] = [...hits].sort();
+    for (const prop of styleProps(text)) for (const m of prop.matchAll(HEX)) hits.add(m[0]);
+    if (hits.size > 0) found[srcPath(file)] = [...hits].sort();
   }
   return found;
 }
@@ -131,5 +160,33 @@ describe("token bypass ratchet", () => {
       ...[...sample.matchAll(PALETTE)].map((m) => m[1]),
     ];
     expect(hits).toEqual([font, z, gray]);
+  });
+
+  it("detects hex colors in inline style props, and only there", () => {
+    const sample = [
+      // Nested braces don't end the prop early.
+      '<p style={{ ...(wide ? { margin: 0 } : {}), color: "#a8a29e" }}>',
+      '<i style={dim ? { background: "#141210CC" } : undefined} />',
+      // Copy and comments are not styles: a placeholder value, an issue number.
+      '<input placeholder="#000000" /> // next-themes #385',
+    ].join("\n");
+    const hits = styleProps(sample).flatMap((prop) => [...prop.matchAll(HEX)].map((m) => m[0]));
+    expect(hits).toEqual(["#a8a29e", "#141210CC"]);
+  });
+});
+
+describe("generated hex (tokens.generated.ts)", () => {
+  it("is the only source that spells out a background color", () => {
+    // The manifest, the theme-color tags and the crash page import these; a copy typed
+    // anywhere else would stop following tokens.json.
+    const backgrounds = [SCHEME_HEX.dark.background, SCHEME_HEX.light.background];
+    const copies = sourceFiles(SRC, /\.(tsx?|css)$/)
+      .map(srcPath)
+      .filter((file) => file !== "tokens.generated.ts")
+      .flatMap((file) => {
+        const text = readFileSync(join(SRC, file), "utf8").toLowerCase();
+        return backgrounds.filter((hex) => text.includes(hex)).map((hex) => `${file} → ${hex}`);
+      });
+    expect(copies, "import SCHEME_HEX from @/tokens.generated instead").toEqual([]);
   });
 });

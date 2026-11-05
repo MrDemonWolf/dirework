@@ -974,14 +974,19 @@ not the viewport). `SectionGroup` takes a
 **Design tokens are generated.** `design-system/tokens.json` → `design-system/scripts/render.ts`
 (pure) + `generate.ts` (I/O) → `apps/web/src/tokens.generated.css` (imported by `index.css`)
 and `apps/fumadocs/src/app/tokens.generated.css` (imported by `global.css`, which maps it onto
-the `--color-fd-*` / `--bg-*` / `--txt-*` names). Edit `tokens.json` and run `bun run tokens`;
+the `--color-fd-*` / `--bg-*` / `--txt-*` names), plus `apps/web/src/tokens.generated.ts`:
+`SCHEME_HEX`, the background, foreground, muted-foreground and input colors of both schemes as
+sRGB hex (`oklchToHex` at generation; a translucent token keeps its alpha), for where a CSS
+variable can't reach — the manifest, the root `viewport` theme colors, `lib/theme-color.ts`
+and `global-error.tsx`. It is the only place a background hex may be spelled out
+(`token-bypass.test.ts`). Edit `tokens.json` and run `bun run tokens`;
 never edit a generated file (`design-tokens.test.ts` and the CI drift step fail). The docs twin
 has no radius scale (fumadocs-ui compiles its own `rounded-*` against it); fonts stay
 hand-written in both stylesheets (they wrap next/font variables). Palette contrast (AAA / AA /
 3:1 per pairing, `design-system/contrast.md`) is asserted by `tokens-contrast.test.ts`.
 **Installable app + touch.** `app/manifest.ts` serves `/manifest.webmanifest` (standalone,
-`start_url` `/dashboard`, `DARK_BACKGROUND_HEX`/`LIGHT_BACKGROUND_HEX` = the two
-`--background` tokens as hex) with PNG icons in `public/icons/` (192, 512, maskable 512 —
+`start_url` `/dashboard`, background and theme color = `SCHEME_HEX.dark.background`, the dark
+`--background` as generated hex) with PNG icons in `public/icons/` (192, 512, maskable 512 —
 logo inside the inner 80% on the dark background) plus `app/apple-icon.png` (180×180,
 opaque); `icon.svg` stays the favicon. Only the `(app)` layout links the manifest and the
 `appleWebApp` tags, so overlay and bot loads never fetch it. The root `viewport` export sets
@@ -1030,9 +1035,11 @@ existing home and reuse it:
   `@dirework/api/config-shared`); never re-type `25*60*1000` etc. The M1/M3/M4 "don't
   duplicate" rules apply to the web component layer too, not only services/config.
 - **Design tokens** — never use arbitrary values for type/tracking/z/widths (or raw
-  `zinc-*`/`slate-*`/`gray-*` classes): use the tokens (`text-2xs`, `tracking-label`,
-  `z-(--z-header)`, `max-w-content`, `w-editor`, `h-header`, `bg-console-base` …) or
-  `apps/web/src/lib/__tests__/token-bypass.test.ts` fails. Its allow-list only shrinks.
+  `zinc-*`/`slate-*`/`gray-*` classes, or a hex color in an inline `style` prop): use the
+  tokens (`text-2xs`, `tracking-label`, `z-(--z-header)`, `max-w-content`, `w-editor`,
+  `h-header`, `bg-console-base` …), or `SCHEME_HEX` from `@/tokens.generated` where only a
+  literal works, or `apps/web/src/lib/__tests__/token-bypass.test.ts` fails. Its allow-list
+  only shrinks.
 
 Skills to use (they exist globally, not in-repo):
 

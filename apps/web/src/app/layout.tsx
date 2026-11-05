@@ -9,20 +9,20 @@ import "../index.css";
 import Providers from "@/components/providers";
 import { plexMono, plexSans } from "@/lib/fonts";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-init";
-
-import { DARK_BACKGROUND_HEX, LIGHT_BACKGROUND_HEX } from "./manifest";
+import { SCHEME_HEX } from "@/tokens.generated";
 
 // viewportFit "cover" lets an installed app draw under the notch and home indicator; the
 // header, footer, save bar and toasts pad themselves with env(safe-area-inset-*). The theme
-// colours tint the browser/status bar to match the page background.
+// colours tint the browser/status bar to match the page background (`--background`, as the
+// generated hex in tokens.generated.ts).
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
   colorScheme: "dark light",
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: DARK_BACKGROUND_HEX },
-    { media: "(prefers-color-scheme: light)", color: LIGHT_BACKGROUND_HEX },
+    { media: "(prefers-color-scheme: dark)", color: SCHEME_HEX.dark.background },
+    { media: "(prefers-color-scheme: light)", color: SCHEME_HEX.light.background },
   ],
 };
 
