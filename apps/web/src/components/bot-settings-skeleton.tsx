@@ -4,7 +4,8 @@
 // Where they show:
 //  - One placeholder per progressive card (`BotSection`, app/(app)/dashboard/bot/(sections)/
 //    bot-data.tsx), only when the query that card reads missed the first-paint deadline
-//    (lib/progressive.ts). Each repeats its live card's frame: the same Card, the real static
+//    (lib/progressive.ts). Each repeats its live card's frame: the same SettingsCard
+//    (components/bot-settings/settings-card.tsx), the real static
 //    title and description, and skeleton blocks sized like the data-driven parts (measured at
 //    1280px and 412px wide), so a card filling in does not move the page. Update them
 //    alongside the cards in components/bot-settings/ and the pages.
@@ -12,19 +13,19 @@
 //    while the next page's server render round-trips.
 
 import { taskMessageFields } from "@/lib/message-fields";
+import { cn } from "@/lib/utils";
 import { metaCommands, taskCommands, timerCommands } from "@/lib/command-rows";
 import { BotPageHandoffSkeleton } from "@/components/bot-page-handoff";
 import { CommandTable } from "@/components/bot-settings/command-table";
 import { SectionPlaceholder } from "@/components/progressive-section";
 import { StatusChipSkeleton } from "@/components/status-chip";
 import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  SETTINGS_CARD_CLASS,
+  SETTINGS_CARD_CONTENT_CLASS,
+  SETTINGS_CARD_HEADER_CLASS,
+  SettingsCard,
+} from "@/components/bot-settings/settings-card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
@@ -38,34 +39,6 @@ export function BotConsoleBodySkeleton() {
       <Skeleton className="h-5 w-56" />
       <BotPageHandoffSkeleton withAction />
     </>
-  );
-}
-
-/** The card frame every Bot settings card shares, with its real (static) title. */
-function PlaceholderCard({
-  title,
-  description,
-  action,
-  contentClassName = "space-y-4",
-  children,
-}: {
-  title: string;
-  description: React.ReactNode;
-  action?: React.ReactNode;
-  contentClassName?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card className="panel">
-      <CardHeader className="border-b border-border/40 px-5">
-        <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
-          {title}
-        </CardTitle>
-        {action && <CardAction className="flex items-center">{action}</CardAction>}
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent className={`px-5 ${contentClassName}`}>{children}</CardContent>
-    </Card>
   );
 }
 
@@ -144,10 +117,9 @@ function ControlRowSkeleton({
 export function LiveControlsPlaceholder({ hasBotAccount = true }: { hasBotAccount?: boolean }) {
   return (
     <SectionPlaceholder name="live-controls">
-      <PlaceholderCard
+      <SettingsCard
         title="Live controls"
         description="Each control takes effect as soon as you change it."
-        contentClassName=""
       >
         <ul className="divide-y divide-border/40">
           <ControlRowSkeleton chip lines={hasBotAccount ? 2 : 1} narrow={hasBotAccount ? 3 : 2} />
@@ -156,7 +128,7 @@ export function LiveControlsPlaceholder({ hasBotAccount = true }: { hasBotAccoun
           <ControlRowSkeleton narrow={2} />
           <ControlRowSkeleton link />
         </ul>
-      </PlaceholderCard>
+      </SettingsCard>
     </SectionPlaceholder>
   );
 }
@@ -165,10 +137,11 @@ export function LiveControlsPlaceholder({ hasBotAccount = true }: { hasBotAccoun
 function BotAccountPlaceholder() {
   return (
     <SectionPlaceholder name="bot-account">
-      <PlaceholderCard
+      <SettingsCard
         title="Bot account"
         description="The Twitch account that talks in your chat"
         action={<StatusChipSkeleton className="w-26" />}
+        contentClassName="space-y-4"
       >
         <div className="flex items-center gap-3">
           <Skeleton className="size-10 shrink-0 rounded-lg" />
@@ -179,7 +152,7 @@ function BotAccountPlaceholder() {
           <Skeleton className="h-7 w-27 shrink-0" />
         </div>
         <TextLines lines={2} lineClassName="h-4.75" />
-      </PlaceholderCard>
+      </SettingsCard>
     </SectionPlaceholder>
   );
 }
@@ -188,9 +161,10 @@ function BotAccountPlaceholder() {
 function BotConsolePlaceholder() {
   return (
     <SectionPlaceholder name="bot-console">
-      <PlaceholderCard
+      <SettingsCard
         title="Run the bot"
         action={<StatusChipSkeleton className="w-24" />}
+        contentClassName="space-y-4"
         description={
           <>
             The bot runs inside a browser page. Its URL is a secret: treat it like a stream key.
@@ -201,7 +175,7 @@ function BotConsolePlaceholder() {
         }
       >
         <BotConsoleBodySkeleton />
-      </PlaceholderCard>
+      </SettingsCard>
     </SectionPlaceholder>
   );
 }
@@ -226,14 +200,13 @@ export function BotOverviewPlaceholder() {
 /** A Commands page group card: its switch and on/off copy are data, its table is static. */
 function CommandGroupPlaceholder({ title, rows }: { title: string; rows: typeof taskCommands }) {
   return (
-    <PlaceholderCard
+    <SettingsCard
       title={title}
       description={<Skeleton className="h-4 my-0.5 w-full max-w-90" />}
       action={<Skeleton className="h-4.6 w-8 rounded-full" />}
-      contentClassName=""
     >
       <CommandTable caption={title} commands={rows} aliases={null} />
-    </PlaceholderCard>
+    </SettingsCard>
   );
 }
 
@@ -250,14 +223,13 @@ export function CommandsPlaceholder() {
           title="Timer commands"
           rows={timerCommands.filter((row) => !row.alwaysOn)}
         />
-        <PlaceholderCard
+        <SettingsCard
           title="Always on"
           description="Help for viewers. These answer even while Task commands are off."
-          contentClassName=""
         >
           <CommandTable caption="Always-on commands" commands={metaCommands} aliases={null} />
-        </PlaceholderCard>
-        <PlaceholderCard
+        </SettingsCard>
+        <SettingsCard
           title="Aliases"
           description={
             <>
@@ -267,6 +239,7 @@ export function CommandsPlaceholder() {
               <span className="font-medium text-link">Replies</span>.
             </>
           }
+          contentClassName="space-y-4"
         >
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-3">
@@ -282,7 +255,7 @@ export function CommandsPlaceholder() {
           <p className="text-xs text-muted-foreground">
             An open bot page picks up new aliases within an hour, or right away when you reload it.
           </p>
-        </PlaceholderCard>
+        </SettingsCard>
       </div>
     </SectionPlaceholder>
   );
@@ -296,10 +269,9 @@ export function RepliesPlaceholder() {
   const groups = [...new Set(taskMessageFields.map((field) => field.group))];
   return (
     <SectionPlaceholder name="replies">
-      <PlaceholderCard
+      <SettingsCard
         title="Replies"
         description="What the bot says after each command. Each group names the commands that send it."
-        contentClassName=""
       >
         <div className="flex flex-col gap-2">
           <Skeleton className="h-8 w-full" />
@@ -314,7 +286,7 @@ export function RepliesPlaceholder() {
             ))}
           </div>
         </div>
-      </PlaceholderCard>
+      </SettingsCard>
     </SectionPlaceholder>
   );
 }
@@ -323,7 +295,7 @@ export function RepliesPlaceholder() {
 export function BlockedViewersPlaceholder() {
   return (
     <SectionPlaceholder name="blocked-viewers">
-      <PlaceholderCard
+      <SettingsCard
         title="Blocked viewers"
         description="The bot ignores their commands. Blocking also removes every task they added."
         contentClassName="space-y-5"
@@ -342,19 +314,19 @@ export function BlockedViewersPlaceholder() {
           </div>
           <TextLines lines={1} narrow={2} />
         </div>
-      </PlaceholderCard>
+      </SettingsCard>
     </SectionPlaceholder>
   );
 }
 
 function PanelSkeleton() {
   return (
-    <Card className="panel">
-      <CardHeader className="border-b border-border/40 px-5">
+    <Card className={SETTINGS_CARD_CLASS}>
+      <CardHeader className={SETTINGS_CARD_HEADER_CLASS}>
         <Skeleton className="h-6 w-36" />
         <Skeleton className="h-4 w-64" />
       </CardHeader>
-      <CardContent className="space-y-4 px-5">
+      <CardContent className={cn(SETTINGS_CARD_CONTENT_CLASS, "space-y-4")}>
         <BotConsoleBodySkeleton />
       </CardContent>
     </Card>

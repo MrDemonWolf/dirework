@@ -8,8 +8,8 @@ tokens: [color.scheme, radius]
 ## Purpose
 
 Frosted panel container for grouped settings. Used on the bot settings page
-(`BotAccountCard`, `BotConsoleCard`, `BlockedViewersCard`, the Bot settings pages under `dashboard/bot/(sections)/`) and its
-skeleton. Replaces the docs-era `dw-card` spec.
+through [settings-card](./settings-card.md), the frame every Bot settings card and placeholder
+shares. Replaces the docs-era `dw-card` spec.
 
 ## Anatomy
 

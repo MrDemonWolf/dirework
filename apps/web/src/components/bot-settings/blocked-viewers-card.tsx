@@ -12,9 +12,9 @@ import { toast } from "sonner";
 import { MAX_BLOCKED_VIEWERS, normalizeTwitchLogin } from "@dirework/api/chat-commands";
 
 import { formatMutationError } from "@/lib/validation-errors";
+import { SettingsCard } from "@/components/bot-settings/settings-card";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/utils/trpc";
@@ -76,120 +76,114 @@ export function BlockedViewersCard({ blockedViewers }: { blockedViewers: string[
     showFilter && needle ? blockedViewers.filter((v) => v.includes(needle)) : blockedViewers;
 
   return (
-    <Card className="panel">
-      <CardHeader className="border-b border-border/40 px-5">
-        <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
-          Blocked viewers
-        </CardTitle>
-        <CardDescription>
-          The bot ignores their commands. Blocking also removes every task they added.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5 px-5">
-        {/* A form, so Enter in the field opens the confirm like the button does. */}
-        <form
-          className="space-y-1.5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (login && !full && !blockViewer.isPending) setConfirmOpen(true);
-          }}
-        >
-          <Label htmlFor="block-viewer-login">Twitch username</Label>
-          <div className="flex flex-wrap gap-2">
+    <SettingsCard
+      title="Blocked viewers"
+      description="The bot ignores their commands. Blocking also removes every task they added."
+      contentClassName="space-y-5"
+    >
+      {/* A form, so Enter in the field opens the confirm like the button does. */}
+      <form
+        className="space-y-1.5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (login && !full && !blockViewer.isPending) setConfirmOpen(true);
+        }}
+      >
+        <Label htmlFor="block-viewer-login">Twitch username</Label>
+        <div className="flex flex-wrap gap-2">
+          <Input
+            id="block-viewer-login"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="@username"
+            maxLength={26}
+            autoComplete="off"
+            spellCheck={false}
+            aria-invalid={(hint !== null && !full) || undefined}
+            aria-describedby={hint ? hintId : undefined}
+            className="min-w-0 flex-1"
+          />
+          <Button
+            type="submit"
+            variant="outline"
+            disabled={!login || full || blockViewer.isPending}
+          >
+            Block viewer
+          </Button>
+          <ConfirmDialog
+            open={confirmOpen}
+            onOpenChange={setConfirmOpen}
+            title={`Block ${login ?? ""}?`}
+            description="Their chat commands are ignored and every task they added is removed from the board. Unblocking later restores commands, not tasks."
+            confirmLabel="Block"
+            onConfirm={() => {
+              if (login) blockViewer.mutate({ login });
+            }}
+          />
+        </div>
+        {hint && (
+          <p id={hintId} className="text-xs text-muted-foreground">
+            {hint}
+          </p>
+        )}
+      </form>
+
+      <section aria-labelledby={listId} className="space-y-2 border-t border-border/40 pt-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <h3 id={listId} className="text-sm font-medium">
+            Block list
+          </h3>
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {blockedViewers.length} of {MAX_BLOCKED_VIEWERS}
+          </p>
+        </div>
+
+        {showFilter && (
+          <div className="relative">
+            <Search
+              aria-hidden
+              className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+            />
             <Input
-              id="block-viewer-login"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="@username"
-              maxLength={26}
+              type="search"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Filter blocked viewers"
+              aria-label="Filter blocked viewers"
               autoComplete="off"
               spellCheck={false}
-              aria-invalid={(hint !== null && !full) || undefined}
-              aria-describedby={hint ? hintId : undefined}
-              className="min-w-0 flex-1"
-            />
-            <Button
-              type="submit"
-              variant="outline"
-              disabled={!login || full || blockViewer.isPending}
-            >
-              Block viewer
-            </Button>
-            <ConfirmDialog
-              open={confirmOpen}
-              onOpenChange={setConfirmOpen}
-              title={`Block ${login ?? ""}?`}
-              description="Their chat commands are ignored and every task they added is removed from the board. Unblocking later restores commands, not tasks."
-              confirmLabel="Block"
-              onConfirm={() => {
-                if (login) blockViewer.mutate({ login });
-              }}
+              className="pl-8"
             />
           </div>
-          {hint && (
-            <p id={hintId} className="text-xs text-muted-foreground">
-              {hint}
-            </p>
-          )}
-        </form>
+        )}
 
-        <section aria-labelledby={listId} className="space-y-2 border-t border-border/40 pt-4">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <h3 id={listId} className="text-sm font-medium">
-              Block list
-            </h3>
-            <p className="text-xs text-muted-foreground tabular-nums">
-              {blockedViewers.length} of {MAX_BLOCKED_VIEWERS}
-            </p>
-          </div>
-
-          {showFilter && (
-            <div className="relative">
-              <Search
-                aria-hidden
-                className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
-              />
-              <Input
-                type="search"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                placeholder="Filter blocked viewers"
-                aria-label="Filter blocked viewers"
-                autoComplete="off"
-                spellCheck={false}
-                className="pl-8"
-              />
-            </div>
-          )}
-
-          {blockedViewers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No blocked viewers. Block someone above, or have a mod send{" "}
-              <code className="font-mono text-foreground">!block @user</code> in chat.
-            </p>
-          ) : shown.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No blocked viewer matches “{filter}”.</p>
-          ) : (
-            <ul aria-labelledby={listId} className="divide-y divide-border/40">
-              {shown.map((viewer) => (
-                <li key={viewer} className="flex items-center justify-between gap-2 py-1">
-                  <code className="truncate font-mono text-sm">{viewer}</code>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="shrink-0 text-muted-foreground hover:text-foreground"
-                    disabled={unblockViewer.isPending}
-                    onClick={() => unblockViewer.mutate({ login: viewer })}
-                    aria-label={`Unblock ${viewer}`}
-                  >
-                    Unblock
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </CardContent>
-    </Card>
+        {blockedViewers.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No blocked viewers. Block someone above, or have a mod send{" "}
+            <code className="font-mono text-foreground">!block @user</code> in chat.
+          </p>
+        ) : shown.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No blocked viewer matches “{filter}”.</p>
+        ) : (
+          <ul aria-labelledby={listId} className="divide-y divide-border/40">
+            {shown.map((viewer) => (
+              <li key={viewer} className="flex items-center justify-between gap-2 py-1">
+                <code className="truncate font-mono text-sm">{viewer}</code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                  disabled={unblockViewer.isPending}
+                  onClick={() => unblockViewer.mutate({ login: viewer })}
+                  aria-label={`Unblock ${viewer}`}
+                >
+                  Unblock
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </SettingsCard>
   );
 }

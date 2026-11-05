@@ -32,7 +32,7 @@ import { describeFieldIssues, formatMutationError } from "@/lib/validation-error
 import { MessageEditor } from "@/components/bot-settings/message-editor";
 import { SaveBar } from "@/components/save-bar";
 import { Callout } from "@/components/ui/callout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SettingsCard } from "@/components/bot-settings/settings-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import { trpc } from "@/utils/trpc";
@@ -159,83 +159,76 @@ function RepliesEditor({ config, user }: { config: BotConfigData; user: BotUserD
   return (
     <div className={cn(hasUnsaved && "pb-32 sm:pb-24")}>
       <UnsavedChangesGuard dirty={hasUnsaved} />
-      <Card className="panel">
-        <CardHeader className="border-b border-border/40 px-5">
-          <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
-            Replies
-          </CardTitle>
-          <CardDescription>
-            What the bot says after each command. Each group names the commands that send it.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-5">
-          <Tabs value={set} onValueChange={(next) => setSet(next as BotMessageTab)}>
-            <TabsList className="h-9 w-full gap-1 sm:w-auto">
-              {(["task", "timer"] as const).map((tab) => (
-                <TabsTrigger
-                  key={tab}
-                  value={tab}
-                  aria-label={dirty[tab] ? `${SET_LABEL[tab]} (unsaved changes)` : undefined}
-                >
-                  {SET_LABEL[tab]}
-                  {dirty[tab] && <span aria-hidden className="size-1.5 rounded-full bg-warning" />}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
+      <SettingsCard
+        title="Replies"
+        description="What the bot says after each command. Each group names the commands that send it."
+      >
+        <Tabs value={set} onValueChange={(next) => setSet(next as BotMessageTab)}>
+          <TabsList className="h-9 w-full gap-1 sm:w-auto">
             {(["task", "timer"] as const).map((tab) => (
-              <TabsContent key={tab} value={tab} className="space-y-4 pt-4">
-                {groupOff(tab) && (
-                  <Callout
-                    variant="info"
-                    title={`${tab === "task" ? "Task" : "Timer"} commands are off`}
-                  >
-                    The bot ignores them in chat, so these replies take effect once you switch them
-                    on in{" "}
-                    <Link
-                      href="/dashboard/bot/commands"
-                      prefetch={false}
-                      className="font-medium text-link underline-offset-4 hover:underline"
-                    >
-                      Commands
-                    </Link>
-                    .
-                  </Callout>
-                )}
-                {tab === "task" ? (
-                  <MessageEditor
-                    fields={taskMessageFields}
-                    idPrefix="task"
-                    values={draft.task}
-                    saved={saved.task}
-                    invalidKeys={invalidMessageKeys(issues, "task")}
-                    defaults={DEFAULT_TASK_MESSAGES}
-                    onChange={(task) => setDraft((d) => ({ ...d, task }))}
-                    filter={filters.task}
-                    onFilterChange={(task) => setFilters((f) => ({ ...f, task }))}
-                    preview={preview}
-                    groupCommands={TASK_MESSAGE_GROUP_COMMANDS}
-                  />
-                ) : (
-                  <MessageEditor
-                    fields={timerMessageFields}
-                    idPrefix="timer"
-                    values={draft.timer}
-                    saved={saved.timer}
-                    invalidKeys={invalidMessageKeys(issues, "timer")}
-                    defaults={DEFAULT_TIMER_MESSAGES}
-                    onChange={(timer) => setDraft((d) => ({ ...d, timer }))}
-                    filter={filters.timer}
-                    onFilterChange={(timer) => setFilters((f) => ({ ...f, timer }))}
-                    preview={preview}
-                    groupCommands={TIMER_MESSAGE_GROUP_COMMANDS}
-                  />
-                )}
-              </TabsContent>
+              <TabsTrigger
+                key={tab}
+                value={tab}
+                aria-label={dirty[tab] ? `${SET_LABEL[tab]} (unsaved changes)` : undefined}
+              >
+                {SET_LABEL[tab]}
+                {dirty[tab] && <span aria-hidden className="size-1.5 rounded-full bg-warning" />}
+              </TabsTrigger>
             ))}
-          </Tabs>
-        </CardContent>
-      </Card>
+          </TabsList>
+
+          {(["task", "timer"] as const).map((tab) => (
+            <TabsContent key={tab} value={tab} className="space-y-4 pt-4">
+              {groupOff(tab) && (
+                <Callout
+                  variant="info"
+                  title={`${tab === "task" ? "Task" : "Timer"} commands are off`}
+                >
+                  The bot ignores them in chat, so these replies take effect once you switch them on
+                  in{" "}
+                  <Link
+                    href="/dashboard/bot/commands"
+                    prefetch={false}
+                    className="font-medium text-link underline-offset-4 hover:underline"
+                  >
+                    Commands
+                  </Link>
+                  .
+                </Callout>
+              )}
+              {tab === "task" ? (
+                <MessageEditor
+                  fields={taskMessageFields}
+                  idPrefix="task"
+                  values={draft.task}
+                  saved={saved.task}
+                  invalidKeys={invalidMessageKeys(issues, "task")}
+                  defaults={DEFAULT_TASK_MESSAGES}
+                  onChange={(task) => setDraft((d) => ({ ...d, task }))}
+                  filter={filters.task}
+                  onFilterChange={(task) => setFilters((f) => ({ ...f, task }))}
+                  preview={preview}
+                  groupCommands={TASK_MESSAGE_GROUP_COMMANDS}
+                />
+              ) : (
+                <MessageEditor
+                  fields={timerMessageFields}
+                  idPrefix="timer"
+                  values={draft.timer}
+                  saved={saved.timer}
+                  invalidKeys={invalidMessageKeys(issues, "timer")}
+                  defaults={DEFAULT_TIMER_MESSAGES}
+                  onChange={(timer) => setDraft((d) => ({ ...d, timer }))}
+                  filter={filters.timer}
+                  onFilterChange={(timer) => setFilters((f) => ({ ...f, timer }))}
+                  preview={preview}
+                  groupCommands={TIMER_MESSAGE_GROUP_COMMANDS}
+                />
+              )}
+            </TabsContent>
+          ))}
+        </Tabs>
+      </SettingsCard>
 
       <SaveBar
         visible={hasUnsaved}

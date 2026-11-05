@@ -27,7 +27,7 @@ import {
 } from "@/lib/use-task-access";
 import { StatusChip } from "@/components/status-chip";
 import { Callout } from "@/components/ui/callout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SettingsCard } from "@/components/bot-settings/settings-card";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -211,56 +211,51 @@ export function BotLiveControls({
   const status = botMuteStatus({ muted: checked, hasBotAccount });
 
   return (
-    <Card className="panel">
-      <CardHeader className="border-b border-border/40 px-5">
-        <CardTitle as="h2" className="font-heading text-lg font-semibold tracking-tight">
-          Live controls
-        </CardTitle>
-        <CardDescription>Each control takes effect as soon as you change it.</CardDescription>
-      </CardHeader>
-      <CardContent className="px-5">
-        <ul className="divide-y divide-border/40">
-          <ControlRow
-            htmlFor="bot-muted-toggle"
-            label="Mute bot"
-            trailingLabel={
-              <StatusChip tone={status.tone} label={status.label} pulse={status.pulse} size="sm" />
-            }
-            description={status.description}
-            control={
-              <Switch
-                id="bot-muted-toggle"
-                checked={checked}
-                disabled={setBotMuted.isPending}
-                onCheckedChange={(next) => setBotMuted.mutate({ muted: next })}
-              />
-            }
-          />
-          <CommandGroupRow group="task" enabled={taskCommandsEnabled} />
-          <TaskAccessRow
-            level={taskAccess}
-            followerCheckNeedsReconnect={followerCheckNeedsReconnect}
-          />
-          <CommandGroupRow group="timer" enabled={timerCommandsEnabled} />
-          <ControlRow
-            label="Blocked viewers"
-            description={
-              blockedCount === 0
-                ? "Nobody is blocked."
-                : `${blockedCount} of ${MAX_BLOCKED_VIEWERS} blocked`
-            }
-            control={
-              <Link
-                href="/dashboard/bot/moderation"
-                prefetch={false}
-                className="inline-flex min-h-11 items-center rounded-sm px-1 text-sm font-medium text-link underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              >
-                Manage
-              </Link>
-            }
-          />
-        </ul>
-      </CardContent>
-    </Card>
+    <SettingsCard
+      title="Live controls"
+      description="Each control takes effect as soon as you change it."
+    >
+      <ul className="divide-y divide-border/40">
+        <ControlRow
+          htmlFor="bot-muted-toggle"
+          label="Mute bot"
+          trailingLabel={
+            <StatusChip tone={status.tone} label={status.label} pulse={status.pulse} size="sm" />
+          }
+          description={status.description}
+          control={
+            <Switch
+              id="bot-muted-toggle"
+              checked={checked}
+              disabled={setBotMuted.isPending}
+              onCheckedChange={(next) => setBotMuted.mutate({ muted: next })}
+            />
+          }
+        />
+        <CommandGroupRow group="task" enabled={taskCommandsEnabled} />
+        <TaskAccessRow
+          level={taskAccess}
+          followerCheckNeedsReconnect={followerCheckNeedsReconnect}
+        />
+        <CommandGroupRow group="timer" enabled={timerCommandsEnabled} />
+        <ControlRow
+          label="Blocked viewers"
+          description={
+            blockedCount === 0
+              ? "Nobody is blocked."
+              : `${blockedCount} of ${MAX_BLOCKED_VIEWERS} blocked`
+          }
+          control={
+            <Link
+              href="/dashboard/bot/moderation"
+              prefetch={false}
+              className="inline-flex min-h-11 items-center rounded-sm px-1 text-sm font-medium text-link underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              Manage
+            </Link>
+          }
+        />
+      </ul>
+    </SettingsCard>
   );
 }

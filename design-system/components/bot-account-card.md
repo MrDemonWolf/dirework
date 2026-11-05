@@ -11,7 +11,7 @@ Identity card on the Bot settings Overview (`/dashboard/bot`, `(sections)/overvi
 
 ## Anatomy
 
-- `Card.panel` header: `CardTitle` (h2) "Bot account", `CardAction` with a `StatusChip`, description "The Twitch account that talks in your chat".
+- [settings-card](./settings-card.md) "Bot account", `CardAction` with a `StatusChip`, description "The Twitch account that talks in your chat".
 - Connected: Twitch-purple tile (`bg-twitch/15` + `TwitchIcon`, `aria-hidden`), display name and mono `@username`, a destructive small "Disconnect" button inside `ConfirmDialog`, then a tip to `/mod` the bot.
 - Not connected: explanation copy and a Twitch-purple "Connect bot account" button rendered as `<a href="/api/bot/authorize">`.
 
