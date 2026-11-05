@@ -22,8 +22,14 @@
 // index.css's `on-overlay:` variant reads the same mark, so the root 404 page hides itself
 // on a truncated overlay URL.
 //
+// global-error.tsx replaces the root layout, so it inlines this same script; when it renders
+// on the client instead (no script runs), it re-marks <html> with `isTransparentSurface`,
+// which the tests hold to the script's rule.
+//
 // A plain string (not fn.toString()) so a minifier or the React Compiler can never rewrite
 // it into something that no longer runs standalone.
+
+import { parseBotView } from "@/lib/bot-view";
 
 /** next-themes' localStorage key (its default; providers.tsx sets no custom storageKey). */
 export const THEME_STORAGE_KEY = "theme";
@@ -34,3 +40,13 @@ export const OVERLAY_SURFACE = "overlay";
 /** Inline script body: marks overlays, resolves the stored theme, applies it before paint. */
 export const THEME_INIT_SCRIPT =
   '(function(){var d=document.documentElement;try{var p=location.pathname;if(p.indexOf("/overlay/")===0||(p.indexOf("/bot/")===0&&!/^\\s*dock\\s*$/i.test(new URLSearchParams(location.search).get("view")||"")))d.setAttribute("data-surface","overlay");}catch(e){}var t="dark";try{var s=localStorage.getItem("theme");if(s)t=s==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):s;}catch(e){}try{var c=d.classList;c.remove("light","dark");c.add(t);}catch(e){}if(t==="light"||t==="dark")d.style.colorScheme=t;})();';
+
+/**
+ * The script's surface rule as a function: true for /overlay/* and the bot page's blank
+ * widget (`/bot/<token>` unless the first `?view` is "dock", read by `parseBotView`).
+ */
+export function isTransparentSurface(pathname: string, search: string): boolean {
+  if (pathname.startsWith("/overlay/")) return true;
+  if (!pathname.startsWith("/bot/")) return false;
+  return parseBotView(new URLSearchParams(search).get("view") ?? undefined) === "widget";
+}

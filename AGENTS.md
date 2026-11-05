@@ -845,7 +845,11 @@ displayed second from `targetEndTime` (a `setTimeout` chain aligned to the count
 second boundary via `msUntilNextSecond`), and the ring uses a matching 1s linear
 `stroke-dashoffset` transition. React Query keeps the last payload on failed refetches so
 OBS sources don't blank, and the `(overlay)` error boundary renders nothing and re-mounts
-after 10s. Two ring shapes: circle + rounded-rect squircle. The timer is drawn at a
+after 10s. So does the root `global-error.tsx` (a crash above the route groups) on an overlay
+or the bot widget: it inlines the root layout's `THEME_INIT_SCRIPT` to mark the surface before
+paint (re-marked by `isTransparentSurface` on a client render), paints a transparent canvas
+with the notice sr-only, and resets after 10s; elsewhere it is the dark crash page with its
+own `<title>`. Two ring shapes: circle + rounded-rect squircle. The timer is drawn at a
 fixed pixel size (`config.dimensions`) wrapped in `<AutoScale>` (`components/auto-scale.tsx`),
 which uses a ResizeObserver to scale it up/down to fill the OBS browser source while
 preserving aspect ratio. Inside the frame, `useTimerTextFit` (`lib/use-timer-text-fit.ts`)
