@@ -110,7 +110,7 @@ function StreamScene() {
               style={
                 status === "active"
                   ? {
-                      background: `color-mix(in srgb, #4f99f9 ${ACTIVE_ROW_TINT_PERCENT}%, #18181b)`,
+                      background: `color-mix(in srgb, var(--link) ${ACTIVE_ROW_TINT_PERCENT}%, var(--card))`,
                     }
                   : undefined
               }
