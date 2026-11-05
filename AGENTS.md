@@ -460,7 +460,8 @@ when one breaks either rule; its `ZOD_PAGES` lists the two exceptions.
 
 ## Tech Stack
 
-- **Next.js 16** (App Router) with React 19, React Compiler, typed routes, OpenNext on Workers
+- **Next.js 16** (App Router) with React 19, React Compiler (pinned exactly; bailouts gated by
+  `react-compiler.test.ts`, see Testing), typed routes, OpenNext on Workers
 - **Hono** API worker with `@hono/trpc-server`
 - **tRPC v11** — `httpBatchLink` to same-origin `/rpc` (authed) + `publicTrpc` direct to the api worker (public); server renders prefetch with `httpBatchStreamLink` (`lib/server-trpc.ts`)
 - **TanStack React Query** (polling via `refetchInterval`)
@@ -1225,6 +1226,18 @@ wordings and legacy lists agree key for key, no legacy wording equals a default,
 timer status has a phase label; `provision.test.ts`: `provisionSingletonRows` over real
 drizzle + sql.js with every migration applied — one batch, one row per singleton table,
 idempotent, tokens never rotate).
+**React Compiler gate** (`apps/web/src/lib/__tests__/react-compiler.test.ts`): with
+`reactCompiler: true`, Next runs babel-plugin-react-compiler at panicThreshold "none", so a
+component it can't compile ships unmemoized with no build, lint or CI signal. The test runs
+that plugin with the options Next builds for a production client bundle
+(`getReactCompilerLoader`), through Next's own Babel (`next/dist/compiled/babel/*`, no new
+dependency), over every `apps/web/src` module; its memo slot counts match the Turbopack
+chunks. It fails on a CompileError, CompileSkip or PipelineError outside the exact `ALLOWED`
+map (file → function), on any `'use no memo'` (a module-level one logs success yet ships
+uncompiled), and when an allowed function compiles again, so the list only shrinks. The
+compiler is pinned exactly in apps/web (react.dev's advice without strong test coverage), so a
+bump is its own PR that this re-checks. Revisit it if `experimental.turbopackRustReactCompiler`
+is ever turned on.
 **Browser end-to-end** (`packages/e2e`, `bun run e2e`): Playwright drives the real stack — the
 api worker from source and the web worker from its built bundle (`bun run build:worker` in
 apps/web first), both in local workerd on 127.0.0.1:3000/3001 over a fresh local D1 with every
@@ -1589,6 +1602,9 @@ the default app to two workers, one D1 database and the existing rate-limit bind
 - Each route's first-load client JS stays within its `CLIENT_JS_BUDGETS_KIB` entry
   (`packages/infra/client-budget.ts`). Raising one needs a stated reason in the PR; a PR
   that shrinks a route lowers its budget to about 3% over the new size.
+- Web components compile under the React Compiler: no `'use no memo'`, the `ALLOWED` map
+  in `react-compiler.test.ts` only shrinks, and `babel-plugin-react-compiler` stays an
+  exact pin.
 
 **Not worth flagging:** formatting and import order (Biome enforces them), and
 generated files (`apps/web/public/fonts/*`, migration snapshots, `wrangler.jsonc`).
