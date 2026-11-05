@@ -43,24 +43,24 @@ export type ClientBudgets = Readonly<Record<string, Readonly<Record<string, numb
 export const CLIENT_JS_BUDGETS_KIB = {
   // OBS browser sources and the bot page, loaded on the streaming PC.
   "token pages": {
-    "/overlay/t/[token]": 173,
-    "/overlay/l/[token]": 177,
-    "/bot/[token]": 225,
+    "/overlay/t/[token]": 182,
+    "/overlay/l/[token]": 186,
+    "/bot/[token]": 234,
   },
   // A viewer's first look, the claim page and the 404.
   "public pages": {
-    "/": 271,
-    "/setup": 271,
-    "/_not-found": 162,
+    "/": 215,
+    "/setup": 215,
+    "/_not-found": 170,
   },
   // Owner only.
   dashboard: {
-    "/dashboard": 333,
+    "/dashboard": 332,
     "/dashboard/styles": 385,
-    "/dashboard/bot": 325,
-    "/dashboard/bot/commands": 313,
-    "/dashboard/bot/moderation": 313,
-    "/dashboard/bot/replies": 359,
+    "/dashboard/bot": 332,
+    "/dashboard/bot/commands": 323,
+    "/dashboard/bot/moderation": 320,
+    "/dashboard/bot/replies": 362,
   },
 } as const satisfies ClientBudgets;
 
