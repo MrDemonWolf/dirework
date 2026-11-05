@@ -1,7 +1,8 @@
 // The dashboard stats' refresh trigger, React-free so it is tested against a real QueryClient.
-// `stats.summary` is never polled: this refetches it when the polls the dashboard already runs
-// see something stats depend on (lib/stats-view.ts `shouldRefreshStats`) and once just after
-// each local midnight.
+// `stats.summary` is never polled: this refetches it when the queries the dashboard already runs
+// (their polls, or a timer action's answer written into the cache by lib/timer-cache.ts) see
+// something stats depend on (lib/stats-view.ts `shouldRefreshStats`) and once just after each
+// local midnight.
 
 import { hashKey, type QueryClient, type QueryKey } from "@tanstack/react-query";
 
