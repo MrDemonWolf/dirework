@@ -10,7 +10,7 @@ import { ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 import { botConsoleStatus } from "@/lib/bot-status";
-import { describeTrpcError } from "@/lib/trpc-errors";
+import { toastMutationError } from "@/lib/validation-errors";
 import { useOrigin } from "@/lib/use-origin";
 import { BotPageHandoff } from "@/components/bot-page-handoff";
 import { BotConsoleBodySkeleton } from "@/components/bot-settings-skeleton";
@@ -59,9 +59,7 @@ export function BotConsoleCard({ hasBotAccount }: { hasBotAccount: boolean }) {
         toast.success("Bot page URL reset — the old one no longer works");
       }
     },
-    onError: (err) => {
-      toast.error(`Couldn't reset the bot page URL: ${describeTrpcError(err)}`);
-    },
+    onError: toastMutationError("reset the bot page URL"),
   });
 
   const status = botConsoleStatus({

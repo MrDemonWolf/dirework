@@ -10,7 +10,6 @@ import { type Ref, useId, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Check, ChevronDown, Palette } from "lucide-react";
-import { toast } from "sonner";
 
 import type { SetupStep } from "@dirework/api/routers/input-schemas";
 
@@ -33,7 +32,7 @@ import {
   type SetupStepState,
 } from "@/lib/setup-steps";
 import { useStoredChoice } from "@/lib/use-stored-choice";
-import { describeTrpcError } from "@/lib/trpc-errors";
+import { toastMutationError } from "@/lib/validation-errors";
 import { ConsoleRule } from "@/components/console-rule";
 import { BotPageHandoff, BotPageHandoffSkeleton } from "@/components/bot-page-handoff";
 import { QueryError } from "@/components/query-error";
@@ -294,7 +293,7 @@ export function SetupChecklist({
             current ? withSetupStep(current, step, previousConfirmed) : current,
           );
         }
-        toast.error(`Couldn't save that step: ${describeTrpcError(err)}`);
+        toastMutationError("save that step")(err);
       },
       onSettled: (data, error, { step }, context) => {
         // One refetch, only when the cache may now be wrong: a refresh overlapped the write

@@ -13,7 +13,7 @@ import { MAX_BLOCKED_VIEWERS } from "@dirework/api/chat-commands";
 
 import { botMuteStatus } from "@/lib/bot-status";
 import { applyConfigResult, botMutedSaved } from "@/lib/config-cache";
-import { describeTrpcError } from "@/lib/trpc-errors";
+import { toastMutationError } from "@/lib/validation-errors";
 import {
   type CommandGroup,
   COMMAND_GROUP_LABEL,
@@ -203,9 +203,7 @@ export function BotLiveControls({
       toast.success(saved.muted ? "Bot muted" : "Bot unmuted");
       return applyConfigResult(queryClient, trpc.config.get.queryKey(), botMutedSaved(saved));
     },
-    onError: (err) => {
-      toast.error(`Couldn't change the mute switch: ${describeTrpcError(err)}`);
-    },
+    onError: toastMutationError("change the mute switch"),
   });
 
   // Optimistic: while the request is in flight, show what was asked for.

@@ -11,7 +11,7 @@ import { toast } from "sonner";
 
 import { MAX_BLOCKED_VIEWERS, normalizeTwitchLogin } from "@dirework/api/chat-commands";
 
-import { formatMutationError } from "@/lib/validation-errors";
+import { toastMutationError } from "@/lib/validation-errors";
 import { SettingsCard } from "@/components/bot-settings/settings-card";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
@@ -44,9 +44,7 @@ export function BlockedViewersCard({ blockedViewers }: { blockedViewers: string[
       toast.success(`Blocked ${login}`);
       return refresh();
     },
-    onError: (err) => {
-      toast.error(`Couldn't block that viewer: ${formatMutationError(err)}`);
-    },
+    onError: toastMutationError("block that viewer"),
   });
 
   const unblockViewer = useMutation({
@@ -55,9 +53,7 @@ export function BlockedViewersCard({ blockedViewers }: { blockedViewers: string[
       toast.success(`Unblocked ${login}`);
       return refresh();
     },
-    onError: (err) => {
-      toast.error(`Couldn't unblock that viewer: ${formatMutationError(err)}`);
-    },
+    onError: toastMutationError("unblock that viewer"),
   });
 
   // Same normalizer as the server schema and !block, so the button only enables for a

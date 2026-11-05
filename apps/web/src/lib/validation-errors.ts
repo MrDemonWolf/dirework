@@ -1,6 +1,11 @@
 import { TRPCClientError } from "@trpc/client";
+import { toast } from "sonner";
 
-import { API_UNREACHABLE_MESSAGE, describeTrpcError } from "@/lib/trpc-errors";
+import {
+  API_UNREACHABLE_MESSAGE,
+  API_UNREACHABLE_TOAST_ID,
+  describeTrpcError,
+} from "@/lib/trpc-errors";
 
 /** The parts of a zod issue the dashboard needs — zod's own type, structurally. */
 export interface IssueLike {
@@ -92,4 +97,22 @@ export function formatMutationError(err: unknown): string {
   } catch {
     return raw;
   }
+}
+
+/**
+ * Every mutation's `onError`: one toast, `Couldn't <action>: <why>`, with the reason from
+ * `formatMutationError`. A transport failure shares the query handler's outage toast id
+ * (`API_UNREACHABLE_TOAST_ID`), so clicks during an API outage replace one toast instead of
+ * stacking; it drops the action that toast may carry, because the query toast's "retry"
+ * refetches a query and would not redo this write. Only dashboard code calls it: it brings
+ * sonner, which the OBS overlays and the bot page never load (browser-imports.test.ts).
+ */
+export function toastMutationError(action: string): (err: unknown) => void {
+  return (err) => {
+    const reason = formatMutationError(err);
+    toast.error(
+      `Couldn't ${action}: ${reason}`,
+      reason === API_UNREACHABLE_MESSAGE ? { id: API_UNREACHABLE_TOAST_ID, action: undefined } : {},
+    );
+  };
 }

@@ -16,7 +16,7 @@ import { toast } from "sonner";
 
 import { botOAuthErrorMessage, FOLLOWER_CHECK_SCOPE } from "@dirework/api/bot-permissions";
 
-import { describeTrpcError } from "@/lib/trpc-errors";
+import { toastMutationError } from "@/lib/validation-errors";
 import { BotAccountCard } from "@/components/bot-settings/bot-account-card";
 import { BotConsoleCard } from "@/components/bot-settings/bot-console-card";
 import { BotLiveControls } from "@/components/bot-settings/bot-live-controls";
@@ -98,9 +98,7 @@ function Overview() {
         });
       }
     },
-    onError: (err) => {
-      toast.error(`Couldn't disconnect the bot account: ${describeTrpcError(err)}`);
-    },
+    onError: toastMutationError("disconnect the bot account"),
   });
 
   const botAccount = user.botAccount ?? null;
