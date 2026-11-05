@@ -8,6 +8,38 @@ function isRpc(url: string): boolean {
   return new URL(url).pathname.startsWith("/rpc/");
 }
 
+test("the account menu opens from the keyboard with the Docs and Report a problem links", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto("/dashboard");
+
+  await page.getByRole("button", { name: /^Account menu/ }).focus();
+  await page.keyboard.press("ArrowDown");
+
+  // Both links open outside DireWork, in a new tab, without handing over the opener.
+  const docs = page.getByRole("menuitem", { name: /^Docs/ });
+  const report = page.getByRole("menuitem", { name: /^Report a problem/ });
+  await expect(docs).toBeFocused();
+  await expect(docs).toHaveAttribute("href", /\/docs$/);
+  await expect(report).toHaveAttribute(
+    "href",
+    "https://github.com/mrdemonwolf/dirework/issues/new",
+  );
+  for (const link of [docs, report]) {
+    await expect(link).toHaveAttribute("target", "_blank");
+    await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  }
+
+  // Arrow keys walk past the separator to Sign out; Escape hands focus back to the trigger.
+  await page.keyboard.press("ArrowDown");
+  await expect(report).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("menuitem", { name: "Sign out" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: /^Account menu/ })).toBeFocused();
+});
+
 test("signing out returns to the home page and locks the dashboard again", async ({ page }) => {
   await signIn(page);
   await page.goto("/dashboard");

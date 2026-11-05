@@ -8,6 +8,7 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { Bot, LayoutDashboard, type LucideIcon, Menu, Palette, X } from "lucide-react";
 
+import type { AccountLinks } from "@/lib/landing-links";
 import type { ServerSession } from "@/lib/server-session";
 import { cn } from "@/lib/utils";
 import { closeOnRouteChange, type MobileMenuState, onEscape } from "@/lib/mobile-menu";
@@ -38,9 +39,16 @@ function NavIcon({ icon: Icon }: { icon: LucideIcon }) {
  * next/headers never reaches the client bundle): the nav is in the server HTML instead of
  * appearing after a client session fetch, and sign-out refreshes the layout. The nav is
  * navigation, not access control — the pages call `requireSession()` and the API's
- * `ownerProcedure` does the real authorization.
+ * `ownerProcedure` does the real authorization. `accountLinks` are the account menu's
+ * outbound links (Docs, Report a problem), built from the web worker's DOCS_URL.
  */
-export default function Header({ session }: { session: ServerSession | null }) {
+export default function Header({
+  session,
+  accountLinks,
+}: {
+  session: ServerSession | null;
+  accountLinks: AccountLinks;
+}) {
   const pathname = usePathname();
   const [menu, setMenu] = useState<MobileMenuState>({ open: false, pathname });
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -71,8 +79,11 @@ export default function Header({ session }: { session: ServerSession | null }) {
           Linux than on macOS (a 1.5px margin still overflowed there). */}
       <div className="mx-auto flex h-header max-w-content items-center justify-between px-3 sm:px-4">
         <div className="flex items-center gap-8">
+          {/* The logo goes home, and the owner's home is the dashboard: `/` only redirects the
+              owner there, after a prefetch and two api checks. This way the logo shares the
+              Dashboard nav link's prefetch. */}
           <Link
-            href="/"
+            href={session?.user?.isOwner ? "/dashboard" : "/"}
             className="flex items-center gap-1.5 font-heading text-base font-bold tracking-tight transition-opacity hover:opacity-80 sm:gap-2 sm:text-lg"
           >
             <svg
@@ -134,7 +145,7 @@ export default function Header({ session }: { session: ServerSession | null }) {
           <ModeToggle />
           {/* UserMenu renders its own signed-out Twitch sign-in button, so the
               sticky header always offers an entry point — not just the hero CTA. */}
-          <UserMenu session={session} />
+          <UserMenu session={session} links={accountLinks} />
           {/* Mobile hamburger */}
           {session && (
             <Button

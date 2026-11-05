@@ -9,6 +9,7 @@ import { ThemeColorSync } from "@/components/theme-color-sync";
 import { linkVariants } from "@/components/ui/button";
 import { VersionBadge } from "@/components/version-badge";
 import { headingFontBodyCss } from "@/lib/heading-font";
+import { landingLinks } from "@/lib/landing-links";
 import { getServerSession } from "@/lib/server-session";
 import { shellReleased } from "@/lib/shell-hold";
 
@@ -40,6 +41,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const termsOfServiceUrl = process.env.TERMS_OF_SERVICE_URL;
   const showLegalLinks = privacyPolicyUrl || termsOfServiceUrl;
   const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA;
+  // The account menu's two outbound links: this deploy's docs and the repo's issue form.
+  const { docs, reportProblem } = landingLinks(process.env.DOCS_URL);
 
   return (
     <>
@@ -58,7 +61,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           Skip to content
         </a>
         <ThemeColorSync />
-        <Header session={session} />
+        <Header session={session} accountLinks={{ docs, reportProblem }} />
         {/* Safe-area side insets (landscape phones with viewport-fit=cover) add to each
             page's own gutter; the header, footer and save bar pad themselves the same way.
             min-w-0: a grid item's default min-width is its min-content width, so one wide

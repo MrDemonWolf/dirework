@@ -42,7 +42,7 @@ on the docs page, in the same PR, or the test fails.
 
 | Page | Route | Components |
 |---|---|---|
-| App shell | `(app)/layout.tsx` | [header](./header.md), [user-menu](./user-menu.md), [mode-toggle](./mode-toggle.md), [version-badge](./version-badge.md), [theme-color-sync](./theme-color-sync.md) |
+| App shell | `(app)/layout.tsx` | [header](./header.md), [user-menu](./user-menu.md), [account-menu](./account-menu.md), [mode-toggle](./mode-toggle.md), [version-badge](./version-badge.md), [theme-color-sync](./theme-color-sync.md) |
 | Root | `app/layout.tsx` | [providers](./providers.md), [theme-provider](./theme-provider.md), [sonner](./sonner.md) |
 | Viewer landing | `/` | [stream-scene](./stream-scene.md), [status-chip](./status-chip.md), [button](./button.md), [dev-login-button](./dev-login-button.md), [callout](./callout.md) |
 | Setup (claim) | `/setup` | [button](./button.md), [callout](./callout.md), [dev-login-button](./dev-login-button.md), [twitch-icon](./twitch-icon.md) |
@@ -56,8 +56,8 @@ on the docs page, in the same PR, or the test fails.
 | Docs landing | `apps/fumadocs` | [chat-bubble](./chat-bubble.md), [theme-swatch](./theme-swatch.md), [timer-overlay-widget](./timer-overlay-widget.md), [task-list-widget](./task-list-widget.md) |
 
 Dialogs and menus reached from any of these: [confirm-dialog](./confirm-dialog.md) (on
-[alert-dialog](./alert-dialog.md)), [dropdown-menu](./dropdown-menu.md) (the account
-menu, the Task Board options). [loader](./loader.md) is currently unused by any page.
+[alert-dialog](./alert-dialog.md)), [dropdown-menu](./dropdown-menu.md) (the
+[account-menu](./account-menu.md), the Task Board options). [loader](./loader.md) is currently unused by any page.
 
 ## Catalog
 
@@ -65,7 +65,7 @@ menu, the Task Board options). [loader](./loader.md) is currently unused by any 
 |---|---|
 | Primitives (`ui/`) | [alert-dialog](./alert-dialog.md), [button](./button.md), [callout](./callout.md), [card](./card.md), [collapsible](./collapsible.md), [dropdown-menu](./dropdown-menu.md), [input](./input.md), [label](./label.md), [select](./select.md), [skeleton](./skeleton.md), [slider](./slider.md), [sonner](./sonner.md), [switch](./switch.md), [tabs](./tabs.md), [tooltip](./tooltip.md) |
 | Status and chrome | [status-chip](./status-chip.md), [count-badge](./count-badge.md), [version-badge](./version-badge.md), [console-rule](./console-rule.md), [byte-budget](./byte-budget.md), [loader](./loader.md), [twitch-icon](./twitch-icon.md) |
-| Shell | [header](./header.md), [user-menu](./user-menu.md), [mode-toggle](./mode-toggle.md), [dev-login-button](./dev-login-button.md), [providers](./providers.md), [theme-provider](./theme-provider.md), [theme-color-sync](./theme-color-sync.md), [font-gate](./font-gate.md) |
+| Shell | [header](./header.md), [user-menu](./user-menu.md), [account-menu](./account-menu.md), [mode-toggle](./mode-toggle.md), [dev-login-button](./dev-login-button.md), [providers](./providers.md), [theme-provider](./theme-provider.md), [theme-color-sync](./theme-color-sync.md), [font-gate](./font-gate.md) |
 | Forms and flows | [save-bar](./save-bar.md), [confirm-dialog](./confirm-dialog.md), [unsaved-changes-guard](./unsaved-changes-guard.md), [secret-url-row](./secret-url-row.md), [section-group](./section-group.md), [query-error](./query-error.md) |
 | Skeletons | [progressive-section](./progressive-section.md), [dashboard-skeleton](./dashboard-skeleton.md), [styles-skeleton](./styles-skeleton.md), [bot-settings-skeleton](./bot-settings-skeleton.md) |
 | Dashboard | [setup-checklist](./setup-checklist.md), [bot-page-handoff](./bot-page-handoff.md), [dashboard-stats](./dashboard-stats.md), [timer-controls](./timer-controls.md), [task-manager](./task-manager.md), [obs-sources](./obs-sources.md), [stream-scene](./stream-scene.md) |

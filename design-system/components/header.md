@@ -20,7 +20,8 @@ API's `ownerProcedure` authorizes.
 - Inner row: `h-header max-w-content`, `px-3` with tighter gaps and a `text-base` wordmark
   below `sm` (`px-4` and `text-lg` from `sm`), so the logo, theme switch, avatar and menu
   button fit a 320px phone with slack to spare (text renders wider on Linux than macOS).
-- Left: logo link (inline SVG titled "DireWork logo" + wordmark) and, when signed in, the
+- Left: logo link (inline SVG titled "DireWork logo" + wordmark; `/dashboard` for the owner,
+  whose home it is, `/` for everyone else) and, when signed in, the
   desktop `<nav>` (`md:flex`): Dashboard, Theme Center, Bot. Each icon pulses
   (`animate-led-pulse`) while its navigation is pending (`useLinkStatus`).
 - Right: `ModeToggle`, `UserMenu`, and, when signed in, the mobile hamburger (`md:hidden`,
@@ -33,6 +34,7 @@ API's `ownerProcedure` authorizes.
 | Prop | Type | Notes |
 |---|---|---|
 | `session` | `ServerSession \| null` | Null hides the nav and the hamburger; `UserMenu` then shows sign-in |
+| `accountLinks` | `AccountLinks` | The account menu's Docs and Report a problem URLs, from the `(app)` layout |
 
 Default export `Header`. Nav items are the internal `navItems` list (typed routes).
 
@@ -58,3 +60,4 @@ Default export `Header`. Nav items are the internal `navItems` list (typed route
 - **Do** keep the z-index on the `--z-header` token.
 - **Don't** gate access on the nav's visibility.
 - **Don't** fetch the session client-side here; it comes from the layout.
+- **Don't** point the owner's logo at `/`; it only redirects them to `/dashboard`.

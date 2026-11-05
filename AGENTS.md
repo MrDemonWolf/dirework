@@ -775,6 +775,14 @@ it (e.g. `0017_drop_task_status_idx` contracted 0015's superseded `task_status_i
   `setup-page.test.ts`) with the `claim-button.tsx` island ("Claim with Twitch", error
   callback `/setup`), the same `?error=` notice, and `<StreamScene compact>` (overlays, no
   chat). Its headings are single text nodes because `00-first-run` greps the raw HTML.
+  **Signed-out pages stay light:** every sign-in / sign-out handler (`owner-sign-in.tsx`,
+  `claim-button.tsx`, the header's Sign in, the account menu's Sign out) loads the auth client
+  on the click through `lib/load-auth-client.ts` (a failed chunk load after a deploy calls
+  `location.reload()`), never a static import; and the signed-in dropdown
+  (`components/account-menu.tsx`: Docs, Report a problem, a separator, a NEUTRAL Sign out) is
+  a `next/dynamic` (SSR on) component `UserMenu` renders only with a session, so `/` and
+  `/setup` never ship Base UI Menu or floating-ui. `account-menu.test.ts` pins both. The
+  header logo links the owner to `/dashboard` (everyone else to `/`).
   "Claimed" = the `user` table has ANY row (`hasOwner`); there is no in-app ownership
   transfer — recovery from a squatted first deploy is the D1 reset documented in
   deployment.mdx ("Recovering an instance someone else claimed").
