@@ -133,75 +133,11 @@
 
 /* ── Console grammar (ported from the app) ──────────────────────────────── */
 
-/* Small mono uppercase section label — the console voice. */
-.console-label {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--txt-2);
-}
+/* .console-label, .console-rule, .panel, .panel-hero, .panel-inset and .bg-grain come
+   from tokens.generated.css (renderConsoleClasses in design-system/scripts/render.ts), one
+   body shared with the app; the docs edge them with the lighter --hairline. */
 
-/* Labeled hairline rule that fills the row. */
-.console-rule {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-.console-rule::after {
-  content: "";
-  height: 1px;
-  flex: 1;
-  background: var(--hairline);
-}
-
-/* Workhorse panel — flat card face with a crisp edge. */
-.panel {
-  border-radius: 1.25rem;
-  border: 1px solid var(--hairline);
-  background: var(--bg-elev);
-}
-.dark .panel {
-  box-shadow:
-    inset 0 1px 0 0 oklch(1 0 0 / 0.05),
-    0 1px 2px 0 oklch(0 0 0 / 0.25);
-}
-
-/* Hero instrument — gradient face. One per view. */
-.panel-hero {
-  position: relative;
-  border-radius: 1.25rem;
-  border: 1px solid var(--hairline);
-  background: linear-gradient(
-    to bottom,
-    var(--bg-elev),
-    color-mix(in oklab, var(--bg-elev) 72%, var(--bg-base))
-  );
-  overflow: hidden;
-}
-.dark .panel-hero {
-  box-shadow:
-    inset 0 1px 0 0 oklch(1 0 0 / 0.06),
-    0 8px 24px -12px oklch(0 0 0 / 0.5);
-}
-
-/* Inset well — recessed screens, stages, code + URL wells. */
-.panel-inset {
-  border-radius: 1rem;
-  border: 1px solid var(--hairline);
-  background: color-mix(in oklab, var(--bg-base) 82%, var(--bg-elev));
-}
-.dark .panel-inset {
-  box-shadow: inset 0 1px 3px 0 oklch(0 0 0 / 0.35);
-}
-
-/* Fine grain for hardware-module faces. */
-.bg-grain {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
-}
-
-/* Checkerboard — OBS transparency preview backdrop. */
+/* Checkerboard — OBS transparency preview backdrop (dark, unlike the app's light one). */
 .bg-checker {
   background-color: #0d0d0f;
   background-image:

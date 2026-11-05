@@ -1189,7 +1189,10 @@ and `global-error.tsx`. It is the only place a background hex may be spelled out
 background, card, foreground, muted-foreground, border and link as hex, since next/og can't
 read CSS variables; `share-card.test.ts` allows no other color on the card). The root
 `bun run tokens` also rewrites `apps/web/public/manifest.webmanifest`. Edit `tokens.json` and run `bun run tokens`;
-never edit a generated file (`design-tokens.test.ts` and the CI drift step fail). The docs twin
+never edit a generated file (`design-tokens.test.ts` and the CI drift step fail). The console classes
+(`.panel*`, `.console-label`, `.console-rule`, `.bg-grain`) are generated into both from one
+body (`renderConsoleClasses`; app: `--border` edge in `@layer utilities`, docs: `--hairline`,
+unlayered, literal rem radii); `.bg-checker` stays per site (light in the app, dark in docs). The docs twin
 has no radius scale (fumadocs-ui compiles its own `rounded-*` against it); fonts stay
 hand-written in both stylesheets (they wrap next/font variables). Palette contrast (AAA / AA /
 3:1 per pairing, `design-system/contrast.md`) is asserted by `tokens-contrast.test.ts`; it,

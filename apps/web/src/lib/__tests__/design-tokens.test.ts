@@ -10,6 +10,7 @@ import {
   oklchToHex,
   rem,
   renderAll,
+  renderConsoleClasses,
   TAILWIND_TEXT_STEPS,
 } from "../../../../../design-system/scripts/render";
 
@@ -115,5 +116,55 @@ describe("design tokens", () => {
       expect(values?.length).toBe(2);
       for (const value of values ?? []) expect(value).toContain("var(--");
     }
+  });
+
+  describe("console classes come from one source", () => {
+    const CONSOLE_SELECTORS = [
+      ".console-label",
+      ".console-rule",
+      ".console-rule::after",
+      ".panel",
+      ".dark .panel",
+      ".panel-hero",
+      ".dark .panel-hero",
+      ".panel-inset",
+      ".dark .panel-inset",
+      ".bg-grain",
+    ];
+    const handWritten = {
+      web: "apps/web/src/index.css",
+      docs: "apps/fumadocs/src/app/global.css",
+    } as const;
+
+    it.each(["web", "docs"] as const)("the %s token stylesheet defines every rule", (target) => {
+      const css = rendered[OUTPUTS[target]] ?? "";
+      for (const selector of CONSOLE_SELECTORS) expect(css).toContain(`${selector} {`);
+    });
+
+    it.each(["web", "docs"] as const)("%s's own stylesheet no longer copies them", (target) => {
+      const css = readFileSync(join(ROOT, handWritten[target]), "utf8");
+      for (const selector of CONSOLE_SELECTORS)
+        expect(css, `${handWritten[target]} redefines ${selector}`).not.toMatch(
+          new RegExp(`^\\s*${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\{`, "m"),
+        );
+    });
+
+    it("both targets share one body: only the edge variable and the radius form differ", () => {
+      // The rendered look is unchanged from the hand copies: radius 2xl = 20px = 1.25rem and
+      // xl = 16px = 1rem in both; the app edges on --border, the docs on the lighter --hairline.
+      const normalise = (lines: string[]) =>
+        lines
+          .map((l) => l.trim())
+          .filter((l) => l && l !== "@layer utilities {")
+          .join("\n")
+          .replace(/var\(--radius-2xl\)/g, rem(tokens.radius["2xl"]))
+          .replace(/var\(--radius-xl\)/g, rem(tokens.radius.xl))
+          .replace(/var\(--border\)/g, "var(--hairline)");
+      const web = normalise(renderConsoleClasses(tokens, "web"));
+      expect(web.endsWith("}\n}")).toBe(true);
+      expect(web.slice(0, -2)).toBe(normalise(renderConsoleClasses(tokens, "docs")));
+      expect(rem(tokens.radius["2xl"])).toBe("1.25rem");
+      expect(rem(tokens.radius.xl)).toBe("1rem");
+    });
   });
 });
