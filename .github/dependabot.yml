@@ -37,11 +37,17 @@ updates:
           - "typescript"
           - "turbo"
           - "tsx"
+      # @opennextjs/cloudflare raises its peer floors for next and wrangler as it
+      # goes (1.20.16 needs next >=16.4.5), so all three move in one PR: a lone
+      # bump can leave main on an untested pair, and Next 16.4 under OpenNext
+      # 1.20.9 threw on every request. Pinned by
+      # packages/infra/__tests__/dependabot-groups.test.ts.
       cloudflare:
         patterns:
           - "alchemy"
           - "wrangler"
           - "@opennextjs/*"
+          - "next"
           - "@cloudflare/*"
       # @trpc/client requires the exact same @trpc/server version, and
       # @trpc/tanstack-react-query depends on both — a lone bump leaves a
@@ -61,4 +67,3 @@ updates:
           - "react-dom"
           - "@types/react"
           - "@types/react-dom"
-          - "next"
