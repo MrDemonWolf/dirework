@@ -6,7 +6,7 @@
 // beyond the bot page URL (`bot.getIngestInfo`), which loads only while that step is open.
 // A confirm is one UPDATE; its result is patched into the `user.me` cache, never refetched.
 
-import { type Ref, useCallback, useId, useState, useSyncExternalStore } from "react";
+import { type Ref, useId, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Check, ChevronDown, Palette } from "lucide-react";
@@ -32,7 +32,7 @@ import {
   type SetupStepId,
   type SetupStepState,
 } from "@/lib/setup-steps";
-import { browserStorage, noSubscribe } from "@/lib/browser-storage";
+import { useStoredChoice } from "@/lib/use-stored-choice";
 import { describeTrpcError } from "@/lib/trpc-errors";
 import { ConsoleRule } from "@/components/console-rule";
 import { BotPageHandoff, BotPageHandoffSkeleton } from "@/components/bot-page-handoff";
@@ -68,18 +68,8 @@ export function useSetupCollapsed(
   const [capturedAllDone, setCapturedAllDone] = useState(allDone);
   const allDoneAtLoad = captureAllDoneAtLoad(capturedAllDone, allDone);
   if (allDoneAtLoad !== capturedAllDone) setCapturedAllDone(allDoneAtLoad);
-  const [choice, setChoice] = useState<boolean | null>(null);
-  // Read on the client only (null during SSR and hydration); never re-read after a click.
-  const stored = useSyncExternalStore(
-    noSubscribe,
-    () => readSetupCollapsed(browserStorage()),
-    () => null,
-  );
-  const setCollapsed = useCallback((collapsed: boolean) => {
-    setChoice(collapsed);
-    writeSetupCollapsed(browserStorage(), collapsed);
-  }, []);
-  return [choice ?? isSetupCollapsed(stored, allDoneAtLoad ?? false), setCollapsed];
+  const [choice, setCollapsed] = useStoredChoice(readSetupCollapsed, writeSetupCollapsed);
+  return [isSetupCollapsed(choice, allDoneAtLoad ?? false), setCollapsed];
 }
 
 // ── Rows ────────────────────────────────────────────────────────────────────

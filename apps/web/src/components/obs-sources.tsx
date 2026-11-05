@@ -22,7 +22,12 @@ import { SecretUrlRow } from "@/components/secret-url-row";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { overlayPath, overlayPreviewSrc } from "@/lib/overlay-view";
-import { type Size, TASKS_SOURCE, TIMER_SOURCE_FALLBACK } from "@/lib/preview-session";
+import {
+  type Size,
+  TASKS_SOURCE,
+  TIMER_SOURCE_FALLBACK,
+  sourceSizeLabel,
+} from "@/lib/preview-session";
 import { describeTrpcError } from "@/lib/trpc-errors";
 import { LG_MEDIA_QUERY, useMediaQuery } from "@/lib/use-media-query";
 import { trpc } from "@/utils/trpc";
@@ -189,7 +194,7 @@ export function ObsSources({ state }: { state: ObsPreviewState }) {
                 <p className="text-xs text-muted-foreground">
                   Add the URL as a browser source in OBS
                 </p>
-                <SizeChip size={`${source.width} × ${source.height}`} hint={sizeHint} />
+                <SizeChip size={sourceSizeLabel(source)} hint={sizeHint} />
               </div>
               <Button
                 variant="ghost"

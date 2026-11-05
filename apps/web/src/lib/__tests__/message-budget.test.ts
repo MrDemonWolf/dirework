@@ -6,7 +6,10 @@ import {
   phaseLabelSchema,
 } from "@dirework/api/config-shared";
 
-import { messageBudget, phaseLabelBudget } from "../message-budget";
+import { ALIAS_MAX_LENGTH } from "@dirework/api/config-shared";
+
+import { aliasBudget } from "../alias-rows";
+import { budget, messageBudget, phaseLabelBudget } from "../message-budget";
 
 describe("messageBudget", () => {
   it("stays quiet for an ordinary template", () => {
@@ -63,6 +66,28 @@ describe("phaseLabelBudget", () => {
       "🇺🇸".repeat(7),
     ]) {
       expect(phaseLabelBudget(value).over, value).toBe(!phaseLabelSchema.safeParse(value).success);
+    }
+  });
+});
+
+describe("budget", () => {
+  it("shows the counter from 80% of any cap and flags only what is over it", () => {
+    expect(budget(19, 25, "characters")).toEqual({
+      used: 19,
+      max: 25,
+      unit: "characters",
+      nearLimit: false,
+      over: false,
+    });
+    expect(budget(20, 25, "characters")).toMatchObject({ nearLimit: true, over: false });
+    expect(budget(26, 25, "characters")).toMatchObject({ nearLimit: true, over: true });
+  });
+
+  it("is the one rule behind the alias counter", () => {
+    for (const used of [0, 19, 20, ALIAS_MAX_LENGTH, ALIAS_MAX_LENGTH + 1]) {
+      expect(aliasBudget(`!${"a".repeat(used)}`)).toEqual(
+        budget(used, ALIAS_MAX_LENGTH, "characters"),
+      );
     }
   });
 });

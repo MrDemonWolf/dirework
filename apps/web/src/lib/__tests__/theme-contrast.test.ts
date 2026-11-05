@@ -9,6 +9,7 @@ import {
   TIMER_CYCLE_OPACITY,
 } from "../overlay-view";
 import { themePresets } from "../theme-presets";
+import { composite, contrastRatio, parseHex } from "./helpers/wcag";
 
 /**
  * WCAG 2.x contrast for the viewer-facing text every theme preset ships on the
@@ -37,39 +38,6 @@ const AA_NORMAL_TEXT = 4.5;
 /** WCAG AA for large text: at least 24px regular (18pt). */
 const AA_LARGE_TEXT = 3;
 const AAA_NORMAL_TEXT = 7;
-
-type Rgb = [number, number, number];
-
-function parseHex(hex: string): Rgb {
-  const match = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
-  if (!match) throw new Error(`Expected #rrggbb, got ${hex}`);
-  return [match[1], match[2], match[3]].map((c) => Number.parseInt(c!, 16)) as Rgb;
-}
-
-/** Source-over compositing of `top` at `alpha` onto an opaque `bottom`. */
-function composite(top: Rgb, alpha: number, bottom: Rgb): Rgb {
-  return top.map((c, i) => c * alpha + bottom[i]! * (1 - alpha)) as Rgb;
-}
-
-function relativeLuminance([r, g, b]: Rgb): number {
-  const [lr, lg, lb] = [r, g, b].map((c) => {
-    const s = c / 255;
-    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * lr! + 0.7152 * lg! + 0.0722 * lb!;
-}
-
-function contrastRatio(a: Rgb, b: Rgb): number {
-  const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
-  return (hi! + 0.05) / (lo! + 0.05);
-}
-
-describe("contrastRatio", () => {
-  it("matches the WCAG reference values", () => {
-    expect(contrastRatio(parseHex("#000000"), parseHex("#ffffff"))).toBeCloseTo(21, 5);
-    expect(contrastRatio(parseHex("#777777"), parseHex("#ffffff"))).toBeCloseTo(4.48, 2);
-  });
-});
 
 const STREAMS = [
   ["a black stream", "#000000"],

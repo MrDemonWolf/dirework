@@ -16,6 +16,7 @@ import {
   writeSetupCollapsed,
   type SetupSource,
 } from "../setup-steps";
+import { TASKS_SOURCE, TIMER_SOURCE_FALLBACK, sourceSizeLabel } from "../preview-session";
 
 const me = (botAccount: boolean, setup: Partial<SetupSource["setup"]> = {}): SetupSource => ({
   botAccount: botAccount ? { displayName: "DireBot" } : null,
@@ -64,6 +65,12 @@ describe("stepState", () => {
 });
 
 describe("SETUP_STEPS copy", () => {
+  it("names the recommended OBS source sizes from their one source", () => {
+    const action = (id: string) => SETUP_STEPS.find((s) => s.id === id)?.action;
+    expect(action("timerOverlay")).toContain(sourceSizeLabel(TIMER_SOURCE_FALLBACK));
+    expect(action("tasksOverlay")).toContain(sourceSizeLabel(TASKS_SOURCE));
+  });
+
   it("orders the four steps and gives each a title, a why and an action", () => {
     expect(SETUP_STEPS.map((s) => s.id)).toEqual([
       "botAccount",
@@ -114,11 +121,10 @@ describe("withSetupStep", () => {
 
 describe("isSetupCollapsed", () => {
   it("follows the stored choice, else collapses only when everything is done", () => {
-    expect(isSetupCollapsed("1", false)).toBe(true);
-    expect(isSetupCollapsed("0", true)).toBe(false);
+    expect(isSetupCollapsed(true, false)).toBe(true);
+    expect(isSetupCollapsed(false, true)).toBe(false);
     expect(isSetupCollapsed(null, false)).toBe(false);
     expect(isSetupCollapsed(null, true)).toBe(true);
-    expect(isSetupCollapsed("garbage", false)).toBe(false);
   });
 });
 
@@ -186,10 +192,14 @@ describe("Finish later storage helpers", () => {
     };
     expect(readSetupCollapsed(storage)).toBeNull();
     expect(writeSetupCollapsed(storage, true)).toBe(true);
-    expect(readSetupCollapsed(storage)).toBe("1");
+    expect(readSetupCollapsed(storage)).toBe(true);
     expect(isSetupCollapsed(readSetupCollapsed(storage), false)).toBe(true);
     writeSetupCollapsed(storage, false);
     expect(isSetupCollapsed(readSetupCollapsed(storage), true)).toBe(false);
+    // Anything but "1" / "0" is no choice, so the default applies.
+    storage.setItem("dirework.setup-collapsed", "garbage");
+    expect(readSetupCollapsed(storage)).toBeNull();
+    expect(isSetupCollapsed(readSetupCollapsed(storage), false)).toBe(false);
   });
 });
 
@@ -223,8 +233,9 @@ describe("setup checklist collapsed state", () => {
   );
 
   it("keeps the click in component state, so blocked storage can't swallow it", () => {
-    expect(src).toContain("setChoice(collapsed);");
-    expect(src).toContain("choice ?? isSetupCollapsed(");
+    // useStoredChoice holds the click in state (use-stored-choice.test.ts pins that).
+    expect(src).toContain("useStoredChoice(readSetupCollapsed, writeSetupCollapsed)");
+    expect(src).toContain("isSetupCollapsed(choice, allDoneAtLoad ?? false)");
   });
 });
 

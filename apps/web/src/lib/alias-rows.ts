@@ -6,7 +6,7 @@ import {
   normalizeAliasToken,
 } from "@dirework/api/chat-commands";
 
-import type { MessageBudget } from "./message-budget";
+import { budget, type MessageBudget } from "./message-budget";
 
 /**
  * Alias rows carry a stable client-side id (audit L12) so React keys survive
@@ -59,14 +59,7 @@ export const ALIAS_INPUT_MAX_LENGTH = ALIAS_MAX_LENGTH + 1;
 
 /** Characters an alias or command input counts against ALIAS_MAX_LENGTH (no leading "!"). */
 export function aliasBudget(raw: string): MessageBudget {
-  const used = raw.trim().replace(/^!+/, "").length;
-  return {
-    used,
-    max: ALIAS_MAX_LENGTH,
-    unit: "characters",
-    nearLimit: used >= ALIAS_MAX_LENGTH * 0.8,
-    over: used > ALIAS_MAX_LENGTH,
-  };
+  return budget(raw.trim().replace(/^!+/, "").length, ALIAS_MAX_LENGTH, "characters");
 }
 
 /**

@@ -301,7 +301,8 @@ you run the bot?" segmented radiogroup (Base UI `radio-group` on the shared segm
 tab", copy and steps in the pure `lib/bot-run-modes.ts`), then a single `SecretUrlRow` for the
 chosen view under a visible "Widget URL" / "Dock URL" label (keyed on the view, so a switch
 never reads as a reset), and that view's steps — never two look-alike masked rows. The pick is
-per-browser localStorage (`dirework.bot-view`, default widget on SSR/hydration). The card adds
+per-browser localStorage (`dirework.bot-view`, default widget on SSR/hydration), through
+`lib/use-stored-choice.ts` like the checklist's "Finish later". The card adds
 Reset (one token: "Reset both bot page URLs?") and "Open widget" / "Open dock".
 **One bot page at a time (chat lease).** Only one open bot page (widget or dock) joins chat:
 after `getSession` succeeds the session claims the lease with `bot.heartbeat({ token,
@@ -1119,7 +1120,8 @@ and `global-error.tsx`. It is the only place a background hex may be spelled out
 never edit a generated file (`design-tokens.test.ts` and the CI drift step fail). The docs twin
 has no radius scale (fumadocs-ui compiles its own `rounded-*` against it); fonts stay
 hand-written in both stylesheets (they wrap next/font variables). Palette contrast (AAA / AA /
-3:1 per pairing, `design-system/contrast.md`) is asserted by `tokens-contrast.test.ts`.
+3:1 per pairing, `design-system/contrast.md`) is asserted by `tokens-contrast.test.ts`; it,
+`theme-contrast` and `obs-contrast` share the WCAG math in `lib/__tests__/helpers/wcag.ts`.
 **Installable app + touch.** `app/manifest.ts` serves `/manifest.webmanifest` (standalone,
 `start_url` `/dashboard`, background and theme color = `SCHEME_HEX.dark.background`, the dark
 `--background` as generated hex) with PNG icons in `public/icons/` (192, 512, maskable 512 —

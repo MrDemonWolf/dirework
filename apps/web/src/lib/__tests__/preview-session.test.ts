@@ -16,6 +16,7 @@ import {
   TASKS_SOURCE,
   TIMER_SOURCE_FALLBACK,
   previewSceneLayout,
+  sourceSizeLabel,
   timerSourceSize,
 } from "@/lib/preview-session";
 import { DEFAULT_TIMER_STYLES } from "@dirework/api/config-defaults";
@@ -99,5 +100,12 @@ describe("Theme Center preview session", () => {
       PREVIEW_BACKDROPS.flatMap((b) => [...b.className.split(" "), b.swatch]),
     );
     for (const cls of classes) expect(css).toContain(`.${cls} {`);
+  });
+});
+
+describe("sourceSizeLabel", () => {
+  it("writes a source size the way OBS shows it", () => {
+    expect(sourceSizeLabel(TIMER_SOURCE_FALLBACK)).toBe("300 × 300");
+    expect(sourceSizeLabel(TASKS_SOURCE)).toBe("700 × 800");
   });
 });

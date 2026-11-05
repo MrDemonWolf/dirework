@@ -19,7 +19,8 @@ export interface MessageBudget {
   over: boolean;
 }
 
-function budget(used: number, max: number, unit: MessageBudget["unit"]): MessageBudget {
+/** A counter's budget for any cap: shown from SHOW_FROM of `max`, over once past it. */
+export function budget(used: number, max: number, unit: MessageBudget["unit"]): MessageBudget {
   return { used, max, unit, nearLimit: used >= max * SHOW_FROM, over: used > max };
 }
 

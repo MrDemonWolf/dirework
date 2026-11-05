@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import { contrastRatio, parseHex } from "./helpers/wcag";
+
 /**
  * Contrast of the bot dock's OBS Yami palette (`color.obs` in design-system/tokens.json),
  * pair by pair as `bot-dock.tsx` and `bot-console.tsx` use it. The dock is a real UI (an
@@ -19,15 +21,8 @@ const tokens = JSON.parse(
 
 const obs = tokens.color.obs;
 
-function luminance(hex: string): number {
-  const channels = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255);
-  const [r, g, b] = channels.map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
-  return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
-}
-
 function contrast(a: string, b: string): number {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
-  return (hi + 0.05) / (lo + 0.05);
+  return contrastRatio(parseHex(a), parseHex(b));
 }
 
 const TEXT_AA = 4.5;
