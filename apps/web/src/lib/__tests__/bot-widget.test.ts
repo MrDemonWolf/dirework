@@ -78,6 +78,24 @@ describe("bot widget", () => {
     );
   });
 
+  it("keeps the dock's uptime clock in its own leaf", () => {
+    // The page's only 1s clock ticks in DockUptime, mounted only while uptime shows, so a tick
+    // re-renders one <dd>, never BotConsole or the whole dock.
+    const console = read("bot/[token]/bot-console.tsx");
+    expect(console).not.toContain("setInterval(");
+    expect(console).not.toContain("nowTick");
+    const dock = read("bot/[token]/bot-dock.tsx");
+    const body = (fn: string) => {
+      const from = dock.slice(dock.indexOf(`function ${fn}(`));
+      return from.slice(0, from.indexOf("\n}\n"));
+    };
+    // The interval exists only while DockUptime subscribes to it.
+    expect(body("subscribeSecond")).toContain("setInterval(");
+    expect(body("DockUptime")).toContain("useSyncExternalStore(subscribeSecond,");
+    expect(dock.split("setInterval(")).toHaveLength(2);
+    expect(dock).toContain("<DockUptime since={connectedAt} />");
+  });
+
   it("puts the live state in the tab title", () => {
     expect(read("bot/[token]/bot-console.tsx")).toContain("document.title = botPageTitle(");
   });
