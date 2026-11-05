@@ -4,10 +4,9 @@
 // a live preview. Edits stay local until Save, which persists all three slices in one mutation.
 
 import { useCallback, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
 import { MoreHorizontal, RotateCcw } from "lucide-react";
-import { toast } from "sonner";
 
 import type { AppRouter } from "@dirework/api/routers/index";
 import { updateStylesInput } from "@dirework/api/routers/input-schemas";
@@ -18,7 +17,7 @@ import type {
   PhaseLabelsConfig,
   ThemePreset,
 } from "@/lib/config-types";
-import { applyConfigResult, stylesSaved } from "@/lib/config-cache";
+import { stylesSaved } from "@/lib/config-cache";
 import { DEFAULT_PHASE_LABELS } from "@/lib/config-types";
 import {
   defaultTimerStyles,
@@ -26,8 +25,9 @@ import {
   detectMatchingPreset,
   themePresets,
 } from "@/lib/theme-presets";
-import { cn, isDeepEqual } from "@/lib/utils";
-import { describeIssues, toastMutationError } from "@/lib/validation-errors";
+import { useDraft, useSettingsSave } from "@/lib/use-draft";
+import { cn } from "@/lib/utils";
+import { describeIssues } from "@/lib/validation-errors";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ConsoleRule } from "@/components/console-rule";
 import { QueryError } from "@/components/query-error";
@@ -50,6 +50,13 @@ import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import { trpc } from "@/utils/trpc";
 
 type ConfigData = inferRouterOutputs<AppRouter>["config"]["get"];
+
+/** What Save sends (`config.updateStyles`), and the snapshot it commits. */
+interface StylesPayload {
+  timerStyles: TimerStylesConfig;
+  taskStyles: TaskStylesConfig;
+  phaseLabels: PhaseLabelsConfig;
+}
 
 /** Fallback for a config row with no labels yet (defaults mirror the other two slices). */
 const defaultPhaseLabels: PhaseLabelsConfig = DEFAULT_PHASE_LABELS;
@@ -87,8 +94,8 @@ export default function StylesPage() {
 }
 
 /**
- * Keeps a working copy and a last-saved snapshot of each slice; dirty state is derived by deep
- * comparison. Applying a preset over unsaved custom edits asks for confirmation first.
+ * Keeps a working copy and a last-saved snapshot of each slice (`useDraft`). Applying a preset
+ * over unsaved custom edits asks for confirmation first.
  *
  * Both copies are seeded in STATE from the config this mounts with, never copied in from a
  * later render: the route streams `config.get` from the server and mounts this only once it
@@ -99,51 +106,55 @@ export default function StylesPage() {
  * touches no state, so edits in progress survive it.
  */
 function StylesEditor({ config }: { config: ConfigData }) {
-  const queryClient = useQueryClient();
-
-  const loadedTimer = config.timerStyles ?? defaultTimerStyles;
-  const loadedTask = config.taskStyles ?? defaultTaskStyles;
-  const loadedLabels = config.timerConfig?.labels ?? defaultPhaseLabels;
-
-  // Working state — what the user sees and edits
-  const [timerStyles, setTimerStyles] = useState<TimerStylesConfig>(loadedTimer);
-  const [taskStyles, setTaskStyles] = useState<TaskStylesConfig>(loadedTask);
-  const [phaseLabels, setPhaseLabels] = useState<PhaseLabelsConfig>(loadedLabels);
+  // Working copy + last-saved snapshot per slice (lib/use-draft.ts), so each tab gets its own
+  // dirty dot. Dirty is derived by deep comparison: reverting an edit clears it, and editing
+  // back to a preset's exact values re-highlights the preset.
+  const timer = useDraft<TimerStylesConfig>(config.timerStyles ?? defaultTimerStyles);
+  const task = useDraft<TaskStylesConfig>(config.taskStyles ?? defaultTaskStyles);
+  const labels = useDraft<PhaseLabelsConfig>(config.timerConfig?.labels ?? defaultPhaseLabels);
+  const timerStyles = timer.draft;
+  const taskStyles = task.draft;
+  const phaseLabels = labels.draft;
+  const setTimerStyles = timer.setDraft;
+  const setTaskStyles = task.setDraft;
 
   // Preset apply held for confirmation while custom edits are unsaved
   const [pendingTheme, setPendingTheme] = useState<ThemePreset | null>(null);
   // "Reset theme to Default" held for confirmation
   const [confirmDefault, setConfirmDefault] = useState(false);
 
-  // Saved state — what's persisted in the database
-  const [savedTimerStyles, setSavedTimerStyles] = useState<TimerStylesConfig>(loadedTimer);
-  const [savedTaskStyles, setSavedTaskStyles] = useState<TaskStylesConfig>(loadedTask);
-  const [savedPhaseLabels, setSavedPhaseLabels] = useState<PhaseLabelsConfig>(loadedLabels);
-
-  // Derived, never tracked by hand: reverting an edit clears the unsaved
-  // state, and editing back to a preset's exact values re-highlights it.
-  const timerDirty = !isDeepEqual(timerStyles, savedTimerStyles);
-  const taskDirty = !isDeepEqual(taskStyles, savedTaskStyles);
-  const labelsDirty = !isDeepEqual(phaseLabels, savedPhaseLabels);
-  const hasUnsaved = timerDirty || taskDirty || labelsDirty;
+  const hasUnsaved = timer.dirty || task.dirty || labels.dirty;
   const activeThemeId = detectMatchingPreset(timerStyles, taskStyles);
 
-  // ONE atomic mutation for the whole Theme Center — styles and phase labels
-  // used to be three independent requests that could persist partially.
-  const saveStylesMutation = useMutation({
-    ...trpc.config.updateStyles.mutationOptions(),
-    // The answer is what the save stored: merged into config.get, never re-read.
-    onSuccess: (saved) =>
-      applyConfigResult(queryClient, trpc.config.get.queryKey(), stylesSaved(saved)),
-    onError: toastMutationError("save styles"),
+  // ONE atomic mutation for the whole Theme Center (styles and phase labels used to be three
+  // independent requests that could persist partially), so the three snapshots committed
+  // together can never diverge from what the server holds. The answer is merged into
+  // config.get, never re-read.
+  const { commit: commitTimer } = timer;
+  const { commit: commitTask } = task;
+  const { commit: commitLabels } = labels;
+  const commit = useCallback(
+    (submitted: StylesPayload) => {
+      commitTimer(submitted.timerStyles);
+      commitTask(submitted.taskStyles);
+      commitLabels(submitted.phaseLabels);
+    },
+    [commitTimer, commitTask, commitLabels],
+  );
+  const { save, saving } = useSettingsSave({
+    noun: "styles",
+    mutationOptions: trpc.config.updateStyles.mutationOptions(),
+    merge: stylesSaved,
+    commit,
   });
 
-  const isSaving = saveStylesMutation.isPending;
-
-  const applyTheme = useCallback((theme: ThemePreset) => {
-    setTimerStyles(theme.timerStyles);
-    setTaskStyles(theme.taskStyles);
-  }, []);
+  const applyTheme = useCallback(
+    (theme: ThemePreset) => {
+      setTimerStyles(theme.timerStyles);
+      setTaskStyles(theme.taskStyles);
+    },
+    [setTimerStyles, setTaskStyles],
+  );
 
   const handleApplyTheme = useCallback(
     (theme: ThemePreset) => {
@@ -158,35 +169,21 @@ function StylesEditor({ config }: { config: ConfigData }) {
     [hasUnsaved, activeThemeId, applyTheme],
   );
 
-  const handleReset = useCallback(() => {
-    setTimerStyles(savedTimerStyles);
-    setTaskStyles(savedTaskStyles);
-    setPhaseLabels(savedPhaseLabels);
-  }, [savedTimerStyles, savedTaskStyles, savedPhaseLabels]);
+  const handleReset = () => {
+    timer.reset();
+    task.reset();
+    labels.reset();
+  };
 
   // The server's own input schema over the exact payload: a field it would
   // reject (flagged inline by its editor) blocks Save rather than failing the
   // whole atomic save.
-  const payloadCheck = updateStylesInput.safeParse({ timerStyles, taskStyles, phaseLabels });
+  const payload: StylesPayload = { timerStyles, taskStyles, phaseLabels };
+  const payloadCheck = updateStylesInput.safeParse(payload);
   const blockedReason = payloadCheck.success ? null : describeIssues(payloadCheck.error.issues);
 
-  const handleSave = useCallback(async () => {
-    if (blockedReason) {
-      toast.error(`Couldn't save styles: ${blockedReason}`);
-      return;
-    }
-    try {
-      // Atomic server-side: either all three slices persist or none do, so the
-      // saved snapshot below can never diverge from what the server holds.
-      await saveStylesMutation.mutateAsync({ timerStyles, taskStyles, phaseLabels });
-      setSavedTimerStyles(timerStyles);
-      setSavedTaskStyles(taskStyles);
-      setSavedPhaseLabels(phaseLabels);
-      toast.success("Styles saved");
-    } catch {
-      // onError already surfaced the specifics; nothing persisted.
-    }
-  }, [blockedReason, timerStyles, taskStyles, phaseLabels, saveStylesMutation]);
+  // The payload is also the snapshot: edits made while the request is in flight stay dirty.
+  const handleSave = () => save(payload, payload, blockedReason);
 
   return (
     <div
@@ -256,13 +253,13 @@ function StylesEditor({ config }: { config: ConfigData }) {
             <Tabs defaultValue="timer">
               {/* A dot marks each tab holding unsaved edits, so none hide behind another tab. */}
               <TabsList className="h-9 w-full gap-1">
-                <TabsTrigger value="timer" dirty={timerDirty}>
+                <TabsTrigger value="timer" dirty={timer.dirty}>
                   Timer style
                 </TabsTrigger>
-                <TabsTrigger value="tasks" dirty={taskDirty}>
+                <TabsTrigger value="tasks" dirty={task.dirty}>
                   Task style
                 </TabsTrigger>
-                <TabsTrigger value="labels" dirty={labelsDirty}>
+                <TabsTrigger value="labels" dirty={labels.dirty}>
                   Phase labels
                 </TabsTrigger>
               </TabsList>
@@ -273,7 +270,7 @@ function StylesEditor({ config }: { config: ConfigData }) {
                 <TaskStyleEditor styles={taskStyles} onChange={setTaskStyles} />
               </TabsContent>
               <TabsContent value="labels">
-                <PhaseLabelsEditor labels={phaseLabels} onChange={setPhaseLabels} />
+                <PhaseLabelsEditor labels={phaseLabels} onChange={labels.setDraft} />
               </TabsContent>
             </Tabs>
           </div>
@@ -308,7 +305,7 @@ function StylesEditor({ config }: { config: ConfigData }) {
 
       <SaveBar
         visible={hasUnsaved}
-        saving={isSaving}
+        saving={saving}
         onSave={handleSave}
         onReset={handleReset}
         label="Unsaved — not on stream yet"

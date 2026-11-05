@@ -197,7 +197,7 @@ describe("the merges", () => {
 describe("the config writes", () => {
   const sites: [string, RegExp][] = [
     ["components/timer-controls.tsx", /timerConfigSaved\(/],
-    ["app/(app)/dashboard/styles/styles-page.tsx", /stylesSaved\(/],
+    ["lib/use-draft.ts", /merge\(saved, sent\)/],
     ["app/(app)/dashboard/bot/(sections)/replies/replies-page.tsx", /botSettingsSaved\(/],
     ["app/(app)/dashboard/bot/(sections)/commands/commands-page.tsx", /botSettingsSaved\(/],
     // The instant settings hand their merge to useInstantSetting, which applies it.
@@ -220,6 +220,19 @@ describe("the config writes", () => {
     expect(code).toContain("useInstantSetting(");
     expect(code).toContain(merge);
     expect(code).not.toMatch(/invalidateQueries\(\{\s*queryKey: trpc\.config\.get\.queryKey\(\)/);
+  });
+
+  // The draft editors hand their procedure's merge to useSettingsSave (lib/use-draft.ts, above),
+  // which applies it.
+  const editors: [string, RegExp][] = [
+    ["app/(app)/dashboard/styles/styles-page.tsx", /merge: stylesSaved/],
+  ];
+
+  it.each(editors)("%s saves through useSettingsSave with its merge", (file, merge) => {
+    const code = read(file);
+    expect(code).toContain("useSettingsSave(");
+    expect(code).toMatch(merge);
+    expect(code).not.toContain("invalidateQueries");
   });
 
   it("block and unblock still re-read config.get (the server decides the list)", () => {

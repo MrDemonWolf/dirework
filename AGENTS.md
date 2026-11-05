@@ -1226,6 +1226,13 @@ existing home and reuse it:
   (no `headers()`/`cookies()`/session read, so `/_not-found` stays prerendered), one
   `<title>` through the root template, and a `prefetch={false}` link home (a prefetch of `/`
   renders the `(app)` layout's session check, an api request).
+- **Draft editors** — a page with a Save bar keeps its draft in `useDraft` and saves with
+  `useSettingsSave` (`lib/use-draft.ts`; Theme Center today): the draft beside its saved
+  snapshot, dirty derived by `equals` (deep by default), a save that commits the snapshot it
+  SENT (an edit made while the request is in flight stays dirty), the answer merged into
+  `config.get` through `lib/config-cache.ts` (never invalidate-then-refetch), and the blocked,
+  failed and "<Noun> saved" toasts. The reducer and the save flow are React-free and
+  node-tested (`use-draft.test.ts`).
 - **Lib helpers** — `lib/utils.ts` (`cn`), `timer-utils` (`resolvePhaseDuration`,
   ms-from-state), `task-utils` (`groupTasksByAuthor`), `status-tones`, `config-types`;
   overlay geometry/formatting (`formatClock`, `cycleLabel`) in `@dirework/overlay-kit`, which
