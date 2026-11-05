@@ -7,6 +7,8 @@ import {
 import { defaultTaskStyles, defaultTimerStyles } from "@/lib/theme-presets";
 import { type PhaseDurations, type TimerState, resolvePhaseDuration } from "@/lib/timer-utils";
 
+export { ACTIVE_ROW_TINT_PERCENT, taskStatusLabel } from "@dirework/overlay-kit";
+
 // What the OBS overlay pages render for a poll payload. `null` from these means
 // "render nothing" (a transparent source): the first poll hasn't landed or
 // failed, or the server answered null because the token in the URL is invalid
@@ -31,25 +33,6 @@ export const HEADER_COUNT_OPACITY = 0.8;
 
 /** The timer's `{n}/{total}` cycle line is faded with this opacity (contrast-tested). */
 export const TIMER_CYCLE_OPACITY = 0.8;
-
-/**
- * The active task row is a static tint of the username color at this strength
- * (no glow, no pulse), plus an "Active" label in that color. The contrast test
- * measures the label against this tint over the author group.
- */
-export const ACTIVE_ROW_TINT_PERCENT = 10;
-
-/**
- * The label a task row shows at its end on the overlay: "Active" for the
- * author's focus task (which also gets the ACTIVE_ROW_TINT_PERCENT tint),
- * "Started" for a parked `started` task (label only, no tint), none otherwise.
- * Both are set in the username color at the same size.
- */
-export function taskStatusLabel(status: string): "Active" | "Started" | null {
-  if (status === "active") return "Active";
-  if (status === "started") return "Started";
-  return null;
-}
 
 /**
  * Floor (px) for the "Active" and "Started" labels, which are otherwise 0.55× the task font size

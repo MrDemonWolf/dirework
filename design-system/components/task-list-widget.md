@@ -17,15 +17,15 @@ scene, chat preview and share cards. The real renderer is `task-card`
 
 - 300px column (shrinks to its container) with a drop shadow, IBM Plex Sans body.
 - One card per author, in first-appearance order, 10px apart:
-  - **Header**: theme `bg` at 0.95, 12px top corners, author name in an AA-safe color
-    from `authorPalette(theme.bg)` (three entries, cycled), `{done}/{total}` in theme
+  - **Header**: theme `bg` at 0.95, 12px top corners, author name in theme
+    `username`, `{done}/{total}` in theme
     `text` at 0.55; Montserrat bold.
   - **Body**: theme `bg` at 0.85, 12px bottom corners, rows 4px apart, each with a
     decorative 20px checkbox (tick in theme `accent`) and the task text (15px).
-- Active row: a slightly stronger text tint plus a 3px accent edge. This differs from the
-  real overlay (tint plus "Active" label); `task-card.md` is the source of truth.
-- Started row: no edge and no extra tint, just an uppercase 11px "Started" label at the
-  end of the row in the author's name color, like the real overlay's.
+- Active row: a static `ACTIVE_ROW_TINT_PERCENT` tint of theme `username` plus a visible
+  uppercase "Active" label in that color, as in the real overlay.
+- Started row: no tint, with the same label slot showing "Started" in theme `username`.
+  `taskStatusLabel` from `@dirework/overlay-kit` chooses both labels.
 
 ## Props and variants
 
@@ -46,6 +46,5 @@ Static: one rendering per theme. Done rows are struck through and dimmed to text
 ## Do / Don't
 
 - **Do** change the sample tasks in `DEMO_SESSION`, not here.
-- **Do** keep author colors from `authorPalette`, which picks AA-safe colors per theme
-  background.
+- **Do** use the preset's `username` color for author names and status labels.
 - **Don't** copy grouping logic from the app; the mock groups its fixed demo data inline.

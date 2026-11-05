@@ -45,7 +45,6 @@
 .marketing-task-check { width: 19px; height: 19px; border: 1px solid var(--muted-foreground); border-radius: 5px; display: grid; place-items: center; flex-shrink: 0; }
 .marketing-task-author { display: block; font: 12px/1.3 var(--font-mono); color: var(--link); }
 .marketing-scene-task p { font-size: 14px; line-height: 1.4; margin-top: 3px; }
-.marketing-scene-task.is-active { border-color: var(--link); box-shadow: inset 3px 0 0 var(--link); }
 .marketing-task-label { margin-left: auto; padding-left: 8px; font: 700 11px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--link); white-space: nowrap; }
 .marketing-scene-task.is-done p { text-decoration: line-through; color: var(--muted-foreground); }
 .marketing-scene-task.is-done .marketing-task-check { color: var(--success); border-color: var(--success); }

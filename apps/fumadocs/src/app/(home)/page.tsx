@@ -16,11 +16,13 @@ import {
   Timer,
 } from "lucide-react";
 import {
+  ACTIVE_ROW_TINT_PERCENT,
   BRAND,
   DEMO_SESSION,
   type DemoChatLine,
   cycleLabel,
   formatClock,
+  taskStatusLabel,
 } from "@dirework/overlay-kit";
 import dashboardScreenshot from "@/assets/screenshots/dashboard.webp";
 import { GithubIcon } from "@/components/icons/github-icon";
@@ -102,8 +104,17 @@ function StreamScene() {
             </span>
           </div>
           {SCENE_TASKS.map(({ author, text, status }) => (
-            // The check icon is aria-hidden, so the sr-only status carries the row's state.
-            <div key={text} className={`marketing-scene-task is-${status}`}>
+            <div
+              key={text}
+              className={`marketing-scene-task is-${status}`}
+              style={
+                status === "active"
+                  ? {
+                      background: `color-mix(in srgb, #4f99f9 ${ACTIVE_ROW_TINT_PERCENT}%, #18181b)`,
+                    }
+                  : undefined
+              }
+            >
               <span className="marketing-task-check" aria-hidden>
                 {status === "done" && <Check size={14} />}
               </span>
@@ -111,9 +122,9 @@ function StreamScene() {
                 <span className="marketing-task-author">{author}</span>
                 <p>{text}</p>
               </div>
-              {status === "active" && <span className="sr-only">Active</span>}
-              {/* Visible, like the overlay's own "Started" label (no tint, no edge). */}
-              {status === "started" && <span className="marketing-task-label">Started</span>}
+              {taskStatusLabel(status) && (
+                <span className="marketing-task-label">{taskStatusLabel(status)}</span>
+              )}
               {status === "done" && <span className="sr-only">Completed</span>}
             </div>
           ))}
