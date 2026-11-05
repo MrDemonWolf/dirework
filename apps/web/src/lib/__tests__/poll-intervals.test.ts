@@ -11,7 +11,10 @@ import {
   DASHBOARD_TIMER_QUERY_OPTS,
   dashboardPollInterval,
   idleAwareInterval,
+  NOT_CONFIGURED_POLL_MS,
   OVERLAY_POLL_MS,
+  REVALIDATE_INTERVAL_MS,
+  VERSION_CHECK_MS,
 } from "../poll-intervals";
 
 describe("idleAwareInterval", () => {
@@ -62,5 +65,24 @@ describe("BOT_HEARTBEAT_MS", () => {
     // 30 requests and 30 D1 writes an hour per open bot page: the owner-approved budget.
     expect(BOT_HEARTBEAT_MS).toBe(2 * 60_000);
     expect(BOT_HEARTBEAT_MS * 2).toBeLessThanOrEqual(BOT_LEASE_TTL_MS);
+  });
+});
+
+describe("the bot page's other cadences", () => {
+  // Both re-run bot.getSession, one Worker request each (plus its D1 reads).
+  it("revalidates the chat token hourly: 24 requests a day per running bot page", () => {
+    expect(REVALIDATE_INTERVAL_MS).toBe(60 * 60_000);
+  });
+
+  it("looks for a bot account every minute: at most 1,440 requests a day per parked page", () => {
+    expect(NOT_CONFIGURED_POLL_MS).toBe(60_000);
+  });
+});
+
+describe("VERSION_CHECK_MS", () => {
+  // One web-Worker request per check (/api/version is no-store), in the owner's visible tab
+  // only. A deploy only needs noticing within minutes, so this never gets faster.
+  it("checks for a new deploy no more than every 5 minutes", () => {
+    expect(VERSION_CHECK_MS).toBeGreaterThanOrEqual(5 * 60_000);
   });
 });

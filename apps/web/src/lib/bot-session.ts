@@ -27,7 +27,7 @@ import type {
   IrcCredentials,
   IrcStatus,
 } from "./irc-client";
-import { BOT_HEARTBEAT_MS } from "./poll-intervals";
+import { BOT_HEARTBEAT_MS, NOT_CONFIGURED_POLL_MS, REVALIDATE_INTERVAL_MS } from "./poll-intervals";
 import { createSerialQueue } from "./serial-queue";
 import { createViewerThrottle } from "./viewer-throttle";
 
@@ -224,10 +224,10 @@ export interface BotSession {
  */
 export const MAX_AUTH_RECOVERY = 5;
 export const AUTH_RECOVERY_DELAY_MS = 2000;
-/** Hourly liveness check — validates the token and reconnects only on rotation. */
-export const REVALIDATE_INTERVAL_MS = 60 * 60 * 1000;
-/** No bot account yet: a slow poll keeps a parked OBS source cheap. */
-export const NOT_CONFIGURED_POLL_MS = 60 * 1000;
+// The hourly token revalidation and the no-bot-account poll are steady Worker-request
+// cadences, so they live in poll-intervals.ts with their daily counts. Re-exported for the
+// tests that drive this state machine.
+export { NOT_CONFIGURED_POLL_MS, REVALIDATE_INTERVAL_MS };
 /** Transient getSession failures back off exponentially up to the cap. */
 export const RETRY_BASE_MS = 5000;
 export const RETRY_MAX_MS = 5 * 60 * 1000;
@@ -239,6 +239,19 @@ export const RETRY_MAX_MS = 5 * 60 * 1000;
  * or !timer skip). 20 still absorbs a busy chat burst at a healthy API.
  */
 export const MAX_PENDING_INGESTS = 20;
+
+/** "minute", "2 minutes", "30 seconds": a cadence in words, for the activity feed. */
+function cadenceInWords(ms: number): string {
+  const seconds = Math.round(ms / 1000);
+  const minutes = seconds / 60;
+  if (Number.isInteger(minutes)) return minutes === 1 ? "minute" : `${minutes} minutes`;
+  return seconds === 1 ? "second" : `${seconds} seconds`;
+}
+
+/** Logged once when no bot account is connected; names the real NOT_CONFIGURED_POLL_MS cadence. */
+export function notConfiguredMessage(pollMs: number = NOT_CONFIGURED_POLL_MS): string {
+  return `no bot account connected — connect one in Dashboard → Bot; checking every ${cadenceInWords(pollMs)}`;
+}
 
 /** Logged when a timeout arrives: timeouts never remove tasks. */
 export function timeoutKeptMessage(login: string): string {
@@ -756,10 +769,7 @@ export function createBotSession({
           notConfigured = true;
           client.disconnect();
           events.onPhase("not-configured");
-          events.onActivity(
-            "info",
-            "no bot account connected — connect one in Dashboard → Bot; checking every minute",
-          );
+          events.onActivity("info", notConfiguredMessage());
         }
         later(() => void bootstrap(opts), NOT_CONFIGURED_POLL_MS);
         return;

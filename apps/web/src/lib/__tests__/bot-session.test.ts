@@ -5,6 +5,7 @@ import { BAN_CLEANUP_DELAY_MS } from "@dirework/api/bot-permissions";
 import { MAX_RELAYED_MESSAGE_LENGTH } from "@dirework/api/chat-text";
 import { BOT_REAUTH_REQUIRED_MESSAGE } from "@dirework/api/config-shared";
 
+import * as pollIntervals from "../poll-intervals";
 import { BOT_HEARTBEAT_MS } from "../poll-intervals";
 import { VIEWER_COMMAND_LIMIT, VIEWER_COMMAND_WINDOW_MS } from "../viewer-throttle";
 
@@ -17,6 +18,7 @@ import {
   MAX_AUTH_RECOVERY,
   MAX_PENDING_INGESTS,
   NOT_CONFIGURED_POLL_MS,
+  notConfiguredMessage,
   RETRY_BASE_MS,
   RETRY_MAX_MS,
   REVALIDATE_INTERVAL_MS,
@@ -137,6 +139,22 @@ describe("retryDelayMs", () => {
   it("jitters within ±20%", () => {
     expect(retryDelayMs(0, () => 0)).toBe(RETRY_BASE_MS * 0.8);
     expect(retryDelayMs(0, () => 1)).toBe(RETRY_BASE_MS * 1.2);
+  });
+});
+
+describe("steady cadences", () => {
+  it("runs on the cadences poll-intervals.ts budgets", () => {
+    expect(NOT_CONFIGURED_POLL_MS).toBe(pollIntervals.NOT_CONFIGURED_POLL_MS);
+    expect(REVALIDATE_INTERVAL_MS).toBe(pollIntervals.REVALIDATE_INTERVAL_MS);
+  });
+
+  it("builds the not-configured notice from NOT_CONFIGURED_POLL_MS", () => {
+    expect(notConfiguredMessage()).toBe(notConfiguredMessage(pollIntervals.NOT_CONFIGURED_POLL_MS));
+    expect(notConfiguredMessage(60_000)).toBe(
+      "no bot account connected — connect one in Dashboard → Bot; checking every minute",
+    );
+    expect(notConfiguredMessage(2 * 60_000)).toMatch(/; checking every 2 minutes$/);
+    expect(notConfiguredMessage(30_000)).toMatch(/; checking every 30 seconds$/);
   });
 });
 
@@ -262,11 +280,11 @@ describe("createBotSession bootstrap", () => {
 
     await vi.advanceTimersByTimeAsync(NOT_CONFIGURED_POLL_MS * 3);
     expect(getSession).toHaveBeenCalledTimes(4);
-    // The "not connected" notice is logged once, not on every poll.
+    // The "not connected" notice is logged once, not on every poll, and names the real cadence.
     const notices = events.onActivity.mock.calls.filter(([, text]) =>
       String(text).startsWith("no bot account connected"),
     );
-    expect(notices).toHaveLength(1);
+    expect(notices).toEqual([["info", notConfiguredMessage()]]);
 
     getSession.mockResolvedValue(SESSION);
     await vi.advanceTimersByTimeAsync(NOT_CONFIGURED_POLL_MS);

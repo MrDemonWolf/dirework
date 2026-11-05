@@ -139,10 +139,16 @@ not queries, so the overlay token stays in the request body and out of URLs and 
 and compute the countdown locally from `targetEndTime`. There is no SSE, no event bus. (The
 countdown is local, so the poll only catches state changes; the interval is kept
 high to stay within the Cloudflare free-tier request budget.) Every cadence lives in
-`apps/web/src/lib/poll-intervals.ts`. Dashboard queries stop when the tab is hidden and
-use `dashboardPollInterval`, which slows to 15s after 2 minutes without input — an
-authenticated dashboard request is billed twice (web worker → `/rpc` proxy → api
-worker), so an untouched dashboard must not out-spend the overlays.
+`apps/web/src/lib/poll-intervals.ts`, each with its request count. Dashboard queries stop
+when the tab is hidden and use `dashboardPollInterval`, which slows to 15s after 2 minutes
+without input — an authenticated dashboard request is billed twice (web worker → `/rpc`
+proxy → api worker), so an untouched dashboard must not out-spend the overlays. The footer's
+new-deploy check (`VersionBadge` → `lib/version-check.ts`, React-free, fake-timer tested)
+runs only in the signed-in owner's tab (the `(app)` layout passes `checkForUpdates` from its
+session; viewers on `/` and `/setup` get a static badge) and only while that tab is visible:
+one no-store `/api/version` request per `VERSION_CHECK_MS` (5 min, ≤12/hour), a return to the
+tab checks only once that much has passed since the last check, and checking stops once the
+tab is stale (the Reload chip shows).
 
 **Twitch bot = browser page.** `/bot/<token>` (token-gated, `instanceConfig.botToken`)
 holds the IRC WebSocket (`wss://irc-ws.chat.twitch.tv`) via `apps/web/src/lib/irc-client.ts`,
@@ -269,8 +275,8 @@ re-sends the line once with an invisible suffix, and chat-mode/ban/timeout NOTIC
 surface as actionable errors. Outbound replies are throttled
 by a rolling token bucket (`apps/web/src/lib/rate-limiter.ts`: 20 msgs/30s + ≥1s gap,
 bounded queue) — never a fixed spacer. The page revalidates the chat token hourly
-(`getSession({ revalidate: true })` → Twitch `/oauth2/validate`) and bounds the
-auth-failure recovery loop. Both tRPC clients time-box every request at 30s
+(`REVALIDATE_INTERVAL_MS`; `getSession({ revalidate: true })` → Twitch `/oauth2/validate`)
+and bounds the auth-failure recovery loop. Both tRPC clients time-box every request at 30s
 (`lib/fetch-timeout.ts`, tRPC's signal combined via `AbortSignal.any` with a fallback),
 so a hung `bot.ingest` rejects and the serial ingest queue moves on. The session state machine lives in `apps/web/src/lib/bot-session.ts`
 (`createBotSession`, React-free so it is tested with fake timers); errors are classified by
@@ -278,8 +284,12 @@ so a hung `bot.ingest` rejects and the serial ingest queue moves on. The session
 PRECONDITION_FAILED carrying `BOT_REAUTH_REQUIRED_MESSAGE` (shared constant in
 `config-shared.ts`, thrown by `twitch-auth.ts`) = the bot's Twitch login can't be refreshed
 (`reauth` screen); NOT_FOUND (no bot account or owner) = a `not-configured` phase that polls
-every 60s; anything else (incl. SERVICE_UNAVAILABLE from a Twitch 429/5xx) is transient and
-backs off exponentially (5s up to 5min, with jitter).
+every 60s (`NOT_CONFIGURED_POLL_MS`; its "checking every minute" line is `notConfiguredMessage`,
+built from it); anything else (incl. SERVICE_UNAVAILABLE from a Twitch 429/5xx) is transient and
+backs off exponentially (5s up to 5min, with jitter). The two steady cadences
+(`REVALIDATE_INTERVAL_MS`, `NOT_CONFIGURED_POLL_MS`) live in `poll-intervals.ts` with their
+request counts; `bot-session.ts` re-exports them for its tests, and keeps the backoff (failure
+retries, not a cadence).
 
 **Command aliases** are stored **canonically without a leading `!`** (`{ t: "task" }`).
 `normalizeAliases` (`config-shared.ts`) / `normalizeAliasToken` + `KNOWN_ALIAS_TARGETS`
@@ -1322,10 +1332,14 @@ the default app to two workers, one D1 database and the existing rate-limit bind
 
 - No new polling, and no faster interval for an existing poll. Every cadence lives in
   `apps/web/src/lib/poll-intervals.ts`; a change there needs a stated request-budget
-  reason. Dashboard queries must keep stopping when the tab is hidden. The one approved
-  bot-page cadence is the lease heartbeat (`BOT_HEARTBEAT_MS`, 2 min): one Worker request
+  reason. Dashboard queries must keep stopping when the tab is hidden. The approved
+  bot-page cadences are the lease heartbeat (`BOT_HEARTBEAT_MS`, 2 min): one Worker request
   and one D1 write per open bot page, 30/hour, ≤720/day for a page open around the clock
-  (standby pages: the request, no write).
+  (standby pages: the request, no write); the chat-token revalidation
+  (`REVALIDATE_INTERVAL_MS`, hourly: 24/day per running page); and the no-bot-account poll
+  (`NOT_CONFIGURED_POLL_MS`, 60s: ≤1,440/day per page parked without a bot account). The
+  footer's version check (`VERSION_CHECK_MS`, 5 min) runs in the signed-in owner's visible
+  tab only: ≤12/hour, nothing from a hidden tab, a stale tab or a viewer.
 - No Workers cron triggers, Durable Objects, Queues, or other paid/metered bindings.
   Prefer doing housekeeping lazily on an existing write path (like
   `purgeExpiredDoneTasks`) or once per deploy (`packages/infra/post-deploy.ts`). A
