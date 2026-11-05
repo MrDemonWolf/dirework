@@ -30,10 +30,8 @@ const callSites = (readdirSync(srcDir, { recursive: true }) as string[])
  */
 const RING_PENDING = new Set([
   "app/(bot)/bot/[token]/dashboard-bot-link.tsx",
-  "components/bot-page-handoff.tsx",
   "components/bot-settings/bot-live-controls.tsx",
   "components/header.tsx",
-  "components/theme-center/style-preview-panel.tsx",
   "components/user-menu.tsx",
   "components/version-badge.tsx",
 ]);
