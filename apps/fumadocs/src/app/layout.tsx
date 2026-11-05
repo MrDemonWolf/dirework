@@ -70,8 +70,8 @@ export const metadata: Metadata = {
     "chat bot",
     "streaming",
   ],
-  authors: [{ name: "MrDemonWolf, Inc." }],
-  creator: "MrDemonWolf, Inc.",
+  authors: [{ name: BRAND.owner.name, url: BRAND.owner.url }],
+  creator: BRAND.owner.name,
   alternates: { canonical: "/" },
   openGraph: {
     url: "/",
@@ -86,7 +86,7 @@ export const metadata: Metadata = {
     title: BRAND.title,
     description: BRAND.description,
   },
-  metadataBase: new URL("https://dirework.mrdemonwolf.dev"),
+  metadataBase: new URL(BRAND.links.docs),
 };
 
 export default function Layout({ children }: LayoutProps<"/">) {
@@ -116,15 +116,15 @@ export default function Layout({ children }: LayoutProps<"/">) {
             description: BRAND.description,
             applicationCategory: "MultimediaApplication",
             operatingSystem: "Web (Cloudflare Workers)",
-            url: "https://dirework.mrdemonwolf.dev",
+            url: BRAND.links.docs,
             isAccessibleForFree: true,
             offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
             author: {
               "@type": "Organization",
-              name: "MrDemonWolf, Inc.",
-              url: "https://www.mrdemonwolf.com",
+              name: BRAND.owner.name,
+              url: BRAND.owner.url,
             },
-            codeRepository: "https://github.com/mrdemonwolf/dirework",
+            codeRepository: BRAND.links.repo,
           })}
         </Script>
       </body>

@@ -6,6 +6,7 @@ import type { Metadata, Viewport } from "next";
 import { BRAND } from "@dirework/overlay-kit";
 
 import "../index.css";
+import { webOrigin } from "@/lib/api-origin";
 import { plexMono, plexSans } from "@/lib/fonts";
 import { OG_IMAGE } from "@/lib/og-image";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-init";
@@ -34,13 +35,10 @@ export const viewport: Viewport = {
 // the Theme Center page, the two surfaces that render overlay content.
 
 export function generateMetadata(): Metadata {
-  // BETTER_AUTH_URL (the web origin, bound on the worker in prod and dev) is
-  // the canonical base — deterministic and request-independent so pages can
-  // render statically. Localhost fallback only covers bare local tooling.
-  const base = process.env.BETTER_AUTH_URL || "http://localhost:3001";
-
+  // The web origin (BETTER_AUTH_URL, via webOrigin) is the canonical base — deterministic
+  // and request-independent so pages can render statically.
   return {
-    metadataBase: new URL(base),
+    metadataBase: new URL(webOrigin()),
     icons: {
       icon: { url: "/icons/icon.svg", type: "image/svg+xml", sizes: "any" },
       apple: { url: "/icons/apple-icon.png", sizes: "180x180" },
@@ -61,8 +59,8 @@ export function generateMetadata(): Metadata {
       "OBS",
       "focus timer",
     ],
-    authors: [{ name: "MrDemonWolf, Inc.", url: "https://www.mrdemonwolf.com" }],
-    creator: "MrDemonWolf, Inc.",
+    authors: [{ name: BRAND.owner.name, url: BRAND.owner.url }],
+    creator: BRAND.owner.name,
     openGraph: {
       title: "DireWork",
       description: BRAND.description,

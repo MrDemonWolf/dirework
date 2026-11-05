@@ -2,8 +2,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { BRAND } from "../../overlay-kit/src/index";
 import {
   assertProductionEnvironment,
+  DEFAULT_DOCS_URL,
   getDevLoginSettings,
   LOCAL_DEV_ALCHEMY_PASSWORD,
   rateLimitBindingsFor,
@@ -261,5 +263,15 @@ describe("resolveProxySecret", () => {
 
   it("refuses to invent one for a production deploy", () => {
     expect(() => resolveProxySecret({}, false)).toThrow("PROXY_SECRET is required");
+  });
+});
+
+describe("DEFAULT_DOCS_URL", () => {
+  it("is BRAND's docs origin, and both workers fall back to it", () => {
+    expect(DEFAULT_DOCS_URL).toBe(BRAND.links.docs);
+    const program = readFileSync(resolve(import.meta.dirname, "../alchemy.run.ts"), "utf8");
+    expect(program.match(/DOCS_URL: process\.env\.DOCS_URL \|\| DEFAULT_DOCS_URL,/g)).toHaveLength(
+      2,
+    );
   });
 });

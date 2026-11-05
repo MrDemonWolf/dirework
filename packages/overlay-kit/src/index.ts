@@ -172,6 +172,20 @@ export const BRAND = {
   /** The sentence under the tagline: hero subheadline, meta description, cards. */
   description:
     "Run Pomodoro sessions, show shared tasks, and let viewers join from chat. One DireWork per channel, on your own Cloudflare account.",
+  /**
+   * The project's own URLs, read by both footers, both root layouts (metadata and JSON-LD),
+   * the docs nav, robots and sitemap, the web landing links and VersionBadge, and the infra
+   * program's DOCS_URL default. No trailing slashes, so `${links.repo}/issues` joins cleanly.
+   */
+  links: {
+    repo: "https://github.com/mrdemonwolf/dirework",
+    /** The public docs site: the default DOCS_URL, and the docs app's own origin. */
+    docs: "https://dirework.mrdemonwolf.dev",
+    /** MrDemonWolf's Discord, the README's Contact channel. */
+    support: "https://mrdwolf.net/discord",
+  },
+  /** Who publishes DireWork: the footers' second link, metadata authors, JSON-LD author. */
+  owner: { name: "MrDemonWolf, Inc.", url: "https://www.mrdemonwolf.com" },
 } as const;
 
 /**

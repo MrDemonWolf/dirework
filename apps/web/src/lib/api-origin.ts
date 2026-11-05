@@ -13,3 +13,14 @@
 export function apiOrigin(): string {
   return (process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000").replace(/\/+$/, "");
 }
+
+/**
+ * The web worker's own origin, from BETTER_AUTH_URL (bound on the worker in prod and dev):
+ * the canonical base for metadata, robots.txt and the sitemap. Server-only (the variable is
+ * not NEXT_PUBLIC_). Same rules as `apiOrigin`: `||` so an empty value falls back too (with
+ * `??`, robots.txt named a relative sitemap), localhost for bare local tooling, and no
+ * trailing slash.
+ */
+export function webOrigin(): string {
+  return (process.env.BETTER_AUTH_URL || "http://localhost:3001").replace(/\/+$/, "");
+}

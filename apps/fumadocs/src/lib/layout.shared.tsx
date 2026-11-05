@@ -3,7 +3,7 @@
 
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 
-import { BRAND_MARK } from "@dirework/overlay-kit";
+import { BRAND, BRAND_MARK } from "@dirework/overlay-kit";
 
 /**
  * Inline brand mark — the DireWork wolf-and-clock (`BRAND_MARK` from @dirework/overlay-kit,
@@ -63,7 +63,7 @@ export function baseOptions(): BaseLayoutProps {
       url: "/",
       transparentMode: "top",
     },
-    githubUrl: "https://github.com/mrdemonwolf/dirework",
+    githubUrl: BRAND.links.repo,
     links: [
       // Landing-section anchors (ids in app/(home)/page.tsx), in page order. On the
       // home page these scroll; from any other page they navigate home and then jump
@@ -73,7 +73,7 @@ export function baseOptions(): BaseLayoutProps {
       { text: "Chat", url: "/#chat" },
       { text: "Setup", url: "/#setup" },
       { text: "Docs", url: "/docs" },
-      { text: "Support", url: "https://mrdwolf.net/discord" },
+      { text: "Support", url: BRAND.links.support },
     ],
     themeSwitch: {
       enabled: true,

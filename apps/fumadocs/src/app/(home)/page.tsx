@@ -30,7 +30,7 @@ import { ChatCommandWidget } from "./_widgets/ChatCommandWidget";
 import { OverlayThemePreview } from "./_widgets/OverlayThemePreview";
 import "./marketing.css";
 
-const GITHUB = "https://github.com/mrdemonwolf/dirework";
+const GITHUB = BRAND.links.repo;
 
 /**
  * Home-page metadata; overrides the root layout's default description. The title is
@@ -391,7 +391,7 @@ export default function HomePage() {
           <p>
             Need a hand?{" "}
             <a
-              href="https://mrdwolf.net/discord"
+              href={BRAND.links.support}
               target="_blank"
               rel="noopener noreferrer"
               className="marketing-inline-link"
