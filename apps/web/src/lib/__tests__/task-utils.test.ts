@@ -7,6 +7,7 @@ import {
   groupTasksByAuthor,
   isAtStartCap,
   MAX_IN_PROGRESS,
+  neighborRowId,
   ownerInProgress,
   START_CAP_REASON,
   taskRowActions,
@@ -384,5 +385,21 @@ describe("taskRowActions", () => {
   it("offers nothing on a done or unknown task", () => {
     expect(actions("done")).toEqual([]);
     expect(actions("archived")).toEqual([]);
+  });
+});
+
+describe("neighborRowId (focus after a removal)", () => {
+  const ids = ["a", "b", "c"];
+
+  it("takes the next row, else the previous one", () => {
+    expect(neighborRowId(ids, "a")).toBe("b");
+    expect(neighborRowId(ids, "b")).toBe("c");
+    expect(neighborRowId(ids, "c")).toBe("b");
+  });
+
+  it("is null for the only row and for a row that isn't rendered", () => {
+    expect(neighborRowId(["a"], "a")).toBeNull();
+    expect(neighborRowId(ids, "gone")).toBeNull();
+    expect(neighborRowId([], "a")).toBeNull();
   });
 });
