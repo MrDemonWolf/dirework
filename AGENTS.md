@@ -956,6 +956,9 @@ cancels any `timer.get` still in flight, then writes that answer into the cache,
 re-read; a null answer (nothing changed, so the console was stale) re-reads once. `onSuccess`
 returns that promise, so the button stays pending until the console shows the new phase.
 The task board (`task-manager.tsx`) takes the full width.
+Its add form is `AddTaskForm`, which owns the draft and `task.create`, so a keystroke renders
+only the form, never the rows; its one prop is the board's input ref, which the empty state's
+"Add a task" and the focus restore use (`task-board-structure.test.ts`).
 The setup checklist's URL handoffs stay separate (Show/Copy only). Rows are `min-h-11`: checkbox, then
 the task text (full wrap, no clamp, `wrap-anywhere`, `dir="auto"`) and a meta line
 (`data-slot="task-row-meta"`: status chip slot + `TaskRowControls`)

@@ -20,8 +20,10 @@ chrome.
   console): the "Tasks" `h2`, then "N open" / "N done" (mono semibold numbers, muted words)
   from the server `counts`, and a ghost icon button that opens the board options `DropdownMenu`: destructive "Clear done (N)" and "Clear all (N)" items, each
   opening its `ConfirmDialog`.
-- Add form: `Input` (placeholder "Add a task...", `maxLength` `MAX_TASK_LEN`) and an "Add"
-  submit `Button`.
+- Add form (`AddTaskForm`): `Input` (placeholder "Add a task...", `maxLength` `MAX_TASK_LEN`)
+  and an "Add" submit `Button`. It owns the draft text and the `task.create` mutation, so a
+  keystroke renders only the form, never the rows; its one prop is the board's input ref
+  (`inputRef`), which the empty state and the focus restore use.
 - List (`max-h-100`, scrolls): one `rounded-xl` `Collapsible` per author. Its header is the
   trigger (`min-h-11`): a chevron, a dot (primary for the host, else the Twitch color or
   cornflower), the name, a "Host" accent chip for the owner, and a `done/total` console label.
@@ -96,6 +98,8 @@ chrome.
 - **Do** use `counts` for every done/total readout; the list holds only the newest done rows.
 - **Do** keep bulk clears in the options menu behind their confirms, and single removes on Undo.
 - **Don't** persist folded groups (no `localStorage`); `dashboard-layout.test.ts` pins it.
+- **Don't** lift the add field's draft or `task.create` back into the board: every keystroke
+  would re-render every row with its tooltips and menu; `task-board-structure.test.ts` pins it.
 - **Don't** color a whole row or add an edge bar for the author's Twitch color; it tints only
   the dot.
 - **Don't** add a faster poll here; the cadence lives in `poll-intervals.ts`.

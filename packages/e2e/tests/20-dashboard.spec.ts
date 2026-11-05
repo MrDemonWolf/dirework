@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 import {
   confirmDialog,
@@ -18,6 +18,19 @@ test.describe.configure({ mode: "serial" });
 const OVERLAY_POLL_MS = 5_000;
 /** Any timer digits; while idle the overlay previews the full work length (25:00). */
 const CLOCK_DIGITS = /^\d{2}:\d{2}$/;
+
+/** Empties the board through its options menu (nothing to clear on an empty board). */
+async function clearBoard(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Task board options" }).click();
+  const clearAll = page.getByRole("menuitem", { name: /^Clear all/ });
+  if (await clearAll.isEnabled()) {
+    await clearAll.click();
+    await confirmDialog(page, "Clear all tasks");
+  } else {
+    await page.keyboard.press("Escape");
+  }
+  await expect(page.getByText("What are you working on today?")).toBeVisible();
+}
 
 test.beforeEach(async ({ page }) => {
   await signIn(page);
@@ -85,19 +98,35 @@ test("shows the owner's active task beside the timer as Now, from the polled lis
   await expect(page.getByTitle(text)).toHaveCount(0);
 });
 
+test("the empty board's Add a task focuses the field, and removing the last task returns focus there", async ({
+  page,
+}) => {
+  // AddTaskForm owns the field; the board keeps its ref for exactly these two focus moves.
+  await clearBoard(page);
+  const field = page.getByRole("textbox", { name: "New task text" });
+  await page.getByRole("button", { name: "Add a task", exact: true }).click();
+  await expect(field).toBeFocused();
+
+  // Submitted from the keyboard; the form empties once the task lands.
+  const text = `Last one ${Date.now()}`;
+  await field.fill(text);
+  await field.press("Enter");
+  await expect(taskRow(page, text)).toBeVisible();
+  await expect(field).toHaveValue("");
+
+  // Removing the only row from the keyboard unmounts the focused button. With no neighbor
+  // row left, focus falls back to the add field.
+  await page.getByRole("button", { name: `Remove "${text}"` }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("What are you working on today?")).toBeVisible();
+  await expect(field).toBeFocused();
+});
+
 test("Start parks a task as Started, Make focus swaps, Pause returns it, the cap disables Start", async ({
   page,
 }) => {
   // A clean board, so the owner's focus and started counts are known (and a retry starts over).
-  await page.getByRole("button", { name: "Task board options" }).click();
-  const clearAll = page.getByRole("menuitem", { name: /^Clear all/ });
-  if (await clearAll.isEnabled()) {
-    await clearAll.click();
-    await confirmDialog(page, "Clear all tasks");
-  } else {
-    await page.keyboard.press("Escape");
-  }
-  await expect(page.getByText("What are you working on today?")).toBeVisible();
+  await clearBoard(page);
 
   const stamp = Date.now();
   const a = `Juggle A ${stamp}`;
