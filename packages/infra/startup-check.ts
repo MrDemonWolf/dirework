@@ -39,7 +39,8 @@ export const STARTUP_LIMIT_MS = 1000;
  * Cloudflare's, and a busy machine reads slow (time the thread spends preempted
  * still counts as active): the margin keeps that noise from failing a run, while
  * a real regression still trips it with room to react. Measured in 2026-11 on a
- * heavily loaded laptop: api 86–195 ms, web 33–51 ms.
+ * heavily loaded laptop: api 86–366 ms, web 24–208 ms, the high ends while
+ * another build ran beside it.
  */
 export const STARTUP_FAIL_MS = 500;
 

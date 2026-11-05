@@ -1261,7 +1261,7 @@ components (`apps/web/src/components/icons/`, `apps/fumadocs/src/components/icon
   migrations applied), and against `WORKER_BUDGET_KIB` (2560 KiB gzip), our own growth
   ratchet and cold-start proxy, not a platform limit: api = the dry-run
   `apps/server/dist/index.js`, web = `wrangler deploy --dry-run` over the OpenNext output
-  with the smoke config plus Alchemy's `minify: true`. Then `packages/infra/startup-check.ts`
+  with the smoke config plus Alchemy's `minify: true`. After the client JS budget (below), `packages/infra/startup-check.ts`
   bundles both the same way and profiles each with `wrangler check startup` (local workerd,
   no secrets): Cloudflare refuses a Worker whose global scope takes over 1 s of CPU to start
   (error 10021). It writes the times to the job summary and fails only above
