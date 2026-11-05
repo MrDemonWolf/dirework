@@ -212,19 +212,25 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
     };
   }, [token, generation]);
 
-  // One dock click = one bot.ingest request, never retried and never stacked.
-  const runDockCommand = async (id: DockCommandId) => {
+  // One dock click = one bot.ingest request, never retried and never stacked. A promise
+  // chain, not try/finally: React Compiler 1.0.0 can't lower a `try` without a `catch` (or
+  // with a `finally`), and either one ships the whole component uncompiled
+  // (react-compiler.test.ts). runCommand resolves `{ ok: false }` rather than throwing; the
+  // finally still frees the busy guard if it ever rejects.
+  const runDockCommand = (id: DockCommandId) => {
     const session = sessionRef.current;
     if (!session || commandBusyRef.current) return;
     commandBusyRef.current = true;
     setPendingCommand(id);
-    try {
-      const result = await session.runCommand(DOCK_COMMANDS[id].line);
-      setCommandResult({ time: timeStamp(), text: dockResultText(result), ok: result.ok });
-    } finally {
-      commandBusyRef.current = false;
-      setPendingCommand(null);
-    }
+    void session
+      .runCommand(DOCK_COMMANDS[id].line)
+      .then((result) =>
+        setCommandResult({ time: timeStamp(), text: dockResultText(result), ok: result.ok }),
+      )
+      .finally(() => {
+        commandBusyRef.current = false;
+        setPendingCommand(null);
+      });
   };
 
   // Standby: another bot page holds the chat, so this one is off IRC on purpose.
@@ -326,7 +332,7 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
       })}
       // One getSession + one forced heartbeat; the dock shows "Starting" until it lands.
       onTakeOver={() => sessionRef.current?.takeOver()}
-      onCommand={(id) => void runDockCommand(id)}
+      onCommand={runDockCommand}
       pending={pendingCommand}
       result={commandResult}
     />

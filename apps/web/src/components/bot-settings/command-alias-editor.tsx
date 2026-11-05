@@ -23,6 +23,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 /**
+ * An `aria-describedby` value from the ids that apply, or undefined when none does. Module
+ * scope on purpose: declared inside the rows.map, its rest parameter trips a React Compiler
+ * 1.0.0 invariant that ships the whole editor uncompiled (react-compiler.test.ts).
+ */
+function describedBy(...ids: (string | false)[]): string | undefined {
+  return ids.filter(Boolean).join(" ") || undefined;
+}
+
+/**
  * Controlled editor for the command-alias rows. Validates on every render with the same shared
  * validator the server runs and flags each rejected row inline, against the field at fault —
  * both fields, each with its own message, when the alias and the command are both wrong.
@@ -87,8 +96,6 @@ export function CommandAliasEditor({
           const cmdBudget = aliasBudget(row.value);
           const keyCountId = `${row.id}-key-count`;
           const cmdCountId = `${row.id}-cmd-count`;
-          const describedBy = (...ids: (string | false)[]) =>
-            ids.filter(Boolean).join(" ") || undefined;
           return (
             <div key={row.id} className="space-y-1">
               <div className="flex items-end gap-2">
