@@ -1,4 +1,6 @@
-// next/og (used by src/app/opengraph-image.tsx) imports its .wasm deps under
+// No route imports next/og since the share card became a static file
+// (scripts/render-og.ts), so this finds nothing; removed in a follow-up.
+// next/og (used by the old src/app/opengraph-image.tsx) imports its .wasm deps under
 // two specifiers for the same file — "foo.wasm" and "foo.wasm?module".
 // Alchemy's own esbuild bundling step dedupes wasm modules by that raw
 // specifier string, so it ends up uploading the same wasm twice under one

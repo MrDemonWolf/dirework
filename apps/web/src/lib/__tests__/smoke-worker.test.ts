@@ -8,6 +8,7 @@ import {
   WEB_COMPATIBILITY_FLAGS,
   buildSmokeConfig,
   checkManifestResponse,
+  checkOgImageResponse,
   readCompatibilityDate,
 } from "../../../scripts/smoke-worker.mjs";
 
@@ -60,6 +61,23 @@ describe("web worker smoke check", () => {
     expect(
       await checkManifestResponse(manifest("application/manifest+json", { display: "browser" })),
     ).toHaveLength(1);
+  });
+
+  it("checks the share card is a PNG served as a static asset, not by a Next route", async () => {
+    expect(SMOKE_ROUTES).toContain("/og.png");
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
+    const card = (body: BodyInit, headers: Record<string, string>) =>
+      new Response(body, { headers });
+    expect(await checkOgImageResponse(card(png, { "content-type": "image/png" }))).toEqual([]);
+    expect(await checkOgImageResponse(card("<html>", { "content-type": "text/html" }))).toEqual([
+      'og.png content-type is "text/html"',
+      "og.png is not a PNG",
+    ]);
+    expect(
+      await checkOgImageResponse(
+        card(png, { "content-type": "image/png", "x-nextjs-cache": "HIT" }),
+      ),
+    ).toEqual(["og.png was served by a Next route"]);
   });
 
   it("only checks routes that render without the api worker", () => {

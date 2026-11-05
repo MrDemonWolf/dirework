@@ -5,7 +5,7 @@ import { SHARE_CARD_ALT, SHARE_CARD_SIZE, ShareCard } from "@dirework/overlay-ki
 // Branded default OG / Twitter card for the site home page and any page without its
 // own image (Next emits it as both og:image and twitter:image). Per-doc pages override
 // this via generateMetadata (og/docs route). The card itself is
-// `@dirework/overlay-kit/share-card`, which the web app's opengraph-image renders too.
+// `@dirework/overlay-kit/share-card`, which the web app renders to a static /og.png too.
 export const alt = SHARE_CARD_ALT;
 export const size = SHARE_CARD_SIZE;
 export const contentType = "image/png";

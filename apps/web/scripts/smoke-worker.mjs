@@ -21,6 +21,7 @@ export const SMOKE_ROUTES = [
   "/overlay/l/smoke",
   "/bot/smoke",
   "/manifest.webmanifest",
+  "/og.png",
 ];
 
 /**
@@ -38,6 +39,24 @@ export async function checkManifestResponse(res) {
   } catch {
     failures.push("manifest body is not JSON");
   }
+  return failures;
+}
+
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+/**
+ * Extra checks for the social share card (public/og.png, rendered by scripts/render-og.ts
+ * before the build): a PNG, served by Workers Static Assets rather than a Next route (a route
+ * answer carries `x-nextjs-cache`), so the og:image the metadata points at really exists.
+ * Returns the failure messages (empty when it passes).
+ */
+export async function checkOgImageResponse(res) {
+  const failures = [];
+  const type = res.headers.get("content-type") ?? "";
+  if (!type.startsWith("image/png")) failures.push(`og.png content-type is "${type}"`);
+  if (res.headers.has("x-nextjs-cache")) failures.push("og.png was served by a Next route");
+  const head = new Uint8Array(await res.arrayBuffer()).subarray(0, PNG_SIGNATURE.length);
+  if (!PNG_SIGNATURE.every((byte, i) => head[i] === byte)) failures.push("og.png is not a PNG");
   return failures;
 }
 
@@ -69,7 +88,9 @@ export function buildSmokeConfig({ webDir, compatibilityDate }) {
     compatibility_flags: WEB_COMPATIBILITY_FLAGS,
     assets: { directory: path.join(webDir, ".open-next/assets"), binding: "ASSETS" },
     // next/og's compiled default font (Geist-Regular.ttf.bin); Alchemy's bundle
-    // config adds the same ".bin" binary loader.
+    // config adds the same ".bin" binary loader. No route imports next/og since the
+    // share card became a static file (scripts/render-og.ts); kept until the og-only
+    // workarounds are removed together.
     rules: [{ type: "Data", globs: ["**/*.bin"], fallthrough: true }],
     // wrangler's esbuild pass keeps function names by default, wrapping them in a
     // `__name(fn, "fn")` helper. next-themes ships its anti-flash script as
@@ -143,6 +164,7 @@ async function main() {
       if (res.status !== 200) failures.push(`${route} answered ${res.status}`);
       else if (route === "/manifest.webmanifest")
         failures.push(...(await checkManifestResponse(res)));
+      else if (route === "/og.png") failures.push(...(await checkOgImageResponse(res)));
     }
   } catch (error) {
     failures.push(error instanceof Error ? error.message : String(error));

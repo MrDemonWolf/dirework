@@ -6,21 +6,9 @@ import { SCHEME_HEX } from "@/tokens.generated";
 
 import manifest from "../manifest";
 
+import { pngHasNoAlpha, pngSize } from "./png";
+
 const webDir = path.resolve(__dirname, "../../..");
-
-/** Width and height from a PNG's IHDR chunk (bytes 16-23, big-endian). */
-function pngSize(file: string): { width: number; height: number } {
-  const buf = readFileSync(file);
-  expect(buf.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-  expect(buf.toString("ascii", 12, 16)).toBe("IHDR");
-  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
-}
-
-/** PNG colour type 2 (RGB) or 0 (grey) has no alpha channel: an opaque image. */
-function pngHasNoAlpha(file: string): boolean {
-  const colorType = readFileSync(file)[25];
-  return colorType === 0 || colorType === 2;
-}
 
 describe("web app manifest", () => {
   const m = manifest();

@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "next build",
-    "build:worker": "opennextjs-cloudflare build --skipWranglerConfigCheck && node scripts/fix-duplicate-wasm-specifiers.mjs && opennextjs-cloudflare populateCache local",
+    "build": "bun run render-og && next build",
+    "build:worker": "bun run render-og && opennextjs-cloudflare build --skipWranglerConfigCheck && node scripts/fix-duplicate-wasm-specifiers.mjs && opennextjs-cloudflare populateCache local",
     "start": "next start",
     "dev:bare": "next dev --port 3001 --hostname 127.0.0.1",
     "test": "vitest run",
@@ -13,6 +13,7 @@
     "clean": "rm -rf .next .open-next .turbo",
     "smoke:worker": "node scripts/smoke-worker.mjs",
     "fetch-fonts": "bun scripts/fetch-fonts.ts",
+    "render-og": "bun scripts/render-og.ts",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {

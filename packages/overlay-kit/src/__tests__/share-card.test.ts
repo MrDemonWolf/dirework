@@ -107,17 +107,26 @@ describe("@dirework/overlay-kit entry points", () => {
   });
 });
 
-describe("the apps' opengraph-image routes", () => {
-  it.each(["apps/web/src/app/opengraph-image.tsx", "apps/fumadocs/src/app/opengraph-image.tsx"])(
-    "%s renders this card, not a copy of it",
-    (file) => {
-      const source = read(file);
-      expect(source).toContain('from "@dirework/overlay-kit/share-card"');
-      expect(source).toContain("export const alt = SHARE_CARD_ALT;");
-      expect(source).toContain("export const size = SHARE_CARD_SIZE;");
-      expect(source).toContain("<ShareCard />");
-      // Markup of its own would be a second card to keep in step with this one.
-      expect(source).not.toMatch(/<(div|svg)\b/);
-    },
-  );
+describe("the apps' renderers", () => {
+  it("the docs opengraph-image route renders this card, not a copy of it", () => {
+    const source = read("apps/fumadocs/src/app/opengraph-image.tsx");
+    expect(source).toContain('from "@dirework/overlay-kit/share-card"');
+    expect(source).toContain("export const alt = SHARE_CARD_ALT;");
+    expect(source).toContain("export const size = SHARE_CARD_SIZE;");
+    expect(source).toContain("<ShareCard />");
+    // Markup of its own would be a second card to keep in step with this one.
+    expect(source).not.toMatch(/<(div|svg)\b/);
+  });
+
+  it("the web app's build-time render (public/og.png) renders this card, not a copy of it", () => {
+    const source = read("apps/web/scripts/render-og.ts");
+    expect(source).toContain('from "@dirework/overlay-kit/share-card"');
+    expect(source).toContain("createElement(ShareCard)");
+    expect(source).toContain("SHARE_CARD_SIZE");
+    expect(source).not.toMatch(/createElement\(["'](div|svg)["']/);
+    // The metadata's alt and size come from here too (apps/web/src/lib/og-image.ts).
+    const metadata = read("apps/web/src/lib/og-image.ts");
+    expect(metadata).toContain("alt: SHARE_CARD_ALT");
+    expect(metadata).toContain("width: SHARE_CARD_SIZE.width");
+  });
 });

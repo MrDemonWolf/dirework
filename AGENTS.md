@@ -1083,10 +1083,15 @@ existing home and reuse it:
   also holds `BRAND` (the one tagline/description for metadata, docs hero, share cards) and
   `DEMO_SESSION` (the example session every mock and card renders; its bot replies are held
   to the real defaults by `apps/web/src/lib/__tests__/demo-session.test.ts`). The share card
-  is `ShareCard` from `@dirework/overlay-kit/share-card`: both apps' `opengraph-image.tsx`
-  are `new ImageResponse(<ShareCard />, size)` plus their metadata exports, never a copy
-  (`share-card.test.ts` pins both routes and keeps the `.` entry import-free, so it stays
-  dependency-free).
+  is `ShareCard` from `@dirework/overlay-kit/share-card`, never a copy (`share-card.test.ts`
+  pins both renderers and keeps the `.` entry import-free, so it stays dependency-free). The
+  web app has NO `opengraph-image` route: `apps/web/scripts/render-og.ts` renders the card
+  with `next/og` into the gitignored `public/og.png` at the start of `build` and
+  `build:worker`, Workers Static Assets serve it (`_headers`: 1 day + SWR; `smoke:worker`
+  checks it), and the root metadata's `openGraph.images` / `twitter.images` point at it
+  (`lib/og-image.ts`). Nothing under `apps/web/src` may import `next/og`
+  (`og-image.test.ts`): its resvg/yoga wasm and font cost the Worker ~760 KiB gzip. The docs
+  site (a static export, no Worker) keeps its `opengraph-image.tsx`.
 - **Constants** — timer/config defaults come from `@dirework/db/defaults` (re-exported via
   `@dirework/api/config-shared`); never re-type `25*60*1000` etc. The M1/M3/M4 "don't
   duplicate" rules apply to the web component layer too, not only services/config.
@@ -1431,7 +1436,7 @@ Pinned in `packages/infra` (change deliberately, never via a dependency bump):
   console JSON still flows). Automatic traces are disabled on both workers because root
   spans retain full URLs, including bot/overlay bearer tokens and OAuth callback codes.
 - **Caching** — OpenNext uses the read-only static-assets incremental cache (prerendered
-  routes such as `/opengraph-image` render once at build); `apps/web/public/_headers`
+  routes such as `/robots.txt` render once at build); `apps/web/public/_headers`
   marks hashed `/_next/static/*` immutable.
 
 ## Git Workflow
