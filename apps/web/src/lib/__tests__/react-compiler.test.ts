@@ -26,14 +26,9 @@ import { describe, expect, it } from "vitest";
  * turned on: the Rust port, not this plugin, would then be what ships.
  */
 
-const ALLOWED: Record<string, readonly string[]> = {
-  // runDockCommand's `try` has no `catch`, which compiler 1.0.0 cannot lower. A promise chain
-  // can (never try/catch/finally there).
-  "app/(bot)/bot/[token]/bot-console.tsx": ["BotConsole"],
-  // An Invariant from the rest-parameter `describedBy` arrow declared inside rows.map; at
-  // module scope it compiles.
-  "components/bot-settings/command-alias-editor.tsx": ["CommandAliasEditor"],
-};
+// Empty: every client function compiles. An entry needs the compiler's reason beside it, and
+// the next PR that rewrites the code removes it.
+const ALLOWED: Record<string, readonly string[]> = {};
 
 /** next.config.ts's `reactCompiler` value; the first test holds the two together. */
 const REACT_COMPILER_CONFIG = true;

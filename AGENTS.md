@@ -1359,7 +1359,10 @@ that plugin with the options Next builds for a production client bundle
 dependency), over every `apps/web/src` module; its memo slot counts match the Turbopack
 chunks. It fails on a CompileError, CompileSkip or PipelineError outside the exact `ALLOWED`
 map (file → function), on any `'use no memo'` (a module-level one logs success yet ships
-uncompiled), and when an allowed function compiles again, so the list only shrinks. The
+uncompiled), and when an allowed function compiles again, so the list only shrinks; it is
+empty (every client function compiles). Two shapes compiler 1.0.0 can't lower: a `try` without
+a `catch` or with a `finally` (use a promise chain, as BotConsole's `runDockCommand` does), and
+a rest-parameter arrow declared inside a render-time `.map` (hoist it to module scope). The
 compiler is pinned exactly in apps/web (react.dev's advice without strong test coverage), so a
 bump is its own PR that this re-checks. Revisit it if `experimental.turbopackRustReactCompiler`
 is ever turned on.
