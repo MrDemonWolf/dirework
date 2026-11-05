@@ -44,8 +44,8 @@ describe("bundleSizes", () => {
 
 describe("sizeFailures", () => {
   const today = {
-    api: { rawKib: 3071.54, gzipKib: 548.13 },
-    web: { rawKib: 6623.49, gzipKib: 2116.84 },
+    api: { rawKib: 3074.46, gzipKib: 548.36 },
+    web: { rawKib: 4846.29, gzipKib: 1457.25 },
   };
 
   it("passes workers inside Cloudflare's limit and the budget", () => {
@@ -53,7 +53,7 @@ describe("sizeFailures", () => {
   });
 
   it("flags a raw size over Cloudflare's 64 MiB limit, even when its gzip size fits the budget", () => {
-    const failures = sizeFailures({ ...today, web: { rawKib: 65536.01, gzipKib: 2116.84 } });
+    const failures = sizeFailures({ ...today, web: { rawKib: 65536.01, gzipKib: 1457.25 } });
     expect(failures).toHaveLength(1);
     expect(failures[0]).toMatch(/^web: 65536\.01 KiB uncompressed is over Cloudflare's 65536 KiB/);
   });
@@ -83,6 +83,12 @@ describe("sizeFailures", () => {
 });
 
 describe("WORKER_BUDGET_KIB", () => {
+  it("is low enough that next/og's renderer could not come back unnoticed", () => {
+    // Web measured 1457 KiB gzip once next/og left the Worker (2026-11); its renderer
+    // (resvg + yoga wasm, a font, Satori) is about 760 KiB gzip on its own.
+    expect(WORKER_BUDGET_KIB).toBeLessThan(1457 + 760);
+  });
+
   // The docs restate the gate. They must name the same ratchet, and Cloudflare's real
   // limit rather than the 3 MiB compressed cap it removed on 2026-09-04.
   it.each([

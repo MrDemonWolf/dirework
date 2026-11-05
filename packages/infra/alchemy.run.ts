@@ -187,16 +187,6 @@ export const web = await Nextjs("web", {
   cwd: "../../apps/web",
   compatibilityDate: COMPATIBILITY_DATE,
   observability,
-  // OpenNext's build used to inline next/og (for the old opengraph-image.tsx
-  // route; the share card is now a static file, apps/web/scripts/render-og.ts), which
-  // imports its .wasm deps under two different specifiers ("foo.wasm" and
-  // "foo.wasm?module") for the same file. Alchemy's own esbuild pass dedupes
-  // wasm modules by that raw specifier string, so it uploads the same wasm
-  // twice under one name — Cloudflare then rejects the worker upload with a
-  // vague "Uncaught Error: internal error" (10021). Normalize the specifiers
-  // to one form right after OpenNext's build so Alchemy's dedup collapses
-  // them naturally, then let Alchemy bundle as usual. A no-op now; removed with
-  // the ".bin" loader below in a follow-up.
   // The /rpc, /api/auth and /api/bot proxy handlers bake
   // NEXT_PUBLIC_SERVER_URL at BUILD time; the runtime binding below is too
   // late. The deploy job env var can be empty (unset GH repo var), so inject
@@ -204,23 +194,14 @@ export const web = await Nextjs("web", {
   // NEXT_PUBLIC_DEV_LOGIN bakes at build (client component reads it inlined) —
   // defaults "" so the dev-bypass button stays hidden in prod builds. Local dev
   // reads it from apps/web/.env instead.
-  // `build:worker` (apps/web/package.json) is the OpenNext build + wasm fix +
-  // static-assets cache population; verify.yml runs the same script, so the
-  // deploy-only pipeline is exercised before any migration is applied.
+  // `build:worker` (apps/web/package.json) renders the share card, writes
+  // version.json, runs the OpenNext build and populates the static-assets cache;
+  // verify.yml runs the same script, so the deploy-only pipeline is exercised
+  // before any migration is applied. Alchemy's default esbuild loaders suffice:
+  // with next/og out of the Worker there is no wasm or .bin module to handle.
   build: `NEXT_PUBLIC_SERVER_URL=${server.url} NEXT_PUBLIC_DEV_LOGIN=${devLogin.client} bun run build:worker`,
   bundle: {
     minify: true,
-    // Alchemy's own esbuild pass over the OpenNext output has no loader for
-    // next/og's compiled default font (Geist-Regular.ttf.bin, pulled in by the
-    // old opengraph-image.tsx route; nothing imports next/og now) — add it,
-    // keeping Alchemy's required defaults for the rest.
-    loader: {
-      ".js": "jsx",
-      ".mjs": "jsx",
-      ".cjs": "jsx",
-      ".sql": "text",
-      ".bin": "binary",
-    },
   },
   bindings: {
     NEXT_PUBLIC_SERVER_URL: server.url!,

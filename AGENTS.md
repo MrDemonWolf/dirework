@@ -1250,7 +1250,10 @@ existing home and reuse it:
   `build:worker`, Workers Static Assets serve it (`_headers`: 1 day + SWR; `smoke:worker`
   checks it), and the root metadata's `openGraph.images` / `twitter.images` point at it
   (`lib/og-image.ts`). Nothing under `apps/web/src` may import `next/og`
-  (`og-image.test.ts`): its resvg/yoga wasm and font cost the Worker ~760 KiB gzip. The docs
+  (`og-image.test.ts`): its resvg/yoga wasm and font cost the Worker ~760 KiB gzip, and
+  needed three build workarounds (a wasm specifier rewrite, a `.bin` esbuild loader in
+  `alchemy.run.ts`, a wrangler Data rule in the smoke config) that the same test keeps out;
+  `WORKER_BUDGET_KIB` (1600) is low enough that og's renderer could not return unnoticed. The docs
   site (a static export, no Worker) keeps its `opengraph-image.tsx`.
 - **Constants** — timer/config defaults come from `@dirework/db/defaults` (re-exported via
   `@dirework/api/config-shared`); never re-type `25*60*1000` etc. The M1/M3/M4 "don't
@@ -1495,7 +1498,7 @@ components (`apps/web/src/components/icons/`, `apps/fumadocs/src/components/icon
   still runs but only emits a `::warning::` annotation (`continue-on-error`) — an
   advisory published today must never block a revert or hotfix. A test in
   `packages/infra/__tests__/workflow-security.test.ts` pins this split.
-  The web app is built with `build:worker` (static version.json + OpenNext build + wasm fix +
+  The web app is built with `build:worker` (static share card + version.json + OpenNext build +
   static-assets cache population) — the exact script Alchemy runs at deploy — so that
   pipeline fails here, not after migrations are applied. Then `smoke:worker`
   (`apps/web/scripts/smoke-worker.mjs`)
@@ -1507,7 +1510,7 @@ components (`apps/web/src/components/icons/`, `apps/fumadocs/src/components/icon
   bundles against Cloudflare's real limit, `UNCOMPRESSED_LIMIT_KIB` (64 MiB uncompressed on
   every plan, wrangler's `Total Upload`; Cloudflare dropped its compressed-size check on
   2026-09-04, so gzip is for reference only, and a refused upload would come after the D1
-  migrations applied), and against `WORKER_BUDGET_KIB` (2560 KiB gzip), our own growth
+  migrations applied), and against `WORKER_BUDGET_KIB` (1600 KiB gzip), our own growth
   ratchet and cold-start proxy, not a platform limit: api = the dry-run
   `apps/server/dist/index.js`, web = `wrangler deploy --dry-run` over the OpenNext output
   with the smoke config plus Alchemy's `minify: true`. After the client JS budget (below), `packages/infra/startup-check.ts`
@@ -1683,7 +1686,7 @@ the default app to two workers, one D1 database and the existing rate-limit bind
   `publicTrpc`, never through the web proxy.
 - Writes on hot paths only when they change something (guarded UPDATEs, `NOT EXISTS`).
 - Both Worker bundles stay under `WORKER_BUDGET_KIB` (`packages/infra/bundle-budget.ts`,
-  2560 KiB gzip), a growth ratchet and cold-start proxy (Cloudflare's own size limit is
+  1600 KiB gzip), a growth ratchet and cold-start proxy (Cloudflare's own size limit is
   64 MiB uncompressed), and under `STARTUP_FAIL_MS` (`packages/infra/startup-check.ts`,
   500 ms of local startup CPU, half Cloudflare's 1 s limit); raising either needs a stated
   reason.

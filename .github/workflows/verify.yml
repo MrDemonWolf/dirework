@@ -87,7 +87,7 @@ jobs:
       # Cloudflare refuses a Worker over 64 MiB uncompressed (every plan; the
       # only size it checks since 2026-09-04), after the D1 migrations have
       # already been applied. Each worker must fit that limit and our own
-      # 2560 KiB gzip budget, a growth ratchet: api from the dry-run bundle the
+      # 1600 KiB gzip budget, a growth ratchet: api from the dry-run bundle the
       # build step just wrote, web from a wrangler dry run over the OpenNext
       # output (packages/infra/bundle-budget.ts).
       - name: Worker bundle budget

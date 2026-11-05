@@ -45,11 +45,14 @@ export const UNCOMPRESSED_LIMIT_KIB = 65536;
  * bundle from growing unnoticed, and it stands in for cold-start cost, since every
  * KiB is script an isolate parses before it serves a request (verify.yml's startup
  * check measures that directly). Measured: api ~525 KiB, web ~1990 KiB at
- * introduction (2026-10); api 548 KiB, web 2117 KiB in 2026-11. Lower it when a
- * bundle shrinks for good; raise it only deliberately, with a reason, never to
- * turn a red run green.
+ * introduction (2026-10, budget 2560); api 548 KiB, web 2117 KiB in 2026-11. With
+ * next/og out of the Worker (the share card is a static file, apps/web/scripts/
+ * render-og.ts) web fell to 1457 KiB, so the budget came down to 1600: about 10%
+ * headroom, and far too little for og's ~760 KiB renderer to slip back in. Lower it
+ * when a bundle shrinks for good; raise it only deliberately, with a reason, never
+ * to turn a red run green.
  */
-export const WORKER_BUDGET_KIB = 2560;
+export const WORKER_BUDGET_KIB = 1600;
 
 /** A worker's upload size in KiB: uncompressed (what Cloudflare limits) and gzip. */
 export type WorkerSize = { rawKib: number; gzipKib: number };
