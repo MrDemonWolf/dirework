@@ -6,6 +6,126 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Frontend audit (November 2026)
+
+The frontend audit's waves (#243 to #317): lighter pages, fewer requests, fixes found along the
+way, and one home for each shared piece. Nothing here needs a migration or a new setting.
+
+#### Performance
+- **Lighter OBS overlays and bot page.** The overlays and the bot page no longer download the
+  database schema, zod, the Theme Center presets, the class-merging library, the toast system,
+  the theme switcher or the dashboard's API client. The blank bot widget no longer downloads
+  the dock's panel, dialogs and buttons either: only `?view=dock` loads them. An overlay's
+  first load drops from about 244 to 177–182 KiB (gzip) and the bot page's from 280 to 187.
+  (#255, #260, #261, #297, #315)
+- **Lighter landing and claim pages.** The home and claim pages skip zod, the account menu and
+  the sign-in client until they are used: from about 318 to 205 KiB (gzip). (#260, #280)
+- **The bot page and its dock render less.** A cleared chat error no longer re-renders the
+  widget every second, chat lines no longer re-render it for counters only the dock shows, and
+  the dock's uptime clock ticks on its own instead of redrawing the whole panel. The bot page
+  and the alias editor compile under the React Compiler again. (#301, #304, #308)
+- **Settings and timer buttons cost one request.** Start, Pause, Resume, Skip and Stop, Theme
+  Center saves, bot replies and aliases, the timer settings and the live bot switches put the
+  server's answer straight into the page instead of asking for it again. Coming back to a
+  hidden dashboard refreshes the timer in the same request as everything else, and Bot
+  settings reuses the bot page URL it already has. (#271, #284, #290)
+- **Faster owner pages, cheaper landing.** The dashboard, Theme Center and Bot settings check
+  the session and start loading their data at the same time, and a visitor without a session
+  cookie costs no session lookup. The Theme Center shows its skeleton after 0.8 seconds when
+  the API is slow instead of a blank page, and going back to a section opened in the last 30
+  seconds is instant. (#262, #279, #293)
+- **The dashboard redraws less.** Typing a task redraws only the form, a row action or a new
+  chat task redraws only its row, the timer console skips redraws on autosave and preview
+  toggles, its progress rail moves on the GPU, and Theme Center edits redraw only the row being
+  changed. (#264, #267, #289, #299)
+- **Overlays measure less.** The timer overlay fits its text once on mount instead of three
+  times, and the task overlay no longer forces an extra style pass after hiding rows. (#269)
+- **Fewer Worker requests for static files.** The version check, the favicon, the Apple touch
+  icon and the install manifest are static files now, and the share card is a PNG rendered at
+  build time, which takes the image renderer out of the web Worker (about 760 KiB smaller
+  compressed). (#277, #286, #294, #303)
+- **Faster docs search, lighter docs screenshots.** Search starts loading its index when you
+  open it, and the screenshots are lossless WebP, 58% smaller. (#272)
+
+#### Fixes
+- **Open overlays and bot pages pick up new deploys.** An OBS source or bot page left open
+  across a deploy reloads once, between commands and never mid-countdown, and an open bot page
+  learns a new built-in command within the hour. (#243, #316)
+- **A crashed bot page goes straight back on chat.** Its restart keeps the same chat lease
+  instead of standing by for minutes behind its own crashed copy. (#248)
+- **An open dashboard stops when your sign-in ends.** It shows one "Your sign-in expired"
+  toast with a Reload button instead of retrying every few seconds, and a refused request is
+  no longer retried. (#252)
+- **Fewer background requests.** The new-version check runs only in a visible signed-in tab,
+  and the OBS live preview pauses while its tab is hidden. (#246, #249)
+- **No loading flash on the home page.** The home and claim pages arrive finished in one
+  paint, and a signed-in owner is redirected straight to the dashboard. (#263)
+- **Reloading mid-countdown keeps the timer console.** It no longer redraws the whole console
+  when the browser's clock disagrees with the server's by a second. (#245)
+- **A real 404 page, and a crash page that stays off the stream.** A bad link opens a themed
+  "Page not found" page; on an overlay or the bot widget both it and the crash page paint
+  nothing, and the crash page names itself in the tab. (#274, #287)
+- **Live controls always confirm.** Flipping mute, the Task or Timer commands, or "Who can add
+  tasks" and leaving right away still shows the confirmation. (#309)
+- **One mutation error toast.** Every failed dashboard action says "Couldn't <action>: <why>",
+  and during an API outage repeated clicks update one "Can't reach the DireWork API" toast
+  instead of stacking new ones. (#305)
+
+#### Security
+- **Owner pages no longer carry the session token**: signed-in pages get only the name,
+  avatar and owner flag they show. (#250)
+- **Inline event handlers can't run**: the Content Security Policy refuses `on…=`
+  attributes on every page. (#251)
+- **Next.js 16.4.5 and OpenNext 1.20.16**, Next's November 3 security release (none of its
+  advisories was reachable here), with a test that refuses a lone Next or adapter bump.
+  (#244, #247)
+
+#### Accessibility
+- **Loading screens speak up**: the dashboard, Theme Center and Bot settings skeletons tell
+  screen readers the page is loading. (#282)
+- **Tab returns to the checked preset** after arrowing through the Theme Center's preset
+  gallery, as it already did in the icon pickers. (#266)
+- **One link look and one focus ring**: links in copy are link-blue and underlined, and
+  hand-built controls share the same 2px keyboard focus ring. (#292)
+
+#### Design
+- **One look for shared pieces.** Menus, select lists and tooltips open on one popover surface;
+  tabs and segmented choices mark the selected option the same way; every unsaved marker is the
+  same amber dot; status chips and their placeholders match in size; every Bot settings card
+  shares one frame; and every page header, kicker and Save-bar padding follows one rule, with
+  Theme Center no longer labelling itself twice. (#265, #270, #278, #291, #306, #312, #314)
+- **A useful account menu**: Docs and Report a problem links, a plain Sign out, and the logo
+  takes the owner to the dashboard. (#280)
+- **Neutral brand colours everywhere.** The share card, the crash screen, the install manifest
+  and the browser-bar tint come from the design tokens, the share card drops the old navy, and
+  the bot dock's LED and links use the app's status, link and focus colours. (#256, #257,
+  #307, #310, #311)
+- **One save contract.** Theme Center, Replies and Commands keep their drafts and save through
+  one shared hook, and an edit made during a save stays unsaved. (#298, #302)
+
+#### Docs
+- **Decision records for rendering, caching and client observability**, with the Workers CPU
+  baseline in `docs/production-readiness.md`. (#273)
+- **OBS 31+ recommended, and why the CSP keeps `'unsafe-inline'` for scripts.** (#283)
+- **The docs hero and mocks use the design tokens** and show the focus tint and Active /
+  Started labels like the real overlay. (#276, #288)
+
+#### CI and observability
+- **Per-route client JS budgets.** Verify adds up each page's first-load JavaScript and holds
+  it about 3% over its measured size (the bot page's budget drops from 234 to 193 KiB once the
+  widget skips the dock), and it fails when zod or the database schema reaches an overlay, the
+  bot page or the landing. (#258, #317)
+- **Worker checks follow Cloudflare's real limits.** The bundle check fails at the 64 MiB
+  limit, the gzip ratchet drops from 2560 to 1600 KiB, and a new step profiles each Worker's
+  startup and fails above 500 ms. (#259, #300)
+- **React Compiler bailouts fail CI**, and the compiler is pinned to an exact version; no
+  component is exempt any more. (#268, #301)
+- **Crash reports from stuck overlays and the bot page**: at most one `client.crash` line per
+  page every 10 minutes, with the page and the error's name only. (#295)
+- **One home for shared values**: the alias cap and timer ranges, small helpers and the WCAG
+  test helper, project links and the web origin, and the theme and React Query providers,
+  each mounted only where used. (#285, #296, #313, #315)
+
 ### Added
 - **Started tasks on the stream overlay.** Viewers now see the tasks someone started with
   `!start`: they sit right under that person's focus task with a small **Started** label in
