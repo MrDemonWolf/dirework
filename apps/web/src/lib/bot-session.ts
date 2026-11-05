@@ -193,8 +193,9 @@ export interface BotSessionEvents {
 export interface BotSessionOptions {
   token: string;
   /**
-   * This page load's lease id (crypto.randomUUID once per load). The dock's Reconnect keeps
-   * it, so a restarted session renews its own lease instead of waiting on itself.
+   * This page load's lease id (`pageLeaseId()`: crypto.randomUUID once per load). Every
+   * session the page starts shares it (the dock's Reconnect, the error boundary's restart),
+   * so a restarted session renews its own lease instead of waiting on itself.
    */
   instanceId: string;
   api: BotSessionApi;

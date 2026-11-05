@@ -298,8 +298,12 @@ per-browser localStorage (`dirework.bot-view`, default widget on SSR/hydration).
 Reset (one token: "Reset both bot page URLs?") and "Open widget" / "Open dock".
 **One bot page at a time (chat lease).** Only one open bot page (widget or dock) joins chat:
 after `getSession` succeeds the session claims the lease with `bot.heartbeat({ token,
-instanceId })` BEFORE connecting IRC (`instanceId` = one `crypto.randomUUID()` per page load,
-kept across the dock's Reconnect), then checks in every `BOT_HEARTBEAT_MS` (2 min,
+instanceId })` BEFORE connecting IRC (`instanceId` = `pageLeaseId()` in
+`lib/bot-lease-release.ts`: one `crypto.randomUUID()` per page load, minted on first use in a
+module variable and read only from the console's session effect, never in render or on the
+server; every session the page starts shares it, so the dock's Reconnect and the `(bot)` error
+boundary's auto-restart, which remounts the console, renew the lease instead of standing by
+for it), then checks in every `BOT_HEARTBEAT_MS` (2 min,
 `poll-intervals.ts`). The lease is `instance_config.bot_lease_instance_id` /
 `bot_lease_seen_at` (`0021_bot_page_lease`), written only by `services/bot-lease.ts`: ONE
 guarded UPDATE by primary key that takes/renews it when free, expired (`BOT_LEASE_TTL_MS` =
@@ -1251,7 +1255,9 @@ come from `@dirework/api/config-defaults`), `40-theme-center`, `50-bot-settings`
 button click sends one `bot.ingest` as the broadcaster, with getSession/ingest stubbed and the
 IRC socket held by `routeWebSocket`; on the REAL lease, a second page stands by, Take over
 moves the chat, the old page's next relay drops it to standby, closing the holder frees the
-lease, and the dashboard chip reads "Bot offline" / "Bot connected"),
+lease, a page that crashes after claiming the chat comes back from the `(bot)` error
+boundary's restart still holding it (one lease id per page load), and the dashboard chip
+reads "Bot offline" / "Bot connected"),
 `60-token-reset` (the old overlay URL blanks), `70-sign-out` (sign-out locks the dashboard;
 an open dashboard whose session cookie is cleared sends no `/rpc` request for 30 s and shows
 exactly one "Your sign-in expired" toast whose Reload lands on `/`), `80-a11y`, `85-docs-a11y` (axe,

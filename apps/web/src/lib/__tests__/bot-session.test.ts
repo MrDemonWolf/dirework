@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { BOT_STANDBY_MESSAGE } from "@dirework/api/bot-lease";
+import { BOT_STANDBY_MESSAGE, isLeaseHeldByOther } from "@dirework/api/bot-lease";
 import { BAN_CLEANUP_DELAY_MS } from "@dirework/api/bot-permissions";
 import { MAX_RELAYED_MESSAGE_LENGTH } from "@dirework/api/chat-text";
 import { BOT_REAUTH_REQUIRED_MESSAGE } from "@dirework/api/config-shared";
 
+import { pageLeaseId } from "../bot-lease-release";
 import * as pollIntervals from "../poll-intervals";
 import { BOT_HEARTBEAT_MS } from "../poll-intervals";
 import { VIEWER_COMMAND_LIMIT, VIEWER_COMMAND_WINDOW_MS } from "../viewer-throttle";
@@ -66,7 +67,7 @@ function ban(login: string): IrcClearChat {
   return { targetUsername: login, permanent: true };
 }
 
-function setup(api: Partial<BotSessionApi> = {}) {
+function setup(api: Partial<BotSessionApi> = {}, instanceId = PAGE_ID) {
   let callbacks: IrcClientCallbacks = {};
   const client = {
     connect: vi.fn(),
@@ -96,7 +97,7 @@ function setup(api: Partial<BotSessionApi> = {}) {
   };
   const session = createBotSession({
     token: "bot-token",
-    instanceId: PAGE_ID,
+    instanceId,
     api: { getSession, ingest, heartbeat, release },
     createClient: (cbs) => {
       callbacks = cbs;
@@ -1439,5 +1440,44 @@ describe("createBotSession chat lease (one bot page at a time)", () => {
     session.dispose();
     await vi.advanceTimersByTimeAsync(BOT_HEARTBEAT_MS * 3);
     expect(heartbeat).toHaveBeenCalledTimes(1);
+  });
+
+  it("two sessions in one page load claim under one id, so a restarted bot keeps the chat", async () => {
+    // The api's answer (bot.heartbeat over services/bot-lease.ts): another id's live lease
+    // means standby; the holder's own id renews it.
+    let lease: { instanceId: string | null; seenAt: Date | null } = {
+      instanceId: null,
+      seenAt: null,
+    };
+    const heartbeat: BotSessionApi["heartbeat"] = async ({ instanceId, takeover }) => {
+      if (!takeover && isLeaseHeldByOther(lease, instanceId, Date.now())) return TAKEN;
+      lease = { instanceId, seenAt: new Date() };
+      return { holder: true };
+    };
+
+    // The page's first session takes the chat. The (bot) error boundary unmounting a crashed
+    // console disposes it, and dispose keeps the lease: only pagehide gives it up.
+    const crashed = setup({ heartbeat }, pageLeaseId());
+    await vi.advanceTimersByTimeAsync(0);
+    expect(phases(crashed.events)).toEqual(["live"]);
+    crashed.session.dispose();
+    expect(crashed.release).not.toHaveBeenCalled();
+
+    // The restart (or the dock's Reconnect) starts a new session in the same page load.
+    const restarted = setup({ heartbeat }, pageLeaseId());
+    await vi.advanceTimersByTimeAsync(0);
+
+    const claimedAs = crashed.heartbeat.mock.calls[0]?.[0].instanceId;
+    expect(restarted.heartbeat).toHaveBeenCalledWith({
+      token: "bot-token",
+      instanceId: claimedAs,
+    });
+    expect(phases(restarted.events)).toEqual(["live"]);
+    expect(restarted.client.connect).toHaveBeenCalledTimes(1);
+
+    // Any other id (another page, or an id minted per mount) still stands by for this one.
+    const other = setup({ heartbeat }, "22222222-2222-4222-8222-222222222222");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(phases(other.events)).toEqual(["standby"]);
   });
 });
