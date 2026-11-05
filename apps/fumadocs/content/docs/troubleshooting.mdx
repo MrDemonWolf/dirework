@@ -85,6 +85,8 @@ claimed](/docs/deployment#recovering-an-instance-someone-else-claimed).
 
 ### Overlay shows a blank page
 
+- OBS 31+ is recommended. OBS 28–30 is untested; OBS 27.1's Chromium 75-era
+  browser source can't run DireWork's bundles.
 - While idle, the timer overlay shows a full preview (your work length and a full ring), not a blank page. If it stays blank, the URL or token is probably wrong (for example, it was regenerated) or the overlay cannot reach the API.
 - Check that the overlay URL is correct. Copy it again from **OBS sources** on the dashboard (the **Timer** or **Tasks** tab).
 - Treat overlay URLs as bearer credentials. If one was exposed, reset it and update OBS.

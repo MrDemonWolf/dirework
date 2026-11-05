@@ -198,7 +198,10 @@ The widget never shows errors on stream. If the bot stops (the URL was reset, or
 longer accepts the bot's login), the dock shows why, and **Dashboard → Bot** is where you fix
 it.
 
-**Add the dock (OBS 27 or newer on Windows, macOS and Linux X11):**
+OBS 31+ is recommended. OBS 28–30 is untested; OBS 27.1's Chromium 75-era
+browser source can't run DireWork's bundles.
+
+**Add the dock (Windows, macOS and Linux X11):**
 
 1. In OBS, open **Docks → Custom Browser Docks** (older versions: **View → Docks → Custom Browser Docks**).
 2. Give it a name such as `DireWork Bot`, paste the **Dock URL**, and click **Apply**.
@@ -227,7 +230,8 @@ you'd typed it, but the bot's reply shows in the dock instead of chat:
   **Dashboard → Bot**, its button sends but the bot has no reply.
 
 **Streaming from a phone?** Add the **Widget URL** as a browser widget in an app that draws
-web pages on the stream, such as Moblin; the bot runs while that widget's scene is loaded. If
+web pages on the stream, such as Moblin (iOS 16.4+ / Safari 16.4+); the bot runs
+while that widget's scene is loaded. If
 your phone instead sends its feed to a PC or cloud OBS (SRT, RTMP) that goes live to Twitch,
 add the widget or the dock on that OBS. Apps with no browser widget that stream straight to
 Twitch can't keep the bot running.
