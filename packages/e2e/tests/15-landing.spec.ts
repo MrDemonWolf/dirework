@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { WEB_ORIGIN } from "../src/env";
+import { API_ORIGIN, WEB_ORIGIN } from "../src/env";
 import { recordSkeletonFrames, setApiDelay, signIn, skeletonFrames } from "./helpers";
 
 // The home page of a claimed instance (00-first-run claimed it) as a signed-out visitor sees
@@ -49,6 +49,19 @@ test("the landing page makes no tRPC requests", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await page.waitForLoadState("networkidle");
   expect(rpc).toEqual([]);
+});
+
+test("a cookie-less visitor's landing never asks the api for a session", async ({ page }) => {
+  // No better-auth session cookie means no session to look up, so getServerSession answers
+  // null itself: the landing costs the api one request (user.hasOwner), not two.
+  const tally = async (): Promise<Record<string, number>> =>
+    (await page.request.get(`${API_ORIGIN}/__e2e/requests`)).json();
+  await tally();
+  const res = await page.request.get("/", { maxRedirects: 0 });
+  expect(res.status()).toBe(200);
+  const served = await tally();
+  expect(served["/api/auth/get-session"]).toBeUndefined();
+  expect(served["/trpc/user.hasOwner"]).toBe(1);
 });
 
 test("the first HTML response already holds the finished landing", async ({ page }) => {

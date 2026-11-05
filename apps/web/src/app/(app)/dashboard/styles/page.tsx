@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { HydrationBoundary } from "@tanstack/react-query";
 
-import { requireSession } from "@/lib/auth-guard";
+import { loadAsOwner } from "@/lib/auth-guard";
 import { streamStyles } from "@/lib/server-query";
 import { holdShellFor } from "@/lib/shell-hold";
 import StylesPage from "./styles-page";
@@ -12,15 +12,15 @@ import { StylesSection } from "./styles-section";
 export const metadata: Metadata = { title: "Theme Center" };
 
 /**
- * Session first (a signed-out visitor is redirected without spending a batch), then ONE
- * streamed `config.get`, waited on for at most `SECTIONS_READY_MS` (lib/progressive.ts),
- * exactly like the dashboard: a config that arrives by then is in the first paint, and a
- * slower one shows the page's skeleton (./styles-section.tsx) and fills it in from the same
- * request.
+ * The owner session and ONE streamed `config.get`, started together when the request carries
+ * a session cookie and session first when it doesn't, so a signed-out visitor never spends a
+ * batch (`loadAsOwner`, lib/auth-guard.ts). The batch is waited on for at most
+ * `SECTIONS_READY_MS` (lib/progressive.ts), exactly like the dashboard: a config that arrives
+ * by then is in the first paint, and a slower one shows the page's skeleton
+ * (./styles-section.tsx) and fills it in from the same request.
  */
 async function loadStyles() {
-  await requireSession();
-  return streamStyles();
+  return (await loadAsOwner(streamStyles)).data;
 }
 
 /**

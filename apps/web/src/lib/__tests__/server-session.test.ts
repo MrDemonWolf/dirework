@@ -1,11 +1,15 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const SESSION_COOKIE = "__Secure-better-auth.session_token=abc";
+/** The incoming request's Cookie header; each test starts signed in (a session cookie). */
+let requestCookie: string | null = SESSION_COOKIE;
 
 vi.mock("next/headers", () => ({
-  headers: async () =>
-    new Headers({
-      cookie: "__Secure-better-auth.session_token=abc",
-      "cf-connecting-ip": "203.0.113.7",
-    }),
+  headers: async () => {
+    const h = new Headers({ "cf-connecting-ip": "203.0.113.7" });
+    if (requestCookie !== null) h.set("cookie", requestCookie);
+    return h;
+  },
 }));
 
 import {
@@ -60,9 +64,35 @@ function getSessionBody(user: Record<string, unknown> = {}) {
 }
 
 describe("getServerSession", () => {
+  beforeEach(() => {
+    requestCookie = SESSION_COOKIE;
+  });
   afterEach(() => {
     globalThis.fetch = originalFetch;
   });
+
+  it.each([
+    ["no Cookie header", null],
+    ["only unrelated cookies", "theme=dark; dirework.setup-collapsed=1"],
+    ["an emptied session cookie", "better-auth.session_token="],
+  ])("returns null without asking the api when the request has %s", async (_label, cookie) => {
+    // A cookie-less visitor (every viewer on `/`) has no session to look up: better-auth
+    // would answer null, so the get-session request would only spend a Worker request.
+    requestCookie = cookie;
+    const fetchMock = mockFetch(async () => Response.json(getSessionBody()));
+    await expect(getServerSession()).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["__Secure-better-auth.session_token=abc", "theme=dark; better-auth.session_token=abc"])(
+    "still asks the api when the request carries a session cookie (%s)",
+    async (cookie) => {
+      requestCookie = cookie;
+      const fetchMock = mockFetch(async () => Response.json(null));
+      await expect(getServerSession()).resolves.toBeNull();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("returns the user fields the UI reads and forwards the request cookie", async () => {
     const fetchMock = mockFetch(async () => Response.json(getSessionBody()));

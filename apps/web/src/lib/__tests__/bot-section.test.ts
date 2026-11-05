@@ -52,7 +52,7 @@ describe("Bot settings wiring", () => {
 
   it("streams both queries from the (sections) layout, no whole-page gate", () => {
     const layout = read(`${SECTIONS}/layout.tsx`);
-    expect(layout).toContain("streamBot()");
+    expect(layout).toContain("loadAsOwner(streamBot)");
     expect(layout).not.toContain("BotDataGate");
     for (const page of [overview, commands, replies, moderation]) {
       expect(page).not.toContain("useBotData");

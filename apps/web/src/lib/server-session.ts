@@ -1,6 +1,8 @@
 import { cache } from "react";
 import { headers } from "next/headers";
 
+import { hasSessionCookie } from "@dirework/api/session-cookie";
+
 import { apiOrigin } from "@/lib/api-origin";
 import { stampForwardedClient } from "@/lib/auth-proxy";
 
@@ -72,7 +74,10 @@ function toServerSession(body: unknown): ServerSession | null {
  * here would extend the D1 row while the browser cookie still expires. The answer is
  * narrowed to `ServerSession` (toServerSession), never passed through.
  *
- * Returns null ONLY when the api worker answered 2xx with no session; any other
+ * Returns null without a fetch when the request carries no better-auth session cookie
+ * (`requestHasSessionCookie`): there is no session to look up, so asking would only spend
+ * an api request (every viewer of `/` is such a request). With a cookie it returns null ONLY
+ * when the api worker answered 2xx with no session (a stale or forged cookie); any other
  * outcome throws SessionUnavailableError.
  *
  * `cache()`d per request: the (app) layout's header and the page's
@@ -81,6 +86,7 @@ function toServerSession(body: unknown): ServerSession | null {
  */
 export const getServerSession = cache(async (): Promise<ServerSession | null> => {
   const h = await headers();
+  if (!hasSessionCookie(h.get("cookie"))) return null;
 
   let res: Response;
   try {
@@ -104,6 +110,14 @@ export const getServerSession = cache(async (): Promise<ServerSession | null> =>
   }
   return toServerSession(body);
 });
+
+/**
+ * Whether the incoming request carries a better-auth session cookie (either name, non-empty).
+ * Presence only, never proof of a session: getServerSession still asks the api worker.
+ */
+export async function requestHasSessionCookie(): Promise<boolean> {
+  return hasSessionCookie((await headers()).get("cookie"));
+}
 
 /**
  * Whether this single-tenant instance has already been claimed by an owner.

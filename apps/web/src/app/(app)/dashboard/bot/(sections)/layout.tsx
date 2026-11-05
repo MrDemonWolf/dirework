@@ -1,20 +1,21 @@
 import { Suspense } from "react";
 import { HydrationBoundary } from "@tanstack/react-query";
 
-import { requireSession } from "@/lib/auth-guard";
+import { loadAsOwner } from "@/lib/auth-guard";
 import { streamBot } from "@/lib/server-query";
 import { holdShellFor } from "@/lib/shell-hold";
 
 /**
- * Session first (a signed-out visitor is redirected without spending a batch), then ONE
- * streamed batch for `config.get` + `user.me`, waited on for at most `SECTIONS_READY_MS`
- * (lib/progressive.ts), exactly like the dashboard. Each page's cards are `BotSection`s
- * (./bot-data.tsx): a card whose query made the deadline paints with the page, one whose
- * query is slower shows its placeholder and fills in from the same request.
+ * The owner session and ONE streamed batch for `config.get` + `user.me`, started together
+ * when the request carries a session cookie and session first when it doesn't, so a
+ * signed-out visitor never spends a batch (`loadAsOwner`, lib/auth-guard.ts). The batch is
+ * waited on for at most `SECTIONS_READY_MS` (lib/progressive.ts), exactly like the dashboard.
+ * Each page's cards are `BotSection`s (./bot-data.tsx): a card whose query made the deadline
+ * paints with the page, one whose query is slower shows its placeholder and fills in from the
+ * same request.
  */
 async function loadBot() {
-  await requireSession();
-  return streamBot();
+  return (await loadAsOwner(streamBot)).data;
 }
 
 /**

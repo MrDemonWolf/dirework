@@ -31,7 +31,8 @@ describe("dashboard SSR hydration", () => {
     expect(page).toContain("<HydrationBoundary state={state}>");
     // Inside the loader the page holds the shell for (`await holdShellFor(loadStyles())`);
     // shell-hold.test.ts pins that wiring.
-    expect(page).toMatch(new RegExp(`(await|return) ${prefetch}\\(\\)`));
+    // Started through the owner loader (lib/auth-guard.ts), which gates it on the session.
+    expect(page).toContain(`loadAsOwner(${prefetch})`);
   });
 
   it.each(["components/header.tsx", "components/user-menu.tsx"])(
@@ -66,8 +67,9 @@ describe("dashboard SSR hydration", () => {
     const shell = read("app/(app)/dashboard/bot/layout.tsx");
     expect(shell).not.toMatch(/requireSession|streamBot|getServerSession|async function/);
     const sections = read("app/(app)/dashboard/bot/(sections)/layout.tsx");
-    // Session first, so a signed-out visitor never spends the batch.
-    expect(sections).toMatch(/await requireSession\(\);\s*return streamBot\(\);/);
+    // Through the owner loader, so a signed-out visitor never spends the batch
+    // (auth-guard.test.ts pins its ordering).
+    expect(sections).toContain("loadAsOwner(streamBot)");
     // Sub-nav links never prefetch.
     expect(read("components/bot-settings/bot-section-nav.tsx")).toContain("prefetch={false}");
   });
