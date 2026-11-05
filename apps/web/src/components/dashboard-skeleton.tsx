@@ -14,6 +14,7 @@
 
 import type { ReactNode } from "react";
 
+import { LoadingStatus } from "@/components/loading-status";
 import { StatusChipSkeleton } from "@/components/status-chip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PANEL_HEADER_CLASS } from "@/lib/panel-header";
@@ -164,7 +165,8 @@ export function TaskBoardPlaceholder() {
 /** Static, data-free skeleton of the whole dashboard (client navigation only). */
 export function DashboardSkeleton() {
   return (
-    <div className="container mx-auto max-w-content px-4 py-8">
+    <div className="container mx-auto max-w-content px-4 py-8" aria-busy="true">
+      <LoadingStatus label="dashboard" />
       {/* Header band skeleton: greeting + status cluster */}
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-2">

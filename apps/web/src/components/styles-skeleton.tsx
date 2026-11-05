@@ -7,6 +7,7 @@
 // sticky bar below lg, the 24rem rail at lg) beside the editor (rule, tab strip, the open
 // Colors section and three collapsed ones). Update it with styles-page.tsx.
 
+import { LoadingStatus } from "@/components/loading-status";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const PRESETS = ["p1", "p2", "p3", "p4", "p5", "p6"];
@@ -15,7 +16,8 @@ const COLLAPSED_SECTIONS = ["typography", "layout", "opacity"];
 /** Static, data-free skeleton of the Theme Center. */
 export function StylesSkeleton() {
   return (
-    <div className="container mx-auto max-w-content px-4 py-8">
+    <div className="container mx-auto max-w-content px-4 py-8" aria-busy="true">
+      <LoadingStatus label="Theme Center" />
       {/* Header band: rule, title + options button, two-line subtitle on a phone */}
       <div className="mb-6">
         <Skeleton className="h-3 w-28" />

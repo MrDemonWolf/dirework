@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { metaCommands, taskCommands, timerCommands } from "@/lib/command-rows";
 import { BotPageHandoffSkeleton } from "@/components/bot-page-handoff";
 import { CommandTable } from "@/components/bot-settings/command-table";
+import { LoadingStatus } from "@/components/loading-status";
 import { SectionPlaceholder } from "@/components/progressive-section";
 import { StatusChipSkeleton } from "@/components/status-chip";
 import {
@@ -337,6 +338,7 @@ function PanelSkeleton() {
 export function BotSettingsSkeleton() {
   return (
     <div className="space-y-6" aria-busy="true">
+      <LoadingStatus label="Bot settings" />
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <PanelSkeleton />
         <PanelSkeleton />
