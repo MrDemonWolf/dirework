@@ -1,5 +1,8 @@
-import { MAX_MESSAGE_TEMPLATE_BYTES, utf8ByteLength } from "@dirework/api/config-shared";
-import { graphemeLength } from "@dirework/api/chat-text";
+import {
+  graphemeLength,
+  MAX_MESSAGE_TEMPLATE_BYTES,
+  utf8ByteLength,
+} from "@dirework/api/chat-text";
 import { PHASE_LABEL_MAX_BYTES, PHASE_LABEL_MAX_GRAPHEMES } from "@dirework/api/style-limits";
 
 /** Show a counter from this share of its cap so it stays out of the way until it matters. */

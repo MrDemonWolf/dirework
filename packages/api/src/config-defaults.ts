@@ -1,7 +1,8 @@
 // ── Default config values (zod-free, schema-free) ───────────────────────────
 // Kept out of config-shared so the OBS overlays and dashboard can import the
-// defaults without bundling zod and the Drizzle schema. Re-exported by
-// config-shared. Type-only imports are erased, so the cycle is safe.
+// defaults (and the tRPC batch cap every client link needs) without bundling zod
+// and the Drizzle schema. Re-exported by config-shared. Type-only imports are
+// erased, so the cycle is safe.
 import {
   DEFAULT_PHASE_LABELS as DB_DEFAULT_PHASE_LABELS,
   DEFAULT_TASK_MESSAGES as DB_DEFAULT_TASK_MESSAGES,
@@ -18,6 +19,13 @@ import type {
   TimerMessagesConfig,
   TimerStylesConfig,
 } from "./config-shared";
+
+/**
+ * Max procedures in one tRPC batch request. The rate limiter charges a whole
+ * request once, so an unbounded batch would let one request run hundreds of
+ * procedures. The server rejects larger batches; client links split at it.
+ */
+export const TRPC_MAX_BATCH_SIZE = 10;
 
 /** Maximum task text length — enforced by tRPC input schemas AND the chat path. */
 export const MAX_TASK_LEN = 500;

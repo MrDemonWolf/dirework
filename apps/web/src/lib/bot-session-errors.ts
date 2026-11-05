@@ -1,5 +1,4 @@
-import { BOT_STANDBY_MESSAGE } from "@dirework/api/bot-lease";
-import { BOT_REAUTH_REQUIRED_MESSAGE } from "@dirework/api/config-shared";
+import { BOT_REAUTH_REQUIRED_MESSAGE, BOT_STANDBY_MESSAGE } from "@dirework/api/bot-lease";
 
 /**
  * How the bot page should react to a failed bot API call:

@@ -328,8 +328,8 @@ and bounds the auth-failure recovery loop. Both tRPC clients time-box every requ
 so a hung `bot.ingest` rejects and the serial ingest queue moves on. The session state machine lives in `apps/web/src/lib/bot-session.ts`
 (`createBotSession`, React-free so it is tested with fake timers); errors are classified by
 `lib/bot-session-errors.ts`. UNAUTHORIZED = the bot link was reset (`revoked`);
-PRECONDITION_FAILED carrying `BOT_REAUTH_REQUIRED_MESSAGE` (shared constant in
-`config-shared.ts`, thrown by `twitch-auth.ts`) = the bot's Twitch login can't be refreshed
+PRECONDITION_FAILED carrying `BOT_REAUTH_REQUIRED_MESSAGE` (shared constant in the zod-free
+`bot-lease.ts`, thrown by `twitch-auth.ts`) = the bot's Twitch login can't be refreshed
 (`reauth` screen); NOT_FOUND (no bot account or owner) = a `not-configured` phase that polls
 every 60s (`NOT_CONFIGURED_POLL_MS`; its "checking every minute" line is `notConfiguredMessage`,
 built from it); anything else (incl. SERVICE_UNAVAILABLE from a Twitch 429/5xx) is transient and
@@ -339,8 +339,8 @@ request counts; `bot-session.ts` re-exports them for its tests, and keeps the ba
 retries, not a cadence).
 
 **Command aliases** are stored **canonically without a leading `!`** (`{ t: "task" }`).
-`normalizeAliases` (`config-shared.ts`) / `normalizeAliasToken` + `KNOWN_ALIAS_TARGETS`
-(`packages/api/src/chat-commands.ts`, re-exported by `config-shared`) are the single source shared by the chat resolver
+`normalizeAliases` / `normalizeAliasToken` + `KNOWN_ALIAS_TARGETS` (all in the zod-free
+`packages/api/src/chat-commands.ts`, re-exported by `config-shared`) are the single source shared by the chat resolver
 (`resolveAlias`), the `commandAliasesInput` schema, and the dashboard editor — they accept
 either form and reject empty, too-long (over `ALIAS_MAX_LENGTH`), multi-word,
 built-in-shadowing, duplicate, recursive, and unknown-target entries (each issue carries its input index so the editor flags the row). (Fixes the old `!!task`
@@ -409,15 +409,21 @@ bun run destroy       # Tear down the Cloudflare deployment
 Local env lives in `packages/infra/.env` (+ mirrored `apps/server/.env`,
 `apps/web/.env`); see `.env.example`.
 
-Browser-bundled web code imports default values from `@dirework/api/config-defaults`,
-chat byte helpers from `@dirework/api/chat-text`, and command names from
-`@dirework/api/chat-commands` (all zod- and schema-free, so overlays and the bot page don't
-bundle zod); types still come from `config-shared`. Nothing the web app loads may reach the
-D1 schema (`@dirework/db/schema`, drizzle-orm, cuid2): `config-shared` reads only the
-import-free `@dirework/db/defaults` at runtime (where `SINGLETON_ID` lives). The import walk
-in `apps/web/src/lib/__tests__/browser-imports.test.ts` follows every static value import
-from each route entry (pages, layouts, boundaries, the root providers) and fails with the
-chain when one does.
+`config-shared` builds zod schemas as it loads, so browser-bundled web code takes its values
+from the zod- and schema-free modules (`config-shared` re-exports the ones server code reads
+from it): defaults and `TRPC_MAX_BATCH_SIZE` from `@dirework/api/config-defaults`, chat byte
+helpers and `MAX_MESSAGE_TEMPLATE_BYTES` from `@dirework/api/chat-text`, command names and
+the alias normalizer from `@dirework/api/chat-commands`, the bot page's fixed error messages
+from `@dirework/api/bot-lease`, the bot OAuth error copy from `@dirework/api/bot-permissions`,
+and field limits from `@dirework/api/style-limits`. Types still come from `config-shared`.
+Only the Theme Center and Replies pages load zod and `config-shared`, to check a save against
+the server's own input schemas (`updateStylesInput` / `updateBotSettingsInput`; Theme Center
+length fields also use `cssLengthSchema`). Nothing the web app loads may reach the D1 schema
+(`@dirework/db/schema`, drizzle-orm, cuid2): `config-shared` reads only the import-free
+`@dirework/db/defaults` at runtime (where `SINGLETON_ID` lives). The import walk in
+`apps/web/src/lib/__tests__/browser-imports.test.ts` follows every static value import from
+each route entry (pages, layouts, boundaries, the root providers) and fails with the chain
+when one breaks either rule; its `ZOD_PAGES` lists the two exceptions.
 
 ## Tech Stack
 

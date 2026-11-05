@@ -2,7 +2,8 @@
 // import it without bundling either). Only one open bot page (widget or dock) holds the
 // Twitch chat connection at a time: the holder checks in with `bot.heartbeat` every
 // BOT_HEARTBEAT_MS, and a lease nobody renewed for BOT_LEASE_TTL_MS is free again. The SQL
-// half is services/bot-lease.ts.
+// half is services/bot-lease.ts. Also home to the fixed error messages the bot page matches
+// on (apps/web/src/lib/bot-session-errors.ts).
 
 /**
  * How long a lease outlives its last check-in. 2.5 heartbeats, so one lost or late
@@ -16,6 +17,13 @@ export const BOT_LEASE_TTL_MS = 5 * 60_000;
  * stops relaying and drops to standby. A fixed message, matched like the reauth one.
  */
 export const BOT_STANDBY_MESSAGE = "Another bot page is running this bot";
+
+/**
+ * PRECONDITION_FAILED message for a bot login that can no longer be refreshed.
+ * The bot page matches on it (not the bare code) to show the reconnect screen.
+ */
+export const BOT_REAUTH_REQUIRED_MESSAGE =
+  "Twitch token refresh failed — reconnect the bot account";
 
 /** Whether a lease last renewed at `seenAt` still holds at `now` (an unrenewed one is free). */
 export function isBotLeaseLive(seenAt: Date | null, now: number): boolean {

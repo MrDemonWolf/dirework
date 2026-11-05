@@ -4,7 +4,7 @@ import { isServer, MutationCache, QueryCache, QueryClient } from "@tanstack/reac
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 
-import { TRPC_MAX_BATCH_SIZE } from "@dirework/api/config-shared";
+import { TRPC_MAX_BATCH_SIZE } from "@dirework/api/config-defaults";
 import { apiOrigin } from "@/lib/api-origin";
 import { authLapseLink, fetchRpc, shouldRetryQuery } from "@/lib/auth-lapse";
 import { withRequestTimeout } from "@/lib/fetch-timeout";

@@ -8,7 +8,7 @@ import { createTRPCClient, httpBatchStreamLink } from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { headers } from "next/headers";
 
-import { TRPC_MAX_BATCH_SIZE } from "@dirework/api/config-shared";
+import { TRPC_MAX_BATCH_SIZE } from "@dirework/api/config-defaults";
 import { apiOrigin } from "@/lib/api-origin";
 import { stampForwardedClient } from "@/lib/auth-proxy";
 import { withRequestTimeout } from "@/lib/fetch-timeout";

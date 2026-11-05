@@ -11,6 +11,12 @@
 export const MAX_CHAT_BYTES = 450;
 
 /**
+ * Max bytes for a stored message TEMPLATE, leaving room for interpolation. The save
+ * schema (config-shared's chatMessageSchema) and the reply editor's counter both read it.
+ */
+export const MAX_MESSAGE_TEMPLATE_BYTES = 300;
+
+/**
  * Longest chat line `bot.ingest` accepts. The ingest schema (routers/bot.ts)
  * caps `message` at it and the bot page clamps its relay to it with
  * truncateToLength; both read this one constant, so what the page sends

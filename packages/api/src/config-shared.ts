@@ -3,11 +3,15 @@
 // imported by Vitest (node) and by apps/web, neither of which can resolve
 // cloudflare:workers. The only runtime deps are zod and the import-free
 // @dirework/db/defaults — never @dirework/db/schema, which would put drizzle-orm
-// and every table in each bundle that imports this module
-// (apps/web/src/lib/__tests__/browser-imports.test.ts). Type-only imports are
-// erased and therefore safe. Browser-bundled constants and helpers that need
-// neither zod nor the schema live in ./config-defaults, ./chat-text and
-// ./chat-commands (re-exported here).
+// and every table in each bundle that imports this module. Type-only imports are
+// erased and therefore safe.
+//
+// It builds zod schemas as it loads, so browser code imports a value from it only
+// to validate a save (the Theme Center and Replies pages). Constants and helpers
+// that need no zod live in the zod-free ./config-defaults, ./chat-text,
+// ./chat-commands, ./bot-lease, ./bot-permissions and ./style-limits; the ones
+// server code reads from here are re-exported below
+// (apps/web/src/lib/__tests__/browser-imports.test.ts holds the web app to this).
 import { z } from "zod";
 
 import type { BotConfig, TaskStyle, TimerConfig, TimerStyle } from "@dirework/db";
@@ -16,15 +20,11 @@ import type { TimerStatus } from "@dirework/db/defaults";
 
 import { readTaskAccess, type TaskAccessLevel } from "./bot-permissions";
 
-import {
-  ALIAS_MAX_LENGTH,
-  isBuiltinCommandName,
-  KNOWN_ALIAS_TARGETS,
-  normalizeAliasToken,
-} from "./chat-commands";
+import { normalizeAliases } from "./chat-commands";
 import {
   hasControlCharacters,
   limitPlaceholderRepeats,
+  MAX_MESSAGE_TEMPLATE_BYTES,
   MAX_PLACEHOLDER_REPEATS,
   mostRepeatedPlaceholder,
   sanitizeDisplayText,
@@ -57,6 +57,7 @@ export {
   limitPlaceholderRepeats,
   MAX_CHAT_BYTES,
   MAX_DISPLAY_NAME_LENGTH,
+  MAX_MESSAGE_TEMPLATE_BYTES,
   MAX_PLACEHOLDER_REPEATS,
   sanitizeDisplayText,
   MAX_RELAYED_MESSAGE_LENGTH,
@@ -78,7 +79,14 @@ export {
   TASK_LINES_MIN,
   clampTaskLines,
   TIMER_CONFIG_DEFAULTS,
+  TRPC_MAX_BATCH_SIZE,
 } from "./config-defaults";
+export { BOT_REAUTH_REQUIRED_MESSAGE } from "./bot-lease";
+export {
+  BOT_OAUTH_ERROR_MESSAGES,
+  type BotOAuthErrorCode,
+  botOAuthErrorMessage,
+} from "./bot-permissions";
 import {
   LEGACY_PHASE_LABELS,
   LEGACY_TASK_MESSAGES,
@@ -103,65 +111,22 @@ import {
 
 /**
  * Singleton-row primary key used by every one-row config table. From the import-free
- * @dirework/db/defaults, never @dirework/db/schema: this module reaches the browser, and the
- * schema would bring drizzle-orm and every table with it.
+ * @dirework/db/defaults, never @dirework/db/schema: the Theme Center and Replies pages load
+ * this module in the browser, and the schema would bring drizzle-orm and every table with it.
  */
 export { SINGLETON_ID } from "@dirework/db/defaults";
 
 /** Per-user open (pending+started+active) task cap enforced on the chat ingest path. */
 export const CHAT_OPEN_TASK_CAP = 20;
 
-/**
- * Max procedures in one tRPC batch request. The rate limiter charges a whole
- * request once, so an unbounded batch would let one request run hundreds of
- * procedures. The server rejects larger batches; client links split at it.
- */
-export const TRPC_MAX_BATCH_SIZE = 10;
-
-/**
- * PRECONDITION_FAILED message for a bot login that can no longer be refreshed.
- * The bot page matches on it (not the bare code) to show the reconnect screen.
- */
-export const BOT_REAUTH_REQUIRED_MESSAGE =
-  "Twitch token refresh failed — reconnect the bot account";
-
-// ── Bot OAuth callback errors ────────────────────────────────────────────────
-// The bot OAuth callback redirects to `/dashboard/bot?bot=error&reason=<code>`.
-// The dashboard maps the code to fixed copy and never renders the raw query
-// param, so a crafted link can't put attacker-written text in an error toast.
-export const BOT_OAUTH_ERROR_MESSAGES = {
-  access_denied: "Twitch authorization was cancelled.",
-  missing_params: "Twitch didn't return an authorization code.",
-  authorization_failed:
-    "Twitch refused the authorization request. Check the app's Client ID and redirect URL.",
-  invalid_state: "The OAuth state was invalid.",
-  state_mismatch: "The OAuth request expired.",
-  session_mismatch: "Your session expired or changed during sign-in.",
-  token_unavailable: "Twitch's token service didn't respond.",
-  token_exchange_failed: "Twitch rejected the token exchange. Check the app's redirect URL.",
-  invalid_token_response: "Twitch returned an invalid token response.",
-  user_unavailable: "Twitch's user service didn't respond.",
-  user_lookup_failed: "Couldn't look up the bot account on Twitch.",
-  invalid_user_response: "Twitch returned no valid user data.",
-  db_error: "The bot account couldn't be saved.",
-} as const;
-
-export type BotOAuthErrorCode = keyof typeof BOT_OAUTH_ERROR_MESSAGES;
-
-/** Fixed toast copy for a `?reason=` code; unknown or missing codes get a generic message. */
-export function botOAuthErrorMessage(code: string | null | undefined): string {
-  const detail =
-    code && Object.hasOwn(BOT_OAUTH_ERROR_MESSAGES, code)
-      ? BOT_OAUTH_ERROR_MESSAGES[code as BotOAuthErrorCode]
-      : "Something went wrong.";
-  return `Couldn't connect the bot account. ${detail} Try again.`;
-}
-
 // ── Command aliases (single source, env-free) ────────────────────────────────
 // Command names and the alias normalizer live in ./chat-commands (zod-free, so
-// the browser bot page can filter chat without bundling zod).
+// the browser bot page and the alias editor use them without bundling zod).
 export {
   ALIAS_MAX_LENGTH,
+  type AliasIssue,
+  type AliasIssueReason,
+  aliasTokenHasWhitespace,
   BUILTIN_COMMAND_NAMES,
   chatCommandOf,
   cleanChatLine,
@@ -171,95 +136,11 @@ export {
   MAX_BLOCKED_VIEWERS,
   META_COMMANDS,
   MODERATION_COMMANDS,
+  normalizeAliases,
   normalizeAliasToken,
   normalizeTwitchLogin,
   TWITCH_LOGIN_PATTERN,
 } from "./chat-commands";
-
-/**
- * True when an alias or target is more than one word ("!timer start"). Aliases
- * map one command name to another and carry no arguments, so normalizing would
- * silently drop everything after the first word.
- */
-export function aliasTokenHasWhitespace(raw: string): boolean {
-  return /\s/.test(raw.trim().replace(/^!+/, "").trim());
-}
-
-export type AliasIssueReason =
-  | "empty"
-  | "too-long"
-  | "multi-word"
-  | "shadows-builtin"
-  | "duplicate"
-  | "recursive"
-  | "unknown-target";
-export interface AliasIssue {
-  key: string;
-  reason: AliasIssueReason;
-  /** Position of the offending entry in the input, so an editor can flag its row. */
-  index: number;
-}
-
-/**
- * Normalize raw aliases (keys/values with or without "!") into canonical form
- * and collect validation issues. Reused by the router input schema AND the
- * dashboard editor so client and server validate identically. Rejects empty
- * tokens, keys or targets over ALIAS_MAX_LENGTH, multi-word keys/targets, keys that would replace a built-in command,
- * duplicate keys (after normalization), self-recursion, and targets that are
- * not real commands. Accepts entries as well as a record so the editor can
- * pass its rows without collapsing duplicates first.
- */
-export function normalizeAliases(
-  raw: Record<string, string> | Iterable<readonly [string, string]>,
-): {
-  aliases: Record<string, string>;
-  issues: AliasIssue[];
-} {
-  const entries: Iterable<readonly [string, string]> =
-    Symbol.iterator in raw ? raw : Object.entries(raw);
-  // A Map, not `key in {}`: inherited names like "constructor" must not read as
-  // duplicates, and "__proto__" must not be assigned to the prototype.
-  const aliases = new Map<string, string>();
-  const issues: AliasIssue[] = [];
-  const known = new Set<string>(KNOWN_ALIAS_TARGETS);
-
-  let index = -1;
-  for (const [rawKey, rawValue] of entries) {
-    index += 1;
-    const key = normalizeAliasToken(rawKey);
-    const target = normalizeAliasToken(rawValue);
-    if (!key || !target) {
-      issues.push({ key: rawKey || "(empty)", reason: "empty", index });
-      continue;
-    }
-    if (key.length > ALIAS_MAX_LENGTH || target.length > ALIAS_MAX_LENGTH) {
-      issues.push({ key, reason: "too-long", index });
-      continue;
-    }
-    if (aliasTokenHasWhitespace(rawKey) || aliasTokenHasWhitespace(rawValue)) {
-      issues.push({ key, reason: "multi-word", index });
-      continue;
-    }
-    if (isBuiltinCommandName(key)) {
-      issues.push({ key, reason: "shadows-builtin", index });
-      continue;
-    }
-    if (aliases.has(key)) {
-      issues.push({ key, reason: "duplicate", index });
-      continue;
-    }
-    if (key === target) {
-      issues.push({ key, reason: "recursive", index });
-      continue;
-    }
-    if (!known.has(target)) {
-      issues.push({ key, reason: "unknown-target", index });
-      continue;
-    }
-    aliases.set(key, target);
-  }
-  return { aliases: Object.fromEntries(aliases), issues };
-}
 
 /** Every timer state-machine status — defined in @dirework/db so the schema can type its columns. */
 export { TIMER_STATUSES, type TimerStatus } from "@dirework/db/defaults";
@@ -350,10 +231,8 @@ const taskLength = (path: keyof typeof TASK_LENGTH_LIMITS) =>
   boundedLengthSchema(TASK_LENGTH_LIMITS[path]).optional();
 
 // ── Twitch protocol limits ──────────────────────────────────────────────────
-// Wire limits and byte helpers live in ./chat-text (see MAX_CHAT_BYTES).
-
-/** Max bytes for a stored message TEMPLATE, leaving room for interpolation. */
-export const MAX_MESSAGE_TEMPLATE_BYTES = 300;
+// Wire limits, the template cap and byte helpers live in ./chat-text (see
+// MAX_CHAT_BYTES and MAX_MESSAGE_TEMPLATE_BYTES).
 
 /**
  * A stored chat-message template, bounded by UTF-8 bytes rather than chars, with no

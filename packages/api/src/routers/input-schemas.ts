@@ -159,7 +159,8 @@ export const commandAliasesInput = z.object({
   // Normalizes keys/targets to canonical form (no leading "!") and rejects
   // empty / multi-word / built-in-shadowing / duplicate / recursive /
   // unknown-target aliases via the SAME shared
-  // validator the dashboard editor uses (config-shared.normalizeAliases).
+  // validator the dashboard editor uses (normalizeAliases, in the zod-free
+  // chat-commands module).
   commandAliases: z
     .record(z.string().max(50), z.string().max(100))
     .refine((obj) => Object.keys(obj).length <= 50, {
