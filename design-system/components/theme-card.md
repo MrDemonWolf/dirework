@@ -24,7 +24,7 @@ One preset tile in the Theme Center's `ThemeBrowser` rail. Its face is a mini ov
 | `isActive` | `boolean` | | Checked state |
 | `onApply` | `() => void` | | Click / Enter / Space |
 | `onFocus` | `() => void` | | Lets `ThemeBrowser` track the roving stop |
-| `tabIndex` | `number` | `0` | Set by `ThemeBrowser` (0 on the focused card, -1 elsewhere) |
+| `tabIndex` | `number` | `0` | Set by `ThemeBrowser` (0 on the gallery's tab stop: the focused card while focus is in the gallery, else the checked one; -1 elsewhere) |
 
 ## States
 

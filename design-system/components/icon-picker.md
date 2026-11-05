@@ -37,9 +37,10 @@ fixed `OVERLAY_ICONS` set, so every pick renders the same in OBS. Rendered by
 
 - `role="radiogroup"` labelled by the row label; each swatch is `role="radio"` with
   `aria-checked` and an `aria-label` from `OVERLAY_ICON_LABELS`.
-- Roving tabindex through `lib/grid-navigation.ts` (`nextGridIndex`, columns read from the
-  live grid): arrows move focus, Home/End jump, Enter/Space/click picks, like the preset
-  gallery.
+- Roving tabindex through `lib/use-roving-grid.ts` (`useRovingGrid`, shared with the preset
+  gallery; `nextGridIndex` with columns read from the live grid): arrows move focus, Home/End
+  jump, Enter/Space/click picks. Tab and Shift+Tab enter on the checked icon, wherever the
+  arrows last left focus (e2e `40-theme-center`).
 
 ## Do / Don't
 

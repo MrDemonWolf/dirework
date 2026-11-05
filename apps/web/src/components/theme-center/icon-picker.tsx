@@ -3,23 +3,22 @@
 // Theme Center picker for the task overlay's bullet and checkbox-tick icon: the fixed set
 // in OVERLAY_ICONS, drawn exactly as the overlay draws them.
 
-import { useRef, useState } from "react";
-
 import {
   OVERLAY_ICON_LABELS,
   OVERLAY_ICONS,
   type OverlayIcon as OverlayIconId,
 } from "@dirework/api/style-limits";
 
-import { nextGridIndex } from "@/lib/grid-navigation";
+import { useRovingGrid } from "@/lib/use-roving-grid";
 import { cn } from "@/lib/utils";
 import { OverlayIcon } from "@/components/overlay-icon";
 
 /**
- * A radiogroup of icon swatches with a roving tabindex, like the preset gallery: arrow
- * keys move focus (Left/Right wrap, Up/Down move a row, Home/End jump), Enter, Space or a
- * click picks. The label sits above a full-width grid, so the swatches keep a 44px touch
- * target instead of squeezing into the editor's narrow control column.
+ * A radiogroup of icon swatches with the preset gallery's roving tabindex (`useRovingGrid`):
+ * arrow keys move focus (Left/Right wrap, Up/Down move a row, Home/End jump), Tab enters on
+ * the checked icon, and Enter, Space or a click picks. The label sits above a full-width
+ * grid, so the swatches keep a 44px touch target instead of squeezing into the editor's
+ * narrow control column.
  */
 export function IconPickerRow({
   label,
@@ -34,21 +33,10 @@ export function IconPickerRow({
   onChange: (value: OverlayIconId) => void;
   hint?: string;
 }) {
-  const gridRef = useRef<HTMLDivElement>(null);
-  const selected = Math.max(0, OVERLAY_ICONS.indexOf(value));
-  const [focused, setFocused] = useState<number | null>(null);
-  const tabStop = focused ?? selected;
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    const grid = gridRef.current;
-    if (!grid) return;
-    const columns = getComputedStyle(grid).gridTemplateColumns.split(" ").length || 1;
-    const next = nextGridIndex(e.key, tabStop, OVERLAY_ICONS.length, columns);
-    if (next === null) return;
-    e.preventDefault();
-    setFocused(next);
-    grid.querySelectorAll<HTMLButtonElement>('[role="radio"]')[next]?.focus();
-  };
+  const { gridRef, tabStop, onKeyDown, onBlur, onItemFocus } = useRovingGrid({
+    count: OVERLAY_ICONS.length,
+    selectedIndex: OVERLAY_ICONS.indexOf(value),
+  });
 
   return (
     <div className="space-y-2">
@@ -68,10 +56,8 @@ export function IconPickerRow({
         role="radiogroup"
         aria-labelledby={`${id}-label`}
         aria-describedby={hint ? `${id}-hint` : undefined}
-        onKeyDown={handleKeyDown}
-        onBlur={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget)) setFocused(null);
-        }}
+        onKeyDown={onKeyDown}
+        onBlur={onBlur}
         className="grid grid-cols-7 gap-1"
       >
         {OVERLAY_ICONS.map((icon, index) => {
@@ -86,7 +72,7 @@ export function IconPickerRow({
               aria-label={OVERLAY_ICON_LABELS[icon]}
               title={OVERLAY_ICON_LABELS[icon]}
               tabIndex={index === tabStop ? 0 : -1}
-              onFocus={() => setFocused(index)}
+              onFocus={() => onItemFocus(index)}
               onClick={() => onChange(icon)}
               className={cn(
                 "flex h-9 items-center justify-center rounded-md border text-muted-foreground transition-colors pointer-coarse:h-11",

@@ -982,8 +982,11 @@ header chip is the page's dirty indicator ("Previewing unsaved changes" / "Match
 theme"); `SaveBar` takes `label` and `saveHint` (Theme Center: "Unsaved — not on stream yet",
 "Saving updates both OBS overlays", the Save button's description).
 Editor layout: `ThemeBrowser` is a `grid-cols-2 md:grid-cols-3 xl:grid-cols-6` radiogroup
-("Theme presets") with roving tabindex driven by `lib/grid-navigation.ts` (`nextGridIndex`;
-columns read from the live grid). Tabs "Timer style" / "Task style" / "Phase labels";
+("Theme presets") with roving tabindex from `useRovingGrid` (`lib/use-roving-grid.ts`, shared
+with the icon pickers): arrows move focus only (`nextGridIndex` in `lib/grid-navigation.ts`,
+columns read from the live grid), and the tab stop is derived, never synced in an effect: the
+focused item while focus is inside the group, else the checked one, so Tab re-enters on the
+checked radio. Tabs "Timer style" / "Task style" / "Phase labels";
 `TabsTrigger` takes `dirty` (amber dot + sr-only "(unsaved changes)"). The two style editors
 are thin wrappers over `theme-center/style-sections-editor.tsx`, which renders
 `TIMER_STYLE_FIELDS` / `TASK_STYLE_FIELDS` from `lib/style-sections.ts`: every style leaf
@@ -999,7 +1002,7 @@ path; `lengthFieldError` gives the inline error naming the range, and the page's
 `updateStylesInput.safeParse` blocks Save). Sliders take their min/max from the
 `*_NUMBER_LIMITS`. The bullet and tick are `kind: "icon"` fields: `IconPickerRow`
 (`theme-center/icon-picker.tsx`, a full-width 7-column radiogroup, roving tabindex via
-`nextGridIndex`) over the overlay's own `OverlayIcon` (`components/overlay-icon.tsx`,
+`useRovingGrid`) over the overlay's own `OverlayIcon` (`components/overlay-icon.tsx`,
 named lucide imports only). Phase labels count with `phaseLabelBudget` (`ByteBudget`
 shows characters or bytes, whichever is tighter).
 Each group fieldset caps at `max-w-md` and the groups flow into two CSS columns from the

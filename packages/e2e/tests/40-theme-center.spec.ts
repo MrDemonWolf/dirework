@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { DEFAULT_TIMER_STYLES } from "@dirework/api/config-defaults";
 
@@ -9,6 +9,22 @@ import {
   skeletonFrames,
   waitForHydration,
 } from "./helpers";
+
+/**
+ * Arrow focus off a radiogroup's checked radio, Tab out of the group, then Shift+Tab back in:
+ * focus must land on the checked radio again, not on the one the arrows left it on (the
+ * WAI-ARIA radio group pattern).
+ */
+async function expectTabReentryOnChecked(page: Page, group: Locator): Promise<void> {
+  const checked = group.getByRole("radio", { checked: true });
+  await checked.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(group.locator(':focus[aria-checked="false"]')).toHaveCount(1);
+  await page.keyboard.press("Tab");
+  await expect(group.locator(":focus")).toHaveCount(0);
+  await page.keyboard.press("Shift+Tab");
+  await expect(checked).toBeFocused();
+}
 
 test("a hard load paints the finished page, never the loading skeleton", async ({ page }) => {
   await signIn(page);
@@ -75,6 +91,31 @@ test("applies a preset, saves it, and finds it selected after a reload", async (
 
   await page.reload();
   await expect(presets.nth(target)).toHaveAttribute("aria-checked", "true");
+});
+
+test("Tab re-enters the preset gallery and the icon picker on the checked radio", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto("/dashboard/styles");
+  await waitForHydration(page);
+
+  // The tick icon picker (Task style, Typography).
+  await page.getByRole("tab", { name: "Task style" }).click();
+  const typography = page.getByRole("button", { name: "Typography", exact: true });
+  if ((await typography.getAttribute("aria-expanded")) !== "true") await typography.click();
+  await expectTabReentryOnChecked(
+    page,
+    page.getByRole("radiogroup", { name: "Tick icon", exact: true }),
+  );
+
+  // The preset gallery. The saved theme matches no preset once the last test here saves a
+  // custom color, so check one in the draft first instead of relying on the test order.
+  // Nothing is saved.
+  const presets = page.getByRole("radiogroup", { name: "Theme presets" });
+  await presets.getByRole("radio").first().click();
+  await expect(presets.getByRole("radio").first()).toHaveAttribute("aria-checked", "true");
+  await expectTabReentryOnChecked(page, presets);
 });
 
 test("previews either overlay over a chosen backdrop and says when edits are unsaved", async ({
