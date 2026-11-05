@@ -1,17 +1,24 @@
 /**
- * Worker bundle budget, run by verify.yml after `build:worker` and before the
+ * Worker bundle size check, run by verify.yml after `build:worker` and before the
  * runtime smoke check (`node ./node_modules/.bin/tsx bundle-budget.ts` from
- * packages/infra). The free Workers plan caps a script at 3 MiB compressed and
- * rejects the upload past it — after the deploy has already applied the D1
- * migrations. Failing here, with headroom, keeps that from being the first
- * signal.
+ * packages/infra). Each worker gets two checks:
  *
- * - api: gzip of apps/server/dist/index.js, the dry-run bundle the server's
- *   `build` script (wrangler deploy --dry-run) wrote earlier in the same run.
+ * - Cloudflare's limit: 64 MiB uncompressed on every plan, the `Total Upload`
+ *   size wrangler prints. Since 2026-09-04 it is the only size Cloudflare checks
+ *   at upload; the compressed 3 MB Free / 10 MB Paid check is gone, and the gzip
+ *   size is for reference only
+ *   (https://developers.cloudflare.com/changelog/post/2026-09-04-increased-worker-size-limit/).
+ *   An upload past it is refused after the deploy has already applied the D1
+ *   migrations, so failing here keeps that from being the first signal.
+ * - Our ratchet: WORKER_BUDGET_KIB on the gzip size, a growth limit of our own.
+ *
+ * - api: apps/server/dist/index.js, the dry-run bundle the server's `build`
+ *   script (wrangler deploy --dry-run) wrote earlier in the same run. It is the
+ *   api's only module, so its size is the api's upload size.
  * - web: `wrangler deploy --dry-run` over the OpenNext output, with the config
  *   the runtime smoke check boots (buildSmokeConfig) plus Alchemy's
- *   `minify: true`, so the number is the one Alchemy uploads — unminified it
- *   reads about 13% high.
+ *   `minify: true`, so the numbers are the ones Alchemy uploads — unminified
+ *   they read about 13% high.
  *
  * The pure parts are unit-tested; main() runs only when this file is the
  * entrypoint.
@@ -22,38 +29,67 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { stripVTControlCharacters } from "node:util";
 import { gzipSync } from "node:zlib";
 
 import { buildSmokeConfig, readCompatibilityDate } from "../../apps/web/scripts/smoke-worker.mjs";
 
-/** Cloudflare's compressed script size cap on the free plan (3 MiB). */
-export const FREE_PLAN_WORKER_CAP_KIB = 3072;
+/**
+ * Cloudflare's Worker size limit: 64 MiB uncompressed, on the Free and Paid plans
+ * alike (https://developers.cloudflare.com/workers/platform/limits/).
+ */
+export const UNCOMPRESSED_LIMIT_KIB = 65536;
 
 /**
- * Per-worker budget: 512 KiB under the cap, so the budget trips while a deploy
- * would still succeed and there is room to react. Measured at introduction
- * (2026-10): api ~525 KiB, web ~1990 KiB. Raise it deliberately, with a reason,
- * never to turn a red run green.
+ * Per-worker gzip budget: a ratchet of our own, not a platform limit. It stops a
+ * bundle from growing unnoticed, and it stands in for cold-start cost, since every
+ * KiB is script an isolate parses before it serves a request (verify.yml's startup
+ * check measures that directly). Measured: api ~525 KiB, web ~1990 KiB at
+ * introduction (2026-10); api 548 KiB, web 2117 KiB in 2026-11. Lower it when a
+ * bundle shrinks for good; raise it only deliberately, with a reason, never to
+ * turn a red run green.
  */
 export const WORKER_BUDGET_KIB = 2560;
 
-/** Read the compressed size from wrangler's `Total Upload: … / gzip: 524.77 KiB` line. */
-export function parseGzipKib(output: string): number {
-  const match = /gzip: ([\d.]+) KiB/.exec(output);
-  if (!match) throw new Error("wrangler did not report a gzip size");
-  return Number(match[1]);
+/** A worker's upload size in KiB: uncompressed (what Cloudflare limits) and gzip. */
+export type WorkerSize = { rawKib: number; gzipKib: number };
+
+/** Read both sizes from wrangler's `Total Upload: 6623.48 KiB / gzip: 2116.84 KiB` line. */
+export function parseUploadSizes(output: string): WorkerSize {
+  // wrangler colors the sizes when colors are on (yellow past 70% of the limit).
+  const match = /Total Upload: ([\d.]+) KiB \/ gzip: ([\d.]+) KiB/.exec(
+    stripVTControlCharacters(output),
+  );
+  if (!match) throw new Error("wrangler did not report the upload size");
+  return { rawKib: Number(match[1]), gzipKib: Number(match[2]) };
 }
 
-/** Compressed size of a bundle in KiB, rounded the way wrangler prints it. */
-export function gzipKib(bytes: Uint8Array): number {
-  return Number((gzipSync(bytes).length / 1024).toFixed(2));
+/** Raw and compressed size of a bundle in KiB, rounded the way wrangler prints them. */
+export function bundleSizes(bytes: Uint8Array): WorkerSize {
+  const kib = (length: number) => Number((length / 1024).toFixed(2));
+  return { rawKib: kib(bytes.length), gzipKib: kib(gzipSync(bytes).length) };
 }
 
-/** Names of the workers whose compressed size exceeds the budget. */
-export function overBudget(sizes: Record<string, number>, budgetKib: number): string[] {
-  return Object.entries(sizes)
-    .filter(([, kib]) => kib > budgetKib)
-    .map(([name]) => name);
+/**
+ * Every reason a worker fails: over Cloudflare's uncompressed limit, which no
+ * budget can lift, or over the gzip budget. A size exactly at either passes.
+ */
+export function sizeFailures(
+  sizes: Record<string, WorkerSize>,
+  budgetKib: number = WORKER_BUDGET_KIB,
+): string[] {
+  const failures: string[] = [];
+  for (const [name, { rawKib, gzipKib }] of Object.entries(sizes)) {
+    if (rawKib > UNCOMPRESSED_LIMIT_KIB) {
+      failures.push(
+        `${name}: ${rawKib} KiB uncompressed is over Cloudflare's ${UNCOMPRESSED_LIMIT_KIB} KiB limit, so the upload would be refused`,
+      );
+    }
+    if (gzipKib > budgetKib) {
+      failures.push(`${name}: ${gzipKib} KiB gzip is over the ${budgetKib} KiB budget`);
+    }
+  }
+  return failures;
 }
 
 /**
@@ -64,7 +100,7 @@ export function webDryRunConfig(input: { webDir: string; compatibilityDate: stri
   return { ...buildSmokeConfig(input), name: "dirework-web-budget", minify: true };
 }
 
-function measureWeb(repoRoot: string, webDir: string): number {
+function measureWeb(repoRoot: string, webDir: string): WorkerSize {
   const compatibilityDate: string | undefined = readCompatibilityDate(
     readFileSync(path.join(repoRoot, "packages/infra/deploy-config.ts"), "utf8"),
   );
@@ -87,7 +123,7 @@ function measureWeb(repoRoot: string, webDir: string): number {
       const tail = `${result.stdout}${result.stderr}`.split("\n").slice(-30).join("\n");
       throw new Error(`wrangler deploy --dry-run exited ${result.status}\n${tail}`);
     }
-    return parseGzipKib(result.stdout);
+    return parseUploadSizes(result.stdout);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -110,21 +146,21 @@ function main(): void {
     process.exit(1);
   }
 
-  const sizes = { api: gzipKib(readFileSync(apiBundle)), web: measureWeb(repoRoot, webDir) };
-  for (const [name, kib] of Object.entries(sizes)) {
+  const sizes = { api: bundleSizes(readFileSync(apiBundle)), web: measureWeb(repoRoot, webDir) };
+  for (const [name, { rawKib, gzipKib }] of Object.entries(sizes)) {
     console.log(
-      `${name}: ${kib.toFixed(2)} KiB gzip (budget ${WORKER_BUDGET_KIB} KiB, free-plan cap ${FREE_PLAN_WORKER_CAP_KIB} KiB)`,
+      `${name}: ${rawKib.toFixed(2)} KiB uncompressed (Cloudflare limit ${UNCOMPRESSED_LIMIT_KIB} KiB), ${gzipKib.toFixed(2)} KiB gzip (budget ${WORKER_BUDGET_KIB} KiB)`,
     );
   }
 
-  const over = overBudget(sizes, WORKER_BUDGET_KIB);
-  if (over.length > 0) {
+  const failures = sizeFailures(sizes);
+  if (failures.length > 0) {
     console.error(
-      `Worker bundle budget exceeded: ${over.join(", ")}. Trim the bundle, or raise WORKER_BUDGET_KIB in packages/infra/bundle-budget.ts with a reason.`,
+      `Worker bundle size check failed:\n${failures.map((failure) => `- ${failure}`).join("\n")}\nTrim the bundle. WORKER_BUDGET_KIB in packages/infra/bundle-budget.ts may be raised with a reason; Cloudflare's limit can't.`,
     );
     process.exit(1);
   }
-  console.log("Worker bundle budget check passed.");
+  console.log("Worker bundle size check passed.");
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {

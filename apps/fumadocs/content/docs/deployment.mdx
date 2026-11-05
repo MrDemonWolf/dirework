@@ -480,9 +480,21 @@ Check D1 **Metrics → Row Metrics** after a representative stream; shorten the 
 list with **Clear done** when needed. These are workload estimates, not measured
 production usage; [Cloudflare counts scanned rows toward the quota](https://developers.cloudflare.com/d1/platform/pricing/).
 
-### Worker size
+### Worker size and startup
 
-The free plan also caps each Worker at 3 MiB compressed, and Cloudflare rejects an upload
-past it — after the deploy has already applied the D1 migrations. The Verify workflow
-therefore measures both Worker bundles right after the build and fails at 2560 KiB
-(`packages/infra/bundle-budget.ts`), leaving room to trim before a deploy can hit the cap.
+[Cloudflare limits each Worker](https://developers.cloudflare.com/workers/platform/limits/)
+to 64 MiB uncompressed on every plan (the `Total Upload` size Wrangler prints), and gives
+its global scope, the code outside its handlers, 1 second of CPU to start. Cloudflare
+refuses an upload past either limit, after the deploy has already applied the D1
+migrations. The compressed size is no longer a limit: Cloudflare
+[dropped its 3 MB Free / 10 MB Paid check](https://developers.cloudflare.com/changelog/post/2026-09-04-increased-worker-size-limit/)
+on September 4, 2026.
+
+The Verify workflow checks both Workers right after the build:
+
+- **Size** (`packages/infra/bundle-budget.ts`): fails past 64 MiB uncompressed, and past
+  2560 KiB gzip. That second number is DireWork's own budget, not a Cloudflare limit: it
+  keeps the bundles, and with them the startup cost, from growing unnoticed.
+- **Startup** (`packages/infra/startup-check.ts`): profiles each Worker's startup locally
+  with `wrangler check startup`, adds the time to the run's summary, and fails above
+  500 ms, half the limit, so a slow CI runner can't fail it by chance.

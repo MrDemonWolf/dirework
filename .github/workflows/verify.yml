@@ -84,11 +84,12 @@ jobs:
         if: ${{ inputs.run-build || inputs.upload-docs }}
         working-directory: apps/web
         run: bun run build:worker
-      # The free Workers plan caps a script at 3 MiB compressed and rejects the
-      # upload past it — after the D1 migrations have already been applied.
-      # Budget 2560 KiB gzip per worker: api from the dry-run bundle the build
-      # step just wrote, web from a wrangler dry run over the OpenNext output
-      # (packages/infra/bundle-budget.ts).
+      # Cloudflare refuses a Worker over 64 MiB uncompressed (every plan; the
+      # only size it checks since 2026-09-04), after the D1 migrations have
+      # already been applied. Each worker must fit that limit and our own
+      # 2560 KiB gzip budget, a growth ratchet: api from the dry-run bundle the
+      # build step just wrote, web from a wrangler dry run over the OpenNext
+      # output (packages/infra/bundle-budget.ts).
       - name: Worker bundle budget
         if: ${{ inputs.run-build || inputs.upload-docs }}
         working-directory: packages/infra
@@ -101,6 +102,15 @@ jobs:
         if: ${{ inputs.run-build || inputs.upload-docs }}
         working-directory: packages/infra
         run: node ./node_modules/.bin/tsx client-budget.ts
+      # Cloudflare also refuses a Worker whose global scope takes over 1 s of
+      # CPU to start. wrangler check startup profiles both workers locally (no
+      # secrets); the times go to the job summary, and the step fails only
+      # above 500 ms so a slow runner can't fail it
+      # (packages/infra/startup-check.ts).
+      - name: Worker startup time
+        if: ${{ inputs.run-build || inputs.upload-docs }}
+        working-directory: packages/infra
+        run: node ./node_modules/.bin/tsx startup-check.ts
       # A worker can build cleanly and still throw on every request at runtime
       # (Next 16.4 under OpenNext 1.20.9 did, in production). Boot the built
       # bundle in local workerd and request routes that need no api worker.
