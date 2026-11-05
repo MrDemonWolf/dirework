@@ -1086,7 +1086,8 @@ procedures, a `/__e2e/requests` tally, and `/__e2e/bot-account` (POST seeds a fa
 bot account, DELETE removes it; `setBotAccount` in `tests/helpers.ts`)), signed in through the `DEV_LOGIN`
 bypass with a fixed test secret. One worker and serial specs (single-owner instance, one
 database). Spec files are numbered and run in order: `00-first-run` sees the fresh database
-(the claim page, then the first dev-login claims the instance), then `10-smoke`,
+(the claim page, then the first dev-login claims the instance), then `10-smoke` (incl. an
+inline handler injected into an overlay being refused by the CSP),
 `15-landing` (the viewer landing: claimed notice + deploy link, docs links, no `/rpc`),
 `20-dashboard` (incl. the stats strip counting a finished task without a reload), `22-progressive` (a fast hard load of `/dashboard` or `/dashboard/bot`
 paints no placeholder at the same request cost, even with every procedure slowed to a
@@ -1124,7 +1125,12 @@ Center and Bot overview shows a focus indicator (outline or ring; ring colors ar
 skips a rule (the Bot settings usage lines that once measured 4.37:1 are full
 `text-muted-foreground` now). Shared
 helpers in `tests/helpers.ts`: `signIn`, `confirmDialog`, `revealSecretUrl`, `pinTheme`,
-`expectNoSeriousViolations(page, name, { theme })`. Specs use roles
+`expectNoSeriousViolations(page, name, { theme })`, and `watchCsp` + `expectNoCspViolations`
+(every `securitypolicyviolation` from any frame, across navigations; `10-smoke`,
+`20-dashboard`, `30-timer` and `55-bot-dock` hold the landing, the dashboard, both overlays
+and the bot dock and widget to none). While zod is still in every page's bundle, `watchCsp`
+sets zod's `jitless` before page scripts run: zod's caught `Function("")` probe would
+otherwise report a refused eval on every load. Specs use roles
 and labels, never CSS classes. Runs in `verify.yml` after the smoke check, so a PR and a
 deploy are gated the same way; the Playwright report uploads on failure.
 verify's `run-e2e` input (default `true`) skips the suite, never the build: docs deploys pass
@@ -1386,6 +1392,10 @@ the default app to two workers, one D1 database and the existing rate-limit bind
   messages, or SQL (`logger.ts`, `telemetry.ts`).
 - Style values reaching overlay CSS go through the allowlist schemas in
   `config-shared.ts`; chat text is bounded in UTF-8 bytes, not characters.
+- The web CSP (`cspDirectives` in `apps/web/next.config.ts`) keeps `script-src-attr 'none'`,
+  so no markup may carry an inline event-handler attribute (`onload=`, `onerror=`, or one
+  set with `setAttribute("on…")`): use React props or `addEventListener`.
+  `security-headers.test.ts` pins the directive.
 - Browser traffic that goes web-to-api is proxied by a route handler (`auth-proxy.ts`),
   never a `next.config` rewrite. Server-side renders call the api directly with a
   signed client identity (`lib/server-session.ts`, `stampForwardedClient`) — including
