@@ -11,6 +11,7 @@ import { toast } from "sonner";
 
 import { MAX_BLOCKED_VIEWERS, normalizeTwitchLogin } from "@dirework/api/chat-commands";
 
+import { applyConfigResult, viewerBlocked, viewerUnblocked } from "@/lib/config-cache";
 import { toastMutationError } from "@/lib/validation-errors";
 import { SettingsCard } from "@/components/bot-settings/settings-card";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -35,23 +36,30 @@ export function BlockedViewersCard({ blockedViewers }: { blockedViewers: string[
   const [filter, setFilter] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: trpc.config.get.queryKey() });
+  // The answer names the login, which is all the list change needs: patch the cached
+  // config.get (lib/config-cache.ts) instead of re-reading it (one /rpc round trip less).
+  const configKey = trpc.config.get.queryKey();
 
   const blockViewer = useMutation({
     ...trpc.config.blockViewer.mutationOptions(),
-    onSuccess: ({ login }) => {
+    onSuccess: (saved) => {
       setInput("");
-      toast.success(`Blocked ${login}`);
-      return refresh();
+      toast.success(`Blocked ${saved.login}`);
+      return Promise.all([
+        applyConfigResult(queryClient, configKey, viewerBlocked(saved)),
+        // Blocking also deleted the viewer's tasks. Not mounted on this page, so this only
+        // marks the list stale (no request); the dashboard reads it fresh on the way back.
+        queryClient.invalidateQueries({ queryKey: trpc.task.list.queryKey() }),
+      ]);
     },
     onError: toastMutationError("block that viewer"),
   });
 
   const unblockViewer = useMutation({
     ...trpc.config.unblockViewer.mutationOptions(),
-    onSuccess: ({ login }) => {
-      toast.success(`Unblocked ${login}`);
-      return refresh();
+    onSuccess: (saved) => {
+      toast.success(`Unblocked ${saved.login}`);
+      return applyConfigResult(queryClient, configKey, viewerUnblocked(saved));
     },
     onError: toastMutationError("unblock that viewer"),
   });

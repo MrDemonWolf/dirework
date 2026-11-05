@@ -12,6 +12,7 @@ import {
   DEFAULT_TIMER_STYLES,
   TIMER_CONFIG_DEFAULTS,
 } from "@dirework/api/config-defaults";
+import { MAX_BLOCKED_VIEWERS } from "@dirework/api/chat-commands";
 
 import {
   type ConfigData,
@@ -20,6 +21,8 @@ import {
   botSettingsSaved,
   stylesSaved,
   timerConfigSaved,
+  viewerBlocked,
+  viewerUnblocked,
 } from "../config-cache";
 
 const src = path.resolve(import.meta.dirname, "../..");
@@ -192,6 +195,30 @@ describe("the merges", () => {
       botConfig: { ...saved.botConfig, muted: true },
     });
   });
+
+  const withBlocked = (blockedViewers: string[]): ConfigData => ({
+    ...saved,
+    botConfig: { ...saved.botConfig, blockedViewers },
+  });
+
+  it("viewerBlocked appends the login, lowercase, as the server's json_insert does", () => {
+    expect(viewerBlocked({ login: "NewTroll" })(saved)).toEqual(
+      withBlocked(["spammer", "newtroll"]),
+    );
+  });
+
+  it("viewerBlocked never lists a login twice, nor past MAX_BLOCKED_VIEWERS", () => {
+    const already = viewerBlocked({ login: "Spammer" })(saved);
+    expect(already.botConfig.blockedViewers).toEqual(["spammer"]);
+    const full = withBlocked(Array.from({ length: MAX_BLOCKED_VIEWERS }, (_, i) => `v${i}`));
+    expect(viewerBlocked({ login: "one_more" })(full)).toBe(full);
+  });
+
+  it("viewerUnblocked drops the login (any case) and keeps the order of the rest", () => {
+    const list = withBlocked(["a", "spammer", "b"]);
+    expect(viewerUnblocked({ login: "SPAMMER" })(list)).toEqual(withBlocked(["a", "b"]));
+    expect(viewerUnblocked({ login: "nobody" })(list)).toBe(list);
+  });
 });
 
 describe("the config writes", () => {
@@ -235,9 +262,13 @@ describe("the config writes", () => {
     expect(code).not.toContain("invalidateQueries");
   });
 
-  it("block and unblock still re-read config.get (the server decides the list)", () => {
-    expect(read("components/bot-settings/blocked-viewers-card.tsx")).toMatch(
-      /invalidateQueries\(\{\s*queryKey: trpc\.config\.get\.queryKey\(\)/,
-    );
+  it("block and unblock patch the cached list instead of re-reading config.get", () => {
+    const code = read("components/bot-settings/blocked-viewers-card.tsx");
+    expect(code).toContain("applyConfigResult(");
+    expect(code).toMatch(/viewerBlocked\(/);
+    expect(code).toMatch(/viewerUnblocked\(/);
+    expect(code).not.toMatch(/invalidateQueries\(\{\s*queryKey: trpc\.config\.get\.queryKey\(\)/);
+    // Blocking deletes the viewer's tasks on the server: the task list is a different query.
+    expect(code).toMatch(/invalidateQueries\(\{\s*queryKey: trpc\.task\.list\.queryKey\(\)/);
   });
 });
