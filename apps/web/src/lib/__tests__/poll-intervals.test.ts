@@ -161,7 +161,7 @@ describe("the bot page's other cadences", () => {
 });
 
 describe("VERSION_CHECK_MS", () => {
-  // One web-Worker request per check (/api/version is no-store), in the owner's visible tab
+  // One free static-asset revalidation per check, in the owner's visible tab
   // only. A deploy only needs noticing within minutes, so this never gets faster.
   it("checks for a new deploy no more than every 5 minutes", () => {
     expect(VERSION_CHECK_MS).toBeGreaterThanOrEqual(5 * 60_000);

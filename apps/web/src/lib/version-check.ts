@@ -1,6 +1,6 @@
 // When an open (app) tab looks for a newer deploy. VersionBadge compares the SHA baked into
-// this tab with the one `/api/version` reports, and that route is no-store, so every check is
-// one web-Worker request. The (app) layout turns checking on for the signed-in owner only;
+// this tab with the one `/version.json` reports, a free static-asset revalidation.
+// The (app) layout turns checking on for the signed-in owner only;
 // here it runs only while the tab is visible, at most once per VERSION_CHECK_MS (a return to
 // the tab checks only once that much has passed since the last check), and never again once a
 // newer deploy is found (the Reload chip is already showing). A hidden tab holds no timer at
@@ -10,10 +10,10 @@
 import { VERSION_CHECK_MS } from "./poll-intervals";
 import { isStale } from "./version";
 
-/** The SHA the web Worker serves now, or undefined when the check failed (offline, a 5xx). */
+/** The SHA the deployed web assets serve now, or undefined when the check failed. */
 export async function fetchDeployedSha(): Promise<string | undefined> {
   try {
-    const res = await fetch("/api/version", { cache: "no-store" });
+    const res = await fetch("/version.json", { cache: "no-cache" });
     if (!res.ok) return undefined;
     return ((await res.json()) as { sha?: string }).sha;
   } catch {

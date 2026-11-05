@@ -31,7 +31,7 @@ function fakeDocument(visible: boolean) {
   };
 }
 
-/** A tab built from BUILT whose `/api/version` answers `live` (undefined = a failed check). */
+/** A tab built from BUILT whose `/version.json` answers `live` (undefined = a failed check). */
 function tab({ visible = true, live = BUILT as string | undefined } = {}) {
   const page = fakeDocument(visible);
   const fetchVersion = vi.fn(async () => live);
@@ -151,13 +151,13 @@ describe("scheduleVersionCheck", () => {
 });
 
 describe("fetchDeployedSha", () => {
-  it("reads the SHA the web Worker serves now, past the HTTP cache", async () => {
+  it("revalidates the static version SHA", async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       Response.json({ sha: NEWER }),
     );
     vi.stubGlobal("fetch", fetchMock);
     await expect(fetchDeployedSha()).resolves.toBe(NEWER);
-    expect(fetchMock).toHaveBeenCalledWith("/api/version", { cache: "no-store" });
+    expect(fetchMock).toHaveBeenCalledWith("/version.json", { cache: "no-cache" });
   });
 
   it("answers undefined for a failed check, so a blip never flags the tab stale", async () => {
@@ -178,7 +178,7 @@ describe("fetchDeployedSha", () => {
 
 describe("VersionBadge wiring", () => {
   it("checks for a new deploy only in the signed-in owner's tab", () => {
-    // Viewers on / and /setup get the static SHA: no /api/version request at all.
+    // Viewers on / and /setup get the static SHA: no /version.json request at all.
     expect(read("app/(app)/layout.tsx")).toMatch(
       /<VersionBadge\s+sha=\{commitSha\}\s+checkForUpdates=\{session\?\.user\?\.isOwner === true\}\s*\/>/,
     );

@@ -13,7 +13,7 @@ const REPO = "https://github.com/mrdemonwolf/dirework";
  * separate version number).
  *
  * With `checkForUpdates` (the (app) layout sets it for the signed-in owner only),
- * it asks /api/version for the SHA the web worker is *currently* serving, every
+ * it asks /version.json for the SHA the deployed static assets are serving, every
  * VERSION_CHECK_MS while the tab is visible (lib/version-check.ts). Once that no
  * longer matches the SHA baked into this tab, a newer deploy shipped and this tab
  * is stale: it offers a Reload and stops checking. Without it (viewers on / and

@@ -31,8 +31,8 @@ export const DASHBOARD_IDLE_AFTER_MS = 2 * 60_000;
 export const DASHBOARD_IDLE_POLL_MS = 15_000;
 
 /**
- * The footer's new-deploy check (VersionBadge → lib/version-check.ts): one web-Worker request
- * (`/api/version`, no-store) per check. Only the signed-in owner's tab checks, only while it
+ * The footer's new-deploy check (VersionBadge → lib/version-check.ts): one free static-asset
+ * revalidation (`/version.json`) per check, with no web-Worker request. Only the owner's tab checks, only while it
  * is visible, and never sooner than this after the previous check (a return to the tab
  * included), so at most 12 an hour, ~96 for an 8-hour stream. A hidden tab, a stale tab and a
  * viewer's tab (/ and /setup) cost nothing. Never faster: a deploy only needs noticing within

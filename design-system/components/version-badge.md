@@ -9,7 +9,7 @@ tokens: [color.scheme, font.size, tracking, radius]
 
 Footer deploy readout in the `(app)` layout: `· <short sha>`, linked to the commit on GitHub.
 Every deploy is one commit, so the SHA is the version. In the signed-in owner's tab it checks
-`/api/version` every `VERSION_CHECK_MS` (5 minutes, `lib/poll-intervals.ts`) while the tab is
+`/version.json` every `VERSION_CHECK_MS` (5 minutes, `lib/poll-intervals.ts`) while the tab is
 visible, through `lib/version-check.ts`. A return to the tab checks only once 5 minutes have
 passed since the last check. When the live SHA differs from the one baked into the tab, it
 offers a reload and stops checking. Viewers on `/` and `/setup` get the static readout.
@@ -44,7 +44,7 @@ current state, and the next check runs on the cadence.
 
 ## Do / Don't
 
-- **Do** keep the cadence in `VERSION_CHECK_MS`: one Worker request per check, at most 12 an
+- **Do** keep the cadence in `VERSION_CHECK_MS`: one free static revalidation per check, at most 12 an
   hour, and none from a hidden tab.
 - **Don't** check from a viewer's page or schedule a timer in the component; the scheduling
   lives in `lib/version-check.ts`, tested with fake timers.

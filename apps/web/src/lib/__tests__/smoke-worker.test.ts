@@ -9,6 +9,7 @@ import {
   buildSmokeConfig,
   checkManifestResponse,
   checkOgImageResponse,
+  checkVersionResponse,
   readCompatibilityDate,
 } from "../../../scripts/smoke-worker.mjs";
 
@@ -83,5 +84,25 @@ describe("web worker smoke check", () => {
   it("only checks routes that render without the api worker", () => {
     expect(SMOKE_ROUTES).toContain("/api/version");
     for (const route of ["/", "/setup", "/dashboard"]) expect(SMOKE_ROUTES).not.toContain(route);
+  });
+
+  it("checks the static version asset and its revalidation header", () => {
+    expect(SMOKE_ROUTES).toContain("/version.json");
+    expect(read("apps/web/public/_headers")).toMatch(
+      /\/version\.json\n {2}Cache-Control: no-cache/,
+    );
+  });
+
+  it("rejects a version response without a SHA or one routed through Next", async () => {
+    const version = (sha: string, headers: Record<string, string> = {}) =>
+      Response.json({ sha }, { headers: { "cache-control": "no-cache", ...headers } });
+    expect(await checkVersionResponse(version("413ff22"))).toEqual([]);
+    expect(await checkVersionResponse(version(""))).toContain("version asset has no SHA");
+    expect(await checkVersionResponse(version("413ff22", { "x-nextjs-cache": "HIT" }))).toContain(
+      "version asset ran through Next",
+    );
+    expect(await checkVersionResponse(Response.json({ sha: "413ff22" }))).toContain(
+      "version asset must revalidate",
+    );
   });
 });
