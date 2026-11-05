@@ -51,8 +51,8 @@ describe("web worker smoke check", () => {
 
   it("checks the install manifest's type and display mode, not just its status", async () => {
     expect(SMOKE_ROUTES).toContain("/manifest.webmanifest");
-    const manifest = (type: string, body: unknown) =>
-      new Response(JSON.stringify(body), { headers: { "content-type": type } });
+    const manifest = (type: string, body: unknown, extra: Record<string, string> = {}) =>
+      new Response(JSON.stringify(body), { headers: { "content-type": type, ...extra } });
     expect(
       await checkManifestResponse(manifest("application/manifest+json", { display: "standalone" })),
     ).toEqual([]);
@@ -62,6 +62,16 @@ describe("web worker smoke check", () => {
     expect(
       await checkManifestResponse(manifest("application/manifest+json", { display: "browser" })),
     ).toHaveLength(1);
+    // A static asset (public/manifest.webmanifest), never the Worker's metadata route.
+    expect(
+      await checkManifestResponse(
+        manifest(
+          "application/manifest+json",
+          { display: "standalone" },
+          { "x-nextjs-cache": "HIT" },
+        ),
+      ),
+    ).toEqual(["manifest was served by a Next route"]);
   });
 
   it("checks the share card is a PNG served as a static asset, not by a Next route", async () => {

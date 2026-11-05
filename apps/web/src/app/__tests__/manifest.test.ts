@@ -4,14 +4,32 @@ import { describe, expect, it } from "vitest";
 
 import { SCHEME_HEX } from "@/tokens.generated";
 
-import manifest from "../manifest";
+import { MANIFEST_FILE, renderManifest } from "../../../scripts/write-manifest";
+import { webManifest } from "../../lib/web-manifest";
 
 import { pngHasNoAlpha, pngSize } from "./png";
 
 const webDir = path.resolve(__dirname, "../../..");
 
 describe("web app manifest", () => {
-  const m = manifest();
+  const m = webManifest();
+
+  it("is a static asset, not a Next route the Worker answers", () => {
+    // A metadata route answers every fetch through the Worker with max-age=0 and no
+    // validator; public/ files are free static assets with the _headers lifetime.
+    expect(existsSync(path.join(webDir, "src/app/manifest.ts"))).toBe(false);
+    expect(MANIFEST_FILE).toBe(path.join(webDir, "public/manifest.webmanifest"));
+    const headers = readFileSync(path.join(webDir, "public/_headers"), "utf8");
+    expect(headers).toMatch(
+      /^\/manifest\.webmanifest\n {2}Cache-Control: public, max-age=86400, stale-while-revalidate=2592000\n {2}X-Content-Type-Options: nosniff$/m,
+    );
+  });
+
+  it("the committed public/manifest.webmanifest is generated from the source (bun run manifest)", () => {
+    const committed = readFileSync(MANIFEST_FILE, "utf8");
+    expect(committed).toBe(renderManifest());
+    expect(JSON.parse(committed)).toEqual(m);
+  });
 
   it("serves both site icons as static assets declared in root metadata", () => {
     expect(existsSync(path.join(webDir, "src/app/icon.svg"))).toBe(false);

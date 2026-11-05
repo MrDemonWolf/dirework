@@ -44,14 +44,17 @@ export async function checkVersionResponse(res) {
 }
 
 /**
- * Extra checks for the install manifest (app/manifest.ts): a browser ignores a manifest
- * served with the wrong type or one that isn't standalone, so a 200 alone isn't enough.
+ * Extra checks for the install manifest (public/manifest.webmanifest, written from
+ * src/lib/web-manifest.ts): a browser ignores a manifest served with the wrong type or one
+ * that isn't standalone, so a 200 alone isn't enough. It must come from the static assets,
+ * not a Next route (that answer carries `x-nextjs-cache`).
  * Returns the failure messages (empty when it passes).
  */
 export async function checkManifestResponse(res) {
   const failures = [];
   const type = res.headers.get("content-type") ?? "";
   if (!type.includes("manifest+json")) failures.push(`manifest content-type is "${type}"`);
+  if (res.headers.has("x-nextjs-cache")) failures.push("manifest was served by a Next route");
   try {
     const body = await res.json();
     if (body.display !== "standalone") failures.push(`manifest display is "${body.display}"`);
