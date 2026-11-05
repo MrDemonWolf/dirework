@@ -1,10 +1,12 @@
 /**
  * @dirework/overlay-kit — pure geometry + formatting helpers, the brand copy and
  * the demo session shared by the real OBS overlays (apps/web), the docs-site
- * mocks (apps/fumadocs) and both apps' share cards.
+ * mocks (apps/fumadocs) and the share card both apps render, which lives behind
+ * its own subpath (`@dirework/overlay-kit/share-card`, src/share-card.tsx).
  *
- * Zero runtime dependencies. No `@dirework/env` imports (Vitest runs in Node
- * and cannot resolve `cloudflare:workers`).
+ * Zero runtime dependencies: this entry imports nothing (a test pins it), so it
+ * never needs the share card's `react` peer. No `@dirework/env` imports (Vitest
+ * runs in Node and cannot resolve `cloudflare:workers`).
  */
 
 /**
