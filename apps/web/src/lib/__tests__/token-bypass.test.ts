@@ -70,9 +70,6 @@ const ALLOWED: Record<string, string[]> = {
   "components/ui/switch.tsx": ["h-[18.4px]", "translate-x-[calc(100%-2px)]"],
   "components/ui/tabs.tsx": ["h-[calc(100%-1px)]"],
   "components/ui/tooltip.tsx": ["scale-[0.98]", "transition-[opacity,scale]"],
-  // The share card (next/og): Satori takes inline styles only, and the card keeps its own
-  // navy palette, like the overlay presets.
-  "app/opengraph-image.tsx": ["#091533", "#0b1b3d", "#10224a", "#24406f"],
 };
 
 /** An arbitrary value in utility position; variants (data, group-data, has …) are skipped. */
