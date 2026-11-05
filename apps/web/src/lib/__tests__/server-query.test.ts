@@ -10,7 +10,7 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { SECTIONS_READY_MS } from "@/lib/progressive";
 import { trpc } from "@/utils/trpc";
 
-import { prefetchStyles, streamBot, streamDashboard } from "../server-query";
+import { streamBot, streamDashboard, streamStyles } from "../server-query";
 
 const originalFetch = globalThis.fetch;
 
@@ -140,7 +140,7 @@ describe("streamDashboard", () => {
   });
 });
 
-describe("awaited prefetches", () => {
+describe("streamStyles", () => {
   beforeEach(() => {
     vi.stubEnv("PROXY_SECRET", "s".repeat(40));
     vi.stubEnv("NEXT_PUBLIC_SERVER_URL", "http://api.test");
@@ -151,20 +151,41 @@ describe("awaited prefetches", () => {
     vi.unstubAllEnvs();
   });
 
-  it("prefetches config for the Theme Center", async () => {
+  it("fast api: the config as data, in ONE streamed GET", async () => {
     const fetchMock = serveApi();
-    const styles = await prefetchStyles();
-    expect(styles.queries.map((q) => q.queryKey)).toEqual([trpc.config.get.queryKey()]);
-    expect(styles.queries[0]?.state.data).toEqual({ path: "config.get" });
+    const state = await streamStyles();
+
+    expect(state.queries.map((q) => q.queryKey)).toEqual([trpc.config.get.queryKey()]);
+    expect(state.queries[0]?.state.status).toBe("success");
+    expect(state.queries[0]?.state.data).toEqual({ path: "config.get" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toContain("/trpc/config.get?batch=1");
+    expect(new Headers(init?.headers).get("trpc-accept")).toBe("application/jsonl");
+  });
+
+  it("slow config.get: returns at the deadline with the config still streaming", async () => {
+    // It used to wait for the whole config (up to the 5s fetch timeout), holding the shell.
+    const fetchMock = serveApi({ delays: { "config.get": SECTIONS_READY_MS + 450 } });
+    const started = Date.now();
+    const state = await streamStyles();
+    const elapsed = Date.now() - started;
+
+    expect(elapsed).toBeGreaterThanOrEqual(SECTIONS_READY_MS - 10);
+    expect(elapsed).toBeLessThan(SECTIONS_READY_MS + 350);
+    const config = state.queries[0];
+    expect(config?.state.status).toBe("pending");
+    await expect(config?.promise).resolves.toEqual({ path: "config.get" });
+    // The late result rode the same request.
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("degrades to an empty cache (client fetch) when the api is unreachable", async () => {
+  it("never throws when the api is unreachable: an empty cache (client fetch)", async () => {
     globalThis.fetch = vi.fn(async () => {
       throw new TypeError("fetch failed");
     }) as unknown as typeof fetch;
 
-    const state = await prefetchStyles();
+    const state = await streamStyles();
     expect(state.queries).toEqual([]);
   });
 });

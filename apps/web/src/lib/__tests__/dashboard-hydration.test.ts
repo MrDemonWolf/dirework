@@ -22,14 +22,15 @@ describe("dashboard SSR hydration", () => {
 
   it.each([
     ["app/(app)/dashboard/page.tsx", "streamDashboard"],
-    ["app/(app)/dashboard/styles/page.tsx", "prefetchStyles"],
+    // The Theme Center streams its one query like the others (no awaited prefetch left).
+    ["app/(app)/dashboard/styles/page.tsx", "streamStyles"],
     // Bot settings streams once, in the layout its sub-pages share.
     ["app/(app)/dashboard/bot/(sections)/layout.tsx", "streamBot"],
   ])("%s wraps its tree in a HydrationBoundary fed by %s", (file, prefetch) => {
     const page = read(file);
     expect(page).toContain("<HydrationBoundary state={state}>");
-    // Awaited directly, or inside the loader the page holds the shell for
-    // (`await holdShellFor(loadStyles())`); shell-hold.test.ts pins that wiring.
+    // Inside the loader the page holds the shell for (`await holdShellFor(loadStyles())`);
+    // shell-hold.test.ts pins that wiring.
     expect(page).toMatch(new RegExp(`(await|return) ${prefetch}\\(\\)`));
   });
 

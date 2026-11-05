@@ -93,7 +93,7 @@ describe("shell hold wiring", () => {
     expect(release).toBeGreaterThan(session);
   });
 
-  it("the Theme Center registers its prefetch before awaiting anything", () => {
+  it("the Theme Center registers its streamed batch before awaiting anything", () => {
     const page = read("app/(app)/dashboard/styles/page.tsx");
     const body = page.slice(page.indexOf("export default async function"));
     // The first await in the route must be the held one: Next renders the layout and the page

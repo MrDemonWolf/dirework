@@ -56,7 +56,11 @@ const defaultPhaseLabels: PhaseLabelsConfig = DEFAULT_PHASE_LABELS;
 /** The preset a fresh install starts on ("Reset theme to Default"). */
 const DEFAULT_PRESET = themePresets.find((preset) => preset.id === "default")!;
 
-/** Loads the config, then hands the editors a snapshot to seed from. */
+/**
+ * Hands the editors a snapshot of the config to seed from. The route's `StylesSection`
+ * mounts this only once the streamed `config.get` has settled, so it is pending here only
+ * when nothing was streamed (the server's fetch failed) and the browser fetches it itself.
+ */
 export default function StylesPage() {
   const config = useQuery(trpc.config.get.queryOptions());
 
@@ -86,12 +90,12 @@ export default function StylesPage() {
  * comparison. Applying a preset over unsaved custom edits asks for confirmation first.
  *
  * Both copies are seeded in STATE from the config this mounts with, never copied in from a
- * later render: the route prefetches `config.get` on the server, so the data is already in
- * the cache when this first renders, and seeding here puts the saved theme in the server
- * HTML instead of painting (and serving) a frame of defaults that an effect then swaps out
- * — an edit landing during that swap was appended to the saved value. A refetch (the
- * post-save invalidation) re-renders with new props but touches no state, so edits in
- * progress survive it.
+ * later render: the route streams `config.get` from the server and mounts this only once it
+ * has landed, so the data is already in the cache when this first renders, and seeding here
+ * puts the saved theme in the server HTML instead of painting (and serving) a frame of
+ * defaults that an effect then swaps out — an edit landing during that swap was appended to
+ * the saved value. A refetch (the post-save invalidation) re-renders with new props but
+ * touches no state, so edits in progress survive it.
  */
 function StylesEditor({ config }: { config: ConfigData }) {
   const queryClient = useQueryClient();
@@ -192,7 +196,8 @@ function StylesEditor({ config }: { config: ConfigData }) {
       <UnsavedChangesGuard dirty={hasUnsaved} />
 
       {/* No entrance animation: the page arrives finished (the route holds the shell for its
-          data, lib/shell-hold.ts), and a rise-in replayed after load read as a second load. */}
+          data, lib/shell-hold.ts) or fills in over its same-shaped skeleton, and a rise-in
+          replayed after load read as a second load. */}
       <div>
         {/* Header band */}
         <div className="mb-6">

@@ -68,7 +68,7 @@ token-authenticated traffic (overlay polling, bot page) goes DIRECT to the api w
 with their data: each page runs `requireSession()` first (a signed-out visitor never spends a
 batch) — for Bot settings the shared `bot/(sections)/layout.tsx` does it, ONCE on entering the
 section, since a layout is kept across its own pages' navigations and every procedure those
-pages call is owner-only — then `streamDashboard` / `prefetchStyles` / `streamBot` (`lib/server-query.ts`),
+pages call is owner-only — then `streamDashboard` / `streamStyles` / `streamBot` (`lib/server-query.ts`),
 which use a per-call `createServerTrpc(queryClient)` (`lib/server-trpc.ts`, no module state)
 to issue every query in one tick — `httpBatchStreamLink` folds them into ONE GET straight to
 the api worker's `/trpc` (cookie + signed client IP, 5s `INTERNAL_FETCH_TIMEOUT_MS`; never via
@@ -76,7 +76,8 @@ the api worker's `/trpc` (cookie + signed client IP, 5s `INTERNAL_FETCH_TIMEOUT_
 `@hono/trpc-server` fetch adapter streams natively), so each procedure resolves as soon as the
 api writes it. The dehydrated cache goes into a `<HydrationBoundary>`; query keys are path +
 input only, so they match the browser `trpc` proxy's. `prefetchQuery` never throws and
-`dehydrate` keeps only successes, so a failed prefetch falls back to the client fetch (and its
+`dehydrate` leaves a failed query out (it keeps successes, and in-flight queries as promises:
+Progressive sections, below), so a failed prefetch falls back to the client fetch (and its
 skeleton).
 The client `QueryClient` defaults `staleTime` to `QUERY_FRESH_MS` (30s, `poll-intervals.ts`)
 so hydrated data isn't refetched on mount; polls and invalidations ignore staleness, so no
@@ -93,10 +94,10 @@ await (Next renders a route's layouts and page in parallel, so it registers befo
 layout's own await settles), and the `(app)` layout awaits `shellReleased()` (allSettled, a
 no-op when nothing is held) after its session, so the page is complete when the shell is
 written. A client navigation never runs the `(app)` layout, so its `loading.tsx` skeleton
-still shows instantly. `/dashboard/styles` (on its whole prefetch), `/dashboard` (on
-`loadDashboard`, which waits at most `SECTIONS_READY_MS`) and Bot settings (the `(sections)`
-layout, on `loadBot`: a layout renders in parallel with the `(app)` layout just like a page)
-opt in; `shell-hold.test.ts` and
+still shows instantly. `/dashboard` (on `loadDashboard`), `/dashboard/styles` (on
+`loadStyles`) and Bot settings (the `(sections)` layout, on `loadBot`: a layout renders in
+parallel with the `(app)` layout just like a page) opt in, each loader waiting at most
+`SECTIONS_READY_MS` (Progressive sections, below); `shell-hold.test.ts` and
 `progressive.test.ts` pin the wiring, and `40-theme-center` / `22-progressive` assert no
 painted frame shows a skeleton on a fast load. The hold narrows the window rather than
 removing the fallback: React still writes it into the shell and reveals the page from a
@@ -115,7 +116,7 @@ boundary and every dashboard route's own; `15-landing` asserts the finished `<ma
 first HTML response, no painted skeleton frame (with `user.hasOwner` slowed through the e2e
 api's `/__e2e/delay`: on localhost it answers within a frame of the session) and the owner's
 307; `00-first-run` the unclaimed 307, the claimed 404 and the owner's 307 from `/setup`.
-**Progressive sections** (`/dashboard`, Bot settings; any page can opt in). `streamQueries(start)` starts the
+**Progressive sections** (`/dashboard`, Bot settings, Theme Center; any page can opt in). `streamQueries(start)` starts the
 page's batch and waits for it only until every query settles or `SECTIONS_READY_MS` (800ms,
 `lib/progressive.ts`) passes, then dehydrates successes as data and the queries still in
 flight as pending promises, which stream to the browser inside the RSC payload. The page holds
@@ -137,14 +138,18 @@ dashboard's checklist and its header Setup button, both gated on `user.me`) so i
 decided from a pending query; no entrance animation on sections (a fade would replay per
 reveal). Known exception: the setup checklist has no placeholder (its presence depends on
 `user.me` and a per-browser choice), so a `user.me` slower than the deadline mid-setup pushes the
-page down once. To opt a page in: replace its awaited `prefetch*` with `streamQueries`, hold
-the shell on the loader, and wrap each data section. Bot settings wraps each card in
+page down once. To opt a page in: build its prefetch on `streamQueries`, hold the shell on
+the loader, and wrap each data section. Bot settings wraps each card in
 `BotSection needs={["config" | "user"]}` (`(sections)/bot-data.tsx`): a `ProgressiveSection`
 over just the queries that card reads, plus the failed-load retry (`botSectionStatus`,
 `lib/bot-section.ts`), with placeholders from `bot-settings-skeleton.tsx`; second known
 exception: the Overview's card order depends on `user.me`, so its placeholder takes the
-connected arrangement. e2e `22-progressive` slows one procedure through the e2e api worker's
-`e2e-delay` cookie (`packages/e2e/src/api-entry.ts`).
+connected arrangement. The Theme Center is ONE section around the whole page (every part of
+it reads `config.get`): `StylesSection` (`dashboard/styles/styles-section.tsx`), with
+`StylesSkeleton` as its placeholder (`data-placeholder="styles"`). It used to await the whole
+`config.get`, so a slow api held its shell for up to the 5s fetch timeout. e2e
+`22-progressive` slows one procedure through the e2e api worker's `e2e-delay` cookie
+(`packages/e2e/src/api-entry.ts`).
 
 **Per-request factories, no module singletons** (Workers isolate per request):
 `createDb()` (packages/db), `createAuth()` (packages/auth), `createContext({ context })`
@@ -928,7 +933,8 @@ above the Save bar via `--save-bar-clearance`). The preview is first in the DOM
 (`lg:flex-row-reverse`): below lg it is a sticky bar under the header with a Show/Hide button
 (collapsed by default; when open the 16:9 scene spans the bar, a close-up is capped at
 `max-w-64`). No entrance animation: the page
-arrives finished (shell hold, above). The preview (`theme-center/style-preview-panel.tsx`) renders the REAL
+arrives finished (shell hold, above), or, when `config.get` misses the deadline, fills in over
+its same-shaped `StylesSkeleton` (Progressive sections). The preview (`theme-center/style-preview-panel.tsx`) renders the REAL
 `TimerDisplay` / `TaskListDisplay` client-side (no polling) over `lib/preview-session.ts` —
 `DEMO_SESSION`'s tasks and countdown, so the preview, landing and docs agree. It is a 16:9
 stream canvas: a 1920×1080 logical scene (`STREAM_CANVAS`) scaled down whole with
@@ -1133,7 +1139,8 @@ owner's `/` a real 307 to `/dashboard`),
 paints no placeholder at the same request cost, even with every procedure slowed to a
 production-like 300ms; a slowed procedure shows only the placeholders
 of the sections or cards that read it, from the same one batch; a Bot settings sub-page switch
-costs no api request), `25-setup-checklist` (confirm/revert a step, Finish later), `27-bot-page-handoff` (seeds a
+costs no api request; a 2s `config.get` sends the Theme Center's first byte inside 1.5s with
+its `StylesSkeleton`, which fills in from the same batch), `25-setup-checklist` (confirm/revert a step, Finish later), `27-bot-page-handoff` (seeds a
 bot account, then removes it: the widget / dock choice in the checklist and the Run the bot
 card, one named URL row, arrow keys, the remembered pick, Open/Reset for the chosen view, axe
 on the connected Overview, phone width), `30-timer` (Pomodoro start/stop and the ticking timer overlay; phase labels

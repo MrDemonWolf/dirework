@@ -3,11 +3,12 @@ import { expect, type Page, test } from "@playwright/test";
 import { API_ORIGIN, DELAY_COOKIE, WEB_ORIGIN } from "../src/env";
 import { expectNoHydrationErrors, signIn, watchHydration } from "./helpers";
 
-// The dashboard loads progressively (apps/web/src/lib/progressive.ts): its data streams from
-// ONE server batch, the first paint waits for it at most SECTIONS_READY_MS (800ms), and a
-// section whose data is slower shows its placeholder and fills in on its own. The e2e api
-// worker can slow named procedures (the `e2e-delay` cookie, src/api-entry.ts) and counts the
-// requests it serves (`/__e2e/requests`), so both halves are checked against the real stack.
+// The dashboard, Bot settings and the Theme Center load progressively
+// (apps/web/src/lib/progressive.ts): their data streams from ONE server batch, the first
+// paint waits for it at most SECTIONS_READY_MS (800ms), and a section whose data is slower
+// shows its placeholder and fills in on its own. The e2e api worker can slow named
+// procedures (the `e2e-delay` cookie, src/api-entry.ts) and counts the requests it serves
+// (`/__e2e/requests`), so both halves are checked against the real stack.
 
 /** The one batched call the dashboard's server render makes. */
 const DASHBOARD_BATCH = "/trpc/user.me,timer.get,config.get,task.list,stats.summary";
@@ -268,6 +269,55 @@ test("Bot settings: a slow user.me holds back only the cards that read it", asyn
     "live-controls",
   ]);
   expect(await apiRequests(page)).toEqual({ "/api/auth/get-session": 1, [BOT_BATCH]: 1 });
+
+  await context.clearCookies({ name: DELAY_COOKIE });
+});
+
+// The Theme Center opts in as ONE section: the whole page reads `config.get`, so a slow config
+// shows the page's skeleton at the deadline instead of holding the whole shell back for it.
+
+/** The one batched call the Theme Center's server render makes. */
+const STYLES_BATCH = "/trpc/config.get";
+
+test("Theme Center: a slow config.get paints its skeleton at the deadline, then fills in", async ({
+  page,
+  context,
+}) => {
+  // Warm the route first: a cold start is not the case under test, and the timing below is.
+  // A server render with no page, so no open page's link prefetches share the worker with the
+  // navigation being timed.
+  expect((await page.request.get("/dashboard/styles")).ok()).toBe(true);
+  await context.addCookies([{ name: DELAY_COOKIE, value: "config.get=2000", url: WEB_ORIGIN }]);
+  await recordPlaceholderFrames(page);
+  watchHydration(page);
+  await apiRequests(page);
+
+  await page.goto("/dashboard/styles", { waitUntil: "commit" });
+
+  // The shell waited for the 800ms deadline (SECTIONS_READY_MS), not for the 2s procedure: the
+  // bound sits halfway between the two, so neither side's noise flips it.
+  const responseStart = await page.evaluate(
+    () =>
+      (performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming).responseStart,
+  );
+  expect(responseStart, "ms until the page's first byte").toBeLessThan(1500);
+
+  // The page's placeholder (the StylesSkeleton) is on screen; the editors are not yet.
+  await expect(page.locator('main [data-placeholder="styles"]')).toBeVisible();
+  await expect(page.getByRole("radiogroup", { name: "Theme presets" })).toHaveCount(0);
+
+  // Then the page fills in by itself, from the same request.
+  await expect(page.getByRole("radiogroup", { name: "Theme presets" })).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.locator("main [data-placeholder]")).toHaveCount(0);
+  await expectNoHydrationErrors(page);
+
+  const frames = await placeholderFrames(page);
+  expect(frames.length, "the Theme Center's placeholder was painted").toBeGreaterThan(0);
+  expect([...new Set(frames.flat())], "no other placeholder ever showed").toEqual(["styles"]);
+  // The slow result rode the batch: no second config.get from the browser.
+  expect(await apiRequests(page)).toEqual({ "/api/auth/get-session": 1, [STYLES_BATCH]: 1 });
 
   await context.clearCookies({ name: DELAY_COOKIE });
 });

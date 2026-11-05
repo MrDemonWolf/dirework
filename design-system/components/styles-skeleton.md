@@ -8,9 +8,13 @@ tokens: [radius, layout]
 ## Purpose
 
 Loading placeholder for the Theme Center. Shown by `dashboard/styles/loading.tsx` the moment
-a client-side navigation starts, and by `styles-page.tsx` only when the server prefetch
-failed and `config.get` is loading in the browser. A hard load never shows it: the route
-holds the `(app)` shell for its prefetch (`lib/shell-hold.ts`), so the page arrives finished.
+a client-side navigation starts; as the page's one progressive placeholder
+(`dashboard/styles/styles-section.tsx`, `data-placeholder="styles"`) when the streamed
+`config.get` is slower than the first-paint deadline (`SECTIONS_READY_MS`, 800ms,
+`lib/progressive.ts`), until it fills in from the same request; and by `styles-page.tsx` only
+when nothing was streamed and `config.get` is loading in the browser. A fast hard load never
+shows it: the route holds the `(app)` shell for its streamed batch (`lib/shell-hold.ts`), so
+the page arrives finished.
 
 ## Anatomy
 
