@@ -17,7 +17,8 @@ class.
 
 - `PageHeader` (`data-slot="page-header"`): a wrapping row (`flex flex-wrap items-end
   justify-between gap-4`).
-  - The title row (`grow`, `items-start`): an optional kicker in an `mb-2` box, the `h1` in
+  - The title row (`grow`, `items-start`): an optional kicker, always a `p.console-label mb-2`
+    line (one kicker style on every page), the `h1` in
     `PAGE_TITLE_CLASS` (`font-heading text-3xl font-bold tracking-tight`, a 36px line box), the
     description in `PAGE_DESCRIPTION_CLASS` (`mt-1 text-sm text-muted-foreground`, 20px line
     boxes), then the optional `actions` at its top right (`shrink-0`, never wraps).
@@ -34,7 +35,7 @@ class.
 
 | Prop | Type | Notes |
 |---|---|---|
-| `kicker` | `ReactNode?` | Above the title (the dashboard's date line) |
+| `kicker` | `ReactNode?` | Copy for the mono line above the title (the dashboard's date); the component owns its look. Only where it adds something: never the page's own name |
 | `title` | `ReactNode` | The `h1` |
 | `description` | `ReactNode?` | One line under the title |
 | `actions` | `ReactNode?` | Compact controls at the title's top right (Theme Center's options menu) |
@@ -56,6 +57,8 @@ wait).
 
 ## Do / Don't
 
+- Don't repeat the h1 in a kicker or a rule above it (Theme Center's "Theme Center" rule was
+  dropped for that).
 - Do use it for every full page header; `page-header.test.ts` fails on the title recipe
   anywhere else.
 - Don't draw a header band by hand in a skeleton: measure the live copy at 1280px and 412px and

@@ -45,4 +45,25 @@ describe("page header", () => {
     expect(header).toContain('lineClassName="h-9"');
     expect(header).toMatch(/<div className="mt-1">\s*<LineBoxes[^>]*lineClassName="h-5"/);
   });
+
+  it("draws every kicker one way, and never repeats the page's own title", () => {
+    const header = read("components/page-header.tsx");
+    expect(header).toMatch(/<p className="console-label mb-2"[^>]*>\s*\{kicker\}/);
+    const pages = [
+      "app/(app)/dashboard/dashboard.tsx",
+      "app/(app)/dashboard/styles/styles-page.tsx",
+      "app/(app)/dashboard/bot/layout.tsx",
+    ];
+    for (const page of pages) {
+      // Copy only: the component owns the kicker's look.
+      expect(read(page), page).not.toMatch(/kicker=\{</);
+    }
+    // Theme Center's rule above its h1 said "Theme Center" twice.
+    expect(read("app/(app)/dashboard/styles/styles-page.tsx")).not.toContain(
+      '<ConsoleRule label="Theme Center"',
+    );
+    expect(read("components/styles-skeleton.tsx")).not.toMatch(
+      /<PageHeaderSkeleton[^/]*\bkicker\b/,
+    );
+  });
 });
