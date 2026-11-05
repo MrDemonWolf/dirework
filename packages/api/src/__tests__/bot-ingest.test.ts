@@ -17,6 +17,7 @@ import {
 import type { Context } from "../context";
 import {
   BOT_REAUTH_REQUIRED_MESSAGE,
+  BUILTIN_COMMAND_NAMES,
   buildBotConfig,
   CHAT_OPEN_TASK_CAP,
   DEFAULT_TASK_MESSAGES,
@@ -649,6 +650,7 @@ describe("bot.getSession", () => {
       botUsername: "direbot",
       chatToken: "chat-access-token",
       aliases: [],
+      commands: [...BUILTIN_COMMAND_NAMES],
       muted: false,
       broadcasterId: OWNER_TWITCH_ID,
     });

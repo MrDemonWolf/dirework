@@ -156,8 +156,11 @@ relays chat to `bot.ingest` (stateless, runs command logic against D1), and
 sends back the returned replies. Only lines whose first word is a Dirework command or an
 alias are relayed (`isDireworkCommandLine` in the zod-free `@dirework/api/chat-commands`,
 which also owns `KNOWN_ALIAS_TARGETS` / `META_COMMANDS` / `normalizeAliasToken` and is
-the parser `handleMessage` uses); `bot.getSession` returns the alias keys, so new aliases
-reach an open page at the hourly revalidation or on reload. **Shared Chat:** a PRIVMSG or
+the parser `handleMessage` uses); `bot.getSession` returns the alias keys and `commands`
+(every built-in name, `BUILTIN_COMMAND_NAMES`), so new aliases, and built-ins a later
+deploy added, reach an open page at the hourly revalidation or on reload. The page relays
+a first word that is compiled in, in `commands` or an alias (an older api without the
+field leaves the compiled-in set; the list never removes one). **Shared Chat:** a PRIVMSG or
 CLEARCHAT whose `source-room-id` tag differs from `room-id` is a partner channel's line
 copied into ours (its own `id`, the source channel's badges) and is dropped in
 `irc-client.ts` (`isFromSharedChatPartner`), so partner viewers can't add tasks, partner

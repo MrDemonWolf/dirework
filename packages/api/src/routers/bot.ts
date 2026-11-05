@@ -10,6 +10,7 @@ import { handleMessage } from "../bot/commands";
 import { chatDisplayName } from "../chat-text";
 import { BOT_STANDBY_MESSAGE, isLeaseHeldByOther } from "../bot-lease";
 import {
+  BUILTIN_COMMAND_NAMES,
   buildBotConfig,
   hasControlCharacters,
   isBuiltinCommandName,
@@ -124,7 +125,7 @@ async function loadOwnerAndBotAccount(db: DbClient) {
 /**
  * The instance's alias keys in canonical form (no "!", lowercased), the way
  * `resolveAlias` matches them. Built-in names are dropped: they always run the
- * built-in, and the bot page already knows those.
+ * built-in, and getSession sends those separately as `commands`.
  */
 export function aliasKeys(aliases: Record<string, string> | null | undefined): string[] {
   const keys = new Set<string>();
@@ -199,6 +200,9 @@ export const botRouter = router({
         botUsername: botAccount.username,
         chatToken,
         aliases: aliasKeys(botConfigRow?.commandAliases),
+        // Every built-in name, so a bot page loaded before this deploy relays the commands
+        // it added (from the page's next hourly revalidation) instead of dropping them.
+        commands: [...BUILTIN_COMMAND_NAMES],
         muted: botConfigRow?.muted === true,
         // The id `ingest` matches for broadcaster privileges (already loaded above, and a
         // public Twitch user id). The dock's buttons send their lines as this user.

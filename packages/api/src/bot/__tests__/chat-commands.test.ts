@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { DbClient } from "@dirework/db";
 
-import { chatCommandOf, isDireworkCommandLine } from "../../chat-commands";
+import { BUILTIN_COMMAND_NAMES, chatCommandOf, isDireworkCommandLine } from "../../chat-commands";
 import type { BotConfigData } from "../../config-shared";
 import { aliasKeys } from "../../routers/bot";
 import { handleMessage } from "../commands";
@@ -79,7 +79,10 @@ describe("isDireworkCommandLine", () => {
   const keys = new Set(aliasKeys(ALIASES));
 
   it.each(LINES)("agrees with the server parser on %j", async (line) => {
-    expect(isDireworkCommandLine(line, keys)).toBe(await serverRunsCommand(line));
+    const runs = await serverRunsCommand(line);
+    expect(isDireworkCommandLine(line, keys)).toBe(runs);
+    // Also with the names bot.getSession sends: they never relay a line the server ignores.
+    expect(isDireworkCommandLine(line, keys, new Set(BUILTIN_COMMAND_NAMES))).toBe(runs);
   });
 
   it("filters other bots' commands without any alias config", () => {
@@ -89,6 +92,15 @@ describe("isDireworkCommandLine", () => {
     expect(isDireworkCommandLine("!dw help task", new Set())).toBe(true);
     expect(isDireworkCommandLine("!DW", new Set())).toBe(true);
     expect(isDireworkCommandLine("!t a", new Set())).toBe(false);
+  });
+
+  it("adds the names a newer api lists and never drops a compiled-in one", () => {
+    // "snooze" stands in for a built-in a later deploy adds.
+    const serverCommands = new Set(["snooze"]);
+    expect(isDireworkCommandLine("!snooze 5", new Set())).toBe(false);
+    expect(isDireworkCommandLine("!SNOOZE 5", new Set(), serverCommands)).toBe(true);
+    expect(isDireworkCommandLine("!task a", new Set(), serverCommands)).toBe(true);
+    expect(isDireworkCommandLine("!lurk", new Set(), serverCommands)).toBe(false);
   });
 });
 

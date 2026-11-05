@@ -2,8 +2,9 @@
 // Kept out of config-shared so the browser bot page can decide which chat lines
 // are Dirework commands without bundling zod and the Drizzle schema.
 // Re-exported by config-shared; the server's chat resolver (bot/commands.ts)
-// parses through the same helpers, so the bot page and the server can never
-// disagree on what counts as a command.
+// parses through the same helpers, so a bot page and the server built together
+// never disagree on what counts as a command. A page left open across a deploy
+// learns the newer server's names from bot.getSession (BUILTIN_COMMAND_NAMES).
 
 // Canonical bot command names an alias may target — stored WITHOUT the leading
 // "!". The chat resolver, the tRPC input schema, and the dashboard editor all
@@ -55,15 +56,22 @@ export function normalizeTwitchLogin(raw: string): string | null {
   return TWITCH_LOGIN_PATTERN.test(login) ? login : null;
 }
 
-const BUILTIN_COMMAND_NAMES = new Set<string>([
+/**
+ * Every built-in command name, canonical (no "!"): the alias targets, the meta and the
+ * moderation commands. `bot.getSession` sends it to the bot page as `commands`, so a page
+ * loaded before a deploy added a command relays that command too instead of dropping it.
+ */
+export const BUILTIN_COMMAND_NAMES: readonly string[] = [
   ...KNOWN_ALIAS_TARGETS,
   ...META_COMMANDS,
   ...MODERATION_COMMANDS,
-]);
+];
+
+const BUILTIN_COMMAND_NAME_SET: ReadonlySet<string> = new Set(BUILTIN_COMMAND_NAMES);
 
 /** True when a canonical token (no "!") is a built-in command name. */
 export function isBuiltinCommandName(token: string): boolean {
-  return BUILTIN_COMMAND_NAMES.has(token);
+  return BUILTIN_COMMAND_NAME_SET.has(token);
 }
 
 /**
@@ -108,10 +116,16 @@ export function chatCommandOf(message: string): string | null {
  * built-in or meta command, or one of the instance's alias keys (canonical,
  * no "!"). The bot page uses it to skip other bots' commands (`!lurk`, `!so`)
  * without a Worker request; `bot.ingest` stays authoritative.
+ * `serverCommands` is the running api's BUILTIN_COMMAND_NAMES (from
+ * bot.getSession). It only adds names: one this copy was built with still counts.
  */
-export function isDireworkCommandLine(message: string, aliasKeys: ReadonlySet<string>): boolean {
+export function isDireworkCommandLine(
+  message: string,
+  aliasKeys: ReadonlySet<string>,
+  serverCommands?: ReadonlySet<string>,
+): boolean {
   const command = chatCommandOf(message);
   if (!command) return false;
   const word = command.slice(1);
-  return isBuiltinCommandName(word) || aliasKeys.has(word);
+  return isBuiltinCommandName(word) || aliasKeys.has(word) || serverCommands?.has(word) === true;
 }

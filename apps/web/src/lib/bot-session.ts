@@ -126,6 +126,11 @@ export interface BotSessionInfo {
    * worker from before this field (rollback, or a split deploy) omits it.
    */
   aliases?: string[];
+  /**
+   * The api's built-in command names, canonical (no "!"), so commands a deploy added after
+   * this page loaded still relay. Optional for the same reason as `aliases`.
+   */
+  commands?: string[];
   /** The bot's mute switch. Optional for the same reason as `aliases`. */
   muted?: boolean;
   /**
@@ -309,8 +314,10 @@ export function createBotSession({
   let currentChannelName: string | null = null;
   // The owner's Twitch id from the latest getSession: the dock's buttons speak as them.
   let broadcasterId: string | null = null;
-  // Alias keys from the latest getSession; refreshed on every revalidation.
+  // Alias keys and built-in command names from the latest getSession; refreshed on every
+  // revalidation. The server's names add to the ones compiled into this page.
   let aliasKeys: ReadonlySet<string> = new Set();
+  let serverCommands: ReadonlySet<string> = new Set();
   // Starts unmuted (the console's default), so a normal startup logs nothing.
   let muted = false;
   // Whether this session has reported a mute state yet. The first known state is always
@@ -568,11 +575,11 @@ export function createBotSession({
       events.onActivity("info", banCancelledMessage(chat.username));
     }
     const text = chat.message.trim();
-    // Relay only lines whose first word is a Dirework command or one of this
-    // instance's aliases: plain chatter and other bots' commands (!lurk, !so)
-    // would each cost a free-tier Worker request for nothing. The server still
-    // decides what actually runs (disabled commands, permissions).
-    if (!isDireworkCommandLine(text, aliasKeys)) return;
+    // Relay only lines whose first word is a Dirework command (built into this page or
+    // named by the api) or one of this instance's aliases: plain chatter and other bots'
+    // commands (!lurk, !so) would each cost a free-tier Worker request for nothing. The
+    // server still decides what actually runs (disabled commands, permissions).
+    if (!isDireworkCommandLine(text, aliasKeys, serverCommands)) return;
     // Per-viewer flood brake, before any request: past VIEWER_COMMAND_LIMIT commands
     // in VIEWER_COMMAND_WINDOW_MS a viewer's lines are dropped here, so spam costs
     // no Worker request or D1 read. Never the broadcaster or a mod.
@@ -664,6 +671,8 @@ export function createBotSession({
     // Missing → no aliases yet: built-in commands still relay, and the bot
     // stays up instead of retrying a shape mismatch forever.
     aliasKeys = new Set(Array.isArray(session.aliases) ? session.aliases : []);
+    // Missing (an api from before the field) → only the names compiled into this page.
+    serverCommands = new Set(Array.isArray(session.commands) ? session.commands : []);
   }
 
   function applyMuted(next: boolean | undefined) {
@@ -800,7 +809,8 @@ export function createBotSession({
       const session = await api.getSession({ token, revalidate: true });
       if (inactive() || standby) return;
       events.onSessionRefreshed();
-      // Alias edits on the dashboard reach a running page here (or on reload).
+      // Alias edits on the dashboard, and built-in commands a deploy added, reach a running
+      // page here (or on reload).
       applyAliases(session);
       applyMuted(session.muted);
       // Only reconnect when the token rotated or the streamer renamed their

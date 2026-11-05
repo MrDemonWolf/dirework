@@ -156,6 +156,7 @@ export function botOAuthErrorMessage(code: string | null | undefined): string {
 // the browser bot page can filter chat without bundling zod).
 export {
   ALIAS_MAX_LENGTH,
+  BUILTIN_COMMAND_NAMES,
   chatCommandOf,
   cleanChatLine,
   isBuiltinCommandName,
