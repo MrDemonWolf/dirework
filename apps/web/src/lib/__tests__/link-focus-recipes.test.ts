@@ -32,7 +32,6 @@ const RING_PENDING = new Set([
   "app/(bot)/bot/[token]/dashboard-bot-link.tsx",
   "components/bot-settings/bot-live-controls.tsx",
   "components/header.tsx",
-  "components/user-menu.tsx",
   "components/version-badge.tsx",
 ]);
 

@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { focusRing } from "@/components/ui/button";
 import type { AccountLinks } from "@/lib/landing-links";
 import { loadAuthClient } from "@/lib/load-auth-client";
 import type { ServerSession } from "@/lib/server-session";
@@ -77,7 +78,7 @@ export default function AccountMenu({
           <button
             type="button"
             aria-label={`Account menu — ${session.user.name}`}
-            className="flex cursor-pointer items-center gap-2 rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring"
+            className={`flex cursor-pointer items-center gap-2 rounded-full outline-none transition-opacity hover:opacity-80 ${focusRing}`}
           />
         }
       >
