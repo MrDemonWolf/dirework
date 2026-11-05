@@ -1,6 +1,7 @@
-// The bot page's "latest chat error" banner state. Pure (time passed in), so the page can
-// derive it from the bot session's events and the 1s uptime tick: no extra timers, no
-// change to the session state machine.
+// The bot page's "latest chat error" banner state. Pure (time passed in) apart from
+// `watchChatErrorExpiry`, the one timer the page arms: it fires once at the next reply-cleared
+// window's end and prunes the state, so the page renders from the state alone and never
+// ticks to re-check a clear window. No change to the session state machine.
 
 import { isIngestError, isLoginRefreshError } from "./bot-session";
 import { isChatRejection } from "./irc-client";
@@ -105,21 +106,71 @@ export function noteIngestHealthy(state: ChatErrorState | null): ChatErrorState 
   return pack({ ...state, ingest: null });
 }
 
-function showing(entry: ChatErrorEntry | null, now: number): entry is ChatErrorEntry {
-  return !!entry && (entry.replyAt === null || now - entry.replyAt < REPLY_CLEAR_GRACE_MS);
+function expired(entry: ChatErrorEntry | null, now: number): boolean {
+  return !!entry && entry.replyAt !== null && now - entry.replyAt >= REPLY_CLEAR_GRACE_MS;
 }
 
 /**
- * The message to show at `now`: the newest durable error still holding, else a connection
- * error still holding, else null. A connection error never hides a durable one: the activity
- * log has it, and the header's IRC status already says it is reconnecting.
+ * When the next entry's reply-cleared window ends (`replyAt + REPLY_CLEAR_GRACE_MS`, the
+ * earliest one), or null when no entry can expire: none has been followed by a reply yet, or
+ * it is an ingest or login error, which only a later event clears.
  */
-export function currentChatError(state: ChatErrorState | null, now: number): string | null {
+export function chatErrorDeadline(state: ChatErrorState | null): number | null {
   if (!state) return null;
-  const durable = [state.rejection, state.ingest, state.login].filter((entry) =>
-    showing(entry, now),
+  let deadline: number | null = null;
+  for (const entry of [state.rejection, state.ingest, state.login, state.connection]) {
+    if (entry?.replyAt == null) continue;
+    const end = entry.replyAt + REPLY_CLEAR_GRACE_MS;
+    if (deadline === null || end < deadline) deadline = end;
+  }
+  return deadline;
+}
+
+/** Drop every entry whose reply-cleared window has ended at `now`; null once none is left. */
+export function pruneChatErrors(state: ChatErrorState | null, now: number): ChatErrorState | null {
+  if (!state) return state;
+  const slots = ["rejection", "ingest", "login", "connection"] as const;
+  if (!slots.some((slot) => expired(state[slot], now))) return state;
+  const next = { ...state };
+  for (const slot of slots) if (expired(next[slot], now)) next[slot] = null;
+  return pack(next);
+}
+
+/**
+ * The message to show for a pruned state: the newest durable error, else a connection error,
+ * else null. A connection error never hides a durable one: the activity log has it, and the
+ * header's IRC status already says it is reconnecting.
+ */
+export function shownChatError(state: ChatErrorState | null): string | null {
+  if (!state) return null;
+  const durable = [state.rejection, state.ingest, state.login].filter(
+    (entry): entry is ChatErrorEntry => entry !== null,
   );
   durable.sort((a, b) => b.at - a.at);
-  const shown = durable[0] ?? (showing(state.connection, now) ? state.connection : null);
-  return shown?.message ?? null;
+  return (durable[0] ?? state.connection)?.message ?? null;
+}
+
+/** The message to show at `now`, as if the state had been pruned then. */
+export function currentChatError(state: ChatErrorState | null, now: number): string | null {
+  return shownChatError(pruneChatErrors(state, now));
+}
+
+/**
+ * Arms one timeout for `state`'s deadline (nothing when it has none) that hands `apply` a
+ * pruning update; returns the cancel. The page calls it once per state (an effect keyed on
+ * it), so a pruned state re-arms for the next deadline and a cleared one arms nothing. The
+ * update prunes at the deadline at the latest, so a timer that fires a millisecond early still
+ * clears the entry it was armed for.
+ */
+export function watchChatErrorExpiry(
+  state: ChatErrorState | null,
+  apply: (update: (prev: ChatErrorState | null) => ChatErrorState | null) => void,
+): () => void {
+  const deadline = chatErrorDeadline(state);
+  if (deadline === null) return () => {};
+  const timer = setTimeout(
+    () => apply((prev) => pruneChatErrors(prev, Math.max(Date.now(), deadline))),
+    Math.max(0, deadline - Date.now()),
+  );
+  return () => clearTimeout(timer);
 }

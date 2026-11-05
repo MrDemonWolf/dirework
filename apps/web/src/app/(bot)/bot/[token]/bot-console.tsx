@@ -25,12 +25,13 @@ import { useParams } from "next/navigation";
 
 import {
   type ChatErrorState,
-  currentChatError,
   noteChatConnected,
   noteChatError,
   noteChatReply,
   noteIngestHealthy,
   noteSessionRefreshed,
+  shownChatError,
+  watchChatErrorExpiry,
 } from "@/lib/bot-chat-error";
 import {
   DOCK_COMMANDS,
@@ -131,11 +132,22 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
   const commandBusyRef = useRef(false);
 
   const lineIdRef = useRef(0);
+  // The session's events read the view through a ref (the session effect is keyed on the
+  // token and Reconnect only): the counters, the activity feed and the last error are dock
+  // UI, so the blank widget skips those updates instead of re-rendering for each chat line.
+  const dockRef = useRef(view === "dock");
+  useEffect(() => {
+    dockRef.current = view === "dock";
+  }, [view]);
 
-  // 1s ticker — coarse, safe under background throttling. The dock needs it for uptime; the
-  // widget shows no uptime, so there it runs only while a chat error waits for its clear
-  // window (a page left open all stream, maybe on a phone, shouldn't re-render every second).
-  const tickerNeeded = view === "dock" || chatErrorState !== null;
+  // A reply-cleared chat error goes away at the end of its window: one timeout per deadline,
+  // re-armed whenever the state changes, and nothing armed while no error can expire.
+  useEffect(() => watchChatErrorExpiry(chatErrorState, setChatErrorState), [chatErrorState]);
+
+  // 1s ticker for the dock's uptime — coarse, safe under background throttling. The widget
+  // shows no uptime, so it never ticks (a page left open all stream, maybe on a phone,
+  // shouldn't re-render every second).
+  const tickerNeeded = view === "dock";
   useEffect(() => {
     if (!tickerNeeded) return;
     setNowTick(Date.now());
@@ -148,6 +160,7 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
 
     const pushActivity = (kind: BotActivityKind, text: string) => {
       if (kind === "error") setChatErrorState((prev) => noteChatError(prev, text, Date.now()));
+      if (!dockRef.current) return;
       const line: ActivityLine = {
         id: ++lineIdRef.current,
         time: timeStamp(),
@@ -187,7 +200,10 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
           // survives it, so that banner stays until a later reply goes through.
           setChatErrorState(noteChatConnected);
         },
-        onCounter: (counter) => setCounters((c) => ({ ...c, [counter]: c[counter] + 1 })),
+        onCounter: (counter) => {
+          if (!dockRef.current) return;
+          setCounters((c) => ({ ...c, [counter]: c[counter] + 1 }));
+        },
         onActivity: pushActivity,
         // Timed from the actual send, not the "reply" activity line: that one fires when the
         // reply is queued, and the rate limiter can hold it past the clear window.
@@ -238,9 +254,9 @@ export function BotConsole({ view = "widget" }: { view?: BotView }) {
   const connected = phase === "live" && ircStatus === "connected";
   // Muted is a deliberate state, not a fault: a steady amber LED, like not-configured.
   const showMuted = connected && muted;
-  // Muted posts nothing, so a reply error can only be stale there. `nowTick` (the uptime
-  // tick) re-evaluates the clear window every second without a timer of its own.
-  const chatError = connected && !showMuted ? currentChatError(chatErrorState, nowTick) : null;
+  // Muted posts nothing, so a reply error can only be stale there. The state is pruned at each
+  // clear window's end (the expiry effect above), so it is read without a clock.
+  const chatError = connected && !showMuted ? shownChatError(chatErrorState) : null;
 
   const statusText = isTerminalBotPhase(phase)
     ? "Action needed"
