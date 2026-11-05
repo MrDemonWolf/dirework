@@ -53,4 +53,15 @@ describe("task overlay text", () => {
     expect(source).toContain("groupEl.style.clipPath");
     expect(source).not.toMatch(/style\.(display|height|maxHeight)\s*=/);
   });
+
+  it("reads every box once, before hiding rows (a read after the style writes recalcs style)", () => {
+    const measure = source.slice(
+      source.indexOf("const measure = useCallback("),
+      source.indexOf("useLayoutEffect(measure)"),
+    );
+    expect(measure.match(/footer\.offsetHeight/g)).toHaveLength(1);
+    const reads = [...measure.matchAll(/\.(offset|client)(Top|Height|Width)\b/g)];
+    const lastRead = reads.at(-1)?.index ?? Number.POSITIVE_INFINITY;
+    expect(lastRead).toBeLessThan(measure.indexOf("applyStaticListFit("));
+  });
 });
