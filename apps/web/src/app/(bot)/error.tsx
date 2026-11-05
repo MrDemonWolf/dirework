@@ -16,7 +16,7 @@ import { botCrashSurface, createCrashReporter } from "@/lib/crash-report";
 import { parseBotView } from "@/lib/bot-view";
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/status-chip";
-import { publicTrpc } from "@/utils/trpc";
+import { publicTrpc } from "@/utils/public-trpc";
 
 /** The bot is usually unattended, so it restarts on its own. */
 const RESTART_AFTER_MS = 10_000;

@@ -7,7 +7,9 @@
  * the dark tokens for those, so they never follow the app theme. It deliberately does not
  * load the heading face: the dock renders in the body face, and only the rare notices use a
  * heading, which falls back to the body face (`--font-heading` in index.css) — so a widget,
- * dock or pinned-tab startup never downloads a font it won't show.
+ * dock or pinned-tab startup never downloads a font it won't show. It mounts no client
+ * providers either: the bot page calls the plain `publicTrpc` client (no React Query) and
+ * never reads the theme, so it loads neither React Query nor next-themes.
  */
 import "./bot-console.css";
 

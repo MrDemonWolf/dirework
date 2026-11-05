@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { OverlayQueryProvider } from "@/components/overlay-query-provider";
+
 // Overlay URLs are bearer secrets intended for OBS, never search results.
 export const metadata: Metadata = {
   robots: { index: false, follow: false, noarchive: true },
@@ -15,11 +17,13 @@ export default function OverlayLayout({ children }: { children: React.ReactNode 
   // The base layer paints <body> with the theme background; overlays must be
   // transparent on their own, not only when OBS injects its default custom CSS
   // (and in the dashboard's preview iframes, which never get it).
+  // React Query is the only client provider the overlays need (they poll with useQuery); the
+  // theme provider is the (app) layout's alone.
   return (
     <>
       <link rel="stylesheet" href="/fonts/fonts.css" precedence="default" />
       <style>{"html,body{background:transparent!important}"}</style>
-      {children}
+      <OverlayQueryProvider>{children}</OverlayQueryProvider>
     </>
   );
 }

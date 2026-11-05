@@ -17,7 +17,7 @@ import {
 
 import { sectionsReady } from "@/lib/progressive";
 import { createServerTrpc } from "@/lib/server-trpc";
-import { getQueryClient } from "@/utils/trpc";
+import { getQueryClient } from "@/utils/query-client";
 
 type ServerTrpc = ReturnType<typeof createServerTrpc>;
 

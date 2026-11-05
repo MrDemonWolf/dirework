@@ -1,8 +1,8 @@
 import type { Query } from "@tanstack/react-query";
 
-// The browser QueryClient's error handlers (utils/trpc.ts, its QueryCache and MutationCache) call
-// the reporters registered here instead of importing them, because utils/trpc.ts loads on every
-// route and the toast reporters (lib/query-error-toast.ts) bring sonner with them.
+// The browser QueryClient's error handlers (utils/query-client.ts, its QueryCache and
+// MutationCache) call the reporters registered here instead of importing them, because the
+// QueryClient also loads on the OBS overlays and the toast reporters (lib/query-error-toast.ts) bring sonner with them.
 // components/app-toaster.tsx registers the toasts as its module loads, and only the (app) layout
 // mounts it: the OBS overlays and the bot page show no toasts, so they load neither, and a
 // failure there reports nowhere.

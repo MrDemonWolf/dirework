@@ -11,7 +11,7 @@ The app's one toast host, mounted by the `(app)` layout only (the landing page, 
 dashboard, Theme Center and Bot settings). The OBS overlays and the bot page show no toasts,
 so they load neither sonner nor the query-error toast. It also makes failed queries toast: as
 its module loads it registers `toastQueryError` and `toastMutationAuthLapse`
-(`lib/query-error-toast.ts`) as the reporters that `utils/trpc.ts`'s QueryCache and
+(`lib/query-error-toast.ts`) as the reporters that `utils/query-client.ts`'s QueryCache and
 MutationCache call (`lib/query-error-reporter.ts`).
 
 ## Anatomy

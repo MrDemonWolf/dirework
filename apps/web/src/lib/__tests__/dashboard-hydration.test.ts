@@ -86,6 +86,6 @@ describe("dashboard SSR hydration", () => {
   });
 
   it("keeps hydrated data fresh on mount via the client default staleTime", () => {
-    expect(read("utils/trpc.ts")).toContain("staleTime: QUERY_FRESH_MS");
+    expect(read("utils/query-client.ts")).toContain("staleTime: QUERY_FRESH_MS");
   });
 });

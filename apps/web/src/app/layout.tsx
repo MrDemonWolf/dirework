@@ -6,7 +6,6 @@ import type { Metadata, Viewport } from "next";
 import { BRAND } from "@dirework/overlay-kit";
 
 import "../index.css";
-import Providers from "@/components/providers";
 import { plexMono, plexSans } from "@/lib/fonts";
 import { OG_IMAGE } from "@/lib/og-image";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-init";
@@ -83,8 +82,8 @@ export function generateMetadata(): Metadata {
 
 /**
  * suppressHydrationWarning on <html>: the inline <head> script (lib/theme-init.ts) sets the
- * theme class and color-scheme before first paint, and next-themes keeps them in sync after,
- * so <html> never matches the server markup (see AGENTS.md "Hydration Safety"). The script
+ * theme class and color-scheme before first paint on every route, and next-themes (mounted by
+ * the (app) layout only) keeps them in sync after, so <html> never matches the server markup (see AGENTS.md "Hydration Safety"). The script
  * sits in <head>, not <body>, so a streamed dark page never paints white first. Next merges
  * the metadata tags into this <head>.
  */
@@ -99,9 +98,7 @@ export default function RootLayout({
         {/* A static constant, never user input: see lib/theme-init.ts. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className={`${plexSans.variable} ${plexMono.variable} antialiased`}>
-        <Providers>{children}</Providers>
-      </body>
+      <body className={`${plexSans.variable} ${plexMono.variable} antialiased`}>{children}</body>
     </html>
   );
 }

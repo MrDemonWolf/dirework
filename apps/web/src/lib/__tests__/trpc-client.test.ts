@@ -87,7 +87,8 @@ function stubNetwork() {
 async function loadBrowserClient() {
   vi.resetModules();
   await import("@/components/app-toaster");
-  const { getQueryClient, trpc } = await import("@/utils/trpc");
+  const { trpc } = await import("@/utils/trpc");
+  const { getQueryClient } = await import("@/utils/query-client");
   const polls = await import("@/lib/poll-intervals");
   return { queryClient: getQueryClient(), trpc, polls };
 }

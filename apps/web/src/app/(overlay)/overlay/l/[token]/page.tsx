@@ -7,7 +7,7 @@ import { isOverlayPreview, taskOverlayView } from "@/lib/overlay-view";
 import { OVERLAY_POLL_QUERY_OPTS } from "@/lib/poll-intervals";
 import { FontGate } from "@/components/font-gate";
 import { TaskListDisplay } from "@/components/task-list-display";
-import { publicTrpc } from "@/utils/trpc";
+import { publicTrpc } from "@/utils/public-trpc";
 
 export default function TaskListOverlayPage() {
   const { token } = useParams<{ token: string }>();

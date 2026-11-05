@@ -25,7 +25,7 @@ export const TOAST_MOBILE_OFFSET = {
   right: "calc(1rem + env(safe-area-inset-right, 0px))",
 };
 
-// Failed queries, and writes refused because the sign-in lapsed, toast from here on (utils/trpc.ts
+// Failed queries, and writes refused because the sign-in lapsed, toast from here on (utils/query-client.ts
 // reports through lib/query-error-reporter.ts).
 // Registered as this module loads, before the (app) routes render or fetch anything, and never
 // loaded lazily: "Can't reach the DireWork API" has to show when the network is down, when a
