@@ -27,7 +27,7 @@ chrome.
 - List (`max-h-100`, scrolls): one `rounded-xl` `Collapsible` per author. Its header is the
   trigger (`min-h-11`): a chevron, a dot (primary for the host, else the Twitch color or
   cornflower), the name, a "Host" accent chip for the owner, and a `done/total` console label.
-  Rows (`min-h-11`, `items-start`): a round checkbox button, then a body of the task text and
+  Rows (`TaskRow`, `min-h-11`, `items-start`): a round checkbox button, then a body of the task text and
   a meta line (`data-slot="task-row-meta"`): the status chip slot and the action group
   (`TaskRowControls`). Chips: the focus (`active`) gets "Focus", a pulsing `accent` chip;
   a `started` task gets "Started", a quieter `idle` chip with a half-lit `dot="half"` (◐);
@@ -91,7 +91,8 @@ chrome.
   tooltip is reachable from the keyboard.
 - After a remove or a status change drops focus to `<body>`, focus moves to the neighbor's
   (or the changed row's) ⋯ button (`data-row-menu`), in an open group, or to the add input
-  when the list empties.
+  when the list empties. The neighbor is read from the rendered rows when the remove is
+  clicked.
 
 ## Do / Don't
 
@@ -100,6 +101,10 @@ chrome.
 - **Don't** persist folded groups (no `localStorage`); `dashboard-layout.test.ts` pins it.
 - **Don't** lift the add field's draft or `task.create` back into the board: every keystroke
   would re-render every row with its tooltips and menu; `task-board-structure.test.ts` pins it.
+- **Don't** hand `TaskRow` a fresh arrow or a whole `useMutation` / `useQuery` result: its
+  props are the task, primitive busy flags and callbacks built from each mutation's stable
+  `mutate`, so a row action or a chat `!task` re-renders one row, not the board;
+  `task-board-structure.test.ts` pins it.
 - **Don't** color a whole row or add an edge bar for the author's Twitch color; it tints only
   the dot.
 - **Don't** add a faster poll here; the cadence lives in `poll-intervals.ts`.

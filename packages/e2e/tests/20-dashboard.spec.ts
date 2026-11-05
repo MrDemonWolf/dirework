@@ -122,6 +122,28 @@ test("the empty board's Add a task focuses the field, and removing the last task
   await expect(field).toBeFocused();
 });
 
+test("removing a row from the keyboard moves focus to the next row's actions button", async ({
+  page,
+}) => {
+  // TaskRow reads the neighbor from the rendered rows at click time. With two rows on an
+  // otherwise empty board, the other row is the neighbor whichever of them comes first.
+  await clearBoard(page);
+  const stamp = Date.now();
+  const first = `Focus hop one ${stamp}`;
+  const second = `Focus hop two ${stamp}`;
+  const field = page.getByRole("textbox", { name: "New task text" });
+  for (const text of [first, second]) {
+    await field.fill(text);
+    await field.press("Enter");
+    await expect(taskRow(page, text)).toBeVisible();
+  }
+
+  await page.getByRole("button", { name: `Remove "${first}"` }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByText(first)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: `Actions for "${second}"` })).toBeFocused();
+});
+
 test("Start parks a task as Started, Make focus swaps, Pause returns it, the cap disables Start", async ({
   page,
 }) => {

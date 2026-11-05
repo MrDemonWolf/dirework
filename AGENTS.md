@@ -1028,7 +1028,12 @@ answer with the login only and still invalidate `config.get`, as task writes inv
 The task board (`task-manager.tsx`) takes the full width.
 Its add form is `AddTaskForm`, which owns the draft and `task.create`, so a keystroke renders
 only the form, never the rows; its one prop is the board's input ref, which the empty state's
-"Add a task" and the focus restore use (`task-board-structure.test.ts`).
+"Add a task" and the focus restore use (`task-board-structure.test.ts`). Each row is a `TaskRow`
+with stable props: the task, primitive busy flags (the row guards its own clicks) and callbacks
+built from each mutation's stable `mutate` — TaskManager never holds a whole `useMutation` /
+`useQuery` result (new objects every render), the failed first load reads `isFetching` in its
+own child observer, and the row that takes focus after a removal is read from the rendered rows
+at click time — so a row action or a chat `!task` re-renders one row, not the board.
 The setup checklist's URL handoffs stay separate (Show/Copy only). Rows are `min-h-11`: checkbox, then
 the task text (full wrap, no clamp, `wrap-anywhere`, `dir="auto"`) and a meta line
 (`data-slot="task-row-meta"`: status chip slot + `TaskRowControls`)

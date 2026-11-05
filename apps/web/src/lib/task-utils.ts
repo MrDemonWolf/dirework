@@ -51,7 +51,7 @@ export function countDoneByAuthor(tasks: Task[]): Record<string, number> {
  * understate each author's done total. Without it, done rows are counted.
  */
 export function groupTasksByAuthor(
-  tasks: Task[],
+  tasks: readonly Task[],
   doneByAuthor?: Record<string, number>,
 ): TaskGroup[] {
   const groups = new Map<string, TaskGroup>();
@@ -153,6 +153,17 @@ export function taskRowActions(status: string): { action: TaskRowAction; inline:
     default:
       return [];
   }
+}
+
+/**
+ * The row that takes focus after `taskId` is removed: the next rendered row, else the previous
+ * one; null when it was the only row, or isn't among `rowIds` (the board's rendered rows, in
+ * order, so a folded group's rows never take focus).
+ */
+export function neighborRowId(rowIds: readonly string[], taskId: string): string | null {
+  const index = rowIds.indexOf(taskId);
+  if (index < 0) return null;
+  return rowIds[index + 1] ?? rowIds[index - 1] ?? null;
 }
 
 const RESTORABLE_STATUSES = ["pending", "started", "active", "done"] as const;

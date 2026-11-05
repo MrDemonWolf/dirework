@@ -4,6 +4,13 @@
 // author, across the full width of its panel (the overlay URLs live in the timer console's
 // OBS sources). Polls `task.list` via the authed /rpc proxy; all writes
 // go through owner-only task.* procedures, which share service code with the chat commands.
+//
+// Render boundaries (`task-board-structure.test.ts` pins them): the add field's draft lives in
+// AddTaskForm, and each row is a TaskRow whose props are stable between board renders: the
+// task object (React Query keeps it structurally shared across polls), primitive flags, and
+// callbacks built only from refs and each mutation's stable `mutate`. TaskManager never holds
+// a whole useMutation / useQuery result (both are new objects every render), so a row action
+// or a chat !task re-renders the row that changed and its group header, not every row.
 
 import { type Ref, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -32,9 +39,11 @@ import {
   canMarkTaskDone,
   groupTasksByAuthor,
   isAtStartCap,
+  neighborRowId,
   START_CAP_REASON,
   taskRowActions,
   toRestoreInput,
+  type Task,
   type TaskRowAction,
 } from "@/lib/task-utils";
 import { StatusChip } from "@/components/status-chip";
@@ -45,10 +54,27 @@ import { trpc } from "@/utils/trpc";
 /** How long the "Task removed" toast offers Undo. */
 const UNDO_TOAST_MS = 5000;
 
+/** The `?? []` fallback, one array for the module's life, so it never reads as a new list. */
+const NO_TASKS: readonly Task[] = [];
+
 /** A task mutation's `onError`: one toast naming the action that failed, and why. */
 const mutationError = (action: string) => (err: unknown) => {
   toast.error(`Couldn't ${action}: ${describeTrpcError(err)}`);
 };
+
+/** The ids of the board's rendered rows, in order (a folded group's rows aren't rendered). */
+function renderedRowIds(list: HTMLElement | null): string[] {
+  if (!list) return [];
+  return Array.from(
+    list.querySelectorAll<HTMLElement>("[data-row-menu]"),
+    (el) => el.dataset.rowMenu ?? "",
+  );
+}
+
+/** Where focus goes once the list shows a row action: see the effect in TaskManager. */
+type PendingFocus =
+  | { kind: "remove"; taskId: string; nextId: string | null }
+  | { kind: "status"; taskId: string; from: string };
 
 interface TaskManagerProps {
   /** The owner's Twitch id; tasks authored under it are the "Host" group, pinned first. */
@@ -75,7 +101,9 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
     });
   };
 
-  const tasks = useQuery({
+  // Only `data` and `isError` are read, so React Query re-renders the board when one of them
+  // changes, never on a poll's fetching flag (the failed-load retry reads that in its own child).
+  const { data, isError } = useQuery({
     ...trpc.task.list.queryOptions(),
     // Slows down after the owner goes idle; every authed poll is billed twice
     // (web worker proxy + api worker), so the cadence lives in poll-intervals.ts.
@@ -86,21 +114,49 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
     queryClient.invalidateQueries({ queryKey: trpc.task.list.queryKey() });
   };
 
-  const markDone = useMutation({
+  // Removing a task unmounts its row, and a status change (Start / Make focus / Pause)
+  // unmounts the icon button that made it — either drops keyboard focus to <body>. Once
+  // the list reflects the change, move focus somewhere sensible (only if it was lost).
+  const addInputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const pendingFocus = useRef<PendingFocus | null>(null);
+  const clearPendingFocus = () => {
+    pendingFocus.current = null;
+  };
+
+  // Each mutation is destructured to its stable `mutate` (and the primitives the board shows),
+  // never kept whole: see the header comment.
+  const {
+    mutate: markDone,
+    isPending: markingDone,
+    variables: markDoneVars,
+  } = useMutation({
     ...trpc.task.markDone.mutationOptions(),
     onSuccess: invalidate,
     onError: mutationError("mark the task done"),
   });
 
   // Status changes (Start / Make focus / Pause) wait for the server, then refetch the list:
-  // which status a started task lands in (focus or started) is the server's call.
-  const activateTask = useMutation({
+  // which status a started task lands in (focus or started) is the server's call. A failure
+  // drops the pending focus move.
+  const {
+    mutate: activateTask,
+    isPending: activating,
+    variables: activateVars,
+  } = useMutation({
     ...trpc.task.activate.mutationOptions(),
     onSuccess: invalidate,
-    onError: mutationError("make the task the focus"),
+    onError: (err) => {
+      clearPendingFocus();
+      mutationError("make the task the focus")(err);
+    },
   });
 
-  const startTask = useMutation({
+  const {
+    mutate: startTask,
+    isPending: starting,
+    variables: startVars,
+  } = useMutation({
     ...trpc.task.start.mutationOptions(),
     onSuccess: (result) => {
       invalidate();
@@ -111,23 +167,26 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
         toast.error("Couldn't start the task: it changed since the list loaded");
       }
     },
-    onError: mutationError("start the task"),
+    onError: (err) => {
+      clearPendingFocus();
+      mutationError("start the task")(err);
+    },
   });
 
-  const pauseTask = useMutation({
+  const {
+    mutate: pauseTask,
+    isPending: pausing,
+    variables: pauseVars,
+  } = useMutation({
     ...trpc.task.pause.mutationOptions(),
     onSuccess: invalidate,
-    onError: mutationError("pause the task"),
+    onError: (err) => {
+      clearPendingFocus();
+      mutationError("pause the task")(err);
+    },
   });
 
-  // One request per click: a row's status actions are off while one of them is in flight.
-  const statusBusyIds = new Set(
-    [activateTask, startTask, pauseTask].flatMap((m) =>
-      m.isPending && m.variables ? [m.variables.id] : [],
-    ),
-  );
-
-  const restoreTask = useMutation({
+  const { mutate: restoreTask } = useMutation({
     ...trpc.task.restore.mutationOptions(),
     onSuccess: invalidate,
     onError: mutationError("restore the task"),
@@ -135,7 +194,11 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
 
   // Removal stays one click; the toast's Undo re-inserts the removed row (one
   // mutation, only when clicked).
-  const removeTask = useMutation({
+  const {
+    mutate: removeTask,
+    isPending: removing,
+    variables: removeVars,
+  } = useMutation({
     ...trpc.task.remove.mutationOptions(),
     onSuccess: (removed) => {
       invalidate();
@@ -144,25 +207,38 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
       toast("Task removed", {
         id: `task-removed-${snapshot.id}`,
         duration: UNDO_TOAST_MS,
-        action: { label: "Undo", onClick: () => restoreTask.mutate(snapshot) },
+        action: { label: "Undo", onClick: () => restoreTask(snapshot) },
       });
     },
-    onError: mutationError("remove the task"),
+    onError: (err) => {
+      clearPendingFocus();
+      mutationError("remove the task")(err);
+    },
   });
 
-  const clearAll = useMutation({
+  const { mutate: clearAll, isPending: clearingAll } = useMutation({
     ...trpc.task.clearAll.mutationOptions(),
     onSuccess: invalidate,
     onError: mutationError("clear the tasks"),
   });
 
-  const clearDone = useMutation({
+  const { mutate: clearDone, isPending: clearingDone } = useMutation({
     ...trpc.task.clearDone.mutationOptions(),
     onSuccess: invalidate,
     onError: mutationError("clear done tasks"),
   });
 
-  const taskList = tasks.data?.tasks ?? [];
+  // The id each in-flight row request is for. One request per click: a row's status actions
+  // are off while one of them is in flight (the row guards its own clicks on these flags).
+  const markingId = markingDone ? markDoneVars?.id : undefined;
+  const removingId = removing ? removeVars?.id : undefined;
+  const statusBusyIds = [
+    activating ? activateVars?.id : undefined,
+    starting ? startVars?.id : undefined,
+    pausing ? pauseVars?.id : undefined,
+  ];
+
+  const taskList = data?.tasks ?? NO_TASKS;
 
   // Rows that arrived since the previous list (a chat !task, an add, an Undo)
   // get a one-shot `row-enter`; the first load does not, so the panel doesn't
@@ -172,38 +248,27 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
   // There is no exit animation: React Query drops the node outright, and the
   // Undo toast already carries the "removed" feedback.
   const [rowEntry, setRowEntry] = useState<{
-    source: typeof tasks.data;
+    source: typeof data;
     seen: Set<string> | null;
     fresh: Set<string>;
   }>({ source: undefined, seen: null, fresh: new Set() });
-  if (tasks.data && tasks.data !== rowEntry.source) {
-    const ids = new Set(tasks.data.tasks.map((task) => task.id));
+  if (data && data !== rowEntry.source) {
+    const ids = new Set(data.tasks.map((task) => task.id));
     const previous = rowEntry.seen;
     setRowEntry({
-      source: tasks.data,
+      source: data,
       seen: ids,
       fresh: previous ? new Set([...ids].filter((id) => !previous.has(id))) : new Set(),
     });
   }
 
-  // Removing a task unmounts its row, and a status change (Start / Make focus / Pause)
-  // unmounts the icon button that made it — either drops keyboard focus to <body>. Once
-  // the list reflects the change, move focus somewhere sensible (only if it was lost).
-  const addInputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  const pendingFocus = useRef<
-    | { kind: "remove"; taskId: string; nextId: string | null }
-    | { kind: "status"; taskId: string; from: string }
-    | null
-  >(null);
-
   // Runs on every list refresh; "settled" waits until the poll/invalidate result
   // actually reflects the mutation (row gone / status changed) before moving focus.
   useEffect(() => {
     const pending = pendingFocus.current;
-    const data = tasks.data?.tasks;
-    if (!pending || !data) return;
-    const task = data.find((t) => t.id === pending.taskId);
+    const rows = data?.tasks;
+    if (!pending || !rows) return;
+    const task = rows.find((t) => t.id === pending.taskId);
     const settled = pending.kind === "remove" ? !task : task?.status !== pending.from;
     if (!settled) return;
     pendingFocus.current = null;
@@ -218,40 +283,26 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
       ? listRef.current?.querySelector<HTMLElement>(`[data-row-menu="${CSS.escape(targetId)}"]`)
       : null;
     (target ?? addInputRef.current)?.focus();
-  }, [tasks.data]);
+  }, [data]);
+
+  // Row callbacks: built from refs and stable `mutate` functions only, so they keep their
+  // identity across board renders. The row checks its own busy flags before calling them.
 
   /** Run a row's status action: one request, focus restored once the list shows it. */
-  const runStatusAction = (action: TaskRowAction, task: { id: string; status: string }) => {
-    if (statusBusyIds.has(task.id)) return;
+  const runStatusAction = (action: TaskRowAction, task: Task) => {
     pendingFocus.current = { kind: "status", taskId: task.id, from: task.status };
-    const mutation = { start: startTask, focus: activateTask, pause: pauseTask }[action];
-    mutation.mutate(
-      { id: task.id },
-      {
-        onError: () => {
-          pendingFocus.current = null;
-        },
-      },
-    );
+    ({ start: startTask, focus: activateTask, pause: pauseTask })[action]({ id: task.id });
   };
 
-  const markTaskDone = (task: { id: string; status: string }) => {
-    if (!canMarkTaskDone(task.status)) return;
-    if (markDone.isPending && markDone.variables?.id === task.id) return;
-    markDone.mutate({ id: task.id });
+  const markTaskDone = (taskId: string) => {
+    markDone({ id: taskId });
   };
 
+  // The row that takes focus after this one goes is read from the rendered rows at click time.
   const removeRow = (taskId: string) => {
-    if (removeTask.isPending && removeTask.variables?.id === taskId) return;
-    pendingFocus.current = { kind: "remove", taskId, nextId: neighborTaskId(taskId) };
-    removeTask.mutate(
-      { id: taskId },
-      {
-        onError: () => {
-          pendingFocus.current = null;
-        },
-      },
-    );
+    const nextId = neighborRowId(renderedRowIds(listRef.current), taskId);
+    pendingFocus.current = { kind: "remove", taskId, nextId };
+    removeTask({ id: taskId });
   };
 
   // The empty board's call to action: bring the add input into view and focus it. Only
@@ -265,26 +316,16 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
 
   // Counts come from the server: the list carries only the newest done tasks
   // (DONE_TASK_LIST_LIMIT), so counting the array would undercount "Done".
-  const pendingCount = tasks.data?.counts.open ?? 0;
-  const doneCount = tasks.data?.counts.done ?? 0;
+  const pendingCount = data?.counts.open ?? 0;
+  const doneCount = data?.counts.done ?? 0;
   const totalCount = pendingCount + doneCount;
 
   // Broadcaster group pins first; viewer groups keep list order.
-  const groups = groupTasksByAuthor(taskList, tasks.data?.counts.doneByAuthor);
+  const groups = groupTasksByAuthor(taskList, data?.counts.doneByAuthor);
   const orderedGroups = [
     ...groups.filter((g) => g.authorKey === userTwitchId),
     ...groups.filter((g) => g.authorKey !== userTwitchId),
   ];
-  // Rows of a folded group aren't rendered, so they can't take focus after a removal.
-  const orderedTaskIds = orderedGroups
-    .filter((g) => !collapsedAuthors.has(g.authorKey))
-    .flatMap((g) => g.tasks.map((t) => t.id));
-
-  /** The row that takes focus after `taskId` is removed: the next one, else the previous. */
-  const neighborTaskId = (taskId: string) => {
-    const index = orderedTaskIds.indexOf(taskId);
-    return orderedTaskIds[index + 1] ?? orderedTaskIds[index - 1] ?? null;
-  };
 
   return (
     <div className="flex h-full flex-col">
@@ -316,14 +357,14 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
             <DropdownMenuContent className="w-48" align="end">
               <DropdownMenuItem
                 variant="destructive"
-                disabled={doneCount === 0 || clearDone.isPending}
+                disabled={doneCount === 0 || clearingDone}
                 onClick={() => setConfirmClear("done")}
               >
                 Clear done ({doneCount})
               </DropdownMenuItem>
               <DropdownMenuItem
                 variant="destructive"
-                disabled={totalCount === 0 || clearAll.isPending}
+                disabled={totalCount === 0 || clearingAll}
                 onClick={() => setConfirmClear("all")}
               >
                 Clear all ({totalCount})
@@ -336,7 +377,7 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
             title="Clear done tasks?"
             description={`This permanently removes ${doneCount} completed ${doneCount === 1 ? "task" : "tasks"} from the list and the overlay.`}
             confirmLabel="Clear done"
-            onConfirm={() => clearDone.mutate()}
+            onConfirm={() => clearDone()}
           />
           <ConfirmDialog
             open={confirmClear === "all"}
@@ -344,7 +385,7 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
             title="Clear every task?"
             description={`This permanently removes all ${totalCount} ${totalCount === 1 ? "task" : "tasks"}, including viewer tasks, from the list and the overlay. Viewers will need to add theirs again.`}
             confirmLabel="Clear all tasks"
-            onConfirm={() => clearAll.mutate()}
+            onConfirm={() => clearAll()}
           />
         </div>
       </div>
@@ -354,14 +395,10 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
         <AddTaskForm inputRef={addInputRef} />
 
         <div ref={listRef} className="max-h-100 space-y-3 overflow-y-auto">
-          {!tasks.data && tasks.isError ? (
+          {!data && isError ? (
             // A failed first load must not masquerade as an empty board.
-            <QueryError
-              title="Couldn't load tasks"
-              onRetry={() => tasks.refetch()}
-              retrying={tasks.isFetching}
-            />
-          ) : !tasks.data ? (
+            <TaskListLoadError />
+          ) : !data ? (
             <div className="space-y-2" aria-hidden>
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
@@ -445,108 +482,20 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <ul className="divide-y divide-border/40 border-t border-border/40">
-                      {group.tasks.map((task) => {
-                        const isDone = task.status === "done";
-                        const isActive = task.status === "active";
-                        const isStarted = task.status === "started";
-                        return (
-                          <li
-                            key={task.id}
-                            data-active={isActive || undefined}
-                            data-status={task.status}
-                            // The focus row reads from a soft primary tint plus the
-                            // "Focus" chip — no coloured edge bar. Layout: checkbox, then
-                            // a body of the task text and a meta line (status chip slot +
-                            // row controls). Below `sm` the meta line sits under the text so
-                            // the text gets the row's full width on a 320px phone; from
-                            // `sm` it rides beside the text.
-                            className={cn(
-                              "group flex min-h-11 items-start gap-3 px-3 py-3 transition-colors",
-                              isActive ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/40",
-                              rowEntry.fresh.has(task.id) && "row-enter",
-                            )}
-                          >
-                            {/* Checkbox */}
-                            <button
-                              type="button"
-                              // aria-disabled doesn't block clicks, so markTaskDone guards:
-                              // done rows and an in-flight markDone are no-ops.
-                              onClick={() => markTaskDone(task)}
-                              // aria-disabled (not disabled) so the control keeps
-                              // keyboard focus while pending and once done.
-                              aria-disabled={
-                                isDone || (markDone.isPending && markDone.variables?.id === task.id)
-                              }
-                              aria-label={
-                                isDone ? `${task.text} (done)` : `Mark "${task.text}" as done`
-                              }
-                              className={cn(
-                                // after:-inset-2.5 = 45px effective touch target on a 20px control
-                                "relative flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors after:absolute after:-inset-2.5",
-                                focusRing,
-                                isDone
-                                  ? "border-primary bg-primary text-primary-foreground"
-                                  : "border-muted-foreground hover:border-primary aria-disabled:cursor-not-allowed aria-disabled:hover:border-muted-foreground",
-                              )}
-                            >
-                              {isDone && <Check className="size-3" />}
-                            </button>
-
-                            <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:flex-row sm:items-start sm:gap-3">
-                              {/* Task text: wraps in full (no clamp), breaking a long URL or
-                                an unbroken word anywhere; dir="auto" lays an RTL task out
-                                right to left. */}
-                              <p
-                                dir="auto"
-                                className={cn(
-                                  "min-w-0 text-sm wrap-anywhere sm:flex-1",
-                                  isDone && "text-muted-foreground line-through",
-                                )}
-                              >
-                                {task.text}
-                              </p>
-
-                              <div
-                                data-slot="task-row-meta"
-                                className="flex min-h-6 items-center gap-2 sm:-my-0.5 sm:shrink-0"
-                              >
-                                {/* Status chip slot: the focus keeps the lit, pulsing LED; a
-                                started task gets a quieter half-lit one. Pending: no chip. */}
-                                {isActive && (
-                                  <StatusChip
-                                    size="sm"
-                                    tone="accent"
-                                    label="Focus"
-                                    pulse
-                                    className="shrink-0"
-                                  />
-                                )}
-                                {isStarted && (
-                                  <StatusChip
-                                    size="sm"
-                                    tone="idle"
-                                    dot="half"
-                                    label="Started"
-                                    className="shrink-0"
-                                  />
-                                )}
-
-                                <TaskRowControls
-                                  task={task}
-                                  atStartCap={atStartCap}
-                                  statusBusy={statusBusyIds.has(task.id)}
-                                  removing={
-                                    removeTask.isPending && removeTask.variables?.id === task.id
-                                  }
-                                  onStatusAction={(action) => runStatusAction(action, task)}
-                                  onMarkDone={() => markTaskDone(task)}
-                                  onRemove={() => removeRow(task.id)}
-                                />
-                              </div>
-                            </div>
-                          </li>
-                        );
-                      })}
+                      {group.tasks.map((task) => (
+                        <TaskRow
+                          key={task.id}
+                          task={task}
+                          fresh={rowEntry.fresh.has(task.id)}
+                          atStartCap={atStartCap}
+                          statusBusy={statusBusyIds.includes(task.id)}
+                          marking={markingId === task.id}
+                          removing={removingId === task.id}
+                          onStatusAction={runStatusAction}
+                          onMarkDone={markTaskDone}
+                          onRemove={removeRow}
+                        />
+                      ))}
                     </ul>
                   </CollapsibleContent>
                 </Collapsible>
@@ -563,6 +512,148 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * The failed first load: "Couldn't load tasks" with a retry. Its own `task.list` observer
+ * reads the fetching flag and the refetch, so TaskManager never subscribes to them (a board
+ * that tracked `isFetching` re-rendered every row twice per poll for the rest of the session).
+ * `retryOnMount: false`: mounting this observer must not fetch on its own; the board's
+ * observer keeps polling, and the retry button fetches.
+ */
+function TaskListLoadError() {
+  const { refetch, isFetching } = useQuery({
+    ...trpc.task.list.queryOptions(),
+    retryOnMount: false,
+  });
+  return <QueryError title="Couldn't load tasks" onRetry={() => refetch()} retrying={isFetching} />;
+}
+
+/**
+ * One board row: the checkbox, the task text and the meta line (status chip + controls). Its
+ * props are stable between board renders (primitive flags, the structurally shared task, and
+ * callbacks that take the task), so only a row whose task or flags changed re-renders. The
+ * busy guards live here: aria-disabled and a menu item's click don't block a call.
+ */
+function TaskRow({
+  task,
+  fresh,
+  atStartCap,
+  statusBusy,
+  marking,
+  removing,
+  onStatusAction,
+  onMarkDone,
+  onRemove,
+}: {
+  task: Task;
+  /** Arrived since the previous list: plays the one-shot `row-enter`. */
+  fresh: boolean;
+  /** The author already has a focus and the most started tasks: Start is off. */
+  atStartCap: boolean;
+  /** A Start / Make focus / Pause request for this row is in flight. */
+  statusBusy: boolean;
+  /** A mark-done request for this row is in flight. */
+  marking: boolean;
+  /** A remove request for this row is in flight. */
+  removing: boolean;
+  onStatusAction: (action: TaskRowAction, task: Task) => void;
+  onMarkDone: (taskId: string) => void;
+  onRemove: (taskId: string) => void;
+}) {
+  const isDone = task.status === "done";
+  const isActive = task.status === "active";
+  const isStarted = task.status === "started";
+
+  const markDone = () => {
+    // Done rows and an in-flight mark-done are no-ops.
+    if (marking || !canMarkTaskDone(task.status)) return;
+    onMarkDone(task.id);
+  };
+  const statusAction = (action: TaskRowAction) => {
+    if (statusBusy || (action === "start" && atStartCap)) return;
+    onStatusAction(action, task);
+  };
+  const remove = () => {
+    if (removing) return;
+    onRemove(task.id);
+  };
+
+  return (
+    <li
+      data-active={isActive || undefined}
+      data-status={task.status}
+      // The focus row reads from a soft primary tint plus the "Focus" chip — no coloured
+      // edge bar. Layout: checkbox, then a body of the task text and a meta line (status chip
+      // slot + row controls). Below `sm` the meta line sits under the text so the text gets
+      // the row's full width on a 320px phone; from `sm` it rides beside the text.
+      className={cn(
+        "group flex min-h-11 items-start gap-3 px-3 py-3 transition-colors",
+        isActive ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/40",
+        fresh && "row-enter",
+      )}
+    >
+      {/* Checkbox */}
+      <button
+        type="button"
+        // aria-disabled doesn't block clicks, so markDone guards: done rows and an
+        // in-flight markDone are no-ops.
+        onClick={markDone}
+        // aria-disabled (not disabled) so the control keeps keyboard focus while pending
+        // and once done.
+        aria-disabled={isDone || marking}
+        aria-label={isDone ? `${task.text} (done)` : `Mark "${task.text}" as done`}
+        className={cn(
+          // after:-inset-2.5 = 45px effective touch target on a 20px control
+          "relative flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors after:absolute after:-inset-2.5",
+          focusRing,
+          isDone
+            ? "border-primary bg-primary text-primary-foreground"
+            : "border-muted-foreground hover:border-primary aria-disabled:cursor-not-allowed aria-disabled:hover:border-muted-foreground",
+        )}
+      >
+        {isDone && <Check className="size-3" />}
+      </button>
+
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:flex-row sm:items-start sm:gap-3">
+        {/* Task text: wraps in full (no clamp), breaking a long URL or an unbroken word
+          anywhere; dir="auto" lays an RTL task out right to left. */}
+        <p
+          dir="auto"
+          className={cn(
+            "min-w-0 text-sm wrap-anywhere sm:flex-1",
+            isDone && "text-muted-foreground line-through",
+          )}
+        >
+          {task.text}
+        </p>
+
+        <div
+          data-slot="task-row-meta"
+          className="flex min-h-6 items-center gap-2 sm:-my-0.5 sm:shrink-0"
+        >
+          {/* Status chip slot: the focus keeps the lit, pulsing LED; a started task gets a
+            quieter half-lit one. Pending: no chip. */}
+          {isActive && (
+            <StatusChip size="sm" tone="accent" label="Focus" pulse className="shrink-0" />
+          )}
+          {isStarted && (
+            <StatusChip size="sm" tone="idle" dot="half" label="Started" className="shrink-0" />
+          )}
+
+          <TaskRowControls
+            task={task}
+            atStartCap={atStartCap}
+            statusBusy={statusBusy}
+            removing={removing}
+            onStatusAction={statusAction}
+            onMarkDone={markDone}
+            onRemove={remove}
+          />
+        </div>
+      </div>
+    </li>
   );
 }
 
@@ -681,9 +772,7 @@ function TaskRowControls({
                   <Button
                     variant="ghost"
                     size="icon-xs"
-                    onClick={() => {
-                      if (!isOff(action)) onStatusAction(action);
-                    }}
+                    onClick={() => onStatusAction(action)}
                     disabled={isOff(action)}
                     focusableWhenDisabled
                     aria-label={ui.name(task.text)}
