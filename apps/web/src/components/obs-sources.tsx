@@ -28,7 +28,7 @@ import {
   TIMER_SOURCE_FALLBACK,
   sourceSizeLabel,
 } from "@/lib/preview-session";
-import { describeTrpcError } from "@/lib/trpc-errors";
+import { toastMutationError } from "@/lib/validation-errors";
 import { LG_MEDIA_QUERY, useMediaQuery } from "@/lib/use-media-query";
 import { trpc } from "@/utils/trpc";
 
@@ -157,9 +157,7 @@ export function ObsSources({ state }: { state: ObsPreviewState }) {
       queryClient.invalidateQueries({ queryKey: trpc.user.me.queryKey() });
       toast.success("New overlay URL ready — paste it into OBS");
     },
-    onError: (err) => {
-      toast.error(`Couldn't reset the URL: ${describeTrpcError(err)}`);
-    },
+    onError: toastMutationError("reset the URL"),
   });
 
   return (

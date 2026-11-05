@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { TASK_ACCESS_LEVELS, type TaskAccessLevel } from "@dirework/api/bot-permissions";
 
 import { applyConfigResult, botSettingsSaved } from "@/lib/config-cache";
-import { formatMutationError } from "@/lib/validation-errors";
+import { toastMutationError } from "@/lib/validation-errors";
 import { trpc } from "@/utils/trpc";
 
 export { TASK_ACCESS_LEVELS, type TaskAccessLevel };
@@ -45,9 +45,7 @@ export function useTaskAccess(level: TaskAccessLevel) {
     ...trpc.config.updateBotSettings.mutationOptions(),
     onSuccess: (saved, sent) =>
       applyConfigResult(queryClient, trpc.config.get.queryKey(), botSettingsSaved(saved, sent)),
-    onError: (err) => {
-      toast.error(`Couldn't change who can add tasks: ${formatMutationError(err)}`);
-    },
+    onError: toastMutationError("change who can add tasks"),
   });
 
   const value = save.isPending ? (save.variables.taskAccess ?? level) : level;

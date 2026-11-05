@@ -48,7 +48,7 @@ import {
 } from "@/lib/task-utils";
 import { StatusChip } from "@/components/status-chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { describeTrpcError } from "@/lib/trpc-errors";
+import { toastMutationError } from "@/lib/validation-errors";
 import { trpc } from "@/utils/trpc";
 
 /** How long the "Task removed" toast offers Undo. */
@@ -56,11 +56,6 @@ const UNDO_TOAST_MS = 5000;
 
 /** The `?? []` fallback, one array for the module's life, so it never reads as a new list. */
 const NO_TASKS: readonly Task[] = [];
-
-/** A task mutation's `onError`: one toast naming the action that failed, and why. */
-const mutationError = (action: string) => (err: unknown) => {
-  toast.error(`Couldn't ${action}: ${describeTrpcError(err)}`);
-};
 
 /** The ids of the board's rendered rows, in order (a folded group's rows aren't rendered). */
 function renderedRowIds(list: HTMLElement | null): string[] {
@@ -133,7 +128,7 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
   } = useMutation({
     ...trpc.task.markDone.mutationOptions(),
     onSuccess: invalidate,
-    onError: mutationError("mark the task done"),
+    onError: toastMutationError("mark the task done"),
   });
 
   // Status changes (Start / Make focus / Pause) wait for the server, then refetch the list:
@@ -148,7 +143,7 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
     onSuccess: invalidate,
     onError: (err) => {
       clearPendingFocus();
-      mutationError("make the task the focus")(err);
+      toastMutationError("make the task the focus")(err);
     },
   });
 
@@ -169,7 +164,7 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
     },
     onError: (err) => {
       clearPendingFocus();
-      mutationError("start the task")(err);
+      toastMutationError("start the task")(err);
     },
   });
 
@@ -182,14 +177,14 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
     onSuccess: invalidate,
     onError: (err) => {
       clearPendingFocus();
-      mutationError("pause the task")(err);
+      toastMutationError("pause the task")(err);
     },
   });
 
   const { mutate: restoreTask } = useMutation({
     ...trpc.task.restore.mutationOptions(),
     onSuccess: invalidate,
-    onError: mutationError("restore the task"),
+    onError: toastMutationError("restore the task"),
   });
 
   // Removal stays one click; the toast's Undo re-inserts the removed row (one
@@ -212,20 +207,20 @@ export function TaskManager({ userTwitchId }: TaskManagerProps) {
     },
     onError: (err) => {
       clearPendingFocus();
-      mutationError("remove the task")(err);
+      toastMutationError("remove the task")(err);
     },
   });
 
   const { mutate: clearAll, isPending: clearingAll } = useMutation({
     ...trpc.task.clearAll.mutationOptions(),
     onSuccess: invalidate,
-    onError: mutationError("clear the tasks"),
+    onError: toastMutationError("clear the tasks"),
   });
 
   const { mutate: clearDone, isPending: clearingDone } = useMutation({
     ...trpc.task.clearDone.mutationOptions(),
     onSuccess: invalidate,
-    onError: mutationError("clear done tasks"),
+    onError: toastMutationError("clear done tasks"),
   });
 
   // The id each in-flight row request is for. One request per click: a row's status actions
@@ -673,7 +668,7 @@ function AddTaskForm({ inputRef }: { inputRef: Ref<HTMLInputElement> }) {
       setNewTask("");
       queryClient.invalidateQueries({ queryKey: trpc.task.list.queryKey() });
     },
-    onError: mutationError("add the task"),
+    onError: toastMutationError("add the task"),
   });
 
   const handleSubmit = (e: React.FormEvent) => {

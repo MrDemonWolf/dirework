@@ -27,7 +27,7 @@ import {
   themePresets,
 } from "@/lib/theme-presets";
 import { cn, isDeepEqual } from "@/lib/utils";
-import { describeIssues, formatMutationError } from "@/lib/validation-errors";
+import { describeIssues, toastMutationError } from "@/lib/validation-errors";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ConsoleRule } from "@/components/console-rule";
 import { QueryError } from "@/components/query-error";
@@ -135,9 +135,7 @@ function StylesEditor({ config }: { config: ConfigData }) {
     // The answer is what the save stored: merged into config.get, never re-read.
     onSuccess: (saved) =>
       applyConfigResult(queryClient, trpc.config.get.queryKey(), stylesSaved(saved)),
-    onError: (err) => {
-      toast.error(`Couldn't save styles: ${formatMutationError(err)}`);
-    },
+    onError: toastMutationError("save styles"),
   });
 
   const isSaving = saveStylesMutation.isPending;

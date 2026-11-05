@@ -29,7 +29,7 @@ import {
 } from "@/lib/message-fields";
 import { previewVars } from "@/lib/template-preview";
 import { cn } from "@/lib/utils";
-import { describeFieldIssues, formatMutationError } from "@/lib/validation-errors";
+import { describeFieldIssues, toastMutationError } from "@/lib/validation-errors";
 import { MessageEditor } from "@/components/bot-settings/message-editor";
 import { SaveBar } from "@/components/save-bar";
 import { Callout } from "@/components/ui/callout";
@@ -100,9 +100,7 @@ function RepliesEditor({ config, user }: { config: BotConfigData; user: BotUserD
     // The answer is the stored bot config: merged into config.get, never re-read.
     onSuccess: (saved, sent) =>
       applyConfigResult(queryClient, trpc.config.get.queryKey(), botSettingsSaved(saved, sent)),
-    onError: (err) => {
-      toast.error(`Couldn't save replies: ${formatMutationError(err)}`);
-    },
+    onError: toastMutationError("save replies"),
   });
 
   // The server's own input schema over the exact payload: a field it would reject blocks

@@ -1,12 +1,23 @@
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+
 import { TRPCClientError } from "@trpc/client";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+const toastError = vi.hoisted(() => vi.fn());
+vi.mock("sonner", () => ({ toast: { error: toastError } }));
 
 import { updateStylesInput } from "@dirework/api/routers/input-schemas";
 
 import { DEFAULT_PHASE_LABELS } from "../config-types";
 import { defaultTaskStyles, defaultTimerStyles, themePresets } from "../theme-presets";
-import { API_UNREACHABLE_MESSAGE } from "../trpc-errors";
-import { describeFieldIssues, describeIssues, formatMutationError } from "../validation-errors";
+import { API_UNREACHABLE_MESSAGE, API_UNREACHABLE_TOAST_ID } from "../trpc-errors";
+import {
+  describeFieldIssues,
+  describeIssues,
+  formatMutationError,
+  toastMutationError,
+} from "../validation-errors";
 
 function invalidStylesError() {
   const result = updateStylesInput.safeParse({
@@ -83,6 +94,65 @@ describe("formatMutationError", () => {
     const transport = TRPCClientError.from(new SyntaxError("Unexpected token '<'"));
     expect(formatMutationError(transport)).toBe(API_UNREACHABLE_MESSAGE);
     expect(formatMutationError(undefined)).toBe(API_UNREACHABLE_MESSAGE);
+  });
+});
+
+describe("toastMutationError", () => {
+  afterEach(() => {
+    toastError.mockReset();
+  });
+
+  /** What httpBatchLink produces when a procedure answers with a tRPC error. */
+  const serverError = (message: string) =>
+    TRPCClientError.from({
+      error: { message, code: -32000, data: { code: "BAD_REQUEST", httpStatus: 400 } },
+    });
+
+  it("names the action and the server's reason, in a toast of its own", () => {
+    toastMutationError("add the task")(serverError("The task list is full"));
+    expect(toastError).toHaveBeenCalledOnce();
+    expect(toastError).toHaveBeenCalledWith("Couldn't add the task: The task list is full", {});
+  });
+
+  it("shares the outage toast for a transport failure, so clicks during an outage never stack", () => {
+    const transport = TRPCClientError.from(new SyntaxError("Unexpected token '<'"));
+    toastMutationError("start the timer")(transport);
+    toastMutationError("pause the timer")(undefined);
+    expect(toastError.mock.calls).toEqual([
+      [
+        `Couldn't start the timer: ${API_UNREACHABLE_MESSAGE}`,
+        // No action: the query toast's retry this replaces would refetch a query, not redo
+        // the write.
+        { id: API_UNREACHABLE_TOAST_ID, action: undefined },
+      ],
+      [
+        `Couldn't pause the timer: ${API_UNREACHABLE_MESSAGE}`,
+        { id: API_UNREACHABLE_TOAST_ID, action: undefined },
+      ],
+    ]);
+  });
+
+  it("shows a raw zod issue list as one readable line", () => {
+    toastMutationError("save styles")({ message: invalidStylesError().message });
+    expect(toastError).toHaveBeenCalledWith(
+      "Couldn't save styles: timer styles › dimensions › width: Invalid CSS length (+1 more)",
+      {},
+    );
+  });
+});
+
+describe("mutation error toasts", () => {
+  it("all go through toastMutationError, never a hand-rolled Couldn't toast", () => {
+    const src = path.resolve(import.meta.dirname, "../..");
+    const files = readdirSync(src, { recursive: true, encoding: "utf8" }).filter(
+      (file) => /\.tsx?$/.test(file) && !file.includes("__tests__"),
+    );
+    const handRolled = files.filter((file) =>
+      /toast\.error\(\s*`Couldn't [^`]*\$\{(?:describeTrpcError|formatMutationError)\(/.test(
+        readFileSync(path.join(src, file), "utf8"),
+      ),
+    );
+    expect(handRolled).toEqual([]);
   });
 });
 

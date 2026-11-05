@@ -1213,7 +1213,10 @@ existing home and reuse it:
   `meta.silent`; a server error's toast id is its query hash, so a sustained 5xx replaces its
   toast; `toastAuthLapsed` / `toastMutationAuthLapse` for a lapsed sign-in),
   `lib/auth-lapse.ts` (lapse detection, `fetchRpc`, `authLapseLink`, `shouldRetryQuery`; see
-  Real-time = polling), `lib/validation-errors.ts` (`formatMutationError`, `describeIssues`).
+  Real-time = polling), `lib/validation-errors.ts` (`formatMutationError`, `describeIssues`,
+  and `toastMutationError(action)`: EVERY mutation's `onError` toast, `Couldn't <action>: <why>`,
+  sharing the outage toast id on a transport failure so clicks during an outage never stack;
+  `validation-errors.test.ts` fails on a hand-rolled `Couldn't …` error toast).
   Each route group has an `error.tsx` boundary.
   `app/not-found.tsx` is the themed 404 for every unmatched URL: a static server component
   (no `headers()`/`cookies()`/session read, so `/_not-found` stays prerendered), one

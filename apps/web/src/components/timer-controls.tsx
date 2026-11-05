@@ -36,7 +36,7 @@ import {
   type PhaseLabelsConfig,
   type TimerStatus,
 } from "@/lib/config-types";
-import { describeTrpcError } from "@/lib/trpc-errors";
+import { toastMutationError } from "@/lib/validation-errors";
 import { trpc } from "@/utils/trpc";
 
 // The config stores durations in ms; the settings inputs edit whole minutes.
@@ -195,9 +195,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         timerConfigSaved(timerConfig),
       );
     },
-    onError: (err) => {
-      toast.error(`Couldn't save timer settings: ${describeTrpcError(err)}`);
-    },
+    onError: toastMutationError("save timer settings"),
   });
 
   // Fallback seeding for a config that arrives after mount (no hydrated cache).
@@ -239,38 +237,34 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const applyResult = (row: inferOutput<typeof trpc.timer.get>) =>
     applyTimerResult(queryClient, timerKey, row);
 
-  const mutationError = (action: string) => (err: unknown) => {
-    toast.error(`Couldn't ${action} the timer: ${describeTrpcError(err)}`);
-  };
-
   const start = useMutation({
     ...trpc.timer.start.mutationOptions(),
     onSuccess: applyResult,
-    onError: mutationError("start"),
+    onError: toastMutationError("start the timer"),
   });
 
   const pause = useMutation({
     ...trpc.timer.pause.mutationOptions(),
     onSuccess: applyResult,
-    onError: mutationError("pause"),
+    onError: toastMutationError("pause the timer"),
   });
 
   const resume = useMutation({
     ...trpc.timer.resume.mutationOptions(),
     onSuccess: applyResult,
-    onError: mutationError("resume"),
+    onError: toastMutationError("resume the timer"),
   });
 
   const skip = useMutation({
     ...trpc.timer.skip.mutationOptions(),
     onSuccess: applyResult,
-    onError: mutationError("skip"),
+    onError: toastMutationError("skip the timer"),
   });
 
   const reset = useMutation({
     ...trpc.timer.reset.mutationOptions(),
     onSuccess: applyResult,
-    onError: mutationError("stop"),
+    onError: toastMutationError("stop the timer"),
   });
 
   // The context gets each action's stable members, never the mutation object itself.

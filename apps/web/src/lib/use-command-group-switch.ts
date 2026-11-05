@@ -8,7 +8,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { applyConfigResult, botSettingsSaved } from "@/lib/config-cache";
-import { formatMutationError } from "@/lib/validation-errors";
+import { toastMutationError } from "@/lib/validation-errors";
 import { trpc } from "@/utils/trpc";
 
 export type CommandGroup = "task" | "timer";
@@ -29,11 +29,7 @@ export function useCommandGroupSwitch(group: CommandGroup, enabled: boolean) {
     ...trpc.config.updateBotSettings.mutationOptions(),
     onSuccess: (saved, sent) =>
       applyConfigResult(queryClient, trpc.config.get.queryKey(), botSettingsSaved(saved, sent)),
-    onError: (err) => {
-      toast.error(
-        `Couldn't switch ${COMMAND_GROUP_LABEL[group].toLowerCase()}: ${formatMutationError(err)}`,
-      );
-    },
+    onError: toastMutationError(`switch ${COMMAND_GROUP_LABEL[group].toLowerCase()}`),
   });
 
   const key = group === "task" ? "taskCommandsEnabled" : "timerCommandsEnabled";

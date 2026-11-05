@@ -20,7 +20,7 @@ import {
   useCommandGroupSwitch,
 } from "@/lib/use-command-group-switch";
 import { cn } from "@/lib/utils";
-import { formatMutationError } from "@/lib/validation-errors";
+import { toastMutationError } from "@/lib/validation-errors";
 import { CommandAliasEditor } from "@/components/bot-settings/command-alias-editor";
 import { CommandTable } from "@/components/bot-settings/command-table";
 import { SaveBar } from "@/components/save-bar";
@@ -113,9 +113,7 @@ function CommandsEditor({ config }: { config: BotConfigData }) {
     // The answer is the stored bot config: merged into config.get, never re-read.
     onSuccess: (saved, sent) =>
       applyConfigResult(queryClient, trpc.config.get.queryKey(), botSettingsSaved(saved, sent)),
-    onError: (err) => {
-      toast.error(`Couldn't save aliases: ${formatMutationError(err)}`);
-    },
+    onError: toastMutationError("save aliases"),
   });
 
   // The same shared validator the server runs; the editor flags each rejected row.
