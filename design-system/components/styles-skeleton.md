@@ -14,7 +14,8 @@ a client-side navigation starts; as the page's one progressive placeholder
 `lib/progressive.ts`), until it fills in from the same request; and by `styles-page.tsx` only
 when nothing was streamed and `config.get` is loading in the browser. A fast hard load never
 shows it: the route holds the `(app)` shell for its streamed batch (`lib/shell-hold.ts`), so
-the page arrives finished.
+the page arrives finished, and the layout's render gate holds the first paint until the
+document is parsed, so even a slow browser never paints the skeleton React writes ahead of it.
 
 ## Anatomy
 

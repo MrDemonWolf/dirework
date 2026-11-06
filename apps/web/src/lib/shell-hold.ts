@@ -12,27 +12,51 @@
 // throttle. A client navigation never runs the (app) layout, so its loading.tsx skeleton
 // still shows the instant a link is clicked. `/` and `/setup` need no hold: no loading.tsx
 // wraps them, so they render complete or answer a real redirect (shell-hold.test.ts).
+//
+// The hold alone narrows the window but cannot close it. React still writes the loading.tsx
+// fallbacks into the shell (each segment's Flight row decodes a tick after the shell
+// renders) and swaps the page in from hidden segments further down the same response, the
+// first reveal on the next animation frame and every later one at least 300ms after it. A
+// browser that gets a rendering opportunity while it is still parsing those ~100KB (a slow
+// phone; a CPU-starved CI runner: 20 of 20 hard loads at 6x CPU throttling) paints the
+// skeleton, reveals the first boundary, and holds the rest back 300ms. So when every held
+// piece of work finished, the layout also renders `RENDER_GATE_LINK`: a render-blocking
+// `<link rel="expect">` whose target id is never rendered, so the first paint waits until the
+// document is parsed and every reveal lands in that one frame. Only then: a page past the
+// SECTIONS_READY_MS deadline streams on, and its placeholders must paint at the deadline.
 
 import { cache } from "react";
 
 export interface ShellHold {
-  /** Register work the shell should wait for; returns the same promise. */
-  hold<T>(work: Promise<T>): Promise<T>;
-  /** Settles once every registered piece of work has, whether it resolved or threw. */
-  release(): Promise<void>;
+  /**
+   * Register work the shell should wait for; returns the same promise. `finished` says whether
+   * its value is the complete page (no data still streaming); without it, the work counts as
+   * unfinished.
+   */
+  hold<T>(work: Promise<T>, finished?: (value: T) => boolean): Promise<T>;
+  /**
+   * Settles once every registered piece of work has, whether it resolved or threw, with
+   * whether the shell may block the first paint on the whole document: something was held and
+   * all of it resolved finished.
+   */
+  release(): Promise<boolean>;
 }
 
 export function createShellHold(): ShellHold {
-  const held: Promise<unknown>[] = [];
+  const held: Promise<boolean>[] = [];
   return {
-    hold(work) {
-      held.push(work);
+    hold(work, finished) {
+      held.push(work.then((value) => finished?.(value) ?? false));
       return work;
     },
     async release() {
       // allSettled: a held redirect() or failure belongs to the page that threw it (its error
       // boundary or redirect), never to the layout, which must still render the shell.
-      await Promise.allSettled(held);
+      const results = await Promise.allSettled(held);
+      return (
+        results.length > 0 &&
+        results.every((result) => result.status === "fulfilled" && result.value)
+      );
     },
   };
 }
@@ -40,12 +64,32 @@ export function createShellHold(): ShellHold {
 /** One hold per server request (React `cache` scopes it to the render). */
 const requestShellHold = cache(createShellHold);
 
-/** Page side: `const state = await holdShellFor(loadData())`, called before any await. */
-export function holdShellFor<T>(work: Promise<T>): Promise<T> {
-  return requestShellHold().hold(work);
+/**
+ * Page side: `const state = await holdShellFor(loadData(), finished)`, called before any
+ * await. `finished` tells the layout the page's data all arrived, so the first paint may wait
+ * for the whole document (`RENDER_GATE_LINK`).
+ */
+export function holdShellFor<T>(work: Promise<T>, finished?: (value: T) => boolean): Promise<T> {
+  return requestShellHold().hold(work, finished);
 }
 
-/** Layout side: await after the layout's own data, before returning the shell. */
-export function shellReleased(): Promise<void> {
+/**
+ * Layout side: await after the layout's own data, before returning the shell. True when the
+ * held page is complete, and the layout renders `RENDER_GATE_LINK`.
+ */
+export function shellReleased(): Promise<boolean> {
   return requestShellHold().release();
 }
+
+/**
+ * Props of the render-blocking link the (app) layout puts in `<head>` (React hoists a
+ * `<link>`) for a finished held page. Chromium blocks rendering on a `rel="expect"` link until
+ * an element with its target id is parsed, or until the document is, and the id is never
+ * rendered, so the first frame comes after the last reveal script. Browsers without
+ * `rel="expect"` ignore it, and one inserted after the body (a client render) blocks nothing.
+ */
+export const RENDER_GATE_LINK = {
+  rel: "expect",
+  href: "#dw-document-end",
+  blocking: "render",
+} as const;

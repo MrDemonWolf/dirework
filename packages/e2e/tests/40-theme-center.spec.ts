@@ -30,12 +30,21 @@ async function expectTabReentryOnChecked(page: Page, group: Locator): Promise<vo
 
 test("a hard load paints the finished page, never the loading skeleton", async ({ page }) => {
   await signIn(page);
+  // Warm the route first, as 22-progressive does: a cold start is not the case under test. Run
+  // first after the servers boot, this spec's first render loads the route's modules and wakes
+  // the api isolate and D1, and a batch slower than SECTIONS_READY_MS (800ms) paints the
+  // page's placeholder by design. A server render with no page, so nothing else is in flight.
+  expect((await page.request.get("/dashboard/styles")).ok()).toBe(true);
   await recordSkeletonFrames(page);
   await page.goto("/dashboard/styles");
   await waitForHydration(page);
   await expect(page.getByRole("radiogroup", { name: "Theme presets" })).toBeVisible();
   await page.waitForTimeout(500);
   expect(await skeletonFrames(page), "frames that showed the loading skeleton").toEqual([]);
+  // The page arrived whole, so its first paint waited for the whole document: React still
+  // writes loading.tsx's skeleton ahead of the page, and a browser busy parsing the response
+  // painted it (lib/shell-hold.ts, RENDER_GATE_LINK).
+  await expect(page.locator('head link[rel="expect"][blocking="render"]')).toHaveCount(1);
 });
 
 test("fits a 390px phone, with the preview one tap away above the editors", async ({ page }) => {

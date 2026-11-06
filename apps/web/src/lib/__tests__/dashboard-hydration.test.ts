@@ -29,7 +29,7 @@ describe("dashboard SSR hydration", () => {
   ])("%s wraps its tree in a HydrationBoundary fed by %s", (file, prefetch) => {
     const page = read(file);
     expect(page).toContain("<HydrationBoundary state={state}>");
-    // Inside the loader the page holds the shell for (`await holdShellFor(loadStyles())`);
+    // Inside the loader the page holds the shell for (`await holdShellFor(loadStyles(), everyQuerySettled)`);
     // shell-hold.test.ts pins that wiring.
     // Started through the owner loader (lib/auth-guard.ts), which gates it on the session.
     expect(page).toContain(`loadAsOwner(${prefetch})`);

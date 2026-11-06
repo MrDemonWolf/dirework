@@ -302,8 +302,11 @@ test("Theme Center: a slow config.get paints its skeleton at the deadline, then 
   );
   expect(responseStart, "ms until the page's first byte").toBeLessThan(1500);
 
-  // The page's placeholder (the StylesSkeleton) is on screen; the editors are not yet.
+  // The page's placeholder (the StylesSkeleton) is on screen; the editors are not yet. No
+  // render gate (lib/shell-hold.ts): the config is still streaming, so the first paint must not
+  // wait for the end of the document.
   await expect(page.locator('main [data-placeholder="styles"]')).toBeVisible();
+  await expect(page.locator('link[rel="expect"]')).toHaveCount(0);
   await expect(page.getByRole("radiogroup", { name: "Theme presets" })).toHaveCount(0);
 
   // Then the page fills in by itself, from the same request.

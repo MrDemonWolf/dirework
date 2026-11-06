@@ -5,6 +5,7 @@ import { HydrationBoundary } from "@tanstack/react-query";
 
 import { loadAsOwner } from "@/lib/auth-guard";
 import { streamStyles } from "@/lib/server-query";
+import { everyQuerySettled } from "@/lib/progressive";
 import { holdShellFor } from "@/lib/shell-hold";
 import StylesPage from "./styles-page";
 import { StylesSection } from "./styles-section";
@@ -29,7 +30,7 @@ async function loadStyles() {
  * still shows that skeleton instantly.
  */
 export default async function StylesRoute() {
-  const state = await holdShellFor(loadStyles());
+  const state = await holdShellFor(loadStyles(), everyQuerySettled);
 
   return (
     <>
