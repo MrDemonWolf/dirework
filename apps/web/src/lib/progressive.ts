@@ -27,7 +27,7 @@
 // included, inside the ~1s that still reads as one uninterrupted step, and only an api
 // that slow shows placeholders, the honest signal that it is slow.
 
-import type { QueryClient, QueryKey } from "@tanstack/react-query";
+import type { DehydratedState, QueryClient, QueryKey } from "@tanstack/react-query";
 
 /** First-paint deadline: sections whose data is slower show a placeholder and stream in. */
 export const SECTIONS_READY_MS = 800;
@@ -48,6 +48,15 @@ export function sectionsReady(
       resolve();
     });
   });
+}
+
+/**
+ * Whether a streamed batch arrived whole: no query was dehydrated still in flight (each one
+ * past the deadline streams in after the shell, behind its section's placeholder). The shell
+ * hold's `finished` check (lib/shell-hold.ts).
+ */
+export function everyQuerySettled(state: DehydratedState): boolean {
+  return state.queries.every((query) => query.state.status !== "pending");
 }
 
 /** A promise React's `use()` reads synchronously once it carries `status: "fulfilled"`. */

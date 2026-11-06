@@ -3,6 +3,7 @@ import { HydrationBoundary } from "@tanstack/react-query";
 
 import { loadAsOwner } from "@/lib/auth-guard";
 import { streamBot } from "@/lib/server-query";
+import { everyQuerySettled } from "@/lib/progressive";
 import { holdShellFor } from "@/lib/shell-hold";
 
 /**
@@ -28,7 +29,7 @@ async function loadBot() {
  * skeleton that swaps 300ms later. A client navigation still shows that skeleton instantly.
  */
 export default async function BotSectionsLayout({ children }: { children: React.ReactNode }) {
-  const state = await holdShellFor(loadBot());
+  const state = await holdShellFor(loadBot(), everyQuerySettled);
 
   return (
     <Suspense>

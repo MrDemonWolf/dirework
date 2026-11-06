@@ -4,7 +4,12 @@ import path from "node:path";
 import { dehydrate, hydrate, QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SECTIONS_READY_MS, sectionsReady, sectionWait } from "@/lib/progressive";
+import {
+  everyQuerySettled,
+  SECTIONS_READY_MS,
+  sectionsReady,
+  sectionWait,
+} from "@/lib/progressive";
 
 const src = path.resolve(import.meta.dirname, "../..");
 const read = (file: string) => readFileSync(path.join(src, file), "utf8");
@@ -89,6 +94,39 @@ function hydratedWhilePending(keys: string[]) {
   return { browser, fetches };
 }
 
+describe("everyQuerySettled (may the first paint wait for the whole document)", () => {
+  /** What `streamQueries` dehydrates: successes, failures and the queries still in flight. */
+  async function streamed(outcomes: Record<string, "ok" | "fail" | "pending">) {
+    const server = new QueryClient();
+    const done: Promise<void>[] = [];
+    for (const [key, outcome] of Object.entries(outcomes)) {
+      const fetch = server.prefetchQuery({
+        queryKey: [key],
+        queryFn: () =>
+          outcome === "ok"
+            ? Promise.resolve(key)
+            : outcome === "fail"
+              ? Promise.reject(new Error(key))
+              : new Promise<string>(() => {}),
+        retry: false,
+      });
+      if (outcome !== "pending") done.push(fetch);
+    }
+    await Promise.all(done);
+    return dehydrate(server, { shouldDehydrateQuery: () => true });
+  }
+
+  it("is true when every query answered by the deadline, failures included", async () => {
+    expect(everyQuerySettled(await streamed({ me: "ok", tasks: "ok" }))).toBe(true);
+    // A failed query renders its section's error state now; nothing streams in later.
+    expect(everyQuerySettled(await streamed({ me: "ok", tasks: "fail" }))).toBe(true);
+  });
+
+  it("is false while any query is still streaming (its placeholder must paint)", async () => {
+    expect(everyQuerySettled(await streamed({ me: "ok", tasks: "pending" }))).toBe(false);
+  });
+});
+
 describe("sectionWait (what a section suspends on)", () => {
   it("waits for nothing when every query already has data (warm cache)", () => {
     const client = new QueryClient();
@@ -137,7 +175,7 @@ describe("dashboard wiring", () => {
   const dashboard = read("app/(app)/dashboard/dashboard.tsx");
 
   it("holds the shell for the streamed batch's deadline, never for the full batch", () => {
-    expect(page).toContain("holdShellFor(loadDashboard())");
+    expect(page).toContain("holdShellFor(loadDashboard(),");
     expect(page).toContain("loadAsOwner(streamDashboard)");
     expect(page).not.toMatch(/await prefetch/);
   });
@@ -155,7 +193,7 @@ describe("dashboard wiring", () => {
 describe("Theme Center wiring", () => {
   it("holds the shell for the streamed config's deadline, never for the whole fetch", () => {
     const page = read("app/(app)/dashboard/styles/page.tsx");
-    expect(page).toContain("holdShellFor(loadStyles())");
+    expect(page).toContain("holdShellFor(loadStyles(), everyQuerySettled)");
     expect(page).toContain("loadAsOwner(streamStyles)");
     expect(page).not.toMatch(/prefetch\w*\(/);
   });

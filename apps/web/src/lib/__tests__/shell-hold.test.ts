@@ -1,8 +1,8 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { createShellHold } from "@/lib/shell-hold";
+import { createShellHold, RENDER_GATE_LINK } from "@/lib/shell-hold";
 
 const read = (rel: string) => readFileSync(path.join(__dirname, "../..", rel), "utf8");
 
@@ -73,8 +73,31 @@ describe("createShellHold", () => {
     page.catch(() => {});
     const release = hold.release();
     failing.reject(new Error("NEXT_REDIRECT"));
-    await expect(release).resolves.toBeUndefined();
+    // Released, but unfinished: the page that threw renders no complete content.
+    await expect(release).resolves.toBe(false);
     await expect(page).rejects.toThrow("NEXT_REDIRECT");
+  });
+
+  it("reports the page finished only when every held value passes its check", async () => {
+    const finished = (state: { pending: number }) => state.pending === 0;
+
+    const complete = createShellHold();
+    complete.hold(Promise.resolve({ pending: 0 }), finished);
+    complete.hold(Promise.resolve({ pending: 0 }), finished);
+    expect(await complete.release()).toBe(true);
+
+    // One section past the deadline is still streaming: its placeholder must paint.
+    const partial = createShellHold();
+    partial.hold(Promise.resolve({ pending: 0 }), finished);
+    partial.hold(Promise.resolve({ pending: 1 }), finished);
+    expect(await partial.release()).toBe(false);
+  });
+
+  it("never reports finished for nothing held, or work held without a check", async () => {
+    expect(await createShellHold().release()).toBe(false);
+    const unchecked = createShellHold();
+    unchecked.hold(Promise.resolve({ pending: 0 }));
+    expect(await unchecked.release()).toBe(false);
   });
 
   it("keeps holds separate per instance (one per request)", async () => {
@@ -98,7 +121,9 @@ describe("shell hold wiring", () => {
     const body = page.slice(page.indexOf("export default async function"));
     // The first await in the route must be the held one: Next renders the layout and the page
     // in parallel, and only work registered before the layout's own await settles is held.
-    expect(body.match(/await [^;]+/)?.[0]).toBe("await holdShellFor(loadStyles())");
+    expect(body.match(/await [^;]+/)?.[0]).toBe(
+      "await holdShellFor(loadStyles(), everyQuerySettled)",
+    );
   });
 
   it("the Bot settings (sections) layout registers its streamed batch before awaiting", () => {
@@ -106,7 +131,37 @@ describe("shell hold wiring", () => {
     // hold the shell too; its loader waits at most SECTIONS_READY_MS (lib/progressive.ts).
     const layout = read("app/(app)/dashboard/bot/(sections)/layout.tsx");
     const body = layout.slice(layout.indexOf("export default async function"));
-    expect(body.match(/await [^;]+/)?.[0]).toBe("await holdShellFor(loadBot())");
+    expect(body.match(/await [^;]+/)?.[0]).toBe("await holdShellFor(loadBot(), everyQuerySettled)");
+  });
+
+  it("the dashboard registers its streamed batch, with the settled check, before awaiting", () => {
+    const page = read("app/(app)/dashboard/page.tsx");
+    const body = page.slice(page.indexOf("export default async function"));
+    expect(body.match(/await [^;]+/)?.[0].replace(/\s+/g, " ")).toBe(
+      "await holdShellFor(loadDashboard(), (page) => everyQuerySettled(page.state), )",
+    );
+  });
+
+  it("the (app) layout blocks the first paint on the document only for a finished page", () => {
+    // Without the gate, a browser that paints while it parses the response shows the
+    // loading.tsx skeleton React still writes ahead of the page, then holds the page back
+    // 300ms (React's reveal throttle). With it on a page still streaming, that page's
+    // placeholders could not paint at the SECTIONS_READY_MS deadline.
+    const layout = read("app/(app)/layout.tsx");
+    expect(layout).toContain("const pageFinished = await shellReleased()");
+    expect(layout).toContain("{pageFinished && <link {...RENDER_GATE_LINK} />}");
+    expect(RENDER_GATE_LINK).toEqual({
+      rel: "expect",
+      href: expect.stringMatching(/^#[a-z-]+$/),
+      blocking: "render",
+    });
+    // The target id is never rendered: the gate lifts when the document is parsed.
+    const id = RENDER_GATE_LINK.href.slice(1);
+    const srcDir = path.join(__dirname, "../..");
+    const sources = (readdirSync(srcDir, { recursive: true }) as string[])
+      .filter((file) => /\.tsx?$/.test(file) && !file.includes("__tests__"))
+      .filter((file) => readFileSync(path.join(srcDir, file), "utf8").includes(id));
+    expect(sources).toEqual([path.join("lib", "shell-hold.ts")]);
   });
 });
 

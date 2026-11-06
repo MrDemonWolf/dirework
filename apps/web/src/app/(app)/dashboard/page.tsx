@@ -4,6 +4,7 @@ import { HydrationBoundary } from "@tanstack/react-query";
 
 import { loadAsOwner } from "@/lib/auth-guard";
 import { streamDashboard } from "@/lib/server-query";
+import { everyQuerySettled } from "@/lib/progressive";
 import { holdShellFor } from "@/lib/shell-hold";
 import Dashboard from "./dashboard";
 
@@ -27,7 +28,9 @@ async function loadDashboard() {
  * (React's streamed-reveal throttle). A client navigation still shows loading.tsx instantly.
  */
 export default async function DashboardPage() {
-  const { session, state } = await holdShellFor(loadDashboard());
+  const { session, state } = await holdShellFor(loadDashboard(), (page) =>
+    everyQuerySettled(page.state),
+  );
 
   return (
     <HydrationBoundary state={state}>

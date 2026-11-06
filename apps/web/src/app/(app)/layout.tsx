@@ -15,7 +15,7 @@ import { VersionBadge } from "@/components/version-badge";
 import { headingFontBodyCss } from "@/lib/heading-font";
 import { landingLinks } from "@/lib/landing-links";
 import { getServerSession } from "@/lib/server-session";
-import { shellReleased } from "@/lib/shell-hold";
+import { RENDER_GATE_LINK, shellReleased } from "@/lib/shell-hold";
 
 // The install manifest (public/manifest.webmanifest) and the iOS home-screen tags live here, not in the
 // root layout, so an OBS overlay or the bot console never fetches the manifest.
@@ -37,7 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await getServerSession().catch(() => null);
   // A page that registered its prefetch (lib/shell-hold.ts) is written into this shell
   // finished, instead of streaming its loading.tsx skeleton first. A no-op for the others.
-  await shellReleased();
+  const pageFinished = await shellReleased();
   // Plain worker vars surfaced through process.env by OpenNext — the web
   // worker has no @dirework/env/server (that module is cloudflare:workers +
   // D1 bindings owned by the api worker).
@@ -52,6 +52,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // overlays and the bot page never load next-themes (components/providers.tsx).
   return (
     <Providers>
+      {/* A finished held page: the first paint waits for the whole document, so no browser
+          paints the loading.tsx skeleton React still writes ahead of it (lib/shell-hold.ts). */}
+      {pageFinished && <link {...RENDER_GATE_LINK} />}
       {/* The heading face (preloaded) is published from this layout, not the root, so OBS
           overlays never fetch it; `--font-heading` in index.css falls back to the body face
           wherever the variable is absent. It goes on <body> rather than this wrapper because

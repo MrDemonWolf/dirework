@@ -113,10 +113,17 @@ still shows instantly. `/dashboard` (on `loadDashboard`), `/dashboard/styles` (o
 parallel with the `(app)` layout just like a page) opt in, each loader waiting at most
 `SECTIONS_READY_MS` (Progressive sections, below); `shell-hold.test.ts` and
 `progressive.test.ts` pin the wiring, and `40-theme-center` / `22-progressive` assert no
-painted frame shows a skeleton on a fast load. The hold narrows the window rather than
-removing the fallback: React still writes it into the shell and reveals the page from a
-hidden segment right behind it, so a browser that paints in between (seen only on a
-CPU-starved machine) still shows it for the 300ms reveal throttle. Not a PPR static shell:
+painted frame shows a skeleton on a fast load. The hold alone narrows the window but can't
+remove the fallback: React still writes it into the shell and reveals the page from hidden
+segments further down the same response (first reveal on the next frame, each later one
+≥300ms after it), so a browser that paints while still parsing (a slow phone, a CPU-starved
+runner: 20 of 20 loads at 6x CPU throttling) showed it for the 300ms throttle. So when the held
+work finished (`holdShellFor(load(), everyQuerySettled)`; `shellReleased()` answers whether all
+of it did), the `(app)` layout also renders `RENDER_GATE_LINK`, a `<link rel="expect"
+blocking="render">` (React hoists it into `<head>`) whose target id is never rendered, so
+Chromium holds the first paint until the document is parsed and every reveal lands in one
+frame; other browsers ignore it. Never on a page past the deadline: its placeholders must paint
+at the deadline (`22-progressive` checks the link is absent there). Not a PPR static shell:
 Cache Components and Partial Prefetching stay off while OpenNext can't serve them, and a static
 shell would paint its Suspense fallbacks first (`docs/decisions/0002-rendering-and-caching.md`,
 pinned by `rendering-and-caching.test.ts`).

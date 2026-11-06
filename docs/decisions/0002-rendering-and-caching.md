@@ -8,8 +8,9 @@
 
 The web Worker (Next 16 through `@opennextjs/cloudflare`) renders every app page per
 request. Pages arrive complete: the `(app)` layout holds its shell until the page's data is
-in (`lib/shell-hold.ts`), and only a section slower than 800 ms streams in afterwards
-(`lib/progressive.ts`). AGENTS.md "Shell hold" and "Progressive sections" explain why: a
+in (`lib/shell-hold.ts`; a finished page also blocks the first paint until the document is
+parsed, with a `rel="expect"` render gate), and only a section slower than 800 ms streams in
+afterwards (`lib/progressive.ts`). AGENTS.md "Shell hold" and "Progressive sections" explain why: a
 streamed skeleton stayed on screen for ~300 ms because of React's reveal throttle.
 
 The incremental cache is OpenNext's read-only static-assets cache
