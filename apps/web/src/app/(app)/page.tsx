@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { landingLinks } from "@/lib/landing-links";
-import { getInstanceOwned, getServerSession } from "@/lib/server-session";
+import { getInstanceOwnedLatched, getServerSession } from "@/lib/server-session";
 import { resolveSignInError } from "@/lib/sign-in-errors";
 import { ViewerLanding } from "./viewer-landing";
 
@@ -9,7 +9,8 @@ import { ViewerLanding } from "./viewer-landing";
  * No loading.tsx wraps this page or /setup (shell-hold.test.ts pins it), so nothing streams
  * until these checks answer: the owner and an unclaimed instance get a real 307, and a visitor
  * gets the finished landing in one paint. A client navigation here keeps the previous page
- * until this one is ready.
+ * until this one is ready. The ownership check is latched per isolate once the instance is
+ * claimed (`getInstanceOwnedLatched`), so a visitor's landing usually costs no api request.
  */
 export default async function Home({
   searchParams,
@@ -17,7 +18,7 @@ export default async function Home({
   searchParams: Promise<{ error?: string | string[] }>;
 }) {
   const [owned, session, params] = await Promise.all([
-    getInstanceOwned(),
+    getInstanceOwnedLatched(),
     getServerSession(),
     searchParams,
   ]);

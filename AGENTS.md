@@ -129,11 +129,17 @@ the redirect could only run client-side behind it (an owner's `/` painted that s
 the dashboard's own) and a visitor's landing waited out the reveal throttle; a shell hold only
 narrowed that. The cost is TTFB: `/` answers once both checks are back, then paints once; for a
 visitor with no session cookie the session check is free (no get-session fetch), so it waits
-on `user.hasOwner` alone. `shell-hold.test.ts` pins the missing
+on `user.hasOwner` alone — and only until the isolate has seen the instance claimed: `/` uses
+`getInstanceOwnedLatched` (`lib/server-session.ts`), a module-scope one-way latch set only by
+a real `hasOwner === true` answer (never by the fail-safe `true` on an error or timeout), after
+which a cookie-less `/` costs the api nothing. Claimed is monotone (only a manual D1 reset
+undoes it), so this is the one allowed module flag; `/setup` keeps the fresh
+`getInstanceOwned`, so after a reset the claim page is at `/setup` while `/` may show the
+landing until the isolate recycles or the next deploy. `shell-hold.test.ts` pins the missing
 boundary and every dashboard route's own; `15-landing` asserts the finished `<main>` in the
-first HTML response, no painted skeleton frame (with `user.hasOwner` slowed through the e2e
-api's `/__e2e/delay`: on localhost it answers within a frame of the session) and the owner's
-307; `00-first-run` the unclaimed 307, the claimed 404 and the owner's 307 from `/setup`.
+first HTML response, a latched landing costing the api zero requests, no painted skeleton
+frame (with `user.hasOwner` slowed through the e2e api's `/__e2e/delay`: on localhost it
+answers within a frame of the session) and the owner's 307; `00-first-run` the unclaimed 307, the claimed 404 and the owner's 307 from `/setup`.
 **Progressive sections** (`/dashboard`, Bot settings, Theme Center; any page can opt in). `streamQueries(start)` starts the
 page's batch and waits for it only until every query settles or `SECTIONS_READY_MS` (800ms,
 `lib/progressive.ts`) passes, then dehydrates successes as data and the queries still in
