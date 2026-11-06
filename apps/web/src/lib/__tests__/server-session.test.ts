@@ -219,4 +219,85 @@ describe("getInstanceOwned", () => {
     });
     await expect(getInstanceOwned()).resolves.toBe(true);
   });
+
+  it("fails safe to claimed on a non-boolean hasOwner", async () => {
+    mockFetch(async () => Response.json({ result: { data: 0 } }));
+    await expect(getInstanceOwned()).resolves.toBe(true);
+  });
+
+  it("always asks the api, even after a claimed answer (/setup after a D1 reset)", async () => {
+    const fetchMock = mockFetch(async () => Response.json({ result: { data: true } }));
+    await getInstanceOwned();
+    await getInstanceOwned();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    mockFetch(async () => Response.json({ result: { data: false } }));
+    await expect(getInstanceOwned()).resolves.toBe(false);
+  });
+});
+
+describe("getInstanceOwnedLatched", () => {
+  /** A fresh copy of the module per test, so each starts with the latch open. */
+  async function freshLatched() {
+    vi.resetModules();
+    return (await import("../server-session")).getInstanceOwnedLatched;
+  }
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("stops asking the api once it has answered claimed", async () => {
+    const latched = await freshLatched();
+    const fetchMock = mockFetch(async () => Response.json({ result: { data: true } }));
+
+    await expect(latched()).resolves.toBe(true);
+    await expect(latched()).resolves.toBe(true);
+    await expect(latched()).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toMatch(/\/trpc\/user\.hasOwner$/);
+  });
+
+  it("keeps asking while the instance is unclaimed, and latches on the claim", async () => {
+    const latched = await freshLatched();
+    let owned = false;
+    const fetchMock = mockFetch(async () => Response.json({ result: { data: owned } }));
+
+    await expect(latched()).resolves.toBe(false);
+    await expect(latched()).resolves.toBe(false);
+    owned = true;
+    await expect(latched()).resolves.toBe(true);
+    owned = false; // a D1 reset: only /setup's unlatched check sees it
+    await expect(latched()).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it.each<[string, () => Promise<Response>]>([
+    ["an error status", async () => new Response("down", { status: 503 })],
+    ["a malformed body", async () => Response.json({})],
+    ["a non-JSON body", async () => new Response("<!DOCTYPE html>", { status: 200 })],
+    [
+      "a timeout",
+      async () => {
+        const err = new Error("The operation was aborted due to timeout");
+        err.name = "TimeoutError";
+        throw err;
+      },
+    ],
+    [
+      "a network failure",
+      async () => {
+        throw new TypeError("fetch failed");
+      },
+    ],
+  ])("fails safe to claimed on %s without latching it", async (_label, failure) => {
+    const latched = await freshLatched();
+    mockFetch(failure);
+    await expect(latched()).resolves.toBe(true);
+
+    // The api comes back and says unclaimed: the fail-safe answer must not have stuck.
+    const fetchMock = mockFetch(async () => Response.json({ result: { data: false } }));
+    await expect(latched()).resolves.toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

@@ -120,24 +120,59 @@ export async function requestHasSessionCookie(): Promise<boolean> {
 }
 
 /**
- * Whether this single-tenant instance has already been claimed by an owner.
- *
- * Delegates to the api worker's public `user.hasOwner` tRPC query (no input,
- * no credentials). Fails safe to `true` (claimed) so a transient api-worker
- * error shows the login page instead of the setup/claim flow — better-auth's
- * user-create hook on the api worker is the real single-owner enforcement.
+ * Asks the api worker's public `user.hasOwner` tRPC query (no input, no credentials) whether
+ * the instance is claimed. Answers the boolean only when the api answered 2xx with one;
+ * anything else (error status, timeout, network error, malformed body) is null: unknown.
  */
-export async function getInstanceOwned(): Promise<boolean> {
+async function askHasOwner(): Promise<boolean | null> {
   try {
     const res = await fetch(`${apiOrigin()}/trpc/user.hasOwner`, {
       headers: await stampForwardedClient(new Headers(), await headers()),
       cache: "no-store",
       signal: AbortSignal.timeout(INTERNAL_FETCH_TIMEOUT_MS),
     });
-    if (!res.ok) return true;
+    if (!res.ok) return null;
     const body = (await res.json()) as { result?: { data?: unknown } };
-    return Boolean(body?.result?.data ?? true);
+    const data = body?.result?.data;
+    return typeof data === "boolean" ? data : null;
   } catch {
-    return true;
+    return null;
   }
+}
+
+/**
+ * Whether this single-tenant instance has already been claimed by an owner.
+ *
+ * Fails safe to `true` (claimed) when the api can't answer, so a transient api-worker error
+ * shows the login page instead of the setup/claim flow — better-auth's user-create hook on
+ * the api worker is the real single-owner enforcement. Always asks: `/setup` uses this, so
+ * after a manual D1 owner reset the claim page comes back at once.
+ */
+export async function getInstanceOwned(): Promise<boolean> {
+  return (await askHasOwner()) ?? true;
+}
+
+/**
+ * Set once this isolate has seen the api answer `hasOwner === true`, and never cleared.
+ *
+ * Allowed despite the "no module singletons" rule (AGENTS.md "Per-request factories"): it is
+ * not db/auth/emitter state and holds nothing from any request, only a fact that is monotone
+ * in the app: a claimed instance stays claimed (the only way back is a manual D1 reset,
+ * deployment.mdx "Recovering an instance someone else claimed"). A fail-safe `true` (error,
+ * timeout, malformed body) never sets it, so an api blip can't hide the claim page for the
+ * isolate's lifetime.
+ */
+let claimedLatch = false;
+
+/**
+ * `getInstanceOwned` for `/` only: once this isolate has seen the instance claimed, it skips
+ * the `user.hasOwner` fetch (an api request plus a D1 read on every visitor's landing).
+ * After a D1 reset `/` may show the claimed landing until the isolate recycles or the next
+ * deploy; `/setup` keeps the fresh check, so the claim page still works there.
+ */
+export async function getInstanceOwnedLatched(): Promise<boolean> {
+  if (claimedLatch) return true;
+  const answer = await askHasOwner();
+  if (answer === true) claimedLatch = true;
+  return answer ?? true;
 }

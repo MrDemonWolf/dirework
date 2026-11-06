@@ -361,8 +361,11 @@ it again.
    | `DELETE FROM bot_account` | disconnects any bot account they connected |
    | `DELETE FROM instance_config` | discards the overlay and bot URLs they could see, plus the cached chat channel (`channel_login`) that would still point your bot at *their* channel. Fresh tokens are generated on your next sign-in |
 
-3. **Sign in immediately** at `https://dirework.<your-subdomain>.workers.dev` with your
-   streamer account — the setup screen is back, and the first sign-in claims it again.
+3. **Sign in immediately** at `https://dirework.<your-subdomain>.workers.dev/setup` with
+   your streamer account — the setup screen is back, and the first sign-in claims it again.
+   Open `/setup` directly: the home page remembers that the instance was claimed, so until
+   the web worker's instances recycle or you next deploy, `/` may still show the "already
+   claimed" landing.
 4. **Re-copy your OBS URLs.** The timer overlay, task overlay and bot page URLs all changed
    in step 2, so update each OBS browser source (Dashboard → OBS sources, Dashboard → Bot), then
    reconnect your bot account.

@@ -51,17 +51,18 @@ test("the landing page makes no tRPC requests", async ({ page }) => {
   expect(rpc).toEqual([]);
 });
 
-test("a cookie-less visitor's landing never asks the api for a session", async ({ page }) => {
+test("a cookie-less visitor's landing costs the api no request", async ({ page }) => {
   // No better-auth session cookie means no session to look up, so getServerSession answers
-  // null itself: the landing costs the api one request (user.hasOwner), not two.
+  // null itself. And once the web isolate has seen the instance claimed, `/` stops asking
+  // `user.hasOwner` (getInstanceOwnedLatched): the landing costs the api nothing.
   const tally = async (): Promise<Record<string, number>> =>
     (await page.request.get(`${API_ORIGIN}/__e2e/requests`)).json();
+  // One load that may still have to ask (this spec run alone, on a fresh web worker) latches it.
+  expect((await page.request.get("/", { maxRedirects: 0 })).status()).toBe(200);
   await tally();
   const res = await page.request.get("/", { maxRedirects: 0 });
   expect(res.status()).toBe(200);
-  const served = await tally();
-  expect(served["/api/auth/get-session"]).toBeUndefined();
-  expect(served["/trpc/user.hasOwner"]).toBe(1);
+  expect(await tally()).toEqual({});
 });
 
 test("the first HTML response already holds the finished landing", async ({ page }) => {
@@ -80,7 +81,9 @@ test("a hard load paints the finished landing, never the loading skeleton", asyn
   // The ownership check (`user.hasOwner`) is slowed so it answers well after the (app)
   // layout's session check (in production it trailed by 80-100ms; on localhost the two land
   // within a frame of each other, too close for a paint in between). A loading boundary would
-  // stream its skeleton in that gap; with none, the first paint waits for the whole page.
+  // stream its skeleton in that gap; with none, the first paint waits for the whole page. By
+  // now this web worker has latched the claim, so `/` skips the check; the delay is kept so
+  // the test still covers that gap on a fresh isolate's first load (or if the latch goes).
   await setApiDelay(page, "user.hasOwner=1500");
   try {
     await recordSkeletonFrames(page);
