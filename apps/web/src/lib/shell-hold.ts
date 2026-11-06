@@ -46,17 +46,23 @@ export function createShellHold(): ShellHold {
   const held: Promise<boolean>[] = [];
   return {
     hold(work, finished) {
-      held.push(work.then((value) => finished?.(value) ?? false));
+      // The bookkeeping promise handles its own rejection: on a client navigation the retained
+      // (app) layout never calls release(), so a failed load (a redirect, an api outage) would
+      // otherwise surface as an unhandled rejection beside the page's own, handled one.
+      held.push(
+        work.then(
+          (value) => finished?.(value) ?? false,
+          () => false,
+        ),
+      );
       return work;
     },
     async release() {
-      // allSettled: a held redirect() or failure belongs to the page that threw it (its error
-      // boundary or redirect), never to the layout, which must still render the shell.
-      const results = await Promise.allSettled(held);
-      return (
-        results.length > 0 &&
-        results.every((result) => result.status === "fulfilled" && result.value)
-      );
+      // A held redirect() or failure belongs to the page that threw it (its error boundary or
+      // redirect), never to the layout, which must still render the shell: each held entry
+      // already resolves (a failure to false), so nothing thrown reaches here.
+      const results = await Promise.all(held);
+      return results.length > 0 && results.every(Boolean);
     },
   };
 }

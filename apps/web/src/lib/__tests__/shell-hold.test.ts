@@ -78,6 +78,23 @@ describe("createShellHold", () => {
     await expect(page).rejects.toThrow("NEXT_REDIRECT");
   });
 
+  it("leaves no unhandled rejection when held work throws and nothing releases (client navigation)", async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const hold = createShellHold();
+      const failing = deferred<never>();
+      const page = hold.hold(failing.promise, () => true);
+      page.catch(() => {});
+      failing.reject(new Error("NEXT_REDIRECT"));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+
   it("reports the page finished only when every held value passes its check", async () => {
     const finished = (state: { pending: number }) => state.pending === 0;
 
